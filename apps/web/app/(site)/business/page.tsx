@@ -11,7 +11,7 @@ export const metadata = { title: "For Business" };
 const POINTS = [
   ["One vendor for every site", "Cleaning, windows, grounds, snow-season prep, junk-outs and repairs under one contract."],
   ["SLA dashboard", "Every visit time-stamped with photos. See completion and response times by location."],
-  ["Net terms & one invoice", "Consolidated monthly billing, PO numbers and cost centers."],
+  ["Prepaid monthly billing", "One invoice per month, paid in advance by card or ACH — PO numbers and cost centers included."],
   ["Backup crews built in", "If a pro can’t make it, AI dispatch re-routes to the next qualified crew automatically."],
 ];
 

@@ -145,3 +145,21 @@ export const money = (v: number | null | undefined) =>
   v == null ? "—" : v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export const moneyRange = (lo: number, hi: number) => (lo === hi ? money(lo) : `${money(lo)} – ${money(hi)}`);
+
+/**
+ * Who covers a refund. Upfront payment means the customer has already paid; making it
+ * right never pushes the job below $0 for us:
+ *  - shared (default): the refund comes out of the pro's payout and our take in the same
+ *    proportion as the original split, so our take % is unchanged
+ *  - pro at fault: the pro's payout absorbs the refund first; we only cover what's left
+ * The refund can't exceed what the customer paid minus earlier refunds.
+ */
+export function refundSplit(opts: { paid: number; alreadyRefunded: number; payout: number; refund: number; proAtFault?: boolean }) {
+  const refundable = Math.max(0, opts.paid - opts.alreadyRefunded);
+  const refund = Math.round(Math.min(Math.max(0, opts.refund), refundable) * 100) / 100;
+  const ratio = opts.paid > 0 ? opts.payout / opts.paid : 0;
+  const fromPro = opts.proAtFault ? Math.min(refund, opts.payout) : Math.floor(refund * ratio * 100) / 100;
+  const fromUs = Math.round((refund - fromPro) * 100) / 100;
+  const take = opts.paid - opts.payout;
+  return { refund, fromPro, fromUs, newPayout: Math.round((opts.payout - fromPro) * 100) / 100, takeAfter: Math.round((take - fromUs) * 100) / 100 };
+}

@@ -25,7 +25,7 @@ How to help:
 - Quote only numbers returned by get_estimate, as a range. Mention that photos + notes at booking can tighten the price.
 - For tree work and remodels, explain a pro confirms the firm price on a free site visit.
 - When the customer is ready, point them to /book?service=<slug>. If they'd rather be called, collect name + phone/email and call save_lead.
-- Guarantee: if it's not right, we come back and fix it within ${BRAND.guaranteeDays} days.
+- Payment: customers pay the full price upfront when they book (site visits for tree work, remodels and HVAC are free; they pay once the firm quote is approved). ${BRAND.promise}
 - Be warm and brief (under 90 words). Plain text, no markdown headings.`;
 
 const tools = [

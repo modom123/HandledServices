@@ -5,10 +5,10 @@
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  */
 import { useMemo, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { TIME_WINDOW_LABEL, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, TIME_WINDOW_LABEL, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
@@ -40,13 +40,17 @@ export default function Book() {
 
   async function book() {
     setBusy(true);
-    const r = await api<{ ref: string; error?: string }>("/api/bookings", {
+    const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
       body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile" }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert("Couldn't book", r.data.error ?? "Please check the form");
-    Alert.alert(`Booked — ${r.data.ref}`, "We're matching you with a vetted pro now.", [{ text: "OK", onPress: () => router.replace("/") }]);
+    if (r.data.checkout) {
+      await Linking.openURL(r.data.checkout); // pay upfront in Stripe Checkout; the pro is dispatched once paid
+      return router.replace("/jobs");
+    }
+    Alert.alert(`Booked — ${r.data.ref}`, r.data.status === "site_visit" ? "A pro will visit to confirm your firm price." : "A coordinator will contact you to take payment — your pro is confirmed once it's paid.", [{ text: "OK", onPress: () => router.replace("/") }]);
   }
 
   return (
@@ -55,7 +59,7 @@ export default function Book() {
       <Card style={{ marginTop: 12, backgroundColor: C.tint, borderColor: C.brand }}>
         <Text style={s.label}>{svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</Text>
         <Text style={{ fontSize: 28, fontWeight: "800", color: C.ink }}>{moneyRange(est.low, est.high)}</Text>
-        <Text style={s.p}>{svc.siteVisit ? "Free site visit confirms the firm price." : "Charged only after the job passes photo QA."}</Text>
+        <Text style={s.p}>{svc.siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
       </Card>
       {svc.questions.map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
@@ -90,7 +94,7 @@ export default function Book() {
       <Field label="Full name" value={f.contact_name} onChangeText={set("contact_name")} />
       <Field label="Email" value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />
       <Field label="Mobile" value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" />
-      <Button title={busy ? "Booking…" : `Book · ${svc.siteVisit ? "free site visit" : money(est.point)}`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
+      <Button title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }

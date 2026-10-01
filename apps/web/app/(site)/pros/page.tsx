@@ -12,7 +12,7 @@ export const metadata = { title: "Become a Pro" };
 const PERKS = [
   ["No lead fees, ever", "You’re paid for finished jobs, not for the chance to bid."],
   ["Pre-priced, pre-sold work", "Every offer shows the scope and your payout up front. Accept with one tap."],
-  ["Paid fast", "Payouts are approved the moment the job passes photo QA."],
+  ["Every job is prepaid", "Customers pay upfront, so you never chase money. Payouts are approved the moment the job passes photo QA."],
   ["We run the office", "Sales, scheduling, reminders, collections and customer support — handled."],
 ];
 

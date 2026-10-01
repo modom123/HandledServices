@@ -211,7 +211,7 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>Back</button>
-              <button className="btn-primary" disabled={!contactOk || busy} onClick={book}>{busy ? "Booking…" : svc?.siteVisit ? "Book free site visit" : "Book it"}</button>
+              <button className="btn-primary" disabled={!contactOk || busy} onClick={book}>{busy ? (svc?.siteVisit ? "Booking…" : "Finalizing your price…") : svc?.siteVisit ? "Book free site visit" : `Pay ${est ? money(ai?.final_price ?? est.point) : ""} & book`}</button>
             </div>
           </div>
         )}
@@ -231,7 +231,7 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
             <button className="btn-ghost mt-4 w-full" onClick={runAi} disabled={aiBusy}>{aiBusy ? "AI is reviewing…" : "✨ Let AI check my notes & photos"}</button>
           )}
           <p className="mt-4 text-xs text-ink-soft">
-            {svc.siteVisit ? "A pro confirms the firm price on site — no obligation." : "Charged only after the job is done and passes our photo QA."} {BRAND.guaranteeDays}-day guarantee.
+            {svc.siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise}
           </p>
         </aside>
       )}

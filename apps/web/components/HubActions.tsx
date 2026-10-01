@@ -152,3 +152,78 @@ export function ActionDecision({ id }: { id: string }) {
     </div>
   );
 }
+
+export function PaymentPanel({ job }: { job: { id: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string } }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  const [method, setMethod] = useState("card by phone");
+  const act = async (body: object, done: string) => {
+    const r = await call(`/api/hub/jobs/${job.id}`, "PATCH", body);
+    setMsg(r.ok ? done : r.json.error ?? "Failed");
+    router.refresh();
+  };
+  return (
+    <div className="card space-y-3 text-sm">
+      <div className="font-semibold">Payment <span className="text-xs font-normal text-ink-soft">— paid upfront, always</span></div>
+      {job.remedy ? <p className="text-ink-soft">Remedy job ({job.remedy}) — nothing owed by the customer.</p>
+        : job.paid_at ? (
+          <p><span className="font-semibold text-brand-dark">Paid {new Date(job.paid_at).toLocaleDateString()}</span> · ${job.amount_paid}{Number(job.amount_refunded) > 0 && <span className="text-rose-700"> · refunded ${job.amount_refunded}</span>}</p>
+        ) : job.price_final ? (
+          <>
+            <p className="text-rose-700">Unpaid — {`$${job.price_final}`} due before any pro is dispatched.</p>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn-primary px-3 py-1.5 text-xs" onClick={() => act({ send_payment_link: true }, "Payment link emailed")}>Email payment link</button>
+              <input className="input w-40 py-1 text-xs" value={method} onChange={(e) => setMethod(e.target.value)} />
+              <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => act({ mark_paid: { amount: Number(job.price_final), method } }, "Marked paid — dispatching")}>Mark paid</button>
+            </div>
+          </>
+        ) : <p className="text-ink-soft">No firm price yet — set it after the site visit and a payment link goes out automatically.</p>}
+      {msg && <p className="text-brand-dark">{msg}</p>}
+    </div>
+  );
+}
+
+export function RemedyPanel({ jobId, paid, services }: { jobId: string; paid: boolean; services: { slug: string; name: string }[] }) {
+  const router = useRouter();
+  const [type, setType] = useState<"redo" | "complimentary" | "refund">("redo");
+  const [amount, setAmount] = useState("");
+  const [fault, setFault] = useState(true);
+  const [svc, setSvc] = useState(services[0]?.slug ?? "");
+  const [date, setDate] = useState(new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [msg, setMsg] = useState("");
+  if (!paid) return null;
+  const go = async () => {
+    const body = type === "refund" ? { type, amount: Number(amount), pro_at_fault: fault, reason } : type === "redo" ? { type, date, reason } : { type, service_slug: svc, date, reason };
+    const r = await call(`/api/hub/jobs/${jobId}/remedy`, "POST", body);
+    setMsg(r.ok ? (r.json.ref ? `Created ${r.json.ref}` : `Refunded $${r.json.refund} (pro $${r.json.fromPro} / us $${r.json.fromUs})`) : r.json.error ?? "Failed");
+    router.refresh();
+  };
+  return (
+    <div className="card space-y-3 text-sm">
+      <div className="font-semibold">Make it right</div>
+      <div className="flex flex-wrap gap-2">
+        {(["redo", "complimentary", "refund"] as const).map((t) => (
+          <button key={t} onClick={() => setType(t)} className={`rounded-full border px-3 py-1 text-xs ${type === t ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line"}`}>
+            {t === "redo" ? "Free redo (same pro)" : t === "complimentary" ? "Free extra service" : "Refund"}
+          </button>
+        ))}
+      </div>
+      {type === "refund" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <input className="input w-28" type="number" placeholder="$ amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={fault} onChange={(e) => setFault(e.target.checked)} /> Pro at fault (comes out of their payout first)</label>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {type === "complimentary" && <select className="input w-auto" value={svc} onChange={(e) => setSvc(e.target.value)}>{services.map((s) => <option key={s.slug} value={s.slug}>{s.name}</option>)}</select>}
+          <input className="input w-40" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      )}
+      <input className="input" placeholder="Reason (shown to the customer)" value={reason} onChange={(e) => setReason(e.target.value)} />
+      <button className="btn-primary" disabled={reason.length < 3 || (type === "refund" && !Number(amount))} onClick={go}>Apply</button>
+      <p className="text-xs text-ink-soft">Guardrails: refunds can't exceed what was paid; a free extra service is capped at our take on this job, so it can never go below $0.</p>
+      {msg && <p className="text-brand-dark">{msg}</p>}
+    </div>
+  );
+}

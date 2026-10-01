@@ -11,7 +11,8 @@ import "server-only";
 import { z } from "zod";
 import { BRAND, JOB_STATUSES, money, splitJob } from "@handled/core";
 import { adminClient } from "../supabase/server";
-import { addEvent, dispatchJob, finalizeJob, raiseAlert, setStatus } from "../jobs";
+import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink, setStatus } from "../jobs";
+import { createComplimentary, createRedo, issueRefund } from "../remedies";
 import { sendEmail } from "../notify";
 
 export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales";
@@ -174,8 +175,10 @@ export const ACTIONS: Record<string, ActionDef> = {
     run: async ({ ref: r, price }) => {
       const job = await jobByRef(r);
       await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: splitJob(price, job.service_slug).payout, status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
-      await addEvent(job.id, "quoted", `Firm price: ${money(price)}`, "IEBC workforce");
-      return { ref: r, price };
+      await addEvent(job.id, "quoted", `Firm price: ${money(price)} — pay to lock in your pro.`, "IEBC workforce");
+      const fresh = await getJob(job.id);
+      const link = fresh && !fresh.paid_at ? await sendPaymentLink(fresh) : null;
+      return { ref: r, price, payment_link_sent: Boolean(link) };
     },
   }),
   "finance.mark_payout_paid": def({
@@ -228,6 +231,19 @@ export const ACTIONS: Record<string, ActionDef> = {
       await db().from("messages").insert({ job_id: job.id, sender_role: "ops", body });
       await sendEmail(job.contact_email, subject, `${body}\n\n— The ${BRAND.name} team`);
       return "sent";
+    },
+  }),
+  "retention.make_it_right": def({
+    scope: "retention", write: true, risk: "high", description: "Make a paid job right: refund (amount, pro_at_fault), free redo by the same pro (date), or a complimentary extra service (service_slug, date). Capped so a job never goes below $0.",
+    params: z.object({ ref, type: z.enum(["refund", "redo", "complimentary"]), amount: z.number().positive().optional(), pro_at_fault: z.boolean().default(true),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), service_slug: z.string().optional(), reason: z.string().min(3).max(500) }),
+    run: async (p) => {
+      const job = await jobByRef(p.ref);
+      if (p.type === "refund") return issueRefund(job.id, p.amount ?? 0, p.pro_at_fault, "IEBC workforce", p.reason);
+      if (!p.date) throw new Error("date required");
+      if (p.type === "redo") return createRedo(job.id, p.date, "IEBC workforce", p.reason);
+      if (!p.service_slug) throw new Error("service_slug required");
+      return createComplimentary(job.id, p.service_slug, undefined, p.date, "IEBC workforce", p.reason);
     },
   }),
   "retention.email_customer": def({

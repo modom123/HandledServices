@@ -8,7 +8,7 @@ import { z } from "zod";
 import { JOB_STATUSES, splitJob } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { addEvent, finalizeJob } from "@/lib/jobs";
+import { addEvent, finalizeJob, markPaid, sendPaymentLink } from "@/lib/jobs";
 
 const Patch = z.object({
   status: z.enum(JOB_STATUSES).optional(),
@@ -18,6 +18,8 @@ const Patch = z.object({
   contractor_id: z.string().uuid().nullable().optional(),
   priority: z.enum(["normal", "high", "urgent"]).optional(),
   approve_qa: z.boolean().optional(),
+  mark_paid: z.object({ amount: z.number().positive(), method: z.string().max(80) }).optional(),
+  send_payment_link: z.boolean().optional(),
   note: z.string().max(2000).optional(),
 });
 
@@ -27,12 +29,24 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return deny(400, "Invalid update");
-  const { approve_qa, note, ...patch } = parsed.data;
+  const { approve_qa, note, mark_paid, send_payment_link, ...patch } = parsed.data;
   const db = adminClient();
   const { data: job } = await db.from("jobs").select("*").eq("id", id).single();
   if (!job) return deny(404, "Not found");
 
   const who = v!.fullName ?? v!.email;
+  if (mark_paid) {
+    await addEvent(id, "human_touch", `Marked paid (${mark_paid.method})`, who, false);
+    await markPaid(id, { amount: mark_paid.amount, via: `${who} · ${mark_paid.method}` });
+    return Response.json({ ok: true });
+  }
+  if (send_payment_link) {
+    const url = await sendPaymentLink(job);
+    return url ? Response.json({ ok: true, url }) : Response.json({ error: "Stripe isn't configured — collect payment and use Mark paid" }, { status: 503 });
+  }
+  // Paid upfront: nobody can put a pro on unpaid work (free site visits and remedy jobs excepted).
+  if (patch.contractor_id && !job.paid_at && !job.remedy && job.status !== "site_visit")
+    return deny(409, "Collect payment before assigning a pro");
   if (approve_qa) {
     await addEvent(id, "human_touch", "QA approved manually", who, false);
     await finalizeJob(id, note ?? "Your job is complete and passed our quality check.");
@@ -48,7 +62,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { error } = await db.from("jobs").update(update).eq("id", id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
   await addEvent(id, "human_touch", `Edited: ${Object.keys(patch).join(", ") || "note"}`, who, false);
-  if (patch.price_final !== undefined) await addEvent(id, "quoted", `Firm price: $${patch.price_final}`, who);
+  if (patch.price_final !== undefined) {
+    await addEvent(id, "quoted", `Firm price: $${patch.price_final} — pay to lock in your pro.`, who);
+    if (!job.paid_at) {
+      const { data: fresh } = await db.from("jobs").select("*").eq("id", id).single();
+      await sendPaymentLink(fresh);
+    }
+  }
   if (note) await addEvent(id, "note", note, who, false);
   return Response.json({ ok: true });
 }

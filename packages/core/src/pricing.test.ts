@@ -88,3 +88,31 @@ test("every default quote earns money after card fees", async () => {
     assert.ok(sp.net > 0, `${svc.slug} loses money after card fees: ${JSON.stringify(sp)}`);
   }
 });
+
+test("refunds never push our take below zero", async () => {
+  const { refundSplit, splitJob } = await import("./pricing.ts");
+  for (const svc of SERVICES) {
+    for (const price of [20, 99, 259, 1200, 24000]) {
+      const { payout } = splitJob(price, svc.slug);
+      for (const pct of [0.1, 0.5, 1, 1.5]) {
+        for (const proAtFault of [false, true]) {
+          const r = refundSplit({ paid: price, alreadyRefunded: 0, payout, refund: price * pct, proAtFault });
+          assert.ok(r.refund <= price, "refund capped at amount paid");
+          assert.ok(r.takeAfter >= -0.01, `${svc.slug} @${price} refund ${pct} fault=${proAtFault}: take ${r.takeAfter}`);
+          assert.ok(r.newPayout >= 0);
+        }
+      }
+    }
+  }
+});
+
+test("licensed work only goes to pros with a license on file", async () => {
+  const base: Contractor = {
+    id: "p", profile_id: null, business_name: "P", contact_name: "P", email: "p@x", phone: "1", trades: ["plumbing"],
+    service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
+    insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+  };
+  const job = { service_slug: "water-heater", zip: "48201", scheduled_date: null };
+  assert.equal(rankContractors([base], job).length, 0);
+  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123" }], job).length, 1);
+});

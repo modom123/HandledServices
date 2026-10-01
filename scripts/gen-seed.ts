@@ -78,6 +78,13 @@ from public.contractors c, public.services s
 where s.slug = j.service_slug and j.status = 'completed' and c.email = 'marcus@greenline.example';
 `);
 
+out.push(`-- every non-site-visit job has a firm price; every job past booking has been paid (upfront)
+update public.jobs set price_final = estimate_low where price_final is null and status not in ('site_visit','quoted');
+update public.jobs set price_final = coalesce(price_final, estimate_low), paid_at = now(), amount_paid = coalesce(price_final, estimate_low)
+where status in ('scheduled','dispatched','assigned','in_progress','qa_review','completed');
+update public.jobs j set contractor_payout = floor(j.price_final * s.payout_share) from public.services s
+where s.slug = j.service_slug and j.paid_at is not null and j.contractor_payout is null;
+`);
 out.push(`insert into public.contractor_applications (business_name, contact_name, email, phone, trades, zips, years_experience, crew_size, insured, message) values
   ('Clear View Windows', 'Ray Thompson', 'ray@clearview.example', '(313) 555-0301', array['windows','gutters'], '48201, 48202', 6, 2, true, 'Two-man crew, own lifts, 6 years in business.');
 `);

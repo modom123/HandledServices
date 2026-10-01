@@ -6,11 +6,11 @@
  *           offers, timeline, messages and every manual override.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { SERVICES, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
-import { JobAdmin } from "@/components/HubActions";
+import { JobAdmin, PaymentPanel, RemedyPanel } from "@/components/HubActions";
 
 type AnyRec = Record<string, unknown>;
 
@@ -39,7 +39,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
     <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
       <div className="space-y-6">
         <div className="card">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{job.ref} · {s.icon} {s.name}</h1><div className="flex gap-2">{job.priority !== "normal" && <Badge tone="amber">{job.priority}</Badge>}<StatusBadge status={job.status} /></div></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{job.ref} · {s.icon} {s.name}</h1><div className="flex gap-2">{job.remedy && <Badge tone="brand">{job.remedy}</Badge>}{!job.paid_at && !job.remedy && job.price_final ? <Badge tone="red">unpaid</Badge> : null}{job.priority !== "normal" && <Badge tone="amber">{job.priority}</Badge>}<StatusBadge status={job.status} /></div></div>
           <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
             <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div></div>
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>
@@ -77,6 +77,8 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
       </div>
 
       <div className="space-y-6">
+        <PaymentPanel job={{ id: job.id, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status }} />
+        <RemedyPanel jobId={job.id} paid={Boolean(job.paid_at) && !job.remedy} services={SERVICES.filter((x) => !x.siteVisit).map((x) => ({ slug: x.slug, name: x.name }))} />
         <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id }} pros={qualified} />
         <div className="card"><div className="font-semibold">Timeline</div>
           <ol className="mt-3 space-y-3 text-sm">{(events ?? []).map((e: AnyRec) => <li key={String(e.id)}><span className="text-xs text-ink-soft">{new Date(String(e.created_at)).toLocaleString()} · {String(e.actor)}</span><div>{String(e.message)}{!e.visible_to_customer && <span className="ml-1 text-xs text-ink-soft">(internal)</span>}</div></li>)}</ol></div>

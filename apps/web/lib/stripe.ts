@@ -2,7 +2,11 @@
  * FILE    : apps/web/lib/stripe.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * PURPOSE : Payments. Customers save a card at booking (Stripe Checkout, setup mode) and are charged automatically only after the job passes QA — the same moment the pro's payout is approved.
+ * UPDATED : 2026-10-01_1900 UTC — Paid upfront, always. Customers pay the full price at
+ *           booking (or when a site-visit quote is approved); the card is saved so each
+ *           recurring visit is charged before it's dispatched. Refunds go back to the
+ *           original payment.
+ * PURPOSE : Stripe payments.
  */
 import "server-only";
 import Stripe from "stripe";
@@ -17,32 +21,47 @@ export function getStripe(): Stripe | null {
   return (stripe ??= new Stripe(key));
 }
 
-/** Returns a Checkout URL that saves the customer's card, or null when Stripe is off. */
-export async function stripeCheckoutUrl(job: Job): Promise<string | null> {
+const cents = (v: number) => Math.round(v * 100);
+
+/**
+ * Checkout link for the job's full price. Returns null when Stripe isn't configured
+ * (ops then collects payment another way and marks the job paid in the Command Center).
+ */
+export async function paymentCheckoutUrl(job: Job): Promise<string | null> {
   const s = getStripe();
-  if (!s) return null;
-  const customer = await s.customers.create({ email: job.contact_email, name: job.contact_name, phone: job.contact_phone ?? undefined, metadata: { job_id: job.id } });
+  if (!s || !job.price_final || job.price_final <= 0) return null;
+  const db = adminClient();
+  let customer = job.stripe_customer_id;
+  if (!customer) {
+    customer = (await s.customers.create({ email: job.contact_email, name: job.contact_name, phone: job.contact_phone ?? undefined, metadata: { job_id: job.id } })).id;
+    await db.from("jobs").update({ stripe_customer_id: customer }).eq("id", job.id);
+  }
+  const svc = getService(job.service_slug);
   const session = await s.checkout.sessions.create({
-    mode: "setup",
-    customer: customer.id,
-    currency: "usd",
-    success_url: `${siteUrl()}/book/confirmed?ref=${job.ref}&card=1`,
-    cancel_url: `${siteUrl()}/book/confirmed?ref=${job.ref}`,
+    mode: "payment",
+    customer,
+    line_items: [{
+      quantity: 1,
+      price_data: { currency: "usd", unit_amount: cents(job.price_final), product_data: { name: `${svc?.name ?? "Service"} — ${job.ref}`, description: `${job.address}, ${job.city}` } },
+    }],
+    // save the card for recurring visits and add-ons
+    payment_intent_data: { setup_future_usage: "off_session", metadata: { job_id: job.id }, description: `${BRAND.name} ${job.ref}` },
     metadata: { job_id: job.id },
-    custom_text: { submit: { message: `${BRAND.name} charges this card only after your ${getService(job.service_slug)?.name ?? "job"} is complete and checked.` } },
+    success_url: `${siteUrl()}/book/confirmed?ref=${job.ref}&paid=1`,
+    cancel_url: `${siteUrl()}/book/confirmed?ref=${job.ref}&unpaid=1`,
+    custom_text: { submit: { message: BRAND.promise } },
   });
-  await adminClient().from("jobs").update({ stripe_customer_id: customer.id }).eq("id", job.id);
+  await db.from("payments").insert({ job_id: job.id, kind: "upfront", amount: job.price_final, status: "pending", stripe_session_id: session.id });
   return session.url;
 }
 
-/** Charge the saved card once a job is completed. */
-export async function chargeCompletedJob(job: Job) {
+/** Charge the saved card for a job (recurring visits). Returns true when paid. */
+export async function chargeSavedCard(job: Job): Promise<boolean> {
   const s = getStripe();
-  if (!s || !job.stripe_customer_id || !job.stripe_payment_method || !job.price_final) return null;
-  const db = adminClient();
+  if (!s || !job.stripe_customer_id || !job.stripe_payment_method || !job.price_final) return false;
   try {
     const pi = await s.paymentIntents.create({
-      amount: Math.round(Number(job.price_final) * 100),
+      amount: cents(job.price_final),
       currency: "usd",
       customer: job.stripe_customer_id,
       payment_method: job.stripe_payment_method,
@@ -50,12 +69,25 @@ export async function chargeCompletedJob(job: Job) {
       confirm: true,
       description: `${BRAND.name} ${job.ref} — ${getService(job.service_slug)?.name}`,
       metadata: { job_id: job.id },
-    }, { idempotencyKey: `job-${job.id}-final` });
-    await db.from("payments").insert({ job_id: job.id, kind: "final", amount: job.price_final, status: pi.status === "succeeded" ? "paid" : "pending", stripe_session_id: pi.id });
-    return pi.status;
+    }, { idempotencyKey: `job-${job.id}-upfront` });
+    if (pi.status !== "succeeded") return false;
+    await adminClient().from("payments").insert({ job_id: job.id, kind: "upfront", amount: job.price_final, status: "paid", stripe_session_id: pi.id });
+    await adminClient().from("jobs").update({ stripe_payment_intent: pi.id }).eq("id", job.id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Refund part or all of a job's payment back to the customer's card. */
+export async function refundPayment(job: Job, amount: number): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const s = getStripe();
+  if (!s) return { ok: true }; // paid outside Stripe — ops refunds manually; we still record it
+  if (!job.stripe_payment_intent) return { ok: false, error: "No card payment on this job to refund" };
+  try {
+    const r = await s.refunds.create({ payment_intent: job.stripe_payment_intent, amount: cents(amount), metadata: { job_id: job.id } }, { idempotencyKey: `job-${job.id}-refund-${cents(job.amount_refunded)}-${cents(amount)}` });
+    return { ok: true, id: r.id };
   } catch (e) {
-    await db.from("payments").insert({ job_id: job.id, kind: "final", amount: job.price_final, status: "failed" });
-    await db.from("ops_alerts").insert({ kind: "payment", severity: "critical", title: `${job.ref}: card charge failed`, body: String(e), job_id: job.id });
-    return "failed";
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }

@@ -11,14 +11,14 @@ import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
   { n: "2", title: "We send one vetted pro", body: "Insured, background-checked, rated. AI dispatch picks the best available pro for your job, date and neighborhood." },
-  { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. Your card is only charged after the work passes our QA check." },
+  { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. Every job is photo-checked by AI, and if it isn’t right we come back free or refund you." },
 ];
 
 const COMPARE = [
   ["Upfront, guaranteed price", "Quotes after calls", "✓"],
   ["One pro, not 5 sales calls", "Your number is sold as a lead", "✓"],
   ["Pros vetted, insured & rated by us", "Varies", "✓"],
-  ["Photo-verified QA before you pay", "—", "✓"],
+  ["Free redo or money back", "Varies", "✓"],
   ["One app for every home & business service", "Per-trade", "✓"],
   [`${BRAND.guaranteeDays}-day make-it-right guarantee`, "Varies", "✓"],
 ];
@@ -41,7 +41,7 @@ export default function Home() {
             <Link href="/business" className="btn-ghost px-6 py-3 text-base">Commercial accounts</Link>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-soft">
-            <span>✓ Insured & background-checked</span><span>✓ Pay after it’s done</span><span>✓ {BRAND.guaranteeDays}-day guarantee</span>
+            <span>✓ Insured & background-checked</span><span>✓ Upfront, all-in price</span><span>✓ {BRAND.guaranteeDays}-day guarantee</span>
           </div>
         </div>
         <div className="card grid grid-cols-2 gap-3 p-4 shadow-sm">
@@ -116,7 +116,7 @@ export default function Home() {
       <section className="wrap grid gap-6 pb-8 md:grid-cols-2">
         <div className="card bg-brand-tint">
           <h3 className="text-xl font-bold">For businesses & property managers</h3>
-          <p className="mt-2 text-sm text-ink-soft">Janitorial, windows, grounds, junk-outs and repairs across every location — one vendor, one invoice, net terms, and an SLA dashboard.</p>
+          <p className="mt-2 text-sm text-ink-soft">Janitorial, windows, grounds, junk-outs and repairs across every location — one vendor, one prepaid monthly invoice, and an SLA dashboard.</p>
           <Link href="/business" className="btn-dark mt-5">Set up a commercial account</Link>
         </div>
         <div className="card">

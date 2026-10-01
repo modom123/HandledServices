@@ -43,7 +43,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
         <div className="mt-1 text-sm text-ink-soft">Minimum {money(s.minimum)}{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}</div>
         {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
         <Link href={`/book?service=${s.slug}`} className="btn-primary mt-5 w-full py-3">Get my exact price</Link>
-        <p className="mt-4 text-xs text-ink-soft">Pay after the job is done. {BRAND.guaranteeDays}-day make-it-right guarantee.</p>
+        <p className="mt-4 text-xs text-ink-soft">{BRAND.promise}</p>
       </aside>
     </div>
   );

@@ -29,6 +29,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   const svc = getService(job.service_slug);
   if (c.status !== "approved") return "not approved";
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
+  if (svc?.licensed && !c.license_number) return "license required";
   if (c.service_zips.length && !c.service_zips.includes(job.zip) && !c.service_zips.includes(job.zip.slice(0, 3) + "*"))
     return "outside service area";
   if (!c.insured_until || new Date(c.insured_until) < today) return "insurance expired";

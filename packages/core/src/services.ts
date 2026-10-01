@@ -52,14 +52,16 @@ export interface Service {
   frequencies: Frequency[];
   /** Pro trade(s) qualified to take the job. */
   trades: string[];
+  /** Work that legally needs a licensed tradesperson — dispatch only to pros with a license on file. */
+  licensed?: boolean;
   price: (a: Answers) => PriceResult;
 }
 
 export const CATEGORIES: { id: CategoryId; name: string; blurb: string }[] = [
-  { id: "cleaning", name: "Cleaning", blurb: "Homes, offices, windows, carpets and gutters." },
+  { id: "cleaning", name: "Cleaning & Organizing", blurb: "Homes, offices, windows, carpets, gutters — plus decluttering." },
   { id: "outdoor", name: "Lawn & Outdoor", blurb: "Mowing, trees and pet waste — on a schedule." },
   { id: "removal", name: "Haul Away", blurb: "Junk, furniture and big items gone today." },
-  { id: "repair_remodel", name: "Repair & Remodel", blurb: "Handyman fixes to full kitchen and bath remodels." },
+  { id: "repair_remodel", name: "Repairs, Installs & Remodels", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
@@ -193,6 +195,62 @@ export const SERVICES: Service[] = [
       if (b(a, "pet")) items.push({ label: "Pet treatment", amount: rooms * 20 });
       const base = sum(items);
       return { items, base, hours: Math.max(1.5, rooms * 0.5 + n(a, "stairs") * 0.5) };
+    },
+  },
+  {
+    slug: "organizing",
+    name: "Organizing & Decluttering",
+    category: "cleaning",
+    icon: "🧺",
+    tagline: "Closets to garages — sorted, labeled, donated.",
+    description:
+      "Professional organizers declutter and set up systems for closets, pantries, kitchens, garages, offices and whole-home moves. Donations hauled away so nothing lingers.",
+    includes: ["Sort: keep / donate / toss", "Systems & labeling", "Donation drop-off or haul-away", "Before/after photos"],
+    questions: [
+      {
+        id: "space",
+        label: "Main space",
+        type: "select",
+        default: "closet",
+        options: [
+          { value: "closet", label: "Closet" },
+          { value: "pantry", label: "Pantry / kitchen" },
+          { value: "room", label: "Bedroom / office / playroom" },
+          { value: "garage", label: "Garage / basement" },
+          { value: "home", label: "Whole home / move" },
+        ],
+      },
+      { id: "spaces", label: "Number of spaces like this", type: "number", min: 1, max: 10, default: 1 },
+      {
+        id: "clutter",
+        label: "How full is it",
+        type: "select",
+        default: "moderate",
+        options: [
+          { value: "light", label: "Light tidy-up" },
+          { value: "moderate", label: "Moderate" },
+          { value: "heavy", label: "Overflowing" },
+        ],
+      },
+      { id: "haul", label: "Haul away donations & trash", type: "toggle", default: true },
+      { id: "shopping", label: "Shop for bins & organizers (products at cost)", type: "toggle", default: false },
+    ],
+    minimum: 199,
+    spread: [0.9, 1.2],
+    payoutShare: 0.65,
+    siteVisit: false,
+    frequencies: ["once", "monthly", "quarterly"],
+    trades: ["organizing"],
+    price: (a) => {
+      const hrs = { closet: 3, pantry: 4, room: 5, garage: 8, home: 16 }[s(a, "space", "closet")] ?? 3;
+      const clutter = { light: 0.75, moderate: 1, heavy: 1.4 }[s(a, "clutter", "moderate")] ?? 1;
+      const totalHrs = Math.max(3, hrs * n(a, "spaces", 1) * clutter);
+      const crew = totalHrs >= 8 ? 2 : 1; // two organizers on big jobs, same total labor hours
+      const items: LineItem[] = [{ label: `${Math.round(totalHrs)} organizer-hours${crew > 1 ? " (2-person team)" : ""}`, amount: Math.round(totalHrs * 70) }];
+      if (b(a, "haul")) items.push({ label: "Donation & trash haul-away", amount: 79 });
+      if (b(a, "shopping")) items.push({ label: "Product shopping trip", amount: 45 });
+      const base = sum(items);
+      return { items, base, hours: totalHrs / crew };
     },
   },
   {
@@ -464,6 +522,243 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "plumbing",
+    name: "Plumbing Repairs",
+    category: "repair_remodel",
+    icon: "🚰",
+    tagline: "Clogs, leaks, toilets, faucets — fixed today.",
+    description: "Licensed plumbers for drains, leaks, toilets, faucets, shutoff valves and main-line clogs. Flat-rate prices for common fixes; parts included unless noted.",
+    includes: ["Licensed, insured plumber", "Flat-rate pricing", "Standard parts included", "1-year workmanship guarantee"],
+    questions: [
+      {
+        id: "issue",
+        label: "What's going on",
+        type: "select",
+        default: "clog",
+        options: [
+          { value: "clog", label: "Clogged sink / tub / toilet" },
+          { value: "toilet", label: "Toilet running / leaking / replace parts" },
+          { value: "faucet", label: "Replace faucet (fixture supplied)" },
+          { value: "leak", label: "Leak under sink / pipe repair" },
+          { value: "main", label: "Main line backup" },
+          { value: "other", label: "Something else (diagnose)" },
+        ],
+      },
+      { id: "count", label: "How many fixtures / problems", type: "number", min: 1, max: 6, default: 1 },
+      { id: "emergency", label: "Water actively leaking now", type: "toggle", default: false },
+    ],
+    minimum: 149,
+    spread: [0.95, 1.2],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["plumbing"],
+    licensed: true,
+    price: (a) => {
+      const per = { clog: 199, toilet: 189, faucet: 239, leak: 259, main: 429, other: 169 }[s(a, "issue", "clog")] ?? 199;
+      const count = n(a, "count", 1);
+      const items: LineItem[] = [{ label: `${count} × ${s(a, "issue", "clog")} repair`, amount: per + Math.max(0, count - 1) * Math.round(per * 0.6) }];
+      if (b(a, "emergency")) items.push({ label: "Emergency dispatch", amount: 99 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, count * 1.2) };
+    },
+  },
+  {
+    slug: "water-heater",
+    name: "Water Heater Replacement",
+    category: "repair_remodel",
+    icon: "🔥",
+    tagline: "New tank or tankless, installed and hauled away.",
+    description: "Water heater replacement with the unit, permit, code-required parts and haul-away of the old tank. Gas or electric, tank or tankless.",
+    includes: ["New unit included", "Licensed plumber", "Permit pulled where required", "Old tank hauled away", "Manufacturer + 1-year labor warranty"],
+    questions: [
+      {
+        id: "type",
+        label: "Type",
+        type: "select",
+        default: "tank50",
+        options: [
+          { value: "tank40", label: "40-gal tank" },
+          { value: "tank50", label: "50-gal tank" },
+          { value: "tank75", label: "75-gal tank" },
+          { value: "tankless", label: "Tankless" },
+        ],
+      },
+      {
+        id: "fuel",
+        label: "Fuel",
+        type: "select",
+        default: "gas",
+        options: [
+          { value: "gas", label: "Gas" },
+          { value: "electric", label: "Electric" },
+        ],
+      },
+      { id: "expansion", label: "Add expansion tank", type: "toggle", default: false },
+      { id: "tight", label: "Tight closet / attic install", type: "toggle", default: false },
+    ],
+    minimum: 1400,
+    spread: [0.95, 1.15],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["plumbing"],
+    licensed: true,
+    price: (a) => {
+      const unit = { tank40: 1550, tank50: 1750, tank75: 2600, tankless: 3900 }[s(a, "type", "tank50")] ?? 1750;
+      const gas = s(a, "fuel", "gas") === "gas";
+      const items: LineItem[] = [{ label: `${s(a, "type", "tank50")} ${gas ? "gas" : "electric"} — unit + install`, amount: gas ? unit + 150 : unit }];
+      items.push({ label: "Permit & code parts", amount: 125 });
+      if (b(a, "expansion")) items.push({ label: "Expansion tank", amount: 175 });
+      if (b(a, "tight")) items.push({ label: "Difficult access", amount: 250 });
+      const base = sum(items);
+      return { items, base, hours: s(a, "type", "tank50") === "tankless" ? 7 : 4 };
+    },
+  },
+  {
+    slug: "hvac-install",
+    name: "HVAC Installation",
+    category: "repair_remodel",
+    icon: "❄️",
+    tagline: "AC, furnace, heat pump & mini-splits — free in-home quote.",
+    description: "New and replacement heating and cooling systems sized to your home by licensed HVAC contractors. Free in-home load assessment, permit, install and haul-away of old equipment.",
+    includes: ["Free in-home assessment", "Licensed HVAC contractor", "Permits & inspection", "Old equipment hauled away", "Manufacturer + labor warranty"],
+    questions: [
+      {
+        id: "system",
+        label: "System",
+        type: "select",
+        default: "ac",
+        options: [
+          { value: "ac", label: "Central AC" },
+          { value: "furnace", label: "Furnace" },
+          { value: "full", label: "AC + furnace" },
+          { value: "heatpump", label: "Heat pump" },
+          { value: "minisplit", label: "Ductless mini-split" },
+        ],
+      },
+      { id: "sqft", label: "Home size", type: "number", min: 500, max: 6000, default: 1800, unit: "sq ft" },
+      { id: "zones", label: "Mini-split zones (if ductless)", type: "number", min: 1, max: 6, default: 1 },
+      { id: "ductwork", label: "Ductwork needs repair / replacement", type: "toggle", default: false },
+    ],
+    minimum: 3500,
+    spread: [0.85, 1.3],
+    payoutShare: 0.8,
+    siteVisit: true,
+    frequencies: ["once"],
+    trades: ["hvac"],
+    licensed: true,
+    price: (a) => {
+      const sys = s(a, "system", "ac");
+      const size = Math.max(0.8, Math.min(1.6, n(a, "sqft", 1800) / 1800));
+      const base0 = { ac: 6200, furnace: 5200, full: 10500, heatpump: 9000, minisplit: 3800 }[sys] ?? 6200;
+      const amt = sys === "minisplit" ? base0 * n(a, "zones", 1) : Math.round(base0 * size);
+      const items: LineItem[] = [{ label: `${sys} system installed`, amount: amt }];
+      if (b(a, "ductwork")) items.push({ label: "Ductwork allowance", amount: 2500 });
+      const base = sum(items);
+      return { items, base, hours: base / 400 };
+    },
+  },
+  {
+    slug: "lighting-install",
+    name: "Lighting & Ceiling Fan Install",
+    category: "repair_remodel",
+    icon: "💡",
+    tagline: "Fixtures, fans, recessed & outdoor lights.",
+    description: "Swap fixtures, hang ceiling fans, add recessed or outdoor motion lights. New wiring or circuits are done by a licensed electrician.",
+    includes: ["Licensed electrician", "Install & test", "Old fixtures removed", "1-year workmanship guarantee"],
+    questions: [
+      { id: "fixtures", label: "Replace existing fixtures", type: "number", min: 0, max: 30, default: 2 },
+      { id: "fans", label: "Ceiling fans", type: "number", min: 0, max: 10, default: 0 },
+      { id: "recessed", label: "New recessed / can lights", type: "number", min: 0, max: 30, default: 0 },
+      { id: "outdoor", label: "Outdoor / motion lights", type: "number", min: 0, max: 10, default: 0 },
+      { id: "high", label: "Ceilings over 12 ft", type: "toggle", default: false },
+    ],
+    minimum: 149,
+    spread: [0.95, 1.15],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["electrical"],
+    licensed: true,
+    price: (a) => {
+      const items: LineItem[] = [];
+      const add = (k: string, label: string, each: number) => { const c = n(a, k); if (c) items.push({ label: `${c} ${label}`, amount: c * each }); };
+      add("fixtures", "fixture swap(s)", 119);
+      add("fans", "ceiling fan(s)", 209);
+      add("recessed", "recessed light(s)", 235);
+      add("outdoor", "outdoor light(s)", 159);
+      if (b(a, "high")) items.push({ label: "High-ceiling equipment", amount: 120 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, base / 120) };
+    },
+  },
+  {
+    slug: "camera-install",
+    name: "Security Camera Install",
+    category: "repair_remodel",
+    icon: "📹",
+    tagline: "Doorbells, Wi-Fi & wired cameras — set up on your phone.",
+    description: "Mount, wire and configure doorbell cameras, Wi-Fi cameras and wired (PoE) camera systems, then set everything up in your app before we leave.",
+    includes: ["Mounting & weatherproofing", "App setup on your phone", "Wire concealment", "Walkthrough before we leave"],
+    questions: [
+      { id: "doorbell", label: "Video doorbells", type: "number", min: 0, max: 4, default: 1 },
+      { id: "wifi", label: "Wi-Fi / battery cameras", type: "number", min: 0, max: 16, default: 2 },
+      { id: "wired", label: "Wired (PoE) cameras", type: "number", min: 0, max: 16, default: 0 },
+      { id: "nvr", label: "Recorder (NVR) setup", type: "toggle", default: false },
+    ],
+    minimum: 149,
+    spread: [0.95, 1.2],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["low_voltage", "handyman"],
+    price: (a) => {
+      const items: LineItem[] = [];
+      if (n(a, "doorbell")) items.push({ label: `${n(a, "doorbell")} doorbell camera(s)`, amount: n(a, "doorbell") * 149 });
+      if (n(a, "wifi")) items.push({ label: `${n(a, "wifi")} Wi-Fi camera(s)`, amount: n(a, "wifi") * 99 });
+      if (n(a, "wired")) items.push({ label: `${n(a, "wired")} wired camera(s) incl. cable runs`, amount: n(a, "wired") * 229 });
+      if (b(a, "nvr")) items.push({ label: "NVR setup & remote viewing", amount: 129 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, base / 110) };
+    },
+  },
+  {
+    slug: "garbage-disposal",
+    name: "Garbage Disposal Repair & Replace",
+    category: "repair_remodel",
+    icon: "🌀",
+    tagline: "Unjam, repair or swap in a new unit.",
+    description: "Jammed, leaking or dead disposal? We repair it or replace it with a new unit (included) and haul the old one away.",
+    includes: ["New unit included on replacements", "Leak test", "Old unit hauled away", "1-year workmanship guarantee"],
+    questions: [
+      {
+        id: "job",
+        label: "What do you need",
+        type: "select",
+        default: "replace_half",
+        options: [
+          { value: "repair", label: "Repair / unjam" },
+          { value: "replace_half", label: "Replace — ½ HP (unit included)" },
+          { value: "replace_34", label: "Replace — ¾ HP (unit included)" },
+          { value: "install_own", label: "Install a unit I bought" },
+          { value: "new", label: "Add a disposal where there isn't one" },
+        ],
+      },
+    ],
+    minimum: 149,
+    spread: [0.95, 1.1],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["handyman", "plumbing"],
+    price: (a) => {
+      const amt = { repair: 149, replace_half: 359, replace_34: 469, install_own: 199, new: 549 }[s(a, "job", "replace_half")] ?? 359;
+      const items: LineItem[] = [{ label: "Garbage disposal", amount: amt }];
+      return { items, base: amt, hours: 1.5 };
+    },
+  },
+  {
     slug: "bathroom-remodel",
     name: "Bathroom Remodel",
     category: "repair_remodel",
@@ -591,6 +886,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "cleaning", label: "House / office cleaning" },
   { id: "windows", label: "Window cleaning" },
   { id: "carpet", label: "Carpet & upholstery" },
+  { id: "organizing", label: "Professional organizing" },
   { id: "gutters", label: "Gutters" },
   { id: "lawn", label: "Lawn care" },
   { id: "tree", label: "Tree service / arborist" },
@@ -598,4 +894,8 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "hauling", label: "Junk & item hauling" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },
+  { id: "plumbing", label: "Plumbing (licensed)" },
+  { id: "electrical", label: "Electrical (licensed)" },
+  { id: "hvac", label: "HVAC (licensed)" },
+  { id: "low_voltage", label: "Cameras & low-voltage" },
 ];

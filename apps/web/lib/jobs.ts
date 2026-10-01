@@ -2,7 +2,10 @@
  * FILE    : apps/web/lib/jobs.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * PURPOSE : The job pipeline — booking → AI quote → dispatch → pro accepts → work →
+ * UPDATED : 2026-10-01_1900 UTC — Paid upfront: booking → final price (AI check runs
+ *           before payment) → customer pays → only then dispatch. Recurring visits are
+ *           charged before dispatch. Free site visits are the only unpaid dispatch.
+ * PURPOSE : The job pipeline — booking → price → payment → dispatch → pro accepts → work →
  *           AI QA → completion, payout and review request. All writes use the service
  *           role; route handlers must authorize the caller before calling these.
  */
@@ -18,7 +21,7 @@ import { aiRankCandidates } from "./ai/dispatch";
 import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
-import { chargeCompletedJob } from "./stripe";
+import { chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 
 export const BookingSchema = z.object({
   service_slug: z.string().refine((s) => Boolean(getService(s)), "Unknown service"),
@@ -52,75 +55,97 @@ export async function getJob(id: string): Promise<Job | null> {
   return (data as Job) ?? null;
 }
 
-/** Step 1 — create the job with the deterministic estimate (fast, no AI on the request path). */
+/**
+ * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
+ * AI review runs now (a few seconds) so the amount they pay never changes afterward.
+ */
 export async function createJob(input: BookingInput, customerId: string | null) {
   const svc = getService(input.service_slug)!;
   const rush = isRush(input.scheduled_date);
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush });
-  const status: JobStatus = svc.siteVisit ? "site_visit" : "requested";
+  const { ai } = svc.siteVisit
+    ? { ai: null }
+    : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush });
+  const siteVisit = svc.siteVisit || Boolean(ai?.needs_site_visit);
+  const price = siteVisit ? null : ai?.final_price ?? est.point;
   const { data, error } = await db()
     .from("jobs")
     .insert({
       ...input,
       customer_id: customerId,
-      status,
-      estimate_low: est.low,
-      estimate_high: est.high,
-      price_final: svc.siteVisit ? null : est.point,
-      contractor_payout: svc.siteVisit ? null : est.payout,
+      status: (siteVisit ? "site_visit" : "requested") satisfies JobStatus,
+      estimate_low: ai?.low ?? est.low,
+      estimate_high: ai?.high ?? est.high,
+      price_final: price,
+      contractor_payout: price ? splitJob(price, svc.slug).payout : null,
+      ai_quote: ai,
       priority: rush ? "high" : "normal",
     })
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return { job: data as Job, estimate: est };
+  return { job: data as Job, estimate: est, ai };
 }
 
-/** Step 2 (background) — AI quote review, customer confirmation, auto-dispatch. */
-export async function afterBooking(job: Job) {
+/** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
+export async function onBooked(job: Job, paymentUrl: string | null) {
   const svc = getService(job.service_slug)!;
-  const photoUrls = await signedUrls(job.photos);
-  const { ai } = await aiQuote({
-    slug: job.service_slug, answers: job.answers as never, frequency: job.frequency,
-    notes: job.notes, photoUrls, rush: job.priority !== "normal", jobId: job.id,
-  });
-  let current = job;
-  if (ai) {
-    const patch: Partial<Job> = { ai_quote: ai, estimate_low: ai.low, estimate_high: ai.high };
-    if (!svc.siteVisit) {
-      patch.price_final = ai.final_price;
-      patch.contractor_payout = splitJob(ai.final_price, svc.slug).payout;
-    }
-    if (ai.needs_site_visit && !svc.siteVisit) patch.status = "site_visit";
-    const { data } = await db().from("jobs").update(patch).eq("id", job.id).select("*").single();
-    current = (data as Job) ?? current;
-    await addEvent(job.id, "ai_quote", `AI reviewed your details: ${ai.customer_summary}`, "ai");
-    if (ai.risk_flags.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes, job.id);
-  }
+  const ai = job.ai_quote as { customer_summary?: string; risk_flags?: string[]; ops_notes?: string } | null;
+  if (ai?.customer_summary) await addEvent(job.id, "ai_quote", `AI reviewed your details: ${ai.customer_summary}`, "ai");
+  if (ai?.risk_flags?.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes ?? null, job.id);
 
-  await sendEmail(
-    job.contact_email,
-    `${BRAND.name} booking ${job.ref} received`,
-    `Hi ${job.contact_name.split(" ")[0]},\n\nThanks for booking ${svc.name}.\n` +
-      (svc.siteVisit || current.status === "site_visit"
-        ? `Estimated range: ${moneyRange(current.estimate_low, current.estimate_high)}. A pro will visit to confirm a firm price before any work starts.\n`
-        : `Your price: ${money(current.price_final)} per visit. We're matching you with a vetted pro now.\n`) +
-      `\nTrack it any time: ${siteUrl()}/account\n\n— ${BRAND.name}`,
-  );
-
-  const auto = (process.env.AUTO_DISPATCH ?? "true") === "true";
-  if (auto && current.status === "requested" && current.scheduled_date) {
-    await db().from("jobs").update({ status: "scheduled" }).eq("id", job.id);
-    await dispatchJob(job.id);
-  } else if (current.status === "site_visit") {
+  if (job.status === "site_visit") {
+    await sendEmail(job.contact_email, `${BRAND.name}: free site visit ${job.ref} booked`,
+      `Hi ${job.contact_name.split(" ")[0]},\n\nA pro will visit to confirm a firm price for your ${svc.name} (estimated ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
+      `Nothing is owed until you approve the quote and pay to lock in the work.\n\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     await dispatchJob(job.id, { siteVisit: true });
+    return;
   }
+  if (!paymentUrl) {
+    // Stripe not configured — ops collects payment by phone/invoice, then marks it paid.
+    await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.price_final)} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Command Center to dispatch.`, job.id);
+    await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: complete payment`,
+      `Thanks for booking ${svc.name} — ${money(job.price_final)}. A coordinator will contact you to take payment; your pro is confirmed as soon as it's paid.\n\n${BRAND.promise}`);
+  }
+}
+
+/**
+ * Payment received (Stripe webhook, saved-card charge, or marked paid by ops).
+ * This is the ONLY door to dispatch for paid work.
+ */
+export async function markPaid(jobId: string, p: { amount: number; via: string; paymentIntent?: string | null; paymentMethod?: string | null }) {
+  const job = await getJob(jobId);
+  if (!job || job.paid_at) return job;
+  const next: JobStatus = job.contractor_id ? "assigned" : "scheduled";
+  const { data } = await db().from("jobs").update({
+    paid_at: new Date().toISOString(), amount_paid: p.amount, status: ["requested", "quoted"].includes(job.status) ? next : job.status,
+    ...(p.paymentIntent ? { stripe_payment_intent: p.paymentIntent } : {}),
+    ...(p.paymentMethod ? { stripe_payment_method: p.paymentMethod } : {}),
+  }).eq("id", jobId).is("paid_at", null).select("*").single();
+  const paid = data as Job;
+  await addEvent(jobId, "paid", `Payment received — ${money(p.amount)}. ${BRAND.promise}`, p.via);
+  await sendEmail(paid.contact_email, `Paid — your ${getService(paid.service_slug)?.name} is locked in (${paid.ref})`,
+    `Thanks! We received ${money(p.amount)}. ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now."}\n\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}`);
+  if (!paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
+  return paid;
+}
+
+/** Fresh payment link (email + returned URL). */
+export async function sendPaymentLink(job: Job) {
+  const url = await paymentCheckoutUrl(job);
+  if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(job.price_final)} to lock in ${job.ref}`,
+    `Your ${getService(job.service_slug)?.name} is ready to schedule at ${money(job.price_final)}.\nPay securely here: ${url}\n\n${BRAND.promise}`);
+  return url;
 }
 
 /** Send offers to the best pros. Deterministic ranking first, AI re-rank on top. */
 export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; exclude?: string[] } = {}) {
   const job = await getJob(jobId);
   if (!job) throw new Error("Job not found");
+  if (!opts.siteVisit && !job.paid_at && !job.remedy) {
+    await raiseAlert("unpaid_dispatch", "info", `${job.ref} not dispatched — unpaid`, "Jobs go to pros only after payment.", job.id);
+    return { offers: 0, reason: "unpaid" };
+  }
   const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
   const sameDay = job.scheduled_date
     ? (await db().from("jobs").select("contractor_id").eq("scheduled_date", job.scheduled_date).not("contractor_id", "is", null)).data ?? []
@@ -257,12 +282,9 @@ export async function finalizeJob(jobId: string, summary?: string) {
     .eq("id", jobId).eq("status", "qa_review").select("*").maybeSingle();
   const job = data as Job | null;
   if (!job) return;
-  // Uber rule: the pro is paid out of money we've collected. Card charged OK → payout approved;
-  // charge failed → payout held; no Stripe (invoice / pay-after) → pending until ops marks it collected.
-  const charge = await chargeCompletedJob(job);
+  // Paid upfront: the customer's money is already collected, so the pro's payout is approved now.
   if (job.contractor_id && job.contractor_payout) {
-    const payoutStatus = charge === "succeeded" ? "approved" : charge === null ? "pending" : "held";
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: payoutStatus });
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: job.paid_at || job.remedy ? "approved" : "held" });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
@@ -270,7 +292,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   await sendEmail(
     job.contact_email,
     `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
-    `${summary ?? "Your job is complete."}\n\nTotal: ${money(job.price_final)}\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.`,
+    `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.`,
   );
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }
@@ -294,10 +316,19 @@ async function scheduleNextVisit(job: Job) {
   }
   const { id: _id, ref: _ref, created_at: _c, updated_at: _u, ...rest } = job;
   const { data: nextJob } = await db().from("jobs").insert({
-    ...rest, plan_id: planId, scheduled_date: next, status: "assigned", completion_photos: [], ai_qa: null,
-    started_at: null, completed_at: null,
-  }).select("id, ref").single();
-  if (nextJob) await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked with the same pro.`);
+    ...rest, plan_id: planId, scheduled_date: next, status: "requested", completion_photos: [], ai_qa: null,
+    started_at: null, completed_at: null, paid_at: null, amount_paid: 0, amount_refunded: 0, stripe_payment_intent: null,
+    parent_job_id: null, remedy: null,
+  }).select("*").single();
+  if (!nextJob) return;
+  // Paid upfront: charge the saved card now; the visit is dispatched only once paid.
+  if (await chargeSavedCard(nextJob as Job)) {
+    await markPaid(nextJob.id, { amount: Number(nextJob.price_final), via: "saved card" });
+    await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked and prepaid with the same pro.`);
+  } else {
+    await sendPaymentLink(nextJob as Job);
+    await raiseAlert("payment", "warn", `${nextJob.ref}: recurring visit unpaid`, "Saved card failed or missing — payment link emailed. Not dispatched until paid.", nextJob.id);
+  }
 }
 
 export async function raiseAlert(kind: string, severity: "info" | "warn" | "critical", title: string, body: string | null, jobId?: string | null) {

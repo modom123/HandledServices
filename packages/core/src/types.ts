@@ -85,6 +85,12 @@ export interface Job {
   priority: "normal" | "high" | "urgent";
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;
+  paid_at: string | null;
+  amount_paid: number;
+  amount_refunded: number;
+  stripe_payment_intent: string | null;
+  parent_job_id: string | null;
+  remedy: "redo" | "complimentary" | null;
   stripe_customer_id: string | null;
   stripe_payment_method: string | null;
   started_at: string | null;

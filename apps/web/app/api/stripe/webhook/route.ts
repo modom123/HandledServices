@@ -2,12 +2,14 @@
  * FILE    : apps/web/app/api/stripe/webhook/route.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * PURPOSE : Stripe webhook: stores the saved payment method when Checkout (setup mode) completes.
+ * UPDATED : 2026-10-01_1900 UTC — Upfront payments: checkout.session.completed marks the
+ *           job paid (saving the card for recurring visits) and releases it to dispatch.
+ * PURPOSE : Stripe webhook.
  */
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { adminClient } from "@/lib/supabase/server";
-import { addEvent } from "@/lib/jobs";
+import { markPaid } from "@/lib/jobs";
 
 export async function POST(req: Request) {
   const s = getStripe();
@@ -22,10 +24,10 @@ export async function POST(req: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const jobId = session.metadata?.job_id;
-    if (jobId && session.setup_intent) {
-      const si = await s.setupIntents.retrieve(String(session.setup_intent));
-      await adminClient().from("jobs").update({ stripe_payment_method: String(si.payment_method) }).eq("id", jobId);
-      await addEvent(jobId, "card_saved", "Card saved — you'll be charged only after the job is complete.");
+    if (jobId && session.mode === "payment" && session.payment_status === "paid" && session.payment_intent) {
+      const pi = await s.paymentIntents.retrieve(String(session.payment_intent));
+      await adminClient().from("payments").update({ status: "paid" }).eq("stripe_session_id", session.id);
+      await markPaid(jobId, { amount: (session.amount_total ?? 0) / 100, via: "card", paymentIntent: pi.id, paymentMethod: pi.payment_method ? String(pi.payment_method) : null });
     }
   }
   return Response.json({ received: true });
