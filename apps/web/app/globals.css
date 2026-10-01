@@ -1,5 +1,7 @@
 /*
  * FILE    : apps/web/app/globals.css
+ * UPDATED : 2026-10-01_2215 UTC — one green palette everywhere: brand-deep for large panels,
+ *           brand for actions, brand-tint for light sections; amber only for warnings.
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  */
@@ -11,6 +13,10 @@
   --color-brand: #0e7c66;
   --color-brand-dark: #095c4c;
   --color-brand-tint: #e6f4f0;
+  /* deep green for large panels (hero, banners, sidebars) — white text ≈ 9:1 contrast */
+  --color-brand-deep: #0a4a3e;
+  /* light green accent text on deep green */
+  --color-mint: #9fe6cc;
   --color-sun: #f5b841;
   --color-paper: #fbfaf7;
   --color-line: #e6e2da;
@@ -27,7 +33,7 @@ body {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed;
 }
 @utility btn-primary { @apply btn bg-brand text-white hover:bg-brand-dark; }
-@utility btn-dark { @apply btn bg-ink text-white hover:bg-black; }
+@utility btn-dark { @apply btn bg-brand-deep text-white hover:bg-brand-dark; }
 @utility btn-ghost { @apply btn border border-line bg-white text-ink hover:border-ink; }
 @utility card { @apply rounded-2xl border border-line bg-white p-5; }
 @utility input { @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20; }

@@ -110,7 +110,7 @@ export function AssistantChat() {
     <div className="card flex h-[70vh] flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto text-sm">
         {!turns.length && <div className="grid gap-2 sm:grid-cols-2">{examples.map((e) => <button key={e} onClick={() => send(e)} className="rounded-xl border border-line p-3 text-left hover:border-brand">{e}</button>)}</div>}
-        {turns.map((t, i) => <div key={i} className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 ${t.role === "user" ? "ml-auto bg-ink text-white" : "bg-paper"}`}>{t.content}</div>)}
+        {turns.map((t, i) => <div key={i} className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 ${t.role === "user" ? "ml-auto bg-brand-deep text-white" : "bg-paper"}`}>{t.content}</div>)}
         {busy && <div className="w-fit rounded-2xl bg-paper px-4 py-2.5 text-ink-soft">Checking live data…</div>}
       </div>
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); send(text); }}><input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask about jobs, pros, revenue — or tell it to re-dispatch a job" /><button className="btn-primary" disabled={busy}>Ask</button></form>

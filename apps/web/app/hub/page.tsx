@@ -43,7 +43,7 @@ export default async function HubHome() {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3"><h1 className="text-2xl font-bold">Good {new Date().getHours() < 12 ? "morning" : "afternoon"}</h1><Link href="/hub/assistant" className="btn-dark">✨ Ask the AI assistant</Link></div>
-      <div className="card flex flex-wrap items-center justify-between gap-4 bg-ink text-white">
+      <div className="card flex flex-wrap items-center justify-between gap-4 bg-brand-deep text-white">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-white/60">AI-driven rate (month)</div>
           <div className="mt-1 text-4xl font-extrabold">{auto.rate === null ? "—" : `${Math.round(auto.rate * 100)}%`}</div>

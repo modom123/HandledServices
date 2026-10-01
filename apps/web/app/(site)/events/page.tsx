@@ -20,14 +20,14 @@ export default function Events() {
   const list = SERVICES.filter((s) => s.category === "events");
   return (
     <>
-      <section className="border-b border-line bg-ink text-white">
+      <section className="border-b border-line bg-brand-deep text-white">
         <div className="wrap grid items-center gap-10 py-16 md:grid-cols-[1.3fr_1fr]">
           <div>
             <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎉 Parties & Events</span>
-            <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Your event, <span className="text-sun">handled.</span></h1>
+            <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Your event, <span className="text-mint">handled.</span></h1>
             <p className="mt-4 max-w-xl text-lg text-white/75">Birthdays, weddings, graduations, holiday and office parties. Catering, food trucks, music, seating and the space — planned and coordinated by one team, on one invoice.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/book?service=event-package" className="btn bg-sun px-6 py-3 text-base text-ink hover:brightness-95">Plan by budget</Link>
+              <Link href="/book?service=event-package" className="btn bg-white px-6 py-3 text-base text-brand-dark hover:bg-brand-tint">Plan by budget</Link>
               <a href="#services" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-white">Book à la carte</a>
             </div>
             <p className="mt-4 text-sm text-white/60">Tell us “$5,000, 50 guests, birthday” — we’ll show exactly how we’d spend it, then plan and book everything.</p>
@@ -44,9 +44,9 @@ export default function Events() {
       </section>
 
       <section id="services" className="wrap py-14">
-        <div className="card mb-10 grid items-center gap-6 border-sun/60 bg-amber-50 md:grid-cols-[1.4fr_1fr]">
+        <div className="card mb-10 grid items-center gap-6 border-brand/30 bg-brand-tint md:grid-cols-[1.4fr_1fr]">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">Easiest way</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-brand-dark">Easiest way</div>
             <h2 className="mt-1 text-2xl font-bold">Plan by budget</h2>
             <p className="mt-2 text-ink-soft">Enter your total budget, guest count and type of event. We split it across food, venue, music, rentals and coordination — you see exactly what it buys before you book a free planning call. Your plan never goes over budget.</p>
           </div>
@@ -77,7 +77,7 @@ export default function Events() {
       <section className="wrap pb-10">
         <div className="grid gap-6 md:grid-cols-3">
           {STEPS.map(([t, b], i) => (
-            <div key={t} className="card"><div className="grid h-9 w-9 place-items-center rounded-full bg-ink text-sm font-bold text-white">{i + 1}</div><div className="mt-4 font-semibold">{t}</div><p className="mt-2 text-sm text-ink-soft">{b}</p></div>
+            <div key={t} className="card"><div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</div><div className="mt-4 font-semibold">{t}</div><p className="mt-2 text-sm text-ink-soft">{b}</p></div>
           ))}
         </div>
       </section>

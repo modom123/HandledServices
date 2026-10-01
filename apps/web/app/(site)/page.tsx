@@ -83,7 +83,7 @@ export default function Home() {
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {STEPS.map((s) => (
             <div key={s.n} className="card">
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-ink text-sm font-bold text-white">{s.n}</div>
+              <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{s.n}</div>
               <div className="mt-4 font-semibold">{s.title}</div>
               <p className="mt-2 text-sm text-ink-soft">{s.body}</p>
             </div>
@@ -94,7 +94,7 @@ export default function Home() {
       <section className="wrap pb-16">
         <div className="card overflow-hidden p-0">
           <div className="grid md:grid-cols-[1fr_1.4fr]">
-            <div className="bg-ink p-8 text-white">
+            <div className="bg-brand-deep p-8 text-white">
               <h2 className="text-2xl font-bold">Not a lead list. A finished job.</h2>
               <p className="mt-3 text-sm text-white/70">
                 Lead marketplaces sell your phone number to several contractors and leave the rest to you. Contractor software helps the pro, not you.
@@ -114,10 +114,10 @@ export default function Home() {
       </section>
 
       <section className="wrap pb-12">
-        <Link href="/events" className="card flex flex-wrap items-center justify-between gap-4 bg-ink text-white transition hover:bg-black">
-          <div><div className="text-xs font-semibold uppercase tracking-wide text-sun">New · Parties & Events</div><div className="mt-1 text-2xl font-bold">Throwing a party? We’ll handle that too.</div>
+        <Link href="/events" className="card flex flex-wrap items-center justify-between gap-4 bg-brand-deep text-white transition hover:bg-brand-dark">
+          <div><div className="text-xs font-semibold uppercase tracking-wide text-mint">New · Parties & Events</div><div className="mt-1 text-2xl font-bold">Throwing a party? We’ll handle that too.</div>
             <p className="mt-1 text-sm text-white/70">Planning, catering, food trucks, DJs, seating & tents, and the venue — one team, one invoice.</p></div>
-          <span className="btn bg-sun text-ink">Plan my event →</span>
+          <span className="btn bg-white text-brand-dark">Plan my event →</span>
         </Link>
       </section>
 

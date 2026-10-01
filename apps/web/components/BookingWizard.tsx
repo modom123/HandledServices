@@ -110,7 +110,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
       <div>
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
           {["Service", "Details", "When & where", "Review"].map((l, i) => (
-            <li key={l} className={`rounded-full px-3 py-1 ${i === step ? "bg-ink text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {l}</li>
+            <li key={l} className={`rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {l}</li>
           ))}
         </ol>
 

@@ -35,7 +35,7 @@ export function Concierge() {
     <div className="fixed bottom-5 right-5 z-40">
       {open && (
         <div className="mb-3 flex h-[28rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-xl">
-          <div className="flex items-center justify-between bg-ink px-4 py-3 text-white">
+          <div className="flex items-center justify-between bg-brand-deep px-4 py-3 text-white">
             <div><div className="text-sm font-semibold">Concierge</div><div className="text-xs text-white/60">AI · instant prices · 24/7</div></div>
             <button onClick={() => setOpen(false)} aria-label="Close chat">✕</button>
           </div>
