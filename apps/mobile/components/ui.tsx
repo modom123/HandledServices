@@ -6,7 +6,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from "react-native";
 import { JOB_STATUS_LABEL, type JobStatus } from "@handled/core";
 
-export const C = { ink: "#0b1b2b", soft: "#5b6a7a", brand: "#0e7c66", deep: "#0a4a3e", tint: "#e6f4f0", paper: "#fbfaf7", line: "#e6e2da", white: "#fff", red: "#be123c" };
+export const C = { ink: "#0b1b2b", soft: "#5b6a7a", brand: "#0e7c66", deep: "#0a4a3e", tint: "#e6f4f0", paper: "#f0ead6", line: "#d9d0b8", white: "#fff", red: "#be123c" };
 
 export function Button({ title, onPress, kind = "primary", disabled, busy, style }: { title: string; onPress: () => void; kind?: "primary" | "ghost" | "dark"; disabled?: boolean; busy?: boolean; style?: ViewStyle }) {
   const bg = kind === "primary" ? C.brand : kind === "dark" ? C.deep : C.white;

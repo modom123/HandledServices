@@ -39,7 +39,7 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="mt-24 border-t border-line bg-white">
+    <footer className="mt-24 border-t border-line bg-paper-deep">
       <div className="wrap grid gap-10 py-12 md:grid-cols-5">
         <div className="md:col-span-2">
           <Logo />

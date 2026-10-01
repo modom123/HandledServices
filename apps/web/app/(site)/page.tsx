@@ -55,7 +55,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-y border-line bg-white py-16">
+      <section className="border-y border-line bg-paper-deep py-16">
         <div className="wrap">
           <h2 className="text-3xl font-bold tracking-tight">Every service, one account</h2>
           <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">

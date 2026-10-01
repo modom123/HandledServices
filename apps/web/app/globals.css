@@ -2,6 +2,8 @@
  * FILE    : apps/web/app/globals.css
  * UPDATED : 2026-10-01_2215 UTC — one green palette everywhere: brand-deep for large panels,
  *           brand for actions, brand-tint for light sections; amber only for warnings.
+ * UPDATED : 2026-10-01_2359 UTC — eggshell page background (#F0EAD6) instead of near-white;
+ *           cards and inputs stay white so they stand out; borders a touch darker.
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  */
@@ -18,8 +20,11 @@
   /* light green accent text on deep green */
   --color-mint: #9fe6cc;
   --color-sun: #f5b841;
-  --color-paper: #fbfaf7;
-  --color-line: #e6e2da;
+  /* eggshell page background; white cards sit on top of it */
+  --color-paper: #f0ead6;
+  /* deeper eggshell for the footer and quiet panels */
+  --color-paper-deep: #e6dec6;
+  --color-line: #d9d0b8;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
