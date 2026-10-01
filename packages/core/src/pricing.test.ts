@@ -361,3 +361,24 @@ test("big jobs get a free site visit instead of an instant price", async () => {
   assert.ok(sizeNeedsSiteVisit("interior-painting", { rooms: 20 }));
   assert.equal(sizeNeedsSiteVisit("house-cleaning", { bedrooms: 9 }), null);
 });
+
+test("removal: weight classes, heaviest item and the junk container", async () => {
+  const { sizeNeedsSiteVisit } = await import("./intake.ts");
+  const couch = estimate({ slug: "large-item-removal", answers: { medium: 1, heaviest: 120 } }).point;
+  const fridge = estimate({ slug: "large-item-removal", answers: { heavy: 1, heaviest: 250 } }).point;
+  const safe = estimate({ slug: "large-item-removal", answers: { very_heavy: 1, heaviest: 500 } }).point;
+  assert.ok(couch < fridge && fridge < safe, "heavier costs more");
+  const down = estimate({ slug: "large-item-removal", answers: { very_heavy: 1, heaviest: 500, flights: 2 } }).point;
+  assert.ok(down - safe >= 150, "stairs scale with weight");
+  assert.ok(sizeNeedsSiteVisit("large-item-removal", { heaviest: 1500 }));
+  assert.equal(sizeNeedsSiteVisit("large-item-removal", { heaviest: 400 }), null);
+  const q = estimate({ slug: "junk-removal", answers: { volume: "quarter", kind: "household" } }).point;
+  assert.ok(estimate({ slug: "junk-removal", answers: { volume: "quarter", kind: "heavy" } }).point > q);
+  assert.ok(estimate({ slug: "junk-removal", answers: { volume: "quarter", special: 2 } }).point >= q + 60);
+  const wk = estimate({ slug: "junk-container", answers: { size: "15", days: "7", debris: "mixed" } }).point;
+  assert.ok(wk >= 349 && estimate({ slug: "junk-container", answers: { size: "15", days: "14", debris: "mixed" } }).point > wk);
+  assert.ok(estimate({ slug: "junk-container", answers: { size: "30", days: "7" } }).point > wk);
+  const { containerPickup } = await import("./intake.ts");
+  assert.equal(containerPickup("2026-11-02", "7"), "2026-11-09");
+  assert.equal(containerPickup("2026-11-28", 14), "2026-12-12");
+});

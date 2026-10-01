@@ -11,6 +11,8 @@ const checks = [
   ["Home page", "GET", "/", (r, t) => r.ok && t.includes("Handled")],
   ["Services page lists new services", "GET", "/services", (r, t) => r.ok && ["Organizing", "Water Heater", "Power Washing", "Interior Painting", "Exterior Painting", "Errands"].every((x) => t.includes(x))],
   ["Painting booking page", "GET", "/book?service=interior-painting", (r) => r.ok],
+  ["Junk container page", "GET", "/services/junk-container", (r, t) => r.ok && t.includes("Drop-off")],
+  ["Large item quote by weight", "POST", "/api/quote", (r, t) => r.ok && JSON.parse(t).baseline?.point > 0, { service_slug: "large-item-removal", answers: { heavy: 1, heaviest: 250, flights: 1 } }],
   ["Painting quote API", "POST", "/api/quote", (r, t) => r.ok && JSON.parse(t).baseline?.point > 0, { service_slug: "exterior-painting", answers: { sqft: 1800, stories: "2", siding: "vinyl" } }],
   ["Events page", "GET", "/events", (r, t) => r.ok && t.includes("Plan by budget")],
   ["Booking page", "GET", "/book?service=house-cleaning", (r) => r.ok],

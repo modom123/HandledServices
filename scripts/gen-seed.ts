@@ -52,7 +52,7 @@ out.push(`-- ===================================================================
 const pros = [
   ["Sparkle Squad Cleaning", "Dana Reyes", "dana@sparklesquad.example", ["cleaning", "windows", "carpet"], 4.9, 212, 4],
   ["GreenLine Lawn & Tree", "Marcus Bell", "marcus@greenline.example", ["lawn", "tree", "gutters"], 4.8, 156, 5],
-  ["Haul Pros Detroit", "Tony Brooks", "tony@haulpros.example", ["hauling"], 4.7, 98, 4],
+  ["Haul Pros Detroit", "Tony Brooks", "tony@haulpros.example", ["hauling", "dumpster"], 4.7, 98, 4],
   ["Fix-It Fred", "Fred Okafor", "fred@fixitfred.example", ["handyman"], 4.95, 340, 3],
   ["Scoop Troop", "Lena Park", "lena@scooptroop.example", ["pet_waste", "lawn"], 4.85, 410, 12],
   ["Midwest Remodel Co.", "Sam Patel", "sam@midwestremodel.example", ["remodel", "handyman"], 4.8, 64, 1],

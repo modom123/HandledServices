@@ -12,7 +12,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, splitJob, tierPayout, type QualityStats,
+  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -84,6 +84,13 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await zipCentroid(input.zip);
+  // containers are two visits: drop off on the booked date, pick up when the rental ends
+  let instructions: string | null = null;
+  if (svc.slug === "junk-container" && input.scheduled_date) {
+    const pickup = new Date(`${containerPickup(input.scheduled_date, input.answers.days)}T12:00:00`);
+    const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    instructions = `TWO VISITS. Drop off the ${input.answers.size ?? 15}-yard container on ${fmt(new Date(`${input.scheduled_date}T12:00:00`))} (${input.time_window}); pick it up on ${fmt(pickup)}. Use driveway boards. Upload the landfill weigh ticket as a receipt — any weight over the allowance is billed to the customer at cost.`;
+  }
   const price = siteVisit ? null : ai?.final_price ?? est.point;
   const dep = price ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
   const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
@@ -92,6 +99,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     .insert({
       ...input,
       customer_id: customerId,
+      instructions,
       lat: loc?.lat ?? null,
       lng: loc?.lng ?? null,
       status: (siteVisit ? "site_visit" : "requested") satisfies JobStatus,
@@ -118,6 +126,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 export async function onBooked(job: Job, paymentUrl: string | null) {
   const svc = getService(job.service_slug)!;
   const ai = job.ai_quote as { customer_summary?: string; risk_flags?: string[]; ops_notes?: string } | null;
+  if (svc.slug === "junk-container" && job.scheduled_date)
+    await addEvent(job.id, "scheduled", `Container drop-off ${job.scheduled_date}, pickup ${containerPickup(job.scheduled_date, (job.answers as Record<string, unknown>).days)}. Need it longer? Message us — extra days are $12 each.`, "system");
   if (ai?.customer_summary) await addEvent(job.id, "ai_quote", `AI reviewed your details: ${ai.customer_summary}`, "ai");
   if (ai?.risk_flags?.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes ?? null, job.id);
 

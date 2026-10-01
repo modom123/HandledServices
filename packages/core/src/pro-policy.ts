@@ -48,7 +48,7 @@ export const PRO_POLICY_DEFAULTS: ProPolicy = {
     ...rule({ minJobs: 10, minRating: 4.6 }), stipend: 150, afterJobs: 10,
     partners: [{ name: "Your insurance partner (set in Hub → Pro Program)", url: "", phone: "", covers: "General liability, commercial auto, bonds, workers' comp", code: "" }],
   },
-  materials: { ...rule({ trades: ["handyman", "plumbing", "electrical", "hvac", "low_voltage", "remodel", "gutters", "pressure_washing", "errands"] }), autoApproveUpTo: 75, maxShareOfPrice: 0.5, shoppingTrades: ["errands"], shoppingMax: 300 },
+  materials: { ...rule({ trades: ["handyman", "plumbing", "electrical", "hvac", "low_voltage", "remodel", "gutters", "pressure_washing", "errands", "dumpster"] }), autoApproveUpTo: 75, maxShareOfPrice: 0.5, shoppingTrades: ["errands"], shoppingMax: 300 },
   guarantee: { ...rule({ enabled: false, minTier: "elite", trades: ["snow", "lawn", "cleaning"] }), weeklyMinimum: 800, months: [1, 2, 5, 6, 7, 12], minAcceptance: 0.9, minDaysAvailable: 5, weeklyBudget: 2000 },
 };
 

@@ -34,13 +34,19 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
         </ul>
         <h2 className="mt-10 font-bold">Questions we’ll ask for your price</h2>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-soft">
-          {s.questions.map((q) => <li key={q.id}>{q.label}</li>)}
+          {s.questions.map((q) => <li key={q.id}>{q.label}{q.help ? <span className="block text-xs">{q.help}</span> : null}</li>)}
         </ul>
       </div>
       <aside className="card h-fit md:sticky md:top-24">
         <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Typical price</div>
         <div className="mt-1 text-3xl font-bold">{moneyRange(typical.low, typical.high)}</div>
         <div className="mt-1 text-sm text-ink-soft">Minimum {money(s.minimum)}{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}</div>
+        {(s.slug === "junk-removal" || s.slug === "large-item-removal") && (
+          <Link href="/services/junk-container" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🗑️ <b>Rather load it yourself over a week?</b> We drop off a container and pick it up — from {money(getService("junk-container")?.minimum ?? 349)}.</Link>
+        )}
+        {s.slug === "junk-container" && (
+          <Link href="/services/junk-removal" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🚛 <b>Want us to do the lifting?</b> Book full-service Junk Removal instead.</Link>
+        )}
         {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
         <Link href={`/book?service=${s.slug}`} className="btn-primary mt-5 w-full py-3">Get my exact price</Link>
         <p className="mt-4 text-xs text-ink-soft">{BRAND.promise}</p>

@@ -64,7 +64,7 @@ export const CATEGORIES: { id: CategoryId; name: string; icon: string; blurb: st
   { id: "cleaning", name: "Cleaning & Organizing", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing — plus decluttering." },
   { id: "outdoor", name: "Lawn, Leaves & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away", icon: "🚛", blurb: "Junk, furniture and big items gone today." },
+  { id: "removal", name: "Haul Away", icon: "🚛", blurb: "Junk, furniture and heavy items gone today — or a container dropped off for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Assistant", icon: "🛍️", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
   { id: "events", name: "Parties & Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
@@ -684,8 +684,8 @@ export const SERVICES: Service[] = [
     name: "Junk Removal",
     category: "removal",
     icon: "🚛",
-    tagline: "Priced by truck volume. Donated & recycled first.",
-    description: "Full-service junk hauling from homes, garages, offices and job sites. You point, we lift, load and sweep.",
+    tagline: "Priced by how much — we load it all. Donated & recycled first.",
+    description: "Full-service junk hauling from homes, garages, basements, offices and job sites. You point, we lift, load and sweep. Prefer to load it yourself over a few days? Book a Junk Container instead.",
     includes: ["2-person crew", "All lifting & loading", "Donation & recycling first", "Area swept clean"],
     questions: [
       {
@@ -693,17 +693,28 @@ export const SERVICES: Service[] = [
         label: "How much stuff",
         type: "select",
         default: "quarter",
+        help: "A pickup-truck bed holds about 2 cubic yards. Our truck holds about 16. Not sure? Pick your best guess and add photos — we check them before you pay.",
         options: [
-          { value: "min", label: "A few items (minimum)" },
-          { value: "eighth", label: "⅛ truck (pickup bed)" },
-          { value: "quarter", label: "¼ truck" },
-          { value: "half", label: "½ truck" },
-          { value: "three_quarter", label: "¾ truck" },
-          { value: "full", label: "Full truck" },
+          { value: "min", label: "A few items (≈1 cu yd · e.g. a chair and a few bags)" },
+          { value: "eighth", label: "⅛ truck (≈2 cu yd · one pickup-truck bed)" },
+          { value: "quarter", label: "¼ truck (≈4 cu yd · a couch, a dresser and boxes)" },
+          { value: "half", label: "½ truck (≈8 cu yd · a small room or half a garage)" },
+          { value: "three_quarter", label: "¾ truck (≈12 cu yd · a full room or a cluttered garage)" },
+          { value: "full", label: "Full truck (≈16 cu yd · a full one-car garage)" },
+          { value: "double", label: "2 trucks (≈32 cu yd · whole-house or estate clean-out)" },
         ],
       },
-      { id: "stairs", label: "Items upstairs / basement", type: "toggle", default: false },
-      { id: "heavy", label: "Heavy debris (concrete, dirt, roofing)", type: "toggle", default: false },
+      {
+        id: "kind", label: "Mostly", type: "select", default: "household",
+        options: [
+          { value: "household", label: "Household junk & furniture" },
+          { value: "yard", label: "Yard waste (branches, leaves, soil bags)" },
+          { value: "construction", label: "Construction / remodel debris" },
+          { value: "heavy", label: "Heavy debris (concrete, brick, dirt, roofing)" },
+        ],
+      },
+      { id: "special", label: "Items with disposal fees", type: "number", min: 0, max: 20, default: 0, help: "Mattresses or box springs, TVs and monitors, tires, fridges, freezers and AC units (refrigerant)" },
+      { id: "stairs", label: "Items upstairs / in a basement", type: "toggle", default: false },
     ],
     minimum: 129,
     spread: [0.9, 1.15],
@@ -713,10 +724,14 @@ export const SERVICES: Service[] = [
     trades: ["hauling"],
     price: (a) => {
       const vol = s(a, "volume", "quarter");
-      const price = { min: 129, eighth: 189, quarter: 259, half: 409, three_quarter: 539, full: 669 }[vol] ?? 259;
+      const price = { min: 129, eighth: 189, quarter: 259, half: 409, three_quarter: 539, full: 669, double: 1249 }[vol] ?? 259;
       const items: LineItem[] = [{ label: "Truck volume", amount: price }];
-      if (b(a, "stairs")) items.push({ label: "Stairs / basement carry", amount: 50 });
-      if (b(a, "heavy")) items.push({ label: "Heavy debris surcharge", amount: Math.round(price * 0.25) });
+      const kind = s(a, "kind", "household");
+      if (kind === "construction") items.push({ label: "Construction debris (dense, mixed)", amount: Math.round(price * 0.15) });
+      if (kind === "heavy") items.push({ label: "Heavy debris (weight-based dump fees)", amount: Math.round(price * 0.35) });
+      const special = n(a, "special");
+      if (special) items.push({ label: `${special} item${special > 1 ? "s" : ""} with disposal fees × $30`, amount: special * 30 });
+      if (b(a, "stairs")) items.push({ label: "Stairs / basement carry", amount: vol === "double" ? 100 : 50 });
       const base = sum(items);
       return { items, base, hours: Math.max(1, base / 220) };
     },
@@ -726,13 +741,19 @@ export const SERVICES: Service[] = [
     name: "Large Item Removal",
     category: "removal",
     icon: "🛋️",
-    tagline: "Couches, mattresses, appliances, hot tubs, pianos.",
-    description: "Single and multi-item pickups for bulky furniture and appliances, including specialty items that need extra hands.",
-    includes: ["2-person crew", "Disassembly if needed", "Doorframes & floors protected", "Responsible disposal"],
+    tagline: "Priced by how many items and how heavy — from couches to pianos.",
+    description: "Pickup of bulky and heavy items: furniture, mattresses, appliances, exercise equipment, safes, pianos and hot tubs. Tell us how many items in each weight class and the heaviest one, so we send the right crew and equipment.",
+    includes: ["2-person crew (3 for 300 lb+)", "Dollies, straps & stair-climber for heavy items", "Disassembly if needed", "Doorframes & floors protected", "Responsible disposal & recycling"],
     questions: [
-      { id: "items", label: "Standard bulky items", type: "number", min: 0, max: 20, default: 1, help: "Couch, mattress, fridge, dresser…" },
-      { id: "specialty", label: "Specialty items", type: "number", min: 0, max: 5, default: 0, help: "Piano, hot tub, safe, pool table" },
-      { id: "stairs", label: "Stairs involved", type: "toggle", default: false },
+      { id: "light", label: "Light items — under 50 lb", type: "number", min: 0, max: 30, default: 0, help: "Chair, side table, TV, bike, small rug" },
+      { id: "medium", label: "Medium items — 50 to 150 lb", type: "number", min: 0, max: 30, default: 1, help: "Couch, mattress or box spring, dresser, desk, washer or dryer, recliner" },
+      { id: "heavy", label: "Heavy items — 150 to 300 lb", type: "number", min: 0, max: 20, default: 0, help: "Refrigerator, sectional, sleeper sofa, treadmill, armoire, china cabinet" },
+      { id: "very_heavy", label: "Very heavy items — 300 to 600 lb", type: "number", min: 0, max: 10, default: 0, help: "Gun safe, upright piano, slate pool table, home gym, large freezer" },
+      { id: "specialty", label: "Specialty items — 600 lb+ or special handling", type: "number", min: 0, max: 5, default: 0, help: "Hot tub, grand piano, large safe, commercial equipment" },
+      { id: "heaviest", label: "Heaviest single item (approx. weight)", type: "number", min: 10, max: 3000, default: 120, unit: "lb", help: "Check the label or manual, or search the model online. Over 1,000 lb gets a free site visit." },
+      { id: "flights", label: "Flights of stairs to carry down", type: "number", min: 0, max: 6, default: 0 },
+      { id: "long_carry", label: "Long carry (over 50 ft from where the truck parks)", type: "toggle", default: false },
+      { id: "disassembly", label: "Needs taking apart (bed frame, sectional, playset, hot tub cutting)", type: "toggle", default: false },
     ],
     minimum: 99,
     spread: [0.95, 1.15],
@@ -741,14 +762,86 @@ export const SERVICES: Service[] = [
     frequencies: ["once"],
     trades: ["hauling"],
     price: (a) => {
+      const cls = [
+        { id: "light", label: "light (under 50 lb)", each: 39, stair: 5, hrs: 0.15 },
+        { id: "medium", label: "medium (50–150 lb)", each: 79, stair: 15, hrs: 0.3 },
+        { id: "heavy", label: "heavy (150–300 lb)", each: 129, stair: 30, hrs: 0.5 },
+        { id: "very_heavy", label: "very heavy (300–600 lb)", each: 249, stair: 75, hrs: 1 },
+        { id: "specialty", label: "specialty (600 lb+)", each: 399, stair: 125, hrs: 2 },
+      ];
       const items: LineItem[] = [];
-      const std = n(a, "items", 1);
-      if (std) items.push({ label: `${std} bulky item${std > 1 ? "s" : ""}`, amount: 99 + Math.max(0, std - 1) * 49 });
-      const spec = n(a, "specialty");
-      if (spec) items.push({ label: `${spec} specialty item${spec > 1 ? "s" : ""}`, amount: spec * 325 });
-      if (b(a, "stairs")) items.push({ label: "Stair carry", amount: 40 + std * 10 + spec * 75 });
+      let hours = 0, stairs = 0;
+      const flights = n(a, "flights");
+      for (const c of cls) {
+        const k = n(a, c.id);
+        if (!k) continue;
+        items.push({ label: `${k} ${c.label} item${k > 1 ? "s" : ""} × $${c.each}`, amount: k * c.each });
+        stairs += k * c.stair * flights;
+        hours += k * c.hrs;
+      }
+      if (!items.length) items.push({ label: "1 item pickup", amount: 79 });
+      if (stairs) items.push({ label: `Stair carry (${flights} flight${flights > 1 ? "s" : ""}, by weight)`, amount: stairs });
+      const heaviest = n(a, "heaviest", 120);
+      if (heaviest >= 300) items.push({ label: "3rd crew member (300 lb+ item)", amount: 75 });
+      if (heaviest >= 600) items.push({ label: "Heavy-move equipment (stair-climber, skates)", amount: 125 });
+      if (b(a, "long_carry")) items.push({ label: "Long carry", amount: 35 });
+      if (b(a, "disassembly")) items.push({ label: "Disassembly", amount: 45 });
       const base = sum(items);
-      return { items, base, hours: Math.max(1, std * 0.3 + spec) };
+      return { items, base, hours: Math.max(1, hours * (1 + flights * 0.2)) };
+    },
+  },
+  {
+    slug: "junk-container",
+    name: "Junk Container (Drop-off & Pickup)",
+    category: "removal",
+    icon: "🗑️",
+    tagline: "We drop a container, you fill it for a week, we haul it away.",
+    description: "A roll-off container delivered to your driveway for a clean-out, move or remodel. Load it at your own pace; we pick it up when your rental ends. Weight allowance included — any overage is billed at the landfill's cost per ton with the weigh ticket.",
+    includes: ["Delivery & pickup", "Driveway protection boards", "Weight allowance included", "Landfill & recycling fees for the allowance", "Extra days available"],
+    questions: [
+      {
+        id: "size", label: "Container size", type: "select", default: "15",
+        help: "10 yd ≈ 4 pickup loads (a garage clean-out) · 15 yd ≈ 6 (a basement or small remodel) · 20 yd ≈ 8 (a whole-floor clean-out or roof) · 30 yd ≈ 12 (a whole house or big remodel)",
+        options: [
+          { value: "10", label: "10 yard — includes 1 ton" },
+          { value: "15", label: "15 yard — includes 2 tons" },
+          { value: "20", label: "20 yard — includes 3 tons" },
+          { value: "30", label: "30 yard — includes 4 tons" },
+        ],
+      },
+      { id: "days", label: "Rental length", type: "select", default: "7", options: [{ value: "3", label: "3 days" }, { value: "7", label: "1 week" }, { value: "14", label: "2 weeks" }, { value: "30", label: "1 month" }] },
+      {
+        id: "debris", label: "What goes in", type: "select", default: "mixed",
+        options: [
+          { value: "mixed", label: "Household junk, furniture, yard waste" },
+          { value: "construction", label: "Construction / remodel debris, roofing" },
+          { value: "heavy", label: "Clean concrete, brick or dirt only (10 yard max)" },
+        ],
+      },
+      { id: "street", label: "Goes on the street, not the driveway (needs a city permit)", type: "toggle", default: false },
+      { id: "load_help", label: "Add a 2-person crew to load it for 2 hours", type: "toggle", default: false },
+    ],
+    minimum: 349,
+    spread: [1, 1.1],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["dumpster"],
+    leadDays: 2,
+    price: (a) => {
+      const size = s(a, "size", "15");
+      const debris = s(a, "debris", "mixed");
+      const heavy = debris === "heavy";
+      const base7 = heavy ? 525 : ({ "10": 375, "15": 425, "20": 475, "30": 575 }[size] ?? 425);
+      const items: LineItem[] = [{ label: heavy ? "10 yard heavy-debris container (concrete, brick, dirt — flat rate)" : `${size} yard container, 1 week, ${({ "10": 1, "15": 2, "20": 3, "30": 4 } as Record<string, number>)[size] ?? 2} ton${size === "10" ? "" : "s"} included`, amount: base7 }];
+      const days = Number(s(a, "days", "7"));
+      if (days === 3) items.push({ label: "3-day rental", amount: -40 });
+      if (days > 7) items.push({ label: `${days - 7} extra days × $12`, amount: (days - 7) * 12 });
+      if (debris === "construction") items.push({ label: "Construction debris (dense load)", amount: 50 });
+      if (b(a, "street")) items.push({ label: "Street placement permit (we file it)", amount: 75 });
+      if (b(a, "load_help")) items.push({ label: "2-person loading crew, 2 hours", amount: 230 });
+      const base = sum(items);
+      return { items, base, hours: 1.5 + (b(a, "load_help") ? 2 : 0) };
     },
   },
 
@@ -1593,6 +1686,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "pressure_washing", label: "Power / pressure washing" },
   { id: "errands", label: "Errands & personal assistant" },
   { id: "hauling", label: "Junk & item hauling" },
+  { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },
   { id: "painting", label: "Painting (interior & exterior)" },

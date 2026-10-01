@@ -106,6 +106,7 @@ export default function Book() {
       {svc.questions.map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
           <Text style={s.label}>{q.label}</Text>
+          {q.help ? <Text style={[s.p, { marginBottom: 6, fontSize: 12 }]}>{q.help}</Text> : null}
           {q.type === "number" && q.max >= 200 && (
             <NumberBox value={Number(answers[q.id])} min={q.min} max={q.max} unit={q.unit} onChange={(v) => setAnswers((cur) => ({ ...cur, [q.id]: v }))} />
           )}

@@ -39,7 +39,8 @@ const RULES: Record<string, PhotoRule> = {
   "tree-removal": R(2, "The whole tree", "Base of the trunk", "Nearby house, fence or power lines"),
   "pet-waste-removal": O("The yard"),
   "junk-removal": R(2, "Everything that's going, wide shot", "Anything heavy or bulky", "The path out (stairs, doorways)"),
-  "large-item-removal": R(1, "The item(s)", "The path out (stairs, doorways)"),
+  "large-item-removal": R(1, "Each item", "Labels showing model or weight on heavy items", "The path out (stairs, doorways)"),
+  "junk-container": O("Where the container goes (driveway or street)", "Anything overhead (wires, branches)"),
   handyman: R(1, "Each thing to fix or install", "Close-up of the problem"),
   plumbing: R(1, "The leak, clog or fixture", "Under the sink / shut-off valves"),
   "water-heater": R(2, "The whole water heater", "Its label (model & gallons)", "Venting and gas or electric hookup"),
@@ -131,9 +132,19 @@ const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "interior-painting": (a) => (Number(a.rooms ?? 0) > 15 ? "More than 15 rooms" : null),
   "exterior-painting": (a) => (a.building === "commercial" ? "Commercial building" : Number(a.sqft ?? 0) > 5000 ? "Building over 5,000 sq ft" : null),
   "power-washing": (a) => (Number(a.sqft ?? 0) > 5000 ? "Over 5,000 sq ft" : null),
+  "large-item-removal": (a) => (Number(a.heaviest ?? 0) > 1000 ? "An item over 1,000 lb" : Number(a.specialty ?? 0) > 2 ? "More than 2 specialty items" : null),
+  "junk-removal": (a) => (a.volume === "double" && a.kind === "heavy" ? "Two truckloads of heavy debris" : null),
 };
 
 /** Why this job needs a free site visit for a firm price (null = instant price is fine). */
 export function sizeNeedsSiteVisit(slug: string, answers: Answers): string | null {
   return SITE_VISIT_IF[slug]?.(answers) ?? null;
+}
+
+/** Junk container: pickup date (YYYY-MM-DD) from the drop-off date and rental length. */
+export function containerPickup(dropOff: string | null | undefined, days: unknown): string | null {
+  if (!dropOff || !/^\d{4}-\d{2}-\d{2}$/.test(dropOff)) return null;
+  const d = new Date(`${dropOff}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + (Number(days) || 7));
+  return d.toISOString().slice(0, 10);
 }

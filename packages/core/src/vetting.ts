@@ -128,6 +128,17 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     conditional: [{ key: "auto", when: "you drive for jobs — your auto policy must cover business or delivery use" }],
     skillsCheck: "Motor-vehicle record check, 2 references, video interview.",
   },
+  dumpster: {
+    does: "Roll-off container delivery, swap and pickup for clean-outs, moves and remodels; landfill disposal.",
+    specialties: [
+      { id: "residential_roll_off", label: "Residential roll-offs", slug: "junk-container" },
+      { id: "construction_roll_off", label: "Construction & roofing" },
+      { id: "heavy_debris", label: "Concrete, brick & dirt" },
+    ],
+    license: null, preferred: ["Municipal hauler registration where your city requires it"], glMin: GL1, requires: ["auto"],
+    conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Truck and container inventory by size, landfill / transfer-station accounts, sample weigh tickets, 2 references.",
+  },
   pet_waste: {
     does: "Weekly yard scooping, deodorizing and disposal.",
     specialties: [{ id: "scoop", label: "Yard scooping", slug: "pet-waste-removal" }, { id: "deodorize", label: "Deodorizing / sanitizing" }],
