@@ -23,6 +23,7 @@ export function SiteHeader() {
         <Logo />
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink-soft md:flex">
           <Link href="/services" className="hover:text-ink">Services</Link>
+          <Link href="/events" className="hover:text-ink">Events</Link>
           <Link href="/business" className="hover:text-ink">For Business</Link>
           <Link href="/pros" className="hover:text-ink">Become a Pro</Link>
           <Link href="/account" className="hover:text-ink">My Bookings</Link>
@@ -58,6 +59,7 @@ export function SiteFooter() {
         <div>
           <div className="text-sm font-semibold">Company</div>
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
+            <li><Link href="/events" className="hover:text-ink">Parties & events</Link></li>
             <li><Link href="/business" className="hover:text-ink">Commercial accounts</Link></li>
             <li><Link href="/pros" className="hover:text-ink">Join as a pro</Link></li>
             <li><Link href="/hub" className="hover:text-ink">Ops hub</Link></li>

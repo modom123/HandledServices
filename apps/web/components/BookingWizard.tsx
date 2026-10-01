@@ -12,22 +12,32 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import {
-  BRAND, CATEGORIES, SERVICES, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, SERVICES, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
 } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
+const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const START_TIMES = Array.from({ length: 30 }, (_, i) => {
+  const mins = 8 * 60 + i * 30; // 8:00am → 10:30pm
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return { v: `${String(h).padStart(2, "0")}:${m ? "30" : "00"}`, l: `${((h + 11) % 12) + 1}:${m ? "30" : "00"} ${h < 12 ? "am" : "pm"}` };
+});
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean } | null;
 
-export function BookingWizard({ initialService }: { initialService?: string }) {
+export function BookingWizard({ initialService, prefill = {} }: { initialService?: string; prefill?: Answers }) {
   const router = useRouter();
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
   const svc = getService(slug);
-  const [answers, setAnswers] = useState<Answers>(svc ? defaultAnswers(svc) : {});
+  const [answers, setAnswers] = useState<Answers>(() => {
+    if (!svc) return {};
+    const known = new Set(svc.questions.map((q) => q.id));
+    return { ...defaultAnswers(svc), ...Object.fromEntries(Object.entries(prefill).filter(([k]) => known.has(k))) };
+  });
   const [frequency, setFrequency] = useState<Frequency>("once");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -92,7 +102,8 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
 
   const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
   const contactOk = form.contact_name.length > 1 && /\S+@\S+\.\S+/.test(form.contact_email) && form.contact_phone.length >= 7;
-  const placeOk = form.address.length > 2 && form.city.length > 1 && /^\d{5}$/.test(form.zip) && form.state.length === 2;
+  const eventDateOk = !svc?.leadDays || (date >= addDays(svc.leadDays) && date <= addDays(365));
+  const placeOk = eventDateOk && form.address.length > 2 && form.city.length > 1 && /^\d{5}$/.test(form.zip) && form.state.length === 2;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
@@ -174,14 +185,27 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
           <div className="card space-y-5">
             <h2 className="text-xl font-bold">When & where</h2>
             <div className="max-w-[10rem]"><label className="label">Service ZIP code</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
-            <BookingCalendar service={slug} zip={form.zip} date={date} window={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
+            {svc?.leadDays ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div><label className="label">Event date</label>
+                  <input type="date" className="input" min={addDays(svc.leadDays)} max={addDays(365)} value={date < addDays(svc.leadDays) ? "" : date}
+                    onChange={(e) => { setDate(e.target.value); setWin("flexible"); }} />
+                  <p className="mt-1 text-xs text-ink-soft">Book at least {svc.leadDays} days ahead — up to a year out.</p></div>
+                <div><label className="label">Start time</label>
+                  <select className="input" value={String(answers.start_time ?? "18:00")} onChange={(e) => setAnswers((cur) => ({ ...cur, start_time: e.target.value }))}>
+                    {START_TIMES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+                  </select></div>
+              </div>
+            ) : (
+              <BookingCalendar service={slug} zip={form.zip} date={date} window={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
+            )}
             <div className="flex gap-2">
               {(["residential", "commercial"] as const).map((t) => (
                 <button key={t} onClick={() => setForm({ ...form, customer_type: t })} className={`rounded-full border px-3.5 py-1.5 text-sm capitalize ${form.customer_type === t ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t === "residential" ? "Home" : "Business"}</button>
               ))}
             </div>
             {form.customer_type === "commercial" && <div><label className="label">Company</label><input className="input" value={form.company_name} onChange={set("company_name")} /></div>}
-            <div><label className="label">Street address</label><input className="input" autoComplete="street-address" value={form.address} onChange={set("address")} /></div>
+            <div><label className="label">{svc?.leadDays ? "Event address (or your neighborhood if you need a venue)" : "Street address"}</label><input className="input" autoComplete="street-address" value={form.address} onChange={set("address")} /></div>
             <div className="grid grid-cols-[1fr_80px] gap-3">
               <div><label className="label">City</label><input className="input" value={form.city} onChange={set("city")} /></div>
               <div><label className="label">State</label><input className="input uppercase" maxLength={2} value={form.state} onChange={set("state")} /></div>
@@ -214,9 +238,12 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
 
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.slug === "event-package" ? "Your budget — how we’d spend it" : svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
           <div className="mt-1 text-3xl font-bold">{svc.siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
           {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
+          {svc.slug === "event-package" && planEventBudget({ budget: Number(answers.budget), guests: Number(answers.guests), eventType: String(answers.event_type), haveVenue: answers.venue === "have" }).warnings.map((w) => (
+            <p key={w} className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{w}</p>
+          ))}
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
             {est.items.map((i) => (
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{i.label}</span><span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span></li>
@@ -226,7 +253,7 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
             <button className="btn-ghost mt-4 w-full" onClick={runAi} disabled={aiBusy}>{aiBusy ? "AI is reviewing…" : "✨ Let AI check my notes & photos"}</button>
           )}
           <p className="mt-4 text-xs text-ink-soft">
-            {svc.siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise}
+            {svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : svc.siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise}
           </p>
         </aside>
       )}
@@ -248,6 +275,7 @@ function NumberField({ value, min, max, unit, onChange }: { value: number; min: 
     <div className="flex items-center gap-3">
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => { onChange(Number(e.target.value)); setText(e.target.value); }}
         className="flex-1 accent-[var(--color-brand)]" aria-label={unit ?? "amount"} />
+      {unit === "$" && <span className="-mr-2 text-sm font-semibold text-ink-soft">$</span>}
       <input type="text" inputMode="numeric" className="input w-28 text-right" value={shown}
         onFocus={() => { setEditing(true); setText(String(value)); }}
         onChange={(e) => {
@@ -258,7 +286,7 @@ function NumberField({ value, min, max, unit, onChange }: { value: number; min: 
         }}
         onBlur={() => { setEditing(false); const n = Number(text); onChange(Math.min(max, Math.max(min, Number.isFinite(n) && text ? n : value))); }}
         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-      {unit && <span className="w-12 text-sm text-ink-soft">{unit}</span>}
+      {unit && unit !== "$" && <span className="w-12 text-sm text-ink-soft">{unit}</span>}
     </div>
   );
 }

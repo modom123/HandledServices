@@ -58,7 +58,7 @@ export default function Home() {
       <section className="border-y border-line bg-white py-16">
         <div className="wrap">
           <h2 className="text-3xl font-bold tracking-tight">Every service, one account</h2>
-          <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             {CATEGORIES.map((c) => (
               <div key={c.id}>
                 <div className="font-semibold">{c.name}</div>
@@ -111,6 +111,14 @@ export default function Home() {
             </table>
           </div>
         </div>
+      </section>
+
+      <section className="wrap pb-12">
+        <Link href="/events" className="card flex flex-wrap items-center justify-between gap-4 bg-ink text-white transition hover:bg-black">
+          <div><div className="text-xs font-semibold uppercase tracking-wide text-sun">New · Parties & Events</div><div className="mt-1 text-2xl font-bold">Throwing a party? We’ll handle that too.</div>
+            <p className="mt-1 text-sm text-white/70">Planning, catering, food trucks, DJs, seating & tents, and the venue — one team, one invoice.</p></div>
+          <span className="btn bg-sun text-ink">Plan my event →</span>
+        </Link>
       </section>
 
       <section className="wrap grid gap-6 pb-8 md:grid-cols-2">

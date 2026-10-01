@@ -10,6 +10,7 @@
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
+import { planEventBudget } from "./event-budget.ts";
 
 export type Answers = Record<string, number | string | boolean | undefined>;
 
@@ -52,6 +53,8 @@ export interface Service {
   frequencies: Frequency[];
   /** Pro trade(s) qualified to take the job. */
   trades: string[];
+  /** Minimum days' notice (events). */
+  leadDays?: number;
   /** Work that legally needs a licensed tradesperson — dispatch only to pros with a license on file. */
   licensed?: boolean;
   price: (a: Answers) => PriceResult;
@@ -62,12 +65,22 @@ export const CATEGORIES: { id: CategoryId; name: string; blurb: string }[] = [
   { id: "outdoor", name: "Lawn & Outdoor", blurb: "Mowing, trees and pet waste — on a schedule." },
   { id: "removal", name: "Haul Away", blurb: "Junk, furniture and big items gone today." },
   { id: "repair_remodel", name: "Repairs, Installs & Remodels", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
+  { id: "events", name: "Parties & Events", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
 const s = (a: Answers, k: string, d = "") => (a[k] === undefined ? d : String(a[k]));
 const b = (a: Answers, k: string) => a[k] === true || a[k] === "true";
 const sum = (items: LineItem[]) => items.reduce((t, i) => t + i.amount, 0);
+
+const EVENT_TYPES = [
+  { value: "birthday", label: "Birthday / party" },
+  { value: "wedding", label: "Wedding / shower" },
+  { value: "corporate", label: "Corporate / office" },
+  { value: "graduation", label: "Graduation / reunion" },
+  { value: "holiday", label: "Holiday party" },
+  { value: "other", label: "Other" },
+];
 
 const STORIES = [
   { value: "1", label: "1 story" },
@@ -875,6 +888,302 @@ export const SERVICES: Service[] = [
       return { items, base, hours: base / 95 };
     },
   },
+  // ───────────────────────────── PARTIES & EVENTS ─────────────────────────────
+  {
+    slug: "event-package",
+    name: "Plan My Event (by Budget)",
+    category: "events",
+    icon: "🎈",
+    tagline: "Give us a budget and a guest count — we plan and book everything.",
+    description: "Tell us your total budget, guest count and type of event. We split the budget across food, venue, music, rentals and coordination, book vetted vendors through Handled, and run the day. One invoice; your plan never goes over budget.",
+    includes: ["Free planning call", "Budget split you approve", "All vendors booked & coordinated", "Day-of coordinator", "Never over your budget"],
+    questions: [
+      { id: "budget", label: "Total budget", type: "number", min: 1000, max: 250000, default: 5000, unit: "$" },
+      { id: "guests", label: "Guests expected", type: "number", min: 10, max: 1000, default: 50 },
+      { id: "event_type", label: "Type of event", type: "select", default: "birthday", options: EVENT_TYPES },
+      {
+        id: "venue",
+        label: "Where",
+        type: "select",
+        default: "need",
+        options: [
+          { value: "need", label: "Find us a venue" },
+          { value: "have", label: "We have a place (home, office, backyard)" },
+        ],
+      },
+    ],
+    minimum: 1000,
+    spread: [1, 1],
+    payoutShare: 0.82,
+    siteVisit: true,
+    frequencies: ["once"],
+    trades: ["event_planner"],
+    leadDays: 14,
+    price: (a) => {
+      const plan = planEventBudget({ budget: n(a, "budget", 5000), guests: n(a, "guests", 50), eventType: s(a, "event_type", "birthday"), haveVenue: s(a, "venue", "need") === "have" });
+      return { items: plan.lines.map((l) => ({ label: `${l.label} — ${l.buys}`, amount: l.amount })), base: plan.budget, hours: 40 };
+    },
+  },
+  {
+    slug: "event-planning",
+    name: "Event Planning & Coordination",
+    category: "events",
+    icon: "🎉",
+    tagline: "One planner, every vendor, one invoice.",
+    description: "Birthdays, weddings, graduations, holiday and corporate events. Your planner builds the plan and budget, books catering, music, rentals and the venue through us, and runs the day so you can enjoy it.",
+    includes: ["Free planning consultation", "Budget & timeline", "Vendor booking through Handled", "Day-of coordinator on site", "One invoice for everything"],
+    questions: [
+      { id: "event_type", label: "Type of event", type: "select", default: "birthday", options: EVENT_TYPES },
+      { id: "guests", label: "Guests", type: "number", min: 10, max: 1000, default: 50 },
+      {
+        id: "level",
+        label: "How much help",
+        type: "select",
+        default: "partial",
+        options: [
+          { value: "day_of", label: "Day-of coordination" },
+          { value: "partial", label: "Partial planning (vendors + day-of)" },
+          { value: "full", label: "Full planning, start to finish" },
+        ],
+      },
+      { id: "hours", label: "Event length", type: "number", min: 2, max: 16, default: 5, unit: "hrs" },
+    ],
+    minimum: 650,
+    spread: [0.9, 1.25],
+    payoutShare: 0.75,
+    siteVisit: true,
+    frequencies: ["once"],
+    trades: ["event_planner"],
+    leadDays: 7,
+    price: (a) => {
+      const g = n(a, "guests", 50), h = n(a, "hours", 5);
+      const lvl = s(a, "level", "partial");
+      const fee = lvl === "day_of" ? 650 + h * 60 : lvl === "partial" ? 1600 + g * 8 + h * 60 : 2800 + g * 15 + h * 60;
+      const items: LineItem[] = [{ label: `${{ day_of: "Day-of coordination", partial: "Partial planning", full: "Full planning" }[lvl] ?? lvl} — ${g} guests, ${h} hrs`, amount: fee }];
+      return { items, base: fee, hours: lvl === "full" ? 40 : lvl === "partial" ? 16 : h + 2 };
+    },
+  },
+  {
+    slug: "catering",
+    name: "Catering",
+    category: "events",
+    icon: "🍽️",
+    tagline: "Appetizers to plated dinners, staffed and served.",
+    description: "Licensed caterers for parties, offices and celebrations. Choose a service style, add servers, bar service and tableware; dietary needs handled in your notes.",
+    includes: ["Licensed, insured caterer", "Menu planning", "Setup & cleanup", "Dietary options", "Food-safety compliant"],
+    questions: [
+      { id: "guests", label: "Guests", type: "number", min: 10, max: 1000, default: 50 },
+      {
+        id: "style",
+        label: "Service style",
+        type: "select",
+        default: "buffet",
+        options: [
+          { value: "apps", label: "Appetizers / heavy hors d'oeuvres" },
+          { value: "buffet", label: "Buffet" },
+          { value: "family", label: "Family-style" },
+          { value: "plated", label: "Plated dinner" },
+        ],
+      },
+      { id: "hours", label: "Service length", type: "number", min: 2, max: 10, default: 4, unit: "hrs" },
+      { id: "servers", label: "Servers / staff", type: "toggle", default: true },
+      { id: "bar", label: "Bar service (bartender & mixers)", type: "toggle", default: false },
+      { id: "tableware", label: "Plates, glassware & flatware", type: "toggle", default: false },
+    ],
+    minimum: 600,
+    spread: [0.95, 1.15],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["catering"],
+    licensed: true,
+    leadDays: 7,
+    price: (a) => {
+      const g = n(a, "guests", 50), h = n(a, "hours", 4);
+      const per = { apps: 22, buffet: 32, family: 40, plated: 52 }[s(a, "style", "buffet")] ?? 32;
+      const items: LineItem[] = [{ label: `${g} guests × $${per} (${s(a, "style", "buffet")})`, amount: g * per }];
+      if (b(a, "servers")) { const staff = Math.max(1, Math.ceil(g / 25)); items.push({ label: `${staff} server${staff > 1 ? "s" : ""} × ${h} hrs`, amount: staff * h * 40 }); }
+      if (b(a, "bar")) items.push({ label: "Bar service", amount: g * 14 });
+      if (b(a, "tableware")) items.push({ label: "Tableware", amount: g * 4 });
+      const base = sum(items);
+      return { items, base, hours: h + 3 };
+    },
+  },
+  {
+    slug: "food-truck",
+    name: "Food Truck Booking",
+    category: "events",
+    icon: "🚚",
+    tagline: "Tacos, BBQ, pizza, burgers or dessert — parked at your party.",
+    description: "Book a licensed food truck for parties, office lunches, block parties and weddings. Priced per guest with a booking minimum; the truck brings everything.",
+    includes: ["Licensed, inspected truck", "Menu for your guest count", "Service window you choose", "Trash handled"],
+    questions: [
+      { id: "guests", label: "Guests", type: "number", min: 20, max: 1000, default: 75 },
+      {
+        id: "cuisine",
+        label: "Cuisine",
+        type: "select",
+        default: "tacos",
+        options: [
+          { value: "tacos", label: "Tacos" },
+          { value: "bbq", label: "BBQ" },
+          { value: "pizza", label: "Wood-fired pizza" },
+          { value: "burgers", label: "Burgers" },
+          { value: "dessert", label: "Dessert / coffee" },
+        ],
+      },
+      { id: "hours", label: "Service window", type: "number", min: 1, max: 6, default: 2, unit: "hrs" },
+    ],
+    minimum: 1200,
+    spread: [0.95, 1.15],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["food_truck"],
+    licensed: true,
+    leadDays: 7,
+    price: (a) => {
+      const g = n(a, "guests", 75), h = n(a, "hours", 2);
+      const per = { tacos: 16, bbq: 20, pizza: 17, burgers: 17, dessert: 9 }[s(a, "cuisine", "tacos")] ?? 16;
+      const items: LineItem[] = [{ label: `${g} guests × $${per}`, amount: g * per }];
+      if (h > 2) items.push({ label: `${h - 2} extra hour${h > 3 ? "s" : ""} on site`, amount: (h - 2) * 150 });
+      const base = sum(items);
+      return { items, base, hours: h + 2 };
+    },
+  },
+  {
+    slug: "dj-music",
+    name: "DJ & Live Music",
+    category: "events",
+    icon: "🎧",
+    tagline: "DJs, MCs, bands and acoustic duos.",
+    description: "Professional DJs and musicians with their own sound system. Add lighting and ceremony audio; share your must-play and do-not-play lists in the notes.",
+    includes: ["Pro sound system", "Music planning call", "Setup & teardown", "Backup equipment"],
+    questions: [
+      {
+        id: "act",
+        label: "Entertainment",
+        type: "select",
+        default: "dj",
+        options: [
+          { value: "dj", label: "DJ" },
+          { value: "dj_mc", label: "DJ + MC / host" },
+          { value: "acoustic", label: "Acoustic duo" },
+          { value: "band", label: "Live band (4-piece)" },
+        ],
+      },
+      { id: "hours", label: "Performance length", type: "number", min: 2, max: 10, default: 4, unit: "hrs" },
+      { id: "lighting", label: "Dance-floor lighting", type: "toggle", default: false },
+      { id: "ceremony", label: "Ceremony / speech audio", type: "toggle", default: false },
+    ],
+    minimum: 450,
+    spread: [0.95, 1.15],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["dj_music"],
+    leadDays: 7,
+    price: (a) => {
+      const h = n(a, "hours", 4);
+      const act = s(a, "act", "dj");
+      const amt = act === "band" ? 2800 + Math.max(0, h - 3) * 400 : h * ({ dj: 175, dj_mc: 210, acoustic: 300 }[act] ?? 175);
+      const items: LineItem[] = [{ label: `${{ dj: "DJ", dj_mc: "DJ + MC", acoustic: "Acoustic duo", band: "Live band" }[act] ?? act} — ${h} hrs`, amount: amt }];
+      if (b(a, "lighting")) items.push({ label: "Lighting package", amount: 250 });
+      if (b(a, "ceremony")) items.push({ label: "Ceremony / speech audio", amount: 200 });
+      const base = sum(items);
+      return { items, base, hours: h + 2 };
+    },
+  },
+  {
+    slug: "event-rentals",
+    name: "Seating & Party Rentals",
+    category: "events",
+    icon: "🪑",
+    tagline: "Chairs, tables, linens, tents and dance floors — delivered & set up.",
+    description: "Everything to seat and shelter your guests, delivered, set up and picked up. Tent sizes for backyard parties to big celebrations.",
+    includes: ["Delivery, setup & pickup", "Clean, inspected rentals", "Tent staking / weights", "Damage waiver available"],
+    questions: [
+      { id: "chairs", label: "Chairs", type: "number", min: 0, max: 1000, default: 50 },
+      { id: "tables", label: "Tables (6-ft or 60\" round)", type: "number", min: 0, max: 200, default: 6 },
+      { id: "linens", label: "Tablecloths", type: "toggle", default: false },
+      {
+        id: "tent",
+        label: "Tent",
+        type: "select",
+        default: "none",
+        options: [
+          { value: "none", label: "No tent" },
+          { value: "t20x20", label: "20×20 (≈ 40 seated)" },
+          { value: "t20x40", label: "20×40 (≈ 80 seated)" },
+          { value: "t40x60", label: "40×60 (≈ 200 seated)" },
+        ],
+      },
+      { id: "dance_floor", label: "Dance floor", type: "toggle", default: false },
+    ],
+    minimum: 250,
+    spread: [0.95, 1.12],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["rentals"],
+    leadDays: 7,
+    price: (a) => {
+      const items: LineItem[] = [];
+      if (n(a, "chairs")) items.push({ label: `${n(a, "chairs")} chairs`, amount: Math.round(n(a, "chairs") * 3.75) });
+      if (n(a, "tables")) items.push({ label: `${n(a, "tables")} tables`, amount: n(a, "tables") * 14 });
+      if (b(a, "linens") && n(a, "tables")) items.push({ label: "Tablecloths", amount: n(a, "tables") * 12 });
+      const tent = { none: 0, t20x20: 495, t20x40: 895, t40x60: 2200 }[s(a, "tent", "none")] ?? 0;
+      if (tent) items.push({ label: `Tent ${s(a, "tent", "none").slice(1)}`, amount: tent });
+      if (b(a, "dance_floor")) items.push({ label: "Dance floor", amount: 550 });
+      const rental = sum(items);
+      items.push({ label: "Delivery, setup & pickup", amount: 175 + Math.round(rental * 0.12) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(2, base / 250) };
+    },
+  },
+  {
+    slug: "event-venue",
+    name: "Event Space Rental & Coordination",
+    category: "events",
+    icon: "🏛️",
+    tagline: "We find, tour and book the right room for your guest count.",
+    description: "Tell us the date, guests and vibe; we shortlist venues, arrange tours, negotiate and book the space, then coordinate it with your catering, music and rentals.",
+    includes: ["Venue shortlist & tours", "Booking & contract handled", "Coordination with your vendors", "Day-of point of contact"],
+    questions: [
+      { id: "guests", label: "Guests", type: "number", min: 10, max: 1000, default: 60 },
+      { id: "hours", label: "Rental length", type: "number", min: 2, max: 14, default: 5, unit: "hrs" },
+      {
+        id: "setting",
+        label: "Setting",
+        type: "select",
+        default: "hall",
+        options: [
+          { value: "hall", label: "Banquet / event hall" },
+          { value: "restaurant", label: "Restaurant private room" },
+          { value: "outdoor", label: "Outdoor / garden / park pavilion" },
+          { value: "loft", label: "Loft / rooftop" },
+        ],
+      },
+    ],
+    minimum: 800,
+    spread: [0.8, 1.35],
+    payoutShare: 0.85,
+    siteVisit: true,
+    frequencies: ["once"],
+    trades: ["venue"],
+    leadDays: 14,
+    price: (a) => {
+      const g = n(a, "guests", 60), h = n(a, "hours", 5);
+      const size = g <= 50 ? 1 : g <= 120 ? 1.8 : g <= 250 ? 3 : 5;
+      const rate = { hall: 150, restaurant: 120, outdoor: 90, loft: 220 }[s(a, "setting", "hall")] ?? 150;
+      const items: LineItem[] = [
+        { label: `Venue — ${g} guests, ${h} hrs (estimate)`, amount: Math.round(rate * size * h) },
+        { label: "Venue search, booking & coordination", amount: 395 },
+      ];
+      const base = sum(items);
+      return { items, base, hours: 10 };
+    },
+  },
 ];
 
 export const SERVICE_BY_SLUG: Record<string, Service> = Object.fromEntries(SERVICES.map((sv) => [sv.slug, sv]));
@@ -903,4 +1212,10 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "electrical", label: "Electrical (licensed)" },
   { id: "hvac", label: "HVAC (licensed)" },
   { id: "low_voltage", label: "Cameras & low-voltage" },
+  { id: "event_planner", label: "Event planning & coordination" },
+  { id: "catering", label: "Catering (food-service license)" },
+  { id: "food_truck", label: "Food truck (food-service license)" },
+  { id: "dj_music", label: "DJ / live music" },
+  { id: "rentals", label: "Party & event rentals" },
+  { id: "venue", label: "Event venue / space" },
 ];

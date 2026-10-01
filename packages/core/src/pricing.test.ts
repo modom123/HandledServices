@@ -119,7 +119,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["electrical", "hvac", "plumbing"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "plumbing"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach" };
@@ -169,4 +169,17 @@ test("calendar availability: capacity, booked jobs, closed days, no-pro areas", 
   const none = buildAvailability({ slug: "house-cleaning", zip: "90210", contractors: [pro], jobs, start, days: 3 });
   assert.equal(none.mode, "request");
   assert.equal(none.days[0].level, "request");
+});
+
+test("plan-by-budget splits exactly the budget and flags tight budgets", async () => {
+  const { planEventBudget } = await import("./event-budget.ts");
+  for (const [budget, guests, type] of [[5000, 50, "birthday"], [10000, 120, "corporate"], [25000, 150, "wedding"], [1000, 100, "birthday"]] as const) {
+    const p = planEventBudget({ budget, guests, eventType: type });
+    assert.equal(p.lines.reduce((t, l) => t + l.amount, 0), budget, `${type} lines must sum to budget`);
+    assert.ok(p.lines.every((l) => l.amount > 0));
+  }
+  assert.ok(planEventBudget({ budget: 1000, guests: 100, eventType: "birthday" }).warnings.length > 0);
+  assert.equal(planEventBudget({ budget: 5000, guests: 50, eventType: "birthday", haveVenue: true }).lines.some((l) => l.key === "venue"), false);
+  const e = estimate({ slug: "event-package", answers: { budget: 10000, guests: 120, event_type: "corporate", venue: "need" } });
+  assert.equal(e.point, 10000); assert.equal(e.low, 10000); assert.equal(e.high, 10000);
 });

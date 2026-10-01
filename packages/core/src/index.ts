@@ -12,3 +12,4 @@ export * from "./dispatch.ts";
 export * from "./brand.ts";
 export * from "./compliance.ts";
 export * from "./availability.ts";
+export * from "./event-budget.ts";

@@ -87,7 +87,14 @@ export default function Book() {
       <Button title={`📷 Add photos (${photos.length})`} kind="ghost" onPress={addPhotos} />
       <Text style={s.h2}>When & where</Text>
       <Field label="Service ZIP code" value={f.zip} onChangeText={set("zip")} keyboardType="number-pad" maxLength={5} />
-      <Calendar service={svc.slug} zip={f.zip} date={date} win={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
+      {svc.leadDays ? (
+        <>
+          <Field label={`Event date (YYYY-MM-DD) — at least ${svc.leadDays} days out`} value={date} onChangeText={(t) => { setDate(t); setWin("flexible"); }} placeholder="2026-12-12" />
+          <Field label="Start time (e.g. 6:00 pm)" value={String(answers.start_time ?? "")} onChangeText={(t) => setAnswers((cur) => ({ ...cur, start_time: t }))} />
+        </>
+      ) : (
+        <Calendar service={svc.slug} zip={f.zip} date={date} win={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
+      )}
       <Field label="Street address" value={f.address} onChangeText={set("address")} />
       <Field label="City" value={f.city} onChangeText={set("city")} />
       <View style={{ width: 80 }}><Field label="State" value={f.state} onChangeText={set("state")} maxLength={2} autoCapitalize="characters" /></View>
