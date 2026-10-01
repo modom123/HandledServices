@@ -7,7 +7,7 @@
  * PURPOSE : Instant quote. Deterministic estimate always; AI price check when there are notes or photos.
  */
 import { z } from "zod";
-import { getService, isRush, photoProblem } from "@handled/core";
+import { getService, isRush, photoProblem, sizeNeedsSiteVisit } from "@handled/core";
 import { quoteToken } from "@/lib/invoice";
 import { aiQuote } from "@/lib/ai/quote";
 import { signedUrls } from "@/lib/photos";
@@ -37,5 +37,5 @@ export async function POST(req: Request) {
   });
   const notes = b.ai ? b.notes?.trim() || null : null;
   const token = b.ai ? quoteToken({ slug: b.service_slug, answers: b.answers, frequency: b.frequency, photos: b.photos, notes, rush, ai, exp: Date.now() + 2 * 3600 * 1000 }) : null;
-  return Response.json({ baseline, ai, quote_token: token, photo_problem: photoProblem(b.service_slug, b.photos.length) });
+  return Response.json({ baseline, ai, quote_token: token, photo_problem: photoProblem(b.service_slug, b.photos.length), site_visit: sizeNeedsSiteVisit(b.service_slug, b.answers) });
 }

@@ -31,7 +31,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       daily_capacity: Math.max(2, Math.min(10, (app.crew_size ?? 1) * 2)), application_id: app.id,
     }, { onConflict: "email" });
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    await sendEmail(app.email, `Welcome to ${BRAND.name}`, `You're in, ${app.contact_name.split(" ")[0]}! You'll work with us as an independent business (1099).\n\nSign in with this email at ${siteUrl()}/login, then finish setup at ${siteUrl()}/pro/onboarding:\n• W-9\n• Independent contractor agreement\n• Your specialties\n• Certificate of insurance (general liability, Handled named as additional insured)\n• Any trade-specific coverage (commercial auto, bond, workers' comp or a no-employees statement)\n• Trade license (plumbing, electrical, HVAC, remodeling, food service)\n• Background check\n• Payout method\n\nOffers start the day you're activated.`);
+    await sendEmail(app.email, `Welcome to ${BRAND.name}`, `You're in, ${app.contact_name.split(" ")[0]}! You'll work with us as an independent business (1099).\n\nSign in with this email at ${siteUrl()}/login, then finish setup at ${siteUrl()}/pro/onboarding:\n• W-9\n• Independent contractor agreement\n• Your specialties\n• Certificate of insurance (general liability, Handled named as additional insured)\n• Any trade-specific coverage (commercial auto, bond, workers' comp or a no-employees statement)\n• Trade license (plumbing, electrical, HVAC, painting, remodeling, food service)\n• Background check\n• Payout method\n\nOffers start the day you're activated.`);
   }
   return Response.json({ ok: true });
 }

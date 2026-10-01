@@ -9,6 +9,8 @@
  *             • aiPriceDecision() — the AI may raise a price up to 40% and cut at most 10%;
  *                                    bigger than that becomes a free site visit, never a capped price
  *             • scopeChange()     — the pro on site finds more work → priced difference = change order
+ *             • sizeNeedsSiteVisit() — jobs too big for an instant price (a commercial repaint, 15+
+ *                                    rooms) always get a free site visit and a firm quote
  */
 import { AI_MAX_CUT, AI_MAX_RAISE, estimate, type Estimate } from "./pricing.ts";
 import { getService, type Answers } from "./services.ts";
@@ -45,6 +47,8 @@ const RULES: Record<string, PhotoRule> = {
   "lighting-install": R(1, "Where the light goes", "Existing fixture or switch"),
   "camera-install": O("Where each camera goes", "Your Wi-Fi router"),
   "garbage-disposal": R(1, "Under the sink, showing the disposal and pipes"),
+  "interior-painting": R(2, "Each room or area, wide shot", "Any cracks, holes or water stains", "Ceilings and trim if included"),
+  "exterior-painting": R(3, "Each side of the building", "Peeling or damaged areas up close", "Trim, doors and any deck"),
   "bathroom-remodel": R(3, "Each wall of the room", "Floor", "Anything you're keeping"),
   "kitchen-remodel": R(3, "Each wall of the kitchen", "Floor and ceiling", "Anything you're keeping"),
   "home-remodel": R(3, "Each area to remodel", "Floors", "Anything you're keeping"),
@@ -120,4 +124,16 @@ export function scopeChange(slug: string, booked: Answers, actual: Answers, freq
   const before = estimate({ slug, answers: booked, frequency, rush });
   const after = estimate({ slug, answers: actual, frequency, rush });
   return { before: before.point, after: after.point, extra: Math.max(0, Math.round(after.point - before.point)) };
+}
+
+/** Answers that make a normally instant-priced job too big to price without a visit. */
+const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
+  "interior-painting": (a) => (Number(a.rooms ?? 0) > 15 ? "More than 15 rooms" : null),
+  "exterior-painting": (a) => (a.building === "commercial" ? "Commercial building" : Number(a.sqft ?? 0) > 5000 ? "Building over 5,000 sq ft" : null),
+  "power-washing": (a) => (Number(a.sqft ?? 0) > 5000 ? "Over 5,000 sq ft" : null),
+};
+
+/** Why this job needs a free site visit for a firm price (null = instant price is fine). */
+export function sizeNeedsSiteVisit(slug: string, answers: Answers): string | null {
+  return SITE_VISIT_IF[slug]?.(answers) ?? null;
 }

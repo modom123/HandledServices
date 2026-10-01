@@ -166,6 +166,21 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     preferred: ["EPA RRP lead-safe certification (required for pre-1978 homes)"], glMin: GL1, requires: ["workers_comp"], conditional: [],
     skillsCheck: "License lookup on LARA, portfolio of 3 completed remodels, 3 client references, permit history.",
   },
+  painting: {
+    does: "Interior and exterior painting of rooms, homes, offices and buildings; prep, patching and staining.",
+    specialties: [
+      { id: "interior", label: "Interior rooms & homes", slug: "interior-painting" },
+      { id: "exterior", label: "Exterior homes & buildings", slug: "exterior-painting" },
+      { id: "commercial_paint", label: "Offices & commercial" },
+      { id: "cabinets", label: "Cabinets & trim" },
+      { id: "drywall_finish", label: "Drywall repair & finishing" },
+      { id: "stain", label: "Decks, fences & staining" },
+    ],
+    license: "Michigan Maintenance & Alteration Contractor license (painting & decorating) or Residential Builder license (LARA), required for residential work over $600",
+    preferred: ["EPA RRP lead-safe certification (required for pre-1978 homes)", "PDCA membership"], glMin: GL1, requires: [],
+    conditional: [{ key: "workers_comp", when: "you have employees (most paint crews do)" }, { key: "auto", when: "you haul ladders or lifts on a trailer" }],
+    skillsCheck: "License lookup on LARA, EPA RRP certificate, portfolio of 5 recent jobs (interior and exterior), 3 client references.",
+  },
   plumbing: {
     does: "Leaks, drains, fixtures, water heaters and repipes.",
     specialties: [{ id: "repair", label: "Repairs & leaks", slug: "plumbing" }, { id: "water_heater", label: "Water heaters (tank & tankless)", slug: "water-heater" }, { id: "drains", label: "Drain cleaning" }, { id: "repipe", label: "Repipes & remodel rough-in" }],

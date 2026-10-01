@@ -12,7 +12,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, splitJob, tierPayout, type QualityStats,
+  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -81,7 +81,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush });
-  const siteVisit = svc.siteVisit || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
+  const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await zipCentroid(input.zip);
   const price = siteVisit ? null : ai?.final_price ?? est.point;

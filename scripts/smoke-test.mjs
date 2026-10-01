@@ -9,7 +9,9 @@
 const base = (process.argv[2] ?? process.env.SITE ?? "http://localhost:3000").replace(/\/$/, "");
 const checks = [
   ["Home page", "GET", "/", (r, t) => r.ok && t.includes("Handled")],
-  ["Services page lists new services", "GET", "/services", (r, t) => r.ok && t.includes("Organizing") && t.includes("Water Heater")],
+  ["Services page lists new services", "GET", "/services", (r, t) => r.ok && ["Organizing", "Water Heater", "Power Washing", "Interior Painting", "Exterior Painting", "Errands"].every((x) => t.includes(x))],
+  ["Painting booking page", "GET", "/book?service=interior-painting", (r) => r.ok],
+  ["Painting quote API", "POST", "/api/quote", (r, t) => r.ok && JSON.parse(t).baseline?.point > 0, { service_slug: "exterior-painting", answers: { sqft: 1800, stories: "2", siding: "vinyl" } }],
   ["Events page", "GET", "/events", (r, t) => r.ok && t.includes("Plan by budget")],
   ["Booking page", "GET", "/book?service=house-cleaning", (r) => r.ok],
   ["Service Agreement", "GET", "/terms/service-agreement", (r, t) => r.ok && t.includes("Service Agreement")],

@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
@@ -29,11 +29,13 @@ export default function Book() {
   const [plan, setPlan] = useState<"full" | "deposit">("full");
   const est = useMemo(() => estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }), [svc, answers, frequency, date]);
   const dp = depositPolicy(svc.slug, est.point, date);
-  const useDeposit = plan === "deposit" && dp.allowed && !svc.siteVisit;
+  const useDeposit = plan === "deposit" && dp.allowed && !svc.siteVisit && !sizeNeedsSiteVisit(svc.slug, answers);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
 
   const rule = photoRule(svc.slug);
   const photosMissing = photoProblem(svc.slug, photos.length);
+  const bigJob = sizeNeedsSiteVisit(svc.slug, answers);
+  const siteVisit = svc.siteVisit || Boolean(bigJob);
 
   function addPhotos() {
     Alert.alert("Add photos", rule.tips.length ? `Helpful shots: ${rule.tips.join(", ")}` : undefined, [
@@ -58,7 +60,7 @@ export default function Book() {
   /** Before paying: required photos, then the AI price check (books at exactly the price shown). */
   async function checkAndBook() {
     if (photosMissing) return Alert.alert("Photos needed", photosMissing);
-    if (svc.siteVisit || (!notes.trim() && !photos.length)) return book(null);
+    if (siteVisit || (!notes.trim() && !photos.length)) return book(null);
     setBusy(true);
     const q = await api<{ ai: { final_price: number; action?: string; action_reason?: string; customer_summary?: string; changes?: { label: string; from: string; to: string }[] } | null; quote_token: string | null }>("/api/quote", {
       method: "POST",
@@ -97,9 +99,9 @@ export default function Book() {
     <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
       <Text style={s.h1}>{svc.icon} {svc.name}</Text>
       <Card style={{ marginTop: 12, backgroundColor: C.tint, borderColor: C.brand }}>
-        <Text style={s.label}>{svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</Text>
-        <Text style={{ fontSize: 28, fontWeight: "800", color: C.ink }}>{svc.siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
-        <Text style={s.p}>{svc.siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
+        <Text style={s.label}>{siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</Text>
+        <Text style={{ fontSize: 28, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
+        <Text style={s.p}>{siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
       </Card>
       {svc.questions.map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
@@ -144,7 +146,7 @@ export default function Book() {
       <Field label="Full name" value={f.contact_name} onChangeText={set("contact_name")} />
       <Field label="Email" value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />
       <Field label="Mobile" value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" />
-      {dp.allowed && !svc.siteVisit ? (
+      {dp.allowed && !siteVisit ? (
         <>
           <Text style={s.h2}>How would you like to pay?</Text>
           <View style={s.row}>
@@ -158,7 +160,7 @@ export default function Book() {
         <Chip label={agreed ? "✓ I agree" : "I agree"} on={agreed} onPress={() => setAgreed(!agreed)} />
         <Text style={[s.p, { flex: 1 }]} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>to the <Text style={{ color: C.brand, fontWeight: "700" }}>Service Agreement</Text>: pay upfront, free redo or refund if it's not right.</Text>
       </View>
-      <Button disabled={!agreed || Boolean(photosMissing)} title={photosMissing ? `Add ${rule.min - photos.length} more photo(s) to book` : busy ? "Checking your price…" : svc.siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={checkAndBook} style={{ marginTop: 8 }} />
+      <Button disabled={!agreed || Boolean(photosMissing)} title={photosMissing ? `Add ${rule.min - photos.length} more photo(s) to book` : busy ? "Checking your price…" : siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={checkAndBook} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }

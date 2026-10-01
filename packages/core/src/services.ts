@@ -65,7 +65,7 @@ export const CATEGORIES: { id: CategoryId; name: string; icon: string; blurb: st
   { id: "outdoor", name: "Lawn, Leaves & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
   { id: "removal", name: "Haul Away", icon: "🚛", blurb: "Junk, furniture and big items gone today." },
-  { id: "repair_remodel", name: "Repairs, Installs & Remodels", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
+  { id: "repair_remodel", name: "Repairs, Painting & Remodels", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Assistant", icon: "🛍️", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
   { id: "events", name: "Parties & Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
@@ -1018,6 +1018,85 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "interior-painting",
+    name: "Interior Painting",
+    category: "repair_remodel",
+    icon: "🖌️",
+    tagline: "A room, a few areas, or the whole house or office.",
+    description: "Walls, ceilings, trim and doors for single rooms, hallways and stairwells, whole homes, offices and commercial interiors. Furniture moved and covered, minor patching, two coats, clean lines and a spotless cleanup. Paint included.",
+    includes: ["Licensed, insured painters", "Premium paint & primer included", "Furniture moved & floors covered", "Minor nail-hole patching", "Two coats, clean cut lines", "Daily cleanup & before/after photos"],
+    questions: [
+      { id: "property", label: "Property", type: "select", default: "home", options: [{ value: "home", label: "Home / apartment" }, { value: "office", label: "Office / commercial" }] },
+      { id: "rooms", label: "Rooms or areas (a hallway or stairwell counts as one)", type: "number", min: 1, max: 40, default: 2 },
+      { id: "size", label: "Typical room size", type: "select", default: "medium", options: [{ value: "small", label: "Small (bath, closet, under 100 sq ft)" }, { value: "medium", label: "Medium (bedroom, 100–200 sq ft)" }, { value: "large", label: "Large (living room, open plan, 200+ sq ft)" }] },
+      { id: "ceilings", label: "Paint ceilings too", type: "toggle", default: false },
+      { id: "trim", label: "Trim, baseboards & doors", type: "toggle", default: false },
+      { id: "color_change", label: "Big color change (dark to light, or bold colors)", type: "toggle", default: false },
+      { id: "repairs", label: "Drywall repairs beyond nail holes (cracks, dents, patches)", type: "toggle", default: false },
+      { id: "high", label: "Ceilings over 10 ft / stairwell walls", type: "toggle", default: false },
+    ],
+    minimum: 349,
+    spread: [0.95, 1.15],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["painting"],
+    licensed: true,
+    price: (a) => {
+      const rooms = n(a, "rooms", 2);
+      const size = s(a, "size", "medium");
+      const per = { small: 275, medium: 395, large: 575 }[size] ?? 395;
+      const items: LineItem[] = [{ label: `${rooms} ${size} room${rooms > 1 ? "s" : ""}/area${rooms > 1 ? "s" : ""} — walls, 2 coats`, amount: rooms * per }];
+      if (b(a, "ceilings")) items.push({ label: "Ceilings", amount: rooms * ({ small: 90, medium: 140, large: 210 }[size] ?? 140) });
+      if (b(a, "trim")) items.push({ label: "Trim, baseboards & doors", amount: rooms * ({ small: 90, medium: 130, large: 180 }[size] ?? 130) });
+      if (b(a, "repairs")) items.push({ label: "Drywall repairs", amount: rooms * 85 });
+      let base = sum(items);
+      if (b(a, "color_change")) { const x = Math.round(base * 0.2); items.push({ label: "Extra coat for the color change", amount: x }); base += x; }
+      if (b(a, "high")) { const x = Math.round(base * 0.15); items.push({ label: "High ceilings / stairwell staging", amount: x }); base += x; }
+      if (s(a, "property", "home") === "office") { const x = Math.round(base * 0.1); items.push({ label: "Commercial scheduling & protection", amount: x }); base += x; }
+      return { items, base, hours: rooms * ({ small: 3, medium: 5, large: 7.5 }[size] ?? 5) * (b(a, "ceilings") ? 1.3 : 1) * (b(a, "trim") ? 1.25 : 1) };
+    },
+  },
+  {
+    slug: "exterior-painting",
+    name: "Exterior Painting",
+    category: "repair_remodel",
+    icon: "🏡",
+    tagline: "Houses and buildings — siding, trim, doors and decks.",
+    description: "Full exterior repaints for houses, townhomes and commercial buildings: power wash, scrape and sand, prime bare spots, caulk, and two coats on siding, trim, doors and shutters. Lead-safe practices for pre-1978 homes. Paint included.",
+    includes: ["Licensed, insured painters", "Power wash & surface prep", "Scrape, sand, prime & caulk", "Two coats on siding & trim", "Lead-safe (EPA RRP) for pre-1978 homes", "Before/after photos & walkthrough"],
+    questions: [
+      { id: "building", label: "Building", type: "select", default: "house", options: [{ value: "house", label: "House" }, { value: "townhome", label: "Townhome / duplex" }, { value: "commercial", label: "Commercial building" }] },
+      { id: "sqft", label: "Building size (finished sq ft)", type: "number", min: 500, max: 25000, default: 1800, unit: "sq ft" },
+      { id: "stories", label: "Height", type: "select", default: "2", options: STORIES },
+      { id: "siding", label: "Siding", type: "select", default: "wood", options: [{ value: "vinyl", label: "Vinyl / aluminum" }, { value: "wood", label: "Wood / fiber cement" }, { value: "masonry", label: "Brick / stucco / block" }] },
+      { id: "trim_only", label: "Trim, doors & shutters only (not the siding)", type: "toggle", default: false },
+      { id: "heavy_prep", label: "Peeling or bare wood (heavy scraping)", type: "toggle", default: false },
+      { id: "deck", label: "Also stain or paint a deck / porch", type: "toggle", default: false },
+    ],
+    minimum: 1200,
+    spread: [0.95, 1.2],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["painting"],
+    licensed: true,
+    leadDays: 3,
+    price: (a) => {
+      const sqft = n(a, "sqft", 1800);
+      const height = { "1": 1, "2": 1.15, "3": 1.35 }[s(a, "stories", "2")] ?? 1.15;
+      const rate = { vinyl: 2.1, wood: 2.6, masonry: 2.9 }[s(a, "siding", "wood")] ?? 2.6;
+      const items: LineItem[] = b(a, "trim_only")
+        ? [{ label: `Trim, doors & shutters (${sqft} sq ft building)`, amount: Math.round(sqft * 0.95 * height) }]
+        : [{ label: `Siding & trim — ${sqft} sq ft ${s(a, "building", "house")}`, amount: Math.round(sqft * rate * height) }];
+      let base = sum(items);
+      if (b(a, "heavy_prep")) { const x = Math.round(base * 0.2); items.push({ label: "Heavy scraping & priming", amount: x }); base += x; }
+      if (b(a, "deck")) { items.push({ label: "Deck / porch stain or paint", amount: 650 }); base += 650; }
+      if (s(a, "building", "house") === "commercial") { const x = Math.round(base * 0.12); items.push({ label: "Commercial staging, lifts & scheduling", amount: x }); base += x; }
+      return { items, base, hours: Math.max(8, (sqft / 120) * height * (b(a, "trim_only") ? 0.4 : 1)) };
+    },
+  },
+  {
     slug: "bathroom-remodel",
     name: "Bathroom Remodel",
     category: "repair_remodel",
@@ -1516,6 +1595,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "hauling", label: "Junk & item hauling" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },
+  { id: "painting", label: "Painting (interior & exterior)" },
   { id: "plumbing", label: "Plumbing (licensed)" },
   { id: "electrical", label: "Electrical (licensed)" },
   { id: "hvac", label: "HVAC (licensed)" },

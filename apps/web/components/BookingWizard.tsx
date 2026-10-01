@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import {
-  BRAND, CATEGORIES, photoProblem, photoRule, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
 } from "@handled/core";
 
@@ -90,11 +90,12 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     setQuoteToken(json.quote_token ?? null);
   }
   // the AI price check runs automatically before payment whenever there are photos or notes
-  const needsCheck = Boolean(svc && !svc.siteVisit && (notes.trim() || photos.length));
+  const needsCheck = Boolean(svc && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notes.trim() || photos.length));
   useEffect(() => {
     if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
-  const siteVisit = Boolean(svc?.siteVisit || ai?.action === "site_visit");
+  const bigJob = svc ? sizeNeedsSiteVisit(svc.slug, answers) : null;
+  const siteVisit = Boolean(svc?.siteVisit || bigJob || ai?.action === "site_visit");
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length) : null;
 
@@ -242,7 +243,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
               <div><label className="label">Mobile</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
             <p className="text-xs text-ink-soft">We text updates about this job only. We never sell your info to other contractors.</p>
-            {svc && !svc.siteVisit && est && (() => {
+            {svc && !siteVisit && est && (() => {
               const total = ai?.final_price ?? est.point;
               const dp = depositPolicy(svc.slug, total, date);
               if (!dp.allowed) return null;
@@ -259,7 +260,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>I agree to the <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">Service Agreement</a>: {svc?.siteVisit ? "the site visit is free; I pay upfront once I approve the firm quote." : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+              <span>I agree to the <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">Service Agreement</a>: {siteVisit ? "the site visit is free; I pay upfront once I approve the firm quote." : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
@@ -272,7 +273,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
 
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.slug === "event-package" ? "Your budget — how we’d spend it" : svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
           <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
           {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ Checking your photos and notes so the price fits the job…</p>}
           {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
@@ -283,6 +284,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
               <p className="mt-1 text-ink-soft">Not right? Change your answers above.</p>
             </div>
           )}
+          {bigJob && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{bigJob}: a pro visits free to give you a firm quote. Nothing is charged until you approve it.</p>}
           {ai?.action === "site_visit" && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{ai.action_reason} Nothing is charged until you approve the firm quote.</p>}
           {svc.slug === "event-package" && planEventBudget({ budget: Number(answers.budget), guests: Number(answers.guests), eventType: String(answers.event_type), haveVenue: answers.venue === "have" }).warnings.map((w) => (
             <p key={w} className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{w}</p>

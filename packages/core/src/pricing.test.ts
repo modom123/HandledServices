@@ -119,7 +119,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "plumbing", "remodel"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "painting", "plumbing", "remodel"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
@@ -342,4 +342,22 @@ test("dispatch: availability, driving radius and quality decide who gets the off
   assert.equal(ranked[0].contractor.id, "a", "close + high quality first");
   assert.equal(ranked[2].contractor.id, "sloppy", "redos and failed QA rank last");
   assert.ok(ranked[0].reasons.some((r) => /mi away/.test(r)));
+});
+
+test("painting: rooms and buildings price sensibly", () => {
+  const two = estimate({ slug: "interior-painting", answers: { rooms: 2, size: "medium" } }).point;
+  const six = estimate({ slug: "interior-painting", answers: { rooms: 6, size: "medium", ceilings: true, trim: true } }).point;
+  assert.ok(six > two * 3, "more rooms + ceilings + trim cost more");
+  const house = estimate({ slug: "exterior-painting", answers: { sqft: 1800, stories: "2", siding: "wood" } }).point;
+  const big = estimate({ slug: "exterior-painting", answers: { sqft: 6000, stories: "3", siding: "masonry", building: "commercial" } }).point;
+  assert.ok(house >= 1200 && big > house * 3);
+  assert.ok(estimate({ slug: "exterior-painting", answers: { sqft: 1800, trim_only: true } }).point < house, "trim-only is cheaper");
+});
+
+test("big jobs get a free site visit instead of an instant price", async () => {
+  const { sizeNeedsSiteVisit } = await import("./intake.ts");
+  assert.equal(sizeNeedsSiteVisit("exterior-painting", { building: "house", sqft: 2000 }), null);
+  assert.ok(sizeNeedsSiteVisit("exterior-painting", { building: "commercial", sqft: 2000 }));
+  assert.ok(sizeNeedsSiteVisit("interior-painting", { rooms: 20 }));
+  assert.equal(sizeNeedsSiteVisit("house-cleaning", { bedrooms: 9 }), null);
 });
