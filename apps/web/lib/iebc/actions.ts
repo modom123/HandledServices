@@ -9,7 +9,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, JOB_STATUSES, money, splitJob } from "@handled/core";
+import { BRAND, JOB_STATUSES, money, necThreshold, onboardingChecklist, splitJob } from "@handled/core";
 import { adminClient } from "../supabase/server";
 import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink, setStatus } from "../jobs";
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
@@ -152,6 +152,17 @@ export const ACTIONS: Record<string, ActionDef> = {
     params: z.object({ ref, note: z.string().min(1).max(2000) }),
     run: async ({ ref: r, note }) => { const job = await jobByRef(r); await addEvent(job.id, "iebc_note", note, "IEBC workforce", false); return "noted"; },
   }),
+  "ops.rate_job": def({
+    scope: "ops", write: true, risk: "low", description: "Our rating (1-5) of the pro on a completed job: overall plus quality, punctuality, professionalism. Feeds the pro's blended rating.",
+    params: z.object({ ref, rating: z.number().int().min(1).max(5), quality: z.number().int().min(1).max(5).optional(), punctuality: z.number().int().min(1).max(5).optional(),
+      professionalism: z.number().int().min(1).max(5).optional(), comment: z.string().max(1000).optional() }),
+    run: async ({ ref: r, ...rating }) => {
+      const job = await jobByRef(r);
+      if (!job.contractor_id) throw new Error("No pro on this job");
+      await db().from("ops_ratings").upsert({ job_id: job.id, contractor_id: job.contractor_id, ...rating, source: "iebc", rated_by: "IEBC workforce" }, { onConflict: "job_id" });
+      return "rated";
+    },
+  }),
   "ops.create_alert": def({
     scope: "ops", write: true, risk: "low", description: "Pin an alert to the command center dashboard.",
     params: z.object({ title: z.string().max(200), body: z.string().max(2000), severity: z.enum(["info", "warn", "critical"]) }),
@@ -198,18 +209,41 @@ export const ACTIONS: Record<string, ActionDef> = {
       await db().from("contractor_applications").update({ status }).eq("id", application_id);
       if (status === "approved")
         await db().from("contractors").upsert({ business_name: app.business_name, contact_name: app.contact_name, email: app.email.toLowerCase(), phone: app.phone, trades: app.trades,
-          service_zips: String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z)), status: "vetting" }, { onConflict: "email" });
+          service_zips: String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z)), status: "vetting", application_id: app.id }, { onConflict: "email" });
       return { application_id, status };
     },
   }),
   "recruiting.activate_pro": def({
-    scope: "recruiting", write: true, risk: "high", description: "Activate a vetted pro after insurance (COI) and background check are verified.",
-    params: z.object({ contractor_id: z.string().uuid(), insured_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
-    run: async ({ contractor_id, insured_until }) => {
-      if (new Date(insured_until) < new Date()) throw new Error("Insurance date is in the past");
-      await db().from("contractors").update({ insured_until, background_checked: true, status: "approved" }).eq("id", contractor_id);
+    scope: "recruiting", write: true, risk: "high", description: "Activate a vetted pro once every onboarding step (W-9, agreement, COI, license if required, background, payout) is complete.",
+    params: z.object({ contractor_id: z.string().uuid() }),
+    run: async ({ contractor_id }) => {
+      const { data: c } = await db().from("contractors").select("*").eq("id", contractor_id).single();
+      if (!c) throw new Error("No such pro");
+      const { steps, complete } = onboardingChecklist(c);
+      if (!complete) throw new Error(`Onboarding incomplete: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
+      await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString() }).eq("id", contractor_id);
       return "activated";
     },
+  }),
+  "read.pro_scorecards": def({
+    scope: "read", write: false, risk: "low", description: "Per-pro asset scorecard: jobs, bookings and take generated, 90-day take, quality, onboarding status.",
+    params: z.object({}),
+    run: async () => {
+      const [{ data: cards }, { data: pros }] = await Promise.all([
+        db().from("contractor_scorecard").select("*"),
+        db().from("contractors").select("*"),
+      ]);
+      return (cards ?? []).map((c: Record<string, unknown>) => {
+        const pro = (pros ?? []).find((p: { id: string }) => p.id === c.contractor_id);
+        const ob = pro ? onboardingChecklist(pro) : null;
+        return { ...c, onboarding_complete: ob?.complete, missing: ob?.steps.filter((x) => !x.done).map((x) => x.label), expiring: ob?.steps.filter((x) => x.expiring).map((x) => x.label) };
+      });
+    },
+  }),
+  "read.tax_1099": def({
+    scope: "finance", write: false, risk: "low", description: "1099 totals by pro for a tax year with the reporting threshold.",
+    params: z.object({ year: z.number().int().min(2025).max(2100) }),
+    run: async ({ year }) => ({ threshold: necThreshold(year), rows: (await db().from("contractor_1099").select("business_name, legal_name, entity_type, tin_last4, w9_received_at, paid_total, owed_total").eq("tax_year", year)).data }),
   }),
   "recruiting.flag_expiring_insurance": def({
     scope: "recruiting", write: true, risk: "low", description: "Raise alerts for active pros whose insurance expires within N days.",

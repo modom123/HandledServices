@@ -1,0 +1,41 @@
+/*
+ * FILE    : apps/web/app/api/hub/contractors/[id]/documents/[docId]/route.ts
+ * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * CREATED : 2026-10-01_2000 UTC
+ * PURPOSE : Staff: open (signed URL), verify or reject a pro's compliance document.
+ *           Verifying a COI sets insured_until; a license sets license_expires; a
+ *           background report marks the background check cleared.
+ */
+import { z } from "zod";
+import { deny, getViewer, isStaff } from "@/lib/auth";
+import { adminClient } from "@/lib/supabase/server";
+import { signedDocUrl } from "@/lib/photos";
+
+export async function GET(req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) {
+  const v = await getViewer(req);
+  if (!isStaff(v)) return deny();
+  const { id, docId } = await ctx.params;
+  const { data: doc } = await adminClient().from("contractor_documents").select("storage_path").eq("id", docId).eq("contractor_id", id).single();
+  const url = doc?.storage_path ? await signedDocUrl(doc.storage_path) : null;
+  return url ? Response.redirect(url, 302) : deny(404, "No file");
+}
+
+export async function POST(req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) {
+  const v = await getViewer(req);
+  if (!isStaff(v)) return deny();
+  const body = z.object({ decision: z.enum(["verify", "reject"]), notes: z.string().max(500).optional() }).safeParse(await req.json().catch(() => null));
+  if (!body.success) return deny(400, "decision required");
+  const { id, docId } = await ctx.params;
+  const db = adminClient();
+  const { data: doc } = await db.from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", id).single();
+  if (!doc) return deny(404, "Not found");
+  const now = new Date().toISOString();
+  const who = v!.fullName ?? v!.email;
+  await db.from("contractor_documents").update({ status: body.data.decision === "verify" ? "verified" : "rejected", verified_by: who, verified_at: now, notes: body.data.notes ?? doc.notes }).eq("id", docId);
+  if (body.data.decision === "verify") {
+    if (doc.kind === "coi" && doc.expires_on) await db.from("contractors").update({ insured_until: doc.expires_on }).eq("id", id);
+    if (doc.kind === "license" && doc.expires_on) await db.from("contractors").update({ license_expires: doc.expires_on }).eq("id", id);
+    if (doc.kind === "background") await db.from("contractors").update({ background_checked: true, background_checked_at: now }).eq("id", id);
+  }
+  return Response.json({ ok: true });
+}

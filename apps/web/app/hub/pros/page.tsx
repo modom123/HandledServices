@@ -8,7 +8,7 @@
 import { TRADES } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty } from "@/components/ui";
-import { ActivatePro, ApplicationButtons } from "@/components/HubActions";
+import { ApplicationButtons } from "@/components/HubActions";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const tradeLabel = (id: string) => TRADES.find((t) => t.id === id)?.label ?? id;
@@ -49,13 +49,13 @@ export default async function Pros() {
                 const ins = p.insured_until ? new Date(p.insured_until) : null;
                 return (
                   <tr key={p.id} className="border-t border-line align-top">
-                    <td className="p-3"><div className="font-semibold">{p.business_name}</div><div className="text-xs text-ink-soft">{p.contact_name} · {p.phone}</div></td>
+                    <td className="p-3"><a href={`/hub/pros/${p.id}`} className="font-semibold underline">{p.business_name}</a><div className="text-xs text-ink-soft">{p.contact_name} · {p.phone}</div></td>
                     <td className="p-3 text-xs">{(p.trades as string[]).map(tradeLabel).join(", ")}</td>
                     <td className="p-3">{p.rating} ★</td>
                     <td className="p-3">{p.jobs_completed}</td>
                     <td className="p-3">{Math.round(p.acceptance_rate * 100)}% / {Math.round(p.on_time_rate * 100)}%</td>
                     <td className="p-3">{ins ? <Badge tone={ins < new Date() ? "red" : ins < soon ? "amber" : "green"}>{p.insured_until}</Badge> : <Badge tone="red">missing</Badge>}</td>
-                    <td className="p-3"><div className="mb-1"><Badge tone={p.status === "approved" ? "green" : p.status === "suspended" ? "red" : "amber"}>{p.status}</Badge></div><ActivatePro id={p.id} status={p.status} /></td>
+                    <td className="p-3"><div className="mb-1"><Badge tone={p.status === "approved" ? "green" : p.status === "suspended" ? "red" : "amber"}>{p.status}</Badge></div><a href={`/hub/pros/${p.id}`} className="text-xs underline">Onboarding & profile →</a></td>
                   </tr>
                 );
               })}

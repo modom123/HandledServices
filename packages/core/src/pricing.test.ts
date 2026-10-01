@@ -116,3 +116,16 @@ test("licensed work only goes to pros with a license on file", async () => {
   assert.equal(rankContractors([base], job).length, 0);
   assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123" }], job).length, 1);
 });
+
+test("onboarding blocks activation until every step is done", async () => {
+  const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["electrical", "hvac", "plumbing"]);
+  const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
+  const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
+    agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach" };
+  assert.equal(onboardingChecklist(ok).complete, true);
+  assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
+  assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
+  assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"], license_number: "PL-1", license_expires: future }).complete, true);
+});

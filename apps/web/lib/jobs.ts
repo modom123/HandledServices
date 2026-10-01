@@ -267,6 +267,12 @@ export async function runQa(jobId: string, note: string | null) {
   if (!job || job.status !== "qa_review") return;
   const qa = await aiQualityCheck(job, await signedUrls(job.completion_photos), note);
   await db().from("jobs").update({ ai_qa: qa }).eq("id", jobId);
+  // Our side of the job rating: a draft from the photo check (staff can override it).
+  if (qa && job.contractor_id)
+    await db().from("ops_ratings").upsert(
+      { job_id: jobId, contractor_id: job.contractor_id, rating: Math.min(5, Math.max(1, Math.round(qa.score / 20))), quality: Math.min(5, Math.max(1, Math.round(qa.score / 20))), source: "ai_qa", rated_by: "AI photo QA", comment: qa.issues.join("; ") || null },
+      { onConflict: "job_id", ignoreDuplicates: true },
+    );
   if (qa && qa.passed && !qa.needs_human_review) {
     await finalizeJob(jobId, qa.customer_summary);
   } else {

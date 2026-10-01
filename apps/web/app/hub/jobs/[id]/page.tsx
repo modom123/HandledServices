@@ -10,7 +10,7 @@ import { SERVICES, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } 
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
-import { JobAdmin, PaymentPanel, RemedyPanel } from "@/components/HubActions";
+import { JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
 
 type AnyRec = Record<string, unknown>;
 
@@ -22,11 +22,13 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   if (!data) notFound();
   const job = data as Job & { completion_photos: string[] };
   const s = getService(job.service_slug)!;
-  const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, before, after] = await Promise.all([
+  const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after] = await Promise.all([
     v.db.from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
     v.db.from("job_events").select("*").eq("job_id", id).order("created_at"),
     v.db.from("messages").select("*").eq("job_id", id).order("created_at"),
     v.db.from("contractors").select("id, business_name, trades").eq("status", "approved"),
+    v.db.from("ops_ratings").select("*").eq("job_id", id).maybeSingle(),
+    v.db.from("reviews").select("rating, comment").eq("job_id", id).maybeSingle(),
     signedUrls(job.photos),
     signedUrls(job.completion_photos ?? []),
   ]);
@@ -79,6 +81,12 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
       <div className="space-y-6">
         <PaymentPanel job={{ id: job.id, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status }} />
         <RemedyPanel jobId={job.id} paid={Boolean(job.paid_at) && !job.remedy} services={SERVICES.filter((x) => !x.siteVisit).map((x) => ({ slug: x.slug, name: x.name }))} />
+        {job.contractor_id && ["qa_review", "completed"].includes(job.status) && (
+          <>
+            <div className="card text-sm"><div className="font-semibold">Customer’s rating</div><p className="mt-1">{custReview ? `${"★".repeat(custReview.rating)} ${custReview.comment ?? ""}` : "Not rated yet — the customer is asked after completion."}</p></div>
+            <OpsRating jobId={job.id} current={opsRating} />
+          </>
+        )}
         <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id }} pros={qualified} />
         <div className="card"><div className="font-semibold">Timeline</div>
           <ol className="mt-3 space-y-3 text-sm">{(events ?? []).map((e: AnyRec) => <li key={String(e.id)}><span className="text-xs text-ink-soft">{new Date(String(e.created_at)).toLocaleString()} · {String(e.actor)}</span><div>{String(e.message)}{!e.visible_to_customer && <span className="ml-1 text-xs text-ink-soft">(internal)</span>}</div></li>)}</ol></div>

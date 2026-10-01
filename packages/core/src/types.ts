@@ -118,4 +118,23 @@ export interface Contractor {
   background_checked: boolean;
   daily_capacity: number;
   notes: string | null;
+  // 1099 / onboarding (independent contractor — never an employee)
+  legal_name?: string | null;
+  entity_type?: "individual" | "sole_prop" | "llc" | "s_corp" | "c_corp" | "partnership" | null;
+  tin_last4?: string | null;
+  address_line?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  w9_received_at?: string | null;
+  agreement_version?: string | null;
+  agreement_signed_at?: string | null;
+  agreement_signer?: string | null;
+  license_expires?: string | null;
+  background_checked_at?: string | null;
+  payout_method?: "ach" | "stripe_connect" | "check" | null;
+  payout_account_last4?: string | null;
+  onboarded_at?: string | null;
+  offboarded_at?: string | null;
+  offboard_reason?: string | null;
 }

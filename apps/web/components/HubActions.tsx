@@ -227,3 +227,57 @@ export function RemedyPanel({ jobId, paid, services }: { jobId: string; paid: bo
     </div>
   );
 }
+
+export function DocDecision({ contractorId, docId }: { contractorId: string; docId: string }) {
+  const router = useRouter();
+  const act = async (decision: "verify" | "reject") => { await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision }); router.refresh(); };
+  return (
+    <div className="flex gap-2">
+      <a className="btn-ghost px-3 py-1 text-xs" href={`/api/hub/contractors/${contractorId}/documents/${docId}`} target="_blank">Open</a>
+      <button className="btn-ghost px-3 py-1 text-xs" onClick={() => act("reject")}>Reject</button>
+      <button className="btn-primary px-3 py-1 text-xs" onClick={() => act("verify")}>Verify</button>
+    </div>
+  );
+}
+
+export function ProStatusControls({ id, status, complete }: { id: string; status: string; complete: boolean }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  const [reason, setReason] = useState("");
+  const patch = async (body: object) => { const r = await call(`/api/hub/contractors/${id}`, "PATCH", body); setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh(); };
+  return (
+    <div className="card space-y-3 text-sm">
+      <div className="font-semibold">Status: {status}</div>
+      <div className="flex flex-wrap gap-2">
+        {status !== "approved" && <button className="btn-primary px-3 py-1.5 text-xs" disabled={!complete} title={complete ? "" : "Finish onboarding first"} onClick={() => patch({ status: "approved" })}>Activate — start sending offers</button>}
+        <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => patch({ background_checked: true })}>Mark background check cleared</button>
+      </div>
+      {status === "approved" && (
+        <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason to pause / offboard" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button className="btn-ghost px-3 py-1 text-xs text-rose-700" disabled={reason.length < 3} onClick={() => patch({ offboard_reason: reason })}>Pause</button></div>
+      )}
+      {msg && <p className="text-brand-dark">{msg}</p>}
+    </div>
+  );
+}
+
+export function OpsRating({ jobId, current }: { jobId: string; current: { rating: number; quality: number | null; punctuality: number | null; professionalism: number | null; comment: string | null; source: string; rated_by: string | null } | null }) {
+  const router = useRouter();
+  const [r, setR] = useState({ rating: current?.rating ?? 5, quality: current?.quality ?? 5, punctuality: current?.punctuality ?? 5, professionalism: current?.professionalism ?? 5 });
+  const [comment, setComment] = useState(current?.comment ?? "");
+  const [msg, setMsg] = useState("");
+  const Stars = ({ k }: { k: keyof typeof r }) => (
+    <div className="flex items-center justify-between gap-2"><span className="capitalize text-ink-soft">{k === "rating" ? "Overall" : k}</span>
+      <span className="text-lg">{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" onClick={() => setR({ ...r, [k]: n })} className={n <= r[k] ? "" : "opacity-25"}>★</button>)}</span></div>
+  );
+  return (
+    <div className="card space-y-2 text-sm">
+      <div className="font-semibold">Our rating of the pro</div>
+      {current && <p className="text-xs text-ink-soft">Current: {current.rating}★ by {current.rated_by ?? current.source}{current.source === "ai_qa" ? " (AI draft — override below)" : ""}</p>}
+      <Stars k="rating" /><Stars k="quality" /><Stars k="punctuality" /><Stars k="professionalism" />
+      <input className="input" placeholder="Private note (not shown to the pro or customer)" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <button className="btn-primary" onClick={async () => { const x = await call(`/api/hub/jobs/${jobId}/rating`, "POST", { ...r, comment: comment || undefined }); setMsg(x.ok ? "Saved — pro rating updated" : x.json.error ?? "Failed"); router.refresh(); }}>Save rating</button>
+      {msg && <p className="text-brand-dark">{msg}</p>}
+    </div>
+  );
+}

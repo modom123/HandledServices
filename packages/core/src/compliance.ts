@@ -1,0 +1,67 @@
+/*
+ * FILE    : packages/core/src/compliance.ts
+ * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * CREATED : 2026-10-01_2000 UTC
+ * PURPOSE : Subcontractor onboarding & 1099 rules shared by the Command Center, the pro
+ *           portal and IEBC agents. Pros are independent contractors (their own business,
+ *           tools, insurance and schedule; free to accept or decline any job) — never
+ *           employees. A pro can't be activated until every required step is done.
+ */
+import { SERVICES } from "./services.ts";
+
+export const AGREEMENT_VERSION = "2026-10-v1";
+
+/** Trades whose services legally require a licensed tradesperson. */
+export const LICENSED_TRADES: string[] = [...new Set(SERVICES.filter((s) => s.licensed).flatMap((s) => s.trades.filter((t) => t !== "handyman")))];
+
+/**
+ * Form 1099-NEC reporting threshold by tax year. $600 through 2025; the 2025 tax law
+ * raised it to $2,000 for payments made from 2026 (indexed for inflation after 2026).
+ * Confirm the current figure with your accountant each January.
+ */
+export function necThreshold(taxYear: number): number {
+  return taxYear <= 2025 ? 600 : 2000;
+}
+
+export interface ComplianceInput {
+  status: string;
+  trades: string[];
+  legal_name: string | null;
+  tin_last4: string | null;
+  w9_received_at: string | null;
+  agreement_version: string | null;
+  agreement_signed_at: string | null;
+  insured_until: string | null;
+  license_number: string | null;
+  license_expires: string | null;
+  background_checked: boolean;
+  payout_method: string | null;
+}
+
+export interface Step {
+  key: "w9" | "agreement" | "coi" | "license" | "background" | "payout";
+  label: string;
+  done: boolean;
+  detail: string;
+  /** Expires within 30 days — renew before it lapses. */
+  expiring?: boolean;
+}
+
+const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
+const valid = (d: string | null) => Boolean(d) && new Date(d!).getTime() >= Date.now() - 86400000;
+
+export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
+  const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
+  const steps: Step[] = [
+    { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
+    { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
+    { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : "General liability, $1M per occurrence minimum", expiring: valid(c.insured_until) && soon(c.insured_until) },
+  ];
+  if (licenseRequired)
+    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical and HVAC work", expiring: valid(c.license_expires) && soon(c.license_expires) });
+  steps.push(
+    { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
+    { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },
+  );
+  return { steps, complete: steps.every((s) => s.done), licenseRequired };
+}

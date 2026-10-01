@@ -5,7 +5,7 @@
  * PURPOSE : Pro home — open offers, upcoming jobs, earnings.
  */
 import Link from "next/link";
-import { TIME_WINDOW_LABEL, getService, money, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, getService, money, onboardingChecklist, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { OfferButtons } from "@/components/ProActions";
@@ -17,15 +17,22 @@ export default async function ProHome() {
     v.db.from("job_offers").select("id, payout, expires_at, job_id, jobs(ref, service_slug, city, zip, scheduled_date, time_window, answers, notes, status)").eq("status", "offered").order("offered_at", { ascending: false }),
     v.db.from("jobs").select("*").eq("contractor_id", v.contractorId!).order("scheduled_date"),
     v.db.from("payouts").select("amount, status, created_at"),
-    v.db.from("contractors").select("business_name, rating, jobs_completed, status").eq("id", v.contractorId!).single(),
+    v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
   const list = (jobs ?? []) as Job[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
   const month = new Date().toISOString().slice(0, 7);
   const earned = (payouts ?? []).filter((p: { created_at: string }) => p.created_at.startsWith(month)).reduce((t: number, p: { amount: number }) => t + Number(p.amount), 0);
   type OfferRow = { id: string; payout: number; expires_at: string; jobs: { ref: string; service_slug: string; city: string; zip: string; scheduled_date: string | null; time_window: Job["time_window"]; notes: string | null } | null };
+  const setup = me ? onboardingChecklist(me) : null;
   return (
     <div className="space-y-8">
+      {setup && (!setup.complete || setup.steps.some((x) => x.expiring)) && (
+        <Link href="/pro/onboarding" className="card block border-amber-300 bg-amber-50">
+          <div className="font-semibold">{setup.complete ? "A document expires soon" : `Finish setup — ${setup.steps.filter((x) => !x.done).length} step(s) left`}</div>
+          <div className="text-sm text-ink-soft">{setup.steps.filter((x) => !x.done || x.expiring).map((x) => x.label).join(" · ")}</div>
+        </Link>
+      )}
       <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">Status: {me?.status}{me?.status !== "approved" ? " — offers start once insurance & background check are verified" : ""}</p></div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Earned this month" value={money(earned)} />

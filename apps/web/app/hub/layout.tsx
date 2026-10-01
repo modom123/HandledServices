@@ -16,7 +16,8 @@ export const metadata = { title: "Command Center" };
 const NAV = [
   ["/hub", "📊", "Dashboard"],
   ["/hub/jobs", "🗂️", "Jobs board"],
-  ["/hub/pros", "🧰", "Pros & vetting"],
+  ["/hub/network", "💎", "Pro Network"],
+  ["/hub/pros", "🧰", "Hiring & pros"],
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/workforce", "🏢", "IEBC Workforce"],
