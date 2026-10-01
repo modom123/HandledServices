@@ -8,7 +8,7 @@
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";
 
-export type CategoryId = "cleaning" | "outdoor" | "removal" | "repair_remodel" | "events";
+export type CategoryId = "cleaning" | "outdoor" | "pets" | "removal" | "repair_remodel" | "events";
 
 /** Lifecycle of a job. Order matters: it's the order the ops board shows columns. */
 export const JOB_STATUSES = [
@@ -85,6 +85,7 @@ export interface Job {
   priority: "normal" | "high" | "urgent";
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;
+  instructions?: string | null;
   paid_at: string | null;
   amount_paid: number;
   amount_refunded: number;

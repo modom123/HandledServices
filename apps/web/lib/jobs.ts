@@ -12,7 +12,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, SERVICE_AGREEMENT_VERSION, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
+  BRAND, JOB_STATUS_LABEL, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -21,6 +21,7 @@ import { aiRankCandidates } from "./ai/dispatch";
 import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
+import { notify } from "./push";
 import { chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 import { invoiceUrl } from "./invoice";
 import { syncCatalog } from "./catalog";
@@ -131,8 +132,13 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   }).eq("id", jobId).is("paid_at", null).select("*").single();
   const paid = data as Job;
   await addEvent(jobId, "paid", `Payment received — ${money(p.amount)}. ${BRAND.promise}`, p.via);
-  await sendEmail(paid.contact_email, `Paid — your ${getService(paid.service_slug)?.name} is locked in (${paid.ref})`,
-    `Thanks! We received ${money(p.amount)}. ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now."}\n\nPaid invoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}`);
+  await notify(paid.customer_id, {
+    title: "Paid — you're locked in",
+    body: paid.contractor_id ? `Your ${getService(paid.service_slug)?.name} is confirmed.` : `We're matching your ${getService(paid.service_slug)?.name} with a vetted pro now.`,
+    data: { type: "job", jobId: paid.id },
+    email: { to: paid.contact_email, subject: `Paid — your ${getService(paid.service_slug)?.name} is locked in (${paid.ref})`,
+      text: `Thanks! We received ${money(p.amount)}. ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nPaid invoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
+  });
   if (!paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
   return paid;
 }
@@ -174,32 +180,37 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const picks = order.slice(0, count);
   const payout = job.contractor_payout ?? 0;
 
-  await db().from("job_offers").upsert(
-    picks.map((p) => ({ job_id: job.id, contractor_id: p.id, payout, ai_score: p.score, ai_reason: p.reason, status: "offered" })),
+  const expires = new Date(Date.now() + (job.priority === "normal" ? 2 : 1) * 3600 * 1000).toISOString();
+  const { data: offerRows } = await db().from("job_offers").upsert(
+    picks.map((p) => ({ job_id: job.id, contractor_id: p.id, payout, ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
     { onConflict: "job_id,contractor_id" },
-  );
+  ).select("id, contractor_id");
+  const offerIdFor = Object.fromEntries(((offerRows ?? []) as { id: string; contractor_id: string }[]).map((o) => [o.contractor_id, o.id]));
   if (!opts.siteVisit) await db().from("jobs").update({ status: "dispatched", ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
   else await db().from("jobs").update({ ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
   await addEvent(job.id, "dispatch", `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
 
   const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
   const svc = getService(job.service_slug)!;
+  const order0 = buildWorkOrder(job, { reveal: false, payout });
   for (const p of picks) {
     const pro = byId[p.id];
-    if (pro)
-      await sendEmail(
-        pro.email,
-        `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} in ${job.zip}`,
-        `${opts.siteVisit ? "Site visit" : "Job"} ${job.ref} — ${svc.name}\n${job.city}, ${job.zip} · ${job.scheduled_date ?? "date TBD"} (${job.time_window})\n` +
-          (payout ? `Your payout: ${money(payout)}\n` : "") +
-          `\nAccept in the pro app or at ${siteUrl()}/pro — first to accept gets it.`,
-      );
+    const offerId = offerIdFor[p.id];
+    if (!pro || !offerId) continue;
+    await notify(pro.profile_id, {
+      title: `New ${opts.siteVisit ? "site visit" : "job"} · ${payout ? money(payout) : "site visit"}`,
+      body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. First to accept gets it.`,
+      data: { type: "offer", offerId },
+      channel: "offers",
+      email: { to: pro.email, subject: `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${payout ? money(payout) : "site visit"} · ${job.zip}`,
+        text: `${workOrderText(order0)}\n\nACCEPT (first to accept gets it — offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })} ET):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
+    });
   }
   return { offers: picks.length, ai: Boolean(ai) };
 }
 
 /** A pro accepts an offer. Race-safe: only one pro can win the job. */
-export async function acceptOffer(offerId: string, contractorId: string) {
+export async function acceptOffer(offerId: string, contractorId: string, meta: { ip?: string | null } = {}) {
   const { data: offer } = await db().from("job_offers").select("*").eq("id", offerId).eq("contractor_id", contractorId).maybeSingle();
   if (!offer || offer.status !== "offered") return { ok: false, error: "Offer is no longer available" };
   if (new Date(offer.expires_at) < new Date()) {
@@ -219,12 +230,28 @@ export async function acceptOffer(offerId: string, contractorId: string) {
     return { ok: false, error: "Another pro already took this job" };
   }
   const now = new Date().toISOString();
-  await db().from("job_offers").update({ status: "accepted", responded_at: now }).eq("id", offerId);
+  await db().from("job_offers").update({ status: "accepted", responded_at: now, work_order_version: WORK_ORDER_VERSION, terms_accepted_at: now, accepted_ip: meta.ip ?? null }).eq("id", offerId);
   await db().from("job_offers").update({ status: "expired" }).eq("job_id", offer.job_id).eq("status", "offered");
-  const { data: pro } = await db().from("contractors").select("business_name").eq("id", contractorId).single();
+  const { data: pro } = await db().from("contractors").select("business_name, contact_name, email, profile_id, rating").eq("id", contractorId).single();
   const job = won as Job;
-  await addEvent(job.id, "assigned", `${pro?.business_name ?? "Your pro"} is confirmed for ${job.scheduled_date ?? "your visit"}.`, "system");
-  await sendEmail(job.contact_email, `Your pro is confirmed — ${job.ref}`, `${pro?.business_name} will handle your ${getService(job.service_slug)?.name}.\nTrack it: ${siteUrl()}/account`);
+  const svc = getService(job.service_slug);
+  const when = `${job.scheduled_date ? new Date(`${job.scheduled_date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "your visit"} · ${TIME_WINDOW_LABEL[job.time_window]}`;
+  await addEvent(job.id, "assigned", `Covered: ${pro?.business_name ?? "Your pro"} (${pro?.rating ?? "5.0"}★) is confirmed for ${when}.`, "system");
+  await addEvent(job.id, "terms", `Pro accepted work order v${WORK_ORDER_VERSION}`, "pro", false);
+  // customer: your job is covered
+  await notify(job.customer_id, {
+    title: "Your job is covered ✓",
+    body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) will handle your ${svc?.name} — ${when}.`,
+    data: { type: "job", jobId: job.id },
+    email: { to: job.contact_email, subject: `Your job is covered — ${job.ref}`, text: `Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
+  });
+  // pro: confirmed, here is the full work order
+  if (pro) await notify(pro.profile_id, {
+    title: `Job confirmed · ${job.ref}`,
+    body: `${svc?.name} · ${job.address}, ${job.city} · ${when}`,
+    data: { type: "job_pro", jobId: job.id },
+    email: { to: pro.email, subject: `Confirmed: ${svc?.name} ${job.ref} — work order`, text: `You've got it, ${pro.contact_name?.split(" ")[0] ?? "pro"}. Full work order below.\n\n${workOrderText(buildWorkOrder(job, { reveal: true }))}\n\nOpen the job: ${siteUrl()}/pro/jobs/${job.id}` },
+  });
   return { ok: true, job };
 }
 
@@ -252,7 +279,11 @@ export async function startJob(jobId: string, contractorId: string) {
     .update({ status: "in_progress", started_at: new Date().toISOString() })
     .eq("id", jobId).eq("contractor_id", contractorId).eq("status", "assigned")
     .select("id").maybeSingle();
-  if (data) await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro");
+  if (data) {
+    await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro");
+    const job = await getJob(jobId);
+    if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId } });
+  }
   return Boolean(data);
 }
 
@@ -302,11 +333,13 @@ export async function finalizeJob(jobId: string, summary?: string) {
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
   await addEvent(job.id, "completed", summary ?? "Job complete. Thank you!", "system");
-  await sendEmail(
-    job.contact_email,
-    `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
-    `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.`,
-  );
+  await notify(job.customer_id, {
+    title: "Done ✓ — how did we do?",
+    body: `${summary ?? "Your job is complete."} Tap to see photos and rate your pro.`,
+    data: { type: "job", jobId: job.id },
+    email: { to: job.contact_email, subject: `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
+      text: `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.` },
+  });
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }
 
@@ -342,6 +375,33 @@ async function scheduleNextVisit(job: Job) {
     await sendPaymentLink(nextJob as Job);
     await raiseAlert("payment", "warn", `${nextJob.ref}: recurring visit unpaid`, "Saved card failed or missing — payment link emailed. Not dispatched until paid.", nextJob.id);
   }
+}
+
+/** Day-before reminders (daily cron): pro gets the full work order, customer a heads-up. */
+export async function sendDayBeforeReminders() {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const { data } = await db().from("jobs").select("*").eq("scheduled_date", tomorrow).in("status", ["assigned", "dispatched", "scheduled"]);
+  let sent = 0;
+  for (const job of (data ?? []) as Job[]) {
+    const svc = getService(job.service_slug);
+    const window = TIME_WINDOW_LABEL[job.time_window];
+    await notify(job.customer_id, {
+      title: "Tomorrow: your pro is coming",
+      body: `${svc?.name} · ${window}. Please make sure we can get access.`,
+      data: { type: "job", jobId: job.id },
+    });
+    if (job.contractor_id) {
+      const { data: pro } = await db().from("contractors").select("profile_id, email").eq("id", job.contractor_id).single();
+      if (pro) await notify(pro.profile_id, {
+        title: `Tomorrow · ${svc?.name} · ${job.ref}`,
+        body: `${job.address}, ${job.city} · ${window}`,
+        data: { type: "job_pro", jobId: job.id },
+        email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: workOrderText(buildWorkOrder(job, { reveal: true })) },
+      });
+    }
+    sent++;
+  }
+  return sent;
 }
 
 export async function raiseAlert(kind: string, severity: "info" | "warn" | "critical", title: string, body: string | null, jobId?: string | null) {

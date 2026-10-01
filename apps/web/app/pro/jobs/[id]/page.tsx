@@ -5,7 +5,8 @@
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, getService, money, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, buildWorkOrder, getService, money, type Job } from "@handled/core";
+import { WorkOrderView } from "@/components/WorkOrderView";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
@@ -44,6 +45,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}
           {photos.length > 0 && <div className="mt-3 grid grid-cols-4 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Customer photo" className="aspect-square rounded-lg object-cover" /></a>)}</div>}
         </div>
+        {job.instructions && <p className="card bg-brand-tint text-sm text-brand-dark"><b>Instructions:</b> {job.instructions}</p>}
+        <details className="card"><summary className="cursor-pointer font-semibold">Full work order & job terms</summary><div className="mt-3"><WorkOrderView w={buildWorkOrder(job, { reveal: true })} /></div></details>
         <JobThread jobId={job.id} userId={v.userId} as="pro" initial={msgs ?? []} />
       </div>
       <div className="space-y-4">

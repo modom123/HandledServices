@@ -88,7 +88,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
             <OpsRating jobId={job.id} current={opsRating} />
           </>
         )}
-        <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id }} pros={qualified} />
+        <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id, instructions: job.instructions }} pros={qualified} />
         <div className="card"><div className="font-semibold">Timeline</div>
           <ol className="mt-3 space-y-3 text-sm">{(events ?? []).map((e: AnyRec) => <li key={String(e.id)}><span className="text-xs text-ink-soft">{new Date(String(e.created_at)).toLocaleString()} · {String(e.actor)}</span><div>{String(e.message)}{!e.visible_to_customer && <span className="ml-1 text-xs text-ink-soft">(internal)</span>}</div></li>)}</ol></div>
         <div className="card"><div className="font-semibold">Messages</div>

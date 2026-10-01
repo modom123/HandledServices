@@ -109,8 +109,10 @@ export function estimate(input: EstimateInput): Estimate {
   point = Math.max(point, Math.round(service.minimum * (1 - discount)));
 
   const step = point >= 5000 ? 250 : point >= 1000 ? 25 : 5;
-  const low = roundTo(point * service.spread[0], step);
-  const high = roundTo(point * service.spread[1], step);
+  // exact-price services (spread [1,1]) quote the exact amount — never a rounded "range"
+  const exact = service.spread[0] === 1 && service.spread[1] === 1;
+  const low = exact ? Math.round(point) : roundTo(point * service.spread[0], step);
+  const high = exact ? Math.round(point) : roundTo(point * service.spread[1], step);
   const { payout } = splitJob(Math.round(point), service.slug);
   return {
     slug: service.slug,

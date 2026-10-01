@@ -21,6 +21,7 @@ const Patch = z.object({
   mark_paid: z.object({ amount: z.number().positive(), method: z.string().max(80) }).optional(),
   send_payment_link: z.boolean().optional(),
   note: z.string().max(2000).optional(),
+  instructions: z.string().max(4000).nullable().optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

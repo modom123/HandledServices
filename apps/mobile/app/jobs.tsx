@@ -5,7 +5,8 @@
  * PURPOSE : Customer's jobs with live status (Supabase RLS + realtime).
  */
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { router } from "expo-router";
 import { getService, money, moneyRange, type Job } from "@handled/core";
 import { supabase } from "../lib/supabase";
 import { Card, Status, s } from "../components/ui";
@@ -28,11 +29,11 @@ export default function Jobs() {
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}>
       {!jobs.length && <Text style={s.p}>No jobs yet. Bookings made with your email appear here.</Text>}
       {jobs.map((j) => (
-        <Card key={j.id}>
+        <Pressable key={j.id} onPress={() => router.push({ pathname: "/job/[id]", params: { id: j.id } })}><Card>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}><Text style={s.b}>{getService(j.service_slug)?.icon} {getService(j.service_slug)?.name}</Text><Status status={j.status} /></View>
           <Text style={s.p}>{j.ref} · {j.scheduled_date ?? "date TBD"} · {j.address}</Text>
           <Text style={[s.b, { marginTop: 6 }]}>{j.price_final ? money(j.price_final) : moneyRange(j.estimate_low, j.estimate_high)}</Text>
-        </Card>
+        </Card></Pressable>
       ))}
     </ScrollView>
   );

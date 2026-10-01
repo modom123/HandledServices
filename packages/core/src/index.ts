@@ -13,3 +13,4 @@ export * from "./brand.ts";
 export * from "./compliance.ts";
 export * from "./availability.ts";
 export * from "./event-budget.ts";
+export * from "./workorder.ts";

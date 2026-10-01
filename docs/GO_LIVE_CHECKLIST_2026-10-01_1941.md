@@ -70,6 +70,7 @@ Project `myhumanai-web` → **Settings**:
 | `IEBC_API_KEY` | `openssl rand -hex 32` (same key goes in the MasterHub) | ✅ |
 | `IEBC_ALLOWED_ORIGIN` | the MasterHub's web address once it's hosted | later |
 | `AUTO_DISPATCH` | `true` | default |
+| `EXPO_ACCESS_TOKEN` | expo.dev → Account → Access tokens (signs push notifications) | recommended |
 
 Then **Deployments → ⋯ → Redeploy** so the new variables take effect.
 
@@ -113,6 +114,11 @@ npx eas build -p all --profile production
 npx eas submit -p ios         # App Store Connect
 npx eas submit -p android     # Google Play
 ```
+
+**Push notifications (job offers for pros, "job covered" for customers):**
+- iPhone: `eas build` sets up the Apple push key for you — answer **Yes** when it asks to generate one.
+- Android: create a free Firebase project → add an Android app with package `com.handled.app` → download `google-services.json` into `apps/mobile/` → add `"googleServicesFile": "./google-services.json"` under `android` in `app.json` → `npx eas credentials` → Android → upload the FCM V1 service-account key.
+- Test: sign in on a phone as a pro, dispatch a job to that pro from the Hub — the phone should ring with "New job · $…".
 
 For the store listings: privacy policy URL `https://YOUR-DOMAIN/privacy`, support URL `https://YOUR-DOMAIN`, category *Lifestyle* / *House & Home*. In `apps/mobile/app.json`, replace `YOUR-DOMAIN` in `extra`.
 

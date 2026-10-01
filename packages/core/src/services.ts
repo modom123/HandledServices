@@ -62,7 +62,8 @@ export interface Service {
 
 export const CATEGORIES: { id: CategoryId; name: string; blurb: string }[] = [
   { id: "cleaning", name: "Cleaning & Organizing", blurb: "Homes, offices, windows, carpets, gutters — plus decluttering." },
-  { id: "outdoor", name: "Lawn, Leaves & Snow", blurb: "Mowing, leaf cleanup, snow removal, trees and pet waste." },
+  { id: "outdoor", name: "Lawn, Leaves & Snow", blurb: "Mowing, leaf cleanup, snow removal and trees." },
+  { id: "pets", name: "Pet Care", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
   { id: "removal", name: "Haul Away", blurb: "Junk, furniture and big items gone today." },
   { id: "repair_remodel", name: "Repairs, Installs & Remodels", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
   { id: "events", name: "Parties & Events", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
@@ -506,9 +507,92 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "dog-walking",
+    name: "Dog Walking",
+    category: "pets",
+    icon: "🦮",
+    tagline: "Same walker, every walk — GPS photo updates after each one.",
+    description: "Background-checked walkers for daily or occasional walks. Fresh water, treats if you allow them, and a photo + note after every walk. Book a one-off walk or a weekly schedule.",
+    includes: ["Background-checked, insured walker", "Leash-on, door-to-door", "Fresh water & paw wipe", "Photo + note after every walk"],
+    questions: [
+      {
+        id: "length",
+        label: "Walk length",
+        type: "select",
+        default: "30",
+        options: [
+          { value: "20", label: "20 min (potty break)" },
+          { value: "30", label: "30 min" },
+          { value: "60", label: "60 min" },
+        ],
+      },
+      { id: "walks", label: "Walks per week", type: "number", min: 1, max: 14, default: 5, help: "For a one-off walk choose 1 and \"One time\"." },
+      { id: "dogs", label: "Dogs", type: "number", min: 1, max: 4, default: 1 },
+      { id: "puppy", label: "Puppy or reactive dog (extra care)", type: "toggle", default: false },
+    ],
+    minimum: 22,
+    spread: [1, 1],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once", "weekly"],
+    trades: ["pet_care"],
+    price: (a) => {
+      const per = { "20": 22, "30": 27, "60": 40 }[s(a, "length", "30")] ?? 27;
+      const walks = n(a, "walks", 5), dogs = n(a, "dogs", 1);
+      const walkPrice = per + (dogs - 1) * 8 + (b(a, "puppy") ? 5 : 0);
+      const items: LineItem[] = [{ label: `${walks} × ${s(a, "length", "30")}-min walk${walks > 1 ? "s" : ""}${dogs > 1 ? ` (${dogs} dogs)` : ""} @ $${walkPrice}`, amount: walks * walkPrice }];
+      const base = sum(items);
+      return { items, base, hours: walks * (Number(s(a, "length", "30")) / 60 + 0.25) };
+    },
+  },
+  {
+    slug: "dog-sitting",
+    name: "Dog Sitting & Pet Watching",
+    category: "pets",
+    icon: "🐶",
+    tagline: "Drop-in visits, daytime watching or overnight stays in your home.",
+    description: "Trusted, background-checked sitters while you're at work or away: feeding, walks, play, meds and a photo update every visit. Overnight sitters stay in your home so your dog keeps its routine.",
+    includes: ["Background-checked, insured sitter", "Feeding, fresh water & meds", "Walks & playtime", "Photo update every visit", "Meet & greet before the first booking"],
+    questions: [
+      {
+        id: "type",
+        label: "What you need",
+        type: "select",
+        default: "dropin",
+        options: [
+          { value: "dropin", label: "Drop-in visits (30 min)" },
+          { value: "day", label: "Daytime watching (up to 8 hrs)" },
+          { value: "overnight", label: "Overnight in your home" },
+        ],
+      },
+      { id: "count", label: "Visits / days / nights", type: "number", min: 1, max: 30, default: 3 },
+      { id: "visits_per_day", label: "Drop-in visits per day", type: "number", min: 1, max: 4, default: 2, help: "Drop-ins only" },
+      { id: "pets", label: "Pets", type: "number", min: 1, max: 5, default: 1 },
+      { id: "meds", label: "Medication or special care", type: "toggle", default: false },
+      { id: "holiday", label: "Includes a major holiday", type: "toggle", default: false },
+    ],
+    minimum: 28,
+    spread: [1, 1],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["pet_care"],
+    price: (a) => {
+      const type = s(a, "type", "dropin"), count = n(a, "count", 3), pets = n(a, "pets", 1);
+      const units = type === "dropin" ? count * n(a, "visits_per_day", 2) : count;
+      const per = ({ dropin: 28, day: 55, overnight: 85 }[type] ?? 28) + (pets - 1) * (type === "dropin" ? 6 : 12);
+      const label = { dropin: "drop-in visit", day: "day of watching", overnight: "overnight stay" }[type] ?? "visit";
+      const items: LineItem[] = [{ label: `${units} × ${label}${units > 1 ? "s" : ""} @ $${per}${pets > 1 ? ` (${pets} pets)` : ""}`, amount: units * per }];
+      if (b(a, "meds")) items.push({ label: "Medication / special care", amount: units * 5 });
+      if (b(a, "holiday")) items.push({ label: "Holiday rate", amount: Math.round(units * per * 0.25) });
+      const base = sum(items);
+      return { items, base, hours: type === "overnight" ? count * 12 : type === "day" ? count * 8 : units * 0.5 };
+    },
+  },
+  {
     slug: "pet-waste-removal",
     name: "Dog Poop Removal",
-    category: "outdoor",
+    category: "pets",
     icon: "🐕",
     tagline: "A clean yard every week. Gate closed, guaranteed.",
     description: "Weekly or biweekly yard scooping with waste hauled away and the gate photo-verified closed on every visit.",
@@ -1315,6 +1399,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "tree", label: "Tree service / arborist" },
   { id: "snow", label: "Snow plowing & removal" },
   { id: "pet_waste", label: "Pet waste removal" },
+  { id: "pet_care", label: "Dog walking & pet sitting" },
   { id: "hauling", label: "Junk & item hauling" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },

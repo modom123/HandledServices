@@ -183,3 +183,15 @@ test("plan-by-budget splits exactly the budget and flags tight budgets", async (
   const e = estimate({ slug: "event-package", answers: { budget: 10000, guests: 120, event_type: "corporate", venue: "need" } });
   assert.equal(e.point, 10000); assert.equal(e.low, 10000); assert.equal(e.high, 10000);
 });
+
+test("work order hides the exact address until the pro accepts", async () => {
+  const { buildWorkOrder } = await import("./workorder.ts");
+  const job = { ref: "H-1", service_slug: "plumbing", answers: { issue: "leak", count: 1, emergency: false }, notes: "Under kitchen sink", scheduled_date: "2026-10-05",
+    time_window: "morning" as const, address: "12 Elm St", city: "Detroit", state: "MI", zip: "48226", contact_name: "Ann Lee", contact_phone: "313", company_name: null, contractor_payout: 181, instructions: "Bring a shutoff key" };
+  const before = buildWorkOrder(job, { reveal: false });
+  assert.ok(!before.where.includes("12 Elm St") && before.customer === undefined);
+  const after = buildWorkOrder(job, { reveal: true });
+  assert.ok(after.where.includes("12 Elm St") && after.customer?.name === "Ann Lee");
+  assert.ok(after.terms.some((t) => t.includes("Licensed trade")), "licensed services add the license term");
+  assert.equal(after.instructions, "Bring a shutoff key");
+});

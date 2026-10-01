@@ -27,6 +27,12 @@
           "photosPermission": "Handled uses your photos to price jobs and prove completed work.",
           "cameraPermission": "Handled uses the camera to photograph jobs."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0e7c66"
+        }
       ]
     ],
     "extra": {

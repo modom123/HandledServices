@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { TIME_WINDOW_LABEL, getService, money, type Job } from "@handled/core";
-import { API_URL, api, supabase } from "../../lib/supabase";
+import { API_URL, supabase } from "../../lib/supabase";
 import { Button, C, Card, Status, s } from "../../components/ui";
 
 type Offer = { id: string; payout: number; expires_at: string; jobs: Pick<Job, "ref" | "service_slug" | "city" | "zip" | "scheduled_date" | "time_window" | "notes"> | null };
@@ -33,12 +33,6 @@ export default function ProHome() {
     return () => { supabase.removeChannel(ch); };
   }, [load]);
 
-  async function respond(id: string, action: "accept" | "decline") {
-    const r = await api<{ ok: boolean; error?: string }>(`/api/pro/offers/${id}`, { method: "POST", body: JSON.stringify({ action }) });
-    if (!r.ok) Alert.alert("Not available", r.data.error ?? "");
-    load();
-  }
-
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}>
       <View style={{ flexDirection: "row", gap: 8 }}>
@@ -54,10 +48,7 @@ export default function ProHome() {
             <Text style={s.b}>{svc?.icon} {svc?.name} · <Text style={{ color: C.brand }}>{o.payout ? money(o.payout) : "site visit"}</Text></Text>
             <Text style={s.p}>{o.jobs?.city} {o.jobs?.zip} · {o.jobs?.scheduled_date} · {o.jobs ? TIME_WINDOW_LABEL[o.jobs.time_window] : ""}</Text>
             {o.jobs?.notes ? <Text style={[s.p, { marginTop: 4 }]}>“{o.jobs.notes}”</Text> : null}
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-              <Button title="Pass" kind="ghost" onPress={() => respond(o.id, "decline")} style={{ flex: 1 }} />
-              <Button title="Accept" onPress={() => respond(o.id, "accept")} style={{ flex: 2 }} />
-            </View>
+            <Button title="View & accept →" onPress={() => router.push({ pathname: "/pro/offer/[id]", params: { id: o.id } })} style={{ marginTop: 10 }} />
           </Card>
         );
       })}

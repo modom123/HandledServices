@@ -163,6 +163,11 @@ export const ACTIONS: Record<string, ActionDef> = {
       return "rated";
     },
   }),
+  "ops.set_instructions": def({
+    scope: "ops", write: true, risk: "low", description: "Write the instructions printed on the pro's work order (access, parking, what to bring).",
+    params: z.object({ ref, instructions: z.string().min(3).max(4000) }),
+    run: async ({ ref: r, instructions }) => { const job = await jobByRef(r); await db().from("jobs").update({ instructions }).eq("id", job.id); await addEvent(job.id, "instructions", "Work-order instructions updated", "IEBC workforce", false); return "saved"; },
+  }),
   "ops.create_alert": def({
     scope: "ops", write: true, risk: "low", description: "Pin an alert to the command center dashboard.",
     params: z.object({ title: z.string().max(200), body: z.string().max(2000), severity: z.enum(["info", "warn", "critical"]) }),

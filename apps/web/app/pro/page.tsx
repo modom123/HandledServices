@@ -8,7 +8,7 @@ import Link from "next/link";
 import { TIME_WINDOW_LABEL, getService, money, onboardingChecklist, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat, StatusBadge, fmtDate } from "@/components/ui";
-import { OfferButtons } from "@/components/ProActions";
+import Link2 from "next/link";
 
 export default async function ProHome() {
   const v = await getViewer();
@@ -51,7 +51,7 @@ export default async function ProHome() {
                   <div className="text-sm text-ink-soft">{o.jobs?.city} {o.jobs?.zip} · {fmtDate(o.jobs?.scheduled_date)} · {o.jobs ? TIME_WINDOW_LABEL[o.jobs.time_window] : ""}</div>
                   {o.jobs?.notes && <div className="mt-1 text-xs text-ink-soft">“{o.jobs.notes}”</div>}
                   <div className="text-xs text-ink-soft">Expires {new Date(o.expires_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div></div>
-                <OfferButtons offerId={o.id} />
+                <Link2 href={`/pro/offers/${o.id}`} className="btn-primary px-5">View & accept →</Link2>
               </div>
             );
           })}

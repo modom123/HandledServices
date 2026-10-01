@@ -21,13 +21,14 @@ export function ResolveAlert({ id }: { id: string }) {
   return <button className="text-xs text-ink-soft underline" onClick={async () => { await call(`/api/hub/alerts/${id}`, "POST", {}); router.refresh(); }}>Resolve</button>;
 }
 
-export function JobAdmin({ job, pros }: { job: { id: string; status: string; price_final: number | null; scheduled_date: string | null; contractor_id: string | null }; pros: { id: string; business_name: string }[] }) {
+export function JobAdmin({ job, pros }: { job: { id: string; status: string; price_final: number | null; scheduled_date: string | null; contractor_id: string | null; instructions?: string | null }; pros: { id: string; business_name: string }[] }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [price, setPrice] = useState(job.price_final?.toString() ?? "");
   const [date, setDate] = useState(job.scheduled_date ?? "");
   const [note, setNote] = useState("");
+  const [instructions, setInstructions] = useState(job.instructions ?? "");
 
   async function run(fn: () => Promise<{ ok: boolean; json: { error?: string; offers?: number } }>, done: string) {
     setBusy(true);
@@ -55,6 +56,9 @@ export function JobAdmin({ job, pros }: { job: { id: string; status: string; pri
         <div><label className="label">Assign pro directly</label>
           <select className="input" value={job.contractor_id ?? ""} onChange={(e) => patch({ contractor_id: e.target.value || null })}><option value="">—</option>{pros.map((p) => <option key={p.id} value={p.id}>{p.business_name}</option>)}</select></div>
       </div>
+      <div><label className="label">Instructions for the pro (printed on the work order)</label>
+        <textarea className="input min-h-20" value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Gate code, parking, what to bring, who to ask for…" />
+        <button className="btn-ghost mt-1 px-3 py-1 text-xs" onClick={() => patch({ instructions: instructions || null }, "Instructions saved")}>Save instructions</button></div>
       <div><label className="label">Internal note</label><div className="flex gap-1"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} /><button className="btn-ghost px-3" disabled={!note} onClick={() => { patch({ note }); setNote(""); }}>Add</button></div></div>
       {msg && <p className="text-sm text-brand-dark">{msg}</p>}
     </div>

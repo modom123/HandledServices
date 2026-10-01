@@ -2,33 +2,13 @@
  * FILE    : apps/web/components/ProActions.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * PURPOSE : Pro actions: accept/decline offers, start job, complete with photos.
+ * PURPOSE : Pro actions: start job, complete with photos. (Offers are accepted on the
+ *           offer page, which requires agreeing to the work order — see WorkOrderView.)
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-export function OfferButtons({ offerId }: { offerId: string }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-  async function act(action: "accept" | "decline") {
-    setBusy(true);
-    const res = await fetch(`/api/pro/offers/${offerId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) setMsg(json.error ?? "Not available");
-    router.refresh();
-  }
-  return (
-    <div className="flex items-center gap-2">
-      {msg && <span className="text-xs text-rose-700">{msg}</span>}
-      <button className="btn-ghost px-4 py-1.5" disabled={busy} onClick={() => act("decline")}>Pass</button>
-      <button className="btn-primary px-4 py-1.5" disabled={busy} onClick={() => act("accept")}>Accept</button>
-    </div>
-  );
-}
 
 export function StartJob({ jobId }: { jobId: string }) {
   const router = useRouter();
