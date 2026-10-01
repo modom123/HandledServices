@@ -62,7 +62,7 @@ export interface Service {
 
 export const CATEGORIES: { id: CategoryId; name: string; blurb: string }[] = [
   { id: "cleaning", name: "Cleaning & Organizing", blurb: "Homes, offices, windows, carpets, gutters — plus decluttering." },
-  { id: "outdoor", name: "Lawn & Outdoor", blurb: "Mowing, trees and pet waste — on a schedule." },
+  { id: "outdoor", name: "Lawn, Leaves & Snow", blurb: "Mowing, leaf cleanup, snow removal, trees and pet waste." },
   { id: "removal", name: "Haul Away", blurb: "Junk, furniture and big items gone today." },
   { id: "repair_remodel", name: "Repairs, Installs & Remodels", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
   { id: "events", name: "Parties & Events", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
@@ -394,6 +394,115 @@ export const SERVICES: Service[] = [
       if (b(a, "stump") && !trim) items.push({ label: "Stump grinding", amount: 175 * trees });
       const base = sum(items);
       return { items, base, hours: base / 150 };
+    },
+  },
+  {
+    slug: "leaf-removal",
+    name: "Leaf Removal",
+    category: "outdoor",
+    icon: "🍂",
+    tagline: "Raked, blown, bagged and hauled — beds and gutters too.",
+    description: "Fall and spring leaf cleanup for yards, beds and driveways. We blow and rake everything out, then bag it at the curb or haul it away. Book once or every week or two through the season.",
+    includes: ["Lawn, beds & hard surfaces cleared", "Bagged at the curb or hauled away", "Downspout outlets cleared", "Before/after photos"],
+    questions: [
+      {
+        id: "lot",
+        label: "Lot size",
+        type: "select",
+        default: "quarter",
+        options: [
+          { value: "small", label: "Under ¼ acre" },
+          { value: "quarter", label: "¼ – ½ acre" },
+          { value: "half", label: "½ – 1 acre" },
+          { value: "acre", label: "Over 1 acre" },
+        ],
+      },
+      {
+        id: "volume",
+        label: "How many leaves",
+        type: "select",
+        default: "moderate",
+        options: [
+          { value: "light", label: "Light (a few trees)" },
+          { value: "moderate", label: "Moderate" },
+          { value: "heavy", label: "Heavy (wooded / first cleanup)" },
+        ],
+      },
+      { id: "haul", label: "Haul away (instead of bags at the curb)", type: "toggle", default: false },
+      { id: "beds", label: "Detail flower beds & shrubs", type: "toggle", default: true },
+    ],
+    minimum: 125,
+    spread: [0.95, 1.15],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly"],
+    trades: ["lawn"],
+    price: (a) => {
+      const base0 = { small: 150, quarter: 225, half: 325, acre: 475 }[s(a, "lot", "quarter")] ?? 225;
+      const mult = { light: 0.75, moderate: 1, heavy: 1.5 }[s(a, "volume", "moderate")] ?? 1;
+      const items: LineItem[] = [{ label: `Leaf cleanup (${s(a, "lot", "quarter")} lot, ${s(a, "volume", "moderate")})`, amount: Math.round(base0 * mult) }];
+      if (b(a, "beds")) items.push({ label: "Bed & shrub detailing", amount: 60 });
+      if (b(a, "haul")) items.push({ label: "Haul-away & disposal", amount: Math.round(60 + base0 * mult * 0.25) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1.5, base / 75) };
+    },
+  },
+  {
+    slug: "snow-removal",
+    name: "Snow Removal",
+    category: "outdoor",
+    icon: "❄️",
+    tagline: "Driveways, walks and lots cleared — one storm or the whole season.",
+    description: "Snow plowing and shoveling for homes and businesses. Book a single clearing, or a prepaid season plan where your crew comes automatically after every 2-inch-plus snowfall, November through March.",
+    includes: ["Driveway plowed or blown", "Walks & steps shoveled", "Ice melt on request", "Photo after every visit"],
+    questions: [
+      {
+        id: "area",
+        label: "What needs clearing",
+        type: "select",
+        default: "two_car",
+        options: [
+          { value: "one_car", label: "1-car driveway" },
+          { value: "two_car", label: "2-car driveway" },
+          { value: "large", label: "3+ car / long driveway" },
+          { value: "lot_small", label: "Small business lot (≤ 10 spaces)" },
+          { value: "lot_large", label: "Business lot (11–40 spaces)" },
+        ],
+      },
+      { id: "walks", label: "Sidewalk & front walk", type: "toggle", default: true },
+      { id: "steps", label: "Steps & porch", type: "toggle", default: false },
+      { id: "salt", label: "Ice melt / salt", type: "toggle", default: false },
+      {
+        id: "plan",
+        label: "How often",
+        type: "select",
+        default: "once",
+        options: [
+          { value: "once", label: "One clearing" },
+          { value: "season", label: "Season plan (every 2\"+ snowfall, Nov–Mar, prepaid)" },
+        ],
+      },
+    ],
+    minimum: 45,
+    spread: [1, 1.1],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["snow", "lawn"],
+    price: (a) => {
+      const per = { one_car: 45, two_car: 65, large: 95, lot_small: 175, lot_large: 375 }[s(a, "area", "two_car")] ?? 65;
+      const lot = s(a, "area", "two_car").startsWith("lot");
+      const items: LineItem[] = [{ label: "Plow / snow-blow", amount: per }];
+      if (b(a, "walks")) items.push({ label: "Sidewalks & walks", amount: lot ? 45 : 20 });
+      if (b(a, "steps")) items.push({ label: "Steps & porch", amount: 15 });
+      if (b(a, "salt")) items.push({ label: "Ice melt", amount: lot ? 60 : 20 });
+      const visit = sum(items);
+      if (s(a, "plan", "once") === "season") {
+        // Detroit averages ~12 plowable (2"+) events a season; prepaid season saves 15%
+        const season = Math.round(visit * 12 * 0.85);
+        return { items: [{ label: `Season plan — up to 12 storms × ${"$" + visit} per visit, 15% off`, amount: season }], base: season, hours: 12 };
+      }
+      return { items, base: visit, hours: lot ? 2 : 0.75 };
     },
   },
   {
@@ -1204,6 +1313,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "gutters", label: "Gutters" },
   { id: "lawn", label: "Lawn care" },
   { id: "tree", label: "Tree service / arborist" },
+  { id: "snow", label: "Snow plowing & removal" },
   { id: "pet_waste", label: "Pet waste removal" },
   { id: "hauling", label: "Junk & item hauling" },
   { id: "handyman", label: "Handyman" },
