@@ -16,7 +16,7 @@ export default function Layout() {
         <Stack.Screen name="book/[slug]" options={{ title: "Book" }} />
         <Stack.Screen name="chat" options={{ title: "Concierge" }} />
         <Stack.Screen name="login" options={{ title: "Sign in" }} />
-        <Stack.Screen name="jobs" options={{ title: "My jobs" }} />
+        <Stack.Screen name="jobs" options={{ title: "My bookings" }} />
         <Stack.Screen name="pro/index" options={{ title: "Pro" }} />
         <Stack.Screen name="pro/[id]" options={{ title: "Job" }} />
       </Stack>

@@ -25,7 +25,7 @@ export function SiteHeader() {
           <Link href="/services" className="hover:text-ink">Services</Link>
           <Link href="/business" className="hover:text-ink">For Business</Link>
           <Link href="/pros" className="hover:text-ink">Become a Pro</Link>
-          <Link href="/account" className="hover:text-ink">My Jobs</Link>
+          <Link href="/account" className="hover:text-ink">My Bookings</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link href="/login" className="hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">Sign in</Link>

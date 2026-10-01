@@ -10,13 +10,13 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BookingCalendar } from "./BookingCalendar";
 import {
-  BRAND, CATEGORIES, SERVICES, TIME_WINDOW_LABEL, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, SERVICES, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
 } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
-const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
@@ -173,14 +173,8 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
         {step === 2 && (
           <div className="card space-y-5">
             <h2 className="text-xl font-bold">When & where</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="label">{svc?.siteVisit ? "Site visit date" : "Date"}</label><input type="date" className="input" min={tomorrow()} value={date} onChange={(e) => setDate(e.target.value)} /></div>
-              <div><label className="label">Arrival window</label>
-                <select className="input" value={win} onChange={(e) => setWin(e.target.value as TimeWindow)}>
-                  {Object.entries(TIME_WINDOW_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-            </div>
+            <div className="max-w-[10rem]"><label className="label">Service ZIP code</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
+            <BookingCalendar service={slug} zip={form.zip} date={date} window={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
             <div className="flex gap-2">
               {(["residential", "commercial"] as const).map((t) => (
                 <button key={t} onClick={() => setForm({ ...form, customer_type: t })} className={`rounded-full border px-3.5 py-1.5 text-sm capitalize ${form.customer_type === t ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t === "residential" ? "Home" : "Business"}</button>
@@ -188,10 +182,9 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
             </div>
             {form.customer_type === "commercial" && <div><label className="label">Company</label><input className="input" value={form.company_name} onChange={set("company_name")} /></div>}
             <div><label className="label">Street address</label><input className="input" autoComplete="street-address" value={form.address} onChange={set("address")} /></div>
-            <div className="grid grid-cols-[1fr_80px_110px] gap-3">
+            <div className="grid grid-cols-[1fr_80px] gap-3">
               <div><label className="label">City</label><input className="input" value={form.city} onChange={set("city")} /></div>
               <div><label className="label">State</label><input className="input uppercase" maxLength={2} value={form.state} onChange={set("state")} /></div>
-              <div><label className="label">ZIP</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} /></div>
             </div>
             <div className="flex gap-2"><button className="btn-ghost" onClick={() => setStep(1)}>Back</button><button className="btn-primary" disabled={!placeOk} onClick={() => setStep(3)}>Continue</button></div>
           </div>

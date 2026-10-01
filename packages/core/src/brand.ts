@@ -17,6 +17,10 @@ export const BRAND = {
   serviceArea: "Launch market — set in the ops hub",
   partner: "Built and operated with IEBC — Integrated Efficiency Business Consultants",
   guaranteeDays: 30,
+  /** Days we don't schedule work (0 = Sunday … 6 = Saturday). */
+  closedWeekdays: [0] as number[],
+  /** How far ahead customers can book on the calendar. */
+  bookingHorizonDays: 21,
   /** Paid upfront, always — made right with a free redo, a free extra service or a refund. */
   promise: "Pay upfront to lock in your pro. Not right? Free redo or your money back within 30 days.",
 } as const;

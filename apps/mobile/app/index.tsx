@@ -28,7 +28,7 @@ export default function Home() {
       <Text style={[s.p, { marginTop: 6 }]}>{BRAND.pitch}</Text>
       <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
         <Button title="💬 Ask for a price" kind="dark" onPress={() => router.push("/chat")} style={{ flex: 1 }} />
-        {me ? <Button title="My jobs" kind="ghost" onPress={() => router.push("/jobs")} style={{ flex: 1 }} /> : <Button title="Sign in" kind="ghost" onPress={() => router.push("/login")} style={{ flex: 1 }} />}
+        {me ? <Button title="My bookings" kind="ghost" onPress={() => router.push("/jobs")} style={{ flex: 1 }} /> : <Button title="Sign in" kind="ghost" onPress={() => router.push("/login")} style={{ flex: 1 }} />}
       </View>
       {me?.contractorId && <Button title="🧰 Open Pro mode" onPress={() => router.push("/pro")} style={{ marginTop: 10 }} />}
       {CATEGORIES.map((c) => (

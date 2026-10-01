@@ -145,3 +145,28 @@ test("square footage drives the price wherever it's asked", async () => {
   const carpet = (sq: number) => estimate({ slug: "carpet-cleaning", answers: { rooms: 3, carpet_sqft: sq } }).point;
   assert.ok(carpet(2000) > carpet(800), "carpet sq ft scales");
 });
+
+test("calendar availability: capacity, booked jobs, closed days, no-pro areas", async () => {
+  const { buildAvailability } = await import("./availability.ts");
+  const pro: Contractor = {
+    id: "a", profile_id: null, business_name: "A", contact_name: "A", email: "a@x", phone: "1", trades: ["cleaning"],
+    service_zips: ["48201"], status: "approved", rating: 4.9, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
+    insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+  };
+  const start = new Date("2026-10-05T12:00:00Z"); // a Monday
+  const jobs = [
+    { contractor_id: "a", scheduled_date: "2026-10-05", time_window: "morning" as const },
+    { contractor_id: "a", scheduled_date: "2026-10-06", time_window: "morning" as const },
+    { contractor_id: "a", scheduled_date: "2026-10-06", time_window: "midday" as const },
+    { contractor_id: "a", scheduled_date: "2026-10-06", time_window: "afternoon" as const },
+  ];
+  const r = buildAvailability({ slug: "house-cleaning", zip: "48201", contractors: [pro], jobs, start, days: 7 });
+  assert.equal(r.mode, "live");
+  const mon = r.days[0], tue = r.days[1], sun = r.days[6];
+  assert.equal(mon.spots, 2); assert.equal(mon.windows.morning, 0); assert.equal(mon.windows.midday, 1);
+  assert.equal(tue.level, "full");
+  assert.equal(sun.level, "closed");
+  const none = buildAvailability({ slug: "house-cleaning", zip: "90210", contractors: [pro], jobs, start, days: 3 });
+  assert.equal(none.mode, "request");
+  assert.equal(none.days[0].level, "request");
+});

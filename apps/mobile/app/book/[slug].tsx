@@ -4,11 +4,11 @@
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  */
-import { useMemo, useState } from "react";
-import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { BRAND, TIME_WINDOW_LABEL, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
@@ -86,14 +86,11 @@ export default function Book() {
       <Field label="Notes for the pro" value={notes} onChangeText={setNotes} multiline placeholder="Gate code, pets, what needs hauling…" />
       <Button title={`📷 Add photos (${photos.length})`} kind="ghost" onPress={addPhotos} />
       <Text style={s.h2}>When & where</Text>
-      <Field label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
-      <View style={s.row}>{(Object.keys(TIME_WINDOW_LABEL) as TimeWindow[]).map((w) => <Chip key={w} label={TIME_WINDOW_LABEL[w]} on={win === w} onPress={() => setWin(w)} />)}</View>
+      <Field label="Service ZIP code" value={f.zip} onChangeText={set("zip")} keyboardType="number-pad" maxLength={5} />
+      <Calendar service={svc.slug} zip={f.zip} date={date} win={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
       <Field label="Street address" value={f.address} onChangeText={set("address")} />
       <Field label="City" value={f.city} onChangeText={set("city")} />
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        <View style={{ width: 80 }}><Field label="State" value={f.state} onChangeText={set("state")} maxLength={2} autoCapitalize="characters" /></View>
-        <View style={{ flex: 1 }}><Field label="ZIP" value={f.zip} onChangeText={set("zip")} keyboardType="number-pad" maxLength={5} /></View>
-      </View>
+      <View style={{ width: 80 }}><Field label="State" value={f.state} onChangeText={set("state")} maxLength={2} autoCapitalize="characters" /></View>
       <Text style={s.h2}>Contact</Text>
       <Field label="Full name" value={f.contact_name} onChangeText={set("contact_name")} />
       <Field label="Email" value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />
@@ -116,6 +113,55 @@ function NumberBox({ value, min, max, unit, onChange }: { value: number; min: nu
         onChangeText={(t) => { const raw = t.replace(/[^0-9]/g, ""); setText(raw); const n = Number(raw); if (raw && n >= min && n <= max) onChange(n); }}
         onEndEditing={() => { const n = Math.min(max, Math.max(min, Number(text) || value)); setText(String(n)); onChange(n); }} />
       {unit ? <Text style={s.p}>{unit}</Text> : null}
+    </View>
+  );
+}
+
+/** Booking calendar: days with real availability for this ZIP, then an arrival window. */
+function Calendar({ service, zip, date, win, onChange }: { service: string; zip: string; date: string; win: TimeWindow; onChange: (d: string, w: TimeWindow) => void }) {
+  const [data, setData] = useState<{ mode: string; days: DaySlots[] } | null>(null);
+  useEffect(() => {
+    if (!/^\d{5}$/.test(zip)) return setData(null);
+    api<{ mode: string; days: DaySlots[] }>(`/api/availability?service=${service}&zip=${zip}`).then((r) => {
+      if (!r.ok) return;
+      setData(r.data);
+      const ok = (d?: DaySlots) => d && !d.closed && d.level !== "full";
+      if (!ok(r.data.days.find((d) => d.date === date))) {
+        const first = r.data.days.find((d) => ok(d) && !d.rush) ?? r.data.days.find(ok);
+        if (first) onChange(first.date, win);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service, zip]);
+  if (!data) return <Text style={[s.p, { marginBottom: 12 }]}>Enter your ZIP to see open dates.</Text>;
+  const day = data.days.find((d) => d.date === date);
+  return (
+    <View style={{ marginBottom: 12 }}>
+      {data.mode === "request" && <Text style={[s.p, { marginBottom: 8 }]}>We're adding pros in your area — pick a time and we'll confirm within one business day.</Text>}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+        {data.days.map((d) => {
+          const dt = new Date(`${d.date}T12:00:00`);
+          const off = d.closed || d.level === "full";
+          const sel = d.date === date;
+          return (
+            <Pressable key={d.date} disabled={off} onPress={() => onChange(d.date, win)}
+              style={{ width: 62, marginRight: 6, padding: 8, borderRadius: 12, borderWidth: 1, borderColor: sel ? C.brand : C.line, backgroundColor: sel ? C.brand : off ? C.paper : C.white, opacity: off ? 0.45 : 1 }}>
+              <Text style={{ fontSize: 11, color: sel ? C.white : C.soft }}>{dt.toLocaleDateString("en-US", { weekday: "short" })}</Text>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: sel ? C.white : C.ink }}>{dt.getDate()}</Text>
+              <Text style={{ fontSize: 10, color: sel ? C.white : d.level === "limited" ? "#b45309" : C.soft }}>{d.closed ? "closed" : d.level === "full" ? "full" : d.rush ? `+${RUSH_SURCHARGE * 100}%` : d.level === "limited" ? "few left" : dt.toLocaleDateString("en-US", { month: "short" })}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {day && !day.closed && (
+        <View style={s.row}>
+          {(["morning", "midday", "afternoon", "flexible"] as TimeWindow[]).map((w) => {
+            const left = w === "flexible" ? 99 : day.windows[w as "morning"];
+            const off = data.mode === "live" && left === 0;
+            return <Chip key={w} label={`${TIME_WINDOW_LABEL[w]}${off ? " · full" : w !== "flexible" && data.mode === "live" && left <= 2 ? ` · ${left} left` : ""}`} on={win === w} onPress={() => !off && onChange(day.date, w)} />;
+          })}
+        </View>
+      )}
     </View>
   );
 }

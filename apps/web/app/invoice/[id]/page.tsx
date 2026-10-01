@@ -85,7 +85,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
           <tr className="text-base font-bold"><td className="py-2">Balance due</td><td className="py-2 text-right">{money(due)}</td></tr>
         </tbody>
       </table>
-      {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Jobs</Link> or the link in your email. Your pro is dispatched as soon as payment clears.</p>}
+      {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Bookings</Link> or the link in your email. Your pro is dispatched as soon as payment clears.</p>}
 
       <div className="border-t border-line pt-6">
         <h2 className="text-base font-bold">{SERVICE_AGREEMENT_TITLE}</h2>
@@ -96,7 +96,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
             : <>These terms (version {SERVICE_AGREEMENT_VERSION}) apply to this job. Paying this invoice confirms your acceptance.</>}
         </div>
       </div>
-      <div className="mt-6 flex gap-2 print:hidden"><PrintButton /><Link href="/account" className="btn-ghost">My Jobs</Link></div>
+      <div className="mt-6 flex gap-2 print:hidden"><PrintButton /><Link href="/account" className="btn-ghost">My Bookings</Link></div>
     </div>
   );
 }

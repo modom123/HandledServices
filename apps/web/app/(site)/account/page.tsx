@@ -11,7 +11,7 @@ import { getViewer } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
 
-export const metadata = { title: "My jobs" };
+export const metadata = { title: "My bookings" };
 export const dynamic = "force-dynamic";
 
 export default async function Account() {
@@ -26,7 +26,7 @@ export default async function Account() {
   return (
     <div className="wrap py-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-3xl font-extrabold tracking-tight">My jobs</h1><p className="text-sm text-ink-soft">{v.email}</p></div>
+        <div><h1 className="text-3xl font-extrabold tracking-tight">My bookings</h1><p className="text-sm text-ink-soft">{v.email}</p></div>
         <div className="flex gap-2"><Link href="/book" className="btn-primary">Book a service</Link><form action="/auth/signout" method="post"><button className="btn-ghost">Sign out</button></form></div>
       </div>
       {(plans ?? []).length > 0 && (
@@ -37,7 +37,7 @@ export default async function Account() {
         </div>
       )}
       <div className="mt-8 space-y-3">
-        {list.length === 0 && <Empty>No jobs yet. Bookings made with {v.email} show up here automatically.</Empty>}
+        {list.length === 0 && <Empty>No bookings yet. Anything you book with {v.email} shows up here, with status, invoices, messages and photos.</Empty>}
         {list.map((j) => {
           const s = getService(j.service_slug);
           return (

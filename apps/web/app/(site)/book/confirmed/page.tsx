@@ -17,14 +17,14 @@ export default async function Confirmed({ searchParams }: { searchParams: Promis
         <h1 className="mt-5 text-2xl font-bold">{unpaid ? "Almost there" : paid ? "Paid & locked in" : "You’re booked"}{ref ? ` — ${ref}` : ""}</h1>
         <p className="mt-3 text-ink-soft">
           {unpaid
-            ? "Your booking is saved but not paid yet. Pay from My Jobs to lock in your pro — we dispatch as soon as it’s paid."
+            ? "Your booking is saved but not paid yet. Pay from My Bookings to lock in your pro — we dispatch as soon as it’s paid."
             : paid
               ? "Payment received. We’re matching you with a vetted pro now and you’ll get an email when they confirm."
               : "We’ll be in touch shortly. You’ll get an email at every step."}
         </p>
         <p className="mt-3 text-sm font-medium text-brand-dark">{BRAND.promise}</p>
         <p className="mt-3 text-sm text-ink-soft">Sign in with the same email to track status, message your pro and see photos.</p>
-        <div className="mt-6 flex justify-center gap-3"><Link href="/login?next=/account" className="btn-primary">Track my job</Link><Link href="/" className="btn-ghost">Home</Link></div>
+        <div className="mt-6 flex justify-center gap-3"><Link href="/login?next=/account" className="btn-primary">Track my booking</Link><Link href="/" className="btn-ghost">Home</Link></div>
       </div>
     </div>
   );

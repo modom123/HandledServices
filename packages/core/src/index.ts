@@ -11,3 +11,4 @@ export * from "./pricing.ts";
 export * from "./dispatch.ts";
 export * from "./brand.ts";
 export * from "./compliance.ts";
+export * from "./availability.ts";

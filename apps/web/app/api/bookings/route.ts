@@ -10,12 +10,21 @@ import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";
 import { getViewer } from "@/lib/auth";
 import { paymentCheckoutUrl } from "@/lib/stripe";
+import { GET as availability } from "../availability/route";
 
 export const maxDuration = 60; // AI price check runs before payment when notes/photos are present
 
 export async function POST(req: Request) {
   const parsed = BookingSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Please check the form", issues: parsed.error.issues }, { status: 400 });
+  // the calendar may be a few minutes old — re-check the slot before taking payment
+  if (parsed.data.scheduled_date) {
+    const a = await (await availability(new Request(`http://local/api/availability?service=${parsed.data.service_slug}&zip=${parsed.data.zip}`))).json();
+    const day = a.days?.find((d: { date: string }) => d.date === parsed.data.scheduled_date);
+    const w = parsed.data.time_window;
+    if (a.mode === "live" && day && (day.closed || day.level === "full" || (w !== "flexible" && day.windows[w] === 0)))
+      return Response.json({ error: "That time just filled up — please pick another slot." }, { status: 409 });
+  }
   const viewer = await getViewer(req);
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
