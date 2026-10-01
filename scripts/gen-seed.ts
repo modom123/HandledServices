@@ -57,12 +57,12 @@ const pros = [
   ["Scoop Troop", "Lena Park", "lena@scooptroop.example", ["pet_waste", "lawn"], 4.85, 410, 12],
   ["Midwest Remodel Co.", "Sam Patel", "sam@midwestremodel.example", ["remodel", "handyman"], 4.8, 64, 1],
 ] as const;
-out.push("insert into public.contractors (business_name, contact_name, email, phone, trades, service_zips, status, rating, jobs_completed, acceptance_rate, on_time_rate, insured_until, background_checked, daily_capacity) values");
+out.push("insert into public.contractors (business_name, contact_name, email, phone, trades, service_zips, status, rating, jobs_completed, acceptance_rate, on_time_rate, insured_until, background_checked, daily_capacity, coverage, license_number) values");
 out.push(
   pros
     .map(
       ([biz, name, email, trades, rating, jobs, cap], i) =>
-        `  (${q(biz)}, ${q(name)}, ${q(email)}, '(313) 555-01${String(10 + i)}', ${arr([...trades])}, ${arr(["48201", "48202", "48226", "482*"])}, 'approved', ${rating}, ${jobs}, ${(0.8 + i * 0.03).toFixed(2)}, ${(0.9 + i * 0.015).toFixed(3)}, current_date + 200, true, ${cap})`,
+        `  (${q(biz)}, ${q(name)}, ${q(email)}, '(313) 555-01${String(10 + i)}', ${arr([...trades])}, ${arr(["48201", "48202", "48226", "482*"])}, 'approved', ${rating}, ${jobs}, ${(0.8 + i * 0.03).toFixed(2)}, ${(0.9 + i * 0.015).toFixed(3)}, current_date + 200, true, ${cap}, '{"auto":"2099-12-31","bond":"2099-12-31","workers_comp":"2099-12-31"}', ${trades.some((t: string) => ["remodel", "plumbing", "electrical", "hvac"].includes(t)) ? q(`MI-DEMO-${100 + i}`) : "null"})`,
     )
     .join(",\n") + "\non conflict (email) do nothing;\n",
 );

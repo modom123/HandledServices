@@ -142,4 +142,8 @@ export interface Contractor {
   onboarded_at?: string | null;
   offboarded_at?: string | null;
   offboard_reason?: string | null;
+  // specialties and trade-specific coverage (see vetting.ts)
+  specialties?: string[] | null;
+  /** Coverage key → verified expiry date (YYYY-MM-DD), or "exempt" (workers' comp, no employees). */
+  coverage?: Record<string, string> | null;
 }

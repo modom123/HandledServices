@@ -15,6 +15,8 @@ const Body = z.object({
   trades: z.array(z.string()).min(1), zips: z.string().max(400).optional(), years_experience: z.coerce.number().int().min(0).max(80).optional(),
   crew_size: z.coerce.number().int().min(1).max(200).optional(), insured: z.boolean().default(false), license_number: z.string().max(80).optional(),
   has_vehicle: z.boolean().default(true), message: z.string().max(2000).optional(),
+  specialties: z.array(z.string().max(40)).max(40).default([]), coverages_held: z.array(z.enum(["auto", "workers_comp", "bond", "liquor"])).default([]),
+  equipment: z.string().max(500).optional(), references_text: z.string().max(1000).optional(), work_links: z.string().max(1000).optional(),
 });
 
 export async function POST(req: Request) {

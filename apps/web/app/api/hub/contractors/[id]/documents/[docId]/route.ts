@@ -4,7 +4,8 @@
  * CREATED : 2026-10-01_2000 UTC
  * PURPOSE : Staff: open (signed URL), verify or reject a pro's compliance document.
  *           Verifying a COI sets insured_until; a license sets license_expires; a
- *           background report marks the background check cleared.
+ *           background report marks the background check cleared; auto, workers' comp, bond
+ *           and liquor liability set contractors.coverage[kind] to the policy expiry.
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -35,6 +36,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string; do
   if (body.data.decision === "verify") {
     if (doc.kind === "coi" && doc.expires_on) await db.from("contractors").update({ insured_until: doc.expires_on }).eq("id", id);
     if (doc.kind === "license" && doc.expires_on) await db.from("contractors").update({ license_expires: doc.expires_on }).eq("id", id);
+    if (["auto", "workers_comp", "bond", "liquor"].includes(doc.kind) && doc.expires_on) {
+      const { data: c } = await db.from("contractors").select("coverage").eq("id", id).single();
+      await db.from("contractors").update({ coverage: { ...(c?.coverage ?? {}), [doc.kind]: doc.expires_on } }).eq("id", id);
+    }
     if (doc.kind === "background") await db.from("contractors").update({ background_checked: true, background_checked_at: now }).eq("id", id);
   }
   return Response.json({ ok: true });

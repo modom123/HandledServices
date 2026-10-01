@@ -999,6 +999,7 @@ export const SERVICES: Service[] = [
     siteVisit: true,
     frequencies: ["once"],
     trades: ["remodel"],
+    licensed: true,
     price: (a) => {
       const perSqft = { refresh: 110, mid: 260, full: 420 }[s(a, "scope", "mid")] ?? 260;
       const sq = n(a, "sqft", 60);
@@ -1037,6 +1038,7 @@ export const SERVICES: Service[] = [
     siteVisit: true,
     frequencies: ["once"],
     trades: ["remodel"],
+    licensed: true,
     price: (a) => {
       const perSqft = { refresh: 110, mid: 250, full: 450 }[s(a, "scope", "mid")] ?? 250;
       const sq = n(a, "sqft", 180);
@@ -1073,6 +1075,7 @@ export const SERVICES: Service[] = [
     siteVisit: true,
     frequencies: ["once"],
     trades: ["remodel"],
+    licensed: true,
     price: (a) => {
       const perSqft = { refresh: 45, mid: 110, full: 200 }[s(a, "scope", "mid")] ?? 110;
       const sq = n(a, "sqft", 1200);

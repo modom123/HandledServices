@@ -8,6 +8,7 @@
  *           employees. A pro can't be activated until every required step is done.
  */
 import { SERVICES } from "./services.ts";
+import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
 export const AGREEMENT_VERSION = "2026-10-v1";
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
@@ -40,10 +41,12 @@ export interface ComplianceInput {
   license_expires: string | null;
   background_checked: boolean;
   payout_method: string | null;
+  specialties?: string[] | null;
+  coverage?: Record<string, string> | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "coi" | "license" | "background" | "payout";
+  key: "w9" | "agreement" | "specialties" | "coi" | "license" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -59,10 +62,25 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
   const steps: Step[] = [
     { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
-    { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : "General liability, $1M per occurrence minimum", expiring: valid(c.insured_until) && soon(c.insured_until) },
+    { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
+    { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) },
   ];
+  // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement
+  const required = requiredCoverages(c.trades);
+  const needs: CoverageKey[] = [...new Set<CoverageKey>([...required, "workers_comp"])];
+  for (const k of needs) {
+    const v = c.coverage?.[k];
+    const ok = coverageValid(c.coverage, k, new Date(), !required.includes(k)); // remodelers need a real workers' comp policy
+    steps.push({
+      key: `coverage:${k}`,
+      label: k === "workers_comp" ? "Workers' comp (or no-employees statement)" : `${COVERAGES[k].label} verified`,
+      done: ok,
+      detail: v === "exempt" ? "No employees: statement signed" : v ? `Valid until ${v}` : COVERAGES[k].detail,
+      expiring: ok && v !== "exempt" && soon(v ?? null),
+    });
+  }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical and HVAC work", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, remodeling and food service", expiring: valid(c.license_expires) && soon(c.license_expires) });
   steps.push(
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
     { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },

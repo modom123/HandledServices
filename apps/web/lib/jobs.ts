@@ -12,7 +12,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
+  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, splitJob, tierPayout,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -222,10 +222,13 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const count = ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
   const picks = order.slice(0, count);
   const payout = job.contractor_payout ?? 0;
+  const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
+  // Pro+ / Elite pros are offered a bigger payout (clamped so our take stays ≥ 15%)
+  const payFor = (id: string) => (byId[id] ? tierPayout(job.price_final, payout, proTier(byId[id])) : payout);
 
   const expires = new Date(Date.now() + (job.priority === "normal" ? 2 : 1) * 3600 * 1000).toISOString();
   const { data: offerRows } = await db().from("job_offers").upsert(
-    picks.map((p) => ({ job_id: job.id, contractor_id: p.id, payout, ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
+    picks.map((p) => ({ job_id: job.id, contractor_id: p.id, payout: payFor(p.id), ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
     { onConflict: "job_id,contractor_id" },
   ).select("id, contractor_id");
   const offerIdFor = Object.fromEntries(((offerRows ?? []) as { id: string; contractor_id: string }[]).map((o) => [o.contractor_id, o.id]));
@@ -233,19 +236,19 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   else await db().from("jobs").update({ ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
   await addEvent(job.id, "dispatch", `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
 
-  const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
   const svc = getService(job.service_slug)!;
-  const order0 = buildWorkOrder(job, { reveal: false, payout });
   for (const p of picks) {
     const pro = byId[p.id];
     const offerId = offerIdFor[p.id];
     if (!pro || !offerId) continue;
+    const pay = payFor(p.id);
+    const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
     await notify(pro.profile_id, {
-      title: `New ${opts.siteVisit ? "site visit" : "job"} · ${payout ? money(payout) : "site visit"}`,
+      title: `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`,
       body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. First to accept gets it.`,
       data: { type: "offer", offerId },
       channel: "offers",
-      email: { to: pro.email, subject: `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${payout ? money(payout) : "site visit"} · ${job.zip}`,
+      email: { to: pro.email, subject: `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${pay ? money(pay) : "site visit"} · ${job.zip}`,
         text: `${workOrderText(order0)}\n\nACCEPT (first to accept gets it — offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })} ET):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
     });
   }
@@ -359,8 +362,13 @@ export async function runQa(jobId: string, note: string | null) {
       { job_id: jobId, contractor_id: job.contractor_id, rating: Math.min(5, Math.max(1, Math.round(qa.score / 20))), quality: Math.min(5, Math.max(1, Math.round(qa.score / 20))), source: "ai_qa", rated_by: "AI photo QA", comment: qa.issues.join("; ") || null },
       { onConflict: "job_id", ignoreDuplicates: true },
     );
-  if (qa && qa.passed && !qa.needs_human_review) {
+  // Probation: a new pro's first jobs always get a human review and a call to the customer.
+  const { data: pro } = job.contractor_id ? await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).maybeSingle() : { data: null };
+  const probation = pro != null && Number(pro.jobs_completed) < PROBATION.jobs;
+  if (qa && qa.passed && !qa.needs_human_review && !probation) {
     await finalizeJob(jobId, qa.customer_summary);
+  } else if (probation && qa?.passed) {
+    await raiseAlert("qa", "info", `${job.ref}: probation job — human review + customer call`, `New pro (job ${Number(pro!.jobs_completed) + 1} of ${PROBATION.jobs}). AI photo QA passed (${qa.score}). Look at the photos, call the customer, then approve.`, jobId);
   } else {
     await raiseAlert("qa", "warn", `${job.ref} needs QA review`, qa ? qa.issues.join("; ") || "AI could not verify from photos" : "No photos or AI unavailable", jobId);
   }

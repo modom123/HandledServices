@@ -7,7 +7,7 @@
 "use client";
 
 import { useState } from "react";
-import { SERVICES, TRADES } from "@handled/core";
+import { COVERAGES, SERVICES, TRADES, TRADE_PROFILES, specialtiesFor, type CoverageKey } from "@handled/core";
 
 function useSubmit(url: string) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -40,12 +40,16 @@ export function ApplyForm() {
   const { state, error, submit } = useSubmit("/api/applications");
   const [trades, setTrades] = useState<string[]>([]);
   const [insured, setInsured] = useState(false);
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [coverages, setCoverages] = useState<string[]>([]);
+  const specialtyOptions = specialtiesFor(trades).map((s) => ({ id: s.id, label: s.label }));
+  const needs = [...new Set(trades.flatMap((t) => TRADE_PROFILES[t] ? [...TRADE_PROFILES[t].requires, ...(TRADE_PROFILES[t].license ? ["license"] : [])] : []))];
   if (state === "done") return <div className="card text-center"><div className="text-3xl">🎉</div><h2 className="mt-2 text-xl font-bold">Application received</h2><p className="mt-2 text-sm text-ink-soft">We review applications within 2 business days. Watch your email for next steps (insurance + background check).</p></div>;
   return (
     <form className="card space-y-4" onSubmit={(e) => {
       e.preventDefault();
       const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
-      submit({ ...f, trades, insured, years_experience: f.years_experience || undefined, crew_size: f.crew_size || undefined });
+      submit({ ...f, trades, insured, specialties: specialties.filter((s) => specialtyOptions.some((o) => o.id === s)), coverages_held: coverages, years_experience: f.years_experience || undefined, crew_size: f.crew_size || undefined });
     }}>
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className="label">Business name</label><input name="business_name" required className="input" /></div>
@@ -54,6 +58,12 @@ export function ApplyForm() {
         <div><label className="label">Mobile</label><input name="phone" type="tel" required className="input" /></div>
       </div>
       <div><label className="label">Trades</label><Chips options={TRADES} value={trades} onChange={setTrades} /></div>
+      {specialtyOptions.length > 0 && <div><label className="label">Your specialties (what you do best)</label><Chips options={specialtyOptions} value={specialties} onChange={setSpecialties} /></div>}
+      {needs.length > 0 && (
+        <p className="rounded-xl bg-brand-tint p-3 text-xs text-ink-soft">
+          For these trades you’ll also need: {needs.map((k) => (k === "license" ? "a state license" : COVERAGES[k as CoverageKey].label.toLowerCase())).join(", ")}, on top of general liability. Don’t have it yet? Apply anyway — we’ll point you to brokers.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-3">
         <div><label className="label">ZIP codes you serve</label><input name="zips" className="input" placeholder="48201, 48202" /></div>
         <div><label className="label">Years in business</label><input name="years_experience" type="number" min={0} className="input" /></div>
@@ -62,6 +72,12 @@ export function ApplyForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className="label">License # (if your trade needs one)</label><input name="license_number" className="input" /></div>
         <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={insured} onChange={(e) => setInsured(e.target.checked)} /> I carry general liability insurance</label>
+      </div>
+      <div><label className="label">Other coverage you carry</label><Chips options={(Object.keys(COVERAGES) as CoverageKey[]).filter((k) => k !== "gl").map((k) => ({ id: k, label: COVERAGES[k].label }))} value={coverages} onChange={setCoverages} /></div>
+      <div><label className="label">Equipment &amp; vehicle</label><input name="equipment" className="input" placeholder="e.g. 16 ft box truck, truck-mount carpet unit, 52&quot; zero-turn" /></div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div><label className="label">Two references (name + phone)</label><textarea name="references_text" className="input min-h-20" placeholder="Past clients or contractors you’ve worked for" /></div>
+        <div><label className="label">Photos of your work / website / Google reviews</label><textarea name="work_links" className="input min-h-20" placeholder="Links" /></div>
       </div>
       <div><label className="label">Tell us about your crew</label><textarea name="message" className="input min-h-24" /></div>
       {state === "error" && <p className="text-sm text-rose-700">{error}</p>}

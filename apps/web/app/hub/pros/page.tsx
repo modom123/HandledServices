@@ -33,6 +33,9 @@ export default async function Pros() {
                 {a.ai_screen && <Badge tone={a.ai_screen.recommendation === "decline" ? "red" : a.ai_screen.recommendation === "interview" ? "amber" : "green"}>AI {a.ai_screen.score} · {a.ai_screen.recommendation.replaceAll("_", " ")}</Badge>}</div>
               <div>{(a.trades as string[]).map(tradeLabel).join(", ")} · {a.years_experience ?? "?"} yrs · crew {a.crew_size ?? "?"} · {a.insured ? "insured" : "not insured"}</div>
               {a.message && <p className="text-ink-soft">“{a.message}”</p>}
+              {(a.specialties?.length || a.coverages_held?.length || a.equipment) ? <div className="text-xs text-ink-soft">{a.specialties?.length ? `Specialties: ${(a.specialties as string[]).join(", ")}` : ""}{a.coverages_held?.length ? ` · Carries: ${(a.coverages_held as string[]).join(", ")}` : ""}{a.equipment ? ` · Equipment: ${a.equipment}` : ""}</div> : null}
+              {a.references_text && <div className="text-xs text-ink-soft">References: {a.references_text}</div>}
+              {a.work_links && <div className="break-all text-xs text-ink-soft">Work: {a.work_links}</div>}
               {a.ai_screen && <div className="rounded-xl bg-paper p-3 text-xs"><b>Strengths:</b> {a.ai_screen.strengths.join("; ")}<br /><b>Concerns:</b> {a.ai_screen.concerns.join("; ") || "none"}<br /><b>Verify:</b> {a.ai_screen.verify.join("; ")}</div>}
               <ApplicationButtons id={a.id} />
             </div>

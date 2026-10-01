@@ -2,10 +2,11 @@
  * FILE    : apps/web/app/pro/onboarding/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
+ * UPDATED : 2026-10-01_2109 UTC — specialties, trade-specific coverage, requirements by trade.
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
  */
-import { onboardingChecklist, type Contractor } from "@handled/core";
+import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { AGREEMENT_SECTIONS, AGREEMENT_TITLE } from "@/lib/agreement";
 import { Badge } from "@/components/ui";
@@ -60,6 +61,35 @@ export default async function Onboarding() {
         <div className="grid gap-3 sm:grid-cols-3"><Field label="License #" name="license_number" defaultValue={pro.license_number ?? ""} required /><Field label="Expires" name="expires_on" type="date" required /><Field label="License copy" name="file" type="file" accept="application/pdf,image/*" required /></div>
       </StepForm>
     );
+    if (key === "specialties") return (
+      <StepForm step="specialties" cta="Save specialties">
+        <p className="text-sm text-ink-soft">Pick what you do best. Jobs that match your specialties come to you first.</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {specialtiesFor(pro.trades).map((sp) => (
+            <label key={sp.id} className="flex items-center gap-2 text-sm"><input type="checkbox" name="specialties" value={sp.id} defaultChecked={pro.specialties?.includes(sp.id)} /> {sp.label}</label>
+          ))}
+        </div>
+      </StepForm>
+    );
+    if (key.startsWith("coverage:")) {
+      const k = key.slice(9) as CoverageKey;
+      if (pending(k)) return <p className="mt-2 text-sm text-ink-soft">Policy received — we’re verifying it with your carrier.</p>;
+      const canExempt = k === "workers_comp" && !requiredCoverages(pro.trades).includes("workers_comp");
+      return (
+        <div className="mt-3 space-y-3">
+          <StepForm step="coverage" cta={`Upload ${COVERAGES[k].label.toLowerCase()}`}>
+            <input type="hidden" name="coverage" value={k} />
+            <div className="grid gap-3 sm:grid-cols-2"><Field label="Policy expires" name="expires_on" type="date" required /><Field label="Certificate or declarations page" name="file" type="file" accept="application/pdf,image/*" required /></div>
+          </StepForm>
+          {canExempt && (
+            <StepForm step="coverage" cta="Sign no-employees statement">
+              <input type="hidden" name="coverage" value="workers_comp" /><input type="hidden" name="exempt" value="true" />
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" required /> I work alone and have no employees. I’ll get workers’ comp before anyone works for me on a Handled job.</label>
+            </StepForm>
+          )}
+        </div>
+      );
+    }
     if (key === "background") return <p className="mt-2 text-sm text-ink-soft">{pro.background_checked ? "Cleared." : "We’ll email you a secure link from our screening provider to consent and complete the check."}</p>;
     if (key === "payout") return (
       <StepForm step="payout" cta="Save payout method">
@@ -77,6 +107,23 @@ export default async function Onboarding() {
         <div><h1 className="text-2xl font-bold">Get set up</h1><p className="text-sm text-ink-soft">You work as an independent business. These steps let us send you prepaid jobs and file your 1099.</p></div>
         <Badge tone={complete ? "green" : "amber"}>{steps.filter((s) => s.done).length}/{steps.length} complete</Badge>
       </div>
+      <details className="card text-sm">
+        <summary className="cursor-pointer font-semibold">What your trades require</summary>
+        <div className="mt-3 space-y-3">
+          {pro.trades.map((t) => { const p = TRADE_PROFILES[t]; if (!p) return null; return (
+            <div key={t}>
+              <div className="font-semibold">{TRADES.find((x) => x.id === t)?.label ?? t}</div>
+              <ul className="list-disc pl-5 text-ink-soft">
+                <li>General liability ${(p.glMin / 1e6).toFixed(0)}M per occurrence{p.requires.length ? ` + ${p.requires.map((k) => COVERAGES[k].label.toLowerCase()).join(", ")}` : ""}</li>
+                {p.conditional.map((c) => <li key={c.key}>{COVERAGES[c.key].label} when {c.when}</li>)}
+                {p.license && <li>License: {p.license}</li>}
+                {p.preferred.map((x) => <li key={x}>Preferred: {x}</li>)}
+                <li>Skills check: {p.skillsCheck}</li>
+              </ul>
+            </div>
+          ); })}
+        </div>
+      </details>
       {steps.map((s) => (
         <div key={s.key} className={`card ${s.done ? "border-brand/40" : ""}`}>
           <div className="flex items-center justify-between gap-2"><div className="font-semibold">{s.done ? "✅" : "⬜"} {s.label}</div>{s.expiring && <Badge tone="amber">expires soon</Badge>}</div>

@@ -137,7 +137,8 @@ For the store listings: privacy policy URL `https://YOUR-DOMAIN/privacy`, suppor
 
 ## 9. Pros, then a dress rehearsal
 
-1. Share `https://YOUR-DOMAIN/pros`. Approve applicants in **Hub → Hiring & pros**. Each pro finishes **Setup & documents** (W-9, agreement, insurance, license, background check, payout). Then you verify the documents and **Activate** them.
+0. Read **`docs/PRO_OFFERING_2026-10-01_2110.md`**: the recruiting playbook, the insurance and license rules by trade, and 6 open decisions on pro pay policy. Have your insurance broker confirm the coverage minimums.
+1. Share `https://YOUR-DOMAIN/pros`. Approve applicants in **Hub → Hiring & pros**. Each pro finishes **Setup & documents** (W-9, agreement, specialties, insurance plus any coverage their trade needs, license, background check, payout). Then you verify the documents and **Activate** them.
 2. Aim for 2+ active pros per trade you'll advertise (the Go-live page lists trades with none).
 3. Run **10 real jobs end to end** with friends and family: book → pay → offer → pro accepts → start → photos → AI QA → completed → pro payout approved → review. Fix anything odd before advertising.
 

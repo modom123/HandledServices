@@ -46,7 +46,7 @@ test("dispatch filters ineligible pros and ranks the rest", () => {
     id: "a", profile_id: null, business_name: "A", contact_name: "A", email: "a@x", phone: "1",
     trades: ["hauling"], service_zips: ["48201"], status: "approved", rating: 4.9, jobs_completed: 120,
     acceptance_rate: 0.9, on_time_rate: 0.95, insured_until: "2099-01-01", license_number: null,
-    background_checked: true, daily_capacity: 3, notes: null,
+    background_checked: true, daily_capacity: 3, notes: null, coverage: { auto: "2099-01-01" },
   };
   const pros: Contractor[] = [
     base,
@@ -119,15 +119,19 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "plumbing"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "plumbing", "remodel"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
-    agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach" };
+    agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" } };
   assert.equal(onboardingChecklist(ok).complete, true);
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"], license_number: "PL-1", license_expires: future }).complete, true);
+  assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, false, "in-home cleaners need a bond");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
 });
 
 test("square footage drives the price wherever it's asked", async () => {
@@ -151,7 +155,7 @@ test("calendar availability: capacity, booked jobs, closed days, no-pro areas", 
   const pro: Contractor = {
     id: "a", profile_id: null, business_name: "A", contact_name: "A", email: "a@x", phone: "1", trades: ["cleaning"],
     service_zips: ["48201"], status: "approved", rating: 4.9, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
-    insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+    insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null, coverage: { bond: "2099-01-01" },
   };
   const start = new Date("2026-10-05T12:00:00Z"); // a Monday
   const jobs = [
@@ -207,4 +211,45 @@ test("deposits: big tickets only, sensible amounts, balance due before the job",
   assert.equal(depositPolicy("catering", 1920, "2026-10-05", now).allowed, false, "too close to the event — pay in full");
   assert.equal(depositPolicy("handyman", 1200, null, now).amount, 360, "$1,000+ qualifies");
   assert.equal(depositPolicy("tree-removal", 300, "2026-11-01", now).amount, 100, "minimum deposit");
+});
+
+test("pro tiers: earned from live stats; boosts never push our take below 15%", async () => {
+  const { PRO_TIERS, proTier, tierPayout, nextTierProgress, samplePayouts } = await import("./pro-program.ts");
+  const { splitJob, TAKE_MIN } = await import("./pricing.ts");
+  const stats = (jobs: number, rating: number, onTime = 0.97, acceptance = 0.9) => ({ jobs_completed: jobs, rating, on_time_rate: onTime, acceptance_rate: acceptance });
+  assert.equal(proTier(stats(3, 5)).id, "pro");
+  assert.equal(proTier(stats(30, 4.8)).id, "pro_plus");
+  assert.equal(proTier(stats(150, 4.9)).id, "elite");
+  assert.equal(proTier(stats(150, 4.9, 0.8)).id, "pro"); // late too often
+  assert.ok(nextTierProgress(stats(20, 4.8)).todo.some((t) => t.includes("5 more")));
+  for (const svc of SERVICES) {
+    for (const price of [svc.minimum, 250, 1234, 25000]) {
+      const base = splitJob(price, svc.slug).payout;
+      for (const tier of PRO_TIERS) {
+        const pay = tierPayout(price, base, tier);
+        assert.ok(pay >= base, `${svc.slug} tier lowers pay`);
+        assert.ok((price - pay) / price >= TAKE_MIN - 1e-9, `${svc.slug} ${tier.id} @${price}: take ${(price - pay) / price}`);
+      }
+    }
+  }
+  assert.ok(samplePayouts(["house-cleaning", "junk-removal"]).every((s) => s.payout > 0));
+});
+
+test("vetting: trade coverage, probation and specialists in dispatch", async () => {
+  const { requiredCoverages, glMinimum, TRADE_PROFILES, PROBATION } = await import("./vetting.ts");
+  const { TRADES } = await import("./services.ts");
+  for (const t of TRADES) assert.ok(TRADE_PROFILES[t.id], `no vetting profile for trade ${t.id}`);
+  assert.deepEqual(requiredCoverages(["hauling", "cleaning"]).sort(), ["auto", "bond"]);
+  assert.equal(glMinimum(["lawn", "tree"]), 2_000_000);
+  const pro: Contractor = {
+    id: "n", profile_id: null, business_name: "N", contact_name: "N", email: "n@x", phone: "1", trades: ["hauling"], service_zips: [], status: "approved",
+    rating: 5, jobs_completed: 0, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+  };
+  const job = { service_slug: "junk-removal", zip: "48201", scheduled_date: null, price_final: 300 };
+  assert.equal(rankContractors([pro], job).length, 0, "no commercial auto");
+  const insured = { ...pro, coverage: { auto: "2099-01-01" } };
+  assert.equal(rankContractors([insured], job).length, 1);
+  assert.equal(rankContractors([insured], { ...job, price_final: PROBATION.maxJobPrice + 1 }).length, 0, "probation caps job size");
+  const [a, b] = rankContractors([{ ...insured, id: "x" }, { ...insured, id: "y", specialties: ["junk"] }], job);
+  assert.equal(a.contractor.id, "y", "specialist ranks first");
 });

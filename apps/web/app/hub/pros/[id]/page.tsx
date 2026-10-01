@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TRADES, getService, money, necThreshold, onboardingChecklist, type Contractor } from "@handled/core";
+import { COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardingChecklist, proTier, specialtiesFor, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { DocDecision, ProStatusControls } from "@/components/HubActions";
@@ -48,6 +48,11 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
           <h1 className="text-2xl font-bold">{pro.business_name}</h1>
           <p className="text-sm text-ink-soft">{pro.contact_name} · {pro.phone} · {pro.email}</p>
           <p className="text-xs text-ink-soft">{pro.trades.map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ")} · ZIPs {pro.service_zips.join(", ") || "—"}</p>
+          <p className="text-xs text-ink-soft">
+            <b>{proTier(pro).badge} {proTier(pro).name}</b>{pro.jobs_completed < PROBATION.jobs ? ` · probation (${PROBATION.jobs - pro.jobs_completed} job(s) left, max $${PROBATION.maxJobPrice})` : ""}
+            {" · Specialties: "}{specialtiesFor(pro.trades).filter((x) => pro.specialties?.includes(x.id)).map((x) => x.label).join(", ") || "none chosen"}
+            {" · Coverage: "}GL until {pro.insured_until ?? "—"}{Object.entries(pro.coverage ?? {}).map(([k, v]) => `, ${COVERAGES[k as CoverageKey]?.label ?? k} ${v === "exempt" ? "(no employees)" : `until ${v}`}`).join("")}
+          </p>
         </div>
         <Badge tone={pro.status === "approved" ? "green" : pro.status === "suspended" ? "red" : "amber"}>{pro.status}</Badge>
       </div>
