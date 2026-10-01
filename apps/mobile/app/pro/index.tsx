@@ -2,6 +2,7 @@
  * FILE    : apps/mobile/app/pro/index.tsx
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_1800 UTC
+ * UPDATED : 2026-10-01_2140 UTC — Earnings opens the in-app earnings screen (instant pay).
  * PURPOSE : Pro mode — live job offers (accept/pass) and today's schedule.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -37,7 +38,7 @@ export default function ProHome() {
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}>
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button title="Setup & documents" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/onboarding`)} style={{ flex: 1 }} />
-        <Button title="Earnings & 1099" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/earnings`)} style={{ flex: 1 }} />
+        <Button title="⚡ Earnings" kind="ghost" onPress={() => router.push("/pro/earnings")} style={{ flex: 1 }} />
       </View>
       <Text style={s.h2}>New offers</Text>
       {!offers.length && <Text style={s.p}>No open offers. We'll notify you when one comes in.</Text>}

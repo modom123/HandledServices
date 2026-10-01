@@ -36,6 +36,7 @@ export default function Layout() {
         <Stack.Screen name="pro/index" options={{ title: "Pro" }} />
         <Stack.Screen name="pro/offer/[id]" options={{ title: "Job offer", presentation: "modal" }} />
         <Stack.Screen name="pro/[id]" options={{ title: "Job" }} />
+        <Stack.Screen name="pro/earnings" options={{ title: "Earnings" }} />
       </Stack>
     </>
   );
