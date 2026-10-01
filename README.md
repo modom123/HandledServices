@@ -64,7 +64,7 @@ recurring visit booked with the same pro.
 ### 2. Vercel (web)
 1. Import the repo. **Root directory: `apps/web`** (the npm workspace installs `packages/core` automatically).
 2. Set environment variables from `apps/web/.env.example`.
-3. Crons in `apps/web/vercel.json`: the daily brief (12:00 UTC) and a 15-minute sweep. The sweep needs Vercel Pro; on the Hobby plan change its schedule to once a day (e.g. `0 13 * * *`). Vercel rejects unknown fields in `vercel.json`, so that file carries no timestamp header.
+3. Crons in `apps/web/vercel.json`: the daily brief (12:00 UTC) and the sweep (expired offers → re-dispatch, at-risk jobs). The sweep ships as daily (`0 13 * * *`) so it deploys on the free Hobby plan; on Vercel Pro change it to every 15 minutes (`*/15 * * * *`). Vercel rejects unknown fields in `vercel.json`, so that file carries no timestamp header.
 4. Stripe (optional): add a webhook to `/api/stripe/webhook` for `checkout.session.completed`.
 
 ### 3. Mobile (Expo)
