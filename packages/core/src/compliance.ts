@@ -10,6 +10,10 @@
 import { SERVICES } from "./services.ts";
 
 export const AGREEMENT_VERSION = "2026-10-v1";
+/** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v1";
+/** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
+export const LATE_CANCEL_FEE = 49;
 
 /** Trades whose services legally require a licensed tradesperson. */
 export const LICENSED_TRADES: string[] = [...new Set(SERVICES.filter((s) => s.licensed).flatMap((s) => s.trades.filter((t) => t !== "handyman")))];

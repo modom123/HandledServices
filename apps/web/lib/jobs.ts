@@ -12,7 +12,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
+  BRAND, JOB_STATUS_LABEL, SERVICE_AGREEMENT_VERSION, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -22,6 +22,7 @@ import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { chargeSavedCard, paymentCheckoutUrl } from "./stripe";
+import { invoiceUrl } from "./invoice";
 
 export const BookingSchema = z.object({
   service_slug: z.string().refine((s) => Boolean(getService(s)), "Unknown service"),
@@ -41,6 +42,7 @@ export const BookingSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
   photos: z.array(z.string()).max(8).default([]),
   source: z.enum(["web", "mobile", "business", "phone", "ai_chat"]).default("web"),
+  accept_terms: z.literal(true, { message: "Please accept the Service Agreement" }),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -59,7 +61,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob(input: BookingInput, customerId: string | null) {
+export async function createJob({ accept_terms: _accepted, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   const rush = isRush(input.scheduled_date);
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush });
@@ -80,6 +82,9 @@ export async function createJob(input: BookingInput, customerId: string | null) 
       contractor_payout: price ? splitJob(price, svc.slug).payout : null,
       ai_quote: ai,
       priority: rush ? "high" : "normal",
+      terms_version: SERVICE_AGREEMENT_VERSION,
+      terms_accepted_at: new Date().toISOString(),
+      terms_accepted_ip: ip,
     })
     .select("*")
     .single();
@@ -97,7 +102,7 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   if (job.status === "site_visit") {
     await sendEmail(job.contact_email, `${BRAND.name}: free site visit ${job.ref} booked`,
       `Hi ${job.contact_name.split(" ")[0]},\n\nA pro will visit to confirm a firm price for your ${svc.name} (estimated ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
-      `Nothing is owed until you approve the quote and pay to lock in the work.\n\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+      `Nothing is owed until you approve the quote and pay to lock in the work.\n\nYour estimate & service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     await dispatchJob(job.id, { siteVisit: true });
     return;
   }
@@ -105,7 +110,7 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
     // Stripe not configured — ops collects payment by phone/invoice, then marks it paid.
     await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.price_final)} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Command Center to dispatch.`, job.id);
     await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: complete payment`,
-      `Thanks for booking ${svc.name} — ${money(job.price_final)}. A coordinator will contact you to take payment; your pro is confirmed as soon as it's paid.\n\n${BRAND.promise}`);
+      `Thanks for booking ${svc.name} — ${money(job.price_final)}. A coordinator will contact you to take payment; your pro is confirmed as soon as it's paid.\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n${BRAND.promise}`);
   }
 }
 
@@ -125,7 +130,7 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   const paid = data as Job;
   await addEvent(jobId, "paid", `Payment received — ${money(p.amount)}. ${BRAND.promise}`, p.via);
   await sendEmail(paid.contact_email, `Paid — your ${getService(paid.service_slug)?.name} is locked in (${paid.ref})`,
-    `Thanks! We received ${money(p.amount)}. ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now."}\n\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}`);
+    `Thanks! We received ${money(p.amount)}. ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now."}\n\nPaid invoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}`);
   if (!paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
   return paid;
 }
@@ -134,7 +139,7 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
 export async function sendPaymentLink(job: Job) {
   const url = await paymentCheckoutUrl(job);
   if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(job.price_final)} to lock in ${job.ref}`,
-    `Your ${getService(job.service_slug)?.name} is ready to schedule at ${money(job.price_final)}.\nPay securely here: ${url}\n\n${BRAND.promise}`);
+    `Your ${getService(job.service_slug)?.name} is ready to schedule at ${money(job.price_final)}.\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
   return url;
 }
 

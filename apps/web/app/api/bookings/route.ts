@@ -18,7 +18,8 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: "Please check the form", issues: parsed.error.issues }, { status: 400 });
   const viewer = await getViewer(req);
   try {
-    const { job, estimate } = await createJob(parsed.data, viewer?.userId ?? null);
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const { job, estimate } = await createJob(parsed.data, viewer?.userId ?? null, ip);
     const checkout = job.status === "site_visit" ? null : await paymentCheckoutUrl(job);
     after(() => onBooked(job, checkout).catch((e) => console.error("[onBooked]", e)));
     return Response.json({ id: job.id, ref: job.ref, status: job.status, price: job.price_final, estimate, checkout });

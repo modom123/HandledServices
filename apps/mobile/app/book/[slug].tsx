@@ -9,7 +9,7 @@ import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { BRAND, TIME_WINDOW_LABEL, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
-import { api } from "../../lib/supabase";
+import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -25,6 +25,7 @@ export default function Book() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [f, setF] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "" });
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const est = useMemo(() => estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }), [svc, answers, frequency, date]);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
 
@@ -42,7 +43,7 @@ export default function Book() {
     setBusy(true);
     const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile" }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert("Couldn't book", r.data.error ?? "Please check the form");
@@ -58,7 +59,7 @@ export default function Book() {
       <Text style={s.h1}>{svc.icon} {svc.name}</Text>
       <Card style={{ marginTop: 12, backgroundColor: C.tint, borderColor: C.brand }}>
         <Text style={s.label}>{svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</Text>
-        <Text style={{ fontSize: 28, fontWeight: "800", color: C.ink }}>{moneyRange(est.low, est.high)}</Text>
+        <Text style={{ fontSize: 28, fontWeight: "800", color: C.ink }}>{svc.siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
         <Text style={s.p}>{svc.siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
       </Card>
       {svc.questions.map((q) => (
@@ -94,7 +95,11 @@ export default function Book() {
       <Field label="Full name" value={f.contact_name} onChangeText={set("contact_name")} />
       <Field label="Email" value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />
       <Field label="Mobile" value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" />
-      <Button title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
+      <View style={[s.row, { marginTop: 8, alignItems: "center" }]}>
+        <Chip label={agreed ? "✓ I agree" : "I agree"} on={agreed} onPress={() => setAgreed(!agreed)} />
+        <Text style={[s.p, { flex: 1 }]} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>to the <Text style={{ color: C.brand, fontWeight: "700" }}>Service Agreement</Text>: pay upfront, free redo or refund if it's not right.</Text>
+      </View>
+      <Button disabled={!agreed} title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }

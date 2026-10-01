@@ -32,6 +32,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{s?.icon} {s?.name}</h1><StatusBadge status={job.status} /></div>
           <div className="mt-2 text-sm text-ink-soft">{job.ref} · {fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div>
           <div className="mt-1 text-sm text-ink-soft">{job.address}, {job.city} {job.zip}</div>
+          <a href={`/invoice/${job.id}`} className="mt-2 inline-block text-sm font-semibold text-brand underline">Invoice & service agreement</a>
           <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</div>
         </div>
         {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && <PayNow jobId={job.id} amount={money(job.price_final)} />}

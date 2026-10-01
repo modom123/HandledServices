@@ -39,6 +39,7 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }) : null), [svc, answers, frequency, date]);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
@@ -80,7 +81,7 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web" }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed }),
     });
     const json = await res.json();
     setBusy(false);
@@ -208,10 +209,14 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
               <div><label className="label">Mobile</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
             <p className="text-xs text-ink-soft">We text updates about this job only. We never sell your info to other contractors.</p>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+              <span>I agree to the <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">Service Agreement</a>: {svc?.siteVisit ? "the site visit is free; I pay upfront once I approve the firm quote." : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+            </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>Back</button>
-              <button className="btn-primary" disabled={!contactOk || busy} onClick={book}>{busy ? (svc?.siteVisit ? "Booking…" : "Finalizing your price…") : svc?.siteVisit ? "Book free site visit" : `Pay ${est ? money(ai?.final_price ?? est.point) : ""} & book`}</button>
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy} onClick={book}>{busy ? (svc?.siteVisit ? "Booking…" : "Finalizing your price…") : svc?.siteVisit ? "Book free site visit" : `Pay ${est ? money(ai?.final_price ?? est.point) : ""} & book`}</button>
             </div>
           </div>
         )}
@@ -220,7 +225,7 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
-          <div className="mt-1 text-3xl font-bold">{moneyRange(price.low, price.high)}</div>
+          <div className="mt-1 text-3xl font-bold">{svc.siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
           {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
             {est.items.map((i) => (

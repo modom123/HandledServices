@@ -27,6 +27,8 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 | **Customer portal** | `/account` | Jobs, live timeline, completion photos, messages with the pro, reviews, recurring plans |
 | **Pro portal** | `/pro` (+ mobile Pro mode) | Offers with payout (accept/pass), schedule, start → photos → complete, earnings |
 | **Command Center** | `/hub` (staff only) | AI-driven-rate KPI, AI morning brief, alerts, jobs board, job control panel, pros & vetting, customers & B2B, finance & payouts, **IEBC Workforce**, AI assistant |
+| **Invoice & Service Agreement** | `/invoice/[id]`, `/terms/service-agreement` | Every job's invoice carries the customer terms; accepted at booking (version, time and IP recorded); signed login-free link in every email; printable |
+| **Pro Network & 1099** | `/hub/network`, `/hub/pros/[id]`, `/pro/onboarding`, `/pro/earnings` | Pros as the core asset: onboarding (W-9, contractor agreement, COI, license, background, payout), work & payout ledger, value generated, blended ratings, year-end 1099 worksheet |
 | **IEBC Workforce API** | `/api/iebc/v1` | IEBC AI employees run departments with scoped permissions, autonomy levels, an approval queue and a usage meter |
 
 ### The AI layer (Claude, `apps/web/lib/ai/`)
@@ -43,8 +45,15 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 Every AI call is logged to `ai_runs` (tokens and cost show on the Finance page). Without `ANTHROPIC_API_KEY`,
 everything still works on the deterministic engine. Refusal fallbacks are enabled (`fallbacks: "default"`).
 
+### Money rules (enforced in code and in the database)
+- **Paid upfront, always.** Customers pay the full price at booking (site visits are free; quoted work is paid on approval). Nothing is dispatched until it's paid.
+- **Pros are paid after the job is finished** and passes QA, on the weekly payout run.
+- **We keep 15–35% of every job**, payouts round down, and refunds or free extra services can never put a job below $0.
+- **Making it right:** a free redo by the same pro, a complimentary service (capped at our take) or a refund (shared, or charged to the pro first when they were at fault).
+- **Every job is rated twice:** by the customer, and by us (AI photo-QA draft, staff or IEBC). A pro's rating is 60% customer and 40% ours, and it drives dispatch.
+
 ### Job lifecycle
-`requested → (site_visit → quoted) → scheduled → dispatched → assigned → in_progress → qa_review → completed`
+`requested → (site_visit → quoted) → paid → scheduled → dispatched → assigned → in_progress → qa_review → completed`
 
 Booking → AI quote → auto-dispatch (offers expire after 2h; a 15-min cron re-dispatches) → first pro to accept wins
 (race-safe) → pro starts → completion photos → AI QA → card charged, payout approved, review requested, next
@@ -54,8 +63,8 @@ recurring visit booked with the same pro.
 
 ### 1. Supabase
 1. Create a project at supabase.com.
-2. Run the migrations in order (SQL editor, or `supabase db push`):
-   `supabase/migrations/20261001172300_init.sql`, then `20261001180000_iebc_workforce.sql`.
+2. Run every file in `supabase/migrations` in filename order (SQL editor, or `supabase db push`):
+   init → iebc_workforce → take_rate_guard → upfront_payment → contractor_workforce → service_agreement.
 3. Optional demo data: run `supabase/seed.sql` (regenerate with `node --experimental-strip-types scripts/gen-seed.ts > supabase/seed.sql`).
 4. Auth → URL configuration: add `https://YOUR-DOMAIN/auth/callback`. Enable email OTP.
 5. Make yourself staff: sign in once, then
