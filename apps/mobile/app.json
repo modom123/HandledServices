@@ -6,12 +6,38 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "ios": { "bundleIdentifier": "com.handled.app", "supportsTablet": false },
-    "android": { "package": "com.handled.app" },
+    "ios": {
+      "bundleIdentifier": "com.handled.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.handled.app",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
     "plugins": [
       "expo-router",
-      ["expo-image-picker", { "photosPermission": "Handled uses your photos to price jobs and prove completed work.", "cameraPermission": "Handled uses the camera to photograph jobs." }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Handled uses your photos to price jobs and prove completed work.",
+          "cameraPermission": "Handled uses the camera to photograph jobs."
+        }
+      ]
     ],
-    "extra": { "createdAt": "2026-10-01_1800 UTC", "project": "Handled (myhumanai) mobile app" }
+    "extra": {
+      "createdAt": "2026-10-01_1800 UTC",
+      "project": "Handled (myhumanai) mobile app",
+      "privacyPolicyUrl": "https://YOUR-DOMAIN/privacy",
+      "termsUrl": "https://YOUR-DOMAIN/terms/service-agreement",
+      "eas": {
+        "projectId": "run `eas init` to fill this in"
+      }
+    },
+    "description": "Book cleaning, lawn, hauling, repairs, remodels and events with upfront prices \u2014 and run your jobs if you're a Handled pro."
   }
 }

@@ -23,6 +23,7 @@ import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 import { invoiceUrl } from "./invoice";
+import { syncCatalog } from "./catalog";
 
 export const BookingSchema = z.object({
   service_slug: z.string().refine((s) => Boolean(getService(s)), "Unknown service"),
@@ -63,6 +64,7 @@ export async function getJob(id: string): Promise<Job | null> {
  */
 export async function createJob({ accept_terms: _accepted, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
+  await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush });
   const { ai } = svc.siteVisit
@@ -108,7 +110,7 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   }
   if (!paymentUrl) {
     // Stripe not configured — ops collects payment by phone/invoice, then marks it paid.
-    await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.price_final)} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Command Center to dispatch.`, job.id);
+    await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.price_final)} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Handled Hub to dispatch.`, job.id);
     await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: complete payment`,
       `Thanks for booking ${svc.name} — ${money(job.price_final)}. A coordinator will contact you to take payment; your pro is confirmed as soon as it's paid.\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n${BRAND.promise}`);
   }

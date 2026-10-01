@@ -2,7 +2,7 @@
  * FILE    : apps/web/components/HubActions.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * PURPOSE : Interactive controls for the Ops Hub.
+ * PURPOSE : Interactive controls for the Handled Hub.
  */
 "use client";
 
@@ -278,6 +278,17 @@ export function OpsRating({ jobId, current }: { jobId: string; current: { rating
       <input className="input" placeholder="Private note (not shown to the pro or customer)" value={comment} onChange={(e) => setComment(e.target.value)} />
       <button className="btn-primary" onClick={async () => { const x = await call(`/api/hub/jobs/${jobId}/rating`, "POST", { ...r, comment: comment || undefined }); setMsg(x.ok ? "Saved — pro rating updated" : x.json.error ?? "Failed"); router.refresh(); }}>Save rating</button>
       {msg && <p className="text-brand-dark">{msg}</p>}
+    </div>
+  );
+}
+
+export function SyncCatalogButton() {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  return (
+    <div className="flex items-center gap-3">
+      <button className="btn-ghost" onClick={async () => { const r = await call("/api/hub/setup", "POST", { action: "sync_catalog" }); setMsg(r.json.ok ? `Synced ${r.json.count} services` : r.json.error ?? "Failed"); router.refresh(); }}>Sync service catalog</button>
+      {msg && <span className="text-sm text-ink-soft">{msg}</span>}
     </div>
   );
 }

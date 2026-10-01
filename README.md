@@ -11,7 +11,7 @@ remodels through vetted subcontractors. AI runs it day to day, IEBC's AI workfor
 human team manages it. Business plan: [`docs/BUSINESS_PLAN_2026-10-01_1830.md`](docs/BUSINESS_PLAN_2026-10-01_1830.md).
 
 ```
-apps/web        Next.js 16 on Vercel — website, booking, customer portal, pro portal, Command Center, all APIs
+apps/web        Next.js 16 on Vercel — website, booking, customer portal, pro portal, Handled Hub, all APIs
 apps/mobile     Expo (React Native) app — customer mode + pro mode
 packages/core   Shared catalog, pricing engine, dispatch ranking, types (used by web + mobile)
 supabase/       Postgres schema with row-level security, storage, realtime, seed data
@@ -26,7 +26,7 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 | **Booking** | `/book` | Live upfront price, plan discounts, photos, optional AI review of notes/photos, card saved (charged after QA) |
 | **Customer portal** | `/account` | Jobs, live timeline, completion photos, messages with the pro, reviews, recurring plans |
 | **Pro portal** | `/pro` (+ mobile Pro mode) | Offers with payout (accept/pass), schedule, start → photos → complete, earnings |
-| **Command Center** | `/hub` (staff only) | AI-driven-rate KPI, AI morning brief, alerts, jobs board, job control panel, pros & vetting, customers & B2B, finance & payouts, **IEBC Workforce**, AI assistant |
+| **Handled Hub** | `/hub` (staff only) | AI-driven-rate KPI, AI morning brief, alerts, jobs board, job control panel, pros & vetting, customers & B2B, finance & payouts, **IEBC Workforce**, AI assistant |
 | **Invoice & Service Agreement** | `/invoice/[id]`, `/terms/service-agreement` | Every job's invoice carries the customer terms; accepted at booking (version, time and IP recorded); signed login-free link in every email; printable |
 | **Pro Network & 1099** | `/hub/network`, `/hub/pros/[id]`, `/pro/onboarding`, `/pro/earnings` | Pros as the core asset: onboarding (W-9, contractor agreement, COI, license, background, payout), work & payout ledger, value generated, blended ratings, year-end 1099 worksheet |
 | **IEBC Workforce API** | `/api/iebc/v1` | IEBC AI employees run departments with scoped permissions, autonomy levels, an approval queue and a usage meter |
@@ -59,42 +59,32 @@ Booking → AI quote → auto-dispatch (offers expire after 2h; a 15-min cron re
 (race-safe) → pro starts → completion photos → AI QA → card charged, payout approved, review requested, next
 recurring visit booked with the same pro.
 
-## Setup
+## Going live
 
-### 1. Supabase
-1. Create a project at supabase.com.
-2. Run every file in `supabase/migrations` in filename order (SQL editor, or `supabase db push`):
-   init → iebc_workforce → take_rate_guard → upfront_payment → contractor_workforce → service_agreement.
-3. Optional demo data: run `supabase/seed.sql` (regenerate with `node --experimental-strip-types scripts/gen-seed.ts > supabase/seed.sql`).
-4. Auth → URL configuration: add `https://YOUR-DOMAIN/auth/callback`. Enable email OTP.
-5. Make yourself staff: sign in once, then
-   `update profiles set role = 'admin' where email = 'you@company.com';`
+Follow **[`docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md`](docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md)** top to bottom. In short:
 
-### 2. Vercel (web)
-1. Import the repo. **Root directory: `apps/web`** (the npm workspace installs `packages/core` automatically).
-2. Set environment variables from `apps/web/.env.example`.
-3. Crons in `apps/web/vercel.json`: the daily brief (12:00 UTC) and the sweep (expired offers → re-dispatch, at-risk jobs). The sweep ships as daily (`0 13 * * *`) so it deploys on the free Hobby plan; on Vercel Pro change it to every 15 minutes (`*/15 * * * *`). Vercel rejects unknown fields in `vercel.json`, so that file carries no timestamp header.
-4. Stripe (optional): add a webhook to `/api/stripe/webhook` for `checkout.session.completed`.
+1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project.
+2. **Vercel:** root directory `apps/web`, production branch `main`, environment variables from `apps/web/.env.example`.
+3. **Stripe** webhook → `/api/stripe/webhook` (`checkout.session.completed`). **Resend** domain + SMTP for Supabase auth emails.
+4. Sign in, make yourself admin, open **Handled Hub → Go-live setup** (`/hub/setup`) and fix every red/amber item.
+5. **IEBC MasterHub → Team → Handled Ops:** enter the site URL + `IEBC_API_KEY`.
+6. **Mobile:** `apps/mobile` → `eas init` → `eas build` → `eas submit`.
+7. `node scripts/smoke-test.mjs https://YOUR-DOMAIN` → every line PASS. Point an uptime monitor at `/api/health`.
 
-### 3. Mobile (Expo)
-```bash
-cd apps/mobile && npm install
-cp .env.example .env    # point EXPO_PUBLIC_API_URL at your Vercel URL
-npx expo start          # Expo Go, or `eas build` for the stores
-```
-
-### 4. Local development
+### Local development
 ```bash
 npm install                      # root — installs web + core
 cp apps/web/.env.example apps/web/.env.local
 npm run dev                      # http://localhost:3000
-npm test                         # pricing + dispatch unit tests
+npm test                         # pricing, dispatch, refunds, onboarding, calendar, event budget
 npm run typecheck
+node --experimental-strip-types scripts/gen-seed.ts          # regenerate seed.sql + demo_data.sql
+node --experimental-strip-types scripts/build-setup-sql.ts   # regenerate the one-paste setup file
 ```
 
 ## IEBC Workforce integration
 
-The Command Center (`/hub`) is this company's own command center, separate from the IEBC MasterHub. IEBC's AI
+The Handled Hub (`/hub`) is this company's own command center, separate from the IEBC MasterHub. IEBC's AI
 employees work *inside* it through a gated API:
 
 ```
@@ -116,7 +106,7 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 
 † high-risk: always waits for human approval. \* cancelling a job is high-risk.
 Autonomy: `suggest` / `approval` → every write is queued. `autonomous` → low-risk writes run immediately.
-Change assignments, autonomy or pause an agent in **Command Center → IEBC Workforce**. That page also has the
+Change assignments, autonomy or pause an agent in **Handled Hub → IEBC Workforce**. That page also has the
 monthly usage meter used for IEBC invoicing.
 
 Example:

@@ -5,10 +5,10 @@
  * PURPOSE : Pro mode — live job offers (accept/pass) and today's schedule.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { TIME_WINDOW_LABEL, getService, money, type Job } from "@handled/core";
-import { api, supabase } from "../../lib/supabase";
+import { API_URL, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Status, s } from "../../components/ui";
 
 type Offer = { id: string; payout: number; expires_at: string; jobs: Pick<Job, "ref" | "service_slug" | "city" | "zip" | "scheduled_date" | "time_window" | "notes"> | null };
@@ -41,6 +41,10 @@ export default function ProHome() {
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Button title="Setup & documents" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/onboarding`)} style={{ flex: 1 }} />
+        <Button title="Earnings & 1099" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/earnings`)} style={{ flex: 1 }} />
+      </View>
       <Text style={s.h2}>New offers</Text>
       {!offers.length && <Text style={s.p}>No open offers. We'll notify you when one comes in.</Text>}
       {offers.map((o) => {

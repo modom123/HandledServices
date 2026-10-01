@@ -2,7 +2,7 @@
  * FILE    : packages/core/src/compliance.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
- * PURPOSE : Subcontractor onboarding & 1099 rules shared by the Command Center, the pro
+ * PURPOSE : Subcontractor onboarding & 1099 rules shared by the Handled Hub, the pro
  *           portal and IEBC agents. Pros are independent contractors (their own business,
  *           tools, insurance and schedule; free to accept or decline any job) — never
  *           employees. A pro can't be activated until every required step is done.

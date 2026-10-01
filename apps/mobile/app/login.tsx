@@ -5,9 +5,9 @@
  * PURPOSE : Passwordless sign-in with a 6-digit email code.
  */
 import { useState } from "react";
-import { Alert, View, Text } from "react-native";
+import { Alert, Linking, View, Text } from "react-native";
 import { router } from "expo-router";
-import { supabase } from "../lib/supabase";
+import { API_URL, supabase } from "../lib/supabase";
 import { Button, Field, s } from "../components/ui";
 
 export default function Login() {
@@ -27,6 +27,9 @@ export default function Login() {
           <Button title="Verify" onPress={async () => { const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" }); if (error) Alert.alert(error.message); else router.replace("/"); }} />
         </>
       )}
+      <Text style={[s.p, { marginTop: 24, textAlign: "center" }]}>
+        By continuing you agree to our <Text style={{ fontWeight: "700" }} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>Service Agreement</Text> and <Text style={{ fontWeight: "700" }} onPress={() => Linking.openURL(`${API_URL}/privacy`)}>Privacy Policy</Text>.
+      </Text>
     </View>
   );
 }

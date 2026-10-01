@@ -62,13 +62,13 @@ export function SiteFooter() {
             <li><Link href="/events" className="hover:text-ink">Parties & events</Link></li>
             <li><Link href="/business" className="hover:text-ink">Commercial accounts</Link></li>
             <li><Link href="/pros" className="hover:text-ink">Join as a pro</Link></li>
-            <li><Link href="/hub" className="hover:text-ink">Ops hub</Link></li>
+            <li><Link href="/hub" className="hover:text-ink">Handled Hub</Link></li>
             <li>{BRAND.supportPhone}</li>
             <li>{BRAND.supportEmail}</li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-line py-4 text-center text-xs text-ink-soft">© {new Date().getFullYear()} {BRAND.legalName}</div>
+      <div className="border-t border-line py-4 text-center text-xs text-ink-soft">© {new Date().getFullYear()} {BRAND.legalName} · <Link href="/terms/service-agreement" className="hover:text-ink">Service Agreement</Link> · <Link href="/privacy" className="hover:text-ink">Privacy</Link></div>
     </footer>
   );
 }

@@ -25,7 +25,7 @@ const cents = (v: number) => Math.round(v * 100);
 
 /**
  * Checkout link for the job's full price. Returns null when Stripe isn't configured
- * (ops then collects payment another way and marks the job paid in the Command Center).
+ * (ops then collects payment another way and marks the job paid in the Handled Hub).
  */
 export async function paymentCheckoutUrl(job: Job): Promise<string | null> {
   const s = getStripe();

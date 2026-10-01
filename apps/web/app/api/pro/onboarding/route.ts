@@ -65,6 +65,6 @@ export async function POST(req: Request) {
   } else if (b.step === "payout") {
     await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id);
   }
-  if (["coi", "license", "w9"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. Review in Command Center → Pros.`);
+  if (["coi", "license", "w9"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. Review in Handled Hub → Pros.`);
   return Response.json({ ok: true });
 }

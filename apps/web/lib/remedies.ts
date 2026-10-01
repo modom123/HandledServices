@@ -16,6 +16,7 @@ import { adminClient } from "./supabase/server";
 import { addEvent, dispatchJob, getJob } from "./jobs";
 import { refundPayment } from "./stripe";
 import { sendEmail } from "./notify";
+import { syncCatalog } from "./catalog";
 
 const db = () => adminClient();
 
@@ -72,6 +73,7 @@ export async function createComplimentary(jobId: string, serviceSlug: string, an
   const parent = await getJob(jobId);
   const svc = getService(serviceSlug);
   if (!parent || !svc) return { ok: false, error: "Job or service not found" };
+  await syncCatalog();
   const e = estimate({ slug: svc.slug, answers: { ...Object.fromEntries(svc.questions.map((q) => [q.id, q.default])), ...(answers ?? {}) } });
   const payout = splitJob(e.point, svc.slug).payout;
   const { data: siblings } = await db().from("jobs").select("contractor_payout").eq("parent_job_id", parent.id).eq("remedy", "complimentary");
