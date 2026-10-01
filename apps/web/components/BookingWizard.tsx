@@ -131,11 +131,8 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
               <div key={q.id}>
                 <label className="label">{q.label}</label>
                 {q.type === "number" && (
-                  <div className="flex items-center gap-3">
-                    <input type="range" min={q.min} max={q.max} value={Number(answers[q.id] ?? q.default)} onChange={(e) => { setAnswers({ ...answers, [q.id]: Number(e.target.value) }); setAi(null); }} className="flex-1 accent-[var(--color-brand)]" />
-                    <input type="number" min={q.min} max={q.max} value={Number(answers[q.id] ?? q.default)} onChange={(e) => { setAnswers({ ...answers, [q.id]: Math.min(q.max, Math.max(q.min, Number(e.target.value))) }); setAi(null); }} className="input w-24" />
-                    {q.unit && <span className="text-sm text-ink-soft">{q.unit}</span>}
-                  </div>
+                  <NumberField min={q.min} max={q.max} unit={q.unit} value={Number(answers[q.id] ?? q.default)}
+                    onChange={(v) => { setAnswers((cur) => ({ ...cur, [q.id]: v })); setAi(null); }} />
                 )}
                 {q.type === "select" && (
                   <div className="flex flex-wrap gap-2">
@@ -240,6 +237,35 @@ export function BookingWizard({ initialService }: { initialService?: string }) {
           </p>
         </aside>
       )}
+    </div>
+  );
+}
+
+/**
+ * Number input + slider. Typing is free-form (no clamping per keystroke — that turned
+ * "2500" into 10000); the value is applied live while in range and clamped on blur.
+ * Big ranges (square feet) step by 50 on the slider.
+ */
+function NumberField({ value, min, max, unit, onChange }: { value: number; min: number; max: number; unit?: string; onChange: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  const [editing, setEditing] = useState(false);
+  const step = max >= 2000 ? 50 : max >= 200 ? 5 : 1;
+  const shown = editing ? text : value.toLocaleString("en-US");
+  return (
+    <div className="flex items-center gap-3">
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => { onChange(Number(e.target.value)); setText(e.target.value); }}
+        className="flex-1 accent-[var(--color-brand)]" aria-label={unit ?? "amount"} />
+      <input type="text" inputMode="numeric" className="input w-28 text-right" value={shown}
+        onFocus={() => { setEditing(true); setText(String(value)); }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^0-9]/g, "");
+          setText(raw);
+          const n = Number(raw);
+          if (raw && n >= min && n <= max) onChange(n);
+        }}
+        onBlur={() => { setEditing(false); const n = Number(text); onChange(Math.min(max, Math.max(min, Number.isFinite(n) && text ? n : value))); }}
+        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+      {unit && <span className="w-12 text-sm text-ink-soft">{unit}</span>}
     </div>
   );
 }

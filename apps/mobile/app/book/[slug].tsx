@@ -5,7 +5,7 @@
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  */
 import { useMemo, useState } from "react";
-import { Alert, Linking, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { BRAND, TIME_WINDOW_LABEL, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
@@ -65,11 +65,14 @@ export default function Book() {
       {svc.questions.map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
           <Text style={s.label}>{q.label}</Text>
-          {q.type === "number" && (
+          {q.type === "number" && q.max >= 200 && (
+            <NumberBox value={Number(answers[q.id])} min={q.min} max={q.max} unit={q.unit} onChange={(v) => setAnswers((cur) => ({ ...cur, [q.id]: v }))} />
+          )}
+          {q.type === "number" && q.max < 200 && (
             <View style={[s.row, { alignItems: "center" }]}>
-              <Chip label="−" on={false} onPress={() => setAnswers({ ...answers, [q.id]: Math.max(q.min, Number(answers[q.id]) - (q.max > 100 ? 50 : 1)) })} />
+              <Chip label="−" on={false} onPress={() => setAnswers({ ...answers, [q.id]: Math.max(q.min, Number(answers[q.id]) - 1) })} />
               <Text style={[s.b, { minWidth: 70, textAlign: "center", marginBottom: 8 }]}>{String(answers[q.id])} {q.unit ?? ""}</Text>
-              <Chip label="+" on={false} onPress={() => setAnswers({ ...answers, [q.id]: Math.min(q.max, Number(answers[q.id]) + (q.max > 100 ? 50 : 1)) })} />
+              <Chip label="+" on={false} onPress={() => setAnswers({ ...answers, [q.id]: Math.min(q.max, Number(answers[q.id]) + 1) })} />
             </View>
           )}
           {q.type === "select" && <View style={s.row}>{q.options.map((o) => <Chip key={o.value} label={o.label} on={answers[q.id] === o.value} onPress={() => setAnswers({ ...answers, [q.id]: o.value })} />)}</View>}
@@ -101,5 +104,18 @@ export default function Book() {
       </View>
       <Button disabled={!agreed} title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
     </ScrollView>
+  );
+}
+
+/** Typed number entry for large ranges (square feet, linear feet): clamps when you finish typing. */
+function NumberBox({ value, min, max, unit, onChange }: { value: number; min: number; max: number; unit?: string; onChange: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <TextInput style={[s.input, { flex: 1 }]} keyboardType="number-pad" value={text}
+        onChangeText={(t) => { const raw = t.replace(/[^0-9]/g, ""); setText(raw); const n = Number(raw); if (raw && n >= min && n <= max) onChange(n); }}
+        onEndEditing={() => { const n = Math.min(max, Math.max(min, Number(text) || value)); setText(String(n)); onChange(n); }} />
+      {unit ? <Text style={s.p}>{unit}</Text> : null}
+    </View>
   );
 }

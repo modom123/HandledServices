@@ -89,7 +89,7 @@ export const SERVICES: Service[] = [
     questions: [
       { id: "bedrooms", label: "Bedrooms (or offices)", type: "number", min: 0, max: 10, default: 3 },
       { id: "bathrooms", label: "Bathrooms", type: "number", min: 1, max: 8, default: 2 },
-      { id: "sqft", label: "Approx. square feet", type: "number", min: 400, max: 10000, default: 1800, unit: "sq ft" },
+      { id: "sqft", label: "Square feet", type: "number", min: 400, max: 20000, default: 1800, unit: "sq ft", help: "Finished living or office space. Not sure? Use the number on your listing or tax record." },
       {
         id: "level",
         label: "Type of clean",
@@ -111,13 +111,14 @@ export const SERVICES: Service[] = [
     frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["cleaning"],
     price: (a) => {
-      const items: LineItem[] = [
-        { label: "Base clean", amount: 95 },
-        { label: `${n(a, "bedrooms", 3)} bedrooms`, amount: 22 * n(a, "bedrooms", 3) },
-        { label: `${n(a, "bathrooms", 2)} bathrooms`, amount: 28 * n(a, "bathrooms", 2) },
-      ];
+      // Square footage drives the price: $0.12/sq ft up to 2,000 sq ft, $0.09/sq ft beyond.
       const sqft = n(a, "sqft", 1800);
-      if (sqft > 2000) items.push({ label: "Large home", amount: Math.round((sqft - 2000) * 0.04) });
+      const area = Math.round(Math.min(sqft, 2000) * 0.12 + Math.max(0, sqft - 2000) * 0.09);
+      const baths = n(a, "bathrooms", 2);
+      const beds = n(a, "bedrooms", 3);
+      const items: LineItem[] = [{ label: `${sqft.toLocaleString("en-US")} sq ft`, amount: area }];
+      if (baths > 1) items.push({ label: `${baths - 1} extra bathroom${baths > 2 ? "s" : ""}`, amount: (baths - 1) * 20 });
+      if (beds > 2) items.push({ label: `${beds - 2} extra bedroom${beds > 3 ? "s" : ""}/office${beds > 3 ? "s" : ""}`, amount: (beds - 2) * 10 });
       const subtotal = sum(items);
       const level = s(a, "level", "standard");
       if (level === "deep") items.push({ label: "Deep clean", amount: Math.round(subtotal * 0.5) });
@@ -125,7 +126,7 @@ export const SERVICES: Service[] = [
       if (b(a, "pets")) items.push({ label: "Pet hair", amount: 20 });
       if (b(a, "fridge_oven")) items.push({ label: "Fridge & oven interior", amount: 60 });
       const base = sum(items);
-      return { items, base, hours: Math.max(2, base / 45) };
+      return { items, base, hours: Math.max(2, sqft / 500 + (level === "standard" ? 0 : sqft / 1000)) };
     },
   },
   {
@@ -177,6 +178,7 @@ export const SERVICES: Service[] = [
     includes: ["Pre-vacuum & pre-spray", "Hot-water extraction", "Spot treatment", "Furniture moved & replaced"],
     questions: [
       { id: "rooms", label: "Rooms / areas", type: "number", min: 1, max: 20, default: 3 },
+      { id: "carpet_sqft", label: "Or total carpet square feet", type: "number", min: 0, max: 20000, default: 0, unit: "sq ft", help: "Leave at 0 to price by room. Use square feet for open areas, basements and offices." },
       { id: "stairs", label: "Staircases", type: "number", min: 0, max: 5, default: 0 },
       { id: "sofa_seats", label: "Upholstery seats (sofa, chairs)", type: "number", min: 0, max: 20, default: 0 },
       { id: "pet", label: "Pet odor & stain treatment", type: "toggle", default: false },
@@ -189,12 +191,15 @@ export const SERVICES: Service[] = [
     trades: ["carpet"],
     price: (a) => {
       const rooms = n(a, "rooms", 3);
-      const items: LineItem[] = [{ label: `${rooms} rooms`, amount: rooms * 49 }];
+      const csq = n(a, "carpet_sqft", 0);
+      const items: LineItem[] = csq > 0
+        ? [{ label: `${csq.toLocaleString("en-US")} sq ft of carpet`, amount: Math.max(129, Math.round(csq * 0.28)) }]
+        : [{ label: `${rooms} rooms`, amount: rooms * 49 }];
       if (n(a, "stairs")) items.push({ label: `${n(a, "stairs")} staircases`, amount: n(a, "stairs") * 45 });
       if (n(a, "sofa_seats")) items.push({ label: `${n(a, "sofa_seats")} upholstery seats`, amount: n(a, "sofa_seats") * 30 });
-      if (b(a, "pet")) items.push({ label: "Pet treatment", amount: rooms * 20 });
+      if (b(a, "pet")) items.push({ label: "Pet treatment", amount: csq > 0 ? Math.round(csq * 0.1) : rooms * 20 });
       const base = sum(items);
-      return { items, base, hours: Math.max(1.5, rooms * 0.5 + n(a, "stairs") * 0.5) };
+      return { items, base, hours: Math.max(1.5, (csq > 0 ? csq / 400 : rooms * 0.5) + n(a, "stairs") * 0.5) };
     },
   },
   {
