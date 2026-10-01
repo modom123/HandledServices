@@ -12,7 +12,7 @@ import { WorkOrderView } from "@/components/WorkOrderView";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
-import { CompleteJob, LockoutReport, MaterialsForm, StartJob } from "@/components/ProActions";
+import { CompleteJob, LockoutReport, MaterialsForm, ScopeChange, StartJob } from "@/components/ProActions";
 import { JobThread } from "@/components/JobThread";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
@@ -60,6 +60,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.status === "assigned" && <StartJob jobId={job.id} />}
         {(job.status === "assigned" || job.status === "in_progress") && <CompleteJob jobId={job.id} />}
         {job.status === "qa_review" && <div className="card text-sm">Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.</div>}
+        {(job.status === "assigned" || job.status === "in_progress") && !job.remedy && <ScopeChange jobId={job.id} slug={job.service_slug} booked={job.answers as Record<string, string | number | boolean>} frequency={job.frequency} />}
         {(job.status === "assigned" || job.status === "in_progress") && <LockoutReport jobId={job.id} />}
         {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) && <MaterialsForm jobId={job.id} allowed={!noMaterials} reason={noMaterials} />}
         {(expenses ?? []).length > 0 && (

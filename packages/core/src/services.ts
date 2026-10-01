@@ -60,14 +60,14 @@ export interface Service {
   price: (a: Answers) => PriceResult;
 }
 
-export const CATEGORIES: { id: CategoryId; name: string; blurb: string }[] = [
-  { id: "cleaning", name: "Cleaning & Organizing", blurb: "Homes, offices, windows, carpets, gutters, power washing — plus decluttering." },
-  { id: "outdoor", name: "Lawn, Leaves & Snow", blurb: "Mowing, leaf cleanup, snow removal and trees." },
-  { id: "pets", name: "Pet Care", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away", blurb: "Junk, furniture and big items gone today." },
-  { id: "repair_remodel", name: "Repairs, Installs & Remodels", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
-  { id: "errands", name: "Errands & Assistant", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
-  { id: "events", name: "Parties & Events", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
+export const CATEGORIES: { id: CategoryId; name: string; icon: string; blurb: string }[] = [
+  { id: "cleaning", name: "Cleaning & Organizing", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing — plus decluttering." },
+  { id: "outdoor", name: "Lawn, Leaves & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
+  { id: "pets", name: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
+  { id: "removal", name: "Haul Away", icon: "🚛", blurb: "Junk, furniture and big items gone today." },
+  { id: "repair_remodel", name: "Repairs, Installs & Remodels", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
+  { id: "errands", name: "Errands & Assistant", icon: "🛍️", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
+  { id: "events", name: "Parties & Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);

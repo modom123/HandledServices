@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { BRAND, RUSH_SURCHARGE, depositPolicy, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
@@ -32,8 +32,21 @@ export default function Book() {
   const useDeposit = plan === "deposit" && dp.allowed && !svc.siteVisit;
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
 
-  async function addPhotos() {
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, quality: 0.6, selectionLimit: 8 });
+  const rule = photoRule(svc.slug);
+  const photosMissing = photoProblem(svc.slug, photos.length);
+
+  function addPhotos() {
+    Alert.alert("Add photos", rule.tips.length ? `Helpful shots: ${rule.tips.join(", ")}` : undefined, [
+      { text: "Take a photo", onPress: () => pickPhotos(true) },
+      { text: "Choose from library", onPress: () => pickPhotos(false) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+  async function pickPhotos(camera: boolean) {
+    const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : { granted: true };
+    const r = camera && perm.granted
+      ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, quality: 0.6, selectionLimit: 8 - photos.length });
     if (r.canceled) return;
     const fd = new FormData();
     r.assets.forEach((a, i) => fd.append("photos", { uri: a.uri, name: `photo-${i}.jpg`, type: a.mimeType ?? "image/jpeg" } as never));
@@ -42,11 +55,34 @@ export default function Book() {
     setPhotos([...photos, ...up.data.paths]);
   }
 
-  async function book() {
+  /** Before paying: required photos, then the AI price check (books at exactly the price shown). */
+  async function checkAndBook() {
+    if (photosMissing) return Alert.alert("Photos needed", photosMissing);
+    if (svc.siteVisit || (!notes.trim() && !photos.length)) return book(null);
+    setBusy(true);
+    const q = await api<{ ai: { final_price: number; action?: string; action_reason?: string; customer_summary?: string; changes?: { label: string; from: string; to: string }[] } | null; quote_token: string | null }>("/api/quote", {
+      method: "POST",
+      body: JSON.stringify({ service_slug: svc.slug, answers, frequency, scheduled_date: date, notes, photos, ai: true }),
+    });
+    setBusy(false);
+    const ai = q.data.ai;
+    const token = q.data.quote_token ?? null;
+    if (!ai || (ai.action !== "site_visit" && ai.final_price === est.point && !ai.changes?.length)) return book(token);
+    const changes = (ai.changes ?? []).map((c) => `• ${c.label}: ${c.from} → ${c.to}`).join("\n");
+    if (ai.action === "site_visit") {
+      return Alert.alert("Free site visit", `${ai.action_reason ?? ""} Nothing is charged until you approve the firm quote.`, [{ text: "Cancel", style: "cancel" }, { text: "Book free visit", onPress: () => book(token) }]);
+    }
+    Alert.alert(`Checked from your photos: ${money(ai.final_price)}`, `${ai.customer_summary ?? ""}${changes ? `\n\n${changes}` : ""}`, [
+      { text: "Edit details", style: "cancel" },
+      { text: `Continue at ${money(ai.final_price)}`, onPress: () => book(token) },
+    ]);
+  }
+
+  async function book(quoteToken: string | null) {
     setBusy(true);
     const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full" }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert("Couldn't book", r.data.error ?? "Please check the form");
@@ -87,7 +123,10 @@ export default function Book() {
       )}
       <Text style={s.h2}>Details</Text>
       <Field label="Notes for the pro" value={notes} onChangeText={setNotes} multiline placeholder="Gate code, pets, what needs hauling…" />
-      <Button title={`📷 Add photos (${photos.length})`} kind="ghost" onPress={addPhotos} />
+      <Text style={s.label}>{rule.need === "required" ? `Photos — required (at least ${rule.min})` : rule.need === "recommended" ? "Photos — recommended" : "Photos (optional)"}</Text>
+      {rule.tips.length ? <Text style={s.p}>{rule.tips.map((t) => `📷 ${t}`).join("   ")}</Text> : null}
+      <Button title={`📷 Add photos (${photos.length})`} kind="ghost" onPress={addPhotos} style={{ marginTop: 6 }} />
+      {photos.length > 0 || rule.need !== "none" ? <Text style={[s.p, { marginTop: 4 }]}>Our AI checks your photos so the price fits the job — no surprises on the day.</Text> : null}
       <Text style={s.h2}>When & where</Text>
       <Field label="Service ZIP code" value={f.zip} onChangeText={set("zip")} keyboardType="number-pad" maxLength={5} />
       {svc.leadDays ? (
@@ -119,7 +158,7 @@ export default function Book() {
         <Chip label={agreed ? "✓ I agree" : "I agree"} on={agreed} onPress={() => setAgreed(!agreed)} />
         <Text style={[s.p, { flex: 1 }]} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>to the <Text style={{ color: C.brand, fontWeight: "700" }}>Service Agreement</Text>: pay upfront, free redo or refund if it's not right.</Text>
       </View>
-      <Button disabled={!agreed} title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
+      <Button disabled={!agreed || Boolean(photosMissing)} title={photosMissing ? `Add ${rule.min - photos.length} more photo(s) to book` : busy ? "Checking your price…" : svc.siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={checkAndBook} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }

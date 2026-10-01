@@ -67,6 +67,11 @@ export interface Job {
   city: string;
   state: string;
   zip: string;
+  /** ZIP-centroid coordinates for dispatch distance. */
+  lat?: number | null;
+  lng?: number | null;
+  /** Extra work the pro found on site (change orders). */
+  scope_extra?: number;
   answers: Record<string, unknown>;
   notes: string | null;
   photos: string[];
@@ -146,4 +151,14 @@ export interface Contractor {
   specialties?: string[] | null;
   /** Coverage key → verified expiry date (YYYY-MM-DD), or "exempt" (workers' comp, no employees). */
   coverage?: Record<string, string> | null;
+  // where and when the pro works (dispatch + booking calendar)
+  base_zip?: string | null;
+  base_lat?: number | null;
+  base_lng?: number | null;
+  /** Furthest a pro will drive from base, miles. */
+  service_radius_mi?: number | null;
+  /** Weekdays (0 = Sun … 6 = Sat) and arrival windows the pro works. Null = any. */
+  availability?: { days: number[]; windows: string[] } | null;
+  /** Dates (YYYY-MM-DD) the pro is off. */
+  time_off?: string[] | null;
 }

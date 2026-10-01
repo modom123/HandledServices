@@ -3,16 +3,19 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_2124 UTC — lockout: the pro reports they can't get access.
+ * UPDATED : 2026-10-01_2334 UTC — scope_change: more work on site → priced change order.
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
  */
 import { after } from "next/server";
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
 import { addEvent, completeJob, getJob, raiseAlert, runQa, startJob } from "@/lib/jobs";
+import { requestScopeChange } from "@/lib/scope";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
   z.object({ action: z.literal("lockout"), note: z.string().min(3).max(1000) }),
+  z.object({ action: z.literal("scope_change"), answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])), note: z.string().max(1000).default("") }),
   z.object({ action: z.literal("complete"), photos: z.array(z.string()).min(1).max(12), note: z.string().max(2000).nullable().optional() }),
 ]);
 
@@ -21,7 +24,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!v?.contractorId) return deny(403, "Pro account required");
   const { id } = await ctx.params;
   const body = Body.safeParse(await req.json().catch(() => null));
-  if (!body.success) return deny(400, "Completion needs at least one photo");
+  if (!body.success) return deny(400, "Check the request (completion needs at least one photo)");
+  if (body.data.action === "scope_change") {
+    const r = await requestScopeChange(id, v.contractorId, body.data.answers, body.data.note);
+    return Response.json(r, { status: r.ok ? 200 : 409 });
+  }
   if (body.data.action === "lockout") {
     const job = await getJob(id);
     if (!job || job.contractor_id !== v.contractorId || !["assigned", "in_progress"].includes(job.status)) return deny(409, "Not an active job of yours");

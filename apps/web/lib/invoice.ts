@@ -19,3 +19,24 @@ export function validInvoiceToken(jobId: string, token: string | null | undefine
 }
 
 export const invoiceUrl = (jobId: string) => `${siteUrl()}/invoice/${jobId}?t=${invoiceToken(jobId)}`;
+
+/**
+ * A signed price quote: the exact price the customer saw after the AI price check, for these
+ * exact details. Booking with a valid token charges that price — no second AI call, no surprise.
+ */
+export type QuotePayload = { slug: string; answers: unknown; frequency: string; photos: string[]; notes: string | null; rush: boolean; ai: unknown; exp: number };
+
+export function quoteToken(q: QuotePayload) {
+  const body = Buffer.from(JSON.stringify(q)).toString("base64url");
+  return `${body}.${createHmac("sha256", secret()).update(`quote:${body}`).digest("base64url").slice(0, 32)}`;
+}
+
+export function readQuoteToken(token: string | null | undefined) {
+  if (!token) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const want = createHmac("sha256", secret()).update(`quote:${body}`).digest("base64url").slice(0, 32);
+  if (want.length !== sig.length || !timingSafeEqual(Buffer.from(want), Buffer.from(sig))) return null;
+  const q = JSON.parse(Buffer.from(body, "base64url").toString()) as QuotePayload;
+  return q.exp > Date.now() ? q : null;
+}

@@ -63,6 +63,22 @@ export default async function Onboarding() {
         <div className="grid gap-3 sm:grid-cols-3"><Field label="License #" name="license_number" defaultValue={pro.license_number ?? ""} required /><Field label="Expires" name="expires_on" type="date" required /><Field label="License copy" name="file" type="file" accept="application/pdf,image/*" required /></div>
       </StepForm>
     );
+    if (key === "area") {
+      const days = pro.availability?.days ?? [1, 2, 3, 4, 5, 6];
+      const wins = pro.availability?.windows ?? ["morning", "midday", "afternoon"];
+      return (
+        <StepForm step="area" cta="Save work area & hours">
+          <p className="text-sm text-ink-soft">We only offer you jobs within your driving distance, on the days and times you work. Add days off so you never get offers you can’t take.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Start from ZIP (home or shop)" name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
+            <Field label="How far you’ll drive (miles)" name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
+          </div>
+          <div><span className="label">Days you work</span><div className="flex flex-wrap gap-3 text-sm">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <label key={d} className="flex items-center gap-1"><input type="checkbox" name="days" value={i} defaultChecked={days.includes(i)} /> {d}</label>)}</div></div>
+          <div><span className="label">Times you work</span><div className="flex flex-wrap gap-3 text-sm">{[["morning", "Morning 8–11"], ["midday", "Midday 11–2"], ["afternoon", "Afternoon 2–5"]].map(([w, l]) => <label key={w} className="flex items-center gap-1"><input type="checkbox" name="windows" value={w} defaultChecked={wins.includes(w)} /> {l}</label>)}</div></div>
+          <Field label="Days off (YYYY-MM-DD, separated by commas)" name="time_off" defaultValue={(pro.time_off ?? []).join(", ")} />
+        </StepForm>
+      );
+    }
     if (key === "specialties") return (
       <StepForm step="specialties" cta="Save specialties">
         <p className="text-sm text-ink-soft">Pick what you do best. Jobs that match your specialties come to you first.</p>
@@ -132,7 +148,7 @@ export default async function Onboarding() {
         <div key={s.key} className={`card ${s.done ? "border-brand/40" : ""}`}>
           <div className="flex items-center justify-between gap-2"><div className="font-semibold">{s.done ? "✅" : "⬜"} {s.label}</div>{s.expiring && <Badge tone="amber">expires soon</Badge>}</div>
           <div className="text-sm text-ink-soft">{s.detail}</div>
-          {(!s.done || s.expiring) && body(s.key)}
+          {(!s.done || s.expiring || s.key === "area") && body(s.key)}
         </div>
       ))}
     </div>

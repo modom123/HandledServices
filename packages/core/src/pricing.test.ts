@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SERVICES, defaultAnswers } from "./services.ts";
-import { estimate, clampAiPrice, AI_MAX_ADJUST } from "./pricing.ts";
+import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT } from "./pricing.ts";
 import { rankContractors } from "./dispatch.ts";
 import type { Contractor } from "./types.ts";
 
@@ -37,8 +37,8 @@ test("unsupported frequency falls back to once", () => {
 
 test("AI price is clamped to guardrails", () => {
   const e = estimate({ slug: "junk-removal", answers: { volume: "half" } });
-  assert.equal(clampAiPrice(e, e.point * 10), Math.round(e.point * (1 + AI_MAX_ADJUST)));
-  assert.equal(clampAiPrice(e, 1), Math.round(e.point * (1 - AI_MAX_ADJUST)));
+  assert.equal(clampAiPrice(e, e.point * 10), Math.round(e.point * (1 + AI_MAX_RAISE)));
+  assert.equal(clampAiPrice(e, 1), Math.round(Math.max(e.point * (1 - AI_MAX_CUT), 0)), "AI can cut at most 10%");
 });
 
 test("dispatch filters ineligible pros and ranks the rest", () => {
@@ -123,7 +123,8 @@ test("onboarding blocks activation until every step is done", async () => {
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" } };
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201" };
+  assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
   assert.equal(onboardingChecklist(ok).complete, true);
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
@@ -291,4 +292,54 @@ test("pro policy: who qualifies, and every benefit keeps the job at or above $0"
   assert.equal(guaranteeTopUp(g, { earned: 500, offered: 10, accepted: 10, daysAvailable: 5, month: 1 }), 300);
   assert.equal(guaranteeTopUp(g, { earned: 500, offered: 10, accepted: 5, daysAvailable: 5, month: 1 }), 0, "turned down offers");
   assert.equal(guaranteeTopUp(g, { earned: 500, offered: 10, accepted: 10, daysAvailable: 5, month: 9 }), 0, "off season");
+});
+
+test("intake: required photos, AI corrections and price decisions never underbid", async () => {
+  const { photoRule, photoProblem, applyCorrections, aiPriceDecision, scopeChange } = await import("./intake.ts");
+  const { getService } = await import("./services.ts");
+  for (const slug of ["junk-removal", "water-heater", "power-washing", "kitchen-remodel", "dog-walking", "house-cleaning"]) assert.ok(getService(slug), slug);
+  assert.equal(photoRule("junk-removal").need, "required");
+  assert.equal(photoRule("dog-walking").need, "none");
+  assert.match(photoProblem("junk-removal", 1) ?? "", /at least 2 photos/);
+  assert.equal(photoProblem("junk-removal", 2), null);
+  assert.equal(photoProblem("house-cleaning", 0), null, "recommended only");
+  // corrections stay within the question's limits and re-price
+  const { answers, changes } = applyCorrections("power-washing", { surface: "driveway", sqft: 800 }, [{ question_id: "sqft", value: 99999, reason: "photo shows a long driveway" }, { question_id: "nope", value: 1, reason: "x" }]);
+  assert.equal(answers.sqft, 6000);
+  assert.equal(changes.length, 1);
+  const base = estimate({ slug: "power-washing", answers: { surface: "driveway", sqft: 800 } });
+  assert.equal(aiPriceDecision(base, base.point * 0.5, { confidence: "high" }).final, Math.round(base.point * 0.9), "max 10% cut");
+  assert.equal(aiPriceDecision(base, base.point * 0.8, { confidence: "low" }).final, base.point, "low confidence never lowers");
+  assert.equal(aiPriceDecision(base, base.point * 1.3, { confidence: "high" }).final, Math.round(base.point * 1.3));
+  assert.equal(aiPriceDecision(base, base.point * 2, { confidence: "high" }).action, "site_visit", "too big → free site visit, not a capped price");
+  assert.equal(aiPriceDecision(base, base.point, { needsSiteVisit: true }).action, "site_visit");
+  const sc = scopeChange("junk-removal", { volume: "quarter" }, { volume: "full" });
+  assert.ok(sc.extra > 0 && sc.after > sc.before);
+  assert.equal(scopeChange("junk-removal", { volume: "full" }, { volume: "quarter" }).extra, 0, "never a negative change order");
+});
+
+test("dispatch: availability, driving radius and quality decide who gets the offer", async () => {
+  const { offDuty, milesBetween } = await import("./dispatch.ts");
+  const base: Contractor = {
+    id: "a", profile_id: null, business_name: "A", contact_name: "A", email: "a@x", phone: "1", trades: ["cleaning"], service_zips: [], status: "approved",
+    rating: 4.8, jobs_completed: 40, acceptance_rate: 0.9, on_time_rate: 0.95, insured_until: "2099-01-01", license_number: null, background_checked: true,
+    daily_capacity: 3, notes: null, coverage: { bond: "2099-01-01" }, base_lat: 42.33, base_lng: -83.05, service_radius_mi: 20,
+    availability: { days: [1, 2, 3, 4, 5], windows: ["morning", "midday"] }, time_off: ["2026-11-04"],
+  };
+  // 2026-11-02 is a Monday, 2026-11-07 a Saturday
+  assert.equal(offDuty(base, "2026-11-02", "morning"), null);
+  assert.match(offDuty(base, "2026-11-07") ?? "", /Saturdays/);
+  assert.match(offDuty(base, "2026-11-02", "afternoon") ?? "", /afternoon/);
+  assert.equal(offDuty(base, "2026-11-04"), "time off");
+  assert.ok(Math.abs(milesBetween({ lat: 42.33, lng: -83.05 }, { lat: 42.48, lng: -83.47 }) - 23.8) < 1.5);
+  const near = { service_slug: "house-cleaning", zip: "48201", scheduled_date: "2026-11-02", time_window: "morning", lat: 42.35, lng: -83.06 };
+  assert.equal(rankContractors([base], near).length, 1);
+  assert.equal(rankContractors([base], { ...near, lat: 42.6, lng: -83.6 }).length, 0, "outside the 20-mile radius");
+  assert.equal(rankContractors([base], { ...near, time_window: "afternoon" }).length, 0, "not working afternoons");
+  const far = { ...base, id: "far", base_lat: 42.45, base_lng: -83.3 };
+  const sloppy = { ...base, id: "sloppy" };
+  const ranked = rankContractors([far, sloppy, base], near, {}, { sloppy: { qaPass: 0.6, redoRate: 0.2 }, a: { qaPass: 0.98, redoRate: 0 }, far: { qaPass: 0.98, redoRate: 0 } });
+  assert.equal(ranked[0].contractor.id, "a", "close + high quality first");
+  assert.equal(ranked[2].contractor.id, "sloppy", "redos and failed QA rank last");
+  assert.ok(ranked[0].reasons.some((r) => /mi away/.test(r)));
 });

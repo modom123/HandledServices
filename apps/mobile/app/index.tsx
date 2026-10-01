@@ -34,7 +34,7 @@ export default function Home() {
       {me?.contractorId && <Button title="🧰 Open Pro mode" onPress={() => router.push("/pro")} style={{ marginTop: 10 }} />}
       {CATEGORIES.map((c) => (
         <View key={c.id}>
-          <Text style={s.h2}>{c.name}</Text>
+          <Text style={s.h2}>{c.icon} {c.name}</Text>
           {SERVICES.filter((x) => x.category === c.id).map((x) => (
             <Link key={x.slug} href={{ pathname: "/book/[slug]", params: { slug: x.slug } }} asChild>
               <Pressable><Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>

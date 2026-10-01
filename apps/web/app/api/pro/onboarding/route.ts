@@ -9,6 +9,7 @@
  *             license    license_number, expires_on, file (staff verifies → license_expires)
  *             agreement  signer_name, agree=true   (signs the current version)
  *             payout     payout_method, account_last4
+ *             area       base_zip, service_radius_mi, days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
  *             specialties specialties (repeat the field once per specialty)
  *             coverage   coverage (auto | workers_comp | bond | liquor), expires_on, file —
  *                        or coverage=workers_comp + exempt=true for the no-employees statement
@@ -21,6 +22,7 @@ import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
+import { zipCentroid } from "@/lib/geo";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
@@ -30,6 +32,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
   z.object({ step: z.literal("specialties") }),
+  z.object({ step: z.literal("area"), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(["auto", "workers_comp", "bond", "liquor"]), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
 ]);
@@ -47,6 +50,22 @@ export async function POST(req: Request) {
   const id = v.contractorId;
   const b = parsed.data;
 
+  if (b.step === "area") {
+    const days = form.getAll("days").map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    const windows = form.getAll("windows").map(String).filter((w) => ["morning", "midday", "afternoon"].includes(w));
+    if (!days.length || !windows.length) return deny(400, "Pick at least one day and one time of day");
+    const timeOff = (b.time_off ?? "").split(/[,\s]+/).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 120);
+    const loc = await zipCentroid(b.base_zip);
+    // location lookup down → never leave a pro matching jobs everywhere: fall back to their ZIP area
+    const { data: cur } = await db.from("contractors").select("service_zips").eq("id", id).single();
+    const zips = !loc && !(cur?.service_zips ?? []).length ? [b.base_zip, `${b.base_zip.slice(0, 3)}*`] : undefined;
+    await db.from("contractors").update({
+      ...(zips ? { service_zips: zips } : {}),
+      base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi,
+      availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
+    }).eq("id", id);
+    return Response.json({ ok: true, located: Boolean(loc) });
+  }
   if (b.step === "specialties") {
     const { data: pro } = await db.from("contractors").select("trades").eq("id", id).single();
     const allowed = new Set(specialtiesFor((pro?.trades ?? []) as string[]).map((x) => x.id));

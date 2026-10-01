@@ -58,8 +58,14 @@ export function splitJob(price: number, slug: string): JobSplit {
   return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100 };
 }
 
-/** Guardrail on AI adjustments relative to the deterministic baseline. */
+/**
+ * Guardrails on the AI price check, relative to the rules-engine baseline. Asymmetric on
+ * purpose, so a job is never underbid: the AI may raise a price up to 40% (anything bigger
+ * becomes a free site visit instead of a capped, too-low price) but may cut it by at most 10%.
+ */
 export const AI_MAX_ADJUST = 0.4;
+export const AI_MAX_RAISE = 0.4;
+export const AI_MAX_CUT = 0.1;
 
 export interface EstimateInput {
   slug: string;
@@ -132,8 +138,8 @@ export function estimate(input: EstimateInput): Estimate {
 /** Clamp an AI-proposed price to the guardrails around the baseline. */
 export function clampAiPrice(baseline: Estimate, proposed: number): number {
   const svc = getService(baseline.slug)!;
-  const lo = Math.max(svc.minimum * (1 - baseline.discount), baseline.point * (1 - AI_MAX_ADJUST));
-  const hi = baseline.point * (1 + AI_MAX_ADJUST);
+  const lo = Math.max(svc.minimum * (1 - baseline.discount), baseline.point * (1 - AI_MAX_CUT));
+  const hi = baseline.point * (1 + AI_MAX_RAISE);
   return Math.round(Math.min(hi, Math.max(lo, proposed)));
 }
 

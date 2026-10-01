@@ -4,11 +4,13 @@
  * CREATED : 2026-10-01_2115 UTC
  * PURPOSE : Booking calendar: open / limited / full for each day and arrival window over
  *           the booking horizon, from real pro capacity in the customer's ZIP.
+ *           Counts only pros who work that day and window and drive as far as this ZIP.
  *           GET /api/availability?service=house-cleaning&zip=48201
  */
 import { BRAND, buildAvailability, getService, type BookedJob, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
+import { zipCentroid } from "@/lib/geo";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -19,6 +21,7 @@ export async function GET(req: Request) {
 
   let contractors: Contractor[] = [];
   let jobs: BookedJob[] = [];
+  let loc: { lat: number; lng: number } | null = null;
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const db = adminClient();
     const from = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -32,8 +35,9 @@ export async function GET(req: Request) {
         .not("paid_at", "is", null).in("status", ["scheduled", "dispatched"]).in("service_slug", sameTrade).like("zip", `${zip.slice(0, 3)}%`),
     ]);
     contractors = (pros ?? []) as Contractor[];
+    loc = await zipCentroid(zip);
     jobs = [...((booked ?? []) as BookedJob[]), ...((waiting ?? []) as BookedJob[])];
   }
-  const result = buildAvailability({ slug: svc.slug, zip, contractors, jobs });
+  const result = buildAvailability({ slug: svc.slug, zip, contractors, jobs, lat: loc?.lat, lng: loc?.lng });
   return Response.json(result, { headers: { "Cache-Control": "private, max-age=60" } });
 }

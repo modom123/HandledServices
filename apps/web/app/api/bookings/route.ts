@@ -10,7 +10,7 @@ import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";
 import { getViewer } from "@/lib/auth";
 import { paymentCheckoutUrl } from "@/lib/stripe";
-import { getService } from "@handled/core";
+import { getService, photoProblem } from "@handled/core";
 import { GET as availability } from "../availability/route";
 
 export const maxDuration = 60; // AI price check runs before payment when notes/photos are present
@@ -19,6 +19,8 @@ export async function POST(req: Request) {
   const parsed = BookingSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Please check the form", issues: parsed.error.issues }, { status: 400 });
   const svcDef = getService(parsed.data.service_slug)!;
+  const needPhotos = photoProblem(svcDef.slug, parsed.data.photos.length);
+  if (needPhotos) return Response.json({ error: needPhotos }, { status: 400 });
   if (svcDef.leadDays && parsed.data.scheduled_date) {
     const days = (new Date(`${parsed.data.scheduled_date}T12:00:00`).getTime() - Date.now()) / 86400000;
     if (days < svcDef.leadDays - 1) return Response.json({ error: `${svcDef.name} needs at least ${svcDef.leadDays} days' notice — call us for anything sooner.` }, { status: 400 });

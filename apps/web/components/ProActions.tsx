@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getService, scopeChange } from "@handled/core";
 
 export function StartJob({ jobId }: { jobId: string }) {
   const router = useRouter();
@@ -129,6 +130,45 @@ export function InstantPay({ balance, fee, allowed, reason, ready }: { balance: 
         : !ready ? <><p className="text-sm text-ink-soft">Connect a bank or debit card through Stripe once, then cash out any time.</p><button className="btn-primary w-full" disabled={busy} onClick={() => go(true)}>Set up instant pay</button></>
         : <><p className="text-sm text-ink-soft">Cash out now for a ${fee.toFixed(2)} fee, or wait for the free weekly payout.</p><button className="btn-primary w-full" disabled={busy || balance <= fee} onClick={() => go()}>{busy ? "Sending…" : `Cash out $${Math.max(0, balance - fee).toFixed(2)} now`}</button></>}
       {msg && <p className="text-sm text-ink-soft">{msg}</p>}
+    </div>
+  );
+}
+
+/** On site and the job is bigger than booked? Update the scope; the customer approves the difference. */
+export function ScopeChange({ jobId, slug, booked, frequency }: { jobId: string; slug: string; booked: Record<string, string | number | boolean>; frequency: string }) {
+  const router = useRouter();
+  const svc = getService(slug);
+  const [open, setOpen] = useState(false);
+  const [vals, setVals] = useState<Record<string, string | number | boolean>>(booked);
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!svc || !svc.questions.length) return null;
+  const sc = scopeChange(slug, booked, vals, frequency as never);
+  if (!open) return <button className="btn-ghost w-full text-sm" onClick={() => setOpen(true)}>More work than booked?</button>;
+  return (
+    <div className="card space-y-2 text-sm">
+      <div className="font-semibold">Update the scope to what’s really here</div>
+      <p className="text-xs text-ink-soft">The difference is priced at our standard rates and sent to the customer to approve and pay. Only do the extra work once the app shows it’s paid.</p>
+      {svc.questions.map((q) => (
+        <label key={q.id} className="block">
+          <span className="label">{q.label}</span>
+          {q.type === "number" ? <input className="input" type="number" min={q.min} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />
+            : q.type === "select" ? <select className="input" value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+            : <input type="checkbox" checked={Boolean(vals[q.id])} onChange={(e) => setVals({ ...vals, [q.id]: e.target.checked })} />}
+        </label>
+      ))}
+      <textarea className="input min-h-16" placeholder="What you found (the customer sees this)" value={note} onChange={(e) => setNote(e.target.value)} />
+      <div className="font-semibold">{sc.extra > 0 ? `Extra for the customer: $${sc.extra}` : "No extra charge for this change"}</div>
+      <button className="btn-primary w-full" disabled={busy || sc.extra <= 0} onClick={async () => {
+        setBusy(true);
+        const r = await fetch(`/api/pro/jobs/${jobId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "scope_change", answers: vals, note }) });
+        const j = await r.json().catch(() => ({}));
+        setBusy(false);
+        setMsg(r.ok ? `Sent — the customer is asked to approve $${j.extra}. You'll be notified when it's paid.` : j.error ?? "Failed");
+        router.refresh();
+      }}>Send change order to customer</button>
+      {msg && <p className="text-ink-soft">{msg}</p>}
     </div>
   );
 }

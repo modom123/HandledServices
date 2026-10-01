@@ -17,3 +17,4 @@ export * from "./workorder.ts";
 export * from "./pro-program.ts";
 export * from "./vetting.ts";
 export * from "./pro-policy.ts";
+export * from "./intake.ts";

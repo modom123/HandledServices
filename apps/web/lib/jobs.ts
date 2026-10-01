@@ -12,18 +12,19 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, splitJob, tierPayout,
+  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
-import { aiQuote } from "./ai/quote";
+import { aiQuote, type AiQuote } from "./ai/quote";
+import { zipCentroid } from "./geo";
 import { aiRankCandidates } from "./ai/dispatch";
 import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { notify } from "./push";
 import { amountDue, chargeSavedCard, paymentCheckoutUrl } from "./stripe";
-import { invoiceUrl } from "./invoice";
+import { invoiceUrl, readQuoteToken } from "./invoice";
 import { syncCatalog } from "./catalog";
 
 export const BookingSchema = z.object({
@@ -46,6 +47,8 @@ export const BookingSchema = z.object({
   source: z.enum(["web", "mobile", "business", "phone", "ai_chat"]).default("web"),
   accept_terms: z.literal(true, { message: "Please accept the Service Agreement" }),
   payment_plan: z.enum(["full", "deposit"]).default("full"),
+  /** From /api/quote: books at exactly the price the customer saw. */
+  quote_token: z.string().max(20000).nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -64,15 +67,23 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush });
+  // the price the customer saw (signed quote) if nothing changed since; otherwise check now
+  const q = readQuoteToken(quote_token);
+  const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
+    && JSON.stringify(q.photos) === JSON.stringify(input.photos) && (q.notes ?? null) === (input.notes?.trim() || null) && q.rush === rush;
   const { ai } = svc.siteVisit
     ? { ai: null }
-    : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush });
-  const siteVisit = svc.siteVisit || Boolean(ai?.needs_site_visit);
+    : same
+      ? { ai: q.ai as AiQuote | null }
+      : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush });
+  const siteVisit = svc.siteVisit || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
+  if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
+  const loc = await zipCentroid(input.zip);
   const price = siteVisit ? null : ai?.final_price ?? est.point;
   const dep = price ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
   const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
@@ -81,6 +92,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, ...inpu
     .insert({
       ...input,
       customer_id: customerId,
+      lat: loc?.lat ?? null,
+      lng: loc?.lng ?? null,
       status: (siteVisit ? "site_visit" : "requested") satisfies JobStatus,
       estimate_low: ai?.low ?? est.low,
       estimate_high: ai?.high ?? est.high,
@@ -162,6 +175,11 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
     email: { to: paid.contact_email, subject: `${label} — ${svc?.name} (${paid.ref})`,
       text: `Thanks! We received ${money(p.amount)}.${!full ? ` Your date is locked in. The balance of ${money(balance)} will be charged to the card you used on ${paid.balance_due_date ?? "the day before your job"}.` : ""} ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
   });
+  if (p.kind === "change_order" && paid.contractor_id) {
+    const { data: pro } = await db().from("contractors").select("profile_id, email").eq("id", paid.contractor_id).single();
+    if (pro) await notify(pro.profile_id, { title: `Extra work approved · ${paid.ref}`, body: `The customer paid ${money(p.amount)}. Go ahead — your payout is now ${money(paid.contractor_payout)}.`, data: { type: "job_pro", jobId },
+      email: { to: pro.email, subject: `Extra work approved — ${paid.ref}`, text: `The customer approved and paid ${money(p.amount)} for the extra work. Go ahead.\n\nYour payout for this job is now ${money(paid.contractor_payout)}.` } });
+  }
   if (firstPayment && !paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
   return paid;
 }
@@ -209,9 +227,19 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const load: Record<string, number> = {};
   for (const r of sameDay as { contractor_id: string }[]) load[r.contractor_id] = (load[r.contractor_id] ?? 0) + 1;
 
-  const ranked = rankContractors((pros ?? []) as Contractor[], job, load).filter((c) => !opts.exclude?.includes(c.contractor.id));
+  // where: job location for distance to each pro's base (ZIP centroid, cached)
+  if (job.lat == null) {
+    const loc = await zipCentroid(job.zip);
+    if (loc) { job.lat = loc.lat; job.lng = loc.lng; await db().from("jobs").update(loc).eq("id", job.id); }
+  }
+  // quality: first-time QA pass rate and redo rate from each pro's scorecard
+  const { data: cards } = await db().from("contractor_scorecard").select("contractor_id, jobs_completed, redos, qa_passed, qa_checked");
+  const stats: Record<string, QualityStats> = {};
+  for (const r of (cards ?? []) as { contractor_id: string; jobs_completed: number; redos: number; qa_passed: number; qa_checked: number }[])
+    stats[r.contractor_id] = { qaPass: Number(r.qa_checked) >= 3 ? Number(r.qa_passed) / Number(r.qa_checked) : null, redoRate: Number(r.jobs_completed) >= 3 ? Number(r.redos) / Number(r.jobs_completed) : null };
+  const ranked = rankContractors((pros ?? []) as Contractor[], job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
   if (!ranked.length) {
-    await raiseAlert("no_pros", "critical", `${job.ref}: no eligible pro`, `No approved, insured pro serves ${job.zip} for ${job.service_slug}. Recruit or assign manually.`, job.id);
+    await raiseAlert("no_pros", "critical", `${job.ref}: no eligible pro`, `No approved, insured pro who works ${job.scheduled_date ?? "that day"} (${job.time_window}) within driving distance of ${job.zip} for ${job.service_slug}. Assign manually, ask a pro to take it, or recruit.`, job.id);
     return { offers: 0, reason: "no eligible pros" };
   }
 

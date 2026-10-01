@@ -9,9 +9,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { getService, money, type Job } from "@handled/core";
+import { getService, money, scopeChange, type Job } from "@handled/core";
 import { api, supabase } from "../../lib/supabase";
-import { Button, C, Card, Status, s } from "../../components/ui";
+import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 
 type Materials = { allowed: boolean; reason: string | null; autoApproveUpTo: number; shopping: boolean; expenses: { id: string; amount: number; description: string; status: string; notes: string | null }[] };
 const EXP_STATUS: Record<string, string> = { pending: "waiting for approval", approved: "approved", billed: "approved — waiting on the customer", paid: "reimbursed", rejected: "not approved" };
@@ -27,6 +27,8 @@ export default function ProJob() {
   const [what, setWhat] = useState("");
   const [receipt, setReceipt] = useState<{ uri: string; type: string } | null>(null);
   const [lockout, setLockout] = useState<string | null>(null);
+  const [scope, setScope] = useState<Record<string, string | number | boolean> | null>(null);
+  const [scopeNote, setScopeNote] = useState("");
   const load = useCallback(async () => {
     const { data } = await supabase.from("jobs").select("*").eq("id", id).single();
     setJob(data as Job);
@@ -67,6 +69,15 @@ export default function ProJob() {
     if (!r.ok) return Alert.alert("Not accepted", r.data.error ?? "");
     Alert.alert("Receipt sent", r.data.status === "pending" ? "Sent for approval." : "Approved — you're reimbursed once the customer pays.");
     setAmount(""); setWhat(""); setReceipt(null);
+    load();
+  }
+  async function sendScope() {
+    setBusy(true);
+    const r = await api<{ ok: boolean; extra?: number; error?: string }>(`/api/pro/jobs/${job!.id}`, { method: "POST", body: JSON.stringify({ action: "scope_change", answers: scope, note: scopeNote }) });
+    setBusy(false);
+    if (!r.ok) return Alert.alert("Not sent", r.data.error ?? "");
+    setScope(null); setScopeNote("");
+    Alert.alert("Change order sent", `The customer is asked to approve ${money(r.data.extra ?? 0)}. Do only the booked work until the app says it's paid.`);
     load();
   }
   async function reportLockout() {
@@ -110,6 +121,32 @@ export default function ProJob() {
         </Card>
       )}
       {job.status === "qa_review" && <Text style={[s.p, { marginTop: 12 }]}>Submitted — AI quality check in progress.</Text>}
+
+      {(job.status === "assigned" || job.status === "in_progress") && !job.remedy && (
+        scope === null
+          ? <Button title="More work than booked?" kind="ghost" onPress={() => setScope({ ...(job.answers as Record<string, string | number | boolean>) })} style={{ marginTop: 12 }} />
+          : (() => {
+            const sc = scopeChange(job.service_slug, job.answers as Record<string, string | number | boolean>, scope, job.frequency);
+            return (
+              <Card style={{ marginTop: 12 }}>
+                <Text style={s.b}>Update the scope to what's really here</Text>
+                <Text style={s.p}>The difference is priced at our standard rates and sent to the customer to approve and pay.</Text>
+                {svc.questions.map((q) => (
+                  <View key={q.id} style={{ marginTop: 10 }}>
+                    <Text style={s.label}>{q.label}</Text>
+                    {q.type === "number" ? <TextInput style={s.input} keyboardType="number-pad" value={String(scope[q.id] ?? q.default)} onChangeText={(t) => setScope({ ...scope, [q.id]: Math.min(q.max, Math.max(q.min, Number(t) || q.min)) })} />
+                      : q.type === "select" ? <View style={s.row}>{q.options.map((o) => <Chip key={o.value} label={o.label} on={scope[q.id] === o.value} onPress={() => setScope({ ...scope, [q.id]: o.value })} />)}</View>
+                      : <View style={s.row}><Chip label={scope[q.id] ? "Yes" : "No"} on={Boolean(scope[q.id])} onPress={() => setScope({ ...scope, [q.id]: !scope[q.id] })} /></View>}
+                  </View>
+                ))}
+                <TextInput style={[s.input, { marginTop: 10 }]} placeholder="What you found (the customer sees this)" value={scopeNote} onChangeText={setScopeNote} multiline />
+                <Text style={[s.b, { marginTop: 10 }]}>{sc.extra > 0 ? `Extra for the customer: ${money(sc.extra)}` : "No extra charge for this change"}</Text>
+                <Button title="Send change order" disabled={sc.extra <= 0} busy={busy} onPress={sendScope} style={{ marginTop: 8 }} />
+                <Button title="Never mind" kind="ghost" onPress={() => setScope(null)} style={{ marginTop: 6 }} />
+              </Card>
+            );
+          })()
+      )}
 
       {(job.status === "assigned" || job.status === "in_progress") && (
         lockout === null

@@ -8,11 +8,11 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import {
-  BRAND, CATEGORIES, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, photoProblem, photoRule, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
 } from "@handled/core";
 
@@ -26,7 +26,7 @@ const START_TIMES = Array.from({ length: 30 }, (_, i) => {
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
-type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean } | null;
+type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
 export function BookingWizard({ initialService, prefill = {} }: { initialService?: string; prefill?: Answers }) {
   const router = useRouter();
@@ -47,6 +47,9 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
   const [form, setForm] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "", customer_type: "residential", company_name: "" });
   const [ai, setAi] = useState<AiResult>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [quoteToken, setQuoteToken] = useState<string | null>(null);
+  const [aiTried, setAiTried] = useState(false);
+  const resetAi = () => { setAi(null); setQuoteToken(null); setAiTried(false); };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -60,7 +63,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     setSlug(s);
     setAnswers(defaultAnswers(next));
     setFrequency("once");
-    setAi(null);
+    resetAi();
     setStep(1);
   }
 
@@ -74,17 +77,26 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     setUploading(false);
     if (!res.ok) return setError(json.error ?? "Upload failed");
     setPhotos([...photos, ...json.paths]);
-    setAi(null);
+    resetAi();
   }
 
   async function runAi() {
+    setAiTried(true);
     setAiBusy(true);
     const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes, photos, ai: true }) });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     setAiBusy(false);
     setAi(json.ai ?? null);
-    if (!json.ai) setError("AI check unavailable right now — your instant price still stands.");
+    setQuoteToken(json.quote_token ?? null);
   }
+  // the AI price check runs automatically before payment whenever there are photos or notes
+  const needsCheck = Boolean(svc && !svc.siteVisit && (notes.trim() || photos.length));
+  useEffect(() => {
+    if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
+  }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
+  const siteVisit = Boolean(svc?.siteVisit || ai?.action === "site_visit");
+  const rule = svc ? photoRule(svc.slug) : null;
+  const photosMissing = svc ? photoProblem(svc.slug, photos.length) : null;
 
   async function book() {
     setBusy(true);
@@ -92,7 +104,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken }),
     });
     const json = await res.json();
     setBusy(false);
@@ -144,17 +156,17 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
                 <label className="label">{q.label}</label>
                 {q.type === "number" && (
                   <NumberField min={q.min} max={q.max} unit={q.unit} value={Number(answers[q.id] ?? q.default)}
-                    onChange={(v) => { setAnswers((cur) => ({ ...cur, [q.id]: v })); setAi(null); }} />
+                    onChange={(v) => { setAnswers((cur) => ({ ...cur, [q.id]: v })); resetAi(); }} />
                 )}
                 {q.type === "select" && (
                   <div className="flex flex-wrap gap-2">
                     {q.options.map((o) => (
-                      <button key={o.value} onClick={() => { setAnswers({ ...answers, [q.id]: o.value }); setAi(null); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] === o.value ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{o.label}</button>
+                      <button key={o.value} onClick={() => { setAnswers({ ...answers, [q.id]: o.value }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] === o.value ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{o.label}</button>
                     ))}
                   </div>
                 )}
                 {q.type === "toggle" && (
-                  <button onClick={() => { setAnswers({ ...answers, [q.id]: !answers[q.id] }); setAi(null); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{answers[q.id] ? "Yes" : "No"}</button>
+                  <button onClick={() => { setAnswers({ ...answers, [q.id]: !answers[q.id] }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{answers[q.id] ? "Yes" : "No"}</button>
                 )}
                 {q.help && <p className="mt-1 text-xs text-ink-soft">{q.help}</p>}
               </div>
@@ -171,14 +183,20 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
             )}
             <div>
               <label className="label">Anything we should know?</label>
-              <textarea className="input min-h-24" placeholder="Gate code, pets, parking, what's in the garage, the tree is leaning toward the house…" value={notes} onChange={(e) => { setNotes(e.target.value); setAi(null); }} />
+              <textarea className="input min-h-24" placeholder="Gate code, pets, parking, what's in the garage, the tree is leaning toward the house…" value={notes} onChange={(e) => { setNotes(e.target.value); resetAi(); }} />
             </div>
             <div>
-              <label className="label">Photos (optional, up to 8) — the AI uses them to tighten your price</label>
-              <input type="file" accept="image/*" multiple onChange={(e) => upload(e.target.files)} disabled={uploading || photos.length >= 8} className="text-sm" />
-              <p className="mt-1 text-xs text-ink-soft">{uploading ? "Uploading…" : photos.length ? `${photos.length} photo(s) attached` : ""}</p>
+              <label className="label">
+                {rule?.need === "required" ? `Photos — required (at least ${rule.min})` : rule?.need === "recommended" ? "Photos — recommended" : "Photos (optional)"}
+              </label>
+              {rule && rule.tips.length > 0 && (
+                <ul className="mb-2 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">{rule.tips.map((t) => <li key={t}>📷 {t}</li>)}</ul>
+              )}
+              <input type="file" accept="image/*" capture="environment" multiple onChange={(e) => upload(e.target.files)} disabled={uploading || photos.length >= 8} className="text-sm" />
+              <p className="mt-1 text-xs text-ink-soft">{uploading ? "Uploading…" : photos.length ? `${photos.length} photo(s) attached · ` : ""}Our AI checks your photos so the price fits the job — no surprises on the day.</p>
+              {photosMissing && photos.length > 0 && <p className="mt-1 text-xs text-amber-800">{photosMissing}</p>}
             </div>
-            <button className="btn-primary" onClick={() => setStep(2)}>Continue</button>
+            <button className="btn-primary" disabled={Boolean(photosMissing)} onClick={() => setStep(2)}>{photosMissing ? `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue` : "Continue"}</button>
           </div>
         )}
 
@@ -246,7 +264,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>Back</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy} onClick={book}>{busy ? (svc?.siteVisit ? "Booking…" : "Finalizing your price…") : svc?.siteVisit ? "Book free site visit" : `Pay ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).allowed ? depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).amount : ai?.final_price ?? est.point) : ""}${plan === "deposit" ? " deposit" : ""} & book`}</button>
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? "Checking your photos…" : busy ? (siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? "Book free site visit" : `Pay ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).allowed ? depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).amount : ai?.final_price ?? est.point) : ""}${plan === "deposit" ? " deposit" : ""} & book`}</button>
             </div>
           </div>
         )}
@@ -255,8 +273,17 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.slug === "event-package" ? "Your budget — how we’d spend it" : svc.siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
-          <div className="mt-1 text-3xl font-bold">{svc.siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
+          <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
+          {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ Checking your photos and notes so the price fits the job…</p>}
           {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
+          {ai?.changes && ai.changes.length > 0 && (
+            <div className="mt-2 rounded-xl border border-line p-3 text-xs">
+              <div className="font-semibold">Updated from your photos</div>
+              {ai.changes.map((c) => <div key={c.label} className="mt-1 text-ink-soft"><b>{c.label}:</b> {c.from} → {c.to} <span className="italic">({c.reason})</span></div>)}
+              <p className="mt-1 text-ink-soft">Not right? Change your answers above.</p>
+            </div>
+          )}
+          {ai?.action === "site_visit" && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{ai.action_reason} Nothing is charged until you approve the firm quote.</p>}
           {svc.slug === "event-package" && planEventBudget({ budget: Number(answers.budget), guests: Number(answers.guests), eventType: String(answers.event_type), haveVenue: answers.venue === "have" }).warnings.map((w) => (
             <p key={w} className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{w}</p>
           ))}
@@ -265,11 +292,9 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{i.label}</span><span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span></li>
             ))}
           </ul>
-          {(notes.trim() || photos.length > 0) && !ai && (
-            <button className="btn-ghost mt-4 w-full" onClick={runAi} disabled={aiBusy}>{aiBusy ? "AI is reviewing…" : "✨ Let AI check my notes & photos"}</button>
-          )}
+          {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ Our AI checks your photos and notes before you pay.</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : svc.siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise}
+            {svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise}
           </p>
         </aside>
       )}
