@@ -9,6 +9,8 @@ import { JOB_STATUSES, splitJob } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent, finalizeJob, markPaid, sendPaymentLink } from "@/lib/jobs";
+import { amountDue, chargeSavedCard } from "@/lib/stripe";
+import type { Job } from "@handled/core";
 
 const Patch = z.object({
   status: z.enum(JOB_STATUSES).optional(),
@@ -20,6 +22,7 @@ const Patch = z.object({
   approve_qa: z.boolean().optional(),
   mark_paid: z.object({ amount: z.number().positive(), method: z.string().max(80) }).optional(),
   send_payment_link: z.boolean().optional(),
+  charge_balance: z.boolean().optional(),
   note: z.string().max(2000).optional(),
   instructions: z.string().max(4000).nullable().optional(),
 });
@@ -30,7 +33,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return deny(400, "Invalid update");
-  const { approve_qa, note, mark_paid, send_payment_link, ...patch } = parsed.data;
+  const { approve_qa, note, mark_paid, send_payment_link, charge_balance, ...patch } = parsed.data;
   const db = adminClient();
   const { data: job } = await db.from("jobs").select("*").eq("id", id).single();
   if (!job) return deny(404, "Not found");
@@ -38,7 +41,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const who = v!.fullName ?? v!.email;
   if (mark_paid) {
     await addEvent(id, "human_touch", `Marked paid (${mark_paid.method})`, who, false);
-    await markPaid(id, { amount: mark_paid.amount, via: `${who} · ${mark_paid.method}` });
+    await markPaid(id, { amount: mark_paid.amount, via: `${who} · ${mark_paid.method}`, kind: job.deposit_paid_at || Number(job.amount_paid) ? "balance" : "upfront" });
+    return Response.json({ ok: true });
+  }
+  if (charge_balance) {
+    const due = amountDue(job as Job, "balance");
+    if (!due) return deny(409, "Nothing owed");
+    const got = await chargeSavedCard(job as Job, due, "balance");
+    if (!got) return Response.json({ error: "No saved card, or the card was declined — email a payment link instead" }, { status: 402 });
+    await addEvent(id, "human_touch", `Charged balance to saved card`, who, false);
+    await markPaid(id, { amount: got, via: `${who} · saved card`, kind: "balance" });
     return Response.json({ ok: true });
   }
   if (send_payment_link) {

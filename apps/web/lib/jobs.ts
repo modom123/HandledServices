@@ -12,7 +12,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
+  BRAND, JOB_STATUS_LABEL, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -22,7 +22,7 @@ import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { notify } from "./push";
-import { chargeSavedCard, paymentCheckoutUrl } from "./stripe";
+import { amountDue, chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 import { invoiceUrl } from "./invoice";
 import { syncCatalog } from "./catalog";
 
@@ -45,6 +45,7 @@ export const BookingSchema = z.object({
   photos: z.array(z.string()).max(8).default([]),
   source: z.enum(["web", "mobile", "business", "phone", "ai_chat"]).default("web"),
   accept_terms: z.literal(true, { message: "Please accept the Service Agreement" }),
+  payment_plan: z.enum(["full", "deposit"]).default("full"),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -63,7 +64,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
@@ -73,6 +74,8 @@ export async function createJob({ accept_terms: _accepted, ...input }: BookingIn
     : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush });
   const siteVisit = svc.siteVisit || Boolean(ai?.needs_site_visit);
   const price = siteVisit ? null : ai?.final_price ?? est.point;
+  const dep = price ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
+  const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
   const { data, error } = await db()
     .from("jobs")
     .insert({
@@ -85,6 +88,9 @@ export async function createJob({ accept_terms: _accepted, ...input }: BookingIn
       contractor_payout: price ? splitJob(price, svc.slug).payout : null,
       ai_quote: ai,
       priority: rush ? "high" : "normal",
+      payment_plan: plan ? "deposit" : "full",
+      deposit_amount: plan?.amount ?? null,
+      balance_due_date: plan?.balanceDue ?? null,
       terms_version: SERVICE_AGREEMENT_VERSION,
       terms_accepted_at: new Date().toISOString(),
       terms_accepted_ip: ip,
@@ -111,43 +117,80 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   }
   if (!paymentUrl) {
     // Stripe not configured — ops collects payment by phone/invoice, then marks it paid.
-    await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.price_final)} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Handled Hub to dispatch.`, job.id);
+    await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.payment_plan === "deposit" ? job.deposit_amount : job.price_final)}${job.payment_plan === "deposit" ? " deposit" : ""} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Handled Hub to dispatch.`, job.id);
     await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: complete payment`,
       `Thanks for booking ${svc.name} — ${money(job.price_final)}. A coordinator will contact you to take payment; your pro is confirmed as soon as it's paid.\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n${BRAND.promise}`);
   }
 }
 
 /**
- * Payment received (Stripe webhook, saved-card charge, or marked paid by ops).
- * This is the ONLY door to dispatch for paid work.
+ * A payment arrived (Stripe webhook, saved-card charge, or recorded by ops). Adds it to the
+ * job's running total. The first payment — a deposit or the full price — books the job and
+ * releases it to dispatch; the job counts as paid (paid_at) only once it's paid in full,
+ * which is what lets the pro start and get paid out. Change orders raise the price first.
  */
-export async function markPaid(jobId: string, p: { amount: number; via: string; paymentIntent?: string | null; paymentMethod?: string | null }) {
+export async function markPaid(jobId: string, p: { amount: number; via: string; kind?: string; paymentIntent?: string | null; paymentMethod?: string | null }) {
   const job = await getJob(jobId);
-  if (!job || job.paid_at) return job;
-  const next: JobStatus = job.contractor_id ? "assigned" : "scheduled";
-  const { data } = await db().from("jobs").update({
-    paid_at: new Date().toISOString(), amount_paid: p.amount, status: ["requested", "quoted"].includes(job.status) ? next : job.status,
-    ...(p.paymentIntent ? { stripe_payment_intent: p.paymentIntent } : {}),
-    ...(p.paymentMethod ? { stripe_payment_method: p.paymentMethod } : {}),
-  }).eq("id", jobId).is("paid_at", null).select("*").single();
+  if (!job) return null;
+  const svc = getService(job.service_slug);
+  const patch: Record<string, unknown> = {};
+  let price = Number(job.price_final ?? 0);
+  if (p.kind === "change_order") {
+    price = Math.round((price + p.amount) * 100) / 100;
+    patch.price_final = price;
+    patch.estimate_low = price; patch.estimate_high = price;
+    if (!Number(job.amount_refunded)) patch.contractor_payout = splitJob(price, job.service_slug).payout;
+  }
+  const paidNow = Math.round((Number(job.amount_paid ?? 0) + p.amount) * 100) / 100;
+  const firstPayment = !job.paid_at && !job.deposit_paid_at;
+  const full = price > 0 && paidNow >= price - 0.005;
+  patch.amount_paid = paidNow;
+  if (full && !job.paid_at) patch.paid_at = new Date().toISOString();
+  if (!full && !job.deposit_paid_at) patch.deposit_paid_at = new Date().toISOString();
+  if (firstPayment && ["requested", "quoted"].includes(job.status)) patch.status = job.contractor_id ? "assigned" : "scheduled";
+  if (p.paymentIntent && !job.stripe_payment_intent) patch.stripe_payment_intent = p.paymentIntent;
+  if (p.paymentMethod) patch.stripe_payment_method = p.paymentMethod;
+  const { data } = await db().from("jobs").update(patch).eq("id", jobId).select("*").single();
   const paid = data as Job;
-  await addEvent(jobId, "paid", `Payment received — ${money(p.amount)}. ${BRAND.promise}`, p.via);
-  await notify(paid.customer_id, {
-    title: "Paid — you're locked in",
-    body: paid.contractor_id ? `Your ${getService(paid.service_slug)?.name} is confirmed.` : `We're matching your ${getService(paid.service_slug)?.name} with a vetted pro now.`,
+  const balance = Math.max(0, price - paidNow);
+  const label = p.kind === "change_order" ? "Change order paid" : full ? (firstPayment ? "Paid in full" : "Balance paid — paid in full") : "Deposit received";
+  await addEvent(jobId, "paid", `${label} — ${money(p.amount)}${!full ? ` · balance ${money(balance)} due ${paid.balance_due_date ?? "before the job"}` : ""}.`, p.via);
+  if (firstPayment || full || p.kind === "change_order") await notify(paid.customer_id, {
+    title: full ? (firstPayment ? "Paid — you're locked in" : "Paid in full ✓") : "Deposit received — date locked in",
+    body: !full ? `Balance ${money(balance)} is charged to your card on ${paid.balance_due_date ?? "the day before"}.` : paid.contractor_id ? `Your ${svc?.name} is confirmed.` : `We're matching your ${svc?.name} with a vetted pro now.`,
     data: { type: "job", jobId: paid.id },
-    email: { to: paid.contact_email, subject: `Paid — your ${getService(paid.service_slug)?.name} is locked in (${paid.ref})`,
-      text: `Thanks! We received ${money(p.amount)}. ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nPaid invoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
+    email: { to: paid.contact_email, subject: `${label} — ${svc?.name} (${paid.ref})`,
+      text: `Thanks! We received ${money(p.amount)}.${!full ? ` Your date is locked in. The balance of ${money(balance)} will be charged to the card you used on ${paid.balance_due_date ?? "the day before your job"}.` : ""} ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
   });
-  if (!paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
+  if (firstPayment && !paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
   return paid;
+}
+
+/** Daily: charge balances that are due to the saved card; payment link + alert if that fails. */
+export async function collectBalances() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await db().from("jobs").select("*").eq("payment_plan", "deposit").not("deposit_paid_at", "is", null).is("paid_at", null).lte("balance_due_date", today).neq("status", "cancelled");
+  let charged = 0, linked = 0;
+  for (const job of (data ?? []) as Job[]) {
+    const due = amountDue(job, "balance");
+    if (!due) continue;
+    const got = await chargeSavedCard(job, due, "balance");
+    if (got) { await markPaid(job.id, { amount: got, via: "saved card", kind: "balance" }); charged++; continue; }
+    await sendPaymentLink(job);
+    await notify(job.customer_id, { title: "Balance due", body: `Please pay ${money(due)} to keep your ${getService(job.service_slug)?.name} on schedule.`, data: { type: "job", jobId: job.id } });
+    await raiseAlert("payment", "warn", `${job.ref}: balance ${money(due)} unpaid`, "Saved card failed or missing — payment link sent. The pro can't start until it's paid.", job.id);
+    linked++;
+  }
+  return { charged, linked };
 }
 
 /** Fresh payment link (email + returned URL). */
 export async function sendPaymentLink(job: Job) {
   const url = await paymentCheckoutUrl(job);
-  if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(job.price_final)} to lock in ${job.ref}`,
-    `Your ${getService(job.service_slug)?.name} is ready to schedule at ${money(job.price_final)}.\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
+  const deposit = job.payment_plan === "deposit" && !job.deposit_paid_at && !Number(job.amount_paid);
+  const amt = amountDue(job, deposit ? "deposit" : "full");
+  if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}for ${job.ref}`,
+    `Your ${getService(job.service_slug)?.name}: ${deposit ? `a ${money(amt)} deposit locks in your date (balance due ${job.balance_due_date ?? "before the job"}).` : Number(job.amount_paid) ? `remaining balance ${money(amt)}.` : `${money(amt)}, paid upfront to lock in your pro.`}\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
   return url;
 }
 
@@ -155,7 +198,7 @@ export async function sendPaymentLink(job: Job) {
 export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; exclude?: string[] } = {}) {
   const job = await getJob(jobId);
   if (!job) throw new Error("Job not found");
-  if (!opts.siteVisit && !job.paid_at && !job.remedy) {
+  if (!opts.siteVisit && !job.paid_at && !job.deposit_paid_at && !job.remedy) {
     await raiseAlert("unpaid_dispatch", "info", `${job.ref} not dispatched — unpaid`, "Jobs go to pros only after payment.", job.id);
     return { offers: 0, reason: "unpaid" };
   }
@@ -273,7 +316,12 @@ export async function declineOffer(offerId: string, contractorId: string) {
   return { ok: true };
 }
 
-export async function startJob(jobId: string, contractorId: string) {
+export async function startJob(jobId: string, contractorId: string): Promise<{ ok: boolean; error?: string }> {
+  const pre = await getJob(jobId);
+  if (pre && !pre.paid_at && !pre.remedy) {
+    await raiseAlert("payment", "warn", `${pre.ref}: pro tried to start before the balance was paid`, null, jobId);
+    return { ok: false, error: "The customer's balance isn't paid yet — don't start. We're collecting it now; you'll get a notification." };
+  }
   const { data } = await db()
     .from("jobs")
     .update({ status: "in_progress", started_at: new Date().toISOString() })
@@ -284,7 +332,7 @@ export async function startJob(jobId: string, contractorId: string) {
     const job = await getJob(jobId);
     if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId } });
   }
-  return Boolean(data);
+  return data ? { ok: true } : { ok: false, error: "Job can't be started" };
 }
 
 /** Pro marks done with photos → AI QA → complete (or hold for human review). */

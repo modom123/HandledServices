@@ -42,6 +42,8 @@ export default function Booking() {
   if (!job) return <View style={[s.screen, s.pad]}><Text style={s.p}>Loading…</Text></View>;
   const svc = getService(job.service_slug);
   const unpaid = !job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled";
+  const depositDue = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0 && job.deposit_amount;
+  const due = depositDue ? Number(job.deposit_amount) : Math.max(0, Number(job.price_final ?? 0) - Number(job.amount_paid ?? 0));
 
   async function pay() {
     const r = await api<{ url?: string; error?: string }>(`/api/account/jobs/${id}/pay`, { method: "POST" });
@@ -66,15 +68,15 @@ export default function Booking() {
           <Text style={s.b}>{pro.business_name}{pro.contact_first_name ? ` · ${pro.contact_first_name}` : ""}</Text>
           <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} jobs completed · vetted & insured</Text>
         </Card>
-      ) : job.paid_at ? (
+      ) : job.paid_at || job.deposit_paid_at ? (
         <Card style={{ marginTop: 14 }}><Text style={s.b}>Finding your pro…</Text><Text style={s.p}>You'll get a notification the moment your job is covered.</Text></Card>
       ) : null}
 
       <Card style={{ marginTop: 6 }}>
         <Text style={s.label}>Price</Text>
         <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }}>{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</Text>
-        <Text style={s.p}>{job.remedy ? "No charge" : job.paid_at ? `Paid ${money(job.amount_paid)}` : job.price_final ? "Payment due — your pro is dispatched once paid" : "Firm price after the free site visit"}</Text>
-        {unpaid ? <Button title={`Pay ${money(job.price_final)}`} onPress={pay} style={{ marginTop: 10 }} /> : null}
+        <Text style={s.p}>{job.remedy ? "No charge" : job.paid_at ? `Paid ${money(job.amount_paid)}` : job.deposit_paid_at ? `Deposit paid ${money(job.amount_paid)} · balance ${money(due)} due${job.balance_due_date ? ` ${job.balance_due_date}` : ""}` : job.price_final ? "Payment due — your pro is dispatched once paid" : "Firm price after the free site visit"}</Text>
+        {unpaid ? <Button title={depositDue ? `Pay ${money(due)} deposit` : job.deposit_paid_at ? `Pay balance ${money(due)}` : `Pay ${money(due)}`} onPress={pay} style={{ marginTop: 10 }} /> : null}
         <Pressable onPress={() => Linking.openURL(`${API_URL}/invoice/${id}`)}><Text style={[s.p, { color: C.brand, fontWeight: "700", marginTop: 10 }]}>Invoice & service agreement →</Text></Pressable>
       </Card>
 

@@ -12,7 +12,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import {
-  BRAND, CATEGORIES, SERVICES, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
 } from "@handled/core";
 
@@ -50,6 +50,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [plan, setPlan] = useState<"full" | "deposit">("full");
 
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }) : null), [svc, answers, frequency, date]);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
@@ -91,7 +92,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan }),
     });
     const json = await res.json();
     setBusy(false);
@@ -223,6 +224,21 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
               <div><label className="label">Mobile</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
             <p className="text-xs text-ink-soft">We text updates about this job only. We never sell your info to other contractors.</p>
+            {svc && !svc.siteVisit && est && (() => {
+              const total = ai?.final_price ?? est.point;
+              const dp = depositPolicy(svc.slug, total, date);
+              if (!dp.allowed) return null;
+              const fmt = (d: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "before the job");
+              return (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([["full", `Pay in full · ${money(total)}`, "Nothing more to pay."], ["deposit", `Pay a deposit · ${money(dp.amount)}`, `Locks your date. ${money(dp.balance)} is charged to the same card on ${fmt(dp.balanceDue)}.`]] as const).map(([k, t, d]) => (
+                    <button key={k} type="button" onClick={() => setPlan(k)} className={`rounded-xl border p-3 text-left text-sm ${plan === k ? "border-brand bg-brand-tint" : "border-line bg-white"}`}>
+                      <div className="font-semibold">{t}</div><div className="text-xs text-ink-soft">{d}</div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
               <span>I agree to the <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">Service Agreement</a>: {svc?.siteVisit ? "the site visit is free; I pay upfront once I approve the firm quote." : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
@@ -230,7 +246,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>Back</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy} onClick={book}>{busy ? (svc?.siteVisit ? "Booking…" : "Finalizing your price…") : svc?.siteVisit ? "Book free site visit" : `Pay ${est ? money(ai?.final_price ?? est.point) : ""} & book`}</button>
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy} onClick={book}>{busy ? (svc?.siteVisit ? "Booking…" : "Finalizing your price…") : svc?.siteVisit ? "Book free site visit" : `Pay ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).allowed ? depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).amount : ai?.final_price ?? est.point) : ""}${plan === "deposit" ? " deposit" : ""} & book`}</button>
             </div>
           </div>
         )}

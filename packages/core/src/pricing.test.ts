@@ -195,3 +195,16 @@ test("work order hides the exact address until the pro accepts", async () => {
   assert.ok(after.terms.some((t) => t.includes("Licensed trade")), "licensed services add the license term");
   assert.equal(after.instructions, "Bring a shutoff key");
 });
+
+test("deposits: big tickets only, sensible amounts, balance due before the job", async () => {
+  const { depositPolicy } = await import("./pricing.ts");
+  const now = new Date("2026-10-01T12:00:00Z");
+  assert.equal(depositPolicy("house-cleaning", 246, "2026-10-20", now).allowed, false, "small jobs pay in full");
+  const remodel = depositPolicy("bathroom-remodel", 20000, "2026-11-15", now);
+  assert.equal(remodel.amount, 6000); assert.equal(remodel.balance, 14000); assert.equal(remodel.balanceDue, "2026-11-12");
+  const party = depositPolicy("catering", 1920, "2026-12-12", now);
+  assert.equal(party.amount, 960); assert.equal(party.balanceDue, "2026-12-05");
+  assert.equal(depositPolicy("catering", 1920, "2026-10-05", now).allowed, false, "too close to the event — pay in full");
+  assert.equal(depositPolicy("handyman", 1200, null, now).amount, 360, "$1,000+ qualifies");
+  assert.equal(depositPolicy("tree-removal", 300, "2026-11-01", now).amount, 100, "minimum deposit");
+});

@@ -35,7 +35,10 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <a href={`/invoice/${job.id}`} className="mt-2 inline-block text-sm font-semibold text-brand underline">Invoice & service agreement</a>
           <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</div>
         </div>
-        {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && <PayNow jobId={job.id} amount={money(job.price_final)} />}
+        {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && (
+          <PayNow jobId={job.id} amount={money(job.payment_plan === "deposit" && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
+            label={job.payment_plan === "deposit" && !job.deposit_paid_at ? "deposit" : job.deposit_paid_at ? `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}` : ""} />
+        )}
         {job.paid_at && <p className="text-sm text-brand-dark">Paid {money(job.amount_paid)}{Number(job.amount_refunded) > 0 ? ` · refunded ${money(job.amount_refunded)}` : ""}</p>}
         {photos.length > 0 && (
           <div className="card"><div className="font-semibold">Completion photos</div><div className="mt-3 grid grid-cols-3 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Completed work" className="aspect-square w-full rounded-lg object-cover" /></a>)}</div></div>

@@ -69,11 +69,11 @@ export function ReviewForm({ jobId, contractorId }: { jobId: string; contractorI
   );
 }
 
-export function PayNow({ jobId, amount }: { jobId: string; amount: string }) {
+export function PayNow({ jobId, amount, label = "" }: { jobId: string; amount: string; label?: string }) {
   const [msg, setMsg] = useState("");
   return (
     <div className="card border-brand bg-brand-tint">
-      <div className="font-semibold">Pay {amount} to lock in your pro</div>
+      <div className="font-semibold">Pay {amount}{label ? ` ${label}` : ""}{label.startsWith("balance") ? "" : " to lock in your pro"}</div>
       <p className="mt-1 text-sm text-ink-soft">We dispatch as soon as it’s paid. Not right? Free redo or your money back within 30 days.</p>
       <button className="btn-primary mt-3" onClick={async () => {
         const r = await fetch(`/api/account/jobs/${jobId}/pay`, { method: "POST" });

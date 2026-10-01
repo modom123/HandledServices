@@ -77,7 +77,10 @@ Then **Deployments → ⋯ → Redeploy** so the new variables take effect.
 ## 3. Stripe (payments) — 20 minutes
 
 1. Finish **account activation** (business details, bank account for payouts).
-2. **Developers → Webhooks → Add endpoint** → `https://YOUR-DOMAIN/api/stripe/webhook` → event **`checkout.session.completed`** → copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+2. **Developers → Webhooks → Add endpoint** → `https://YOUR-DOMAIN/api/stripe/webhook` → events **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`** and **`checkout.session.async_payment_failed`** → copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+   - **Settings → Payment methods**: turn on Cards, Apple Pay, Google Pay and Link. ACH bank debit is optional; it's good for large remodel and event deposits.
+   - You do **not** need to create products or prices in Stripe. Every checkout is built on the fly with the exact amount (the booking price, a deposit, a balance or a Quick Charge).
+2b. **Taking payments without a booking:** Handled Hub → **💳 Quick Charge**. Type an amount and what it's for (and the job ref, if any) → a Stripe pay link is created and emailed to the customer. Use it for change orders, custom quotes, event deposits and anything else with a one-off price.
 3. Test in **test mode** first: book a job on your site and pay with card `4242 4242 4242 4242`. The job should flip to *Paid* and get dispatched.
 4. When you're ready for real money, switch both keys to **live** (`sk_live_…` and the live webhook secret) and redeploy.
 

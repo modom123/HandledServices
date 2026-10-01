@@ -2,14 +2,16 @@
  * FILE    : apps/web/app/api/stripe/webhook/route.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * UPDATED : 2026-10-01_1900 UTC — Upfront payments: checkout.session.completed marks the
- *           job paid (saving the card for recurring visits) and releases it to dispatch.
+ * UPDATED : 2026-10-01_2053 UTC — Any Checkout we create (full, deposit, balance, change
+ *           order, Quick Charge) is settled here exactly once: the pending payment row is
+ *           flipped to paid atomically, then the amount is applied to its job (if any).
  * PURPOSE : Stripe webhook.
  */
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { adminClient } from "@/lib/supabase/server";
-import { markPaid } from "@/lib/jobs";
+import { markPaid, raiseAlert } from "@/lib/jobs";
+import { opsEmail, sendEmail } from "@/lib/notify";
 
 export async function POST(req: Request) {
   const s = getStripe();
@@ -21,14 +23,28 @@ export async function POST(req: Request) {
   } catch {
     return new Response("Bad signature", { status: 400 });
   }
-  if (event.type === "checkout.session.completed") {
+  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const session = event.data.object;
-    const jobId = session.metadata?.job_id;
-    if (jobId && session.mode === "payment" && session.payment_status === "paid" && session.payment_intent) {
-      const pi = await s.paymentIntents.retrieve(String(session.payment_intent));
-      await adminClient().from("payments").update({ status: "paid" }).eq("stripe_session_id", session.id);
-      await markPaid(jobId, { amount: (session.amount_total ?? 0) / 100, via: "card", paymentIntent: pi.id, paymentMethod: pi.payment_method ? String(pi.payment_method) : null });
+    if (session.mode !== "payment" || session.payment_status !== "paid") return Response.json({ received: true }); // ACH settles later → async_payment_succeeded
+    const db = adminClient();
+    const paymentId = session.metadata?.payment_id;
+    // idempotent: only the first delivery flips pending → paid and applies the money
+    const { data: row } = paymentId
+      ? await db.from("payments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", paymentId).eq("status", "pending").select("*").maybeSingle()
+      : { data: null };
+    if (!row) return Response.json({ received: true, duplicate: true });
+    const pi = session.payment_intent ? await s.paymentIntents.retrieve(String(session.payment_intent)) : null;
+    const amount = (session.amount_total ?? 0) / 100;
+    if (row.job_id) {
+      await markPaid(row.job_id, { amount, via: "card", kind: row.kind, paymentIntent: pi?.id ?? null, paymentMethod: pi?.payment_method ? String(pi.payment_method) : null });
+    } else if (opsEmail()) {
+      await sendEmail(opsEmail(), `Paid: $${amount} — ${row.description}`, `${row.customer_name ?? ""} <${row.customer_email}> paid $${amount} for "${row.description}" (Quick Charge by ${row.created_by ?? "staff"}).`);
     }
+  }
+  if (event.type === "checkout.session.async_payment_failed") {
+    const session = event.data.object;
+    if (session.metadata?.payment_id) await adminClient().from("payments").update({ status: "failed" }).eq("id", session.metadata.payment_id);
+    if (session.metadata?.job_id) await raiseAlert("payment", "warn", "Bank payment failed", `Checkout ${session.id} — the customer's bank transfer didn't go through.`, session.metadata.job_id);
   }
   return Response.json({ received: true });
 }

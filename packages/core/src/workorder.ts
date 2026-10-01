@@ -33,7 +33,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null };
 
 export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null }): WorkOrder {
   const svc = getService(job.service_slug);
@@ -52,6 +52,7 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     `Payout ${payout ? money(payout) : "per the firm quote"} — approved when the job is complete and passes photo review, paid on the weekly payout run. The customer has prepaid; never take payment directly.`,
     "Arrive within the booked window. Running late? Message the customer in the app before the window starts.",
     "Take before-and-after photos of every area you work on and upload them to complete the job.",
+    ...(job.payment_plan === "deposit" && !job.paid_at ? ["The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\"."] : []),
     "Out-of-scope work: stop and tell us — we send the customer a change order. Do only what's on this work order.",
     `Fix any workmanship issue within ${BRAND.guaranteeDays} days at no extra payout.`,
     "Don't solicit this customer to book directly with you for 12 months.",

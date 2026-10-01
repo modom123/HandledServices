@@ -165,3 +165,30 @@ export function refundSplit(opts: { paid: number; alreadyRefunded: number; payou
   const take = opts.paid - opts.payout;
   return { refund, fromPro, fromUs, newPayout: Math.round((opts.payout - fromPro) * 100) / 100, takeAfter: Math.round((take - fromUs) * 100) / 100 };
 }
+
+/**
+ * Deposits. Big tickets (site-visit work, events, or $1,000+) can be booked with a deposit:
+ * 30% (50% for events), at least $100. The balance is due a few days before the job (7 for
+ * events) and is charged to the saved card automatically. Jobs that are too close to the
+ * date to leave room for the balance are paid in full.
+ */
+export const DEPOSIT = { share: 0.3, eventShare: 0.5, minimum: 100, threshold: 1000, balanceDaysBefore: 3, eventBalanceDaysBefore: 7 } as const;
+
+export function depositPolicy(slug: string, price: number | null | undefined, scheduledDate?: string | null, now = new Date()) {
+  const svc = getService(slug);
+  const none = { allowed: false, amount: 0, balance: 0, balanceDue: null as string | null, share: 0 };
+  if (!svc || !price || price <= 0) return none;
+  if (!(svc.siteVisit || svc.category === "events" || price >= DEPOSIT.threshold)) return none;
+  const events = svc.category === "events";
+  const daysBefore = events ? DEPOSIT.eventBalanceDaysBefore : DEPOSIT.balanceDaysBefore;
+  let balanceDue: string | null = null;
+  if (scheduledDate) {
+    const due = new Date(`${scheduledDate}T12:00:00`);
+    due.setDate(due.getDate() - daysBefore);
+    if (due.getTime() <= now.getTime()) return none; // too close — pay in full
+    balanceDue = due.toISOString().slice(0, 10);
+  }
+  const share = events ? DEPOSIT.eventShare : DEPOSIT.share;
+  const amount = Math.min(Math.round(price) - 1, Math.max(DEPOSIT.minimum, Math.round(price * share)));
+  return { allowed: amount > 0, amount, balance: Math.round(price) - amount, balanceDue, share };
+}

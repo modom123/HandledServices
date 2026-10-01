@@ -87,6 +87,10 @@ export interface Job {
   plan_id: string | null;
   instructions?: string | null;
   paid_at: string | null;
+  payment_plan?: "full" | "deposit";
+  deposit_amount?: number | null;
+  deposit_paid_at?: string | null;
+  balance_due_date?: string | null;
   amount_paid: number;
   amount_refunded: number;
   stripe_payment_intent: string | null;

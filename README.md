@@ -47,6 +47,8 @@ everything still works on the deterministic engine. Refusal fallbacks are enable
 
 ### Money rules (enforced in code and in the database)
 - **Paid upfront, always.** Customers pay the full price at booking (site visits are free; quoted work is paid on approval). Nothing is dispatched until it's paid.
+- **Deposits** for big jobs (remodels, events, $1,000+): the deposit books the date and the pro; the balance is charged to the saved card before the start date, and the job can't start until it's paid in full.
+- **Quick Charge** (`/hub/charges`): a Stripe pay link for any amount and description. There's no product catalog in Stripe; every checkout is built with the exact price.
 - **Pros are paid after the job is finished** and passes QA, on the weekly payout run.
 - **We keep 15–35% of every job**, payouts round down, and refunds or free extra services can never put a job below $0.
 - **Making it right:** a free redo by the same pro, a complimentary service (capped at our take) or a refund (shared, or charged to the pro first when they were at fault).
@@ -65,7 +67,7 @@ Follow **[`docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md`](docs/GO_LIVE_CHECKLIST_20
 
 1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project.
 2. **Vercel:** root directory `apps/web`, production branch `main`, environment variables from `apps/web/.env.example`.
-3. **Stripe** webhook → `/api/stripe/webhook` (`checkout.session.completed`). **Resend** domain + SMTP for Supabase auth emails.
+3. **Stripe** webhook → `/api/stripe/webhook` (`checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`). **Resend** domain + SMTP for Supabase auth emails.
 4. Sign in, make yourself admin, open **Handled Hub → Go-live setup** (`/hub/setup`) and fix every red/amber item.
 5. **IEBC MasterHub → Team → Handled Ops:** enter the site URL + `IEBC_API_KEY`.
 6. **Mobile:** `apps/mobile` → `eas init` → `eas build` → `eas submit`.

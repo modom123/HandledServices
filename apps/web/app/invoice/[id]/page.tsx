@@ -82,7 +82,8 @@ export default async function Invoice({ params, searchParams }: { params: Promis
           <tr className="font-bold"><td className="py-2">Total</td><td className="py-2 text-right">{money(price)}</td></tr>
           {Number(job.amount_paid) > 0 && <tr><td className="py-1 text-ink-soft">Paid {fmtD(job.paid_at)}</td><td className="py-1 text-right">−{money(Number(job.amount_paid))}</td></tr>}
           {Number(job.amount_refunded) > 0 && <tr><td className="py-1 text-ink-soft">Refunded</td><td className="py-1 text-right">{money(Number(job.amount_refunded))}</td></tr>}
-          <tr className="text-base font-bold"><td className="py-2">Balance due</td><td className="py-2 text-right">{money(due)}</td></tr>
+          <tr className="text-base font-bold"><td className="py-2">Balance due{due > 0 && job.balance_due_date ? ` by ${fmtD(job.balance_due_date)}` : ""}</td><td className="py-2 text-right">{money(due)}</td></tr>
+          {job.payment_plan === "deposit" && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">Deposit plan: the balance is charged automatically to the card used for the deposit{job.balance_due_date ? ` on ${fmtD(job.balance_due_date)}` : ""}. Work begins once paid in full.</td></tr>}
         </tbody>
       </table>
       {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Bookings</Link> or the link in your email. Your pro is dispatched as soon as payment clears.</p>}

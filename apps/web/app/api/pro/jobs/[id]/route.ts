@@ -20,7 +20,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const body = Body.safeParse(await req.json().catch(() => null));
   if (!body.success) return deny(400, "Completion needs at least one photo");
-  if (body.data.action === "start") return Response.json({ ok: await startJob(id, v.contractorId) });
+  if (body.data.action === "start") { const r = await startJob(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   const photos = body.data.photos.filter((p) => p.startsWith(`pro/${v.contractorId}/`));
   if (!photos.length) return deny(400, "Upload completion photos first");
   const ok = await completeJob(id, v.contractorId, photos, body.data.note ?? null);

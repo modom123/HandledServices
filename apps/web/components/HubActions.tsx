@@ -157,10 +157,14 @@ export function ActionDecision({ id }: { id: string }) {
   );
 }
 
-export function PaymentPanel({ job }: { job: { id: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string } }) {
+export function PaymentPanel({ job }: { job: { id: string; ref: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string; payment_plan?: string; deposit_amount?: number | null; deposit_paid_at?: string | null; balance_due_date?: string | null } }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [method, setMethod] = useState("card by phone");
+  const price = Number(job.price_final ?? 0), paid = Number(job.amount_paid ?? 0);
+  const due = Math.max(0, price - paid);
+  const deposit = job.payment_plan === "deposit";
+  const [amt, setAmt] = useState(String(deposit && !job.deposit_paid_at ? job.deposit_amount ?? due : due));
   const act = async (body: object, done: string) => {
     const r = await call(`/api/hub/jobs/${job.id}`, "PATCH", body);
     setMsg(r.ok ? done : r.json.error ?? "Failed");
@@ -168,20 +172,35 @@ export function PaymentPanel({ job }: { job: { id: string; price_final: number |
   };
   return (
     <div className="card space-y-3 text-sm">
-      <div className="font-semibold">Payment <span className="text-xs font-normal text-ink-soft">— paid upfront, always</span></div>
+      <div className="font-semibold">Payment <span className="text-xs font-normal text-ink-soft">— {deposit ? `deposit plan (${job.deposit_amount ? `$${job.deposit_amount} down` : ""}${job.balance_due_date ? `, balance due ${job.balance_due_date}` : ""})` : "paid upfront"}</span></div>
       {job.remedy ? <p className="text-ink-soft">Remedy job ({job.remedy}) — nothing owed by the customer.</p>
-        : job.paid_at ? (
-          <p><span className="font-semibold text-brand-dark">Paid {new Date(job.paid_at).toLocaleDateString()}</span> · ${job.amount_paid}{Number(job.amount_refunded) > 0 && <span className="text-rose-700"> · refunded ${job.amount_refunded}</span>}</p>
-        ) : job.price_final ? (
+        : !job.price_final ? <p className="text-ink-soft">No firm price yet — set it after the site visit and a payment link goes out automatically.</p>
+        : (
           <>
-            <p className="text-rose-700">Unpaid — {`$${job.price_final}`} due before any pro is dispatched.</p>
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-primary px-3 py-1.5 text-xs" onClick={() => act({ send_payment_link: true }, "Payment link emailed")}>Email payment link</button>
-              <input className="input w-40 py-1 text-xs" value={method} onChange={(e) => setMethod(e.target.value)} />
-              <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => act({ mark_paid: { amount: Number(job.price_final), method } }, "Marked paid — dispatching")}>Mark paid</button>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-paper p-2"><div className="text-xs text-ink-soft">Price</div><b>${price}</b></div>
+              <div className="rounded-xl bg-paper p-2"><div className="text-xs text-ink-soft">Paid</div><b className="text-brand-dark">${paid}</b>{Number(job.amount_refunded) > 0 && <div className="text-xs text-rose-700">−${job.amount_refunded} refunded</div>}</div>
+              <div className="rounded-xl bg-paper p-2"><div className="text-xs text-ink-soft">Owed</div><b className={due ? "text-rose-700" : ""}>${due}</b></div>
             </div>
+            {job.paid_at ? <p className="text-brand-dark">✓ Paid in full {new Date(job.paid_at).toLocaleDateString()}</p>
+              : job.deposit_paid_at ? <p>Deposit paid {new Date(job.deposit_paid_at).toLocaleDateString()} — balance is charged automatically{job.balance_due_date ? ` on ${job.balance_due_date}` : ""}. The pro can’t start until it’s paid.</p>
+              : <p className="text-rose-700">Unpaid — nothing is dispatched until the {deposit ? "deposit" : "payment"} is in.</p>}
+            {due > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <button className="btn-primary px-3 py-1.5 text-xs" onClick={() => act({ send_payment_link: true }, "Payment link emailed")}>Email payment link</button>
+                {(job.deposit_paid_at || paid > 0) && <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => act({ charge_balance: true }, "Balance charged")}>Charge balance to saved card</button>}
+              </div>
+            )}
+            {due > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <input className="input w-24 py-1 text-xs" value={amt} onChange={(e) => setAmt(e.target.value)} />
+                <input className="input w-36 py-1 text-xs" value={method} onChange={(e) => setMethod(e.target.value)} />
+                <button className="btn-ghost px-3 py-1.5 text-xs" disabled={!Number(amt)} onClick={() => act({ mark_paid: { amount: Number(amt), method } }, "Payment recorded")}>Record payment</button>
+              </div>
+            )}
+            <a className="inline-block text-xs font-semibold text-brand underline" href={`/hub/charges?job=${job.ref}`}>+ Change order / extra charge →</a>
           </>
-        ) : <p className="text-ink-soft">No firm price yet — set it after the site visit and a payment link goes out automatically.</p>}
+        )}
       {msg && <p className="text-brand-dark">{msg}</p>}
     </div>
   );
@@ -293,6 +312,45 @@ export function SyncCatalogButton() {
     <div className="flex items-center gap-3">
       <button className="btn-ghost" onClick={async () => { const r = await call("/api/hub/setup", "POST", { action: "sync_catalog" }); setMsg(r.json.ok ? `Synced ${r.json.count} services` : r.json.error ?? "Failed"); router.refresh(); }}>Sync service catalog</button>
       {msg && <span className="text-sm text-ink-soft">{msg}</span>}
+    </div>
+  );
+}
+
+export function QuickChargeForm({ initialJobRef = "" }: { initialJobRef?: string }) {
+  const router = useRouter();
+  const [f, setF] = useState({ amount: "", description: "", kind: initialJobRef ? "change_order" : "custom", job_ref: initialJobRef, customer_name: "", customer_email: "" });
+  const [busy, setBusy] = useState(false);
+  const [out, setOut] = useState<{ url?: string; error?: string } | null>(null);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  async function create() {
+    setBusy(true);
+    const r = await call("/api/hub/charges", "POST", { ...f, amount: Number(f.amount), job_ref: f.job_ref || undefined, customer_name: f.customer_name || undefined, customer_email: f.customer_email || undefined });
+    setBusy(false);
+    setOut(r.ok ? { url: r.json.url } : { error: r.json.error ?? "Failed" });
+    if (r.ok) router.refresh();
+  }
+  return (
+    <div className="card space-y-3">
+      <div className="font-semibold">New payment link</div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div><label className="label">Amount ($)</label><input className="input" inputMode="decimal" value={f.amount} onChange={set("amount")} placeholder="250" /></div>
+        <div className="sm:col-span-2"><label className="label">What it’s for (customer sees this)</label><input className="input" value={f.description} onChange={set("description")} placeholder="Extra debris haul-away · Corporate party deposit · …" /></div>
+        <div><label className="label">Type</label>
+          <select className="input" value={f.kind} onChange={set("kind")}>
+            <option value="custom">One-off charge</option><option value="change_order">Change order (adds to job price)</option>
+            <option value="deposit">Deposit on a job</option><option value="balance">Balance on a job</option>
+          </select></div>
+        <div><label className="label">Job # (optional)</label><input className="input" value={f.job_ref} onChange={set("job_ref")} placeholder="H-1042" /></div>
+        <div />
+        <div><label className="label">Customer name</label><input className="input" value={f.customer_name} onChange={set("customer_name")} placeholder={f.job_ref ? "from the job" : ""} /></div>
+        <div className="sm:col-span-2"><label className="label">Customer email</label><input className="input" type="email" value={f.customer_email} onChange={set("customer_email")} placeholder={f.job_ref ? "from the job" : "name@email.com"} /></div>
+      </div>
+      <button className="btn-primary" disabled={busy || !Number(f.amount) || f.description.length < 3} onClick={create}>{busy ? "Creating…" : "Create link & email it"}</button>
+      {out?.url && (
+        <div className="rounded-xl bg-brand-tint p-3 text-sm">✓ Emailed. Link: <a className="break-all font-semibold text-brand-dark underline" href={out.url} target="_blank">{out.url}</a>
+          <button className="btn-ghost ml-2 px-3 py-1 text-xs" onClick={() => navigator.clipboard.writeText(out.url!)}>Copy (to text it)</button></div>
+      )}
+      {out?.error && <p className="text-sm text-rose-700">{out.error}</p>}
     </div>
   );
 }

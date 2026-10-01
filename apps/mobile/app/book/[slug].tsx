@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { BRAND, RUSH_SURCHARGE, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, depositPolicy, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
@@ -26,7 +26,10 @@ export default function Book() {
   const [f, setF] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "" });
   const [busy, setBusy] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [plan, setPlan] = useState<"full" | "deposit">("full");
   const est = useMemo(() => estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }), [svc, answers, frequency, date]);
+  const dp = depositPolicy(svc.slug, est.point, date);
+  const useDeposit = plan === "deposit" && dp.allowed && !svc.siteVisit;
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
 
   async function addPhotos() {
@@ -43,7 +46,7 @@ export default function Book() {
     setBusy(true);
     const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full" }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert("Couldn't book", r.data.error ?? "Please check the form");
@@ -102,11 +105,21 @@ export default function Book() {
       <Field label="Full name" value={f.contact_name} onChangeText={set("contact_name")} />
       <Field label="Email" value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />
       <Field label="Mobile" value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" />
+      {dp.allowed && !svc.siteVisit ? (
+        <>
+          <Text style={s.h2}>How would you like to pay?</Text>
+          <View style={s.row}>
+            <Chip label={`Pay in full · ${money(est.point)}`} on={!useDeposit} onPress={() => setPlan("full")} />
+            <Chip label={`Deposit · ${money(dp.amount)}`} on={useDeposit} onPress={() => setPlan("deposit")} />
+          </View>
+          {useDeposit ? <Text style={s.p}>{`Locks in your date and pro. Balance of ${money(dp.balance)} is charged to the same card${dp.balanceDue ? ` on ${dp.balanceDue}` : " before your date"}.`}</Text> : null}
+        </>
+      ) : null}
       <View style={[s.row, { marginTop: 8, alignItems: "center" }]}>
         <Chip label={agreed ? "✓ I agree" : "I agree"} on={agreed} onPress={() => setAgreed(!agreed)} />
         <Text style={[s.p, { flex: 1 }]} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>to the <Text style={{ color: C.brand, fontWeight: "700" }}>Service Agreement</Text>: pay upfront, free redo or refund if it's not right.</Text>
       </View>
-      <Button disabled={!agreed} title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
+      <Button disabled={!agreed} title={busy ? "Finalizing…" : svc.siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={book} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }
