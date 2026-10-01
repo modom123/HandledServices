@@ -32,7 +32,7 @@
 ## 1. Supabase (database) — 15 minutes
 
 1. supabase.com → **New project** → region **US East** → save the database password somewhere safe.
-2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 27 services and your launch market. Run it once, on a new project.)
+2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 34 services and your launch market. Run it once, on a new project.)
 3. **Do NOT run** `supabase/demo_data.sql` on this project; it's fake people for testing only.
 4. **Authentication → URL Configuration**
    - Site URL: `https://YOUR-DOMAIN`
@@ -79,6 +79,7 @@ Then **Deployments → ⋯ → Redeploy** so the new variables take effect.
 1. Finish **account activation** (business details, bank account for payouts).
 2. **Developers → Webhooks → Add endpoint** → `https://YOUR-DOMAIN/api/stripe/webhook` → events **`checkout.session.completed`**, **`checkout.session.async_payment_succeeded`** and **`checkout.session.async_payment_failed`** → copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
    - **Settings → Payment methods**: turn on Cards, Apple Pay, Google Pay and Link. ACH bank debit is optional; it's good for large remodel and event deposits.
+   - **Connect → Get started → Express** (platform profile: marketplace). This turns on instant pay for pros; they connect from **Earnings → Set up instant pay**.
    - You do **not** need to create products or prices in Stripe. Every checkout is built on the fly with the exact amount (the booking price, a deposit, a balance or a Quick Charge).
 2b. **Taking payments without a booking:** Handled Hub → **💳 Quick Charge**. Type an amount and what it's for (and the job ref, if any) → a Stripe pay link is created and emailed to the customer. Use it for change orders, custom quotes, event deposits and anything else with a one-off price.
 3. Test in **test mode** first: book a job on your site and pay with card `4242 4242 4242 4242`. The job should flip to *Paid* and get dispatched.
@@ -137,6 +138,7 @@ For the store listings: privacy policy URL `https://YOUR-DOMAIN/privacy`, suppor
 
 ## 9. Pros, then a dress rehearsal
 
+0. Open **Hub → 🏅 Pro Program** and set who qualifies for each benefit, plus your insurance partner (name, link, phone, referral code). The guaranteed minimum starts off.
 0. Read **`docs/PRO_OFFERING_2026-10-01_2110.md`**: the recruiting playbook, the insurance and license rules by trade, and 6 open decisions on pro pay policy. Have your insurance broker confirm the coverage minimums.
 1. Share `https://YOUR-DOMAIN/pros`. Approve applicants in **Hub → Hiring & pros**. Each pro finishes **Setup & documents** (W-9, agreement, specialties, insurance plus any coverage their trade needs, license, background check, payout). Then you verify the documents and **Activate** them.
 2. Aim for 2+ active pros per trade you'll advertise (the Go-live page lists trades with none).

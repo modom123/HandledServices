@@ -8,6 +8,8 @@
  *           original payment.
  * UPDATED : 2026-10-01_2053 UTC — createCheckout(): one dynamic Checkout for any amount
  *           (deposits, balances, change orders, Quick Charge links) — no Stripe products.
+ * UPDATED : 2026-10-01_2124 UTC — materials pass-through charges, refunds across several
+ *           payments (deposit + balance), Stripe Connect for pro instant pay.
  * PURPOSE : Stripe payments.
  */
 import "server-only";
@@ -25,7 +27,7 @@ export function getStripe(): Stripe | null {
 
 const cents = (v: number) => Math.round(v * 100);
 
-export type ChargeKind = "upfront" | "deposit" | "balance" | "change_order" | "custom";
+export type ChargeKind = "upfront" | "deposit" | "balance" | "change_order" | "custom" | "materials";
 
 /**
  * One Stripe Checkout for any amount — no products to set up in Stripe; the line item is
@@ -99,7 +101,7 @@ export async function paymentCheckoutUrl(job: Job): Promise<string | null> {
 }
 
 /** Charge the saved card (recurring visits, balances). Returns the amount charged or 0. */
-export async function chargeSavedCard(job: Job, amount = Number(job.price_final ?? 0), kind: ChargeKind = "upfront"): Promise<number> {
+export async function chargeSavedCard(job: Job, amount = Number(job.price_final ?? 0), kind: ChargeKind = "upfront", ref = ""): Promise<number> {
   const s = getStripe();
   if (!s || !job.stripe_customer_id || !job.stripe_payment_method || !(amount > 0)) return 0;
   try {
@@ -112,10 +114,10 @@ export async function chargeSavedCard(job: Job, amount = Number(job.price_final 
       confirm: true,
       description: `${BRAND.name} ${job.ref} — ${getService(job.service_slug)?.name}${kind === "balance" ? " (balance)" : ""}`,
       metadata: { job_id: job.id, kind },
-    }, { idempotencyKey: `job-${job.id}-${kind}-${cents(amount)}` });
+    }, { idempotencyKey: `job-${job.id}-${kind}-${cents(amount)}${ref ? `-${ref}` : ""}` });
     if (pi.status !== "succeeded") return 0;
-    await adminClient().from("payments").insert({ job_id: job.id, kind, amount, status: "paid", paid_at: new Date().toISOString(), stripe_session_id: pi.id });
-    if (!job.stripe_payment_intent) await adminClient().from("jobs").update({ stripe_payment_intent: pi.id }).eq("id", job.id);
+    await adminClient().from("payments").insert({ job_id: job.id, kind, amount, status: "paid", paid_at: new Date().toISOString(), stripe_session_id: pi.id, description: ref ? `${kind} ${ref}` : null });
+    if (!job.stripe_payment_intent && kind !== "materials") await adminClient().from("jobs").update({ stripe_payment_intent: pi.id }).eq("id", job.id);
     return amount;
   } catch {
     return 0;
@@ -133,4 +135,61 @@ export async function refundPayment(job: Job, amount: number): Promise<{ ok: boo
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/**
+ * Refund `amount` across a job's card payments, newest first (a deposit and a balance are two
+ * payments). Returns what was refunded; anything Stripe couldn't refund is left for ops.
+ */
+export async function refundAcross(job: Job, amount: number, reason = "requested_by_customer"): Promise<{ refunded: number; ids: string[]; error?: string }> {
+  const s = getStripe();
+  if (!s) return { refunded: amount, ids: [] }; // paid outside Stripe — ops refunds manually
+  const { data: rows } = await adminClient().from("payments").select("id, amount, stripe_session_id, kind").eq("job_id", job.id).eq("status", "paid").gt("amount", 0).neq("kind", "materials").order("created_at", { ascending: false });
+  const intents: { pi: string; amount: number }[] = [];
+  for (const r of rows ?? []) {
+    const id = String(r.stripe_session_id ?? "");
+    let pi = id.startsWith("pi_") ? id : null;
+    if (id.startsWith("cs_")) pi = (await s.checkout.sessions.retrieve(id).catch(() => null))?.payment_intent as string | null;
+    if (pi) intents.push({ pi, amount: Number(r.amount) });
+  }
+  if (!intents.length && job.stripe_payment_intent) intents.push({ pi: job.stripe_payment_intent, amount });
+  let left = Math.round(amount * 100) / 100;
+  const ids: string[] = [];
+  let error: string | undefined;
+  for (const it of intents) {
+    if (left <= 0) break;
+    const part = Math.min(left, it.amount);
+    try {
+      const r = await s.refunds.create({ payment_intent: it.pi, amount: cents(part), metadata: { job_id: job.id, reason } }, { idempotencyKey: `refund-${it.pi}-${cents(part)}-${cents(Number(job.amount_refunded))}` });
+      ids.push(r.id);
+      left = Math.round((left - part) * 100) / 100;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+  }
+  return { refunded: Math.round((amount - left) * 100) / 100, ids, error };
+}
+
+/** Stripe Connect (Express) onboarding link so a pro can receive instant payouts. */
+export async function connectOnboardingUrl(contractor: { id: string; email: string; business_name: string; stripe_account_id: string | null }): Promise<string | null> {
+  const s = getStripe();
+  if (!s) return null;
+  let acct = contractor.stripe_account_id;
+  if (!acct) {
+    acct = (await s.accounts.create({
+      type: "express", email: contractor.email, business_profile: { name: contractor.business_name },
+      capabilities: { transfers: { requested: true } }, metadata: { contractor_id: contractor.id },
+    })).id;
+    await adminClient().from("contractors").update({ stripe_account_id: acct }).eq("id", contractor.id);
+  }
+  const link = await s.accountLinks.create({ account: acct, type: "account_onboarding", refresh_url: `${siteUrl()}/pro/earnings?connect=retry`, return_url: `${siteUrl()}/pro/earnings?connect=done` });
+  return link.url;
+}
+
+/** Is the pro's connected account ready to receive money? */
+export async function connectReady(accountId: string | null): Promise<boolean> {
+  const s = getStripe();
+  if (!s || !accountId) return false;
+  const a = await s.accounts.retrieve(accountId).catch(() => null);
+  return Boolean(a?.payouts_enabled);
 }

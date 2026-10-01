@@ -62,6 +62,9 @@ export async function readiness(): Promise<Check[]> {
     ["5b ratings", () => db.from("ops_ratings").select("id").limit(1)],
     ["6 service agreement", () => db.from("jobs").select("terms_version").limit(1)],
     ["7 offers & push notifications", () => db.from("push_tokens").select("id").limit(1)],
+    ["8 deposits & Quick Charge", () => db.from("jobs").select("payment_plan, deposit_paid_at").limit(1)],
+    ["9 pro vetting", () => db.from("contractors").select("specialties, coverage").limit(1)],
+    ["10 pro benefits", () => db.from("pro_program_settings").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

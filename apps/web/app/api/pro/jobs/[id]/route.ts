@@ -2,15 +2,17 @@
  * FILE    : apps/web/app/api/pro/jobs/[id]/route.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-01_2124 UTC — lockout: the pro reports they can't get access.
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
  */
 import { after } from "next/server";
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
-import { completeJob, runQa, startJob } from "@/lib/jobs";
+import { addEvent, completeJob, getJob, raiseAlert, runQa, startJob } from "@/lib/jobs";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
+  z.object({ action: z.literal("lockout"), note: z.string().min(3).max(1000) }),
   z.object({ action: z.literal("complete"), photos: z.array(z.string()).min(1).max(12), note: z.string().max(2000).nullable().optional() }),
 ]);
 
@@ -20,6 +22,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const body = Body.safeParse(await req.json().catch(() => null));
   if (!body.success) return deny(400, "Completion needs at least one photo");
+  if (body.data.action === "lockout") {
+    const job = await getJob(id);
+    if (!job || job.contractor_id !== v.contractorId || !["assigned", "in_progress"].includes(job.status)) return deny(409, "Not an active job of yours");
+    await addEvent(id, "lockout", `Pro reports no access: ${body.data.note}`, "pro", false);
+    await raiseAlert("lockout", "warn", `${job.ref}: pro can't get in`, `${body.data.note}. Call the customer now. If there's still no access, cancel the job as "lockout" (the fee is kept and the pro gets show-up pay).`, id);
+    return Response.json({ ok: true });
+  }
   if (body.data.action === "start") { const r = await startJob(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   const photos = body.data.photos.filter((p) => p.startsWith(`pro/${v.contractorId}/`));
   if (!photos.length) return deny(400, "Upload completion photos first");

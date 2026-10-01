@@ -21,6 +21,7 @@ const NAV = [
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/charges", "💳", "Quick Charge"],
+  ["/hub/pro-program", "🏅", "Pro Program"],
   ["/hub/workforce", "🏢", "IEBC Workforce"],
   ["/hub/assistant", "✨", "AI assistant"],
   ["/hub/setup", "🚀", "Go-live setup"],

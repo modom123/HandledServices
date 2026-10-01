@@ -5,11 +5,12 @@
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  */
 import { notFound, redirect } from "next/navigation";
-import { BRAND, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
-import { JobThread, PayNow, ReviewForm } from "@/components/JobThread";
+import { CancelBooking, JobThread, PayNow, ReviewForm } from "@/components/JobThread";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -42,6 +43,9 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
         {job.paid_at && <p className="text-sm text-brand-dark">Paid {money(job.amount_paid)}{Number(job.amount_refunded) > 0 ? ` · refunded ${money(job.amount_refunded)}` : ""}</p>}
         {photos.length > 0 && (
           <div className="card"><div className="font-semibold">Completion photos</div><div className="mt-3 grid grid-cols-3 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Completed work" className="aspect-square w-full rounded-lg object-cover" /></a>)}</div></div>
+        )}
+        {["requested", "quoted", "site_visit", "scheduled", "dispatched", "assigned"].includes(job.status) && !job.remedy && (
+          <CancelBooking jobId={job.id} late={isLate(job)} fee={money(Math.min(LATE_CANCEL_FEE, Number(job.amount_paid)))} paid={Number(job.amount_paid) > 0} />
         )}
         {job.status === "completed" && !review && <ReviewForm jobId={job.id} contractorId={job.contractor_id} />}
         {job.contractor_id && <JobThread jobId={job.id} userId={v.userId} as="customer" initial={msgs ?? []} />}

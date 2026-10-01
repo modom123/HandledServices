@@ -61,11 +61,12 @@ export interface Service {
 }
 
 export const CATEGORIES: { id: CategoryId; name: string; blurb: string }[] = [
-  { id: "cleaning", name: "Cleaning & Organizing", blurb: "Homes, offices, windows, carpets, gutters — plus decluttering." },
+  { id: "cleaning", name: "Cleaning & Organizing", blurb: "Homes, offices, windows, carpets, gutters, power washing — plus decluttering." },
   { id: "outdoor", name: "Lawn, Leaves & Snow", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
   { id: "removal", name: "Haul Away", blurb: "Junk, furniture and big items gone today." },
   { id: "repair_remodel", name: "Repairs, Installs & Remodels", blurb: "Handyman, plumbing, electrical, HVAC, water heaters — up to full remodels." },
+  { id: "errands", name: "Errands & Assistant", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
   { id: "events", name: "Parties & Events", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
 
@@ -77,7 +78,12 @@ const sum = (items: LineItem[]) => items.reduce((t, i) => t + i.amount, 0);
 const EVENT_TYPES = [
   { value: "birthday", label: "Birthday / party" },
   { value: "wedding", label: "Wedding / shower" },
-  { value: "corporate", label: "Corporate / office" },
+  { value: "corporate", label: "Corporate / office party" },
+  { value: "corporate_dinner", label: "Corporate dinner" },
+  { value: "company_bbq", label: "Company BBQ / picnic" },
+  { value: "lunch_party", label: "Office lunch party (Taco Tuesday…)" },
+  { value: "day_party", label: "Day party" },
+  { value: "pool_party", label: "Pool party" },
   { value: "graduation", label: "Graduation / reunion" },
   { value: "holiday", label: "Holiday party" },
   { value: "other", label: "Other" },
@@ -298,6 +304,48 @@ export const SERVICES: Service[] = [
       if (b(a, "guards")) items.push({ label: "Guard removal & reinstall", amount: Math.round(ft * 0.75) });
       const base = sum(items);
       return { items, base, hours: Math.max(1, ft / 100) };
+    },
+  },
+
+  {
+    slug: "power-washing",
+    name: "Power Washing",
+    category: "cleaning",
+    icon: "💦",
+    tagline: "Driveways, siding, basements and decks — like new.",
+    description: "Pressure and soft washing for driveways, walkways, house siding, basement floors and walls, decks, patios and fences. Mildew treatment and optional concrete sealing.",
+    includes: ["Pre-treatment for mildew & stains", "Surface-safe pressure or soft wash", "Rinse-down of nearby windows & plants", "Before/after photos"],
+    questions: [
+      {
+        id: "surface", label: "What needs washing", type: "select", default: "driveway",
+        options: [
+          { value: "driveway", label: "Driveway & walkways" },
+          { value: "house", label: "House siding (soft wash)" },
+          { value: "basement", label: "Basement floor & walls" },
+          { value: "deck", label: "Deck or patio" },
+          { value: "fence", label: "Fence" },
+        ],
+      },
+      { id: "sqft", label: "Area to wash (house: home's sq ft)", type: "number", min: 100, max: 6000, default: 800, unit: "sq ft" },
+      { id: "stories", label: "Home height (house siding)", type: "select", default: "1", options: STORIES },
+      { id: "seal", label: "Seal concrete / stain deck after washing", type: "toggle", default: false },
+    ],
+    minimum: 149,
+    spread: [0.95, 1.15],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once", "quarterly"],
+    trades: ["pressure_washing"],
+    price: (a) => {
+      const surface = s(a, "surface", "driveway");
+      const area = n(a, "sqft", 800);
+      const rate = { driveway: 0.25, house: 0.18, basement: 0.35, deck: 0.4, fence: 0.3 }[surface] ?? 0.25;
+      const height = surface === "house" ? ({ "1": 1, "2": 1.2, "3": 1.4 }[s(a, "stories", "1")] ?? 1) : 1;
+      const label = { driveway: "Driveway & walkways", house: "House soft wash", basement: "Basement floor & walls", deck: "Deck / patio", fence: "Fence" }[surface] ?? "Power washing";
+      const items: LineItem[] = [{ label: `${label} — ${area} sq ft`, amount: Math.round(area * rate * height) }];
+      if (b(a, "seal") && surface !== "house" && surface !== "basement") items.push({ label: surface === "deck" || surface === "fence" ? "Stain / seal" : "Concrete sealer", amount: Math.round(area * 0.45) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1.5, area / 600 + (b(a, "seal") ? area / 800 : 0)) };
     },
   },
 
@@ -1084,6 +1132,64 @@ export const SERVICES: Service[] = [
       return { items, base, hours: base / 95 };
     },
   },
+  // ───────────────────────────── ERRANDS & ASSISTANT ─────────────────────────────
+  {
+    slug: "errands",
+    name: "Errands & Pickups",
+    category: "errands",
+    icon: "🛍️",
+    tagline: "Dry cleaning, groceries, returns and drop-offs — done.",
+    description: "A background-checked runner picks up dry cleaning and prescriptions, does the shopping, makes returns and drops things off, with photo proof at every stop. Store purchases are billed at cost with the receipt.",
+    includes: ["Background-checked, bonded runner", "Photo at every stop", "Purchases at cost with receipt", "Up to 20 miles included"],
+    questions: [
+      { id: "stops", label: "Number of stops", type: "number", min: 1, max: 12, default: 3 },
+      { id: "shopping", label: "Includes shopping (groceries, store pickup)", type: "toggle", default: false },
+      { id: "bulky", label: "Bulky or heavy items (needs an SUV/truck)", type: "toggle", default: false },
+    ],
+    minimum: 39,
+    spread: [1, 1],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly"],
+    trades: ["errands"],
+    price: (a) => {
+      const stops = n(a, "stops", 3);
+      const items: LineItem[] = [{ label: "Errand run (first stop)", amount: 29 }];
+      if (stops > 1) items.push({ label: `${stops - 1} more stop${stops > 2 ? "s" : ""} × $12`, amount: (stops - 1) * 12 });
+      if (b(a, "shopping")) items.push({ label: "In-store shopping time", amount: 25 });
+      if (b(a, "bulky")) items.push({ label: "Bulky items / larger vehicle", amount: 30 });
+      const base = sum(items);
+      return { items, base, hours: 0.75 + stops * 0.35 + (b(a, "shopping") ? 0.75 : 0) };
+    },
+  },
+  {
+    slug: "personal-assistant",
+    name: "Personal Assistant for the Day",
+    category: "errands",
+    icon: "🗂️",
+    tagline: "An extra pair of hands — for a few hours or the whole day.",
+    description: "A background-checked assistant for errands, waiting for deliveries or contractors, light organizing, packing, event prep, home-office help and appointment runs. Purchases are billed at cost with receipts.",
+    includes: ["Background-checked, bonded assistant", "Your task list, done in order", "Check-ins & photos through the app", "Purchases at cost with receipt"],
+    questions: [
+      { id: "hours", label: "Hours", type: "number", min: 2, max: 10, default: 4, unit: "hrs" },
+      { id: "driving", label: "Assistant drives (errands, pickups)", type: "toggle", default: true },
+    ],
+    minimum: 120,
+    spread: [1, 1],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly", "monthly"],
+    trades: ["errands"],
+    price: (a) => {
+      const h = n(a, "hours", 4);
+      const rate = h >= 8 ? 36 : 40;
+      const items: LineItem[] = [{ label: `${h} hours × $${rate}${h >= 8 ? " (full-day rate)" : ""}`, amount: h * rate }];
+      if (b(a, "driving")) items.push({ label: "Driving & mileage (up to 40 mi)", amount: 20 });
+      const base = sum(items);
+      return { items, base, hours: h };
+    },
+  },
+
   // ───────────────────────────── PARTIES & EVENTS ─────────────────────────────
   {
     slug: "event-package",
@@ -1176,6 +1282,8 @@ export const SERVICES: Service[] = [
         default: "buffet",
         options: [
           { value: "apps", label: "Appetizers / heavy hors d'oeuvres" },
+          { value: "taco", label: "Taco / build-your-own bar" },
+          { value: "bbq", label: "BBQ / grill-out" },
           { value: "buffet", label: "Buffet" },
           { value: "family", label: "Family-style" },
           { value: "plated", label: "Plated dinner" },
@@ -1196,7 +1304,7 @@ export const SERVICES: Service[] = [
     leadDays: 7,
     price: (a) => {
       const g = n(a, "guests", 50), h = n(a, "hours", 4);
-      const per = { apps: 22, buffet: 32, family: 40, plated: 52 }[s(a, "style", "buffet")] ?? 32;
+      const per = { apps: 22, taco: 24, bbq: 28, buffet: 32, family: 40, plated: 52 }[s(a, "style", "buffet")] ?? 32;
       const items: LineItem[] = [{ label: `${g} guests × $${per} (${s(a, "style", "buffet")})`, amount: g * per }];
       if (b(a, "servers")) { const staff = Math.max(1, Math.ceil(g / 25)); items.push({ label: `${staff} server${staff > 1 ? "s" : ""} × ${h} hrs`, amount: staff * h * 40 }); }
       if (b(a, "bar")) items.push({ label: "Bar service", amount: g * 14 });
@@ -1403,6 +1511,8 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "snow", label: "Snow plowing & removal" },
   { id: "pet_waste", label: "Pet waste removal" },
   { id: "pet_care", label: "Dog walking & pet sitting" },
+  { id: "pressure_washing", label: "Power / pressure washing" },
+  { id: "errands", label: "Errands & personal assistant" },
   { id: "hauling", label: "Junk & item hauling" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },

@@ -253,3 +253,42 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
   const [a, b] = rankContractors([{ ...insured, id: "x" }, { ...insured, id: "y", specialties: ["junk"] }], job);
   assert.equal(a.contractor.id, "y", "specialist ranks first");
 });
+
+test("pro policy: who qualifies, and every benefit keeps the job at or above $0", async () => {
+  const { PRO_POLICY_DEFAULTS: P, mergePolicy, whyNot, qualifies, showUpPay, instantPayFee, materialsDecision, guaranteeTopUp } = await import("./pro-policy.ts");
+  const { refundSplit } = await import("./pricing.ts");
+  const pro = { jobs_completed: 3, rating: 4.9, on_time_rate: 1, acceptance_rate: 1, trades: ["handyman"], status: "approved" };
+  // rules
+  assert.equal(qualifies(P.payProtection, pro), true);
+  assert.match(whyNot(P.instantPay, pro) ?? "", /5 completed jobs/);
+  assert.match(whyNot(P.guarantee, pro) ?? "", /not offered/); // off by default
+  const custom = mergePolicy({ guarantee: { enabled: true, minTier: "pro" }, instantPay: { minJobs: 0 } });
+  assert.equal(custom.guarantee.weeklyMinimum, P.guarantee.weeklyMinimum, "unset fields keep defaults");
+  assert.match(whyNot(custom.guarantee, pro) ?? "", /trade/);
+  assert.equal(qualifies(custom.instantPay, pro), true);
+  assert.equal(qualifies(P.materials, { ...pro, trades: ["cleaning"] }), false);
+  // 1. pay protection: our take absorbs a no-fault refund; the job never goes below $0
+  for (const [paid, payout, refund] of [[200, 150, 30], [200, 150, 80], [200, 150, 200], [1000, 700, 450]]) {
+    const s = refundSplit({ paid, alreadyRefunded: 0, payout, refund, protectPro: true });
+    assert.ok(s.takeAfter >= -0.001, `take ${s.takeAfter}`);
+    assert.equal(Math.round((s.fromPro + s.fromUs) * 100) / 100, s.refund);
+    if (refund <= paid - payout) assert.equal(s.fromPro, 0, "fully protected");
+  }
+  // 2. show-up pay never exceeds the fee we keep after card costs
+  for (const paid of [60, 200, 1000, 5000]) assert.ok(showUpPay(P, paid) <= 49 - (paid * 0.029 + 0.3) + 1e-9 || showUpPay(P, paid) === 0);
+  assert.equal(showUpPay(P, 200), 35);
+  // 3. instant fee
+  assert.equal(instantPayFee(P, 10), 0.5);
+  assert.equal(instantPayFee(P, 400), 6);
+  // 5. materials
+  assert.equal(materialsDecision(P, 60, 300), "auto");
+  assert.equal(materialsDecision(P, 120, 300), "review");
+  assert.equal(materialsDecision(P, 100, 300, 60), "over_cap");
+  assert.equal(materialsDecision(P, 180, 53, 0, "errands"), "review", "errand shopping uses a dollar cap");
+  assert.equal(materialsDecision(P, 400, 53, 0, "errands"), "over_cap");
+  // 6. guarantee
+  const g = mergePolicy({ guarantee: { enabled: true } });
+  assert.equal(guaranteeTopUp(g, { earned: 500, offered: 10, accepted: 10, daysAvailable: 5, month: 1 }), 300);
+  assert.equal(guaranteeTopUp(g, { earned: 500, offered: 10, accepted: 5, daysAvailable: 5, month: 1 }), 0, "turned down offers");
+  assert.equal(guaranteeTopUp(g, { earned: 500, offered: 10, accepted: 10, daysAvailable: 5, month: 9 }), 0, "off season");
+});

@@ -25,7 +25,7 @@ export default function Events() {
           <div>
             <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎉 Parties & Events</span>
             <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Your event, <span className="text-mint">handled.</span></h1>
-            <p className="mt-4 max-w-xl text-lg text-white/75">Birthdays, weddings, graduations, holiday and office parties. Catering, food trucks, music, seating and the space — planned and coordinated by one team, on one invoice.</p>
+            <p className="mt-4 max-w-xl text-lg text-white/75">Birthdays, weddings, corporate dinners, company BBQs, Taco Tuesday office lunches, day parties and pool parties. Catering, food trucks, music, seating and the space — planned and coordinated by one team, on one invoice.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/book?service=event-package" className="btn bg-white px-6 py-3 text-base text-brand-dark hover:bg-brand-tint">Plan by budget</Link>
               <a href="#services" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-white">Book à la carte</a>
@@ -51,7 +51,7 @@ export default function Events() {
             <p className="mt-2 text-ink-soft">Enter your total budget, guest count and type of event. We split it across food, venue, music, rentals and coordination — you see exactly what it buys before you book a free planning call. Your plan never goes over budget.</p>
           </div>
           <div className="space-y-2 text-sm">
-            {([["$5,000", "50 guests · birthday", "budget=5000&guests=50&event_type=birthday"], ["$10,000", "120 guests · corporate party", "budget=10000&guests=120&event_type=corporate"], ["$25,000", "150 guests · wedding", "budget=25000&guests=150&event_type=wedding"]] as const).map(([b, d, q]) => (
+            {([["$5,000", "50 guests · birthday", "budget=5000&guests=50&event_type=birthday"], ["$10,000", "120 guests · corporate party", "budget=10000&guests=120&event_type=corporate"], ["$25,000", "150 guests · wedding", "budget=25000&guests=150&event_type=wedding"], ["$1,500", "40 people · Taco Tuesday lunch", "budget=1500&guests=40&event_type=lunch_party&venue=have"], ["$6,000", "150 people · company BBQ", "budget=6000&guests=150&event_type=company_bbq"], ["$4,000", "60 guests · pool party", "budget=4000&guests=60&event_type=pool_party&venue=have"]] as const).map(([b, d, q]) => (
               <Link key={b} href={`/book?service=event-package&${q}`} className="flex justify-between rounded-xl border border-line bg-white px-4 py-2 hover:border-brand"><b>{b}</b><span className="text-ink-soft">{d} →</span></Link>
             ))}
           </div>

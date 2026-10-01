@@ -6,11 +6,12 @@
  *           offers, timeline, messages and every manual override.
  */
 import { notFound } from "next/navigation";
-import { SERVICES, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
-import { JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
+import { CancelPanel, ExpenseActions, JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
 
 type AnyRec = Record<string, unknown>;
 
@@ -22,7 +23,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   if (!data) notFound();
   const job = data as Job & { completion_photos: string[] };
   const s = getService(job.service_slug)!;
-  const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after] = await Promise.all([
+  const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after, { data: expenses }] = await Promise.all([
     v.db.from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
     v.db.from("job_events").select("*").eq("job_id", id).order("created_at"),
     v.db.from("messages").select("*").eq("job_id", id).order("created_at"),
@@ -31,6 +32,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
     v.db.from("reviews").select("rating, comment").eq("job_id", id).maybeSingle(),
     signedUrls(job.photos),
     signedUrls(job.completion_photos ?? []),
+    v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
   ]);
   const quote = job.ai_quote as AnyRec | null;
   const qa = job.ai_qa as AnyRec | null;
@@ -81,6 +83,14 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
 
       <div className="space-y-6">
         <PaymentPanel job={{ id: job.id, ref: job.ref, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status, payment_plan: job.payment_plan, deposit_amount: job.deposit_amount, deposit_paid_at: job.deposit_paid_at, balance_due_date: job.balance_due_date }} />
+        {(expenses ?? []).length > 0 && (
+          <div className="card text-sm"><div className="font-semibold">Materials (at cost, billed to the customer)</div>
+            {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string }) => (
+              <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2"><span>{e.description} · <b>{money(e.amount)}</b> · {e.status}</span><ExpenseActions id={e.id} status={e.status} /></div>
+            ))}
+          </div>
+        )}
+        {!["completed", "cancelled", "qa_review"].includes(job.status) && <CancelPanel jobId={job.id} late={isLate(job)} fee={money(Math.min(LATE_CANCEL_FEE, Number(job.amount_paid)))} />}
         <RemedyPanel jobId={job.id} paid={Boolean(job.paid_at) && !job.remedy} services={SERVICES.filter((x) => !x.siteVisit).map((x) => ({ slug: x.slug, name: x.name }))} />
         {job.contractor_id && ["qa_review", "completed"].includes(job.status) && (
           <>

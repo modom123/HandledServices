@@ -466,6 +466,13 @@ export async function raiseAlert(kind: string, severity: "info" | "warn" | "crit
 }
 
 export async function setStatus(jobId: string, status: JobStatus, actor: string) {
+  if (status === "cancelled") {
+    // refunds, fees and show-up pay are handled in one place
+    const { cancelJob } = await import("./pro-benefits");
+    const r = await cancelJob(jobId, "ops", actor);
+    if (!r.ok) await addEvent(jobId, "status_manual", `Cancel refused: ${r.error}`, actor, false);
+    return;
+  }
   await db().from("jobs").update({ status }).eq("id", jobId);
   await addEvent(jobId, "status_manual", `Status set to ${JOB_STATUS_LABEL[status]}`, actor, false);
 }

@@ -104,6 +104,30 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: null, preferred: [], glMin: GL1, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
     skillsCheck: "Truck and plow details, route capacity per storm, 2 references from last season.",
   },
+  pressure_washing: {
+    does: "Pressure and soft washing of driveways, siding, basements, decks, patios and fences; sealing.",
+    specialties: [
+      { id: "flatwork", label: "Driveways & concrete", slug: "power-washing" },
+      { id: "soft_wash", label: "House soft wash" },
+      { id: "basement_wash", label: "Basements & interiors" },
+      { id: "deck_stain", label: "Deck & fence staining" },
+      { id: "commercial_wash", label: "Commercial / storefronts" },
+    ],
+    license: null, preferred: ["PWNA or UAMCC training"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }, { key: "auto", when: "you run a trailer or skid unit" }],
+    skillsCheck: "Equipment list (PSI/GPM, surface cleaner, soft-wash setup), wastewater practice, photos of 3 recent jobs, 2 references.",
+  },
+  errands: {
+    does: "Errands, pickups and drop-offs, shopping, and a personal assistant by the hour.",
+    specialties: [
+      { id: "runs", label: "Errand runs & drop-offs", slug: "errands" },
+      { id: "assistant", label: "Assistant for the day", slug: "personal-assistant" },
+      { id: "senior_help", label: "Seniors & appointment runs" },
+      { id: "move_help", label: "Packing & move prep" },
+    ],
+    license: null, preferred: ["Clean driving record"], glMin: GL1, requires: ["bond"],
+    conditional: [{ key: "auto", when: "you drive for jobs — your auto policy must cover business or delivery use" }],
+    skillsCheck: "Motor-vehicle record check, 2 references, video interview.",
+  },
   pet_waste: {
     does: "Weekly yard scooping, deodorizing and disposal.",
     specialties: [{ id: "scoop", label: "Yard scooping", slug: "pet-waste-removal" }, { id: "deodorize", label: "Deodorizing / sanitizing" }],

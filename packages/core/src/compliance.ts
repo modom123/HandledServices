@@ -10,9 +10,9 @@
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
-export const AGREEMENT_VERSION = "2026-10-v1";
+export const AGREEMENT_VERSION = "2026-10-v2"; // v2: Pro Program benefits
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v1";
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v2"; // v2: materials billed at cost
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 

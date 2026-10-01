@@ -20,6 +20,20 @@ const SPLITS: Record<string, Record<BudgetLine["key"], number>> = {
   birthday: { food: 0.4, venue: 0.15, music: 0.12, rentals: 0.15, coordination: 0.12, contingency: 0.06 },
   wedding: { food: 0.35, venue: 0.25, music: 0.12, rentals: 0.12, coordination: 0.1, contingency: 0.06 },
   corporate: { food: 0.42, venue: 0.22, music: 0.1, rentals: 0.1, coordination: 0.1, contingency: 0.06 },
+  corporate_dinner: { food: 0.5, venue: 0.2, music: 0.06, rentals: 0.1, coordination: 0.08, contingency: 0.06 },
+  company_bbq: { food: 0.5, venue: 0.05, music: 0.1, rentals: 0.17, coordination: 0.1, contingency: 0.08 },
+  lunch_party: { food: 0.65, venue: 0, music: 0.05, rentals: 0.12, coordination: 0.1, contingency: 0.08 },
+  day_party: { food: 0.35, venue: 0.15, music: 0.2, rentals: 0.15, coordination: 0.09, contingency: 0.06 },
+  pool_party: { food: 0.4, venue: 0.1, music: 0.15, rentals: 0.17, coordination: 0.1, contingency: 0.08 },
+};
+
+/** What the food share looks like for this kind of event, and where it usually happens. */
+const STYLE: Record<string, { food?: string; venue?: string; rentals?: string }> = {
+  corporate_dinner: { food: "plated or family-style dinner", venue: "restaurant private room or banquet space" },
+  company_bbq: { food: "BBQ / grill-out catering or a BBQ food truck", venue: "your office lot, a park pavilion or a picnic grove", rentals: "picnic tables, tents & yard games" },
+  lunch_party: { food: "taco bar, food truck or boxed lunches", venue: "your office", rentals: "serving tables, linens & disposable tableware" },
+  day_party: { food: "food truck, grill or heavy bites" },
+  pool_party: { food: "grill, tacos or a food truck", venue: "your pool, a club or a rented pool", rentals: "shade tents, lounge chairs & coolers" },
 };
 
 const LABEL: Record<BudgetLine["key"], string> = {
@@ -50,12 +64,14 @@ export function planEventBudget(opts: { budget: number; guests: number; eventTyp
   const venueBuys = opts.haveVenue ? "your space" : amounts.venue >= 1500 ? "banquet hall, loft or restaurant buyout" : amounts.venue >= 600 ? "private room or park pavilion" : "home, backyard or a free community space";
 
   const buys: Record<BudgetLine["key"], string> = {
-    food: `${food} (~$${Math.round(perGuest)}/guest)`, venue: venueBuys, music, rentals,
+    food: STYLE[opts.eventType]?.food ? `${STYLE[opts.eventType].food} (~$${Math.round(perGuest)}/guest)` : `${food} (~$${Math.round(perGuest)}/guest)`,
+    venue: STYLE[opts.eventType]?.venue && !opts.haveVenue ? STYLE[opts.eventType].venue! : venueBuys,
+    music, rentals: STYLE[opts.eventType]?.rentals ? `${rentals}; ${STYLE[opts.eventType].rentals}` : rentals,
     coordination: "planner, vendor booking & on-site coordinator", contingency: "cake/dessert, décor touches, a cushion for surprises",
   };
   const lines: BudgetLine[] = keys.filter((k) => amounts[k] > 0).map((k) => ({ key: k, label: LABEL[k], amount: amounts[k], buys: buys[k] }));
   const warnings: string[] = [];
   if (perGuest < 15) warnings.push(`$${budget.toLocaleString("en-US")} is tight for ${guests} guests — about $${Math.round(perGuest)}/guest for food. Consider fewer guests, a food truck, or a larger budget.`);
-  if (!opts.haveVenue && amounts.venue < 600) warnings.push("The venue share is small — hosting at home or a free space stretches this budget further.");
+  if (!opts.haveVenue && split.venue > 0.06 && amounts.venue < 600) warnings.push("The venue share is small — hosting at home or a free space stretches this budget further.");
   return { budget, guests, perGuest: budget / guests, lines, warnings };
 }

@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-01_2110.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-01_2136.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-01_2110 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 9 migrations + production seed.
+-- CREATED : 2026-10-01_2136 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 10 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -908,11 +908,97 @@ alter table public.contractor_documents add constraint contractor_documents_kind
   check (kind in ('w9','coi','license','background','agreement','auto','workers_comp','bond','liquor','certification','skills','other'));
 
 
+-- >>> migration 20261001212400_pro_benefits.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261001212400_pro_benefits.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-01_2124 UTC
+-- PURPOSE : The six Pro Program benefits.
+--             • pro_program_settings — who qualifies for each benefit and its amounts
+--               (Handled Hub → Pro Program; defaults live in packages/core/src/pro-policy.ts)
+--             • payouts.kind — job | show_up | guarantee | stipend | materials | clawback,
+--               plus instant-pay method, fee and Stripe transfer. Only 'job' payouts are
+--               held to the 85%-of-price guard; show-up pay is capped in code at the fee we
+--               keep; materials are passed through only after the customer pays them.
+--             • job_expenses — materials receipts from pros (auto-approve / staff review)
+--             • jobs cancellation record — who cancelled, when, why and the fee kept
+-- ============================================================================
+
+create table public.pro_program_settings (
+  id int primary key default 1 check (id = 1),
+  settings jsonb not null default '{}',
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+alter table public.pro_program_settings enable row level security;
+create policy staff_all on public.pro_program_settings for all to authenticated using (public.is_staff()) with check (public.is_staff());
+create policy settings_read on public.pro_program_settings for select to authenticated using (true);
+insert into public.pro_program_settings (id) values (1) on conflict (id) do nothing;
+
+alter table public.payouts
+  add column kind text not null default 'job' check (kind in ('job','show_up','guarantee','stipend','materials','clawback')),
+  add column method text check (method in ('weekly','instant','manual')),
+  add column instant_fee numeric(10,2) not null default 0,
+  add column stripe_transfer_id text;
+update public.payouts set kind = 'clawback' where status = 'clawback';
+create index payouts_contractor_status_idx on public.payouts(contractor_id, status);
+
+-- The 85%-of-price guard applies to the job's own payout; complimentary rules unchanged.
+create or replace function public.guard_payout_amount() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare j record; parent_take numeric;
+begin
+  if new.job_id is null or new.status = 'clawback' or new.kind <> 'job' then return new; end if;
+  select price_final, parent_job_id, remedy into j from public.jobs where id = new.job_id;
+  if j.remedy = 'complimentary' and j.parent_job_id is not null then
+    select coalesce(price_final, 0) - coalesce(contractor_payout, 0) - coalesce(amount_refunded, 0)
+      into parent_take from public.jobs where id = j.parent_job_id;
+    if new.amount > greatest(parent_take, 0) then
+      raise exception 'Complimentary payout % exceeds our take % on the original job', new.amount, parent_take;
+    end if;
+  elsif j.price_final is not null and new.amount > j.price_final * 0.85 then
+    raise exception 'Payout % exceeds 85%% of job price % — take would fall below 15%%', new.amount, j.price_final;
+  end if;
+  return new;
+end $$;
+
+create table public.job_expenses (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  contractor_id uuid not null references public.contractors(id) on delete cascade,
+  amount numeric(10,2) not null check (amount > 0),
+  description text not null,
+  receipt_path text not null,
+  status text not null default 'pending' check (status in ('pending','approved','rejected','billed','paid')),
+  decided_by text,
+  decided_at timestamptz,
+  payment_id uuid references public.payments(id) on delete set null,
+  payout_id uuid references public.payouts(id) on delete set null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+create index job_expenses_job_idx on public.job_expenses(job_id);
+alter table public.job_expenses enable row level security;
+create policy staff_all on public.job_expenses for all to authenticated using (public.is_staff()) with check (public.is_staff());
+create policy expenses_pro_read on public.job_expenses for select to authenticated using (contractor_id = public.my_contractor_id());
+
+alter table public.payments drop constraint if exists payments_kind_check;
+alter table public.payments add constraint payments_kind_check
+  check (kind in ('deposit','final','milestone','plan','upfront','refund','balance','change_order','custom','materials'));
+
+alter table public.jobs
+  add column cancelled_at timestamptz,
+  add column cancel_reason text check (cancel_reason in ('customer','late','lockout','ops','weather','pro')),
+  add column cancel_fee numeric(10,2) not null default 0;
+
+alter table public.contractors add column insurance_stipend_paid_at timestamptz;
+
+
 -- >>> seed.sql
 -- ============================================================================
 -- FILE    : supabase/seed.sql   (generated by scripts/gen-seed.ts — do not hand edit)
 -- PROJECT : Handled — AI-run home & business services
--- CREATED : 2026-10-01_2049 UTC
+-- CREATED : 2026-10-01_2136 UTC
 -- PURPOSE : PRODUCTION seed — service catalog + launch market. Safe to re-run.
 -- ============================================================================
 
@@ -922,32 +1008,35 @@ insert into public.services (slug, name, category, minimum, payout_share, site_v
   ('carpet-cleaning', 'Carpet & Upholstery Cleaning', 'cleaning', 129, 0.65, false, 2),
   ('organizing', 'Organizing & Decluttering', 'cleaning', 199, 0.65, false, 3),
   ('gutter-cleaning', 'Gutter Cleaning', 'cleaning', 149, 0.65, false, 4),
-  ('lawn-care', 'Lawn Care', 'outdoor', 45, 0.7, false, 5),
-  ('tree-removal', 'Tree Removal & Trimming', 'outdoor', 250, 0.75, true, 6),
-  ('leaf-removal', 'Leaf Removal', 'outdoor', 125, 0.7, false, 7),
-  ('snow-removal', 'Snow Removal', 'outdoor', 45, 0.7, false, 8),
-  ('dog-walking', 'Dog Walking', 'pets', 22, 0.7, false, 9),
-  ('dog-sitting', 'Dog Sitting & Pet Watching', 'pets', 28, 0.7, false, 10),
-  ('pet-waste-removal', 'Dog Poop Removal', 'pets', 20, 0.7, false, 11),
-  ('junk-removal', 'Junk Removal', 'removal', 129, 0.65, false, 12),
-  ('large-item-removal', 'Large Item Removal', 'removal', 99, 0.65, false, 13),
-  ('handyman', 'Handyman', 'repair_remodel', 99, 0.7, false, 14),
-  ('plumbing', 'Plumbing Repairs', 'repair_remodel', 149, 0.7, false, 15),
-  ('water-heater', 'Water Heater Replacement', 'repair_remodel', 1400, 0.75, false, 16),
-  ('hvac-install', 'HVAC Installation', 'repair_remodel', 3500, 0.8, true, 17),
-  ('lighting-install', 'Lighting & Ceiling Fan Install', 'repair_remodel', 149, 0.7, false, 18),
-  ('camera-install', 'Security Camera Install', 'repair_remodel', 149, 0.7, false, 19),
-  ('garbage-disposal', 'Garbage Disposal Repair & Replace', 'repair_remodel', 149, 0.7, false, 20),
-  ('bathroom-remodel', 'Bathroom Remodel', 'repair_remodel', 3500, 0.85, true, 21),
-  ('kitchen-remodel', 'Kitchen Remodel', 'repair_remodel', 12000, 0.85, true, 22),
-  ('home-remodel', 'Whole-Home Remodel', 'repair_remodel', 25000, 0.85, true, 23),
-  ('event-package', 'Plan My Event (by Budget)', 'events', 1000, 0.82, true, 24),
-  ('event-planning', 'Event Planning & Coordination', 'events', 650, 0.75, true, 25),
-  ('catering', 'Catering', 'events', 600, 0.8, false, 26),
-  ('food-truck', 'Food Truck Booking', 'events', 1200, 0.8, false, 27),
-  ('dj-music', 'DJ & Live Music', 'events', 450, 0.8, false, 28),
-  ('event-rentals', 'Seating & Party Rentals', 'events', 250, 0.75, false, 29),
-  ('event-venue', 'Event Space Rental & Coordination', 'events', 800, 0.85, true, 30)
+  ('power-washing', 'Power Washing', 'cleaning', 149, 0.7, false, 5),
+  ('lawn-care', 'Lawn Care', 'outdoor', 45, 0.7, false, 6),
+  ('tree-removal', 'Tree Removal & Trimming', 'outdoor', 250, 0.75, true, 7),
+  ('leaf-removal', 'Leaf Removal', 'outdoor', 125, 0.7, false, 8),
+  ('snow-removal', 'Snow Removal', 'outdoor', 45, 0.7, false, 9),
+  ('dog-walking', 'Dog Walking', 'pets', 22, 0.7, false, 10),
+  ('dog-sitting', 'Dog Sitting & Pet Watching', 'pets', 28, 0.7, false, 11),
+  ('pet-waste-removal', 'Dog Poop Removal', 'pets', 20, 0.7, false, 12),
+  ('junk-removal', 'Junk Removal', 'removal', 129, 0.65, false, 13),
+  ('large-item-removal', 'Large Item Removal', 'removal', 99, 0.65, false, 14),
+  ('handyman', 'Handyman', 'repair_remodel', 99, 0.7, false, 15),
+  ('plumbing', 'Plumbing Repairs', 'repair_remodel', 149, 0.7, false, 16),
+  ('water-heater', 'Water Heater Replacement', 'repair_remodel', 1400, 0.75, false, 17),
+  ('hvac-install', 'HVAC Installation', 'repair_remodel', 3500, 0.8, true, 18),
+  ('lighting-install', 'Lighting & Ceiling Fan Install', 'repair_remodel', 149, 0.7, false, 19),
+  ('camera-install', 'Security Camera Install', 'repair_remodel', 149, 0.7, false, 20),
+  ('garbage-disposal', 'Garbage Disposal Repair & Replace', 'repair_remodel', 149, 0.7, false, 21),
+  ('bathroom-remodel', 'Bathroom Remodel', 'repair_remodel', 3500, 0.85, true, 22),
+  ('kitchen-remodel', 'Kitchen Remodel', 'repair_remodel', 12000, 0.85, true, 23),
+  ('home-remodel', 'Whole-Home Remodel', 'repair_remodel', 25000, 0.85, true, 24),
+  ('errands', 'Errands & Pickups', 'errands', 39, 0.75, false, 25),
+  ('personal-assistant', 'Personal Assistant for the Day', 'errands', 120, 0.75, false, 26),
+  ('event-package', 'Plan My Event (by Budget)', 'events', 1000, 0.82, true, 27),
+  ('event-planning', 'Event Planning & Coordination', 'events', 650, 0.75, true, 28),
+  ('catering', 'Catering', 'events', 600, 0.8, false, 29),
+  ('food-truck', 'Food Truck Booking', 'events', 1200, 0.8, false, 30),
+  ('dj-music', 'DJ & Live Music', 'events', 450, 0.8, false, 31),
+  ('event-rentals', 'Seating & Party Rentals', 'events', 250, 0.75, false, 32),
+  ('event-venue', 'Event Space Rental & Coordination', 'events', 800, 0.85, true, 33)
 on conflict (slug) do update set name = excluded.name, category = excluded.category, minimum = excluded.minimum,
   payout_share = excluded.payout_share, site_visit = excluded.site_visit, sort = excluded.sort;
 

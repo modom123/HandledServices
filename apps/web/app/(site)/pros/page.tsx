@@ -8,7 +8,8 @@
  * PURPOSE : Subcontractor recruiting page + application.
  */
 import { ApplyForm } from "@/components/forms";
-import { BRAND, COVERAGES, PRO_PROMISES, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, money, samplePayouts } from "@handled/core";
+import { getPolicy } from "@/lib/pro-benefits";
+import { BRAND, COVERAGES, PRO_PROMISES, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, money, samplePayouts } from "@handled/core";
 
 export const metadata = { title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
 
@@ -23,8 +24,11 @@ const COMPARE: [string, string, string, string][] = [
   ["Unhappy customer", "Our team handles it with you.", "Yours.", "Yours."],
 ];
 
-export default function ProsPage() {
+export const revalidate = 300;
+
+export default async function ProsPage() {
   const pays = samplePayouts(SAMPLES);
+  const policy = await getPolicy().catch(() => null);
   return (
     <div className="wrap space-y-16 py-14">
       <section className="grid gap-10 lg:grid-cols-2 lg:items-center">
@@ -55,6 +59,20 @@ export default function ProsPage() {
           ))}
         </div>
       </section>
+
+      {policy && (
+        <section>
+          <h2 className="text-2xl font-bold">Benefits that protect your pay</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {benefitLines(policy).filter((b) => b.rule.enabled).map((b) => (
+              <div key={b.key} className="card"><div className="font-semibold">🛡️ {b.title}</div><p className="mt-1 text-sm text-ink-soft">{b.body}</p><p className="mt-2 text-xs text-brand-dark">{ruleText(b.rule)}</p></div>
+            ))}
+          </div>
+          {policy.insurance.partners.some((x) => x.url || x.phone) && (
+            <p className="mt-4 text-sm text-ink-soft">Need insurance? {policy.insurance.partners.filter((x) => x.url || x.phone).map((x) => `${x.name}${x.phone ? ` (${x.phone})` : ""}${x.code ? `, code ${x.code}` : ""}`).join(" · ")}</p>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="text-2xl font-bold">Grow with us: Pro, Pro+ and Elite</h2>

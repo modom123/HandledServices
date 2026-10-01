@@ -90,8 +90,9 @@ export function ActivatePro({ id, status }: { id: string; status: string }) {
   );
 }
 
-export function PayoutButton({ id }: { id: string }) {
+export function PayoutButton({ id, status = "approved" }: { id: string; status?: string }) {
   const router = useRouter();
+  if (status === "pending") return <button className="btn-primary px-3 py-1 text-xs" onClick={async () => { await call(`/api/hub/payouts/${id}`, "POST", { status: "approved" }); router.refresh(); }}>Approve</button>;
   return <button className="btn-ghost px-3 py-1 text-xs" onClick={async () => { await call(`/api/hub/payouts/${id}`, "POST", { status: "paid" }); router.refresh(); }}>Mark paid</button>;
 }
 
@@ -351,6 +352,119 @@ export function QuickChargeForm({ initialJobRef = "" }: { initialJobRef?: string
           <button className="btn-ghost ml-2 px-3 py-1 text-xs" onClick={() => navigator.clipboard.writeText(out.url!)}>Copy (to text it)</button></div>
       )}
       {out?.error && <p className="text-sm text-rose-700">{out.error}</p>}
+    </div>
+  );
+}
+
+/** Cancel a job: refunds, the late/lockout fee and show-up pay are applied automatically. */
+export function CancelPanel({ jobId, late, fee }: { jobId: string; late: boolean; fee: string }) {
+  const router = useRouter();
+  const [reason, setReason] = useState(late ? "late" : "customer");
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState("");
+  const [open, setOpen] = useState(false);
+  if (!open) return <button className="btn-ghost w-full text-sm" onClick={() => setOpen(true)}>Cancel job…</button>;
+  return (
+    <div className="card space-y-2 text-sm">
+      <div className="font-semibold">Cancel job</div>
+      <select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
+        <option value="customer">Customer asked (24h+ out: full refund)</option>
+        <option value="late">Late customer cancellation ({fee} fee kept, show-up pay to pro)</option>
+        <option value="lockout">Lockout / no access ({fee} fee kept, show-up pay to pro)</option>
+        <option value="weather">Weather (full refund)</option>
+        <option value="pro">Pro cancelled (full refund — or re-dispatch instead)</option>
+        <option value="ops">Our decision (full refund)</option>
+      </select>
+      <input className="input" placeholder="Note (shown on the job timeline)" value={note} onChange={(e) => setNote(e.target.value)} />
+      <button className="btn-primary w-full bg-rose-600" onClick={async () => {
+        const r = await call(`/api/hub/jobs/${jobId}`, "PATCH", { cancel: { reason, note } });
+        setMsg(r.ok ? `Cancelled · refunded $${r.json.refunded ?? 0}${r.json.fee ? ` · fee $${r.json.fee}` : ""}${r.json.proPay ? ` · show-up pay $${r.json.proPay}` : ""}` : r.json.error ?? "Failed");
+        router.refresh();
+      }}>Cancel job</button>
+      {msg && <p className="text-ink-soft">{msg}</p>}
+    </div>
+  );
+}
+
+export function ExpenseActions({ id, status }: { id: string; status: string }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  const go = async (decision: string, reason?: string) => { const r = await call(`/api/hub/expenses/${id}`, "POST", { decision, reason }); setMsg(r.ok ? r.json.status ?? "Done" : r.json.error ?? "Failed"); router.refresh(); };
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-xs">
+      <a className="underline" href={`/api/hub/expenses/${id}`} target="_blank">Receipt</a>
+      {status === "pending" && <><button className="btn-primary px-2 py-1 text-xs" onClick={() => go("approve")}>Approve & bill customer</button><button className="btn-ghost px-2 py-1 text-xs" onClick={() => { const r = prompt("Why not?"); if (r) go("reject", r); }}>Reject</button></>}
+      {["approved", "billed"].includes(status) && <button className="btn-ghost px-2 py-1 text-xs" onClick={() => go("paid_by_hand")}>Customer paid by hand → reimburse</button>}
+      {msg && <span className="text-ink-soft">{msg}</span>}
+    </span>
+  );
+}
+
+type Rule = { enabled: boolean; minTier: string; minJobs: number; minRating: number; trades: string[] };
+type Policy = Record<string, Rule & Record<string, unknown>>;
+
+/** Hub → Pro Program: who qualifies for each benefit, and its amounts. */
+export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; trades: { id: string; label: string }[]; canEdit: boolean }) {
+  const router = useRouter();
+  const [p, setP] = useState<Policy>(initial);
+  const [msg, setMsg] = useState("");
+  const set = (k: string, field: string, value: unknown) => setP({ ...p, [k]: { ...p[k], [field]: value } });
+  const num = (k: string, field: string, label: string, step = 1, hint = "") => (
+    <label className="block"><span className="label">{label}</span><input className="input" type="number" step={step} value={String(p[k][field] ?? "")} onChange={(e) => set(k, field, Number(e.target.value))} disabled={!canEdit} />{hint && <span className="text-xs text-ink-soft">{hint}</span>}</label>
+  );
+  const ruleFields = (k: string) => (
+    <div className="grid gap-3 sm:grid-cols-4">
+      <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={p[k].enabled} onChange={(e) => set(k, "enabled", e.target.checked)} disabled={!canEdit} /> Offered</label>
+      <label className="block"><span className="label">Minimum tier</span>
+        <select className="input" value={p[k].minTier} onChange={(e) => set(k, "minTier", e.target.value)} disabled={!canEdit}><option value="pro">Pro (everyone)</option><option value="pro_plus">Pro+</option><option value="elite">Elite</option></select></label>
+      {num(k, "minJobs", "Min. completed jobs")}
+      {num(k, "minRating", "Min. rating", 0.05)}
+      <div className="sm:col-span-4"><span className="label">Trades (none selected = all trades)</span>
+        <div className="flex flex-wrap gap-1">{trades.map((t) => {
+          const on = p[k].trades.includes(t.id);
+          return <button type="button" key={t.id} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set(k, "trades", on ? p[k].trades.filter((x) => x !== t.id) : [...p[k].trades, t.id])}>{t.label}</button>;
+        })}</div></div>
+    </div>
+  );
+  const section = (k: string, title: string, about: string, extra: React.ReactNode) => (
+    <div className="card space-y-3">
+      <div><div className="text-lg font-bold">{title}</div><p className="text-sm text-ink-soft">{about}</p></div>
+      {ruleFields(k)}
+      {extra && <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-4">{extra}</div>}
+    </div>
+  );
+  const partners = (p.insurance.partners as { name: string; url: string; phone: string; covers: string; code: string }[]) ?? [];
+  const setPartner = (i: number, f: string, v: string) => set("insurance", "partners", partners.map((x, j) => (j === i ? { ...x, [f]: v } : x)));
+  return (
+    <div className="space-y-4">
+      {section("payProtection", "1 · Pay protection", "A refund that isn’t the pro’s fault comes out of our take first. Only what our take can’t cover touches the payout, so the job never goes below $0.", null)}
+      {section("showUpPay", "2 · Show-up pay", "Late cancellation (inside 24h) or lockout: the pro gets this much from the $49 fee. It’s automatically reduced if card costs would make the cancelled job lose money.", num("showUpPay", "amount", "Show-up pay ($, max 49)"))}
+      {section("instantPay", "3 · Instant pay", "Pros cash out approved payouts any time via Stripe Connect. The fee covers Stripe’s instant-payout cost.", <>
+        {num("instantPay", "feePct", "Fee (0.015 = 1.5%)", 0.001)}{num("instantPay", "minFee", "Minimum fee ($)", 0.25)}{num("instantPay", "minAmount", "Minimum cash-out ($)")}
+      </>)}
+      {section("insurance", "4 · Insurance help", "Partner brokers shown to every applicant and pro. Qualifying pros get a one-time stipend (paid automatically by the daily sweep).", <>
+        {num("insurance", "stipend", "Stipend ($)")}{num("insurance", "afterJobs", "After this many jobs")}
+        <div className="space-y-2 sm:col-span-4">{partners.map((x, i) => (
+          <div key={i} className="grid gap-2 sm:grid-cols-5">
+            {(["name", "url", "phone", "covers", "code"] as const).map((f) => <input key={f} className="input" placeholder={f === "code" ? "referral code" : f} value={x[f]} onChange={(e) => setPartner(i, f, e.target.value)} disabled={!canEdit} />)}
+          </div>
+        ))}
+          {canEdit && partners.length < 6 && <button type="button" className="btn-ghost text-xs" onClick={() => set("insurance", "partners", [...partners, { name: "", url: "", phone: "", covers: "", code: "" }])}>+ Add partner</button>}
+        </div>
+      </>)}
+      {section("materials", "5 · Materials at cost", "Pros upload receipts for parts not included in the price. The customer pays at cost first, then the pro is reimbursed, so our take never moves.", <>
+        {num("materials", "autoApproveUpTo", "Auto-approve up to ($)")}{num("materials", "maxShareOfPrice", "Max materials / job price (0.5 = 50%)", 0.05, "Above this the pro must call for a change order")}{num("materials", "shoppingMax", "Errand shopping cap per job ($)", 5, "Errands buy goods for the customer, so they get a dollar cap instead")}
+      </>)}
+      {section("guarantee", "6 · Guaranteed weekly minimum", "Mondays, qualifying pros who stayed available are topped up to the minimum for last week. Top-ups wait for approval in Finance and stop at the weekly budget. This is a real cost, so it starts switched off.", <>
+        {num("guarantee", "weeklyMinimum", "Weekly minimum ($)")}{num("guarantee", "weeklyBudget", "Weekly budget cap ($)")}{num("guarantee", "minAcceptance", "Min. acceptance that week (0.9 = 90%)", 0.05)}{num("guarantee", "minDaysAvailable", "Min. days available (of 7)")}
+        <div className="sm:col-span-4"><span className="label">Months it applies</span><div className="flex flex-wrap gap-1">{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => {
+          const months = p.guarantee.months as number[]; const on = months.includes(i + 1);
+          return <button type="button" key={m} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set("guarantee", "months", on ? months.filter((x) => x !== i + 1) : [...months, i + 1].sort((a, b) => a - b))}>{m}</button>;
+        })}</div></div>
+      </>)}
+      {canEdit ? <button className="btn-primary" onClick={async () => { const r = await call("/api/hub/pro-program", "PUT", p); setMsg(r.ok ? "Saved — applies from now on" : r.json.error ?? "Failed"); router.refresh(); }}>Save Pro Program</button>
+        : <p className="text-sm text-ink-soft">Only an admin can change these settings.</p>}
+      {msg && <p className="text-sm">{msg}</p>}
     </div>
   );
 }

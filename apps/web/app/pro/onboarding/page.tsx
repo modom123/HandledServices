@@ -8,6 +8,7 @@
  */
 import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
+import { getPolicy } from "@/lib/pro-benefits";
 import { AGREEMENT_SECTIONS, AGREEMENT_TITLE } from "@/lib/agreement";
 import { Badge } from "@/components/ui";
 import { Field, StepForm } from "@/components/ProOnboarding";
@@ -20,6 +21,7 @@ export default async function Onboarding() {
     v.db.from("contractor_documents").select("kind, status, expires_on, created_at").order("created_at", { ascending: false }),
   ]);
   const pro = c as Contractor;
+  const partners = (await getPolicy()).insurance.partners.filter((x) => x.url || x.phone);
   const { steps, complete } = onboardingChecklist(pro as never);
   const latest = (kind: string) => (docs ?? []).find((d: { kind: string }) => d.kind === kind) as { status: string; expires_on: string | null } | undefined;
   const pending = (kind: string) => latest(kind)?.status === "pending";
@@ -74,9 +76,11 @@ export default async function Onboarding() {
     if (key.startsWith("coverage:")) {
       const k = key.slice(9) as CoverageKey;
       if (pending(k)) return <p className="mt-2 text-sm text-ink-soft">Policy received — we’re verifying it with your carrier.</p>;
+      const help = partners.length ? <p className="text-xs text-ink-soft">Need this coverage? Our partners: {partners.map((x, i) => <span key={i}>{i ? " · " : ""}{x.url ? <a className="text-brand underline" href={x.url} target="_blank">{x.name}</a> : x.name}{x.phone ? ` ${x.phone}` : ""}{x.code ? ` (code ${x.code})` : ""}</span>)}</p> : null;
       const canExempt = k === "workers_comp" && !requiredCoverages(pro.trades).includes("workers_comp");
       return (
         <div className="mt-3 space-y-3">
+          {help}
           <StepForm step="coverage" cta={`Upload ${COVERAGES[k].label.toLowerCase()}`}>
             <input type="hidden" name="coverage" value={k} />
             <div className="grid gap-3 sm:grid-cols-2"><Field label="Policy expires" name="expires_on" type="date" required /><Field label="Certificate or declarations page" name="file" type="file" accept="application/pdf,image/*" required /></div>

@@ -14,7 +14,7 @@ import { getService } from "./services.ts";
 import { TIME_WINDOW_LABEL, type Job } from "./types.ts";
 
 /** Bump when the per-job terms below change. */
-export const WORK_ORDER_VERSION = "2026-10-v1";
+export const WORK_ORDER_VERSION = "2026-10-v2";
 
 export interface WorkOrder {
   version: string;
@@ -54,6 +54,8 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     "Take before-and-after photos of every area you work on and upload them to complete the job.",
     ...(job.payment_plan === "deposit" && !job.paid_at ? ["The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\"."] : []),
     "Out-of-scope work: stop and tell us — we send the customer a change order. Do only what's on this work order.",
+    "Parts not included in the price: upload the receipt in the app. Small amounts are approved automatically; call us before a big purchase. You're reimbursed at cost once the customer pays.",
+    "Can't get in? Tap “Can't get in?” in the app and wait 15 minutes while we call the customer. A confirmed lockout earns show-up pay.",
     `Fix any workmanship issue within ${BRAND.guaranteeDays} days at no extra payout.`,
     "Don't solicit this customer to book directly with you for 12 months.",
     ...(svc?.licensed ? ["Licensed trade: your license must be valid for this work; pull permits where required."] : []),

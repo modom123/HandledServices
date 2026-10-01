@@ -2,15 +2,17 @@
  * FILE    : apps/web/app/pro/jobs/[id]/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-01_2124 UTC — materials receipts, lockout report.
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, buildWorkOrder, getService, money, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, buildWorkOrder, getService, money, whyNot, type Contractor, type Job } from "@handled/core";
+import { getPolicy } from "@/lib/pro-benefits";
 import { WorkOrderView } from "@/components/WorkOrderView";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
-import { CompleteJob, StartJob } from "@/components/ProActions";
+import { CompleteJob, LockoutReport, MaterialsForm, StartJob } from "@/components/ProActions";
 import { JobThread } from "@/components/JobThread";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
@@ -21,10 +23,15 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
   if (!data) notFound();
   const job = data as Job;
   const s = getService(job.service_slug)!;
-  const [photos, { data: msgs }] = await Promise.all([
+  const [photos, { data: msgs }, { data: me }, { data: expenses }, policy] = await Promise.all([
     signedUrls(job.photos),
     v.db.from("messages").select("id, sender_role, body, created_at").eq("job_id", id).order("created_at"),
+    v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
+    v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
+    getPolicy(),
   ]);
+  const trade = s.trades.find((t) => (me?.trades ?? []).includes(t));
+  const noMaterials = me ? whyNot(policy.materials, me as Contractor, trade) : "pro not found";
   const maps = `https://maps.google.com/?q=${encodeURIComponent(`${job.address}, ${job.city}, ${job.state} ${job.zip}`)}`;
   return (
     <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -53,6 +60,13 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.status === "assigned" && <StartJob jobId={job.id} />}
         {(job.status === "assigned" || job.status === "in_progress") && <CompleteJob jobId={job.id} />}
         {job.status === "qa_review" && <div className="card text-sm">Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.</div>}
+        {(job.status === "assigned" || job.status === "in_progress") && <LockoutReport jobId={job.id} />}
+        {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) && <MaterialsForm jobId={job.id} allowed={!noMaterials} reason={noMaterials} />}
+        {(expenses ?? []).length > 0 && (
+          <div className="card text-sm"><div className="font-semibold">Materials</div>
+            {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string }) => <div key={e.id} className="flex justify-between border-t border-line py-1"><span>{e.description}</span><span>{money(e.amount)} · {e.status}</span></div>)}
+          </div>
+        )}
       </div>
     </div>
   );

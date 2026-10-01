@@ -16,3 +16,4 @@ export * from "./event-budget.ts";
 export * from "./workorder.ts";
 export * from "./pro-program.ts";
 export * from "./vetting.ts";
+export * from "./pro-policy.ts";

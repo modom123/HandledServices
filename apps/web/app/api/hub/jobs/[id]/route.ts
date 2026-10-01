@@ -9,6 +9,7 @@ import { JOB_STATUSES, splitJob } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent, finalizeJob, markPaid, sendPaymentLink } from "@/lib/jobs";
+import { cancelJob } from "@/lib/pro-benefits";
 import { amountDue, chargeSavedCard } from "@/lib/stripe";
 import type { Job } from "@handled/core";
 
@@ -25,6 +26,7 @@ const Patch = z.object({
   charge_balance: z.boolean().optional(),
   note: z.string().max(2000).optional(),
   instructions: z.string().max(4000).nullable().optional(),
+  cancel: z.object({ reason: z.enum(["customer", "late", "lockout", "ops", "weather", "pro"]), note: z.string().max(500).optional() }).optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -33,12 +35,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return deny(400, "Invalid update");
-  const { approve_qa, note, mark_paid, send_payment_link, charge_balance, ...patch } = parsed.data;
+  const { approve_qa, note, mark_paid, send_payment_link, charge_balance, cancel, ...patch } = parsed.data;
   const db = adminClient();
   const { data: job } = await db.from("jobs").select("*").eq("id", id).single();
   if (!job) return deny(404, "Not found");
 
   const who = v!.fullName ?? v!.email;
+  if (cancel || patch.status === "cancelled") {
+    const r = await cancelJob(id, cancel?.reason ?? "ops", who, cancel?.note ?? note ?? "");
+    return r.ok ? Response.json(r) : Response.json({ error: r.error }, { status: 409 });
+  }
   if (mark_paid) {
     await addEvent(id, "human_touch", `Marked paid (${mark_paid.method})`, who, false);
     await markPaid(id, { amount: mark_paid.amount, via: `${who} · ${mark_paid.method}`, kind: job.deposit_paid_at || Number(job.amount_paid) ? "balance" : "upfront" });

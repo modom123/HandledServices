@@ -84,3 +84,25 @@ export function PayNow({ jobId, amount, label = "" }: { jobId: string; amount: s
     </div>
   );
 }
+
+/** Customer cancels. Free 24h+ before the arrival window; inside 24h the late fee applies. */
+export function CancelBooking({ jobId, late, fee, paid }: { jobId: string; late: boolean; fee: string; paid: boolean }) {
+  const [step, setStep] = useState(0);
+  const [msg, setMsg] = useState("");
+  if (step === 0) return <button className="text-sm text-ink-soft underline" onClick={() => setStep(1)}>Cancel this booking</button>;
+  return (
+    <div className="card border-rose-200 text-sm">
+      <div className="font-semibold">Cancel this booking?</div>
+      <p className="mt-1 text-ink-soft">{!paid ? "Nothing has been charged." : late ? `Your pro’s arrival window is less than 24 hours away, so a ${fee} late-cancellation fee is kept (it pays your pro for the reserved time). The rest is refunded to your card.` : "You’re more than 24 hours out — you’ll get a full refund to your card."}</p>
+      <div className="mt-3 flex gap-2">
+        <button className="btn-primary bg-rose-600" onClick={async () => {
+          const r = await fetch(`/api/account/jobs/${jobId}/cancel`, { method: "POST" });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok) window.location.reload(); else setMsg(j.error ?? "Couldn’t cancel");
+        }}>Yes, cancel</button>
+        <button className="btn-ghost" onClick={() => setStep(0)}>Keep it</button>
+      </div>
+      {msg && <p className="mt-2 text-rose-700">{msg}</p>}
+    </div>
+  );
+}

@@ -2,6 +2,8 @@
  * FILE    : apps/web/lib/remedies.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1900 UTC
+ * UPDATED : 2026-10-01_2124 UTC — Pay protection: a refund that isn't the pro's fault comes
+ *           out of our take first when the pro qualifies (Hub → Pro Program).
  * PURPOSE : Making it right after an upfront payment — never by holding money back:
  *             refund         — partial or full, back to the card. Shared with the pro in the
  *                              original split, or charged to the pro first when the pro was at
@@ -11,7 +13,8 @@
  *                              on the original job, capped so the pair can't go negative.
  */
 import "server-only";
-import { BRAND, estimate, getService, money, refundSplit, splitJob, type Answers, type Job } from "@handled/core";
+import { BRAND, estimate, getService, money, qualifies, refundSplit, splitJob, type Answers, type Contractor, type Job } from "@handled/core";
+import { getPolicy } from "./pro-benefits";
 import { adminClient } from "./supabase/server";
 import { addEvent, dispatchJob, getJob } from "./jobs";
 import { refundPayment } from "./stripe";
@@ -23,7 +26,13 @@ const db = () => adminClient();
 export async function issueRefund(jobId: string, amount: number, proAtFault: boolean, actor: string, reason: string) {
   const job = await getJob(jobId);
   if (!job?.paid_at) return { ok: false, error: "Job isn't paid" };
-  const split = refundSplit({ paid: Number(job.amount_paid), alreadyRefunded: Number(job.amount_refunded), payout: Number(job.contractor_payout ?? 0), refund: amount, proAtFault });
+  let protectPro = false;
+  if (!proAtFault && job.contractor_id) {
+    const { data: pro } = await db().from("contractors").select("*").eq("id", job.contractor_id).single();
+    const trade = getService(job.service_slug)?.trades.find((t) => (pro?.trades ?? []).includes(t));
+    protectPro = Boolean(pro) && qualifies((await getPolicy()).payProtection, pro as Contractor, trade);
+  }
+  const split = refundSplit({ paid: Number(job.amount_paid), alreadyRefunded: Number(job.amount_refunded), payout: Number(job.contractor_payout ?? 0), refund: amount, proAtFault, protectPro });
   if (split.refund <= 0) return { ok: false, error: "Nothing left to refund" };
   const r = await refundPayment(job, split.refund);
   if (!r.ok) return { ok: false, error: r.error };
@@ -31,12 +40,12 @@ export async function issueRefund(jobId: string, amount: number, proAtFault: boo
   await db().from("jobs").update({ amount_refunded: Number(job.amount_refunded) + split.refund, contractor_payout: split.newPayout }).eq("id", jobId);
   await db().from("payments").insert({ job_id: jobId, kind: "refund", amount: -split.refund, status: "paid", stripe_session_id: r.id ?? null });
   if (job.contractor_id && split.fromPro > 0) {
-    const { data: payout } = await db().from("payouts").select("id, amount, status").eq("job_id", jobId).neq("status", "clawback").maybeSingle();
+    const { data: payout } = await db().from("payouts").select("id, amount, status").eq("job_id", jobId).eq("kind", "job").neq("status", "clawback").maybeSingle();
     if (payout && payout.status !== "paid") await db().from("payouts").update({ amount: split.newPayout }).eq("id", payout.id);
-    else if (payout) await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: jobId, amount: -split.fromPro, status: "clawback", reason });
+    else if (payout) await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: jobId, amount: -split.fromPro, status: "clawback", kind: "clawback", reason });
   }
   await addEvent(jobId, "refund", `Refund issued: ${money(split.refund)}. ${reason}`, actor);
-  await addEvent(jobId, "human_touch", `Refund ${money(split.refund)} (pro ${money(split.fromPro)} / us ${money(split.fromUs)})`, actor, false);
+  await addEvent(jobId, "human_touch", `Refund ${money(split.refund)} (pro ${money(split.fromPro)} / us ${money(split.fromUs)})${protectPro ? " · pay protection" : ""}`, actor, false);
   await sendEmail(job.contact_email, `Refund issued — ${job.ref}`, `We've refunded ${money(split.refund)} to your card (allow 5–10 business days). ${reason}\n\nWe're sorry it wasn't right. — ${BRAND.name}`);
   return { ok: true, ...split };
 }

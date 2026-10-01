@@ -11,6 +11,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { adminClient } from "@/lib/supabase/server";
 import { markPaid, raiseAlert } from "@/lib/jobs";
+import { reimburse } from "@/lib/pro-benefits";
 import { opsEmail, sendEmail } from "@/lib/notify";
 
 export async function POST(req: Request) {
@@ -35,7 +36,11 @@ export async function POST(req: Request) {
     if (!row) return Response.json({ received: true, duplicate: true });
     const pi = session.payment_intent ? await s.paymentIntents.retrieve(String(session.payment_intent)) : null;
     const amount = (session.amount_total ?? 0) / 100;
-    if (row.job_id) {
+    if (row.kind === "materials") {
+      // pass-through: the customer paid the materials at cost → reimburse the pro
+      const { data: exp } = await db.from("job_expenses").select("id").eq("payment_id", row.id).maybeSingle();
+      if (exp) await reimburse(exp.id, row.id);
+    } else if (row.job_id) {
       await markPaid(row.job_id, { amount, via: "card", kind: row.kind, paymentIntent: pi?.id ?? null, paymentMethod: pi?.payment_method ? String(pi.payment_method) : null });
     } else if (opsEmail()) {
       await sendEmail(opsEmail(), `Paid: $${amount} — ${row.description}`, `${row.customer_name ?? ""} <${row.customer_email}> paid $${amount} for "${row.description}" (Quick Charge by ${row.created_by ?? "staff"}).`);

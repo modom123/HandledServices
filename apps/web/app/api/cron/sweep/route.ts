@@ -6,6 +6,7 @@
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, dispatchJob, raiseAlert, sendPaymentLink } from "@/lib/jobs";
+import { grantStipends, runGuarantee } from "@/lib/pro-benefits";
 import type { Job } from "@handled/core";
 
 export const maxDuration = 300;
@@ -55,6 +56,8 @@ export async function GET(req: Request) {
 
   // 5. Balances due after a deposit → charge the saved card, else payment link + alert
   const balances = await collectBalances();
+  const stipends = await grantStipends();
+  const guarantee = new Date().getUTCDay() === 1 ? await runGuarantee() : null; // Mondays: last week's minimums
 
-  return Response.json({ balances, reminded, expired: expired?.length ?? 0, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ balances, stipends, guarantee, reminded, expired: expired?.length ?? 0, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

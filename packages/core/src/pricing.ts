@@ -154,13 +154,21 @@ export const moneyRange = (lo: number, hi: number) => (lo === hi ? money(lo) : `
  *  - shared (default): the refund comes out of the pro's payout and our take in the same
  *    proportion as the original split, so our take % is unchanged
  *  - pro at fault: the pro's payout absorbs the refund first; we only cover what's left
+ *  - protectPro (Pay protection): not the pro's fault → our take absorbs it first
  * The refund can't exceed what the customer paid minus earlier refunds.
  */
-export function refundSplit(opts: { paid: number; alreadyRefunded: number; payout: number; refund: number; proAtFault?: boolean }) {
+export function refundSplit(opts: { paid: number; alreadyRefunded: number; payout: number; refund: number; proAtFault?: boolean; protectPro?: boolean }) {
   const refundable = Math.max(0, opts.paid - opts.alreadyRefunded);
   const refund = Math.round(Math.min(Math.max(0, opts.refund), refundable) * 100) / 100;
   const ratio = opts.paid > 0 ? opts.payout / opts.paid : 0;
-  const fromPro = opts.proAtFault ? Math.min(refund, opts.payout) : Math.floor(refund * ratio * 100) / 100;
+  // Pay protection: not the pro's fault → our remaining take absorbs it first; only what our
+  // take can't cover comes from the payout, so the job still never goes below $0 for us.
+  const ourLeft = Math.max(0, Math.round((refundable - opts.payout) * 100) / 100);
+  const fromPro = opts.proAtFault
+    ? Math.min(refund, opts.payout)
+    : opts.protectPro
+      ? Math.min(opts.payout, Math.max(0, Math.round((refund - ourLeft) * 100) / 100))
+      : Math.floor(refund * ratio * 100) / 100;
   const fromUs = Math.round((refund - fromPro) * 100) / 100;
   const take = opts.paid - opts.payout;
   return { refund, fromPro, fromUs, newPayout: Math.round((opts.payout - fromPro) * 100) / 100, takeAfter: Math.round((take - fromUs) * 100) / 100 };

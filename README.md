@@ -30,6 +30,7 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 | **Invoice & Service Agreement** | `/invoice/[id]`, `/terms/service-agreement` | Every job's invoice carries the customer terms; accepted at booking (version, time and IP recorded); signed login-free link in every email; printable |
 | **Pro Network & 1099** | `/hub/network`, `/hub/pros/[id]`, `/pro/onboarding`, `/pro/earnings` | Pros as the core asset: onboarding (W-9, contractor agreement, COI, license, background, payout), work & payout ledger, value generated, blended ratings, year-end 1099 worksheet |
 | **Pro Program & vetting** | `/pros`, `/pro`, `/pro/onboarding` | Pro / Pro+ / Elite tiers (+3% / +5% payout, first pick of offers, never below our 15% floor), specialties, trade-by-trade license and insurance rules, probation. Strategy: [`docs/PRO_OFFERING_2026-10-01_2110.md`](docs/PRO_OFFERING_2026-10-01_2110.md) |
+| **Pro benefits** | `/hub/pro-program`, `/pro/earnings`, `/pro/jobs/[id]` | Pay protection, show-up pay on late cancels/lockouts, instant pay (Stripe Connect), insurance partners + stipend, materials at cost (customer pays first), guaranteed weekly minimum. Admin sets who qualifies |
 | **IEBC Workforce API** | `/api/iebc/v1` | IEBC AI employees run departments with scoped permissions, autonomy levels, an approval queue and a usage meter |
 
 ### The AI layer (Claude, `apps/web/lib/ai/`)

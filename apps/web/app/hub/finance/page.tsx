@@ -23,7 +23,7 @@ export default async function Finance() {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const [{ data: done }, { data: payouts }, { data: runs }] = await Promise.all([
     v.db.from("jobs").select("service_slug, price_final, contractor_payout").eq("status", "completed").gte("completed_at", since),
-    v.db.from("payouts").select("id, amount, status, created_at, contractors(business_name), jobs(ref)").in("status", ["approved", "pending", "held"]).order("created_at"),
+    v.db.from("payouts").select("id, amount, status, kind, reason, created_at, contractors(business_name), jobs(ref)").in("status", ["approved", "pending", "held"]).order("created_at"),
     v.db.from("ai_runs").select("kind, input_tokens, output_tokens").gte("created_at", since),
   ]);
   const rows = new Map<string, { jobs: number; revenue: number; payout: number }>();
@@ -59,7 +59,7 @@ export default async function Finance() {
         <p className="mb-3 text-sm text-ink-soft">Pros are paid from money already collected: <b>approved</b> = customer charged · <b>pending</b> = confirm payment received first · <b>held</b> = customer charge failed.</p>
         {!(payouts ?? []).length && <Empty>Nothing owed.</Empty>}
         <div className="space-y-2">{(payouts ?? []).map((p: Rec) => (
-          <div key={p.id} className="card flex items-center justify-between p-4 text-sm"><div><span className="font-semibold">{p.contractors?.business_name}</span> · {p.jobs?.ref} · {p.status}</div><div className="flex items-center gap-3"><b>{money(p.amount)}</b><PayoutButton id={p.id} /></div></div>
+          <div key={p.id} className="card flex items-center justify-between p-4 text-sm"><div><span className="font-semibold">{p.contractors?.business_name}</span> · {p.jobs?.ref ?? p.reason} · {p.kind && p.kind !== "job" ? `${String(p.kind).replace("_", "-")} · ` : ""}{p.status}</div><div className="flex items-center gap-3"><b>{money(p.amount)}</b><PayoutButton id={p.id} status={p.status} /></div></div>
         ))}</div>
       </section>
     </div>

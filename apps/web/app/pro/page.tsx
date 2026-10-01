@@ -6,8 +6,9 @@
  * PURPOSE : Pro home — open offers, upcoming jobs, earnings.
  */
 import Link from "next/link";
-import { PROBATION, PRO_REFERRAL, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
+import { PROBATION, PRO_REFERRAL, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
+import { getPolicy } from "@/lib/pro-benefits";
 import { Empty, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import Link2 from "next/link";
 
@@ -20,6 +21,7 @@ export default async function ProHome() {
     v.db.from("payouts").select("amount, status, created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
+  const policy = await getPolicy();
   const list = (jobs ?? []) as Job[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
   const month = new Date().toISOString().slice(0, 7);
@@ -50,6 +52,12 @@ export default async function ProHome() {
             </div>
             <div className="text-sm text-ink-soft">{tier.perks.join(" · ")}</div>
             {prog.next && <div className="mt-2 text-sm">Next: <b>{prog.next.badge} {prog.next.name}</b> (+{Math.round(prog.next.payoutBoost * 100)}% pay, earlier offers). To get there: {prog.todo.join(", ")}.</div>}
+            <div className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
+              {benefitLines(policy).filter((b) => b.rule.enabled).map((b) => {
+                const no = whyNot(b.rule, me as Contractor);
+                return <div key={b.key} title={b.body} className={no ? "text-ink-soft" : ""}>{no ? "○" : "✅"} {b.title}{no ? ` — ${no}` : ""}</div>;
+              })}
+            </div>
             <div className="mt-2 text-xs text-ink-soft">Know a great pro? Earn {money(PRO_REFERRAL.bonus)} when they finish their {PRO_REFERRAL.afterJobs}th job. Send them to /pros and have them put your business name in the “Tell us about your crew” box.</div>
           </div>
         );
