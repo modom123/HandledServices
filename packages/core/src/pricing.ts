@@ -2,6 +2,10 @@
  * FILE    : packages/core/src/pricing.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-01_1830 UTC — splitJob(): one place that splits every price between the
+ *           subcontractor and us. Our take is always 15–35% of the job (TAKE_MIN/MAX),
+ *           payouts round down (in our favor), card fees are estimated so the hub shows
+ *           net per job. Enforced again in the database (jobs_take_rate_band).
  * PURPOSE : Deterministic instant-quote engine. Produces the price range shown to the
  *           customer, the subcontractor payout and the platform margin. The AI quote
  *           (apps/web/lib/ai/quote.ts) may adjust inside guardrails but never below the
@@ -22,6 +26,38 @@ export const RECURRING_DISCOUNT: Record<Frequency, number> = {
 /** Bookings that start within this many hours get the rush surcharge. */
 export const RUSH_HOURS = 48;
 export const RUSH_SURCHARGE = 0.15;
+/** Our take on every job: never below 15%, never above 35% of the price. */
+export const TAKE_MIN = 0.15;
+export const TAKE_MAX = 0.35;
+/** Card processing estimate (Stripe US standard). Big tickets should use ACH instead. */
+export const CARD_FEE = { pct: 0.029, fixed: 0.3 };
+
+export interface JobSplit {
+  price: number;
+  /** What the subcontractor is paid. */
+  payout: number;
+  /** What we keep before processing fees. */
+  take: number;
+  takeRate: number;
+  cardFee: number;
+  /** What we keep after card fees. */
+  net: number;
+}
+
+/**
+ * Split a job price between the subcontractor and us. The payout share comes from the
+ * service, clamped so our take is always within TAKE_MIN–TAKE_MAX, and the payout rounds
+ * DOWN to the dollar so rounding can never cost us money.
+ */
+export function splitJob(price: number, slug: string): JobSplit {
+  const svc = getService(slug);
+  const share = Math.min(1 - TAKE_MIN, Math.max(1 - TAKE_MAX, svc?.payoutShare ?? 1 - TAKE_MIN));
+  const payout = price > 0 ? Math.floor(price * share) : 0;
+  const take = Math.round((price - payout) * 100) / 100;
+  const cardFee = price > 0 ? Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100 : 0;
+  return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100 };
+}
+
 /** Guardrail on AI adjustments relative to the deterministic baseline. */
 export const AI_MAX_ADJUST = 0.4;
 
@@ -75,7 +111,7 @@ export function estimate(input: EstimateInput): Estimate {
   const step = point >= 5000 ? 250 : point >= 1000 ? 25 : 5;
   const low = roundTo(point * service.spread[0], step);
   const high = roundTo(point * service.spread[1], step);
-  const payout = Math.round(point * service.payoutShare);
+  const { payout } = splitJob(Math.round(point), service.slug);
   return {
     slug: service.slug,
     items: lines,

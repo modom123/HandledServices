@@ -70,10 +70,10 @@ out.push(
     .join(",\n") + ";\n",
 );
 out.push(`-- assign the demo 'assigned' + 'completed' jobs to a matching pro
-update public.jobs j set contractor_id = c.id, contractor_payout = round(j.estimate_low * s.payout_share)
+update public.jobs j set contractor_id = c.id, contractor_payout = floor(j.estimate_low * s.payout_share)
 from public.contractors c, public.services s
 where s.slug = j.service_slug and j.status in ('assigned','completed') and j.service_slug = 'pet-waste-removal' and c.email = 'lena@scooptroop.example';
-update public.jobs j set contractor_id = c.id, contractor_payout = round(j.estimate_low * s.payout_share), price_final = j.estimate_low, completed_at = now()
+update public.jobs j set contractor_id = c.id, contractor_payout = floor(j.estimate_low * s.payout_share), price_final = j.estimate_low, completed_at = now()
 from public.contractors c, public.services s
 where s.slug = j.service_slug and j.status = 'completed' and c.email = 'marcus@greenline.example';
 `);

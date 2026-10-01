@@ -8,7 +8,7 @@
 
 A services company that delivers cleaning, lawn, trees, dog-waste removal, hauling, handyman work and
 remodels through vetted subcontractors. AI runs it day to day, IEBC's AI workforce staffs it, and a small
-human team manages it. Business plan: [`docs/BUSINESS_PLAN_2026-10-01_1800.md`](docs/BUSINESS_PLAN_2026-10-01_1800.md).
+human team manages it. Business plan: [`docs/BUSINESS_PLAN_2026-10-01_1830.md`](docs/BUSINESS_PLAN_2026-10-01_1830.md).
 
 ```
 apps/web        Next.js 16 on Vercel — website, booking, customer portal, pro portal, Command Center, all APIs

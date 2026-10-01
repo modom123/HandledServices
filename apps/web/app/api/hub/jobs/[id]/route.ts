@@ -5,7 +5,7 @@
  * PURPOSE : Staff: edit a job — status, firm price after site visit, date, assign a pro directly, approve QA.
  */
 import { z } from "zod";
-import { JOB_STATUSES, getService } from "@handled/core";
+import { JOB_STATUSES, splitJob } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent, finalizeJob } from "@/lib/jobs";
@@ -40,7 +40,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
   const update: Record<string, unknown> = { ...patch };
   if (patch.price_final !== undefined) {
-    update.contractor_payout = Math.round(patch.price_final * (getService(job.service_slug)?.payoutShare ?? 0.7));
+    update.contractor_payout = splitJob(patch.price_final, job.service_slug).payout;
     update.estimate_low = patch.price_final;
     update.estimate_high = patch.price_final;
   }

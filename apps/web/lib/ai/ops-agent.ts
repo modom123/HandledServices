@@ -72,7 +72,7 @@ function tools(actor: string) {
     }),
     betaZodTool({
       name: "metrics",
-      description: "Revenue, gross margin, job counts and average rating between two dates (by created_at).",
+      description: "Gross bookings (what customers paid), paid to pros, our take, job counts and average rating between two dates (by created_at).",
       inputSchema: z.object({ from: z.string(), to: z.string() }),
       run: async ({ from, to }) => {
         const { data: jobs } = await db().from("jobs").select("status, price_final, contractor_payout, service_slug").gte("created_at", from).lte("created_at", `${to}T23:59:59`);
@@ -83,7 +83,7 @@ function tools(actor: string) {
         const byService: Record<string, number> = {};
         for (const j of jobs ?? []) byService[j.service_slug] = (byService[j.service_slug] ?? 0) + 1;
         return JSON.stringify({
-          bookings: jobs?.length ?? 0, completed: done.length, revenue, payouts, gross_margin: revenue - payouts,
+          bookings: jobs?.length ?? 0, completed: done.length, gross_bookings: revenue, paid_to_pros: payouts, our_take: revenue - payouts,
           avg_rating: reviews?.length ? reviews.reduce((t, r) => t + r.rating, 0) / reviews.length : null, by_service: byService,
         });
       },

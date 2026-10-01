@@ -9,7 +9,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, estimate, getService, isRush, money, moneyRange, rankContractors,
+  BRAND, JOB_STATUS_LABEL, estimate, getService, isRush, money, moneyRange, rankContractors, splitJob,
   type Contractor, type Job, type JobStatus,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -89,7 +89,7 @@ export async function afterBooking(job: Job) {
     const patch: Partial<Job> = { ai_quote: ai, estimate_low: ai.low, estimate_high: ai.high };
     if (!svc.siteVisit) {
       patch.price_final = ai.final_price;
-      patch.contractor_payout = Math.round(ai.final_price * svc.payoutShare);
+      patch.contractor_payout = splitJob(ai.final_price, svc.slug).payout;
     }
     if (ai.needs_site_visit && !svc.siteVisit) patch.status = "site_visit";
     const { data } = await db().from("jobs").update(patch).eq("id", job.id).select("*").single();
@@ -257,12 +257,15 @@ export async function finalizeJob(jobId: string, summary?: string) {
     .eq("id", jobId).eq("status", "qa_review").select("*").maybeSingle();
   const job = data as Job | null;
   if (!job) return;
+  // Uber rule: the pro is paid out of money we've collected. Card charged OK → payout approved;
+  // charge failed → payout held; no Stripe (invoice / pay-after) → pending until ops marks it collected.
+  const charge = await chargeCompletedJob(job);
   if (job.contractor_id && job.contractor_payout) {
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: "approved" });
+    const payoutStatus = charge === "succeeded" ? "approved" : charge === null ? "pending" : "held";
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: payoutStatus });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
-  await chargeCompletedJob(job);
   await addEvent(job.id, "completed", summary ?? "Job complete. Thank you!", "system");
   await sendEmail(
     job.contact_email,

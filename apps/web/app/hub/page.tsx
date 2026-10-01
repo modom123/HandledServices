@@ -53,7 +53,7 @@ export default async function HubHome() {
         <Link href="/hub/workforce" className="text-sm underline">{iebcPending ?? 0} IEBC actions awaiting approval</Link>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Revenue (month)" value={money(revenue)} hint={`Gross margin ${money(margin)}`} />
+        <Stat label="Our take (month)" value={money(margin)} hint={`${money(revenue)} bookings · ${revenue ? Math.round((margin / revenue) * 100) : 0}% avg take`} />
         <Stat label="Bookings (7 days)" value={week?.length ?? 0} hint={`${open?.length ?? 0} jobs in pipeline`} />
         <Stat label="Needs a pro" value={<span className={unassigned ? "text-rose-600" : ""}>{unassigned}</span>} hint={`${qa} awaiting QA`} />
         <Stat label="Avg rating (month)" value={`${avg} ★`} hint={`${apps ?? 0} new pro applications`} />

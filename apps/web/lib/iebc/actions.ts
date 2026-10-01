@@ -9,7 +9,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, JOB_STATUSES, getService, money } from "@handled/core";
+import { BRAND, JOB_STATUSES, money, splitJob } from "@handled/core";
 import { adminClient } from "../supabase/server";
 import { addEvent, dispatchJob, finalizeJob, raiseAlert, setStatus } from "../jobs";
 import { sendEmail } from "../notify";
@@ -50,7 +50,7 @@ export const ACTIONS: Record<string, ActionDef> = {
       const done = (jobs ?? []).filter((j) => j.status === "completed");
       const revenue = done.reduce((s, j) => s + Number(j.price_final ?? 0), 0);
       const payouts = done.reduce((s, j) => s + Number(j.contractor_payout ?? 0), 0);
-      return { from: f, to: t.slice(0, 10), bookings: jobs?.length ?? 0, completed: done.length, revenue, payouts, gross_margin: revenue - payouts,
+      return { from: f, to: t.slice(0, 10), bookings: jobs?.length ?? 0, completed: done.length, gross_bookings: revenue, paid_to_pros: payouts, our_take: revenue - payouts, take_rate: revenue ? +((revenue - payouts) / revenue).toFixed(3) : null,
         avg_rating: reviews?.length ? +(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(2) : null };
     },
   }),
@@ -173,8 +173,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     params: z.object({ ref, price: z.number().positive() }),
     run: async ({ ref: r, price }) => {
       const job = await jobByRef(r);
-      const share = getService(job.service_slug)?.payoutShare ?? 0.7;
-      await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: Math.round(price * share), status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
+      await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: splitJob(price, job.service_slug).payout, status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
       await addEvent(job.id, "quoted", `Firm price: ${money(price)}`, "IEBC workforce");
       return { ref: r, price };
     },

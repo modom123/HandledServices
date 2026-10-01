@@ -58,3 +58,33 @@ test("dispatch filters ineligible pros and ranks the rest", () => {
   const ranked = rankContractors(pros, { service_slug: "junk-removal", zip: "48201", scheduled_date: null });
   assert.deepEqual(ranked.map((r) => r.contractor.id), ["a", "b"]);
 });
+
+test("every service keeps our take between 15% and 35%", async () => {
+  const { TAKE_MIN, TAKE_MAX } = await import("./pricing.ts");
+  for (const svc of SERVICES) {
+    const take = 1 - svc.payoutShare;
+    assert.ok(take >= TAKE_MIN && take <= TAKE_MAX, `${svc.slug} take ${take}`);
+  }
+});
+
+test("splitJob never pays out more than the band allows, at any price", async () => {
+  const { splitJob, TAKE_MIN, TAKE_MAX } = await import("./pricing.ts");
+  for (const svc of SERVICES) {
+    for (let price = 1; price <= 5000; price += 7) {
+      const sp = splitJob(price, svc.slug);
+      assert.ok(sp.payout <= price * (1 - TAKE_MIN) + 1e-9, `${svc.slug} @${price}: payout ${sp.payout} too high`);
+      assert.ok(sp.take >= price * TAKE_MIN - 1e-9, `${svc.slug} @${price}: take ${sp.take} below 15%`);
+      assert.ok(sp.take <= price * TAKE_MAX + 1, `${svc.slug} @${price}: take ${sp.take} above 35% + $1 rounding`);
+      assert.ok(sp.payout >= 0 && sp.take > 0);
+    }
+  }
+});
+
+test("every default quote earns money after card fees", async () => {
+  const { splitJob } = await import("./pricing.ts");
+  for (const svc of SERVICES) {
+    const e = estimate({ slug: svc.slug, answers: defaultAnswers(svc), frequency: svc.frequencies.at(-1) });
+    const sp = splitJob(e.point, svc.slug);
+    assert.ok(sp.net > 0, `${svc.slug} loses money after card fees: ${JSON.stringify(sp)}`);
+  }
+});
