@@ -1,0 +1,20 @@
+{
+  "//": "FILE: package.json · PROJECT: Handled (myhumanai) · CREATED: 2026-10-01_1723 UTC",
+  "name": "handled",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Handled — AI-run home & business services marketplace (website, ops hub, portals, mobile app).",
+  "workspaces": [
+    "packages/core",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "typecheck": "npm run typecheck -w packages/core && npm run typecheck -w apps/web",
+    "test": "npm run test -w packages/core"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

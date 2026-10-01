@@ -1,0 +1,270 @@
+/*
+ * FILE    : apps/web/lib/iebc/actions.ts
+ * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * CREATED : 2026-10-01_1800 UTC
+ * PURPOSE : The actions IEBC's AI employees may take in this business. Each action
+ *           declares its scope (which department may use it), whether it writes, and
+ *           its risk. The gateway (gateway.ts) enforces scopes + autonomy and logs
+ *           everything to agent_actions.
+ */
+import "server-only";
+import { z } from "zod";
+import { BRAND, JOB_STATUSES, getService, money } from "@handled/core";
+import { adminClient } from "../supabase/server";
+import { addEvent, dispatchJob, finalizeJob, raiseAlert, setStatus } from "../jobs";
+import { sendEmail } from "../notify";
+
+export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales";
+
+export interface ActionDef {
+  scope: Scope;
+  write: boolean;
+  /** High-risk writes always need human approval, even for autonomous agents. */
+  risk: "low" | "high";
+  description: string;
+  params: z.ZodType;
+  run: (p: never) => Promise<unknown>;
+}
+
+const db = () => adminClient();
+const ref = z.string().regex(/^H-\d+$/i).transform((r) => r.toUpperCase());
+async function jobByRef(r: string) {
+  const { data } = await db().from("jobs").select("*").eq("ref", r).maybeSingle();
+  if (!data) throw new Error(`No job ${r}`);
+  return data;
+}
+const def = <P extends z.ZodType>(d: Omit<ActionDef, "params" | "run"> & { params: P; run: (p: z.infer<P>) => Promise<unknown> }) => d as unknown as ActionDef;
+
+export const ACTIONS: Record<string, ActionDef> = {
+  // ─── read (any assigned agent with "read") ───
+  "read.kpis": def({
+    scope: "read", write: false, risk: "low", description: "Bookings, completed jobs, revenue, payouts, margin and rating for a date range (default: last 30 days).",
+    params: z.object({ from: z.string().optional(), to: z.string().optional() }),
+    run: async ({ from, to }) => {
+      const f = from ?? new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const t = `${to ?? new Date().toISOString().slice(0, 10)}T23:59:59`;
+      const [{ data: jobs }, { data: reviews }] = await Promise.all([
+        db().from("jobs").select("status, price_final, contractor_payout, service_slug").gte("created_at", f).lte("created_at", t),
+        db().from("reviews").select("rating").gte("created_at", f).lte("created_at", t),
+      ]);
+      const done = (jobs ?? []).filter((j) => j.status === "completed");
+      const revenue = done.reduce((s, j) => s + Number(j.price_final ?? 0), 0);
+      const payouts = done.reduce((s, j) => s + Number(j.contractor_payout ?? 0), 0);
+      return { from: f, to: t.slice(0, 10), bookings: jobs?.length ?? 0, completed: done.length, revenue, payouts, gross_margin: revenue - payouts,
+        avg_rating: reviews?.length ? +(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(2) : null };
+    },
+  }),
+  "read.jobs": def({
+    scope: "read", write: false, risk: "low", description: "List jobs (max 100) filtered by status, date range or unassigned.",
+    params: z.object({ status: z.array(z.enum(JOB_STATUSES)).optional(), date_from: z.string().optional(), date_to: z.string().optional(), unassigned_only: z.boolean().optional() }),
+    run: async (p) => {
+      let q = db().from("jobs").select("ref, status, service_slug, contact_name, company_name, city, zip, scheduled_date, time_window, estimate_low, estimate_high, price_final, contractor_id, priority").order("scheduled_date").limit(100);
+      if (p.status?.length) q = q.in("status", p.status);
+      if (p.date_from) q = q.gte("scheduled_date", p.date_from);
+      if (p.date_to) q = q.lte("scheduled_date", p.date_to);
+      if (p.unassigned_only) q = q.is("contractor_id", null);
+      return (await q).data;
+    },
+  }),
+  "read.job": def({
+    scope: "read", write: false, risk: "low", description: "One job with its offers and timeline.",
+    params: z.object({ ref }),
+    run: async ({ ref: r }) => {
+      const job = await jobByRef(r);
+      const [{ data: offers }, { data: events }] = await Promise.all([
+        db().from("job_offers").select("status, payout, ai_score, ai_reason, contractors(business_name)").eq("job_id", job.id),
+        db().from("job_events").select("kind, message, actor, created_at").eq("job_id", job.id).order("created_at"),
+      ]);
+      const { stripe_customer_id: _a, stripe_payment_method: _b, ...safe } = job;
+      return { job: safe, offers, events };
+    },
+  }),
+  "read.pros": def({
+    scope: "read", write: false, risk: "low", description: "Subcontractor network with performance and compliance fields.",
+    params: z.object({ trade: z.string().optional(), status: z.enum(["applied", "vetting", "approved", "suspended"]).optional() }),
+    run: async ({ trade, status }) => {
+      let q = db().from("contractors").select("id, business_name, trades, service_zips, status, rating, jobs_completed, acceptance_rate, on_time_rate, insured_until, background_checked, daily_capacity");
+      if (trade) q = q.contains("trades", [trade]);
+      if (status) q = q.eq("status", status);
+      return (await q).data;
+    },
+  }),
+  "read.alerts": def({
+    scope: "read", write: false, risk: "low", description: "Unresolved ops alerts.",
+    params: z.object({}),
+    run: async () => (await db().from("ops_alerts").select("id, kind, severity, title, body, created_at").eq("resolved", false).order("created_at", { ascending: false }).limit(50)).data,
+  }),
+  "read.applications": def({
+    scope: "read", write: false, risk: "low", description: "Open subcontractor applications with AI screening.",
+    params: z.object({}),
+    run: async () => (await db().from("contractor_applications").select("id, business_name, contact_name, trades, zips, years_experience, crew_size, insured, status, ai_screen, created_at").in("status", ["new", "reviewing"])).data,
+  }),
+  "read.reviews": def({
+    scope: "read", write: false, risk: "low", description: "Recent customer reviews (default 30 days), optionally only low ratings.",
+    params: z.object({ days: z.number().int().min(1).max(365).default(30), max_rating: z.number().int().min(1).max(5).optional() }),
+    run: async ({ days, max_rating }) => {
+      let q = db().from("reviews").select("rating, comment, created_at, jobs(ref, service_slug, contact_name), contractors(business_name)").gte("created_at", new Date(Date.now() - days * 86400000).toISOString());
+      if (max_rating) q = q.lte("rating", max_rating);
+      return (await q).data;
+    },
+  }),
+  "read.lapsed_customers": def({
+    scope: "read", write: false, risk: "low", description: "Customers whose last completed job is older than N days with nothing booked (win-back list).",
+    params: z.object({ days: z.number().int().min(14).max(730).default(60) }),
+    run: async ({ days }) => {
+      const { data } = await db().from("jobs").select("contact_name, contact_email, service_slug, status, completed_at, created_at").order("created_at", { ascending: false }).limit(5000);
+      const by = new Map<string, { name: string; email: string; last_completed: string | null; open: boolean; services: Set<string> }>();
+      for (const j of data ?? []) {
+        const k = j.contact_email.toLowerCase();
+        const c = by.get(k) ?? { name: j.contact_name, email: k, last_completed: null, open: false, services: new Set<string>() };
+        if (j.status === "completed" && (!c.last_completed || j.completed_at > c.last_completed)) c.last_completed = j.completed_at;
+        if (!["completed", "cancelled"].includes(j.status)) c.open = true;
+        c.services.add(j.service_slug);
+        by.set(k, c);
+      }
+      const cutoff = Date.now() - days * 86400000;
+      return [...by.values()].filter((c) => !c.open && c.last_completed && new Date(c.last_completed).getTime() < cutoff).map((c) => ({ ...c, services: [...c.services] }));
+    },
+  }),
+
+  // ─── ops ───
+  "ops.dispatch_job": def({
+    scope: "ops", write: true, risk: "low", description: "Send offers for an unassigned job to the best available pros.",
+    params: z.object({ ref }),
+    run: async ({ ref: r }) => {
+      const job = await jobByRef(r);
+      if (job.contractor_id) throw new Error("Job already has a pro");
+      return dispatchJob(job.id, { siteVisit: job.status === "site_visit" });
+    },
+  }),
+  "ops.set_job_status": def({
+    scope: "ops", write: true, risk: "low", description: "Change a job's status. Cancelling is high-risk and always needs approval.",
+    params: z.object({ ref, status: z.enum(JOB_STATUSES) }),
+    run: async ({ ref: r, status }) => {
+      const job = await jobByRef(r);
+      await setStatus(job.id, status, "IEBC workforce");
+      return { ref: r, status };
+    },
+  }),
+  "ops.add_job_note": def({
+    scope: "ops", write: true, risk: "low", description: "Add an internal note to a job's timeline.",
+    params: z.object({ ref, note: z.string().min(1).max(2000) }),
+    run: async ({ ref: r, note }) => { const job = await jobByRef(r); await addEvent(job.id, "iebc_note", note, "IEBC workforce", false); return "noted"; },
+  }),
+  "ops.create_alert": def({
+    scope: "ops", write: true, risk: "low", description: "Pin an alert to the command center dashboard.",
+    params: z.object({ title: z.string().max(200), body: z.string().max(2000), severity: z.enum(["info", "warn", "critical"]) }),
+    run: async ({ title, body, severity }) => { await raiseAlert("iebc", severity, title, body); return "alert created"; },
+  }),
+  "ops.approve_qa": def({
+    scope: "ops", write: true, risk: "high", description: "Close a job held in QA review (charges the customer and approves the payout).",
+    params: z.object({ ref, summary: z.string().max(500).optional() }),
+    run: async ({ ref: r, summary }) => { const job = await jobByRef(r); await finalizeJob(job.id, summary); return "closed"; },
+  }),
+
+  // ─── finance ───
+  "finance.payout_queue": def({
+    scope: "finance", write: false, risk: "low", description: "Payouts owed to pros.",
+    params: z.object({}),
+    run: async () => (await db().from("payouts").select("id, amount, status, created_at, contractors(business_name), jobs(ref)").in("status", ["approved", "pending", "held"])).data,
+  }),
+  "finance.set_job_price": def({
+    scope: "finance", write: true, risk: "high", description: "Set the firm price on a job (e.g. after a site visit). Payout is recalculated.",
+    params: z.object({ ref, price: z.number().positive() }),
+    run: async ({ ref: r, price }) => {
+      const job = await jobByRef(r);
+      const share = getService(job.service_slug)?.payoutShare ?? 0.7;
+      await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: Math.round(price * share), status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
+      await addEvent(job.id, "quoted", `Firm price: ${money(price)}`, "IEBC workforce");
+      return { ref: r, price };
+    },
+  }),
+  "finance.mark_payout_paid": def({
+    scope: "finance", write: true, risk: "high", description: "Mark a payout as paid.",
+    params: z.object({ payout_id: z.string().uuid() }),
+    run: async ({ payout_id }) => { await db().from("payouts").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", payout_id); return "paid"; },
+  }),
+
+  // ─── recruiting & compliance ───
+  "recruiting.decide_application": def({
+    scope: "recruiting", write: true, risk: "high", description: "Approve (→ vetting) or reject a subcontractor application.",
+    params: z.object({ application_id: z.string().uuid(), decision: z.enum(["approve", "reject", "reviewing"]) }),
+    run: async ({ application_id, decision }) => {
+      const { data: app } = await db().from("contractor_applications").select("*").eq("id", application_id).single();
+      if (!app) throw new Error("No such application");
+      const status = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "reviewing";
+      await db().from("contractor_applications").update({ status }).eq("id", application_id);
+      if (status === "approved")
+        await db().from("contractors").upsert({ business_name: app.business_name, contact_name: app.contact_name, email: app.email.toLowerCase(), phone: app.phone, trades: app.trades,
+          service_zips: String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z)), status: "vetting" }, { onConflict: "email" });
+      return { application_id, status };
+    },
+  }),
+  "recruiting.activate_pro": def({
+    scope: "recruiting", write: true, risk: "high", description: "Activate a vetted pro after insurance (COI) and background check are verified.",
+    params: z.object({ contractor_id: z.string().uuid(), insured_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
+    run: async ({ contractor_id, insured_until }) => {
+      if (new Date(insured_until) < new Date()) throw new Error("Insurance date is in the past");
+      await db().from("contractors").update({ insured_until, background_checked: true, status: "approved" }).eq("id", contractor_id);
+      return "activated";
+    },
+  }),
+  "recruiting.flag_expiring_insurance": def({
+    scope: "recruiting", write: true, risk: "low", description: "Raise alerts for active pros whose insurance expires within N days.",
+    params: z.object({ days: z.number().int().min(1).max(90).default(30) }),
+    run: async ({ days }) => {
+      const limit = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+      const { data } = await db().from("contractors").select("id, business_name, insured_until").eq("status", "approved").lte("insured_until", limit);
+      for (const c of data ?? []) await raiseAlert("insurance", "warn", `${c.business_name}: insurance expires ${c.insured_until}`, "Request an updated certificate of insurance.");
+      return { flagged: data?.length ?? 0 };
+    },
+  }),
+
+  // ─── retention / customer care ───
+  "retention.message_customer": def({
+    scope: "retention", write: true, risk: "low", description: "Send the customer on a job a message (job thread + email). Use for follow-ups, review requests, apologies.",
+    params: z.object({ ref, subject: z.string().max(150), body: z.string().min(1).max(3000) }),
+    run: async ({ ref: r, subject, body }) => {
+      const job = await jobByRef(r);
+      await db().from("messages").insert({ job_id: job.id, sender_role: "ops", body });
+      await sendEmail(job.contact_email, subject, `${body}\n\n— The ${BRAND.name} team`);
+      return "sent";
+    },
+  }),
+  "retention.email_customer": def({
+    scope: "retention", write: true, risk: "high", description: "Email a past customer by address (win-back). High-risk: outbound marketing needs approval.",
+    params: z.object({ email: z.string().email(), subject: z.string().max(150), body: z.string().min(1).max(3000) }),
+    run: async ({ email, subject, body }) => {
+      const { count } = await db().from("jobs").select("id", { count: "exact", head: true }).ilike("contact_email", email);
+      if (!count) throw new Error("Not an existing customer");
+      await sendEmail(email, subject, `${body}\n\n— The ${BRAND.name} team`);
+      return "sent";
+    },
+  }),
+
+  // ─── sales / B2B / leads ───
+  "sales.list_accounts": def({
+    scope: "sales", write: false, risk: "low", description: "Commercial accounts and callback leads.",
+    params: z.object({}),
+    run: async () => ({
+      accounts: (await db().from("business_accounts").select("*").order("created_at", { ascending: false })).data,
+      leads: (await db().from("leads").select("*").order("created_at", { ascending: false }).limit(100)).data,
+    }),
+  }),
+  "sales.create_lead": def({
+    scope: "sales", write: true, risk: "low", description: "Record a new lead (residential or commercial).",
+    params: z.object({ name: z.string(), email: z.string().email().optional(), phone: z.string().optional(), zip: z.string().optional(), service_slug: z.string().optional(), message: z.string().max(2000) }),
+    run: async (p) => { await db().from("leads").insert({ ...p, source: "iebc" }); return "lead created"; },
+  }),
+  "sales.update_account": def({
+    scope: "sales", write: true, risk: "low", description: "Update a commercial account's stage, monthly value or notes.",
+    params: z.object({ id: z.string().uuid(), status: z.enum(["lead", "proposal", "active", "paused", "lost"]).optional(), monthly_value: z.number().min(0).optional(), notes: z.string().max(4000).optional() }),
+    run: async ({ id, ...patch }) => { await db().from("business_accounts").update(patch).eq("id", id); return "updated"; },
+  }),
+};
+
+/** Writes that are high-risk only for certain params. */
+export function effectiveRisk(action: string, params: Record<string, unknown>): "low" | "high" {
+  if (action === "ops.set_job_status" && params.status === "cancelled") return "high";
+  return ACTIONS[action]?.risk ?? "high";
+}

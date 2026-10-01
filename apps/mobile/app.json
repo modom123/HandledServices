@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Handled",
+    "slug": "handled",
+    "scheme": "handled",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": { "bundleIdentifier": "com.handled.app", "supportsTablet": false },
+    "android": { "package": "com.handled.app" },
+    "plugins": [
+      "expo-router",
+      ["expo-image-picker", { "photosPermission": "Handled uses your photos to price jobs and prove completed work.", "cameraPermission": "Handled uses the camera to photograph jobs." }]
+    ],
+    "extra": { "createdAt": "2026-10-01_1800 UTC", "project": "Handled (myhumanai) mobile app" }
+  }
+}

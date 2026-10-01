@@ -1,0 +1,19 @@
+# ============================================================
+# FILE    : .gitignore
+# PROJECT : Handled
+# CREATED : 2026-10-01_1723 UTC
+# ============================================================
+node_modules/
+.next/
+out/
+dist/
+.vercel/
+.expo/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+apps/mobile/ios/
+apps/mobile/android/
+supabase/.temp/
+.DS_Store

@@ -1,0 +1,6 @@
+// FILE: apps/mobile/tsconfig.json · PROJECT: Handled · CREATED: 2026-10-01_1800 UTC
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true, "allowImportingTsExtensions": true, "noEmit": true },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

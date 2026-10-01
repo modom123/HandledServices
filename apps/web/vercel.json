@@ -1,0 +1,7 @@
+{
+  "$comment": "FILE: apps/web/vercel.json · PROJECT: Handled · CREATED: 2026-10-01_1723 UTC — the sweep cron needs a Vercel Pro plan (Hobby allows daily crons only).",
+  "crons": [
+    { "path": "/api/cron/daily-brief", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/sweep", "schedule": "*/15 * * * *" }
+  ]
+}

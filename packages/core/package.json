@@ -1,0 +1,17 @@
+{
+  "//": "FILE: packages/core/package.json · PROJECT: Handled (myhumanai) · CREATED: 2026-10-01_1723 UTC",
+  "name": "@handled/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared service catalog, pricing engine and domain types for Handled (web + mobile).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/pricing.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

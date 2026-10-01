@@ -1,0 +1,115 @@
+/*
+ * FILE    : packages/core/src/types.ts
+ * PROJECT : Handled — AI-run home & business services
+ * CREATED : 2026-10-01_1723 UTC
+ * PURPOSE : Domain types shared by the website, ops hub, portals and mobile app.
+ *           Mirrors the enums in supabase/migrations/20261001172300_init.sql.
+ */
+
+export type Role = "customer" | "pro" | "dispatcher" | "admin";
+
+export type CategoryId = "cleaning" | "outdoor" | "removal" | "repair_remodel";
+
+/** Lifecycle of a job. Order matters: it's the order the ops board shows columns. */
+export const JOB_STATUSES = [
+  "requested", // customer booked, price is an estimate
+  "site_visit", // needs an on-site estimate before a firm quote (tree, remodel)
+  "quoted", // firm quote sent, waiting on customer approval
+  "scheduled", // approved + date set, no pro yet
+  "dispatched", // offers out to pros
+  "assigned", // a pro accepted
+  "in_progress",
+  "qa_review", // pro marked done, AI + ops checking photos
+  "completed",
+  "cancelled",
+] as const;
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  requested: "Requested",
+  site_visit: "Site visit",
+  quoted: "Quoted",
+  scheduled: "Scheduled",
+  dispatched: "Dispatching",
+  assigned: "Pro assigned",
+  in_progress: "In progress",
+  qa_review: "QA review",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+export type OfferStatus = "offered" | "accepted" | "declined" | "expired";
+export type ContractorStatus = "applied" | "vetting" | "approved" | "suspended";
+export type CustomerType = "residential" | "commercial";
+export type TimeWindow = "morning" | "midday" | "afternoon" | "flexible";
+
+export const TIME_WINDOW_LABEL: Record<TimeWindow, string> = {
+  morning: "Morning (8–11am)",
+  midday: "Midday (11am–2pm)",
+  afternoon: "Afternoon (2–5pm)",
+  flexible: "Any time that day",
+};
+
+export type Frequency = "once" | "weekly" | "biweekly" | "monthly" | "quarterly";
+
+export interface Job {
+  id: string;
+  ref: string;
+  status: JobStatus;
+  service_slug: string;
+  customer_id: string | null;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string | null;
+  customer_type: CustomerType;
+  company_name: string | null;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  answers: Record<string, unknown>;
+  notes: string | null;
+  photos: string[];
+  completion_photos: string[];
+  frequency: Frequency;
+  scheduled_date: string | null;
+  time_window: TimeWindow;
+  estimate_low: number;
+  estimate_high: number;
+  price_final: number | null;
+  contractor_id: string | null;
+  contractor_payout: number | null;
+  ai_quote: unknown;
+  ai_dispatch: unknown;
+  ai_qa: unknown;
+  priority: "normal" | "high" | "urgent";
+  source: "web" | "mobile" | "business" | "phone" | "ai_chat";
+  plan_id: string | null;
+  stripe_customer_id: string | null;
+  stripe_payment_method: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Contractor {
+  id: string;
+  profile_id: string | null;
+  business_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  trades: string[];
+  service_zips: string[];
+  status: ContractorStatus;
+  rating: number;
+  jobs_completed: number;
+  acceptance_rate: number;
+  on_time_rate: number;
+  insured_until: string | null;
+  license_number: string | null;
+  background_checked: boolean;
+  daily_capacity: number;
+  notes: string | null;
+}
