@@ -7,7 +7,7 @@
  *           share of the price paid to the subcontractor, and whether a site visit is
  *           required before a firm quote. Prices are launch defaults for a mid-cost US
  *           metro — tune them per market in the ops hub (services table overrides).
- * UPDATED : 2026-10-02_0240 UTC — calculator audit: questions can be shown only when another
+ * UPDATED : 2026-10-02_0233 UTC — calculator audit: questions can be shown only when another
  *           answer applies (showIf, e.g. mini-split zones), and rides move up to a vehicle
  *           big enough for the passenger count, so the price rises as passengers are added.
  */

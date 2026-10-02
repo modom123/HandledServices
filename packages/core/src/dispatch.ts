@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2101 UTC — Pro+ and Elite tiers rank higher (first pick of offers).
  * UPDATED : 2026-10-01_2334 UTC — availability (working days, windows, time off), distance from
  *           the pro's base within their radius, and quality from QA pass and redo rates.
+ * UPDATED : 2026-10-02_0233 UTC — the daily capacity a pro sets is a hard limit (no offers past it).
  * PURPOSE : Deterministic contractor scoring. Filters to pros who are approved, insured,
  *           qualified for the trade and serve the ZIP, then ranks them. The AI dispatcher
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
@@ -96,7 +97,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
  *   quality 45      rating 25 · first-time QA pass 10 · few redos/refunds 10
  *   reliability 18  on time 10 · accepts offers 8
  *   proximity 12    closer to the job (or exact ZIP match when distance is unknown)
- *   availability 10 open slots that day (fully booked → −50)
+ *   availability 10 open slots that day (a pro at the daily capacity they set gets no offers)
  *   experience 5    jobs completed
  *   + specialist 8, + Pro+/Elite tier boost
  */
@@ -108,6 +109,8 @@ export function rankContractors(
 ): DispatchCandidate[] {
   return contractors
     .filter((c) => eligible(c, job) === null)
+    // the pro sets their own daily capacity — never offer past it
+    .filter((c) => !job.scheduled_date || (loadByContractor[c.id] ?? 0) < Math.max(1, c.daily_capacity))
     .map((c) => {
       const load = loadByContractor[c.id] ?? 0;
       const q = stats[c.id] ?? {};
@@ -132,8 +135,8 @@ export function rankContractors(
       } else score += c.service_zips.includes(job.zip) ? 8 : 5;
       // availability
       const free = Math.max(0, c.daily_capacity - load);
-      score += free > 0 ? 10 * (free / Math.max(1, c.daily_capacity)) : -50;
-      reasons.push(free > 0 ? `${free} open slot(s) that day` : "fully booked that day");
+      score += 10 * (free / Math.max(1, c.daily_capacity));
+      if (job.scheduled_date) reasons.push(`${free} open slot(s) that day`);
       // experience
       score += (Math.min(c.jobs_completed, 200) / 200) * 5;
       if (c.jobs_completed >= 50) reasons.push(`${c.jobs_completed} jobs done`);

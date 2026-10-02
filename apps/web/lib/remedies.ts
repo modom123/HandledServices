@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/remedies.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1900 UTC
+ * UPDATED : 2026-10-02_0233 UTC — a redo is an offer to the original pro, then any pro (paid from our take).
  * UPDATED : 2026-10-01_2124 UTC — Pay protection: a refund that isn't the pro's fault comes
  *           out of our take first when the pro qualifies (Hub → Pro Program).
  * PURPOSE : Making it right after an upfront payment — never by holding money back:
@@ -62,18 +63,23 @@ async function childJob(parent: Job, patch: Partial<Job>) {
   return data as Job;
 }
 
-/** The original pro returns to fix it — free to the customer, no payout (pro agreement). */
+/**
+ * The original pro gets the first chance to fix it — free to the customer, no payout (pro
+ * agreement). It's an offer, not an order: if they pass or don't answer in 12 hours, another
+ * pro is sent and paid from our take (dispatchJob).
+ */
 export async function createRedo(jobId: string, date: string, actor: string, note: string) {
   const parent = await getJob(jobId);
   if (!parent) return { ok: false, error: "Job not found" };
   if (!parent.contractor_id) return { ok: false, error: "No original pro on this job — use a complimentary service or refund" };
   const redo = await childJob(parent, {
-    remedy: "redo", status: "assigned", scheduled_date: date, price_final: 0, contractor_payout: 0, estimate_low: 0, estimate_high: 0,
-    notes: `REDO of ${parent.ref}: ${note}`,
+    remedy: "redo", status: "scheduled", scheduled_date: date, price_final: 0, contractor_payout: 0, estimate_low: 0, estimate_high: 0,
+    contractor_id: null, notes: `REDO of ${parent.ref}: ${note}`,
   });
+  await dispatchJob(redo.id);
   await addEvent(parent.id, "remedy", `Free redo scheduled for ${date} (${redo.ref}).`, actor);
   await addEvent(parent.id, "human_touch", `Redo ${redo.ref}`, actor, false);
-  await sendEmail(parent.contact_email, `We'll make it right — ${parent.ref}`, `Your pro is coming back on ${date} to fix it, free of charge.\n\n— ${BRAND.name}`);
+  await sendEmail(parent.contact_email, `We'll make it right — ${parent.ref}`, `We're sending a pro back on ${date} to fix it, free of charge. Your original pro gets the first chance; if they can't make it, another vetted pro will. You'll get a notification once it's confirmed.\n\n— ${BRAND.name}`);
   return { ok: true, ref: redo.ref };
 }
 

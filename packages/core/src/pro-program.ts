@@ -2,6 +2,8 @@
  * FILE    : packages/core/src/pro-program.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2101 UTC
+ * UPDATED : 2026-10-02_0233 UTC — promises match what the system does: free automatic Monday payouts
+ *           (instant cash-out optional), recurring visits offered to the same pro first, daily limit.
  * PURPOSE : The Handled Pro Program — what we offer subcontractors. Tiers earned from real
  *           performance (jobs, rating, on-time, acceptance) unlock a bigger payout share and
  *           first pick of offers. Every boost is clamped so our take never drops below
@@ -34,12 +36,12 @@ export const PRO_TIERS: ProTier[] = [
   {
     id: "pro_plus", name: "Pro+", badge: "★", payoutBoost: 0.03, dispatchBoost: 6,
     min: { jobs: 25, rating: 4.7, onTime: 0.9, acceptance: 0.6 },
-    perks: ["+3% of the job price on every payout", "Offers before Pro-tier pros"],
+    perks: ["+3% of the job price on every payout", "Ranked ahead of Pro-tier pros for every offer"],
   },
   {
     id: "elite", name: "Elite", badge: "◆", payoutBoost: 0.05, dispatchBoost: 12,
     min: { jobs: 100, rating: 4.85, onTime: 0.95, acceptance: 0.75 },
-    perks: ["+5% of the job price on every payout", "First pick of every offer, including large and commercial jobs"],
+    perks: ["+5% of the job price on every payout", "Top of the list for every offer, including large and commercial jobs"],
   },
 ];
 
@@ -85,11 +87,11 @@ export const PRO_REFERRAL = { bonus: 150, afterJobs: 10 };
 export const PRO_PROMISES = [
   { t: "You see the pay before you say yes", b: "Every offer shows the scope, the date and your exact payout. That number is what you get. No bidding and no haggling with customers." },
   { t: "The customer has already paid", b: "Customers pay us before you're dispatched, so you never chase money, send invoices or wait on a check." },
-  { t: "No lead fees. No subscription. No software bill.", b: "You pay nothing to join and nothing per lead. We only make money when you make money." },
-  { t: "Paid every week", b: "Payouts are approved as soon as the job passes photo review and go out on the weekly run, with a clear statement for every job." },
+  { t: "No lead fees. No subscription. No software bill.", b: "You pay nothing to join and nothing per lead, and the weekly payout is free. We only make money when you make money. (Want your money today instead? Instant cash-out is optional, for a small fee.)" },
+  { t: "Paid every week", b: "Payouts are approved as soon as the job passes photo review and are sent automatically every Monday to your bank through Stripe, with a clear statement for every job." },
   { t: "We run the office", b: "Marketing, quoting, scheduling, reminders, payments, reviews and customer support are all handled by our team and AI. You just do the work." },
-  { t: "Recurring customers stay with you", b: "When a customer signs up for a recurring plan, every visit is booked with you. That builds a steady route instead of one-off jobs." },
-  { t: "You stay independent", b: "Accept the jobs you want, set your service area and daily capacity, and keep your own business and other clients." },
+  { t: "Recurring customers stay with you", b: "When a customer signs up for a recurring plan, every visit is offered to you first, a full day before anyone else sees it. That builds a steady route instead of one-off jobs." },
+  { t: "You stay independent", b: "Accept the jobs you want, set your service area, work days and daily job limit (we never offer past it), and keep your own business and other clients." },
 ];
 
 /** Typical payouts per job for the recruiting page, computed from the live pricing engine. */

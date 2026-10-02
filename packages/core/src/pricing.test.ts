@@ -3,7 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Unit tests for the pricing engine and dispatch ranking.
- * UPDATED : 2026-10-02_0240 UTC — calculator checks for every service: more of anything never
+ * UPDATED : 2026-10-02_0233 UTC — calculator checks for every service: more of anything never
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
  */
@@ -509,4 +509,41 @@ test("rides: more passengers than the vehicle seats moves up a size", () => {
   assert.ok(p("airport-transfer", { vehicle: "sedan", passengers: 8 }) > p("airport-transfer", { vehicle: "suv", passengers: 6 }));
   assert.ok(p("limousine", { vehicle: "stretch", passengers: 14 }) > p("limousine", { vehicle: "stretch", passengers: 10 }));
   assert.ok(p("charter-bus", { vehicle: "minicoach", passengers: 45 }) > p("charter-bus", { vehicle: "minicoach", passengers: 30 }));
+});
+
+// ── Pro promises: real stats, daily limit, referral ──
+
+test("acceptance rate counts answered and lapsed offers, not ones another pro took", async () => {
+  const { acceptanceRate } = await import("./pro-stats.ts");
+  const o = (s: string, n: number) => Array.from({ length: n }, () => ({ status: s }));
+  assert.equal(acceptanceRate([...o("accepted", 3), ...o("declined", 1)], 1), 1, "too few offers keeps the current rate");
+  assert.equal(acceptanceRate([...o("accepted", 6), ...o("declined", 2), ...o("expired", 2), ...o("taken", 10)], 1), 0.6);
+});
+
+test("on time = started before the booked window ends, in local time", async () => {
+  const { onTimeRate, startedOnTime } = await import("./pro-stats.ts");
+  // 10:30 EDT = 14:30Z, morning window ends 11:00 local
+  assert.equal(startedOnTime({ scheduled_date: "2026-10-05", time_window: "morning", started_at: "2026-10-05T14:30:00Z" }), true);
+  assert.equal(startedOnTime({ scheduled_date: "2026-10-05", time_window: "morning", started_at: "2026-10-05T15:30:00Z" }), false);
+  assert.equal(startedOnTime({ scheduled_date: "2026-10-05", time_window: "morning", started_at: "2026-10-06T13:00:00Z" }), false, "next day is late");
+  const j = (h: number) => ({ scheduled_date: "2026-10-05", time_window: "afternoon" as const, started_at: `2026-10-05T${h}:00:00Z` });
+  assert.equal(onTimeRate([j(18), j(19), j(20), j(22)], 1), 0.75); // 22Z = 6pm local, after 5pm
+});
+
+test("a pro at the daily limit they set gets no more offers that day", () => {
+  const pro = { id: "p", business_name: "A", contact_name: "A", email: "a@x", phone: "", zip: "48201", service_zips: ["48201"], trades: ["cleaning"], status: "approved",
+    rating: 5, jobs_completed: 20, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 2, notes: null, coverage: { bond: "2099-01-01" } } as unknown as Contractor;
+  const job = { service_slug: "house-cleaning", zip: "48201", scheduled_date: "2099-06-02" };
+  assert.equal(rankContractors([pro], job, { p: 1 }).length, 1);
+  assert.equal(rankContractors([pro], job, { p: 2 }).length, 0);
+});
+
+test("referral bonus is due once, after the referred pro's Nth job", async () => {
+  const { referralDue } = await import("./pro-stats.ts");
+  const { PRO_REFERRAL } = await import("./pro-program.ts");
+  const c = { referred_by: "r", jobs_completed: PRO_REFERRAL.afterJobs, status: "approved", referral_bonus_paid_at: null };
+  assert.equal(referralDue(c), true);
+  assert.equal(referralDue({ ...c, jobs_completed: PRO_REFERRAL.afterJobs - 1 }), false);
+  assert.equal(referralDue({ ...c, referral_bonus_paid_at: "2026-10-01" }), false);
+  assert.equal(referralDue({ ...c, referred_by: null }), false);
 });

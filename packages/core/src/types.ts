@@ -38,7 +38,7 @@ export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
   cancelled: "Cancelled",
 };
 
-export type OfferStatus = "offered" | "accepted" | "declined" | "expired";
+export type OfferStatus = "offered" | "accepted" | "declined" | "expired" | "taken";
 export type ContractorStatus = "applied" | "vetting" | "approved" | "suspended";
 export type CustomerType = "residential" | "commercial";
 export type TimeWindow = "morning" | "midday" | "afternoon" | "flexible";

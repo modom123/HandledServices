@@ -2,6 +2,8 @@
  * FILE    : apps/web/lib/jobs.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0233 UTC — recurring visits and redos are offered to the same pro first (24h / 12h),
+ *           never forced on them; offers another pro won are marked "taken", not held against anyone.
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: booking → final price (AI check runs
  *           before payment) → customer pays → only then dispatch. Recurring visits are
  *           charged before dispatch. Free site visits are the only unpaid dispatch.
@@ -253,26 +255,42 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     return { offers: 0, reason: "no eligible pros" };
   }
 
-  const ai = await aiRankCandidates(job, ranked);
-  const order = ai?.ranking.length
-    ? ai.ranking.map((r) => ({ id: r.contractor_id, score: r.score, reason: r.reason }))
-    : ranked.map((c) => ({ id: c.contractor.id, score: c.score, reason: c.reasons.join(" · ") }));
-  const count = ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
+  // Recurring visit or redo: the pro who did the work gets it first, alone, before anyone else.
+  // They can say no (or let it lapse) — then it goes out normally. Never forced on them.
+  const dibs = await firstDibs(job, opts.exclude ?? []);
+  const mine = dibs ? ranked.find((c) => c.contractor.id === dibs.contractorId) : undefined;
+  if (job.remedy === "redo" && !mine && !Number(job.contractor_payout)) {
+    // the original pro passed on the redo — pay whoever fixes it (out of our take on the job)
+    const { data: parent } = job.parent_job_id ? await db().from("jobs").select("ref, price_final, contractor_payout").eq("id", job.parent_job_id).maybeSingle() : { data: null };
+    const pay = Number(parent?.contractor_payout ?? 0) || splitJob(Number(parent?.price_final ?? 0), job.service_slug).payout;
+    await db().from("jobs").update({ contractor_payout: pay }).eq("id", job.id);
+    job.contractor_payout = pay;
+    await raiseAlert("remedy", "info", `${job.ref}: redo going to another pro`, `The original pro passed on the redo of ${parent?.ref ?? "the job"}. The new pro is paid ${money(pay)} from our take. Review the original pro's agreement (clawback) if warranted.`, job.id);
+  }
+  const ai = mine ? null : await aiRankCandidates(job, ranked);
+  const order = mine
+    ? [{ id: mine.contractor.id, score: mine.score, reason: dibs!.kind === "redo" ? "Original pro — first chance to fix" : "Recurring customer — same pro first" }]
+    : ai?.ranking.length
+      ? ai.ranking.map((r) => ({ id: r.contractor_id, score: r.score, reason: r.reason }))
+      : ranked.map((c) => ({ id: c.contractor.id, score: c.score, reason: c.reasons.join(" · ") }));
+  const count = mine ? 1 : ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
   const picks = order.slice(0, count);
   const payout = job.contractor_payout ?? 0;
   const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
   // Pro+ / Elite pros are offered a bigger payout (clamped so our take stays ≥ 15%)
   const payFor = (id: string) => (byId[id] ? tierPayout(job.price_final, payout, proTier(byId[id])) : payout);
 
-  const expires = new Date(Date.now() + (job.priority === "normal" ? 2 : 1) * 3600 * 1000).toISOString();
+  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : job.priority === "normal" ? 2 : 1;
+  const expires = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+  const offerKind = mine ? dibs!.kind : "job";
   const { data: offerRows } = await db().from("job_offers").upsert(
-    picks.map((p) => ({ job_id: job.id, contractor_id: p.id, payout: payFor(p.id), ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
+    picks.map((p) => ({ job_id: job.id, contractor_id: p.id, kind: offerKind, payout: payFor(p.id), ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
     { onConflict: "job_id,contractor_id" },
   ).select("id, contractor_id");
   const offerIdFor = Object.fromEntries(((offerRows ?? []) as { id: string; contractor_id: string }[]).map((o) => [o.contractor_id, o.id]));
   if (!opts.siteVisit) await db().from("jobs").update({ status: "dispatched", ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
   else await db().from("jobs").update({ ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
-  await addEvent(job.id, "dispatch", `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
+  await addEvent(job.id, "dispatch", mine ? `Offered to the ${dibs!.kind === "redo" ? "original" : "recurring"} pro first (${hours}h)` : `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
 
   const svc = getService(job.service_slug)!;
   for (const p of picks) {
@@ -281,16 +299,31 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     if (!pro || !offerId) continue;
     const pay = payFor(p.id);
     const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
+    const lead = offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
+    const why = offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
     await notify(pro.profile_id, {
-      title: `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`,
-      body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. First to accept gets it.`,
+      title: lead,
+      body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}`,
       data: { type: "offer", offerId },
       channel: "offers",
-      email: { to: pro.email, subject: `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${pay ? money(pay) : "site visit"} · ${job.zip}`,
-        text: `${workOrderText(order0)}\n\nACCEPT (first to accept gets it — offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })} ET):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
+      email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${pay ? money(pay) : "site visit"} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
+        text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })} ET):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
     });
   }
   return { offers: picks.length, ai: Boolean(ai) };
+}
+
+/** Who gets the first offer: the recurring plan's pro, or the original pro on a redo. */
+async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: string; kind: "recurring" | "redo" } | null> {
+  let id: string | null = null, kind: "recurring" | "redo" = "recurring";
+  if (job.remedy === "redo" && job.parent_job_id) {
+    const { data } = await db().from("jobs").select("contractor_id").eq("id", job.parent_job_id).maybeSingle();
+    id = data?.contractor_id ?? null; kind = "redo";
+  } else if (job.plan_id) {
+    const { data } = await db().from("recurring_plans").select("preferred_contractor_id").eq("id", job.plan_id).maybeSingle();
+    id = data?.preferred_contractor_id ?? null;
+  }
+  return id && !exclude.includes(id) ? { contractorId: id, kind } : null;
 }
 
 /** A pro accepts an offer. Race-safe: only one pro can win the job. */
@@ -310,12 +343,12 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     .select("*")
     .maybeSingle();
   if (!won) {
-    await db().from("job_offers").update({ status: "expired", responded_at: new Date().toISOString() }).eq("id", offerId);
+    await db().from("job_offers").update({ status: "taken", responded_at: new Date().toISOString() }).eq("id", offerId);
     return { ok: false, error: "Another pro already took this job" };
   }
   const now = new Date().toISOString();
   await db().from("job_offers").update({ status: "accepted", responded_at: now, work_order_version: WORK_ORDER_VERSION, terms_accepted_at: now, accepted_ip: meta.ip ?? null }).eq("id", offerId);
-  await db().from("job_offers").update({ status: "expired" }).eq("job_id", offer.job_id).eq("status", "offered");
+  await db().from("job_offers").update({ status: "taken" }).eq("job_id", offer.job_id).eq("status", "offered");
   const { data: pro } = await db().from("contractors").select("business_name, contact_name, email, profile_id, rating").eq("id", contractorId).single();
   const job = won as Job;
   const svc = getService(job.service_slug);
@@ -459,12 +492,14 @@ async function scheduleNextVisit(job: Job) {
     ...rest, plan_id: planId, scheduled_date: next, status: "requested", completion_photos: [], ai_qa: null,
     started_at: null, completed_at: null, paid_at: null, amount_paid: 0, amount_refunded: 0, stripe_payment_intent: null,
     parent_job_id: null, remedy: null,
+    // not pre-assigned: the visit is offered to the same pro first when it's paid (see dispatchJob)
+    contractor_id: null, contractor_payout: splitJob(Number(job.price_final ?? job.estimate_low), job.service_slug).payout,
   }).select("*").single();
   if (!nextJob) return;
   // Paid upfront: charge the saved card now; the visit is dispatched only once paid.
   if (await chargeSavedCard(nextJob as Job)) {
     await markPaid(nextJob.id, { amount: Number(nextJob.price_final), via: "saved card" });
-    await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked and prepaid with the same pro.`);
+    await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked and prepaid — offered to your pro first.`);
   } else {
     await sendPaymentLink(nextJob as Job);
     await raiseAlert("payment", "warn", `${nextJob.ref}: recurring visit unpaid`, "Saved card failed or missing — payment link emailed. Not dispatched until paid.", nextJob.id);

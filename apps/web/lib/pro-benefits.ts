@@ -10,10 +10,14 @@
  *             grantStipends()      — one-time insurance stipend after N jobs
  *             runGuarantee()       — weekly-minimum top-ups (pending staff approval, budget-capped)
  *           Pay protection lives in remedies.ts (issueRefund).
+ * UPDATED : 2026-10-02_0233 UTC — the promises behind the Pro Program, automated:
+ *             runWeeklyPayouts()   — Mondays: every approved balance sent free via Stripe Connect
+ *             refreshProStats()    — daily: real acceptance and on-time rates (tiers use them)
+ *             payReferralBonuses() — daily: refer-a-pro bonus once the new pro hits N jobs
  */
 import "server-only";
 import {
-  BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, getService, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
+  BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
   type Contractor, type Job, type ProPolicy,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -96,7 +100,7 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
     status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: why, cancel_fee: fee,
     amount_refunded: r2(Number(job.amount_refunded ?? 0) + refunded),
   }).eq("id", jobId);
-  await db().from("job_offers").update({ status: "expired" }).eq("job_id", jobId).eq("status", "offered");
+  await db().from("job_offers").update({ status: "taken" }).eq("job_id", jobId).eq("status", "offered");
 
   // show-up pay to the pro who was booked
   let proPay = 0;
@@ -302,4 +306,108 @@ export async function runGuarantee(now = new Date()) {
   if (created || skipped.length) await raiseAlert("payout", "info", `Guaranteed minimum: ${created} top-up(s) to approve`, `Week of ${week}. Approve in Finance.${skipped.length ? ` Over budget, not created: ${skipped.join(", ")}.` : ""}`);
   if (skipped.length && opsEmail()) await sendEmail(opsEmail(), "Guaranteed minimum over budget", `Week of ${week}: ${skipped.join(", ")} qualified but the weekly budget (${money(g.weeklyBudget)}) ran out.`);
   return { created, skipped };
+}
+
+// ─── Weekly payout run (the free, automatic way pros get paid) ─────────────────────
+
+/** Monday of the week containing `d` (UTC date string). */
+function mondayOf(d: Date) {
+  const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7));
+  return m.toISOString().slice(0, 10);
+}
+
+/**
+ * Mondays: send every pro their approved balance (jobs, show-up pay, stipends, materials,
+ * referral bonuses, approved minimum top-ups, minus open clawbacks) to their Stripe account,
+ * free. One transfer and one statement per pro. Pros without payout setup are reminded and
+ * their balance waits for next week (or instant pay once set up).
+ */
+export async function runWeeklyPayouts(now = new Date()) {
+  const s = getStripe();
+  const week = mondayOf(now);
+  if (!s) { await raiseAlert("payout", "warn", `Weekly payouts not sent (week of ${week})`, "Stripe isn't configured — pay pros manually in Finance."); return { paid: 0, waiting: 0, total: 0 }; }
+  const { data: due } = await db().from("payouts").select("contractor_id").eq("status", "approved");
+  const ids = [...new Set(((due ?? []) as { contractor_id: string }[]).map((x) => x.contractor_id))];
+  let paid = 0, waiting = 0, total = 0;
+  const failed: string[] = [];
+  for (const id of ids) {
+    const { data: pro } = await db().from("contractors").select("id, profile_id, email, business_name, stripe_account_id").eq("id", id).single();
+    if (!pro) continue;
+    const { rows, total: amount } = await availableBalance(id);
+    if (amount <= 0) continue;
+    if (!(await connectReady(pro.stripe_account_id))) {
+      waiting++;
+      await notify(pro.profile_id, { title: `${money(amount)} is waiting for you`, body: "Finish your payout setup in Earnings so we can send it.", data: { type: "earnings" },
+        email: { to: pro.email, subject: `${money(amount)} is ready — finish your payout setup`, text: `You have ${money(amount)} approved. Finish your Stripe payout setup so we can send it: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
+      continue;
+    }
+    const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
+    const neg = rows.filter((r) => r.status === "clawback").map((r) => r.id);
+    const stamp = new Date().toISOString();
+    // claim first so a parallel instant cash-out can't pay the same rows twice
+    const { data: claimed } = await db().from("payouts").update({ status: "paid", paid_at: stamp, method: "weekly", week_of: week }).in("id", pos).eq("status", "approved").select("id");
+    if ((claimed ?? []).length !== pos.length) {
+      if (claimed?.length) await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
+      failed.push(`${pro.business_name} (balance changed)`);
+      continue;
+    }
+    try {
+      const t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} weekly payout — week of ${week}`, metadata: { contractor_id: id, week_of: week } }, { idempotencyKey: `weekly-${id}-${week}` });
+      await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", pos);
+      if (neg.length) await db().from("payouts").update({ paid_at: stamp, stripe_transfer_id: t.id, week_of: week }).in("id", neg);
+      paid++; total = r2(total + amount);
+      await notify(pro.profile_id, { title: `Paid: ${money(amount)}`, body: `Your weekly payout is on its way to your bank (${pos.length} item${pos.length === 1 ? "" : "s"}).`, data: { type: "earnings" },
+        email: { to: pro.email, subject: `${BRAND.name} weekly payout: ${money(amount)}`, text: `We sent ${money(amount)} to your Stripe account for the week of ${week}. It reaches your bank on Stripe's standard schedule (usually 2 business days).\n\nStatement for every job: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
+    } catch (e) {
+      await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", pos);
+      failed.push(`${pro.business_name}: ${e instanceof Error ? e.message : "transfer failed"}`);
+    }
+  }
+  if (failed.length) await raiseAlert("payout", "critical", `Weekly payouts: ${failed.length} failed`, failed.join("\n"));
+  await raiseAlert("payout", "info", `Weekly payouts sent: ${paid} pro(s), ${money(total)}`, waiting ? `${waiting} pro(s) still need to finish payout setup — reminded.` : null);
+  return { paid, waiting, total, failed: failed.length };
+}
+
+// ─── Real numbers behind tiers and dispatch ──────────────────────────────────────
+
+/** Daily: acceptance and on-time rates from the last 90 days of offers and jobs. */
+export async function refreshProStats(now = new Date()) {
+  const since = new Date(now.getTime() - STATS_WINDOW_DAYS * 86400000).toISOString();
+  const { data: pros } = await db().from("contractors").select("id, acceptance_rate, on_time_rate").eq("status", "approved");
+  let changed = 0;
+  for (const c of (pros ?? []) as { id: string; acceptance_rate: number; on_time_rate: number }[]) {
+    const [{ data: offers }, { data: jobs }] = await Promise.all([
+      db().from("job_offers").select("status").eq("contractor_id", c.id).gte("offered_at", since).neq("status", "offered"),
+      db().from("jobs").select("scheduled_date, time_window, started_at").eq("contractor_id", c.id).not("started_at", "is", null).gte("started_at", since),
+    ]);
+    const acceptance_rate = acceptanceRate((offers ?? []) as { status: string }[], Number(c.acceptance_rate));
+    const on_time_rate = onTimeRate((jobs ?? []) as { scheduled_date: string | null; time_window: TimeWindow; started_at: string | null }[], Number(c.on_time_rate));
+    if (acceptance_rate !== Number(c.acceptance_rate) || on_time_rate !== Number(c.on_time_rate)) {
+      await db().from("contractors").update({ acceptance_rate, on_time_rate }).eq("id", c.id);
+      changed++;
+    }
+  }
+  return changed;
+}
+
+// ─── Refer-a-pro bonus ─────────────────────────────────────────────────────────────
+
+/** Daily: pay the referrer once the pro they referred finishes PRO_REFERRAL.afterJobs jobs. */
+export async function payReferralBonuses() {
+  const { data } = await db().from("contractors").select("id, business_name, referred_by, jobs_completed, referral_bonus_paid_at, status")
+    .not("referred_by", "is", null).is("referral_bonus_paid_at", null).eq("status", "approved").gte("jobs_completed", PRO_REFERRAL.afterJobs);
+  let n = 0;
+  for (const c of (data ?? []) as { id: string; business_name: string; referred_by: string; jobs_completed: number; referral_bonus_paid_at: string | null; status: string }[]) {
+    if (!referralDue(c)) continue;
+    const { data: claimed } = await db().from("contractors").update({ referral_bonus_paid_at: new Date().toISOString() }).eq("id", c.id).is("referral_bonus_paid_at", null).select("id").maybeSingle();
+    if (!claimed) continue;
+    const { data: ref } = await db().from("contractors").select("id, profile_id, email, status").eq("id", c.referred_by).maybeSingle();
+    if (!ref || ref.status !== "approved") continue;
+    await db().from("payouts").insert({ contractor_id: ref.id, amount: PRO_REFERRAL.bonus, status: "approved", kind: "referral", reason: `Referral bonus — ${c.business_name} finished ${PRO_REFERRAL.afterJobs} jobs` });
+    await notify(ref.profile_id, { title: `${money(PRO_REFERRAL.bonus)} referral bonus`, body: `${c.business_name} finished ${PRO_REFERRAL.afterJobs} jobs. It's on your next payout.`, data: { type: "earnings" },
+      email: { to: ref.email, subject: `${money(PRO_REFERRAL.bonus)} referral bonus`, text: `Thanks for referring ${c.business_name}. They've finished ${PRO_REFERRAL.afterJobs} jobs, so we've added ${money(PRO_REFERRAL.bonus)} to your next payout.\n\n— ${BRAND.name}` } });
+    n++;
+  }
+  return n;
 }

@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/pro/onboarding/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
+ * UPDATED : 2026-10-02_0233 UTC — pros set their own daily job limit (dispatch never offers past it).
  * UPDATED : 2026-10-01_2109 UTC — specialties, trade-specific coverage, requirements by trade.
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
@@ -68,10 +69,11 @@ export default async function Onboarding() {
       const wins = pro.availability?.windows ?? ["morning", "midday", "afternoon"];
       return (
         <StepForm step="area" cta="Save work area & hours">
-          <p className="text-sm text-ink-soft">We only offer you jobs within your driving distance, on the days and times you work. Add days off so you never get offers you can’t take.</p>
+          <p className="text-sm text-ink-soft">We only offer you jobs within your driving distance, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Start from ZIP (home or shop)" name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
             <Field label="How far you’ll drive (miles)" name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
+            <Field label="Most jobs you want in one day" name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
           </div>
           <div><span className="label">Days you work</span><div className="flex flex-wrap gap-3 text-sm">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <label key={d} className="flex items-center gap-1"><input type="checkbox" name="days" value={i} defaultChecked={days.includes(i)} /> {d}</label>)}</div></div>
           <div><span className="label">Times you work</span><div className="flex flex-wrap gap-3 text-sm">{[["morning", "Morning 8–11"], ["midday", "Midday 11–2"], ["afternoon", "Afternoon 2–5"]].map(([w, l]) => <label key={w} className="flex items-center gap-1"><input type="checkbox" name="windows" value={w} defaultChecked={wins.includes(w)} /> {l}</label>)}</div></div>

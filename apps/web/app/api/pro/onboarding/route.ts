@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/api/pro/onboarding/route.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
+ * UPDATED : 2026-10-02_0233 UTC — pros set their own daily job limit (dispatch never offers past it).
  * UPDATED : 2026-10-01_2109 UTC — specialties and trade-specific coverage steps.
  * PURPOSE : Pro self-onboarding (web portal + mobile). Multipart form with `step`:
  *             w9         legal_name, entity_type, tin_last4, address_line, city, state, zip, file
@@ -9,7 +10,7 @@
  *             license    license_number, expires_on, file (staff verifies → license_expires)
  *             agreement  signer_name, agree=true   (signs the current version)
  *             payout     payout_method, account_last4
- *             area       base_zip, service_radius_mi, days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
+ *             area       base_zip, service_radius_mi, daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
  *             specialties specialties (repeat the field once per specialty)
  *             coverage   coverage (auto | workers_comp | bond | liquor), expires_on, file —
  *                        or coverage=workers_comp + exempt=true for the no-employees statement
@@ -38,7 +39,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
   z.object({ step: z.literal("specialties") }),
-  z.object({ step: z.literal("area"), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), time_off: z.string().max(2000).optional() }),
+  z.object({ step: z.literal("area"), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
 ]);
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
     await db.from("contractors").update({
       ...(zips ? { service_zips: zips } : {}),
       base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi,
+      ...(b.daily_capacity ? { daily_capacity: b.daily_capacity } : {}),
       availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
     }).eq("id", id);
     return done({ located: Boolean(loc) });
