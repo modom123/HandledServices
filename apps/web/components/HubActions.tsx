@@ -468,3 +468,50 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
     </div>
   );
 }
+
+/** Recruiting pipeline row actions. */
+export function RecruitingRowActions({ appId, contractorId, stage }: { appId: string | null; contractorId: string | null; stage: string }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  const act = async (body: object, done: string) => { const r = await call("/api/hub/recruiting", "POST", body); setMsg(r.ok ? done : r.json.error ?? "Failed"); router.refresh(); };
+  const decide = async (decision: string, reason?: string) => { const r = await call(`/api/hub/applications/${appId}`, "POST", { decision, reason }); setMsg(r.ok ? (decision === "approve" ? "Invited" : "Declined") : r.json.error ?? "Failed"); router.refresh(); };
+  return (
+    <span className="flex flex-wrap items-center gap-1.5 text-xs">
+      {(stage === "applied" || stage === "screened") && appId && <>
+        <button className="btn-primary px-2.5 py-1 text-xs" onClick={() => decide("approve")}>Invite</button>
+        <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const r = prompt("Reason (sent to the applicant, optional)"); if (r !== null) decide("reject", r || undefined); }}>Decline</button>
+      </>}
+      {contractorId && ["invited", "onboarding", "verifying", "background"].includes(stage) && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const n = prompt("Add a personal note to the reminder (optional)"); if (n !== null) act({ action: "nudge", contractor_id: contractorId, note: n || undefined }, "Reminder sent"); }}>Nudge</button>}
+      {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => act({ action: "order_background", contractor_id: contractorId }, "Background check ordered")}>Order check</button>}
+      {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { if (confirm("Mark the background check as clear? Only after you've read the report.")) act({ action: "background_clear", contractor_id: contractorId }, "Cleared"); }}>Mark clear</button>}
+      {contractorId && stage === "dropped" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => act({ action: "revive", contractor_id: contractorId }, "Revived — reminders restart")}>Revive</button>}
+      <button className="text-ink-soft underline" onClick={() => { const n = prompt("Note"); if (n) act({ action: "note", contractor_id: contractorId ?? undefined, application_id: appId ?? undefined, note: n }, "Noted"); }}>Note</button>
+      {msg && <span className="text-ink-soft">{msg}</span>}
+    </span>
+  );
+}
+
+export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoInvite: boolean; minScore: number; autoActivate: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
+  const router = useRouter();
+  const [s, setS] = useState({ ...initial, reminderText: initial.reminderDays.join(", ") });
+  const [msg, setMsg] = useState("");
+  return (
+    <div className="card space-y-3 text-sm">
+      <div className="font-semibold">Automation</div>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInvite} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInvite: e.target.checked })} /> Invite strong applicants automatically when the AI score is at least
+        <input className="input w-20" type="number" min={0} max={100} value={s.minScore} disabled={!canEdit} onChange={(e) => setS({ ...s, minScore: Number(e.target.value) })} /></label>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoActivate} disabled={!canEdit} onChange={(e) => setS({ ...s, autoActivate: e.target.checked })} /> Activate pros automatically once every step is done, documents verified and background clear</label>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="block"><span className="label">Setup reminders (days after invite)</span><input className="input" value={s.reminderText} disabled={!canEdit} onChange={(e) => setS({ ...s, reminderText: e.target.value })} /></label>
+        <label className="block"><span className="label">Mark dropped after (days)</span><input className="input" type="number" value={s.dropAfterDays} disabled={!canEdit} onChange={(e) => setS({ ...s, dropAfterDays: Number(e.target.value) })} /></label>
+        <label className="block"><span className="label">Alert if no decision after (hours)</span><input className="input" type="number" value={s.decisionHours} disabled={!canEdit} onChange={(e) => setS({ ...s, decisionHours: Number(e.target.value) })} /></label>
+      </div>
+      {canEdit ? <button className="btn-primary" onClick={async () => {
+        const reminderDays = s.reminderText.split(/[,\s]+/).map(Number).filter((n) => n > 0);
+        const r = await call("/api/hub/recruiting", "PUT", { autoInvite: s.autoInvite, minScore: s.minScore, autoActivate: s.autoActivate, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
+        setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
+      }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
+      {msg && <p>{msg}</p>}
+    </div>
+  );
+}

@@ -74,7 +74,16 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
             {!(docs ?? []).length && <p className="text-sm text-ink-soft">None uploaded yet — the pro uploads from Pro portal → Setup & documents.</p>}
             {((docs ?? []) as Rec[]).map((d) => (
               <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-2 text-sm">
-                <div><b>{d.kind.toUpperCase()}</b> · {d.status}{d.expires_on ? ` · expires ${d.expires_on}` : ""}<div className="text-xs text-ink-soft">{d.created_at.slice(0, 10)}{d.verified_by ? ` · ${d.verified_by}` : ""}{d.notes ? ` · ${d.notes}` : ""}</div></div>
+                <div><b>{d.kind.toUpperCase()}</b> · {d.status}{d.expires_on ? ` · expires ${d.expires_on}` : ""}<div className="text-xs text-ink-soft">{d.created_at.slice(0, 10)}{d.verified_by ? ` · ${d.verified_by}` : ""}{d.notes ? ` · ${d.notes}` : ""}</div>
+                  {d.ai_check && (
+                    <div className={`mt-1 rounded-lg px-2 py-1 text-xs ${d.ai_check.meets_requirements ? "bg-brand-tint text-brand-dark" : "bg-amber-50 text-amber-900"}`}>
+                      AI read: {d.ai_check.meets_requirements ? "✓ meets requirements" : "⚠ check"} · {d.ai_check.document_type} · insured {d.ai_check.named_insured}{d.ai_check.matches_pro ? " ✓" : " (name differs)"}
+                      {d.ai_check.expires_on ? ` · expires ${d.ai_check.expires_on}${d.expires_on && d.ai_check.expires_on !== d.expires_on ? ` (pro entered ${d.expires_on})` : ""}` : ""}
+                      {d.ai_check.per_occurrence_limit ? ` · $${Number(d.ai_check.per_occurrence_limit).toLocaleString("en-US")}/occurrence` : ""}{d.kind === "coi" ? (d.ai_check.additional_insured ? " · additional insured ✓" : " · not additional insured") : ""}
+                      {d.ai_check.problems?.length ? <div>{d.ai_check.problems.join("; ")}</div> : null}
+                    </div>
+                  )}
+                </div>
                 {d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank">Open</a> : null}
               </div>
             ))}

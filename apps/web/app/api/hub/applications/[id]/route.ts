@@ -2,15 +2,16 @@
  * FILE    : apps/web/app/api/hub/applications/[id]/route.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * PURPOSE : Staff: approve or reject a subcontractor application. Approval creates the contractor record (status vetting until insurance + background check are confirmed).
+ * UPDATED : 2026-10-02_0006 UTC — uses lib/recruiting (one-click invite email, pipeline log).
+ * PURPOSE : Staff: invite, decline or hold a subcontractor application. Inviting creates the pro
+ *           record (status vetting until setup, documents and background check are done).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { sendEmail, siteUrl } from "@/lib/notify";
-import { BRAND } from "@handled/core";
+import { inviteApplicant, logRecruiting, rejectApplicant } from "@/lib/recruiting";
 
-const Body = z.object({ decision: z.enum(["approve", "reject", "reviewing"]) });
+const Body = z.object({ decision: z.enum(["approve", "reject", "reviewing"]), reason: z.string().max(300).optional() });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const v = await getViewer(req);
@@ -18,20 +19,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return deny(400, "decision required");
-  const db = adminClient();
-  const { data: app } = await db.from("contractor_applications").select("*").eq("id", id).single();
-  if (!app) return deny(404, "Not found");
-  const status = parsed.data.decision === "approve" ? "approved" : parsed.data.decision === "reject" ? "rejected" : "reviewing";
-  await db.from("contractor_applications").update({ status }).eq("id", id);
-  if (status === "approved") {
-    const zips = String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z));
-    const { error } = await db.from("contractors").upsert({
-      business_name: app.business_name, contact_name: app.contact_name, email: app.email.toLowerCase(), phone: app.phone,
-      trades: app.trades, specialties: app.specialties ?? [], service_zips: zips, license_number: app.license_number, status: "vetting",
-      daily_capacity: Math.max(2, Math.min(10, (app.crew_size ?? 1) * 2)), application_id: app.id,
-    }, { onConflict: "email" });
-    if (error) return Response.json({ error: error.message }, { status: 500 });
-    await sendEmail(app.email, `Welcome to ${BRAND.name}`, `You're in, ${app.contact_name.split(" ")[0]}! You'll work with us as an independent business (1099).\n\nSign in with this email at ${siteUrl()}/login, then finish setup at ${siteUrl()}/pro/onboarding:\n• W-9\n• Independent contractor agreement\n• Your specialties\n• Certificate of insurance (general liability, Handled named as additional insured)\n• Any trade-specific coverage (commercial auto, bond, workers' comp or a no-employees statement)\n• Trade license (plumbing, electrical, HVAC, painting, remodeling, food service)\n• Background check\n• Payout method\n\nOffers start the day you're activated.`);
+  const who = v!.fullName ?? v!.email;
+  if (parsed.data.decision === "approve") {
+    const r = await inviteApplicant(id, who);
+    return r.ok ? Response.json(r) : Response.json({ error: r.error }, { status: 500 });
   }
+  if (parsed.data.decision === "reject") { await rejectApplicant(id, who, parsed.data.reason); return Response.json({ ok: true }); }
+  await adminClient().from("contractor_applications").update({ status: "reviewing" }).eq("id", id);
+  await logRecruiting("reviewing", { applicationId: id }, parsed.data.reason ?? null, who);
   return Response.json({ ok: true });
 }

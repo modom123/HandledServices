@@ -110,7 +110,10 @@ export default async function Onboarding() {
         </div>
       );
     }
-    if (key === "background") return <p className="mt-2 text-sm text-ink-soft">{pro.background_checked ? "Cleared." : "We’ll email you a secure link from our screening provider to consent and complete the check."}</p>;
+    if (key === "background") {
+      const bs = (pro as Contractor & { background_status?: string | null }).background_status;
+      return <p className="mt-2 text-sm text-ink-soft">{pro.background_checked ? "Cleared." : bs === "invited" ? "Our screening provider (Checkr) emailed you a secure link — check your inbox and spam. It takes about 5 minutes, results in 1–3 business days." : bs === "pending" ? "In progress — usually 1–3 business days. We’ll notify you when it clears." : "Starts automatically as soon as your W-9 and agreement are in."}</p>;
+    }
     if (key === "payout") return (
       <StepForm step="payout" cta="Save payout method">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -127,6 +130,8 @@ export default async function Onboarding() {
         <div><h1 className="text-2xl font-bold">Get set up</h1><p className="text-sm text-ink-soft">You work as an independent business. These steps let us send you prepaid jobs and file your 1099.</p></div>
         <Badge tone={complete ? "green" : "amber"}>{steps.filter((s) => s.done).length}/{steps.length} complete</Badge>
       </div>
+      <div className="h-2 overflow-hidden rounded-full bg-paper-deep"><div className="h-full bg-brand transition-all" style={{ width: `${(steps.filter((s) => s.done).length / steps.length) * 100}%` }} /></div>
+      {!complete && (() => { const next = steps.find((s) => !s.done && s.key !== "background"); return next ? <p className="text-sm">Next: <a href={`#step-${next.key}`} className="font-semibold text-brand underline">{next.label}</a>. Saved as you go — finish any time on your phone.</p> : <p className="text-sm text-ink-soft">All your steps are in. We’re verifying documents and your background check; you’ll get a notification the moment you’re live.</p>; })()}
       <details className="card text-sm">
         <summary className="cursor-pointer font-semibold">What your trades require</summary>
         <div className="mt-3 space-y-3">
@@ -145,7 +150,7 @@ export default async function Onboarding() {
         </div>
       </details>
       {steps.map((s) => (
-        <div key={s.key} className={`card ${s.done ? "border-brand/40" : ""}`}>
+        <div key={s.key} id={`step-${s.key}`} className={`card scroll-mt-24 ${s.done ? "border-brand/40" : ""}`}>
           <div className="flex items-center justify-between gap-2"><div className="font-semibold">{s.done ? "✅" : "⬜"} {s.label}</div>{s.expiring && <Badge tone="amber">expires soon</Badge>}</div>
           <div className="text-sm text-ink-soft">{s.detail}</div>
           {(!s.done || s.expiring || s.key === "area") && body(s.key)}

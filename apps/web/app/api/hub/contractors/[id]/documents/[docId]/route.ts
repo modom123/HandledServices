@@ -11,6 +11,7 @@ import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { signedDocUrl } from "@/lib/photos";
+import { afterOnboardingStep } from "@/lib/recruiting";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) {
   const v = await getViewer(req);
@@ -40,7 +41,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string; do
       const { data: c } = await db.from("contractors").select("coverage").eq("id", id).single();
       await db.from("contractors").update({ coverage: { ...(c?.coverage ?? {}), [doc.kind]: doc.expires_on } }).eq("id", id);
     }
-    if (doc.kind === "background") await db.from("contractors").update({ background_checked: true, background_checked_at: now }).eq("id", id);
+    if (doc.kind === "background") await db.from("contractors").update({ background_checked: true, background_checked_at: now, background_status: "clear" }).eq("id", id);
   }
+  // verified documents may complete setup → background check / auto-activate
+  await afterOnboardingStep(id, `${doc.kind} ${body.data.decision === "verify" ? "verified" : "rejected"}`, who);
   return Response.json({ ok: true });
 }

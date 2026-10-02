@@ -382,3 +382,28 @@ test("removal: weight classes, heaviest item and the junk container", async () =
   assert.equal(containerPickup("2026-11-02", "7"), "2026-11-09");
   assert.equal(containerPickup("2026-11-28", 14), "2026-12-12");
 });
+
+test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
+  const { RECRUITING_DEFAULTS: R, autoInviteDecision, pipelineStage, reminderDue, shouldDrop, mergeRecruiting } = await import("./recruiting.ts");
+  assert.equal(autoInviteDecision(R, { recommendation: "approve_after_checks", score: 82 }).invite, true);
+  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, false);
+  assert.equal(autoInviteDecision(R, { recommendation: "decline", score: 90 }).invite, false);
+  assert.equal(autoInviteDecision(mergeRecruiting({ autoInvite: false }), { recommendation: "approve_after_checks", score: 95 }).invite, false);
+  const steps = (done: string[]) => ["w9", "agreement", "specialties", "area", "coi", "background", "payout"].map((key) => ({ key, done: done.includes(key) }));
+  assert.equal(pipelineStage({ appStage: "applied" }), "applied");
+  assert.equal(pipelineStage({ appStage: "screened" }), "screened");
+  assert.equal(pipelineStage({ contractorStatus: "vetting", steps: steps([]) }), "invited");
+  assert.equal(pipelineStage({ contractorStatus: "vetting", steps: steps(["w9", "agreement"]) }), "onboarding");
+  assert.equal(pipelineStage({ contractorStatus: "vetting", steps: steps(["w9", "agreement", "specialties", "area", "payout"]), pendingDocs: 1 }), "verifying");
+  assert.equal(pipelineStage({ contractorStatus: "vetting", steps: steps(["w9", "agreement", "specialties", "area", "coi", "payout"]) }), "background");
+  assert.equal(pipelineStage({ contractorStatus: "approved", steps: steps([]) }), "active");
+  assert.equal(pipelineStage({ appStage: "rejected" }), "rejected");
+  const day = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
+  assert.equal(reminderDue(R, day(0.5), 0), null);
+  assert.equal(reminderDue(R, day(1.2), 0), 0);
+  assert.equal(reminderDue(R, day(2), 1), null);
+  assert.equal(reminderDue(R, day(8), 2), 2);
+  assert.equal(reminderDue(R, day(40), 4), null, "all reminders sent");
+  assert.equal(shouldDrop(R, day(31), 4), true);
+  assert.equal(shouldDrop(R, day(31), 2), false, "still reminding");
+});

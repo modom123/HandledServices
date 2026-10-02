@@ -58,7 +58,7 @@ export default async function ProHome() {
                 return <div key={b.key} title={b.body} className={no ? "text-ink-soft" : ""}>{no ? "○" : "✅"} {b.title}{no ? ` — ${no}` : ""}</div>;
               })}
             </div>
-            <div className="mt-2 text-xs text-ink-soft">Know a great pro? Earn {money(PRO_REFERRAL.bonus)} when they finish their {PRO_REFERRAL.afterJobs}th job. Send them to /pros and have them put your business name in the “Tell us about your crew” box.</div>
+            <div className="mt-2 text-xs text-ink-soft">Know a great pro? Earn {money(PRO_REFERRAL.bonus)} when they finish their {PRO_REFERRAL.afterJobs}th job. Your referral link: <span className="select-all font-mono text-ink">{`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/pros?ref=${me.id}`}</span></div>
           </div>
         );
       })()}

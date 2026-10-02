@@ -9,11 +9,11 @@
 import { useState } from "react";
 import { browserClient } from "@/lib/supabase/browser";
 
-export function LoginForm({ next }: { next: string }) {
-  const [email, setEmail] = useState("");
+export function LoginForm({ next, initialEmail = "", expired = false }: { next: string; initialEmail?: string; expired?: boolean }) {
+  const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState(expired ? "That sign-in link expired or was already used — enter your email for a fresh code." : "");
 
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();

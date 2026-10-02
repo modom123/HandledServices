@@ -71,6 +71,8 @@ Project `myhumanai-web` → **Settings**:
 | `IEBC_ALLOWED_ORIGIN` | the MasterHub's web address once it's hosted | later |
 | `AUTO_DISPATCH` | `true` | default |
 | (network) | Dispatch looks up ZIP locations at `api.zippopotam.us` (free, no key) and caches them. Nothing to set on Vercel; if a firewall blocks it, dispatch falls back to pros' ZIP lists | — |
+| `CHECKR_API_KEY` | Checkr → Account settings → Developer settings → API key (automates pro background checks) | recommended |
+| `CHECKR_PACKAGE` | the package slug from your Checkr account (e.g. your basic criminal package) | with Checkr |
 | `EXPO_ACCESS_TOKEN` | expo.dev → Account → Access tokens (signs push notifications) | recommended |
 
 Then **Deployments → ⋯ → Redeploy** so the new variables take effect.
@@ -141,7 +143,8 @@ For the store listings: privacy policy URL `https://YOUR-DOMAIN/privacy`, suppor
 
 0. Open **Hub → 🏅 Pro Program** and set who qualifies for each benefit, plus your insurance partner (name, link, phone, referral code). The guaranteed minimum starts off.
 0. Read **`docs/PRO_OFFERING_2026-10-01_2110.md`**: the recruiting playbook, the insurance and license rules by trade, and 6 open decisions on pro pay policy. Have your insurance broker confirm the coverage minimums.
-1. Share `https://YOUR-DOMAIN/pros`. Approve applicants in **Hub → Hiring & pros**. Each pro finishes **Setup & documents** (W-9, agreement, specialties, **work area & hours** (start ZIP, driving radius, days, times, days off), insurance plus any coverage their trade needs, license, background check, payout). Then you verify the documents and **Activate** them.
+1. Share `https://YOUR-DOMAIN/pros` (add `?src=flyer`, `?src=indeed`… to see which channel works; each pro has a referral link on their dashboard). Recruiting runs itself — see **Hub → 🧲 Recruiting**: applicants get a confirmation email, the AI screens them, strong ones are invited automatically with a one-click sign-in link, everyone else waits for your Invite/Decline, setup reminders go out on days 1, 3, 7 and 14, the background check starts as soon as the W-9 and agreement are in, and pros go live automatically when everything is verified. Checkr webhook: `https://YOUR-DOMAIN/api/checkr/webhook`.
+   The manual path still works too: approve applicants in **Hub → Hiring & pros**. Each pro finishes **Setup & documents** (W-9, agreement, specialties, **work area & hours** (start ZIP, driving radius, days, times, days off), insurance plus any coverage their trade needs, license, background check, payout). Then you verify the documents and **Activate** them.
 2. Aim for 2+ active pros per trade you'll advertise (the Go-live page lists trades with none).
 3. Run **10 real jobs end to end** with friends and family: book → pay → offer → pro accepts → start → photos → AI QA → completed → pro payout approved → review. Fix anything odd before advertising.
 

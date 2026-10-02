@@ -18,6 +18,7 @@ const NAV = [
   ["/hub/jobs", "🗂️", "Jobs board"],
   ["/hub/network", "💎", "Pro Network"],
   ["/hub/pros", "🧰", "Hiring & pros"],
+  ["/hub/recruiting", "🧲", "Recruiting"],
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/charges", "💳", "Quick Charge"],

@@ -16,6 +16,7 @@
  *           Only the last 4 of the TIN is stored in the database; the W-9 itself is a
  *           private file staff can open.
  */
+import { after } from "next/server";
 import { z } from "zod";
 import { AGREEMENT_VERSION, COVERAGES, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
@@ -23,6 +24,11 @@ import { adminClient } from "@/lib/supabase/server";
 import { uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
 import { zipCentroid } from "@/lib/geo";
+import { afterOnboardingStep, logRecruiting } from "@/lib/recruiting";
+import { signedDocUrl } from "@/lib/photos";
+import { aiCheckDocument } from "@/lib/ai/doccheck";
+import { notify } from "@/lib/push";
+import { siteUrl } from "@/lib/notify";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
@@ -49,6 +55,12 @@ export async function POST(req: Request) {
   const db = adminClient();
   const id = v.contractorId;
   const b = parsed.data;
+  // every saved step: log it, start the background check when ready, activate when complete
+  const done = (extra: Record<string, unknown> = {}) => {
+    after(() => afterOnboardingStep(id, b.step === "coverage" ? `coverage:${b.coverage}` : b.step).catch((e) => console.error("[onboarding]", e)));
+    return Response.json({ ok: true, ...extra });
+  };
+  let docId: string | null = null;
 
   if (b.step === "area") {
     const days = form.getAll("days").map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
@@ -64,7 +76,7 @@ export async function POST(req: Request) {
       base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi,
       availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
     }).eq("id", id);
-    return Response.json({ ok: true, located: Boolean(loc) });
+    return done({ located: Boolean(loc) });
   }
   if (b.step === "specialties") {
     const { data: pro } = await db.from("contractors").select("trades").eq("id", id).single();
@@ -72,7 +84,7 @@ export async function POST(req: Request) {
     const picked = form.getAll("specialties").map(String).filter((x) => allowed.has(x));
     if (!picked.length) return deny(400, "Pick at least one specialty");
     await db.from("contractors").update({ specialties: [...new Set(picked)] }).eq("id", id);
-    return Response.json({ ok: true });
+    return done();
   }
   if (b.step === "coverage" && b.exempt) {
     if (b.coverage !== "workers_comp") return deny(400, "Only workers' comp has a no-employees statement");
@@ -82,7 +94,7 @@ export async function POST(req: Request) {
     await db.from("contractors").update({ coverage: { ...(pro?.coverage ?? {}), workers_comp: "exempt" } }).eq("id", id);
     await db.from("contractor_documents").insert({ contractor_id: id, kind: "workers_comp", status: "verified", verified_by: "attestation", verified_at: signedAt,
       notes: `No-employees statement signed · ip ${req.headers.get("x-forwarded-for") ?? "?"}. Must carry workers' comp before hiring anyone.` });
-    return Response.json({ ok: true });
+    return done();
   }
   if (b.step === "coverage" && !b.expires_on) return deny(400, "Add the policy expiry date");
 
@@ -98,12 +110,12 @@ export async function POST(req: Request) {
     await db.from("contractors").update({ ...profile, state: profile.state.toUpperCase(), w9_received_at: new Date().toISOString() }).eq("id", id);
     await db.from("contractor_documents").insert({ contractor_id: id, kind: "w9", storage_path: path, status: "pending" });
   } else if (b.step === "coi") {
-    await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending" });
+    docId = (await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending" }).select("id").single()).data?.id ?? null;
   } else if (b.step === "license") {
     await db.from("contractors").update({ license_number: b.license_number }).eq("id", id);
-    await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.expires_on, status: "pending", notes: `#${b.license_number}` });
+    docId = (await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.expires_on, status: "pending", notes: `#${b.license_number}` }).select("id").single()).data?.id ?? null;
   } else if (b.step === "coverage") {
-    await db.from("contractor_documents").insert({ contractor_id: id, kind: b.coverage, storage_path: path, expires_on: b.expires_on, status: "pending", notes: COVERAGES[b.coverage].label });
+    docId = (await db.from("contractor_documents").insert({ contractor_id: id, kind: b.coverage, storage_path: path, expires_on: b.expires_on, status: "pending", notes: COVERAGES[b.coverage].label }).select("id").single()).data?.id ?? null;
   } else if (b.step === "agreement") {
     const signedAt = new Date().toISOString();
     await db.from("contractors").update({ agreement_version: AGREEMENT_VERSION, agreement_signed_at: signedAt, agreement_signer: b.signer_name }).eq("id", id);
@@ -112,6 +124,21 @@ export async function POST(req: Request) {
   } else if (b.step === "payout") {
     await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id);
   }
-  if (["coi", "license", "w9", "coverage"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step === "coverage" ? COVERAGES[b.coverage].label : b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. Review in Handled Hub → Pros.`);
-  return Response.json({ ok: true });
+  if (["coi", "license", "w9", "coverage"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step === "coverage" ? COVERAGES[b.coverage].label : b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. The AI reading is next to it in Handled Hub → Pros.`);
+  // AI reads the certificate/license now, so staff verify in one click and the pro hears fast if it's unusable
+  if (docId && path && !path.endsWith(".heic")) {
+    const docPath = path, theDoc = docId, kind = b.step === "coverage" ? b.coverage : b.step;
+    const claimed = "expires_on" in b ? b.expires_on ?? null : null;
+    after(async () => {
+      const [{ data: pro }, url] = await Promise.all([db.from("contractors").select("business_name, legal_name, trades, profile_id, email").eq("id", id).single(), signedDocUrl(docPath, 900)]);
+      if (!pro || !url) return;
+      const check = await aiCheckDocument({ kind, url, isPdf: docPath.endsWith(".pdf"), pro, claimedExpiry: claimed });
+      if (!check) return;
+      await db.from("contractor_documents").update({ ai_check: check }).eq("id", theDoc);
+      await logRecruiting("doc_ai_check", { contractorId: id }, `${kind}: ${check.meets_requirements ? "looks good" : check.problems.join("; ")}`, "ai");
+      if (!check.readable) await notify(pro.profile_id, { title: "Please re-upload your document", body: "We couldn't read it — try a clearer photo or the PDF.", data: { type: "onboarding" },
+        email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` } });
+    });
+  }
+  return done();
 }

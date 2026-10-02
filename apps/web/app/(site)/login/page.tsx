@@ -9,8 +9,8 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 
 export const metadata = { title: "Sign in" };
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string; email?: string; expired?: string }> }) {
   if (!supabaseConfigured) return <NotConfigured />;
-  const { next } = await searchParams;
-  return <div className="wrap py-20"><LoginForm next={next?.startsWith("/") ? next : "/auth/home"} /></div>;
+  const { next, email, expired } = await searchParams;
+  return <div className="wrap py-20"><LoginForm next={next?.startsWith("/") ? next : "/auth/home"} initialEmail={email ?? ""} expired={expired === "1"} /></div>;
 }

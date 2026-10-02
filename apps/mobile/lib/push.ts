@@ -47,5 +47,6 @@ export function routeFor(data: Record<string, unknown> | undefined): string | nu
   if (data.type === "job_pro" && data.jobId) return `/pro/${data.jobId}`;
   if (data.type === "job" && data.jobId) return `/job/${data.jobId}`;
   if (data.type === "earnings") return "/pro/earnings";
+  if (data.type === "onboarding" || data.type === "pro_home") return "/pro";
   return null;
 }

@@ -5,10 +5,10 @@
  * PURPOSE : Home — services, concierge, my jobs; switches to pro mode for subcontractors.
  */
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, router } from "expo-router";
 import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
-import { api, supabase } from "../lib/supabase";
+import { API_URL, api, supabase } from "../lib/supabase";
 import { unregisterPush } from "../lib/push";
 import { Button, C, Card, s } from "../components/ui";
 
@@ -32,6 +32,7 @@ export default function Home() {
         {me ? <Button title="My bookings" kind="ghost" onPress={() => router.push("/jobs")} style={{ flex: 1 }} /> : <Button title="Sign in" kind="ghost" onPress={() => router.push("/login")} style={{ flex: 1 }} />}
       </View>
       {me?.contractorId && <Button title="🧰 Open Pro mode" onPress={() => router.push("/pro")} style={{ marginTop: 10 }} />}
+      {!me?.contractorId && <Button title="💼 Become a pro — get prepaid jobs" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pros?src=app`)} style={{ marginTop: 10 }} />}
       {CATEGORIES.map((c) => (
         <View key={c.id}>
           <Text style={s.h2}>{c.icon} {c.name}</Text>

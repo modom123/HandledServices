@@ -47,6 +47,10 @@ export async function readiness(): Promise<Check[]> {
       add("Payments (Stripe)", "Stripe account", false, `key rejected: ${e instanceof Error ? e.message : e}`, "Re-copy STRIPE_SECRET_KEY");
     }
     add("Payments (Stripe)", "Webhook secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded and checkout.session.async_payment_failed; copy the signing secret`);
+  // ── Pro recruiting (background checks)
+  add("Pro recruiting", "Background checks (Checkr)", has("CHECKR_API_KEY") && has("CHECKR_PACKAGE") ? true : "warn",
+    has("CHECKR_API_KEY") ? (has("CHECKR_PACKAGE") ? "automated — ordered as soon as a pro's W-9 and agreement are in" : "CHECKR_PACKAGE missing") : "manual — ops gets a task to order each check",
+    `Checkr → Account settings → API keys: set CHECKR_API_KEY and CHECKR_PACKAGE (your package slug); add the webhook ${site || "https://your-domain"}/api/checkr/webhook (report.completed, report.suspended, report.canceled, invitation.completed)`);
   }
 
   if (!supabaseConfigured || !has("SUPABASE_SERVICE_ROLE_KEY")) return c;
@@ -65,6 +69,8 @@ export async function readiness(): Promise<Check[]> {
     ["8 deposits & Quick Charge", () => db.from("jobs").select("payment_plan, deposit_paid_at").limit(1)],
     ["9 pro vetting", () => db.from("contractors").select("specialties, coverage").limit(1)],
     ["10 pro benefits", () => db.from("pro_program_settings").select("id").limit(1)],
+    ["11 dispatch geo & availability", () => db.from("zip_geo").select("zip").limit(1)],
+    ["12 pro recruiting", () => db.from("recruiting_events").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();
