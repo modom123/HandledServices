@@ -9,7 +9,7 @@ import Link from "next/link";
 import { BRAND, SERVICES, getService } from "@handled/core";
 import { publicReviews } from "@/lib/reviews";
 
-export const revalidate = 1800;
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Customer reviews", description: `Real reviews from ${BRAND.name} customers — every rating counts toward our average.` };
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));

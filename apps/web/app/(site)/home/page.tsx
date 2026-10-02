@@ -7,10 +7,12 @@
  *           how it works, why us, and one row of tiles for events, rides, business and pros.
  *           Categories and counts come from the catalog, so new services appear automatically.
  * UPDATED : 2026-10-02_0244 UTC — moved to /home; the splash page at / introduces the company first.
+ * UPDATED : 2026-10-02_1329 UTC — English / Spanish.
  * PURPOSE : Home page (the first page after the splash).
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
+import { BRAND, CATEGORIES, SERVICES, categoryText, money, serviceText, t as tr } from "@handled/core";
+import { getLocale } from "@/lib/locale";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -36,7 +38,9 @@ const MORE = [
   { href: "/pros", icon: "🧰", title: "Own a crew?", body: "Prepaid jobs on your phone, weekly pay, no lead fees.", cta: "Become a pro" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const l = await getLocale();
+  const t = (s: string) => tr(l, s);
   const cats = CATEGORIES.map((c) => {
     const list = SERVICES.filter((s) => s.category === c.id);
     return { ...c, list, from: Math.min(...list.map((s) => s.minimum)) };
@@ -46,22 +50,22 @@ export default function Home() {
       {/* hero */}
       <section className="wrap grid items-center gap-10 pb-12 pt-12 md:grid-cols-[1.05fr_1fr] md:pt-16">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● AI-run operations · real local pros</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● {t("AI-run operations · real local pros")}</span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-            Your home & business to-do list. <span className="text-brand">Handled.</span>
+            {t("Your home & business to-do list.")} <span className="text-brand">{t("Handled.")}</span>
           </h1>
           <p className="mt-5 max-w-lg text-lg text-ink-soft">{BRAND.pitch}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/book" className="btn-primary px-6 py-3 text-base">Get my price</Link>
-            <Link href="/services" className="btn-ghost px-6 py-3 text-base">See all {SERVICES.length} services</Link>
+            <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
+            <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {l === "es" ? "servicios" : "services"}</Link>
           </div>
         </div>
         <div className="grid grid-cols-4 gap-2 sm:gap-3">
           {cats.map((c) => (
             <Link key={c.id} href={`/services?cat=${c.id}`} className="card flex flex-col items-center px-1 py-3 text-center transition hover:border-brand hover:bg-brand-tint sm:p-4">
               <span className="text-2xl sm:text-3xl">{c.icon}</span>
-              <span className="mt-1.5 text-xs font-semibold leading-tight sm:text-sm">{c.short}</span>
-              <span className="mt-1 hidden text-xs text-ink-soft sm:block">{c.list.length} services</span>
+              <span className="mt-1.5 text-xs font-semibold leading-tight sm:text-sm">{categoryText(l, c.id, c).short}</span>
+              <span className="mt-1 hidden text-xs text-ink-soft sm:block">{c.list.length} {l === "es" ? "servicios" : "services"}</span>
             </Link>
           ))}
         </div>
@@ -77,22 +81,22 @@ export default function Home() {
       {/* browse by category */}
       <section className="wrap py-14">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-3xl font-bold tracking-tight">Browse by category</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{t("Browse by category")}</h2>
           <Link href="/services" className="text-sm font-semibold text-brand">All {SERVICES.length} services →</Link>
         </div>
         {/* phones: swipe sideways; tablets and up: grid */}
         <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
           {cats.map((c) => (
             <div key={c.id} className="card flex w-[78%] shrink-0 snap-start flex-col sm:w-auto">
-              <div className="flex items-center gap-2"><span className="text-2xl">{c.icon}</span><span className="font-semibold leading-tight">{c.name}</span></div>
+              <div className="flex items-center gap-2"><span className="text-2xl">{c.icon}</span><span className="font-semibold leading-tight">{categoryText(l, c.id, c).name}</span></div>
               <ul className="mt-3 flex-1 space-y-1.5 text-sm">
                 {c.list.slice(0, 3).map((s) => (
-                  <li key={s.slug}><Link href={`/services/${s.slug}`} className="text-ink-soft hover:text-brand">{s.icon} {s.name}</Link></li>
+                  <li key={s.slug}><Link href={`/services/${s.slug}`} className="text-ink-soft hover:text-brand">{s.icon} {serviceText(l, s.slug, s).name}</Link></li>
                 ))}
               </ul>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-ink-soft">{c.id === "events" ? "By budget" : `from ${money(c.from)}`}</span>
-                <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">See all {c.list.length} →</Link>
+                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : `${t("from")} ${money(c.from)}`}</span>
+                <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.list.length} →</Link>
               </div>
             </div>
           ))}
@@ -102,13 +106,13 @@ export default function Home() {
       {/* how it works */}
       <section className="border-y border-line bg-paper-deep py-14">
         <div className="wrap">
-          <h2 className="text-3xl font-bold tracking-tight">How it works</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{t("How it works")}</h2>
           <div className="mt-8 grid gap-6 md:grid-cols-3">
             {STEPS.map((s) => (
               <div key={s.n} className="card">
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{s.n}</div>
-                <div className="mt-4 font-semibold">{s.title}</div>
-                <p className="mt-2 text-sm text-ink-soft">{s.body}</p>
+                <div className="mt-4 font-semibold">{t(s.title)}</div>
+                <p className="mt-2 text-sm text-ink-soft">{t(s.body)}</p>
               </div>
             ))}
           </div>

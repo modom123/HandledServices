@@ -2,6 +2,7 @@
  * FILE    : apps/web/components/BookingWizard.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_1329 UTC — promo / gift / referral code with live savings, attribution, Spanish.
  * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) limits the
  *           calendar to their deadline; optional budget shows whether the price fits.
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
@@ -15,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, URGENCY, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
   questionVisible,
 } from "@handled/core";
@@ -44,7 +45,8 @@ function readAttribution(): Record<string, string> | null {
 
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, locale = "en" }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; locale?: Locale }) {
+  const t = (s: string) => tr(locale, s);
   const router = useRouter();
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
@@ -139,8 +141,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
       <div>
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
-          {["Service", "Details", "When & where", "Review"].map((l, i) => (
-            <li key={l} className={`rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {l}</li>
+          {["Service", "Details", "When & where", "Review"].map((lbl, i) => (
+            <li key={lbl} className={`rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {t(lbl)}</li>
           ))}
         </ol>
 
@@ -148,12 +150,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           <div className="space-y-8">
             {CATEGORIES.map((c) => (
               <div key={c.id}>
-                <div className="mb-3 font-semibold">{c.name}</div>
+                <div className="mb-3 font-semibold">{categoryText(locale, c.id, c).name}</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {SERVICES.filter((s) => s.category === c.id).map((s) => (
                     <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
                       <span className="text-2xl">{s.icon}</span>
-                      <span><span className="block text-sm font-semibold">{s.name}</span><span className="text-xs text-ink-soft">from {money(s.minimum)}</span></span>
+                      <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{t("from")} {money(s.minimum)}</span></span>
                     </button>
                   ))}
                 </div>
@@ -165,7 +167,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         {step === 1 && svc && (
           <div className="card space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">{svc.icon} {svc.name}</h2>
+              <h2 className="text-xl font-bold">{svc.icon} {serviceText(locale, svc.slug, svc).name}</h2>
               <button className="text-sm text-brand" onClick={() => setStep(0)}>Change</button>
             </div>
             {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
@@ -190,7 +192,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             ))}
             {svc.frequencies.length > 1 && (
               <div>
-                <label className="label">How often</label>
+                <label className="label">{t("How often")}</label>
                 <div className="flex flex-wrap gap-2">
                   {svc.frequencies.map((f) => (
                     <button key={f} onClick={() => setFrequency(f)} className={`rounded-full border px-3.5 py-1.5 text-sm ${frequency === f ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{FREQ_LABEL[f]}</button>
@@ -199,7 +201,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               </div>
             )}
             <div>
-              <label className="label">Anything we should know?</label>
+              <label className="label">{t("Anything we should know?")}</label>
               <textarea className="input min-h-24" placeholder={svc?.notesHint ?? "Gate code, pets, parking, what's in the garage, the tree is leaning toward the house…"} value={notes} onChange={(e) => { setNotes(e.target.value); resetAi(); }} />
             </div>
             <div>
@@ -219,8 +221,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
 
         {step === 2 && (
           <div className="card space-y-5">
-            <h2 className="text-xl font-bold">When & where</h2>
-            <div className="max-w-[10rem]"><label className="label">Service ZIP code</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
+            <h2 className="text-xl font-bold">{t("When & where")}</h2>
+            <div className="max-w-[10rem]"><label className="label">{t("Service ZIP code")}</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
             {svc?.leadDays ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><label className="label">{svc.category === "transport" ? "Pickup date" : "Event date"}</label>
@@ -235,10 +237,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             ) : (
               <>
                 <div>
-                  <label className="label">When do you need it done?</label>
+                  <label className="label">{t("When do you need it done?")}</label>
                   <div className="flex flex-wrap gap-2">
                     {URGENCY.map((u) => (
-                      <button key={u.id} type="button" title={u.hint} onClick={() => setUrgency(u.id)} className={`rounded-full border px-3.5 py-1.5 text-sm ${urgency === u.id ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{u.id === "asap" ? "⚡ " : ""}{u.label}</button>
+                      <button key={u.id} type="button" title={u.hint} onClick={() => setUrgency(u.id)} className={`rounded-full border px-3.5 py-1.5 text-sm ${urgency === u.id ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{u.id === "asap" ? "⚡ " : ""}{t(u.label)}</button>
                     ))}
                   </div>
                   {urgency && <p className="mt-1 text-xs text-ink-soft">{URGENCY.find((u) => u.id === urgency)?.hint}{urgency !== "flexible" ? ` · by ${new Date(`${neededBy(urgency)}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}` : ""}</p>}
@@ -254,20 +256,20 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             {form.customer_type === "commercial" && <div><label className="label">Company</label><input className="input" value={form.company_name} onChange={set("company_name")} /></div>}
             <div><label className="label">{svc?.leadDays ? "Event address (or your neighborhood if you need a venue)" : "Street address"}</label><input className="input" autoComplete="street-address" value={form.address} onChange={set("address")} /></div>
             <div className="grid grid-cols-[1fr_80px] gap-3">
-              <div><label className="label">City</label><input className="input" value={form.city} onChange={set("city")} /></div>
-              <div><label className="label">State</label><input className="input uppercase" maxLength={2} value={form.state} onChange={set("state")} /></div>
+              <div><label className="label">{t("City")}</label><input className="input" value={form.city} onChange={set("city")} /></div>
+              <div><label className="label">{t("State")}</label><input className="input uppercase" maxLength={2} value={form.state} onChange={set("state")} /></div>
             </div>
-            <div className="flex gap-2"><button className="btn-ghost" onClick={() => setStep(1)}>Back</button><button className="btn-primary" disabled={!placeOk} onClick={() => setStep(3)}>Continue</button></div>
+            <div className="flex gap-2"><button className="btn-ghost" onClick={() => setStep(1)}>{t("Back")}</button><button className="btn-primary" disabled={!placeOk} onClick={() => setStep(3)}>{t("Continue")}</button></div>
           </div>
         )}
 
         {step === 3 && (
           <div className="card space-y-5">
-            <h2 className="text-xl font-bold">Your contact info</h2>
-            <div><label className="label">Full name</label><input className="input" autoComplete="name" value={form.contact_name} onChange={set("contact_name")} /></div>
+            <h2 className="text-xl font-bold">{t("Your contact info")}</h2>
+            <div><label className="label">{t("Full name")}</label><input className="input" autoComplete="name" value={form.contact_name} onChange={set("contact_name")} /></div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div><label className="label">Email</label><input className="input" type="email" autoComplete="email" value={form.contact_email} onChange={set("contact_email")} /></div>
-              <div><label className="label">Mobile</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
+              <div><label className="label">{t("Email")}</label><input className="input" type="email" autoComplete="email" value={form.contact_email} onChange={set("contact_email")} /></div>
+              <div><label className="label">{t("Mobile")}</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
             <p className="text-xs text-ink-soft">We text updates about this job only. We never sell your info to other contractors.</p>
             {svc && !siteVisit && est && (() => {
@@ -290,7 +292,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
-              <button className="btn-ghost" onClick={() => setStep(2)}>Back</button>
+              <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
               <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? "Checking your photos…" : busy ? (siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? "Book free site visit" : `Pay ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, total, date).allowed ? depositPolicy(svc!.slug, total, date).amount : perks ? perks.dueNow : total) : ""}${plan === "deposit" ? " deposit" : ""} & book`}</button>
             </div>
           </div>
@@ -305,7 +307,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             const fit = budgetFit(Number(budget), siteVisit ? price.low : ai?.final_price ?? est.point);
             return (
               <div className="mt-3">
-                <label className="label">Your budget (optional)</label>
+                <label className="label">{t("Your budget (optional)")}</label>
                 <div className="flex items-center gap-2"><span className="text-ink-soft">$</span><input className="input" inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^\d.]/g, ""))} placeholder="What you’d like to spend" /></div>
                 {fit.status !== "none" && <p className={`mt-1 text-xs ${fit.status === "fits" ? "text-brand-dark" : fit.status === "close" ? "text-amber-800" : "text-rose-700"}`}>{fit.status === "fits" ? "✓ " : ""}{fit.message}</p>}
               </div>
@@ -313,8 +315,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           })()}
           {!siteVisit && svc.slug !== "event-package" && (
             <div className="mt-3">
-              <label className="label">Promo, gift card or referral code</label>
-              <div className="flex gap-2"><input className="input uppercase" value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} placeholder="CODE" /><button type="button" className="btn-ghost" onClick={() => checkPerks()}>Apply</button></div>
+              <label className="label">{t("Promo, gift card or referral code")}</label>
+              <div className="flex gap-2"><input className="input uppercase" value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} placeholder="CODE" /><button type="button" className="btn-ghost" onClick={() => checkPerks()}>{t("Apply")}</button></div>
               {perks?.promoMessage && <p className={`mt-1 text-xs ${perks.promoOk ? "text-brand-dark" : "text-rose-700"}`}>{perks.promoOk ? "✓ " : ""}{perks.promoMessage}{perks.promoOk && perks.promoAmount === 0 && !perks.isGift ? " (already at our lowest price for this job)" : ""}</p>}
             </div>
           )}
@@ -323,7 +325,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               {perks.memberBenefit > 0 && <div className="flex justify-between"><span>⭐ Plus member saving</span><span>−{money(perks.memberBenefit)}</span></div>}
               {perks.promoAmount > 0 && <div className="flex justify-between"><span>Code {perks.promoCode}</span><span>−{money(perks.promoAmount)}</span></div>}
               {perks.gift > 0 && <div className="flex justify-between"><span>Gift card</span><span>−{money(perks.gift)}</span></div>}
-              <div className="flex justify-between border-t border-brand/20 pt-1 font-semibold"><span>Due today</span><span>{money(perks.dueNow)}</span></div>
+              <div className="flex justify-between border-t border-brand/20 pt-1 font-semibold"><span>{t("Due today")}</span><span>{money(perks.dueNow)}</span></div>
             </div>
           )}
           {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ Checking your photos and notes so the price fits the job…</p>}

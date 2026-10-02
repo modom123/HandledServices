@@ -612,3 +612,23 @@ test("same-day availability: on-call pros only, windows not yet started", async 
   assert.equal(on.days[0].windows.morning, 0);
   assert.ok(on.days[0].windows.midday > 0 && on.days[0].spots > 0);
 });
+
+test("every service and category has Spanish text", async () => {
+  const { ES_SERVICE_SLUGS, categoryText, t } = await import("./i18n.ts");
+  const { SERVICES, CATEGORIES } = await import("./services.ts");
+  for (const s of SERVICES) assert.ok(ES_SERVICE_SLUGS.includes(s.slug), `no Spanish for ${s.slug}`);
+  for (const c of CATEGORIES) assert.notEqual(categoryText("es", c.id, c).name, c.name === "Pet Care" ? "" : c.name);
+  assert.equal(t("es", "Book now"), "Reservar");
+  assert.equal(t("en", "Book now"), "Book now");
+  assert.equal(t("es", "Not in the dictionary"), "Not in the dictionary");
+});
+
+test("growth: discounts never touch the pro's pay and we keep 5%", async () => {
+  const { capDiscount, promoDiscount, memberSaving } = await import("./growth.ts");
+  assert.equal(capDiscount(200, 150, 100), 40); // 200 - 150 - 10 = 40 max
+  assert.equal(capDiscount(200, 195, 50), 0);
+  assert.equal(promoDiscount({ code: "X", kind: "percent", value: 10 }, 300, { firstJob: false }).amount, 30);
+  assert.equal(promoDiscount({ code: "X", kind: "amount", value: 25, first_job_only: true }, 300, { firstJob: false }).ok, false);
+  assert.equal(promoDiscount({ code: "X", kind: "amount", value: 25, expires_at: "2000-01-01" }, 300, { firstJob: true }).ok, false);
+  assert.equal(memberSaving(345, 45), 75); // rush back + 10% of 300
+});

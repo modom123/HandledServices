@@ -29,7 +29,8 @@ How to help:
 - Some services need photos at booking (e.g. junk removal, repairs, painting); tell the customer which shots help.
 - When the customer is ready, point them to /book?service=<slug>&when=<asap|this_week|two_weeks|month|flexible>&budget=<number, if given>. If they'd rather be called, collect name + phone/email and call save_lead.
 - Payment: customers pay the full price upfront when they book (site visits are free; they pay once the firm quote is approved). ${BRAND.promise}
-- Be warm and brief (under 90 words). Plain text, no markdown headings.`;
+- Be warm and brief (under 90 words). Plain text, no markdown headings.
+- Always reply in the customer's language: if they write in Spanish, answer in Spanish ("usted").`;
 
 const tools = [
   betaZodTool({

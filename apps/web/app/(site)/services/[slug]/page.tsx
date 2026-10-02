@@ -6,15 +6,13 @@
  * PURPOSE : Service detail page (SEO landing page per service).
  */
 import { notFound } from "next/navigation";
-import { SERVICES, getService } from "@handled/core";
+import { getService } from "@handled/core";
 import { publicReviews } from "@/lib/reviews";
 import { ServiceLanding } from "@/components/ServiceLanding";
+import { getLocale } from "@/lib/locale";
 
-export const revalidate = 3600;
-
-export function generateStaticParams() {
-  return SERVICES.map((s) => ({ slug: s.slug }));
-}
+// rendered per visit: the page follows the visitor's language (cookie) and shows live reviews
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const s = getService((await params).slug);
@@ -24,5 +22,5 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
   const s = getService((await params).slug);
   if (!s) notFound();
-  return <ServiceLanding s={s} reviews={await publicReviews({ slug: s.slug, limit: 5 })} />;
+  return <ServiceLanding s={s} reviews={await publicReviews({ slug: s.slug, limit: 5 })} locale={await getLocale()} />;
 }

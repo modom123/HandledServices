@@ -7,13 +7,14 @@
  *           real customer reviews, nearby cities, and search-engine markup (Service + rating).
  */
 import Link from "next/link";
-import { BRAND, SEO_CITIES, defaultAnswers, estimate, getService, money, moneyRange, type SeoCity, type Service } from "@handled/core";
+import { BRAND, SEO_CITIES, defaultAnswers, estimate, getService, money, moneyRange, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
 import type { PublicReview } from "@/lib/reviews";
 import { siteUrl } from "@/lib/notify";
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
 
-export function ServiceLanding({ s, city, reviews }: { s: Service; city?: SeoCity; reviews: { count: number; average: number | null; list: PublicReview[] } }) {
+export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service; city?: SeoCity; reviews: { count: number; average: number | null; list: PublicReview[] }; locale?: Locale }) {
+  const txt = serviceText(locale, s.slug, s);
   const typical = estimate({ slug: s.slug, answers: defaultAnswers(s) });
   const where = city ? ` in ${city.name}, ${city.state}` : "";
   const ld = {
@@ -28,8 +29,8 @@ export function ServiceLanding({ s, city, reviews }: { s: Service; city?: SeoCit
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
       <div>
         <div className="text-5xl">{s.icon}</div>
-        <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{s.name}{where}</h1>
-        <p className="mt-2 text-lg text-brand">{s.tagline}</p>
+        <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{txt.name}{locale === "es" && city ? ` en ${city.name}, ${city.state}` : where}</h1>
+        <p className="mt-2 text-lg text-brand">{txt.tagline}</p>
         {reviews.average && reviews.count >= 3 && <p className="mt-2 text-sm"><span className="text-amber-500">{stars(reviews.average)}</span> <b>{reviews.average}</b> from {reviews.count} customer reviews</p>}
         <p className="mt-5 text-ink-soft">{s.description}{city ? ` We serve ${city.name} and nearby neighborhoods with vetted, insured local pros — book online with an upfront price.` : ""}</p>
         <h2 className="mt-10 font-bold">What’s included</h2>
@@ -67,7 +68,7 @@ export function ServiceLanding({ s, city, reviews }: { s: Service; city?: SeoCit
           <Link href="/services/junk-removal" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🚛 <b>Want us to do the lifting?</b> Book full-service Junk Removal instead.</Link>
         )}
         {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
-        <Link href={`/book?service=${s.slug}`} className="btn-primary mt-5 w-full py-3">Get my exact price</Link>
+        <Link href={`/book?service=${s.slug}`} className="btn-primary mt-5 w-full py-3">{locale === "es" ? tr(locale, "Get my price") : "Get my exact price"}</Link>
         <p className="mt-4 text-xs text-ink-soft">{BRAND.promise}</p>
       </aside>
     </div>

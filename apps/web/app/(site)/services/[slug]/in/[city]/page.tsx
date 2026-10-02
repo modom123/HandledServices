@@ -9,10 +9,10 @@ import { notFound } from "next/navigation";
 import { BRAND, SEO_CITY_BY_SLUG, getService } from "@handled/core";
 import { publicReviews } from "@/lib/reviews";
 import { ServiceLanding } from "@/components/ServiceLanding";
+import { getLocale } from "@/lib/locale";
 
-export const revalidate = 86400;
-export const dynamicParams = true;
-export function generateStaticParams() { return []; }
+// rendered per visit: the page follows the visitor's language (cookie) and shows live reviews
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; city: string }> }) {
   const { slug, city } = await params;
@@ -29,5 +29,5 @@ export default async function CityService({ params }: { params: Promise<{ slug: 
   const { slug, city } = await params;
   const s = getService(slug), c = SEO_CITY_BY_SLUG[city];
   if (!s || !c) notFound();
-  return <ServiceLanding s={s} city={c} reviews={await publicReviews({ slug: s.slug, limit: 5 })} />;
+  return <ServiceLanding s={s} city={c} reviews={await publicReviews({ slug: s.slug, limit: 5 })} locale={await getLocale()} />;
 }

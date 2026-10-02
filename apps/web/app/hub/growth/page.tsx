@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export default async function Growth() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return <Empty>Connect Supabase (service role key) to see growth numbers.</Empty>;
   const db = adminClient();
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const [{ data: jobs }, { count: members }, { data: promos }, { data: tips }, { data: disputes }] = await Promise.all([
