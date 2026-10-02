@@ -2,34 +2,29 @@
  * FILE    : apps/web/app/(site)/services/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * UPDATED : 2026-10-02_0000 UTC — original layout kept by owner preference (do not redesign);
- *           new services and categories appear automatically from the catalog.
+ * UPDATED : 2026-10-02_0212 UTC — sidebar layout chosen by the owner: categories on the left
+ *           (tabs on phones), the chosen category's service cards on the right. New services
+ *           and categories appear automatically from the catalog.
  */
-import Link from "next/link";
 import { CATEGORIES, SERVICES, money } from "@handled/core";
+import { ServicesBrowser, type BrowserCategory } from "@/components/ServicesBrowser";
 
-export const metadata = { title: "Services" };
+export const metadata = { title: "Services", description: "Every service we offer, by category, with upfront prices." };
 
-export default function ServicesPage() {
+export default async function ServicesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
+  const { cat } = await searchParams;
+  const categories: BrowserCategory[] = CATEGORIES.map((c) => ({
+    id: c.id, name: c.name, icon: c.icon, blurb: c.blurb,
+    services: SERVICES.filter((s) => s.category === c.id).map((s) => ({
+      slug: s.slug, name: s.name, icon: s.icon, tagline: s.tagline, siteVisit: s.siteVisit,
+      from: s.slug === "event-package" ? "Plan by budget" : `from ${money(s.minimum)}`,
+    })),
+  })).filter((c) => c.services.length);
   return (
     <div className="wrap py-14">
       <h1 className="text-4xl font-extrabold tracking-tight">Services</h1>
       <p className="mt-2 text-ink-soft">Upfront prices. Vetted pros. One account for all of it.</p>
-      {CATEGORIES.map((c) => (
-        <section key={c.id} className="mt-12">
-          <h2 className="text-xl font-bold">{c.name}</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SERVICES.filter((s) => s.category === c.id).map((s) => (
-              <Link key={s.slug} href={`/services/${s.slug}`} className="card transition hover:border-brand">
-                <div className="text-3xl">{s.icon}</div>
-                <div className="mt-3 font-semibold">{s.name}</div>
-                <p className="mt-1 text-sm text-ink-soft">{s.tagline}</p>
-                <div className="mt-3 text-sm font-semibold text-brand">from {money(s.minimum)}{s.siteVisit ? " · free site visit" : ""}</div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ))}
+      <ServicesBrowser categories={categories} initial={cat} />
     </div>
   );
 }
