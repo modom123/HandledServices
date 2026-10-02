@@ -6,7 +6,7 @@
  *           offers, timeline, messages and every manual override.
  */
 import { notFound } from "next/navigation";
-import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
@@ -50,7 +50,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>
               <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <span className="font-normal text-ink-soft">· payout {money(job.contractor_payout)} · margin {job.price_final && job.contractor_payout ? money(job.price_final - job.contractor_payout) : "—"}</span></div></div>
           </div>
-          <div className="mt-4 grid gap-1 border-t border-line pt-4 text-sm sm:grid-cols-2">{s.questions.map((q) => <div key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</div>)}</div>
+          <div className="mt-4 grid gap-1 border-t border-line pt-4 text-sm sm:grid-cols-2">{s.questions.filter((q) => questionVisible(q, job.answers as Answers, s.questions)).map((q) => <div key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</div>)}</div>
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}
         </div>
 

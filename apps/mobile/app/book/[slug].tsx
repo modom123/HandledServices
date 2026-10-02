@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 import { PhotoStrip } from "../../components/PhotoStrip";
@@ -85,7 +85,7 @@ export default function Book() {
         <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
         <Text style={s.p}>{siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
       </Card>
-      {svc.questions.map((q) => (
+      {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
           <Text style={s.label}>{q.label}</Text>
           {q.help ? <Text style={[s.p, { marginBottom: 6, fontSize: 14 }]}>{q.help}</Text> : null}

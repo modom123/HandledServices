@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { getService, money, scopeChange, type Job } from "@handled/core";
+import { getService, money, questionVisible, scopeChange, type Job } from "@handled/core";
 import { api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 
@@ -107,7 +107,7 @@ export default function ProJob() {
         <Text style={[s.b, { marginTop: 8 }]}>Payout {money(job.contractor_payout)}</Text>
       </Card>
       <Card>
-        {svc.questions.map((q) => <Text key={q.id} style={s.p}>{q.label}: <Text style={s.b}>{String(job.answers[q.id] ?? "—")}</Text></Text>)}
+        {svc.questions.filter((q) => questionVisible(q, job.answers as Record<string, string | number | boolean>, svc.questions)).map((q) => <Text key={q.id} style={s.p}>{q.label}: <Text style={s.b}>{String(job.answers[q.id] ?? "—")}</Text></Text>)}
         {job.notes ? <Text style={[s.p, { marginTop: 8 }]}>“{job.notes}”</Text> : null}
       </Card>
       {job.status === "assigned" && <Button title="I've arrived — start job" onPress={() => post({ action: "start" })} busy={busy} />}
@@ -131,7 +131,7 @@ export default function ProJob() {
               <Card style={{ marginTop: 12 }}>
                 <Text style={s.b}>Update the scope to what's really here</Text>
                 <Text style={s.p}>The difference is priced at our standard rates and sent to the customer to approve and pay.</Text>
-                {svc.questions.map((q) => (
+                {svc.questions.filter((q) => questionVisible(q, { ...(job.answers as Record<string, string | number | boolean>), ...scope }, svc.questions)).map((q) => (
                   <View key={q.id} style={{ marginTop: 10 }}>
                     <Text style={s.label}>{q.label}</Text>
                     {q.type === "number" ? <TextInput style={s.input} keyboardType="number-pad" value={String(scope[q.id] ?? q.default)} onChangeText={(t) => setScope({ ...scope, [q.id]: Math.min(q.max, Math.max(q.min, Number(t) || q.min)) })} />

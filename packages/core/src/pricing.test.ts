@@ -3,12 +3,14 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Unit tests for the pricing engine and dispatch ranking.
+ * UPDATED : 2026-10-02_0240 UTC — calculator checks for every service: more of anything never
+ *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
  */
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SERVICES, defaultAnswers } from "./services.ts";
+import { SERVICES, defaultAnswers, type Answers, type Question } from "./services.ts";
 import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT } from "./pricing.ts";
 import { rankContractors } from "./dispatch.ts";
 import type { Contractor } from "./types.ts";
@@ -427,4 +429,84 @@ test("transportation: hourly minimums, licensed operators with passenger-carrier
   assert.equal(rankContractors([pro], job).length, 0, "needs authority on file");
   assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1" }], job).length, 0, "needs passenger-carrier insurance");
   assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", coverage: { passenger_auto: "2099-01-01" } }], job).length, 1);
+});
+
+// ── Calculators: like adding rooms to a house cleaning, more of anything never costs less ──
+
+/** Answers that make a question apply (e.g. mini-split zones need system = minisplit). */
+function answersFor(svc: (typeof SERVICES)[number], q: Question): Answers {
+  const a = defaultAnswers(svc);
+  if (q.showIf) a[q.showIf.id] = q.showIf.is[0];
+  return a;
+}
+function numberSteps(q: Extract<Question, { type: "number" }>): number[] {
+  if (q.max - q.min <= 60) return Array.from({ length: q.max - q.min + 1 }, (_, i) => q.min + i);
+  return Array.from({ length: 41 }, (_, i) => Math.round(q.min + ((q.max - q.min) * i) / 40));
+}
+/** Toggles that intentionally make the job smaller (and cheaper). */
+const SMALLER_SCOPE_TOGGLES = new Set(["exterior-painting.trim_only"]);
+/** Amount questions that intentionally don't change the price (the budget sets it, or they only matter in combination). */
+const INFO_ONLY_NUMBERS = new Set(["event-package.guests"]);
+
+test("calculators: raising any amount never lowers the price", () => {
+  for (const svc of SERVICES) {
+    for (const q of svc.questions) {
+      if (q.type !== "number") continue;
+      const base = answersFor(svc, q);
+      let prev = -1, prevV = 0;
+      for (const v of numberSteps(q)) {
+        const p = estimate({ slug: svc.slug, answers: { ...base, [q.id]: v } }).point;
+        assert.ok(p >= prev, `${svc.slug}.${q.id}: ${prevV}→${v} dropped the price ${prev}→${p}`);
+        prev = p; prevV = v;
+      }
+    }
+  }
+});
+
+test("calculators: every amount question moves the price", () => {
+  for (const svc of SERVICES) {
+    for (const q of svc.questions) {
+      if (q.type !== "number" || INFO_ONLY_NUMBERS.has(`${svc.slug}.${q.id}`)) continue;
+      // with the defaults, or with every choice at its smallest option (e.g. passengers only matter in a smaller vehicle)
+      const smallest = { ...answersFor(svc, q), ...Object.fromEntries(svc.questions.filter((x) => x.type === "select" && x.id !== q.showIf?.id).map((x) => [x.id, (x as Extract<Question, { type: "select" }>).options[0].value])) };
+      const moves = [answersFor(svc, q), smallest].some((base) =>
+        estimate({ slug: svc.slug, answers: { ...base, [q.id]: q.max } }).point > estimate({ slug: svc.slug, answers: { ...base, [q.id]: q.min } }).point);
+      assert.ok(moves, `${svc.slug}.${q.id} (${q.label}) has no effect between ${q.min} and ${q.max}`);
+    }
+  }
+});
+
+test("calculators: turning an add-on on never lowers the price", () => {
+  for (const svc of SERVICES) {
+    for (const q of svc.questions) {
+      if (q.type !== "toggle" || SMALLER_SCOPE_TOGGLES.has(`${svc.slug}.${q.id}`)) continue;
+      const base = answersFor(svc, q);
+      const off = estimate({ slug: svc.slug, answers: { ...base, [q.id]: false } }).point;
+      const on = estimate({ slug: svc.slug, answers: { ...base, [q.id]: true } }).point;
+      assert.ok(on >= off, `${svc.slug}.${q.id}: turning on lowers the price ${off}→${on}`);
+    }
+  }
+});
+
+test("house cleaning: each added bedroom and bathroom adds to the price", () => {
+  const svc = SERVICES.find((x) => x.slug === "house-cleaning")!;
+  for (const id of ["bedrooms", "bathrooms"]) {
+    const q = svc.questions.find((x) => x.id === id);
+    if (!q || q.type !== "number") continue;
+    let prev = 0;
+    for (let v = q.min; v <= q.max; v++) {
+      const p = estimate({ slug: svc.slug, answers: { ...defaultAnswers(svc), [id]: v } }).point;
+      if (v > q.min) assert.ok(p > prev, `house-cleaning ${id} ${v - 1}→${v}: ${prev}→${p}`);
+      prev = p;
+    }
+  }
+});
+
+test("rides: more passengers than the vehicle seats moves up a size", () => {
+  const p = (slug: string, a: Answers) => estimate({ slug, answers: { ...defaultAnswers(SERVICES.find((x) => x.slug === slug)!), ...a } }).point;
+  assert.ok(p("private-driver", { vehicle: "sedan", passengers: 5 }) > p("private-driver", { vehicle: "sedan", passengers: 3 }));
+  assert.equal(p("private-driver", { vehicle: "sedan", passengers: 5 }), p("private-driver", { vehicle: "suv", passengers: 5 }));
+  assert.ok(p("airport-transfer", { vehicle: "sedan", passengers: 8 }) > p("airport-transfer", { vehicle: "suv", passengers: 6 }));
+  assert.ok(p("limousine", { vehicle: "stretch", passengers: 14 }) > p("limousine", { vehicle: "stretch", passengers: 10 }));
+  assert.ok(p("charter-bus", { vehicle: "minicoach", passengers: 45 }) > p("charter-bus", { vehicle: "minicoach", passengers: 30 }));
 });

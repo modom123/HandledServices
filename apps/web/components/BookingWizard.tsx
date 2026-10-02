@@ -15,6 +15,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
+  questionVisible,
 } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
@@ -144,7 +145,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
               <h2 className="text-xl font-bold">{svc.icon} {svc.name}</h2>
               <button className="text-sm text-brand" onClick={() => setStep(0)}>Change</button>
             </div>
-            {svc.questions.map((q) => (
+            {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
               <div key={q.id}>
                 <label className="label">{q.label}</label>
                 {q.type === "number" && (

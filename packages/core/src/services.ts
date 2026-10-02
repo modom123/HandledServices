@@ -7,6 +7,9 @@
  *           share of the price paid to the subcontractor, and whether a site visit is
  *           required before a firm quote. Prices are launch defaults for a mid-cost US
  *           metro — tune them per market in the ops hub (services table overrides).
+ * UPDATED : 2026-10-02_0240 UTC — calculator audit: questions can be shown only when another
+ *           answer applies (showIf, e.g. mini-split zones), and rides move up to a vehicle
+ *           big enough for the passenger count, so the price rises as passengers are added.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -14,10 +17,21 @@ import { planEventBudget } from "./event-budget.ts";
 
 export type Answers = Record<string, number | string | boolean | undefined>;
 
+/** Show a question only when another answer is one of these values. */
+export type ShowIf = { id: string; is: (string | boolean)[] };
+
 export type Question =
-  | { id: string; label: string; type: "number"; min: number; max: number; default: number; unit?: string; help?: string }
-  | { id: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string; help?: string }
-  | { id: string; label: string; type: "toggle"; default: boolean; help?: string };
+  | { id: string; label: string; type: "number"; min: number; max: number; default: number; unit?: string; help?: string; showIf?: ShowIf }
+  | { id: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string; help?: string; showIf?: ShowIf }
+  | { id: string; label: string; type: "toggle"; default: boolean; help?: string; showIf?: ShowIf };
+
+/** Should this question be shown for these answers? */
+export function questionVisible(q: Question, answers: Answers, all: Question[] = []): boolean {
+  if (!q.showIf) return true;
+  const dep = all.find((x) => x.id === q.showIf!.id);
+  const v = answers[q.showIf.id] ?? dep?.default;
+  return q.showIf.is.includes(v as string | boolean);
+}
 
 export interface LineItem {
   label: string;
@@ -75,6 +89,16 @@ export const CATEGORIES: { id: CategoryId; name: string; icon: string; blurb: st
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
 const s = (a: Answers, k: string, d = "") => (a[k] === undefined ? d : String(a[k]));
+
+/**
+ * Rides: the vehicle the customer picked, or the smallest one (in the given order) that seats
+ * everyone if they picked one too small. Returns the vehicle and whether it was upgraded.
+ */
+function fitVehicle(chosen: string, passengers: number, seats: [string, number][]): { veh: string; upgraded: boolean } {
+  const i = Math.max(0, seats.findIndex(([v]) => v === chosen));
+  for (let j = i; j < seats.length; j++) if (passengers <= seats[j][1]) return { veh: seats[j][0], upgraded: j > i };
+  return { veh: seats[seats.length - 1][0], upgraded: seats.length - 1 > i };
+}
 const b = (a: Answers, k: string) => a[k] === true || a[k] === "true";
 const sum = (items: LineItem[]) => items.reduce((t, i) => t + i.amount, 0);
 
@@ -141,7 +165,9 @@ export const SERVICES: Service[] = [
       const beds = n(a, "bedrooms", 3);
       const items: LineItem[] = [{ label: `${sqft.toLocaleString("en-US")} sq ft`, amount: area }];
       if (baths > 1) items.push({ label: `${baths - 1} extra bathroom${baths > 2 ? "s" : ""}`, amount: (baths - 1) * 20 });
+      // Two bedrooms are in the base; each one more adds, each one fewer (studio / 1-bed) takes off.
       if (beds > 2) items.push({ label: `${beds - 2} extra bedroom${beds > 3 ? "s" : ""}/office${beds > 3 ? "s" : ""}`, amount: (beds - 2) * 10 });
+      if (beds < 2) items.push({ label: beds === 0 ? "Studio" : "1 bedroom", amount: (beds - 2) * 10 });
       const subtotal = sum(items);
       const level = s(a, "level", "standard");
       if (level === "deep") items.push({ label: "Deep clean", amount: Math.round(subtotal * 0.5) });
@@ -215,8 +241,10 @@ export const SERVICES: Service[] = [
     price: (a) => {
       const rooms = n(a, "rooms", 3);
       const csq = n(a, "carpet_sqft", 0);
-      const items: LineItem[] = csq > 0
-        ? [{ label: `${csq.toLocaleString("en-US")} sq ft of carpet`, amount: Math.max(129, Math.round(csq * 0.28)) }]
+      // Square feet, when given, can only raise the room price — never undercut it.
+      const bySqft = Math.max(129, Math.round(csq * 0.28));
+      const items: LineItem[] = csq > 0 && bySqft > rooms * 49
+        ? [{ label: `${csq.toLocaleString("en-US")} sq ft of carpet`, amount: bySqft }]
         : [{ label: `${rooms} rooms`, amount: rooms * 49 }];
       if (n(a, "stairs")) items.push({ label: `${n(a, "stairs")} staircases`, amount: n(a, "stairs") * 45 });
       if (n(a, "sofa_seats")) items.push({ label: `${n(a, "sofa_seats")} upholstery seats`, amount: n(a, "sofa_seats") * 30 });
@@ -993,7 +1021,7 @@ export const SERVICES: Service[] = [
         ],
       },
       { id: "sqft", label: "Home size", type: "number", min: 500, max: 6000, default: 1800, unit: "sq ft" },
-      { id: "zones", label: "Mini-split zones (if ductless)", type: "number", min: 1, max: 6, default: 1 },
+      { id: "zones", label: "Mini-split zones (rooms with their own unit)", type: "number", min: 1, max: 6, default: 1, showIf: { id: "system", is: ["minisplit"] } },
       { id: "ductwork", label: "Ductwork needs repair / replacement", type: "toggle", default: false },
     ],
     minimum: 3500,
@@ -1392,10 +1420,10 @@ export const SERVICES: Service[] = [
     leadDays: 1,
     notesHint: "Pickup time, drop-off address, stops in order, flight number if any, anything the driver should know",
     price: (a) => {
-      const veh = s(a, "vehicle", "sedan");
+      const { veh, upgraded } = fitVehicle(s(a, "vehicle", "sedan"), n(a, "passengers", 2), [["sedan", 3], ["suv", 6], ["sprinter", 12]]);
       const rate = { sedan: 85, suv: 110, sprinter: 150 }[veh] ?? 85;
       const h = Math.max(2, n(a, "hours", 3));
-      const items: LineItem[] = [{ label: `${({ sedan: "Black sedan", suv: "Black SUV", sprinter: "Executive Sprinter" } as Record<string, string>)[veh] ?? "Vehicle"} · ${h} hours × $${rate}`, amount: h * rate }];
+      const items: LineItem[] = [{ label: `${({ sedan: "Black sedan", suv: "Black SUV", sprinter: "Executive Sprinter" } as Record<string, string>)[veh] ?? "Vehicle"}${upgraded ? " (sized up to seat everyone)" : ""} · ${h} hours × $${rate}`, amount: h * rate }];
       if (b(a, "meet_greet")) items.push({ label: "Meet & greet", amount: 25 });
       const base = sum(items);
       return { items, base, hours: h };
@@ -1425,10 +1453,10 @@ export const SERVICES: Service[] = [
     leadDays: 1,
     notesHint: "Airport, airline and flight number(s), pickup time, return date and time for round trips, number of bags",
     price: (a) => {
-      const veh = s(a, "vehicle", "sedan");
+      const { veh, upgraded } = fitVehicle(s(a, "vehicle", "sedan"), n(a, "passengers", 2), [["sedan", 3], ["suv", 6], ["sprinter", 12]]);
       const each = { sedan: 95, suv: 130, sprinter: 195 }[veh] ?? 95;
       const legs = s(a, "trip", "one_way") === "round_trip" ? 2 : 1;
-      const items: LineItem[] = [{ label: `${legs === 2 ? "Round trip" : "One way"} × $${each}`, amount: legs * each }];
+      const items: LineItem[] = [{ label: `${({ sedan: "Sedan", suv: "SUV", sprinter: "Sprinter" } as Record<string, string>)[veh] ?? "Vehicle"}${upgraded ? " (sized up to seat everyone)" : ""} · ${legs === 2 ? "round trip" : "one way"} × $${each}`, amount: legs * each }];
       if (b(a, "meet_greet")) items.push({ label: `Meet & greet${legs === 2 ? " (arrival)" : ""}`, amount: 25 });
       const base = sum(items);
       return { items, base, hours: legs * 1.5 };
@@ -1459,10 +1487,10 @@ export const SERVICES: Service[] = [
     leadDays: 2,
     notesHint: "Pickup time and address, every stop in order, drop-off, and whether anyone aboard is under 21",
     price: (a) => {
-      const veh = s(a, "vehicle", "stretch");
+      const { veh, upgraded } = fitVehicle(s(a, "vehicle", "stretch"), n(a, "passengers", 8), [["stretch", 10], ["suv_limo", 18]]);
       const rate = veh === "suv_limo" ? 195 : 135;
       const h = Math.max(3, n(a, "hours", 4));
-      const items: LineItem[] = [{ label: `${veh === "suv_limo" ? "SUV limo" : "Stretch limo"} · ${h} hours × $${rate}`, amount: h * rate }];
+      const items: LineItem[] = [{ label: `${veh === "suv_limo" ? "SUV limo" : "Stretch limo"}${upgraded ? " (sized up to seat everyone)" : ""} · ${h} hours × $${rate}`, amount: h * rate }];
       if (b(a, "red_carpet")) items.push({ label: "Red carpet & decorations", amount: 150 });
       if (s(a, "occasion", "night_out") === "prom") items.push({ label: "Prom night (peak demand)", amount: Math.round(h * rate * 0.1) });
       const base = sum(items);
@@ -1526,10 +1554,10 @@ export const SERVICES: Service[] = [
     leadDays: 7,
     notesHint: "Itinerary: pickup time and place, each stop, overnight hotels, return time, total miles if known",
     price: (a) => {
-      const veh = s(a, "vehicle", "motorcoach");
+      const { veh, upgraded } = fitVehicle(s(a, "vehicle", "motorcoach"), n(a, "passengers", 40), [["minicoach", 30], ["motorcoach", 56]]);
       const day = veh === "minicoach" ? 1100 : 1800;
       const d = Math.max(1, n(a, "days", 1));
-      const items: LineItem[] = [{ label: `${veh === "minicoach" ? "Mini-coach" : "Motorcoach"} · ${d} day${d > 1 ? "s" : ""} × $${day}`, amount: d * day }];
+      const items: LineItem[] = [{ label: `${veh === "minicoach" ? "Mini-coach" : "Motorcoach"}${upgraded ? " (sized up to seat everyone)" : ""} · ${d} day${d > 1 ? "s" : ""} × $${day}`, amount: d * day }];
       if (b(a, "overnight") && d > 1) items.push({ label: `Driver lodging · ${d - 1} night${d > 2 ? "s" : ""} × $200`, amount: (d - 1) * 200 });
       const base = sum(items);
       return { items, base, hours: d * 10 };

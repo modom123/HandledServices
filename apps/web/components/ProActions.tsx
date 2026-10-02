@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getService, scopeChange } from "@handled/core";
+import { getService, questionVisible, scopeChange } from "@handled/core";
 
 export function StartJob({ jobId }: { jobId: string }) {
   const router = useRouter();
@@ -150,7 +150,7 @@ export function ScopeChange({ jobId, slug, booked, frequency }: { jobId: string;
     <div className="card space-y-2 text-sm">
       <div className="font-semibold">Update the scope to what’s really here</div>
       <p className="text-xs text-ink-soft">The difference is priced at our standard rates and sent to the customer to approve and pay. Only do the extra work once the app shows it’s paid.</p>
-      {svc.questions.map((q) => (
+      {svc.questions.filter((q) => questionVisible(q, { ...booked, ...vals }, svc.questions)).map((q) => (
         <label key={q.id} className="block">
           <span className="label">{q.label}</span>
           {q.type === "number" ? <input className="input" type="number" min={q.min} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />

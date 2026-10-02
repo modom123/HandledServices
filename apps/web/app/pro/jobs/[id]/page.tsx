@@ -6,7 +6,7 @@
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, buildWorkOrder, getService, money, whyNot, type Contractor, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, buildWorkOrder, getService, money, questionVisible, whyNot, type Contractor, type Answers, type Job } from "@handled/core";
 import { getPolicy } from "@/lib/pro-benefits";
 import { WorkOrderView } from "@/components/WorkOrderView";
 import { getViewer } from "@/lib/auth";
@@ -46,7 +46,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         <div className="card">
           <div className="font-semibold">Scope</div>
           <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
-            {s.questions.map((q) => <li key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</li>)}
+            {s.questions.filter((q) => questionVisible(q, job.answers as Answers, s.questions)).map((q) => <li key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</li>)}
           </ul>
           <div className="mt-3 text-sm"><span className="text-ink-soft">Includes:</span> {s.includes.join(" · ")}</div>
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}
