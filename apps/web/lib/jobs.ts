@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/jobs.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_1329 UTC — text messages at each step (paid, covered, tomorrow, arrived, done; offers to pros).
  * UPDATED : 2026-10-02_0316 UTC — booking applies Plus member saving, promo codes and gift cards (our share pays
  *           for discounts; the pro's payout stays on the list price); attribution; referral reward on completion.
  * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
@@ -33,6 +34,7 @@ import { notify } from "./push";
 import { amountDue, chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 import { invoiceUrl, readQuoteToken } from "./invoice";
 import { syncCatalog } from "./catalog";
+import { sendSms } from "./sms";
 
 export const BookingSchema = z.object({
   service_slug: z.string().refine((s) => Boolean(getService(s)), "Unknown service"),
@@ -214,6 +216,7 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
     title: full ? (firstPayment ? "Paid — you're locked in" : "Paid in full ✓") : "Deposit received — date locked in",
     body: !full ? `Balance ${money(balance)} is charged to your card on ${paid.balance_due_date ?? "the day before"}.` : paid.contractor_id ? `Your ${svc?.name} is confirmed.` : `We're matching your ${svc?.name} with a vetted pro now.`,
     data: { type: "job", jobId: paid.id },
+    sms: firstPayment ? { to: paid.contact_phone, body: `${BRAND.name}: ${label.toLowerCase()} for your ${svc?.name} (${paid.ref}). ${paid.contractor_id ? "Your pro is confirmed." : "We're matching a vetted pro now — we'll text you when it's covered."} ${siteUrl()}/account/jobs/${paid.id}` } : null,
     email: { to: paid.contact_email, subject: `${label} — ${svc?.name} (${paid.ref})`,
       text: `Thanks! We received ${money(p.amount)}.${!full ? ` Your date is locked in. The balance of ${money(balance)} will be charged to the card you used on ${paid.balance_due_date ?? "the day before your job"}.` : ""} ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
   });
@@ -251,6 +254,7 @@ export async function sendPaymentLink(job: Job) {
   const amt = amountDue(job, deposit ? "deposit" : "full");
   if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}for ${job.ref}`,
     `Your ${getService(job.service_slug)?.name}: ${deposit ? `a ${money(amt)} deposit locks in your date (balance due ${job.balance_due_date ?? "before the job"}).` : Number(job.amount_paid) ? `remaining balance ${money(amt)}.` : `${money(amt)}, paid upfront to lock in your pro.`}\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
+  if (url) await sendSms(job.contact_phone, `${BRAND.name}: ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}due for your ${getService(job.service_slug)?.name} (${job.ref}). Pay securely: ${url}`);
   return url;
 }
 
@@ -336,6 +340,7 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
       body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}`,
       data: { type: "offer", offerId },
       channel: "offers",
+      sms: { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` },
       email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${pay ? money(pay) : "site visit"} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })} ET):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
     });
@@ -410,6 +415,7 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     title: "Your job is covered ✓",
     body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) will handle your ${svc?.name} — ${when}.`,
     data: { type: "job", jobId: job.id },
+    sms: { to: job.contact_phone, body: `${BRAND.name}: you're covered ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) will do your ${svc?.name} — ${when}. ${siteUrl()}/account/jobs/${job.id}` },
     email: { to: job.contact_email, subject: `Your job is covered — ${job.ref}`, text: `Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
   });
   // pro: confirmed, here is the full work order
@@ -454,7 +460,7 @@ export async function startJob(jobId: string, contractorId: string): Promise<{ o
   if (data) {
     await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro");
     const job = await getJob(jobId);
-    if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId } });
+    if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId }, sms: { to: job.contact_phone, body: `${BRAND.name}: your pro has arrived and started on your ${getService(job.service_slug)?.name}.` } });
   }
   return data ? { ok: true } : { ok: false, error: "Job can't be started" };
 }
@@ -514,6 +520,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
     title: "Done ✓ — how did we do?",
     body: `${summary ?? "Your job is complete."} Tap to see photos and rate your pro.`,
     data: { type: "job", jobId: job.id },
+    sms: { to: job.contact_phone, body: `${BRAND.name}: your ${getService(job.service_slug)?.name} is done ✓ See photos, rate or tip your pro: ${siteUrl()}/account/jobs/${job.id}` },
     email: { to: job.contact_email, subject: `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
       text: `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.` },
   });
@@ -580,13 +587,15 @@ export async function sendDayBeforeReminders() {
       title: "Tomorrow: your pro is coming",
       body: `${svc?.name} · ${window}. Please make sure we can get access.`,
       data: { type: "job", jobId: job.id },
+      sms: { to: job.contact_phone, body: `${BRAND.name} reminder: your ${svc?.name} is tomorrow, ${window}. Please make sure we can get in. Need to change it? ${siteUrl()}/account/jobs/${job.id}` },
     });
     if (job.contractor_id) {
-      const { data: pro } = await db().from("contractors").select("profile_id, email").eq("id", job.contractor_id).single();
+      const { data: pro } = await db().from("contractors").select("profile_id, email, phone").eq("id", job.contractor_id).single();
       if (pro) await notify(pro.profile_id, {
         title: `Tomorrow · ${svc?.name} · ${job.ref}`,
         body: `${job.address}, ${job.city} · ${window}`,
         data: { type: "job_pro", jobId: job.id },
+        sms: { to: pro.phone, body: `${BRAND.name}: tomorrow ${svc?.name} ${job.ref} — ${job.address}, ${job.city}, ${window}. ${siteUrl()}/pro/jobs/${job.id}` },
         email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: workOrderText(buildWorkOrder(job, { reveal: true })) },
       });
     }

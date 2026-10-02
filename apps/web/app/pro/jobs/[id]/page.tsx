@@ -3,16 +3,17 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_2124 UTC — materials receipts, lockout report.
+ * UPDATED : 2026-10-02_1329 UTC — "On my way" (texts the customer a live tracking link).
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, buildWorkOrder, getService, money, questionVisible, whyNot, type Contractor, type Answers, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, buildWorkOrder, getService, localDate, money, questionVisible, whyNot, type Contractor, type Answers, type Job } from "@handled/core";
 import { getPolicy } from "@/lib/pro-benefits";
 import { WorkOrderView } from "@/components/WorkOrderView";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
-import { CompleteJob, LockoutReport, MaterialsForm, ScopeChange, StartJob } from "@/components/ProActions";
+import { CompleteJob, LockoutReport, MaterialsForm, OnMyWay, ScopeChange, StartJob } from "@/components/ProActions";
 import { JobThread } from "@/components/JobThread";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
@@ -57,6 +58,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         <JobThread jobId={job.id} userId={v.userId} as="pro" initial={msgs ?? []} />
       </div>
       <div className="space-y-4">
+        {job.status === "assigned" && job.scheduled_date === localDate() && <OnMyWay jobId={job.id} sent={Boolean(job.en_route_at)} />}
         {job.status === "assigned" && <StartJob jobId={job.id} />}
         {(job.status === "assigned" || job.status === "in_progress") && <CompleteJob jobId={job.id} />}
         {job.status === "qa_review" && <div className="card text-sm">Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.</div>}

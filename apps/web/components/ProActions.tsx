@@ -11,6 +11,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getService, questionVisible, scopeChange } from "@handled/core";
 
+/** Pro taps "On my way" (today's job): shares location once and texts the customer a live link. */
+export function OnMyWay({ jobId, sent }: { jobId: string; sent: boolean }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  async function go() {
+    setBusy(true); setMsg("");
+    navigator.geolocation?.getCurrentPosition((p) => {
+      fetch("/api/pro/location", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat: p.coords.latitude, lng: p.coords.longitude }) }).catch(() => {});
+    }, () => {}, { maximumAge: 60000 });
+    const res = await fetch(`/api/pro/jobs/${jobId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "on_my_way" }) });
+    setBusy(false);
+    if (!res.ok) return setMsg((await res.json().catch(() => ({}))).error ?? "Try again");
+    router.refresh();
+  }
+  if (sent) return <p className="rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">🚗 The customer knows you’re on the way and can see your ETA while this page or the app is open.</p>;
+  return <div><button className="btn-ghost w-full py-3" disabled={busy} onClick={go}>🚗 On my way</button>{msg && <p className="mt-1 text-sm text-rose-700">{msg}</p>}</div>;
+}
+
 export function StartJob({ jobId }: { jobId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

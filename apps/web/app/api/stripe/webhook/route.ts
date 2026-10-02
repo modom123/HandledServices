@@ -44,7 +44,8 @@ export async function POST(req: Request) {
       : { data: null };
     if (!row) return Response.json({ received: true, duplicate: true });
     const pi = session.payment_intent ? await s.paymentIntents.retrieve(String(session.payment_intent)) : null;
-    const amount = (session.amount_total ?? 0) / 100;
+    // sales tax (Stripe Tax) is collected on top and remitted — it never counts toward the job
+    const amount = (session.amount_subtotal ?? session.amount_total ?? 0) / 100;
     if (row.kind === "tip") {
       await settleTip(row.id);
     } else if (row.kind === "gift_card") {

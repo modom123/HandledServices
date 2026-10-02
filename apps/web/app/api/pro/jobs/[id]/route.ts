@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_2124 UTC — lockout: the pro reports they can't get access.
  * UPDATED : 2026-10-01_2334 UTC — scope_change: more work on site → priced change order.
+ * UPDATED : 2026-10-02_1329 UTC — on_my_way: customer gets a text with a live tracking link.
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
  */
 import { after } from "next/server";
@@ -11,9 +12,11 @@ import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
 import { addEvent, completeJob, getJob, raiseAlert, runQa, startJob } from "@/lib/jobs";
 import { requestScopeChange } from "@/lib/scope";
+import { onMyWay } from "@/lib/visit";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
+  z.object({ action: z.literal("on_my_way") }),
   z.object({ action: z.literal("lockout"), note: z.string().min(3).max(1000) }),
   z.object({ action: z.literal("scope_change"), answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])), note: z.string().max(1000).default("") }),
   z.object({ action: z.literal("complete"), photos: z.array(z.string()).min(1).max(12), note: z.string().max(2000).nullable().optional() }),
@@ -36,6 +39,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await raiseAlert("lockout", "warn", `${job.ref}: pro can't get in`, `${body.data.note}. Call the customer now. If there's still no access, cancel the job as "lockout" (the fee is kept and the pro gets show-up pay).`, id);
     return Response.json({ ok: true });
   }
+  if (body.data.action === "on_my_way") { const r = await onMyWay(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (body.data.action === "start") { const r = await startJob(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   const photos = body.data.photos.filter((p) => p.startsWith(`pro/${v.contractorId}/`));
   if (!photos.length) return deny(400, "Upload completion photos first");

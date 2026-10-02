@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/(site)/account/jobs/[id]/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_1329 UTC — live pro tracker, reschedule, tip your pro.
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  */
 import { notFound, redirect } from "next/navigation";
@@ -11,6 +12,7 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
 import { AddJobPhotos, CancelBooking, JobThread, PayNow, ReviewForm } from "@/components/JobThread";
+import { Reschedule, TipBox, TrackPro } from "@/components/AccountExtras";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -40,6 +42,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <PayNow jobId={job.id} amount={money(job.payment_plan === "deposit" && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
             label={job.payment_plan === "deposit" && !job.deposit_paid_at ? "deposit" : job.deposit_paid_at ? `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}` : ""} />
         )}
+        <TrackPro jobId={job.id} />
         {job.paid_at && <p className="text-sm text-brand-dark">Paid {money(job.amount_paid)}{Number(job.amount_refunded) > 0 ? ` · refunded ${money(job.amount_refunded)}` : ""}</p>}
         {mine.length > 0 && (
           <div className="card"><div className="font-semibold">Your photos</div><div className="mt-3 grid grid-cols-4 gap-2">{mine.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Your photo" className="aspect-square w-full rounded-lg object-cover" /></a>)}</div></div>
@@ -48,10 +51,14 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
         {photos.length > 0 && (
           <div className="card"><div className="font-semibold">Completion photos</div><div className="mt-3 grid grid-cols-3 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Completed work" className="aspect-square w-full rounded-lg object-cover" /></a>)}</div></div>
         )}
+        {["requested", "quoted", "scheduled", "dispatched", "assigned"].includes(job.status) && !job.remedy && job.scheduled_date && (
+          <Reschedule jobId={job.id} service={job.service_slug} zip={job.zip} date={job.scheduled_date} window={job.time_window} />
+        )}
         {["requested", "quoted", "site_visit", "scheduled", "dispatched", "assigned"].includes(job.status) && !job.remedy && (
           <CancelBooking jobId={job.id} late={isLate(job)} fee={money(Math.min(LATE_CANCEL_FEE, Number(job.amount_paid)))} paid={Number(job.amount_paid) > 0} />
         )}
         {job.status === "completed" && !review && <ReviewForm jobId={job.id} contractorId={job.contractor_id} />}
+        {job.status === "completed" && job.contractor_id && !job.remedy && <TipBox jobId={job.id} tipped={Number(job.tip_total ?? 0)} />}
         {job.contractor_id && <JobThread jobId={job.id} userId={v.userId} as="customer" initial={msgs ?? []} />}
       </div>
       <div className="card h-fit">

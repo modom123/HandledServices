@@ -10,6 +10,8 @@
  *           (deposits, balances, change orders, Quick Charge links) — no Stripe products.
  * UPDATED : 2026-10-01_2124 UTC — materials pass-through charges, refunds across several
  *           payments (deposit + balance), Stripe Connect for pro instant pay.
+ * UPDATED : 2026-10-02_1329 UTC — sales tax: with STRIPE_TAX=on, Checkout adds tax automatically for
+ *           services (tax code "General – Services"); tips and gift cards are never taxed.
  * PURPOSE : Stripe payments.
  */
 import "server-only";
@@ -59,10 +61,12 @@ export async function createCheckout(o: {
   }).select("id").single();
   const meta = { payment_id: pay!.id, kind: o.kind, ...(o.job ? { job_id: o.job.id } : {}) };
   const ref = o.job?.ref ?? pay!.id.slice(0, 8);
+  const taxed = process.env.STRIPE_TAX === "on" && !["tip", "gift_card", "materials"].includes(o.kind);
   const session = await s.checkout.sessions.create({
     mode: "payment",
     customer,
-    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: cents(o.amount), product_data: { name: o.name, ...(o.description ? { description: o.description } : {}) } } }],
+    line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: cents(o.amount), ...(taxed ? { tax_behavior: "exclusive" as const } : {}), product_data: { name: o.name, ...(o.description ? { description: o.description } : {}), ...(taxed ? { tax_code: "txcd_20030000" } : {}) } } }],
+    ...(taxed ? { automatic_tax: { enabled: true }, billing_address_collection: "required" as const, customer_update: { address: "auto" as const, name: "auto" as const } } : {}),
     // save the card so balances, recurring visits and add-ons can be charged later
     payment_intent_data: { setup_future_usage: "off_session", metadata: meta, description: `${BRAND.name} ${ref} — ${o.name}` },
     metadata: meta,

@@ -2,13 +2,14 @@
  * FILE    : apps/mobile/app/job/[id].tsx
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_2047 UTC
+ * UPDATED : 2026-10-02_1329 UTC — live pro ETA, tip your pro, reschedule.
  * PURPOSE : Customer booking screen — "Covered ✓" by which pro, live timeline (realtime),
  *           pay now, invoice & agreement, and rating when done. Opened from notifications.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, TIP_PRESETS, getService, money, moneyRange, type Job } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Status, s } from "../../components/ui";
 import { PhotoStrip } from "../../components/PhotoStrip";
@@ -99,6 +100,24 @@ export default function Booking() {
         </Card>
       )}
 
+      <TrackCard jobId={job.id} />
+      {["requested", "quoted", "scheduled", "dispatched", "assigned"].includes(job.status) && !job.remedy && job.scheduled_date ? (
+        <Button title="📅 Reschedule" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/account/jobs/${job.id}`)} style={{ marginTop: 12 }} />
+      ) : null}
+      {job.status === "completed" && job.contractor_id && !job.remedy ? (
+        <Card style={{ marginTop: 12 }}>
+          <Text style={s.b}>💚 Tip your pro</Text>
+          <Text style={s.p}>100% goes to your pro.{Number(job.tip_total) ? ` You've tipped ${money(Number(job.tip_total))}.` : ""}</Text>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+            {TIP_PRESETS.map((t) => <Button key={t} title={money(t)} kind="ghost" style={{ flex: 1 }} onPress={async () => {
+              const r = await api<{ url?: string; error?: string }>(`/api/account/jobs/${job.id}/tip`, { method: "POST", body: JSON.stringify({ amount: t }) });
+              if (r.data.url) return Linking.openURL(r.data.url);
+              if (!r.ok) return Alert.alert("Couldn't tip", r.data.error ?? "Try again");
+              Alert.alert("Thank you!", `${money(t)} is on its way to your pro.`); load();
+            }} />)}
+          </View>
+        </Card>
+      ) : null}
       {job.status === "completed" && !rated && (
         <Card>
           <Text style={s.b}>How did {pro?.business_name ?? "we"} do?</Text>
@@ -115,5 +134,26 @@ export default function Booking() {
         </View>
       ))}
     </ScrollView>
+  );
+}
+
+type Track = { tracking: boolean; arrived?: boolean; name?: string | null; eta?: number | null; miles?: number; updatedMinAgo?: number };
+
+/** "Your pro is ~12 min away" — refreshes every 30 seconds while they're on the way. */
+function TrackCard({ jobId }: { jobId: string }) {
+  const [t, setT] = useState<Track | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => api<Track>(`/api/account/jobs/${jobId}/track`).then((r) => { if (live && r.ok) setT(r.data); });
+    load();
+    const id = setInterval(load, 30000);
+    return () => { live = false; clearInterval(id); };
+  }, [jobId]);
+  if (!t?.tracking) return null;
+  return (
+    <Card style={{ marginTop: 14, borderColor: C.brand }}>
+      <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>{t.arrived ? "✅ Your pro has arrived" : `🚗 ${t.name ?? "Your pro"} is on the way${t.eta ? ` — ~${t.eta} min` : ""}`}</Text>
+      {!t.arrived && t.miles != null ? <Text style={s.p}>{t.miles} miles away · updated {t.updatedMinAgo ? `${t.updatedMinAgo} min ago` : "just now"}</Text> : null}
+    </Card>
   );
 }

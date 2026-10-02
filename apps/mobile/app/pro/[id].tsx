@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-01_2140 UTC — materials receipts (reimbursed at cost) and "Can't get in?".
+ * UPDATED : 2026-10-02_1329 UTC — On my way button (customer gets a live ETA link).
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  */
 import { shareLocationOnce } from "../../lib/location";
@@ -10,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { getService, money, questionVisible, scopeChange, type Job } from "@handled/core";
+import { getService, localDate, money, questionVisible, scopeChange, type Job } from "@handled/core";
 import { api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 
@@ -111,6 +112,8 @@ export default function ProJob() {
         {svc.questions.filter((q) => questionVisible(q, job.answers as Record<string, string | number | boolean>, svc.questions)).map((q) => <Text key={q.id} style={s.p}>{q.label}: <Text style={s.b}>{String(job.answers[q.id] ?? "—")}</Text></Text>)}
         {job.notes ? <Text style={[s.p, { marginTop: 8 }]}>“{job.notes}”</Text> : null}
       </Card>
+      {job.status === "assigned" && job.scheduled_date === localDate() && !job.en_route_at && <Button title="🚗 On my way" kind="ghost" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "on_my_way" }); }} busy={busy} style={{ marginBottom: 8 }} />}
+      {job.status === "assigned" && job.en_route_at ? <Text style={[s.p, { marginBottom: 8 }]}>🚗 The customer can see your ETA while the app is open.</Text> : null}
       {job.status === "assigned" && <Button title="I've arrived — start job" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "start" }); }} busy={busy} />}
       {(job.status === "assigned" || job.status === "in_progress") && (
         <Card style={{ marginTop: 12 }}>

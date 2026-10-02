@@ -2,14 +2,16 @@
  * FILE    : apps/web/components/AccountExtras.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
+ * UPDATED : 2026-10-02_1329 UTC — TrackPro (live ETA + map) and Reschedule.
  * PURPOSE : Account page client pieces: copy-my-referral-link, manage Handled Plus (Stripe
  *           portal), add a tip, and delete my account (type DELETE to confirm).
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TIP_PRESETS, money } from "@handled/core";
+import { TIP_PRESETS, money, type TimeWindow } from "@handled/core";
+import { BookingCalendar } from "./BookingCalendar";
 
 async function post(url: string, body: unknown = {}) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -87,6 +89,62 @@ export function DeleteAccount() {
         <button className="btn-ghost" onClick={() => setOpen(false)}>Keep my account</button>
       </div>
       {err && <p className="mt-2 text-sm text-rose-700">{err}</p>}
+    </div>
+  );
+}
+
+type Track = { tracking: boolean; arrived?: boolean; name?: string | null; eta?: number | null; miles?: number; updatedMinAgo?: number; pro?: { lat: number; lng: number }; home?: { lat: number; lng: number } };
+
+/** "Your pro is ~12 minutes away" with a small map — refreshes every 30 seconds while on the way. */
+export function TrackPro({ jobId }: { jobId: string }) {
+  const [t, setT] = useState<Track | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => fetch(`/api/account/jobs/${jobId}/track`).then((r) => r.json()).then((d: Track) => { if (live) setT(d); }).catch(() => {});
+    load();
+    const id = setInterval(load, 30000);
+    return () => { live = false; clearInterval(id); };
+  }, [jobId]);
+  if (!t?.tracking) return null;
+  if (t.arrived) return <div className="card border-brand bg-brand-tint font-semibold text-brand-dark">✅ Your pro has arrived and started work.</div>;
+  const box = t.pro && t.home ? [Math.min(t.pro.lng, t.home.lng) - 0.01, Math.min(t.pro.lat, t.home.lat) - 0.01, Math.max(t.pro.lng, t.home.lng) + 0.01, Math.max(t.pro.lat, t.home.lat) + 0.01] : null;
+  return (
+    <div className="card border-brand">
+      <div className="text-lg font-bold">🚗 {t.name ?? "Your pro"} is on the way{t.eta ? ` — about ${t.eta} min` : ""}</div>
+      <p className="text-sm text-ink-soft">{t.miles != null ? `${t.miles} miles away · updated ${t.updatedMinAgo ? `${t.updatedMinAgo} min ago` : "just now"}` : "Live location appears when their phone shares it."}</p>
+      {box && t.pro && (
+        <iframe title="Your pro's location" className="mt-3 h-56 w-full rounded-xl border border-line" loading="lazy"
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${box.join("%2C")}&layer=mapnik&marker=${t.pro.lat}%2C${t.pro.lng}`} />
+      )}
+    </div>
+  );
+}
+
+/** Move the booking to another open day / window (free until 24 hours before). */
+export function Reschedule({ jobId, service, zip, date, window: win }: { jobId: string; service: string; zip: string; date: string; window: TimeWindow }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [d, setD] = useState(date);
+  const [w, setW] = useState<TimeWindow>(win);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  if (!open) return <button className="btn-ghost" onClick={() => setOpen(true)}>📅 Reschedule</button>;
+  return (
+    <div className="card space-y-3">
+      <div className="font-semibold">Pick a new day and time</div>
+      <BookingCalendar service={service} zip={zip} date={d} window={w} onChange={(nd, nw) => { setD(nd); setW(nw); }} />
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-primary" disabled={busy || (d === date && w === win)} onClick={async () => {
+          setBusy(true); setMsg("");
+          const r = await post(`/api/account/jobs/${jobId}/reschedule`, { date: d, window: w });
+          setBusy(false);
+          if (!r.ok) return setMsg(r.data.error ?? "Couldn't move it");
+          setOpen(false); router.refresh();
+        }}>{busy ? "Moving…" : "Move my booking"}</button>
+        <button className="btn-ghost" onClick={() => setOpen(false)}>Keep current time</button>
+      </div>
+      {msg && <p className="text-sm text-rose-700">{msg}</p>}
+      <p className="text-xs text-ink-soft">Free until 24 hours before. If your pro isn’t free at the new time, we’ll match another vetted pro.</p>
     </div>
   );
 }
