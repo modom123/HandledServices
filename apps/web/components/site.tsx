@@ -5,7 +5,7 @@
  * PURPOSE : Public website header and footer.
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES } from "@handled/core";
+import { BRAND, CATEGORIES } from "@handled/core";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
@@ -40,22 +40,20 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line bg-paper-deep">
-      <div className="wrap grid gap-10 py-12 md:grid-cols-5">
+      <div className="wrap grid gap-10 py-12 md:grid-cols-4">
         <div className="md:col-span-2">
           <Logo />
           <p className="mt-3 max-w-sm text-sm text-ink-soft">{BRAND.pitch}</p>
           <p className="mt-4 text-xs text-ink-soft">{BRAND.partner}</p>
         </div>
-        {CATEGORIES.slice(0, 2).map((c) => (
-          <div key={c.id}>
-            <div className="text-sm font-semibold">{c.name}</div>
-            <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-              {SERVICES.filter((s) => s.category === c.id).map((s) => (
-                <li key={s.slug}><Link href={`/services/${s.slug}`} className="hover:text-ink">{s.name}</Link></li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <div>
+          <div className="text-sm font-semibold">Services</div>
+          <ul className="mt-3 space-y-2 text-sm text-ink-soft">
+            {CATEGORIES.map((c) => (
+              <li key={c.id}><Link href={`/services?cat=${c.id}`} className="hover:text-ink">{c.icon} {c.name}</Link></li>
+            ))}
+          </ul>
+        </div>
         <div>
           <div className="text-sm font-semibold">Company</div>
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
