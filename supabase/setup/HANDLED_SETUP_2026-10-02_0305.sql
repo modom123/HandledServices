@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0259.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0305.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-02_0259 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 16 migrations + production seed.
+-- CREATED : 2026-10-02_0305 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 17 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1206,6 +1206,29 @@ alter table public.contractors
 
 create index if not exists contractors_on_call_idx on public.contractors (on_call_until) where on_call_until is not null;
 create index if not exists jobs_contractor_date_idx on public.jobs (contractor_id, scheduled_date);
+
+
+-- >>> migration 20261002030209_customer_timing_budget.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002030209_customer_timing_budget.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-02_0302 UTC
+-- PURPOSE : Track what customers tell us when they ask for work:
+--             jobs.urgency          — asap / this_week / two_weeks / month / flexible
+--             jobs.needed_by        — last day they need it done (deadline alerts use it)
+--             jobs.customer_budget  — what they want to spend (never changes our price)
+--             business_accounts.monthly_budget / start_by — the same for business proposals
+-- ============================================================================
+alter table public.jobs
+  add column if not exists urgency text check (urgency in ('asap','this_week','two_weeks','month','flexible')),
+  add column if not exists needed_by date,
+  add column if not exists customer_budget numeric(12,2) check (customer_budget is null or customer_budget >= 0);
+
+create index if not exists jobs_needed_by_idx on public.jobs (needed_by) where status not in ('completed','cancelled');
+
+alter table public.business_accounts
+  add column if not exists monthly_budget numeric(12,2),
+  add column if not exists start_by text check (start_by in ('asap','this_week','two_weeks','month','flexible'));
 
 
 -- >>> seed.sql

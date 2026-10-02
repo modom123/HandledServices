@@ -5,9 +5,10 @@
  * PURPOSE : Booking calendar: open / limited / full for each day and arrival window over
  *           the booking horizon, from real pro capacity in the customer's ZIP.
  *           Counts only pros who work that day and window and drive as far as this ZIP.
- *           GET /api/availability?service=house-cleaning&zip=48201
+ *           GET /api/availability?service=house-cleaning&zip=48201[&today=1]
+ * UPDATED : 2026-10-02_0301 UTC — today=1: same-day slots from pros who are on call or working today.
  */
-import { BRAND, buildAvailability, getService, type BookedJob, type Contractor } from "@handled/core";
+import { BRAND, buildAvailability, localDate, getService, type BookedJob, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { zipCentroid } from "@/lib/geo";
@@ -17,6 +18,7 @@ export async function GET(req: Request) {
   const slug = url.searchParams.get("service") ?? "";
   const zip = (url.searchParams.get("zip") ?? "").slice(0, 5);
   const svc = getService(slug);
+  const includeToday = url.searchParams.get("today") === "1" && !svc?.leadDays;
   if (!svc || !/^\d{5}$/.test(zip)) return Response.json({ error: "service and 5-digit zip required" }, { status: 400 });
 
   let contractors: Contractor[] = [];
@@ -24,7 +26,7 @@ export async function GET(req: Request) {
   let loc: { lat: number; lng: number } | null = null;
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const db = adminClient();
-    const from = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const from = includeToday ? localDate() : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const to = new Date(Date.now() + (BRAND.bookingHorizonDays + 1) * 86400000).toISOString().slice(0, 10);
     const sameTrade = (await db.from("services").select("slug")).data?.map((r: { slug: string }) => r.slug).filter((s: string) => getService(s)?.trades.some((t) => svc.trades.includes(t))) ?? [svc.slug];
     const [{ data: pros }, { data: booked }, { data: waiting }] = await Promise.all([
@@ -38,6 +40,6 @@ export async function GET(req: Request) {
     loc = await zipCentroid(zip);
     jobs = [...((booked ?? []) as BookedJob[]), ...((waiting ?? []) as BookedJob[])];
   }
-  const result = buildAvailability({ slug: svc.slug, zip, contractors, jobs, lat: loc?.lat, lng: loc?.lng });
+  const result = buildAvailability({ slug: svc.slug, zip, contractors, jobs, lat: loc?.lat, lng: loc?.lng, includeToday });
   return Response.json(result, { headers: { "Cache-Control": "private, max-age=60" } });
 }

@@ -2,11 +2,12 @@
  * FILE    : apps/web/app/hub/jobs/[id]/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0302 UTC — shows how soon the customer needs it (deadline status) and their budget.
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
  */
 import { notFound } from "next/navigation";
-import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
+import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
@@ -48,7 +49,9 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
             <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div></div>
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>
-              <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <span className="font-normal text-ink-soft">· payout {money(job.contractor_payout)} · margin {job.price_final && job.contractor_payout ? money(job.price_final - job.contractor_payout) : "—"}</span></div></div>
+              <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <span className="font-normal text-ink-soft">· payout {money(job.contractor_payout)} · margin {job.price_final && job.contractor_payout ? money(job.price_final - job.contractor_payout) : "—"}</span></div>
+              {(job.urgency || job.needed_by) && <div className={deadlineRisk(job) === "late" ? "font-semibold text-rose-600" : deadlineRisk(job) ? "font-semibold text-amber-700" : ""}>Customer needs it: {job.urgency ? URGENCY_LABEL[job.urgency] : "—"}{job.needed_by ? ` · by ${fmtDate(job.needed_by)}` : ""}{deadlineRisk(job) === "late" ? " (past due)" : deadlineRisk(job) === "due" ? " (due now)" : ""}</div>}
+              {job.customer_budget ? <div>Customer budget: {money(job.customer_budget)} · <span className="text-ink-soft">{budgetFit(job.customer_budget, Number(job.price_final ?? job.estimate_low)).message}</span></div> : null}</div>
           </div>
           <div className="mt-4 grid gap-1 border-t border-line pt-4 text-sm sm:grid-cols-2">{s.questions.filter((q) => questionVisible(q, job.answers as Answers, s.questions)).map((q) => <div key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</div>)}</div>
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}

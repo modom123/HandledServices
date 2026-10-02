@@ -2,6 +2,8 @@
  * FILE    : apps/web/components/BookingWizard.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) limits the
+ *           calendar to their deadline; optional budget shows whether the price fits.
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.
@@ -13,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, URGENCY, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
   questionVisible,
 } from "@handled/core";
@@ -35,7 +37,7 @@ const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slic
 
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
-export function BookingWizard({ initialService, prefill = {} }: { initialService?: string; prefill?: Answers }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string }) {
   const router = useRouter();
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
@@ -60,6 +62,8 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [plan, setPlan] = useState<"full" | "deposit">("full");
+  const [urgency, setUrgency] = useState<Urgency | null>(URGENCY.some((u) => u.id === initialUrgency) ? (initialUrgency as Urgency) : null);
+  const [budget, setBudget] = useState((initialBudget ?? "").replace(/[^\d.]/g, ""));
 
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }) : null), [svc, answers, frequency, date]);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
@@ -98,7 +102,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -110,7 +114,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
   const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
   const contactOk = form.contact_name.length > 1 && /\S+@\S+\.\S+/.test(form.contact_email) && form.contact_phone.length >= 7;
   const eventDateOk = !svc?.leadDays || (date >= addDays(svc.leadDays) && date <= addDays(365));
-  const placeOk = eventDateOk && form.address.length > 2 && form.city.length > 1 && /^\d{5}$/.test(form.zip) && form.state.length === 2;
+  const placeOk = eventDateOk && form.address.length > 2 && form.city.length > 1 && /^\d{5}$/.test(form.zip) && form.state.length === 2 && (Boolean(svc?.leadDays) || urgency !== null);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
@@ -210,7 +214,18 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
                   </select></div>
               </div>
             ) : (
-              <BookingCalendar service={slug} zip={form.zip} date={date} window={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
+              <>
+                <div>
+                  <label className="label">When do you need it done?</label>
+                  <div className="flex flex-wrap gap-2">
+                    {URGENCY.map((u) => (
+                      <button key={u.id} type="button" title={u.hint} onClick={() => setUrgency(u.id)} className={`rounded-full border px-3.5 py-1.5 text-sm ${urgency === u.id ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{u.id === "asap" ? "⚡ " : ""}{u.label}</button>
+                    ))}
+                  </div>
+                  {urgency && <p className="mt-1 text-xs text-ink-soft">{URGENCY.find((u) => u.id === urgency)?.hint}{urgency !== "flexible" ? ` · by ${new Date(`${neededBy(urgency)}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}` : ""}</p>}
+                </div>
+                {urgency && <BookingCalendar key={urgency} service={slug} zip={form.zip} date={date} window={win} today={urgency === "asap"} until={neededBy(urgency)} earliest={urgency === "asap"} onChange={(d, w) => { setDate(d); setWin(w); }} />}
+              </>
             )}
             <div className="flex gap-2">
               {(["residential", "commercial"] as const).map((t) => (
@@ -268,6 +283,16 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
         <aside className="card h-fit lg:sticky lg:top-24">
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</div>
           <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
+          {svc.slug !== "event-package" && (() => {
+            const fit = budgetFit(Number(budget), siteVisit ? price.low : ai?.final_price ?? est.point);
+            return (
+              <div className="mt-3">
+                <label className="label">Your budget (optional)</label>
+                <div className="flex items-center gap-2"><span className="text-ink-soft">$</span><input className="input" inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value.replace(/[^\d.]/g, ""))} placeholder="What you’d like to spend" /></div>
+                {fit.status !== "none" && <p className={`mt-1 text-xs ${fit.status === "fits" ? "text-brand-dark" : fit.status === "close" ? "text-amber-800" : "text-rose-700"}`}>{fit.status === "fits" ? "✓ " : ""}{fit.message}</p>}
+              </div>
+            );
+          })()}
           {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ Checking your photos and notes so the price fits the job…</p>}
           {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
           {ai?.changes && ai.changes.length > 0 && (

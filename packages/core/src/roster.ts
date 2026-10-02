@@ -24,6 +24,11 @@ export function localDate(d: Date = new Date(), timeZone = ROSTER_TIME_ZONE): st
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }
 
+/** Local hour (0–23) for an instant. */
+export function localHour(d: Date = new Date(), timeZone = ROSTER_TIME_ZONE): number {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(d));
+}
+
 export function onCall(c: Pick<Contractor, "on_call_until">, now = new Date()): boolean {
   return Boolean(c.on_call_until) && new Date(c.on_call_until!).getTime() > now.getTime();
 }

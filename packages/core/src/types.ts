@@ -88,6 +88,10 @@ export interface Job {
   ai_dispatch: unknown;
   ai_qa: unknown;
   priority: "normal" | "high" | "urgent";
+  /** What the customer told us: how soon they need it, the last acceptable day, and their budget. */
+  urgency?: "asap" | "this_week" | "two_weeks" | "month" | "flexible" | null;
+  needed_by?: string | null;
+  customer_budget?: number | null;
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;
   instructions?: string | null;

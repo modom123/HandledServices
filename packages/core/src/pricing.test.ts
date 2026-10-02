@@ -579,3 +579,36 @@ test("on call: available today outside usual days, ranked up, live location used
   assert.equal(cal[0].off, "Doesn't work Sundays");
   assert.equal(cal[1].open, 2);
 });
+
+// ── Customer timing & budget ──
+
+test("urgency sets the deadline and dispatch priority; budget fit; deadline risk", async () => {
+  const { neededBy, urgencyPriority, budgetFit, deadlineRisk } = await import("./timing.ts");
+  assert.equal(neededBy("two_weeks", "2026-10-02"), "2026-10-16");
+  assert.equal(neededBy("asap", "2026-10-02"), "2026-10-03");
+  assert.equal(urgencyPriority("asap", false), "urgent");
+  assert.equal(urgencyPriority("two_weeks", true), "high");
+  assert.equal(urgencyPriority("flexible", false), "normal");
+  assert.equal(budgetFit(500, 450).status, "fits");
+  assert.equal(budgetFit(400, 450).status, "close");
+  assert.equal(budgetFit(200, 450).status, "over");
+  assert.equal(budgetFit(null, 450).status, "none");
+  assert.equal(deadlineRisk({ needed_by: "2026-10-01", status: "scheduled" }, "2026-10-02"), "late");
+  assert.equal(deadlineRisk({ needed_by: "2026-10-03", status: "assigned" }, "2026-10-02"), "due");
+  assert.equal(deadlineRisk({ needed_by: "2026-10-01", status: "completed" }, "2026-10-02"), null);
+});
+
+test("same-day availability: on-call pros only, windows not yet started", async () => {
+  const { buildAvailability } = await import("./availability.ts");
+  // 9:30am Detroit (13:30Z): morning (starts 8) is gone, midday (11) is open
+  const now = new Date("2026-10-05T13:30:00Z");
+  const base = { id: "p", business_name: "A", contact_name: "A", email: "a@x", phone: "", zip: "48201", service_zips: ["48201"], trades: ["cleaning"], status: "approved",
+    rating: 5, jobs_completed: 20, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+    coverage: { bond: "2099-01-01" }, availability: { days: [6], windows: [] } } as unknown as Contractor;
+  const off = buildAvailability({ slug: "house-cleaning", zip: "48201", contractors: [base], jobs: [], includeToday: true, now, days: 1 });
+  assert.equal(off.days[0].date, "2026-10-05");
+  assert.equal(off.days[0].spots, 0, "doesn't work Mondays and not on call");
+  const on = buildAvailability({ slug: "house-cleaning", zip: "48201", contractors: [{ ...base, on_call_until: "2026-10-05T20:00:00Z" }], jobs: [], includeToday: true, now, days: 1 });
+  assert.equal(on.days[0].windows.morning, 0);
+  assert.ok(on.days[0].windows.midday > 0 && on.days[0].spots > 0);
+});

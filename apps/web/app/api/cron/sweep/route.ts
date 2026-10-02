@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0233 UTC — pro promises: real acceptance/on-time stats and referral bonuses
  *           daily; Mondays the free weekly payout run (after the guaranteed-minimum top-ups).
+ * UPDATED : 2026-10-02_0302 UTC — alerts when an open job reaches or passes the customer's needed-by date.
  * UPDATED : 2026-10-02_0255 UTC — clears pro phone locations older than 12h and lapsed on-call flags.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
@@ -42,6 +43,15 @@ export async function GET(req: Request) {
   for (const j of atRisk ?? []) {
     const { count } = await db.from("ops_alerts").select("id", { count: "exact", head: true }).eq("job_id", j.id).eq("kind", "unassigned_24h");
     if (!count) await raiseAlert("unassigned_24h", "critical", `${j.ref} has no pro and is due within 24h`, "Call pros directly or reschedule with the customer.", j.id);
+  }
+
+  // 2b. Past or at the customer's deadline and not done → alert once per job per day
+  const { data: deadlines } = await db.from("jobs").select("id, ref, needed_by, status, urgency, contractor_id").not("needed_by", "is", null).lte("needed_by", tomorrow).not("status", "in", "(completed,cancelled)");
+  for (const j of (deadlines ?? []) as { id: string; ref: string; needed_by: string; status: string; urgency: string | null; contractor_id: string | null }[]) {
+    const late = j.needed_by < now.slice(0, 10);
+    const kind = late ? "deadline_late" : "deadline_due";
+    const { count } = await db.from("ops_alerts").select("id", { count: "exact", head: true }).eq("job_id", j.id).eq("kind", kind);
+    if (!count) await raiseAlert(kind, late ? "critical" : "warn", `${j.ref} ${late ? "is past" : "is due by"} the customer's date (${j.needed_by})`, `${j.contractor_id ? "A pro is assigned" : "No pro yet"} · status ${j.status}${j.urgency ? ` · asked for: ${j.urgency.replace("_", " ")}` : ""}. Confirm a time with the customer or reassign.`, j.id);
   }
 
   // 3. QA backlog older than 4h

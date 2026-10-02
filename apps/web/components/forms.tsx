@@ -5,12 +5,13 @@
  * UPDATED : 2026-10-02_0244 UTC — business form: services grouped by facility need, an
  *           industry picker that pre-selects what that industry usually books, plus city/ZIP
  *           and how often.
+ * UPDATED : 2026-10-02_0302 UTC — business form: monthly budget and when to start.
  * PURPOSE : Pro application form and commercial account form.
  */
 "use client";
 
 import { useState } from "react";
-import { BUSINESS_GROUPS, COVERAGES, INDUSTRIES, SERVICE_BY_SLUG, TRADES, TRADE_PROFILES, specialtiesFor, type CoverageKey } from "@handled/core";
+import { BUSINESS_GROUPS, COVERAGES, INDUSTRIES, URGENCY, SERVICE_BY_SLUG, TRADES, TRADE_PROFILES, specialtiesFor, type CoverageKey } from "@handled/core";
 
 function useSubmit(url: string) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -132,7 +133,7 @@ export function BusinessForm({ industry: startIndustry = "" }: { industry?: stri
       e.preventDefault();
       const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
       const extra = [industryName && `Industry: ${industryName}`, f.city && `City/ZIP: ${f.city}`, f.cadence && `How often: ${f.cadence}`].filter(Boolean).join(" · ");
-      submit({ company: f.company, contact_name: f.contact_name, email: f.email, phone: f.phone, locations: f.locations, services_needed: services, notes: [extra, f.notes].filter(Boolean).join("\n") });
+      submit({ company: f.company, contact_name: f.contact_name, email: f.email, phone: f.phone, locations: f.locations, services_needed: services, monthly_budget: f.monthly_budget ? Number(f.monthly_budget) : null, start_by: f.start_by || null, notes: [extra, f.notes].filter(Boolean).join("\n") });
     }}>
       <div>
         <h2 className="text-xl font-bold">Request a proposal</h2>
@@ -164,11 +165,20 @@ export function BusinessForm({ industry: startIndustry = "" }: { industry?: stri
           ))}
         </div>
       </div>
-      <div>
-        <label className="label">How often</label>
-        <select name="cadence" className="input" defaultValue="Recurring + one-off">
-          {["Daily / nightly", "Weekly", "Monthly", "Seasonal", "One-time project", "Recurring + one-off"].map((c) => <option key={c}>{c}</option>)}
-        </select>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="label">How often</label>
+          <select name="cadence" className="input" defaultValue="Recurring + one-off">
+            {["Daily / nightly", "Weekly", "Monthly", "Seasonal", "One-time project", "Recurring + one-off"].map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Start</label>
+          <select name="start_by" className="input" defaultValue="two_weeks">
+            {URGENCY.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
+          </select>
+        </div>
+        <div><label className="label">Monthly budget ($, optional)</label><input name="monthly_budget" type="number" min={0} step={50} className="input" placeholder="e.g. 2500" /></div>
       </div>
       <div><label className="label">Anything else</label><textarea name="notes" className="input min-h-24" placeholder="Square footage, hours you’re open, current vendor pain points…" /></div>
       {state === "error" && <p className="text-sm text-rose-700">{error}</p>}

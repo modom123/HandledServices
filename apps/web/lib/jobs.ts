@@ -2,6 +2,8 @@
  * FILE    : apps/web/lib/jobs.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
+ *           needed-by date) and their budget.
  * UPDATED : 2026-10-02_0233 UTC — recurring visits and redos are offered to the same pro first (24h / 12h),
  *           never forced on them; offers another pro won are marked "taken", not held against anyone.
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: booking → final price (AI check runs
@@ -16,6 +18,7 @@ import { z } from "zod";
 import {
   BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
+  neededBy, urgencyPriority,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
@@ -51,6 +54,9 @@ export const BookingSchema = z.object({
   payment_plan: z.enum(["full", "deposit"]).default("full"),
   /** From /api/quote: books at exactly the price the customer saw. */
   quote_token: z.string().max(20000).nullable().optional(),
+  /** How soon they need it and what they want to spend (tracked; budget never changes the price). */
+  urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).nullable().optional(),
+  customer_budget: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -110,7 +116,10 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       price_final: price,
       contractor_payout: price ? splitJob(price, svc.slug).payout : null,
       ai_quote: ai,
-      priority: rush ? "high" : "normal",
+      priority: urgencyPriority(input.urgency, rush),
+      urgency: input.urgency ?? null,
+      needed_by: input.urgency ? neededBy(input.urgency) : input.scheduled_date ?? null,
+      customer_budget: input.customer_budget || null,
       payment_plan: plan ? "deposit" : "full",
       deposit_amount: plan?.amount ?? null,
       balance_due_date: plan?.balanceDue ?? null,

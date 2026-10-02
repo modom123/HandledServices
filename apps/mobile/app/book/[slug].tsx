@@ -2,12 +2,13 @@
  * FILE    : apps/mobile/app/book/[slug].tsx
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_1800 UTC
+ * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) and optional budget.
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, URGENCY, budgetFit, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 import { PhotoStrip } from "../../components/PhotoStrip";
@@ -20,6 +21,8 @@ export default function Book() {
   const svc = getService(slug)!;
   const [answers, setAnswers] = useState<Answers>(defaultAnswers(svc));
   const [frequency, setFrequency] = useState<Frequency>("once");
+  const [urgency, setUrgency] = useState<Urgency | null>(null);
+  const [budget, setBudget] = useState("");
   const [date, setDate] = useState(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
   const [win, setWin] = useState<TimeWindow>("morning");
   const [notes, setNotes] = useState("");
@@ -66,7 +69,7 @@ export default function Book() {
     setBusy(true);
     const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert("Couldn't book", r.data.error ?? "Please check the form");
@@ -84,6 +87,12 @@ export default function Book() {
         <Text style={s.label}>{siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</Text>
         <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
         <Text style={s.p}>{siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
+        {svc.slug !== "event-package" && (
+          <>
+            <Field label="Your budget (optional, $)" value={budget} onChangeText={(v) => setBudget(v.replace(/[^\d.]/g, ""))} keyboardType="decimal-pad" placeholder="What you'd like to spend" />
+            {(() => { const fit = budgetFit(Number(budget), siteVisit ? est.low : est.point); return fit.status === "none" ? null : <Text style={[s.p, { color: fit.status === "fits" ? C.brand : fit.status === "close" ? "#b45309" : "#be123c" }]}>{fit.status === "fits" ? "✓ " : ""}{fit.message}</Text>; })()}
+          </>
+        )}
       </Card>
       {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
@@ -120,7 +129,12 @@ export default function Book() {
           <Field label={svc.category === "transport" ? "Pickup time (e.g. 5:30 am)" : "Start time (e.g. 6:00 pm)"} value={String(answers.start_time ?? "")} onChangeText={(t) => setAnswers((cur) => ({ ...cur, start_time: t }))} />
         </>
       ) : (
-        <Calendar service={svc.slug} zip={f.zip} date={date} win={win} onChange={(d, w) => { setDate(d); setWin(w); }} />
+        <>
+          <Text style={s.label}>When do you need it done?</Text>
+          <View style={s.row}>{URGENCY.map((u) => <Chip key={u.id} label={`${u.id === "asap" ? "⚡ " : ""}${u.label}`} on={urgency === u.id} onPress={() => setUrgency(u.id)} />)}</View>
+          {urgency ? <Text style={[s.p, { marginBottom: 8 }]}>{URGENCY.find((u) => u.id === urgency)?.hint}</Text> : null}
+          {urgency && <Calendar key={urgency} service={svc.slug} zip={f.zip} date={date} win={win} today={urgency === "asap"} until={neededBy(urgency)} earliest={urgency === "asap"} onChange={(d, w) => { setDate(d); setWin(w); }} />}
+        </>
       )}
       <Field label="Street address" value={f.address} onChangeText={set("address")} />
       <Field label="City" value={f.city} onChangeText={set("city")} />
@@ -143,7 +157,7 @@ export default function Book() {
         <Chip label={agreed ? "✓ I agree" : "I agree"} on={agreed} onPress={() => setAgreed(!agreed)} />
         <Text style={[s.p, { flex: 1 }]} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>to the <Text style={{ color: C.brand, fontWeight: "700" }}>Service Agreement</Text>: pay upfront, free redo or refund if it's not right.</Text>
       </View>
-      <Button disabled={!agreed || Boolean(photosMissing)} title={photosMissing ? `Add ${rule.min - photos.length} more photo(s) to book` : busy ? "Checking your price…" : siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={checkAndBook} style={{ marginTop: 8 }} />
+      <Button disabled={!agreed || Boolean(photosMissing) || (!svc.leadDays && !urgency)} title={!svc.leadDays && !urgency ? "Choose when you need it done" : photosMissing ? `Add ${rule.min - photos.length} more photo(s) to book` : busy ? "Checking your price…" : siteVisit ? "Book free site visit" : useDeposit ? `Pay ${money(dp.amount)} deposit & book` : `Pay ${money(est.point)} & book`} busy={busy} onPress={checkAndBook} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }
@@ -162,16 +176,17 @@ function NumberBox({ value, min, max, unit, onChange }: { value: number; min: nu
 }
 
 /** Booking calendar: days with real availability for this ZIP, then an arrival window. */
-function Calendar({ service, zip, date, win, onChange }: { service: string; zip: string; date: string; win: TimeWindow; onChange: (d: string, w: TimeWindow) => void }) {
+function Calendar({ service, zip, date, win, onChange, today = false, until, earliest = false }: { service: string; zip: string; date: string; win: TimeWindow; onChange: (d: string, w: TimeWindow) => void; today?: boolean; until?: string; earliest?: boolean }) {
   const [data, setData] = useState<{ mode: string; days: DaySlots[] } | null>(null);
   useEffect(() => {
     if (!/^\d{5}$/.test(zip)) return setData(null);
-    api<{ mode: string; days: DaySlots[] }>(`/api/availability?service=${service}&zip=${zip}`).then((r) => {
+    api<{ mode: string; days: DaySlots[] }>(`/api/availability?service=${service}&zip=${zip}${today ? "&today=1" : ""}`).then((r) => {
       if (!r.ok) return;
-      setData(r.data);
+      const days = until ? r.data.days.filter((d) => d.date <= until) : r.data.days;
+      setData({ ...r.data, days });
       const ok = (d?: DaySlots) => d && !d.closed && d.level !== "full";
-      if (!ok(r.data.days.find((d) => d.date === date))) {
-        const first = r.data.days.find((d) => ok(d) && !d.rush) ?? r.data.days.find(ok);
+      if (!ok(days.find((d) => d.date === date)) || earliest) {
+        const first = (earliest ? undefined : days.find((d) => ok(d) && !d.rush)) ?? days.find(ok);
         if (first) onChange(first.date, win);
       }
     });

@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/ai/concierge.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0302 UTC — asks how soon they need it and their budget; passes both to /book and leads.
  * PURPOSE : Customer-facing AI concierge (website + mobile chat). Answers questions,
  *           recommends the right service, gives instant estimates from the real pricing
  *           engine and captures leads. It never promises a price outside the engine.
@@ -22,10 +23,11 @@ ${catalog}
 
 How to help:
 - Figure out which service fits, ask at most 2 short questions, then call get_estimate with your best answers.
+- Also ask how soon they need it (asap, this_week, two_weeks, month or flexible) and, if it helps, their budget. If our price is above their budget, suggest a smaller scope, a flexible date (no priority fee) or a recurring plan — never promise a lower price.
 - Quote only numbers returned by get_estimate, as a range. Mention that photos + notes at booking can tighten the price.
 - For tree work, remodels, HVAC, commercial or very large painting and other big jobs, explain a pro confirms the firm price on a free site visit.
 - Some services need photos at booking (e.g. junk removal, repairs, painting); tell the customer which shots help.
-- When the customer is ready, point them to /book?service=<slug>. If they'd rather be called, collect name + phone/email and call save_lead.
+- When the customer is ready, point them to /book?service=<slug>&when=<asap|this_week|two_weeks|month|flexible>&budget=<number, if given>. If they'd rather be called, collect name + phone/email and call save_lead.
 - Payment: customers pay the full price upfront when they book (site visits are free; they pay once the firm quote is approved). ${BRAND.promise}
 - Be warm and brief (under 90 words). Plain text, no markdown headings.`;
 
@@ -58,9 +60,12 @@ const tools = [
     inputSchema: z.object({
       name: z.string(), email: z.string().optional(), phone: z.string().optional(), zip: z.string().optional(),
       service_slug: z.string().optional(), message: z.string(),
+      when: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).optional().describe("How soon they need it"),
+      budget: z.number().optional().describe("What they want to spend, dollars"),
     }),
-    run: async (lead) => {
-      const { error } = await adminClient().from("leads").insert({ ...lead, source: "ai_chat" });
+    run: async ({ when, budget, ...lead }) => {
+      const extra = [when && `Needs it: ${when.replace("_", " ")}`, budget && `Budget: $${budget}`].filter(Boolean).join(" · ");
+      const { error } = await adminClient().from("leads").insert({ ...lead, message: extra ? `${lead.message}\n${extra}` : lead.message, source: "ai_chat" });
       return error ? `Could not save: ${error.message}` : "Saved — a coordinator will reach out within 1 business hour.";
     },
   }),

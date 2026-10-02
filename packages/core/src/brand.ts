@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0244 UTC — pitch mentions car detailing and grocery & medical deliveries.
+ * UPDATED : 2026-10-02_0301 UTC — booking horizon 45 days.
  * PURPOSE : Single place to rename/rebrand the company. "Handled" is a working name —
  *           run a trademark search before launch and change it here.
  */
@@ -35,7 +36,7 @@ export const BRAND = {
   /** Days we don't schedule work (0 = Sunday … 6 = Saturday). */
   closedWeekdays: [0] as number[],
   /** How far ahead customers can book on the calendar. */
-  bookingHorizonDays: 21,
+  bookingHorizonDays: 45, // customers can book up to ~6 weeks out ("within a month" and beyond)
   /** Paid upfront, always — made right with a free redo, a free extra service or a refund. */
   promise: "Pay upfront to lock in your pro. Not right? Free redo or your money back within 30 days.",
 } as const;
