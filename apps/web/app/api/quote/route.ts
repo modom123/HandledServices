@@ -22,6 +22,7 @@ const Body = z.object({
   notes: z.string().max(2000).nullable().optional(),
   photos: z.array(z.string().startsWith("booking/")).max(8).default([]),
   ai: z.boolean().default(false),
+  locale: z.enum(["en", "es"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,8 +39,9 @@ export async function POST(req: Request) {
     notes: b.ai ? b.notes : null, // AI review only when the customer asks for it on the review step
     photoUrls: b.ai ? await signedUrls(b.photos) : [],
     rush,
+    locale: b.locale,
   });
   const notes = b.ai ? b.notes?.trim() || null : null;
   const token = b.ai ? quoteToken({ slug: b.service_slug, answers: b.answers, frequency: b.frequency, photos: b.photos, notes, rush, ai, exp: Date.now() + 2 * 3600 * 1000 }) : null;
-  return Response.json({ baseline, ai, quote_token: token, photo_problem: photoProblem(b.service_slug, b.photos.length), site_visit: sizeNeedsSiteVisit(b.service_slug, b.answers) });
+  return Response.json({ baseline, ai, quote_token: token, photo_problem: photoProblem(b.service_slug, b.photos.length, b.locale), site_visit: sizeNeedsSiteVisit(b.service_slug, b.answers) });
 }

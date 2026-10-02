@@ -3,7 +3,7 @@
     "name": "Handled",
     "slug": "handled",
     "scheme": "handled",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
@@ -51,7 +51,7 @@
       "eas": {
         "projectId": "run `eas init` to fill this in"
       },
-      "updatedAt": "2026-10-02_0254 UTC — on-call status and job-time location for pros (expo-location); 2026-10-02_0310 UTC — v0.2.0 + expo-system-ui (light theme on Android)"
+      "updatedAt": "2026-10-02_1405 UTC — v0.3.0: English / Spanish everywhere (switch on Home and Account), reschedule in the app, Account screen, tips, live ETA"
     },
     "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices — and run your jobs if you're a Handled pro."
   }

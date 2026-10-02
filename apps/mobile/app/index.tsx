@@ -2,6 +2,7 @@
  * FILE    : apps/mobile/app/index.tsx
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_1800 UTC
+ * UPDATED : 2026-10-02_1405 UTC — English / Spanish, with an EN | ES switch.
  * PURPOSE : Home — services, concierge, my jobs; switches to pro mode for subcontractors.
  */
 import { useEffect, useState } from "react";
@@ -10,11 +11,13 @@ import { Link, router } from "expo-router";
 import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
 import { API_URL, api, supabase } from "../lib/supabase";
 import { Button, C, Card, s } from "../components/ui";
+import { useI18n } from "../lib/i18n";
 
 type Me = { email: string; role: string; contractorId: string | null } | null;
 
 export default function Home() {
   const [me, setMe] = useState<Me>(null);
+  const { t, locale, setLocale, svc, cat } = useI18n();
   useEffect(() => {
     const load = async () => { const r = await api<{ user: Me }>("/api/me"); setMe(r.ok ? r.data.user : null); };
     load();
@@ -24,29 +27,32 @@ export default function Home() {
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad}>
-      <Text style={s.h1}>What can we take off your plate?</Text>
-      <Text style={[s.p, { marginTop: 6 }]}>{BRAND.pitch}</Text>
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
-        <Button title="💬 Ask for a price" kind="dark" onPress={() => router.push("/chat")} style={{ flex: 1 }} />
-        {me ? <Button title="My bookings" kind="ghost" onPress={() => router.push("/jobs")} style={{ flex: 1 }} /> : <Button title="Sign in" kind="ghost" onPress={() => router.push("/login")} style={{ flex: 1 }} />}
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginBottom: 6 }}>
+        {(["en", "es"] as const).map((l) => <Pressable key={l} onPress={() => setLocale(l)}><Text style={{ fontWeight: locale === l ? "800" : "400", color: locale === l ? C.ink : C.soft }}>{l.toUpperCase()}</Text></Pressable>)}
       </View>
-      {me?.contractorId && <Button title="🧰 Open Pro mode" onPress={() => router.push("/pro")} style={{ marginTop: 10 }} />}
-      {!me?.contractorId && <Button title="💼 Become a pro — get prepaid jobs" kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pros?src=app`)} style={{ marginTop: 10 }} />}
+      <Text style={s.h1}>{t("What can we take off your plate?")}</Text>
+      <Text style={[s.p, { marginTop: 6 }]}>{locale === "es" ? t("BRAND_PITCH") : BRAND.pitch}</Text>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+        <Button title={`💬 ${t("Ask for a price")}`} kind="dark" onPress={() => router.push("/chat")} style={{ flex: 1 }} />
+        {me ? <Button title={t("My bookings")} kind="ghost" onPress={() => router.push("/jobs")} style={{ flex: 1 }} /> : <Button title={t("Sign in")} kind="ghost" onPress={() => router.push("/login")} style={{ flex: 1 }} />}
+      </View>
+      {me?.contractorId && <Button title={`🧰 ${t("Open Pro mode")}`} onPress={() => router.push("/pro")} style={{ marginTop: 10 }} />}
+      {!me?.contractorId && <Button title={`💼 ${t("Become a pro — get prepaid jobs")}`} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pros?src=app`)} style={{ marginTop: 10 }} />}
       {CATEGORIES.map((c) => (
         <View key={c.id}>
-          <Text style={s.h2}>{c.icon} {c.name}</Text>
+          <Text style={s.h2}>{c.icon} {cat(c).name}</Text>
           {SERVICES.filter((x) => x.category === c.id).map((x) => (
             <Link key={x.slug} href={{ pathname: "/book/[slug]", params: { slug: x.slug } }} asChild>
               <Pressable><Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <Text style={{ fontSize: 30 }}>{x.icon}</Text>
-                <View style={{ flex: 1 }}><Text style={s.b}>{x.name}</Text><Text style={s.p}>{x.tagline}</Text></View>
-                <Text style={{ color: C.brand, fontWeight: "700" }}>from {money(x.minimum)}</Text>
+                <View style={{ flex: 1 }}><Text style={s.b}>{svc(x).name}</Text><Text style={s.p}>{svc(x).tagline}</Text></View>
+                <Text style={{ color: C.brand, fontWeight: "700" }}>{t("from")} {money(x.minimum)}</Text>
               </Card></Pressable>
             </Link>
           ))}
         </View>
       ))}
-      {me && <Pressable onPress={() => router.push("/account")}><Text style={[s.p, { textAlign: "center", marginTop: 20 }]}>Signed in as {me.email} · Account & sign out</Text></Pressable>}
+      {me && <Pressable onPress={() => router.push("/account")}><Text style={[s.p, { textAlign: "center", marginTop: 20 }]}>{t("Signed in as")} {me.email} · {t("Account & sign out")}</Text></Pressable>}
     </ScrollView>
   );
 }

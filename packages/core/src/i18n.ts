@@ -6,8 +6,12 @@
  *           and taglines, categories, "when do you need it" and the booking steps. English is the
  *           source; anything not translated falls back to English. The AI concierge answers in
  *           the customer's language on its own.
+ * UPDATED : 2026-10-02_1405 UTC — every pricing question, answer, help line and "included" item
+ *           (i18n-catalog-es.ts); units; frequencies.
  */
 import type { CategoryId } from "./types.ts";
+import { ES_CATALOG } from "./i18n-catalog-es.ts";
+import { ES_LINES } from "./i18n-lines-es.ts";
 
 export type Locale = "en" | "es";
 export const LOCALES: Locale[] = ["en", "es"];
@@ -38,6 +42,126 @@ const ES: Record<string, string> = {
   "Apply": "Aplicar", "Due today": "A pagar hoy", "Service ZIP code": "Código postal del servicio", "Street address": "Dirección", "City": "Ciudad", "State": "Estado",
   "Your contact info": "Sus datos de contacto", "Full name": "Nombre completo", "Email": "Correo electrónico", "Mobile": "Celular",
   "Anything we should know?": "¿Algo que debamos saber?", "How often": "Frecuencia", "Home": "Hogar", "Business": "Negocio",
+  "Requested": "Solicitado", "Site visit": "Visita al sitio", "Quoted": "Cotizado", "Scheduled": "Programado", "Dispatching": "Buscando profesional",
+  "Pro assigned": "Profesional asignado", "In progress": "En curso", "QA review": "Revisión de calidad", "Completed": "Completado", "Cancelled": "Cancelado",
+  "Morning (8–11am)": "Mañana (8–11 a. m.)", "Midday (11am–2pm)": "Mediodía (11 a. m.–2 p. m.)", "Afternoon (2–5pm)": "Tarde (2–5 p. m.)", "Any time that day": "Cualquier hora ese día",
+  // photo tips, timing hints, promise, Plus perks
+  "Kitchen": "Cocina",
+  "Bathrooms": "Baños",
+  "Main living area": "Sala principal",
+  "Front of the home": "Frente de la casa",
+  "Back of the home": "Parte trasera de la casa",
+  "Each room, wide shot": "Cada cuarto, foto amplia",
+  "The worst stains up close": "Las peores manchas de cerca",
+  "Any upholstery": "Cualquier tapicería",
+  "Each space to organize, wide shot": "Cada espacio a organizar, foto amplia",
+  "Inside closets or cabinets": "Dentro de clósets o gabinetes",
+  "Roofline from the street": "El techo visto desde la calle",
+  "The whole surface, wide shot": "Toda la superficie, foto amplia",
+  "The worst stains or mildew up close": "Las peores manchas o moho de cerca",
+  "Anything nearby to protect": "Lo que haya cerca que proteger",
+  "Front yard": "Patio delantero",
+  "Back yard": "Patio trasero",
+  "The whole tree": "El árbol completo",
+  "Base of the trunk": "La base del tronco",
+  "Nearby house, fence or power lines": "Casa, cerca o cables eléctricos cercanos",
+  "Driveway and walkways": "Entrada de autos y caminos",
+  "The yard": "El patio",
+  "Everything that's going, wide shot": "Todo lo que se va, foto amplia",
+  "Anything heavy or bulky": "Lo pesado o voluminoso",
+  "The path out (stairs, doorways)": "El camino de salida (escaleras, puertas)",
+  "Each item": "Cada objeto",
+  "Labels showing model or weight on heavy items": "Etiquetas con modelo o peso de los objetos pesados",
+  "Where the container goes (driveway or street)": "Dónde va el contenedor (entrada o calle)",
+  "Anything overhead (wires, branches)": "Lo que haya arriba (cables, ramas)",
+  "Each thing to fix or install": "Cada cosa a reparar o instalar",
+  "Close-up of the problem": "El problema de cerca",
+  "The leak, clog or fixture": "La fuga, el tapón o la pieza",
+  "Under the sink / shut-off valves": "Debajo del fregadero / llaves de paso",
+  "The whole water heater": "El calentador de agua completo",
+  "Its label (model & gallons)": "Su etiqueta (modelo y galones)",
+  "Venting and gas or electric hookup": "Ventilación y conexión de gas o eléctrica",
+  "Furnace or air handler": "Calefactor o manejadora de aire",
+  "Outdoor unit": "Unidad exterior",
+  "Model labels": "Etiquetas del modelo",
+  "Where the light goes": "Dónde va la lámpara",
+  "Existing fixture or switch": "Lámpara o interruptor actual",
+  "Where each camera goes": "Dónde va cada cámara",
+  "Your Wi-Fi router": "Su router de Wi-Fi",
+  "Under the sink, showing the disposal and pipes": "Debajo del fregadero, mostrando el triturador y la tubería",
+  "Each room or area, wide shot": "Cada cuarto o área, foto amplia",
+  "Any cracks, holes or water stains": "Grietas, agujeros o manchas de agua",
+  "Ceilings and trim if included": "Techos y molduras si se incluyen",
+  "Each side of the building": "Cada lado del edificio",
+  "Peeling or damaged areas up close": "Áreas peladas o dañadas de cerca",
+  "Trim, doors and any deck": "Molduras, puertas y terraza",
+  "Each wall of the room": "Cada pared del cuarto",
+  "Floor": "Piso",
+  "Anything you're keeping": "Lo que va a conservar",
+  "Each wall of the kitchen": "Cada pared de la cocina",
+  "Floor and ceiling": "Piso y techo",
+  "Each area to remodel": "Cada área a remodelar",
+  "Floors": "Pisos",
+  "Today if a pro is free, or tomorrow. Priority fee applies within 48 hours.": "Hoy si hay un profesional libre, o mañana. Se aplica cargo de prioridad dentro de 48 horas.",
+  "Within 7 days": "En 7 días",
+  "Within 14 days": "En 14 días",
+  "Within 30 days": "En 30 días",
+  "Any open date — often the best availability": "Cualquier fecha disponible — suele haber más disponibilidad",
+  "Pay upfront to lock in your pro. Not right? Free redo or your money back within 30 days.": "Pague por adelantado para asegurar a su profesional. ¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero en 30 días.",
+  "No priority fees — same-day and next-day at the normal price": "Sin cargos de prioridad — mismo día y día siguiente al precio normal",
+  "10% off every job (on top of plan discounts)": "10% de descuento en cada trabajo (además de los descuentos del plan)",
+  "Members are offered first for same-day slots": "Los miembros tienen prioridad en horarios del mismo día",
+  "Cancel anytime": "Cancele cuando quiera",
+  "Fits your budget.": "Está dentro de su presupuesto.",
+  // booking form (web)
+  "Gate code, pets, parking, what's in the garage, the tree is leaning toward the house…": "Código del portón, mascotas, estacionamiento, qué hay en el garaje, el árbol inclinado hacia la casa…",
+  "Photos — recommended": "Fotos — recomendadas",
+  "Photos (optional)": "Fotos (opcional)",
+  "Our AI checks your photos so the price fits the job — no surprises on the day.": "Nuestra IA revisa sus fotos para que el precio corresponda al trabajo — sin sorpresas ese día.",
+  "Event address (or your neighborhood if you need a venue)": "Dirección del evento (o su vecindario si necesita salón)",
+  "We text updates about this job only. We never sell your info to other contractors.": "Solo le enviamos mensajes sobre este trabajo. Nunca vendemos sus datos a otros contratistas.",
+  "before the job": "antes del trabajo",
+  "Pay in full": "Pagar completo",
+  "Nothing more to pay.": "Nada más que pagar.",
+  "Pay a deposit": "Pagar un depósito",
+  "I agree to the": "Acepto el",
+  "Service Agreement": "Acuerdo de servicio",
+  "the site visit is free; I pay upfront once I approve the firm quote.": "la visita es gratis; pago por adelantado cuando apruebe la cotización final.",
+  "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right.": "pago por adelantado; ustedes pagan al profesional cuando el trabajo está hecho y revisado; se rehace gratis o se reembolsa si no queda bien.",
+  "Checking your photos…": "Revisando sus fotos…",
+  "Booking…": "Reservando…",
+  "Finalizing your price…": "Finalizando su precio…",
+  "Book free site visit": "Reservar visita gratuita",
+  "Pay": "Pagar",
+  "Your budget — how we’d spend it": "Su presupuesto — cómo lo usaríamos",
+  "What you’d like to spend": "Lo que le gustaría gastar",
+  "(already at our lowest price for this job)": "(ya está en nuestro precio más bajo para este trabajo)",
+  "Plus member saving": "Ahorro de miembro Plus",
+  "Code": "Código",
+  "Gift card": "Tarjeta de regalo",
+  "Checking your photos and notes so the price fits the job…": "Revisando sus fotos y notas para que el precio corresponda al trabajo…",
+  "Updated from your photos": "Actualizado según sus fotos",
+  "Not right? Change your answers above.": "¿No es correcto? Cambie sus respuestas arriba.",
+  "a pro visits free to give you a firm quote. Nothing is charged until you approve it.": "un profesional lo visita gratis para darle una cotización final. No se cobra nada hasta que la apruebe.",
+  "That code isn't valid.": "Ese código no es válido.",
+  "That code has expired.": "Ese código expiró.",
+  "That code has been used up.": "Ese código ya se agotó.",
+  "That code is for first-time customers.": "Ese código es para clientes nuevos.",
+  "That gift card has no balance left.": "Esa tarjeta de regalo no tiene saldo.",
+  // concierge + sidebar
+  "Hi! What can we take off your plate? Tell me the job and I’ll give you a price.": "¡Hola! ¿Qué pendiente le quitamos de encima? Cuénteme el trabajo y le doy un precio.",
+  "Sorry, I couldn’t reach the server.": "Lo sentimos, no pudimos conectar con el servidor.",
+  "Concierge": "Asistente",
+  "AI · instant prices · 24/7": "IA · precios al instante · 24/7",
+  "e.g. haul away an old couch": "p. ej. llevarse un sofá viejo",
+  "Send": "Enviar",
+  "Ask for a price": "Pida un precio",
+  "CODE": "CÓDIGO",
+  "Our AI checks your photos and notes before you pay.": "Nuestra IA revisa sus fotos y notas antes de que pague.",
+  "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it.": "Primero una llamada de planificación gratis. Su planificador le envía un plan final dentro de este presupuesto; paga cuando lo apruebe.",
+  "Free site visit — a pro confirms the firm price, then you pay to lock in the work.": "Visita gratuita — un profesional confirma el precio final y luego paga para asegurar el trabajo.",
+  "hrs": "h", "sq ft": "pies²", "Yes": "Sí", "No": "No",
+  "One time": "Una vez", "Weekly (save 20%)": "Semanal (ahorre 20%)", "Every 2 weeks (save 15%)": "Cada 2 semanas (ahorre 15%)", "Monthly (save 10%)": "Mensual (ahorre 10%)", "Quarterly (save 5%)": "Trimestral (ahorre 5%)", "Weekly": "Semanal", "Every 2 weeks": "Cada 2 semanas", "Monthly": "Mensual", "Quarterly": "Trimestral",
   "As soon as possible": "Lo antes posible", "This week": "Esta semana", "Within 2 weeks": "En 2 semanas", "Within a month": "En un mes", "I'm flexible": "Tengo flexibilidad",
 };
 
@@ -104,7 +228,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
 
 /** Translate a UI string (English is the key). */
 export function t(locale: Locale | string | null | undefined, en: string): string {
-  return locale === "es" ? ES[en] ?? en : en;
+  return locale === "es" ? ES[en] ?? ES_CATALOG[en] ?? en : en;
 }
 
 export function serviceText(locale: Locale | string | null | undefined, slug: string, en: { name: string; tagline: string }) {
@@ -118,3 +242,24 @@ export function categoryText(locale: Locale | string | null | undefined, id: Cat
 
 /** Every service has a Spanish name and tagline (checked by tests). */
 export const ES_SERVICE_SLUGS = Object.keys(ES_SERVICE);
+
+/** Budget vs price message in the visitor's language (see budgetFit in timing.ts). */
+export function budgetMessage(locale: Locale | string | null | undefined, fit: { status: string; gap: number }, budget: number): string {
+  if (locale !== "es" || fit.status === "none") return "";
+  const f = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+  if (fit.status === "fits") return "Está dentro de su presupuesto.";
+  if (fit.status === "close") return `${f(fit.gap)} por encima de su presupuesto. Una fecha flexible (sin cargo de prioridad) o un alcance un poco menor suele cerrar la diferencia.`;
+  return `${f(fit.gap)} por encima de su presupuesto de ${f(budget)}. Pruebe un alcance menor, un plan recurrente, o envíela de todos modos — le llamaremos con opciones.`;
+}
+
+const NUM = /\$?\d[\d,]*(?:\.\d+)?/g;
+
+/** Price-breakdown line in the visitor's language: numbers and amounts are kept, the words are translated. */
+export function lineText(locale: Locale | string | null | undefined, label: string): string {
+  if (locale !== "es") return label;
+  const nums = label.match(NUM) ?? [];
+  const tpl = ES_LINES[label.replace(NUM, "{#}")];
+  if (!tpl) return ES[label] ?? ES_CATALOG[label] ?? label;
+  let i = 0;
+  return tpl.replace(/\{#\}/g, () => nums[i++] ?? "");
+}

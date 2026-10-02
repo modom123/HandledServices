@@ -632,3 +632,54 @@ test("growth: discounts never touch the pro's pay and we keep 5%", async () => {
   assert.equal(promoDiscount({ code: "X", kind: "amount", value: 25, expires_at: "2000-01-01" }, 300, { firstJob: true }).ok, false);
   assert.equal(memberSaving(345, 45), 75); // rush back + 10% of 300
 });
+
+test("every pricing question, answer, help line and included item has Spanish", async () => {
+  const { ES_CATALOG } = await import("./i18n-catalog-es.ts");
+  const { SERVICES } = await import("./services.ts");
+  const missing: string[] = [];
+  const need = (s?: string) => { if (s && !ES_CATALOG[s]) missing.push(s); };
+  for (const s of SERVICES) {
+    s.includes.forEach(need); need(s.notesHint);
+    for (const q of s.questions) { need(q.label); need(q.help); if (q.type === "select") q.options.forEach((o) => need(o.label)); }
+  }
+  assert.deepEqual(missing, [], `add Spanish in i18n-catalog-es.ts for: ${missing.join(" | ")}`);
+});
+
+test("every t(\"…\") phrase in the mobile app has Spanish", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const { t } = await import("./i18n.ts");
+  const root = path.resolve(import.meta.dirname, "../../../apps/mobile");
+  const { ES_APP } = await import(path.join(root, "lib/es-app.ts"));
+  const { ES_PRO } = await import(path.join(root, "lib/es-pro.ts"));
+  const files: string[] = [];
+  const walk = (d: string) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else if (p.endsWith(".tsx")) files.push(p); } };
+  walk(path.join(root, "app")); walk(path.join(root, "components"));
+  const missing = new Set<string>();
+  for (const f of files) for (const m of fs.readFileSync(f, "utf8").matchAll(/\bt\("((?:[^"\\]|\\.)*)"\)/g)) {
+    const k = JSON.parse(`"${m[1]}"`);
+    if (!ES_APP[k] && !ES_PRO[k] && t("es", k) === k) missing.add(k);
+  }
+  assert.deepEqual([...missing], [], "add Spanish to apps/mobile/lib/es-app.ts or es-pro.ts");
+});
+
+test("every price-breakdown line has a Spanish template", async () => {
+  const { ES_LINES } = await import("./i18n-lines-es.ts");
+  const { SERVICES, defaultAnswers } = await import("./services.ts");
+  const { estimate } = await import("./pricing.ts");
+  const NUM = /\$?\d[\d,]*(?:\.\d+)?/g;
+  const missing = new Set<string>();
+  for (const s of SERVICES) {
+    const base = defaultAnswers(s);
+    const variants = [base];
+    for (const q of s.questions) {
+      if (q.type === "select") for (const o of q.options) variants.push({ ...base, [q.id]: o.value });
+      if (q.type === "toggle") variants.push({ ...base, [q.id]: !q.default });
+      if (q.type === "number") { variants.push({ ...base, [q.id]: q.max }); variants.push({ ...base, [q.id]: q.min }); }
+    }
+    for (const v of variants) for (const frequency of ["once", "weekly", "biweekly", "monthly"] as const) for (const rush of [false, true]) {
+      for (const it of estimate({ slug: s.slug, answers: v, frequency, rush }).items) { const k = it.label.replace(NUM, "{#}"); if (!ES_LINES[k]) missing.add(k); }
+    }
+  }
+  assert.deepEqual([...missing], [], "add Spanish templates to i18n-lines-es.ts");
+});

@@ -32,14 +32,14 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{txt.name}{locale === "es" && city ? ` en ${city.name}, ${city.state}` : where}</h1>
         <p className="mt-2 text-lg text-brand">{txt.tagline}</p>
         {reviews.average && reviews.count >= 3 && <p className="mt-2 text-sm"><span className="text-amber-500">{stars(reviews.average)}</span> <b>{reviews.average}</b> from {reviews.count} customer reviews</p>}
-        <p className="mt-5 text-ink-soft">{s.description}{city ? ` We serve ${city.name} and nearby neighborhoods with vetted, insured local pros — book online with an upfront price.` : ""}</p>
-        <h2 className="mt-10 font-bold">What’s included</h2>
+        <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? ` We serve ${city.name} and nearby neighborhoods with vetted, insured local pros — book online with an upfront price.` : ""}</p>
+        <h2 className="mt-10 font-bold">{locale === "es" ? "Qué incluye" : "What’s included"}</h2>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {s.includes.map((i) => <li key={i} className="flex gap-2 text-sm"><span className="text-brand">✓</span>{i}</li>)}
+          {s.includes.map((i) => <li key={i} className="flex gap-2 text-sm"><span className="text-brand">✓</span>{tr(locale, i)}</li>)}
         </ul>
-        <h2 className="mt-10 font-bold">Questions we’ll ask for your price</h2>
+        <h2 className="mt-10 font-bold">{locale === "es" ? "Lo que le preguntaremos para su precio" : "Questions we’ll ask for your price"}</h2>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-soft">
-          {s.questions.map((q) => <li key={q.id}>{q.label}{q.help ? <span className="block text-xs">{q.help}</span> : null}</li>)}
+          {s.questions.map((q) => <li key={q.id}>{tr(locale, q.label)}{q.help ? <span className="block text-xs">{tr(locale, q.help)}</span> : null}</li>)}
         </ul>
         {reviews.list.length > 0 && (
           <>

@@ -6,14 +6,15 @@
  */
 import { SiteFooter, SiteHeader } from "@/components/site";
 import { Concierge } from "@/components/Concierge";
+import { getLocale } from "@/lib/locale";
 
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <SiteHeader />
       <main>{children}</main>
       <SiteFooter />
-      <Concierge />
+      <Concierge locale={await getLocale()} />
     </>
   );
 }

@@ -4,21 +4,29 @@
  * CREATED : 2026-10-01_2115 UTC
  * PURPOSE : Booking calendar — pick a day (open / limited / full from real pro capacity in
  *           the customer's ZIP) and an arrival window with spots left.
+ * UPDATED : 2026-10-02_1405 UTC — English / Spanish (locale prop).
  * UPDATED : 2026-10-02_0302 UTC — today (same-day slots from on-call pros), until (only days up to
  *           the customer's deadline), earliest (ASAP: pick the first open slot, priority or not).
  */
 "use client";
 
 import { useEffect, useState } from "react";
-import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, type DaySlots, type TimeWindow } from "@handled/core";
+import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, t as tr, type DaySlots, type Locale, type TimeWindow } from "@handled/core";
 
 type Avail = { mode: "live" | "request"; pros: number; days: DaySlots[] };
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], es: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] };
+const ES: Record<string, string> = {
+  "Enter your ZIP code to see open dates and times.": "Ingrese su código postal para ver fechas y horarios disponibles.", "Checking pro availability…": "Revisando disponibilidad…",
+  "Couldn’t load the calendar — try again.": "No se pudo cargar el calendario — intente de nuevo.", open: "disponible", "few spots left": "quedan pocos", full: "lleno", closed: "cerrado",
+  "within 48 hours (priority)": "dentro de 48 horas (prioridad)", "Arrival window": "Horario de llegada", "on request": "a solicitud", available: "disponible", "fastest to confirm": "se confirma más rápido", left: "disponibles",
+};
 
-export function BookingCalendar({ service, zip, date, window: win, onChange, today = false, until, earliest = false }: {
+export function BookingCalendar({ service, zip, date, window: win, onChange, today = false, until, earliest = false, locale = "en" }: {
   service: string; zip: string; date: string; window: TimeWindow; onChange: (date: string, window: TimeWindow) => void;
-  today?: boolean; until?: string; earliest?: boolean;
+  today?: boolean; until?: string; earliest?: boolean; locale?: Locale;
 }) {
+  const t = (s: string) => (locale === "es" ? ES[s] ?? tr("es", s) : s);
+  const dl = locale === "es" ? "es-US" : "en-US";
   const [data, setData] = useState<Avail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -43,17 +51,17 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [service, zip, today, until]);
 
-  if (!/^\d{5}$/.test(zip)) return <p className="rounded-xl bg-paper p-4 text-sm text-ink-soft">Enter your ZIP code to see open dates and times.</p>;
-  if (!data) return <p className="rounded-xl bg-paper p-4 text-sm text-ink-soft">{loading ? "Checking pro availability…" : "Couldn’t load the calendar — try again."}</p>;
+  if (!/^\d{5}$/.test(zip)) return <p className="rounded-xl bg-paper p-4 text-sm text-ink-soft">{t("Enter your ZIP code to see open dates and times.")}</p>;
+  if (!data) return <p className="rounded-xl bg-paper p-4 text-sm text-ink-soft">{loading ? t("Checking pro availability…") : t("Couldn’t load the calendar — try again.")}</p>;
 
   const lead = data.days[0] ? data.days[0].weekday : 0;
   const day = data.days.find((x) => x.date === date);
   return (
     <div className="space-y-4">
-      {data.mode === "live" && !data.days.some((x) => !x.closed && x.level !== "full") && <p className="rounded-xl bg-amber-50 p-3 text-sm">No open slots before your date. Choose a later “When do you need it?” option, or call us and we’ll try to fit you in.</p>}
-      {data.mode === "request" && <p className="rounded-xl bg-amber-50 p-3 text-sm">We’re still adding pros in {zip}. Pick your preferred time and we’ll confirm it within one business day.</p>}
+      {data.mode === "live" && !data.days.some((x) => !x.closed && x.level !== "full") && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? "No hay horarios disponibles antes de su fecha. Elija una opción más adelante en “¿Para cuándo lo necesita?”, o llámenos y trataremos de acomodarlo." : "No open slots before your date. Choose a later “When do you need it?” option, or call us and we’ll try to fit you in."}</p>}
+      {data.mode === "request" && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Todavía estamos sumando profesionales en ${zip}. Elija su horario preferido y se lo confirmamos en un día hábil.` : `We’re still adding pros in ${zip}. Pick your preferred time and we’ll confirm it within one business day.`}</p>}
       <div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[13px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS.map((w) => <div key={w}>{w}</div>)}</div>
+        <div className="grid grid-cols-7 gap-1 text-center text-[13px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS[locale === "es" ? "es" : "en"].map((w) => <div key={w}>{w}</div>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-1">
           {Array.from({ length: lead }).map((_, i) => <div key={`pad${i}`} />)}
           {data.days.map((d) => {
@@ -64,26 +72,26 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
             return (
               <button key={d.date} type="button" disabled={disabled} onClick={() => onChange(d.date, pickWindow(d, win))}
                 className={`relative rounded-xl border p-1.5 text-left transition ${sel ? "border-brand bg-brand text-white" : disabled ? "border-transparent bg-paper text-ink-soft/50" : "border-line bg-white hover:border-brand"}`}>
-                <div className="text-[12px] uppercase opacity-70">{dt.getDate() === 1 || d === data.days[0] ? dt.toLocaleDateString("en-US", { month: "short" }) : " "}</div>
+                <div className="text-[12px] uppercase opacity-70">{dt.getDate() === 1 || d === data.days[0] ? dt.toLocaleDateString(dl, { month: "short" }) : " "}</div>
                 <div className="text-base font-bold leading-none">{dt.getDate()}</div>
                 <div className="mt-1 flex items-center gap-1">
                   <span className={`h-1.5 w-1.5 rounded-full ${sel ? "bg-white" : dot}`} />
-                  <span className="text-[11px]">{d.closed ? "closed" : d.level === "full" ? "full" : d.rush ? `+${RUSH_SURCHARGE * 100}%` : ""}</span>
+                  <span className="text-[11px]">{d.closed ? t("closed") : d.level === "full" ? t("full") : d.rush ? `+${RUSH_SURCHARGE * 100}%` : ""}</span>
                 </div>
               </button>
             );
           })}
         </div>
         <div className="mt-2 flex flex-wrap gap-3 text-[13px] text-ink-soft">
-          <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />open</span>
-          <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />few spots left</span>
-          <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />full</span>
-          <span>+{RUSH_SURCHARGE * 100}% = within 48 hours (priority)</span>
+          <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />{t("open")}</span>
+          <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />{t("few spots left")}</span>
+          <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />{t("full")}</span>
+          <span>+{RUSH_SURCHARGE * 100}% = {t("within 48 hours (priority)")}</span>
         </div>
       </div>
       {day && !day.closed && (
         <div>
-          <div className="label">Arrival window — {new Date(`${day.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+          <div className="label">{t("Arrival window")} — {new Date(`${day.date}T12:00:00`).toLocaleDateString(dl, { weekday: "long", month: "long", day: "numeric" })}</div>
           <div className="flex flex-wrap gap-2">
             {(["morning", "midday", "afternoon"] as const).map((w) => {
               const left = day.windows[w];
@@ -91,13 +99,13 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
               return (
                 <button key={w} type="button" disabled={off} onClick={() => onChange(day.date, w)}
                   className={`rounded-xl border px-3 py-2 text-left text-sm ${win === w ? "border-brand bg-brand-tint font-semibold text-brand-dark" : off ? "border-line bg-paper text-ink-soft/50" : "border-line bg-white hover:border-brand"}`}>
-                  {TIME_WINDOW_LABEL[w]}<div className="text-[13px] font-normal text-ink-soft">{data.mode === "request" ? "on request" : off ? "full" : left <= 2 ? `${left} left` : "available"}</div>
+                  {t(TIME_WINDOW_LABEL[w])}<div className="text-[13px] font-normal text-ink-soft">{data.mode === "request" ? t("on request") : off ? t("full") : left <= 2 ? `${left} ${t("left")}` : t("available")}</div>
                 </button>
               );
             })}
             <button type="button" onClick={() => onChange(day.date, "flexible")}
               className={`rounded-xl border px-3 py-2 text-left text-sm ${win === "flexible" ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white hover:border-brand"}`}>
-              {TIME_WINDOW_LABEL.flexible}<div className="text-[13px] font-normal text-ink-soft">fastest to confirm</div>
+              {t(TIME_WINDOW_LABEL.flexible)}<div className="text-[13px] font-normal text-ink-soft">{t("fastest to confirm")}</div>
             </button>
           </div>
         </div>

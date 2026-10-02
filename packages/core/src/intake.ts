@@ -15,6 +15,7 @@
 import { AI_MAX_CUT, AI_MAX_RAISE, estimate, type Estimate } from "./pricing.ts";
 import { getService, type Answers } from "./services.ts";
 import type { Frequency } from "./types.ts";
+import { t } from "./i18n.ts";
 
 export interface PhotoRule {
   need: "required" | "recommended" | "none";
@@ -60,9 +61,10 @@ export function photoRule(slug: string): PhotoRule {
 }
 
 /** null when the photos are enough, otherwise what to tell the customer. */
-export function photoProblem(slug: string, count: number): string | null {
+export function photoProblem(slug: string, count: number, locale: string = "en"): string | null {
   const r = photoRule(slug);
   if (r.need !== "required" || count >= r.min) return null;
+  if (locale === "es") return `Agregue al menos ${r.min} foto${r.min > 1 ? "s" : ""} (${r.tips.slice(0, r.min + 1).map((x) => t("es", x)).join(", ").toLowerCase()}) para que su precio sea correcto desde el principio.`;
   return `Please add at least ${r.min} photo${r.min > 1 ? "s" : ""} (${r.tips.slice(0, r.min + 1).join(", ").toLowerCase()}) so your price is right the first time.`;
 }
 

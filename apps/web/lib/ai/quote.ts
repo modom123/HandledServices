@@ -56,6 +56,8 @@ export async function aiQuote(input: {
   photoUrls?: string[];
   rush?: boolean;
   jobId?: string | null;
+  /** Language for what the customer reads (customer_summary, action_reason, change reasons). */
+  locale?: "en" | "es";
 }): Promise<{ baseline: Estimate; ai: AiQuote | null }> {
   const baseline = estimate({ slug: input.slug, answers: input.answers, frequency: input.frequency, rush: input.rush });
   const svc = getService(input.slug)!;
@@ -74,6 +76,7 @@ export async function aiQuote(input: {
     `Rules-engine price: $${baseline.point} (minimum $${svc.minimum})`,
     `Customer notes: ${input.notes?.trim() || "(none)"}`,
     input.photoUrls?.length ? `${input.photoUrls.length} photo(s) attached.` : "No photos.",
+    ...(input.locale === "es" ? ["The customer reads Spanish: write customer_summary, action_reason and every change's from/to/reason in Spanish (formal usted). Keep ids, numbers and option values unchanged."] : []),
   ].join("\n");
 
   const out = await structured({
