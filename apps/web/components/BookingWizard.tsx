@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
+import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
@@ -46,7 +47,6 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
   const [frequency, setFrequency] = useState<Frequency>("once");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [date, setDate] = useState(defaultDate());
   const [win, setWin] = useState<TimeWindow>("morning");
   const [form, setForm] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "", customer_type: "residential", company_name: "" });
@@ -70,19 +70,6 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
     setFrequency("once");
     resetAi();
     setStep(1);
-  }
-
-  async function upload(files: FileList | null) {
-    if (!files?.length) return;
-    setUploading(true);
-    const fd = new FormData();
-    Array.from(files).slice(0, 8 - photos.length).forEach((f) => fd.append("photos", f));
-    const res = await fetch("/api/uploads", { method: "POST", body: fd });
-    const json = await res.json();
-    setUploading(false);
-    if (!res.ok) return setError(json.error ?? "Upload failed");
-    setPhotos([...photos, ...json.paths]);
-    resetAi();
   }
 
   async function runAi() {
@@ -198,8 +185,8 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
               {rule && rule.tips.length > 0 && (
                 <ul className="mb-2 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">{rule.tips.map((t) => <li key={t}>📷 {t}</li>)}</ul>
               )}
-              <input type="file" accept="image/*" capture="environment" multiple onChange={(e) => upload(e.target.files)} disabled={uploading || photos.length >= 8} className="text-sm" />
-              <p className="mt-1 text-xs text-ink-soft">{uploading ? "Uploading…" : photos.length ? `${photos.length} photo(s) attached · ` : ""}Our AI checks your photos so the price fits the job — no surprises on the day.</p>
+              <PhotoPicker value={photos} onChange={(p) => { setPhotos(p); resetAi(); }} onError={setError} />
+              <p className="mt-1 text-xs text-ink-soft">Our AI checks your photos so the price fits the job — no surprises on the day.</p>
               {photosMissing && photos.length > 0 && <p className="mt-1 text-xs text-amber-800">{photosMissing}</p>}
             </div>
             <button className="btn-primary" disabled={Boolean(photosMissing)} onClick={() => setStep(2)}>{photosMissing ? `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue` : "Continue"}</button>

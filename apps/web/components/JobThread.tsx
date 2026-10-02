@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { browserClient } from "@/lib/supabase/browser";
+import { PhotoPicker } from "./PhotoPicker";
 
 type Msg = { id: number; sender_role: string; body: string; created_at: string };
 
@@ -103,6 +104,30 @@ export function CancelBooking({ jobId, late, fee, paid }: { jobId: string; late:
         <button className="btn-ghost" onClick={() => setStep(0)}>Keep it</button>
       </div>
       {msg && <p className="mt-2 text-rose-700">{msg}</p>}
+    </div>
+  );
+}
+
+/** Add more photos to a booking (camera on phones, drag & drop / paste on desktop). */
+export function AddJobPhotos({ jobId, count }: { jobId: string; count: number }) {
+  const [paths, setPaths] = useState<string[]>([]);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="card">
+      <div className="font-semibold">Add photos for your pro</div>
+      <p className="mt-1 text-sm text-ink-soft">More angles, a close-up, the spot you’re worried about. {count ? `${count} on file.` : ""}</p>
+      <div className="mt-3"><PhotoPicker value={paths} onChange={setPaths} max={Math.max(0, 12 - count)} onError={setMsg} /></div>
+      {paths.length > 0 && (
+        <button className="btn-primary mt-3" disabled={busy} onClick={async () => {
+          setBusy(true);
+          const r = await fetch(`/api/account/jobs/${jobId}/photos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths }) });
+          const j = await r.json().catch(() => ({}));
+          setBusy(false);
+          if (r.ok) window.location.reload(); else setMsg(j.error ?? "Couldn’t add photos");
+        }}>{busy ? "Saving…" : `Add ${paths.length} photo${paths.length > 1 ? "s" : ""} to my booking`}</button>
+      )}
+      {msg && <p className="mt-2 text-sm text-rose-700">{msg}</p>}
     </div>
   );
 }

@@ -97,5 +97,6 @@ function summarize(content: string | ContentBlocks) {
 }
 
 export function imageBlocks(urls: string[]): ContentBlocks {
-  return urls.slice(0, 8).map((url) => ({ type: "image", source: { type: "url", url } }));
+  // HEIC (iPhone) can't be read by the model — skip it rather than fail the whole check
+  return urls.filter((u) => !/\.hei[cf](\?|$)/i.test(u)).slice(0, 8).map((url) => ({ type: "image", source: { type: "url", url } }));
 }

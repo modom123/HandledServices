@@ -7,10 +7,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 import { BRAND, RUSH_SURCHARGE, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, defaultAnswers, estimate, getService, isRush, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
+import { PhotoStrip } from "../../components/PhotoStrip";
+import type { Shot } from "../../lib/photos";
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -22,7 +23,8 @@ export default function Book() {
   const [date, setDate] = useState(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
   const [win, setWin] = useState<TimeWindow>("morning");
   const [notes, setNotes] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [shots, setShots] = useState<Shot[]>([]);
+  const photos = shots.map((x) => x.path);
   const [f, setF] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "" });
   const [busy, setBusy] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -36,26 +38,6 @@ export default function Book() {
   const photosMissing = photoProblem(svc.slug, photos.length);
   const bigJob = sizeNeedsSiteVisit(svc.slug, answers);
   const siteVisit = svc.siteVisit || Boolean(bigJob);
-
-  function addPhotos() {
-    Alert.alert("Add photos", rule.tips.length ? `Helpful shots: ${rule.tips.join(", ")}` : undefined, [
-      { text: "Take a photo", onPress: () => pickPhotos(true) },
-      { text: "Choose from library", onPress: () => pickPhotos(false) },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }
-  async function pickPhotos(camera: boolean) {
-    const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : { granted: true };
-    const r = camera && perm.granted
-      ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, quality: 0.6, selectionLimit: 8 - photos.length });
-    if (r.canceled) return;
-    const fd = new FormData();
-    r.assets.forEach((a, i) => fd.append("photos", { uri: a.uri, name: `photo-${i}.jpg`, type: a.mimeType ?? "image/jpeg" } as never));
-    const up = await api<{ paths: string[]; error?: string }>("/api/uploads", { method: "POST", body: fd });
-    if (!up.ok) return Alert.alert("Upload failed", up.data.error ?? "");
-    setPhotos([...photos, ...up.data.paths]);
-  }
 
   /** Before paying: required photos, then the AI price check (books at exactly the price shown). */
   async function checkAndBook() {
@@ -128,7 +110,7 @@ export default function Book() {
       <Field label="Notes for the pro" value={notes} onChangeText={setNotes} multiline placeholder={svc.notesHint ?? "Gate code, pets, what needs hauling…"} />
       <Text style={s.label}>{rule.need === "required" ? `Photos — required (at least ${rule.min})` : rule.need === "recommended" ? "Photos — recommended" : "Photos (optional)"}</Text>
       {rule.tips.length ? <Text style={s.p}>{rule.tips.map((t) => `📷 ${t}`).join("   ")}</Text> : null}
-      <Button title={`📷 Add photos (${photos.length})`} kind="ghost" onPress={addPhotos} style={{ marginTop: 6 }} />
+      <PhotoStrip shots={shots} onChange={setShots} />
       {photos.length > 0 || rule.need !== "none" ? <Text style={[s.p, { marginTop: 4 }]}>Our AI checks your photos so the price fits the job — no surprises on the day.</Text> : null}
       <Text style={s.h2}>When & where</Text>
       <Field label="Service ZIP code" value={f.zip} onChangeText={set("zip")} keyboardType="number-pad" maxLength={5} />

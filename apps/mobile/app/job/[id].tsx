@@ -11,6 +11,8 @@ import { useLocalSearchParams } from "expo-router";
 import { TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Status, s } from "../../components/ui";
+import { PhotoStrip } from "../../components/PhotoStrip";
+import type { Shot } from "../../lib/photos";
 
 type Pro = { business_name: string; contact_first_name: string; rating: number; jobs_completed: number };
 type Ev = { id: number; message: string; created_at: string };
@@ -20,6 +22,7 @@ export default function Booking() {
   const [job, setJob] = useState<Job | null>(null);
   const [pro, setPro] = useState<Pro | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
+  const [shots, setShots] = useState<Shot[]>([]);
   const [rated, setRated] = useState(false);
   const [stars, setStars] = useState(5);
   const load = useCallback(async () => {
@@ -45,6 +48,13 @@ export default function Booking() {
   const depositDue = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0 && job.deposit_amount;
   const due = depositDue ? Number(job.deposit_amount) : Math.max(0, Number(job.price_final ?? 0) - Number(job.amount_paid ?? 0));
 
+  async function savePhotos() {
+    const r = await api<{ ok?: boolean; error?: string }>(`/api/account/jobs/${id}/photos`, { method: "POST", body: JSON.stringify({ paths: shots.map((x) => x.path) }) });
+    if (!r.ok) return Alert.alert("Couldn't add photos", r.data.error ?? "");
+    setShots([]);
+    Alert.alert("Photos added", "Your pro can see them now.");
+    load();
+  }
   async function pay() {
     const r = await api<{ url?: string; error?: string }>(`/api/account/jobs/${id}/pay`, { method: "POST" });
     if (r.data.url) Linking.openURL(r.data.url); else Alert.alert("Payment", r.data.error ?? "Couldn't start payment");
@@ -79,6 +89,15 @@ export default function Booking() {
         {unpaid ? <Button title={depositDue ? `Pay ${money(due)} deposit` : job.deposit_paid_at ? `Pay balance ${money(due)}` : `Pay ${money(due)}`} onPress={pay} style={{ marginTop: 10 }} /> : null}
         <Pressable onPress={() => Linking.openURL(`${API_URL}/invoice/${id}`)}><Text style={[s.p, { color: C.brand, fontWeight: "700", marginTop: 10 }]}>Invoice & service agreement →</Text></Pressable>
       </Card>
+
+      {!["completed", "cancelled"].includes(job.status) && (
+        <Card>
+          <Text style={s.b}>Add photos for your pro</Text>
+          <Text style={s.p}>More angles, a close-up, the spot you're worried about.{job.photos?.length ? ` ${job.photos.length} on file.` : ""}</Text>
+          <PhotoStrip shots={shots} onChange={setShots} max={Math.max(0, 12 - (job.photos?.length ?? 0))} />
+          {shots.length > 0 && <Button title={`Add ${shots.length} photo${shots.length > 1 ? "s" : ""} to my booking`} onPress={savePhotos} style={{ marginTop: 8 }} />}
+        </Card>
+      )}
 
       {job.status === "completed" && !rated && (
         <Card>
