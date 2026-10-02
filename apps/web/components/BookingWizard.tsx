@@ -35,9 +35,16 @@ const PICKUP_TIMES = Array.from({ length: 48 }, (_, i) => {
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
+type Perks = { member: boolean; memberBenefit: number; promoCode: string | null; promoAmount: number; promoMessage: string | null; promoOk: boolean | null; gift: number; isGift: boolean; price: number; dueNow: number };
+
+/** First-touch marketing source saved by <Attribution /> (utm_*, referrer, landing page). */
+function readAttribution(): Record<string, string> | null {
+  try { const raw = localStorage.getItem("handled_attr"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string }) {
   const router = useRouter();
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
@@ -63,6 +70,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [agreed, setAgreed] = useState(false);
   const [plan, setPlan] = useState<"full" | "deposit">("full");
   const [urgency, setUrgency] = useState<Urgency | null>(URGENCY.some((u) => u.id === initialUrgency) ? (initialUrgency as Urgency) : null);
+  const [promo, setPromo] = useState((initialPromo ?? "").toUpperCase());
+  const [perks, setPerks] = useState<Perks | null>(null);
   const [budget, setBudget] = useState((initialBudget ?? "").replace(/[^\d.]/g, ""));
 
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }) : null), [svc, answers, frequency, date]);
@@ -102,7 +111,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -112,6 +121,16 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   }
 
   const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
+  const listTotal = ai?.final_price ?? est?.point ?? 0;
+  // Plus member saving + promo / gift card, from the server (same rules as at booking)
+  async function checkPerks(code = promo) {
+    if (!svc || siteVisit || !listTotal) return setPerks(null);
+    const res = await fetch("/api/promo/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug: svc.slug, price: listTotal, rush: isRush(date), email: form.contact_email || undefined, code: code || undefined }) });
+    setPerks(res.ok ? await res.json() : null);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (step === 3 || perks) checkPerks(); }, [step, listTotal, date]);
+  const total = perks ? perks.price : listTotal;
   const contactOk = form.contact_name.length > 1 && /\S+@\S+\.\S+/.test(form.contact_email) && form.contact_phone.length >= 7;
   const eventDateOk = !svc?.leadDays || (date >= addDays(svc.leadDays) && date <= addDays(365));
   const placeOk = eventDateOk && form.address.length > 2 && form.city.length > 1 && /^\d{5}$/.test(form.zip) && form.state.length === 2 && (Boolean(svc?.leadDays) || urgency !== null);
@@ -252,7 +271,6 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             </div>
             <p className="text-xs text-ink-soft">We text updates about this job only. We never sell your info to other contractors.</p>
             {svc && !siteVisit && est && (() => {
-              const total = ai?.final_price ?? est.point;
               const dp = depositPolicy(svc.slug, total, date);
               if (!dp.allowed) return null;
               const fmt = (d: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "before the job");
@@ -273,7 +291,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>Back</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? "Checking your photos…" : busy ? (siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? "Book free site visit" : `Pay ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).allowed ? depositPolicy(svc!.slug, ai?.final_price ?? est.point, date).amount : ai?.final_price ?? est.point) : ""}${plan === "deposit" ? " deposit" : ""} & book`}</button>
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? "Checking your photos…" : busy ? (siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? "Book free site visit" : `Pay ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, total, date).allowed ? depositPolicy(svc!.slug, total, date).amount : perks ? perks.dueNow : total) : ""}${plan === "deposit" ? " deposit" : ""} & book`}</button>
             </div>
           </div>
         )}
@@ -293,6 +311,21 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               </div>
             );
           })()}
+          {!siteVisit && svc.slug !== "event-package" && (
+            <div className="mt-3">
+              <label className="label">Promo, gift card or referral code</label>
+              <div className="flex gap-2"><input className="input uppercase" value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} placeholder="CODE" /><button type="button" className="btn-ghost" onClick={() => checkPerks()}>Apply</button></div>
+              {perks?.promoMessage && <p className={`mt-1 text-xs ${perks.promoOk ? "text-brand-dark" : "text-rose-700"}`}>{perks.promoOk ? "✓ " : ""}{perks.promoMessage}{perks.promoOk && perks.promoAmount === 0 && !perks.isGift ? " (already at our lowest price for this job)" : ""}</p>}
+            </div>
+          )}
+          {perks && (perks.memberBenefit > 0 || perks.promoAmount > 0 || perks.gift > 0) && (
+            <div className="mt-3 space-y-1 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">
+              {perks.memberBenefit > 0 && <div className="flex justify-between"><span>⭐ Plus member saving</span><span>−{money(perks.memberBenefit)}</span></div>}
+              {perks.promoAmount > 0 && <div className="flex justify-between"><span>Code {perks.promoCode}</span><span>−{money(perks.promoAmount)}</span></div>}
+              {perks.gift > 0 && <div className="flex justify-between"><span>Gift card</span><span>−{money(perks.gift)}</span></div>}
+              <div className="flex justify-between border-t border-brand/20 pt-1 font-semibold"><span>Due today</span><span>{money(perks.dueNow)}</span></div>
+            </div>
+          )}
           {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ Checking your photos and notes so the price fits the job…</p>}
           {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
           {ai?.changes && ai.changes.length > 0 && (

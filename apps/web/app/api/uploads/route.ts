@@ -2,12 +2,16 @@
  * FILE    : apps/web/app/api/uploads/route.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * PURPOSE : Photo upload for bookings (guest-safe: rate-limited by size/count, private bucket).
  */
 import { uploadPhoto } from "@/lib/photos";
 import { getViewer } from "@/lib/auth";
+import { rateLimit } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, "upload");
+  if (limited) return limited;
   const form = await req.formData().catch(() => null);
   const files = (form?.getAll("photos") ?? []).filter((f): f is File => f instanceof File).slice(0, 8);
   if (!files.length) return Response.json({ error: "No photos" }, { status: 400 });

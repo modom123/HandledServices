@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: returns a Stripe Checkout URL for the
  *           final price; nothing is dispatched until payment clears (site visits excepted).
+ * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
  */
 import { after } from "next/server";
@@ -12,10 +13,13 @@ import { getViewer } from "@/lib/auth";
 import { paymentCheckoutUrl } from "@/lib/stripe";
 import { getService, photoProblem } from "@handled/core";
 import { GET as availability } from "../availability/route";
+import { rateLimit } from "@/lib/ratelimit";
 
 export const maxDuration = 60; // AI price check runs before payment when notes/photos are present
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, "booking");
+  if (limited) return limited;
   const parsed = BookingSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Please check the form", issues: parsed.error.issues }, { status: 400 });
   const svcDef = getService(parsed.data.service_slug)!;

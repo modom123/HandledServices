@@ -3,11 +3,13 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0302 UTC — monthly budget and how soon they want to start.
+ * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * PURPOSE : Commercial account inquiry (offices, property managers, retail, HOAs).
  */
 import { z } from "zod";
 import { adminClient } from "@/lib/supabase/server";
 import { opsEmail, sendEmail } from "@/lib/notify";
+import { rateLimit } from "@/lib/ratelimit";
 
 const Body = z.object({
   company: z.string().min(2), contact_name: z.string().min(2), email: z.string().email(), phone: z.string().optional(),
@@ -16,6 +18,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, "form");
+  if (limited) return limited;
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Please check the form" }, { status: 400 });
   const { error } = await adminClient().from("business_accounts").insert(parsed.data);

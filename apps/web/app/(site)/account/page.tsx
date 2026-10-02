@@ -2,11 +2,15 @@
  * FILE    : apps/web/app/(site)/account/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0316 UTC — Handled Plus, refer-a-friend code, delete my account.
  * PURPOSE : Customer portal — all jobs, recurring plans, quick rebook.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getService, money, moneyRange, type Job } from "@handled/core";
+import { HANDLED_PLUS, REFERRAL, getService, money, moneyRange, type Job } from "@handled/core";
+import { activeMembership, ensureReferralCode } from "@/lib/growth";
+import { siteUrl } from "@/lib/notify";
+import { CopyLink, DeleteAccount, PlusButton } from "@/components/AccountExtras";
 import { getViewer } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
@@ -48,6 +52,29 @@ export default async function Account() {
           );
         })}
       </div>
+      <AccountExtras userId={v.userId} email={v.email} />
+    </div>
+  );
+}
+
+async function AccountExtras({ userId, email }: { userId: string; email: string }) {
+  const [member, code] = await Promise.all([activeMembership(email, userId).catch(() => null), ensureReferralCode(userId).catch(() => null)]);
+  const link = code ? `${siteUrl()}/book?promo=${code}` : null;
+  return (
+    <div className="mt-12 grid gap-4 md:grid-cols-2">
+      <div className={`card ${member ? "border-brand bg-brand-tint" : ""}`}>
+        <div className="font-semibold">⭐ {HANDLED_PLUS.name}{member ? " — you're a member" : ` — ${money(HANDLED_PLUS.monthly)}/month`}</div>
+        <ul className="mt-2 space-y-1 text-sm text-ink-soft">{HANDLED_PLUS.perks.map((p) => <li key={p}>✓ {p}</li>)}</ul>
+        <div className="mt-3"><PlusButton member={Boolean(member)} /></div>
+      </div>
+      {link && (
+        <div className="card">
+          <div className="font-semibold">🎁 Give {money(REFERRAL.friendOff)}, get {money(REFERRAL.reward)}</div>
+          <p className="mt-1 text-sm text-ink-soft">Friends get {money(REFERRAL.friendOff)} off their first job with your code <b className="font-mono text-ink">{code}</b>. When their job is done, you get a {money(REFERRAL.reward)} credit.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><CopyLink url={link} /><span className="break-all text-xs text-ink-soft">{link}</span></div>
+        </div>
+      )}
+      <div className="md:col-span-2"><DeleteAccount /></div>
     </div>
   );
 }

@@ -2,6 +2,8 @@
  * FILE    : apps/web/lib/jobs.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0316 UTC — booking applies Plus member saving, promo codes and gift cards (our share pays
+ *           for discounts; the pro's payout stays on the list price); attribution; referral reward on completion.
  * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
  *           needed-by date) and their budget.
  * UPDATED : 2026-10-02_0233 UTC — recurring visits and redos are offered to the same pro first (24h / 12h),
@@ -18,7 +20,7 @@ import { z } from "zod";
 import {
   BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
-  neededBy, urgencyPriority,
+  neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
@@ -57,6 +59,10 @@ export const BookingSchema = z.object({
   /** How soon they need it and what they want to spend (tracked; budget never changes the price). */
   urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).nullable().optional(),
   customer_budget: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
+  /** Promo code, gift card or referral code typed at checkout. */
+  promo_code: z.string().max(40).nullable().optional(),
+  /** First-touch marketing source (utm_*, referrer, landing page) for "where bookings come from". */
+  attribution: z.record(z.string(), z.string().max(300)).nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -75,7 +81,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
@@ -99,7 +105,13 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     instructions = `TWO VISITS. Drop off the ${input.answers.size ?? 15}-yard container on ${fmt(new Date(`${input.scheduled_date}T12:00:00`))} (${input.time_window}); pick it up on ${fmt(pickup)}. Use driveway boards. Upload the landfill weigh ticket as a receipt — any weight over the allowance is billed to the customer at cost.`;
   }
-  const price = siteVisit ? null : ai?.final_price ?? est.point;
+  const listPrice = siteVisit ? null : ai?.final_price ?? est.point;
+  const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
+  // Plus member saving and promo codes come out of our share (the pro's payout is set on the list price)
+  const rushFee = rush && listPrice ? Math.round(listPrice - listPrice / (1 + RUSH_SURCHARGE)) : 0;
+  const { priceBenefits, redeemGift, recordPromoUse, flagPromoAbuse } = await import("./growth");
+  const ben = listPrice ? await priceBenefits({ slug: svc.slug, listPrice, payout: payout!, rushFee, email: input.contact_email, profileId: customerId, code: promo_code }) : null;
+  const price = ben ? ben.price : null;
   const dep = price ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
   const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
   const { data, error } = await db()
@@ -114,7 +126,10 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       estimate_low: ai?.low ?? est.low,
       estimate_high: ai?.high ?? est.high,
       price_final: price,
-      contractor_payout: price ? splitJob(price, svc.slug).payout : null,
+      contractor_payout: payout,
+      discount: ben?.promoAmount ?? 0,
+      member_benefit: ben?.memberBenefit ?? 0,
+      promo_code: ben?.promoCode && !ben.isGift && ben.promoAmount > 0 ? ben.promoCode : null,
       ai_quote: ai,
       priority: urgencyPriority(input.urgency, rush),
       urgency: input.urgency ?? null,
@@ -130,7 +145,13 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return { job: data as Job, estimate: est, ai };
+  let job = data as Job;
+  if (ben?.promoCode && !ben.isGift && ben.promoAmount > 0) {
+    await recordPromoUse(ben.promoCode, job.id, job.contact_email, ben.promoAmount);
+    await flagPromoAbuse(ben.promoCode, job.address, job.id);
+  }
+  if (ben?.isGift && ben.promoCode && (await redeemGift(job, ben.promoCode))) job = (await getJob(job.id)) ?? job;
+  return { job, estimate: est, ai };
 }
 
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
@@ -476,7 +497,17 @@ export async function finalizeJob(jobId: string, summary?: string) {
     email: { to: job.contact_email, subject: `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
       text: `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.` },
   });
+  if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
+}
+
+/** Recurring visit price: the list price again, minus the Plus saving if they're still a member. */
+async function nextVisitPrice(job: Job) {
+  const list = Number(job.price_final ?? job.estimate_low) + Number(job.discount ?? 0) + Number(job.member_benefit ?? 0);
+  const payout = splitJob(list, job.service_slug).payout;
+  const { activeMembership } = await import("./growth");
+  const memberBenefit = (await activeMembership(job.contact_email, job.customer_id)) ? capDiscount(list, payout, memberSaving(list, 0)) : 0;
+  return { price_final: Math.round((list - memberBenefit) * 100) / 100, member_benefit: memberBenefit, contractor_payout: payout };
 }
 
 const FREQ_DAYS = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 91 } as const;
@@ -501,8 +532,10 @@ async function scheduleNextVisit(job: Job) {
     ...rest, plan_id: planId, scheduled_date: next, status: "requested", completion_photos: [], ai_qa: null,
     started_at: null, completed_at: null, paid_at: null, amount_paid: 0, amount_refunded: 0, stripe_payment_intent: null,
     parent_job_id: null, remedy: null,
+    // a promo applies to the first visit only; Plus saving is re-checked every visit
+    ...(await nextVisitPrice(job)), discount: 0, promo_code: null, tip_total: 0, en_route_at: null, disputed_at: null, attribution: null,
     // not pre-assigned: the visit is offered to the same pro first when it's paid (see dispatchJob)
-    contractor_id: null, contractor_payout: splitJob(Number(job.price_final ?? job.estimate_low), job.service_slug).payout,
+    contractor_id: null,
   }).select("*").single();
   if (!nextJob) return;
   // Paid upfront: charge the saved card now; the visit is dispatched only once paid.

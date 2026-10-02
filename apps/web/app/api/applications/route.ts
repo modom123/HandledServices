@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0006 UTC — automated: stores where the applicant came from (source,
  *           referral, UTM), de-duplicates by email, confirms to the applicant right away, then
  *           AI-screens and auto-invites strong applicants (lib/recruiting.ts).
+ * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * PURPOSE : Subcontractor application → stored, confirmed, screened, invited or queued for staff.
  */
 import { after } from "next/server";
@@ -13,6 +14,7 @@ import { BRAND, COVERAGE_KINDS } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { sendEmail, siteUrl } from "@/lib/notify";
 import { logRecruiting, onApplication, signInUrl } from "@/lib/recruiting";
+import { rateLimit } from "@/lib/ratelimit";
 
 const Body = z.object({
   business_name: z.string().min(2), contact_name: z.string().min(2), email: z.string().email(), phone: z.string().min(7),
@@ -25,6 +27,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, "form");
+  if (limited) return limited;
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Please check the form" }, { status: 400 });
   const { ref, ...b } = parsed.data;

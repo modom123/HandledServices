@@ -27,7 +27,7 @@ export function getStripe(): Stripe | null {
 
 const cents = (v: number) => Math.round(v * 100);
 
-export type ChargeKind = "upfront" | "deposit" | "balance" | "change_order" | "custom" | "materials";
+export type ChargeKind = "upfront" | "deposit" | "balance" | "change_order" | "custom" | "materials" | "tip" | "gift_card";
 
 /**
  * One Stripe Checkout for any amount — no products to set up in Stripe; the line item is

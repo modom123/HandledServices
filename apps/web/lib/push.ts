@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/push.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
+ * UPDATED : 2026-10-02_0316 UTC — plus a text message (sms) when given, unless the person opted out.
  * PURPOSE : One way to reach a person: push to every phone they've signed in on (Expo push
  *           service → APNs/FCM), plus email, plus a row in their in-app inbox. Dead device
  *           tokens are pruned automatically. Works with no phones registered (email only).
@@ -9,6 +10,7 @@
 import "server-only";
 import { adminClient } from "./supabase/server";
 import { sendEmail } from "./notify";
+import { sendSms } from "./sms";
 
 export interface Notice {
   title: string;
@@ -18,6 +20,8 @@ export interface Notice {
   /** Android channel: "offers" rings loud for new work; "updates" for everything else. */
   channel?: "offers" | "updates";
   email?: { to: string; subject: string; text: string } | null;
+  /** Also text this number (customers: job updates; pros: offers and reminders). */
+  sms?: { to: string | null | undefined; body: string } | null;
 }
 
 export async function notify(profileId: string | null | undefined, n: Notice) {
@@ -44,6 +48,10 @@ export async function notify(profileId: string | null | undefined, n: Notice) {
         console.error("[push]", e);
       }
     }
+  }
+  if (n.sms?.to) {
+    const { data: me } = profileId ? await db.from("profiles").select("sms_opt_out").eq("id", profileId).maybeSingle() : { data: null };
+    if (!me?.sms_opt_out && (await sendSms(n.sms.to, n.sms.body))) channels.push("sms");
   }
   if (n.email?.to) {
     await sendEmail(n.email.to, n.email.subject, n.email.text);

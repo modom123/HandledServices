@@ -92,6 +92,15 @@ export interface Job {
   urgency?: "asap" | "this_week" | "two_weeks" | "month" | "flexible" | null;
   needed_by?: string | null;
   customer_budget?: number | null;
+  // money features (growth.ts): promo / member savings come off our share; tips go 100% to the pro
+  promo_code?: string | null;
+  discount?: number | null;
+  member_benefit?: number | null;
+  tip_total?: number | null;
+  attribution?: Record<string, string> | null;
+  /** Pro tapped "On my way". */
+  en_route_at?: string | null;
+  disputed_at?: string | null;
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;
   instructions?: string | null;

@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_2334 UTC — returns a signed quote token: booking with it charges exactly
  *           the price shown (corrected answers included), with no second AI call.
+ * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * PURPOSE : Instant quote. Deterministic estimate always; AI price check when there are notes or photos.
  */
 import { z } from "zod";
@@ -11,6 +12,7 @@ import { getService, isRush, photoProblem, sizeNeedsSiteVisit } from "@handled/c
 import { quoteToken } from "@/lib/invoice";
 import { aiQuote } from "@/lib/ai/quote";
 import { signedUrls } from "@/lib/photos";
+import { rateLimit } from "@/lib/ratelimit";
 
 const Body = z.object({
   service_slug: z.string(),
@@ -23,6 +25,8 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = await rateLimit(req, "ai_quote");
+  if (limited) return limited;
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success || !getService(parsed.data.service_slug)) return Response.json({ error: "Invalid request" }, { status: 400 });
   const b = parsed.data;
