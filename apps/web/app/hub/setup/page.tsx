@@ -2,15 +2,19 @@
  * FILE    : apps/web/app/hub/setup/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
+ * UPDATED : 2026-10-02_1346 UTC — business & legal checklist (insurance, legal review, HIPAA, licensing).
  * PURPOSE : Go-live checklist — every integration, migration and account the business needs,
  *           green/amber/red, with the exact fix next to anything not ready.
  */
 import { readiness } from "@/lib/readiness";
 import { Badge } from "@/components/ui";
 import { SyncCatalogButton } from "@/components/HubActions";
+import { LaunchChecklist } from "@/components/LaunchChecklist";
+import { adminClient } from "@/lib/supabase/server";
 
 export default async function Setup() {
   const checks = await readiness();
+  const ticks = process.env.SUPABASE_SERVICE_ROLE_KEY ? ((await adminClient().from("launch_checklist").select("*")).data ?? []) : [];
   const groups = [...new Set(checks.map((c) => c.group))];
   const fails = checks.filter((c) => c.status === "fail").length;
   const warns = checks.filter((c) => c.status === "warn").length;
@@ -34,6 +38,7 @@ export default async function Setup() {
         </div>
       ))}
       <SyncCatalogButton />
+      <LaunchChecklist ticks={ticks} />
     </div>
   );
 }

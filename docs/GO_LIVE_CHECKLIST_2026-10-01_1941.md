@@ -157,3 +157,17 @@ node scripts/smoke-test.mjs https://YOUR-DOMAIN     # every line should say PASS
 - Point an uptime monitor (e.g. UptimeRobot, free) at `https://YOUR-DOMAIN/api/health`
 - Turn on Google Business Profile, then Local Services Ads for junk removal and cleaning
 - Watch **Hub → Dashboard** (AI-driven rate, alerts) and the 8 am daily brief email
+
+
+## Added 2026-10-02_1346 UTC — launch, growth and customer-experience settings
+
+| Setting (Vercel → Environment Variables) | What it turns on |
+|---|---|
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` (or `TWILIO_FROM`) | Text messages to customers and pros (register A2P 10DLC in Twilio first) |
+| `STRIPE_TAX=on` | Sales tax on service charges (after adding tax registrations in Stripe) |
+| `VERCEL_PLAN=pro` | Clears the readiness warning once the team is on Vercel Pro (needed for the 10-minute dispatch cron) |
+| Stripe webhook events | Add `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` |
+| Stripe → Settings → Billing → Customer portal | Turn on, so Handled Plus members can manage or cancel |
+| App build: `EXPO_PUBLIC_API_URL` | Also fills the app's privacy policy and terms links |
+
+Then work through **Hub → Go-live setup → Business & legal** (see docs/BUSINESS_LEGAL_CHECKLIST_2026-10-02_1346.md).

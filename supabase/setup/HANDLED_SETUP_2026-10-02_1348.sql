@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0316.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_1348.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-02_0316 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 18 migrations + production seed.
+-- CREATED : 2026-10-02_1348 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 19 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1312,6 +1312,7 @@ create table if not exists public.promo_codes (
   recipient_email text,
   note text,
   created_by text,
+  payment_id uuid references public.payments(id) on delete set null, -- gift card purchase
   created_at timestamptz not null default now()
 );
 alter table public.promo_codes enable row level security;
@@ -1387,6 +1388,30 @@ alter table public.profiles
   add column if not exists referred_by uuid references public.profiles(id) on delete set null,
   add column if not exists referral_rewarded_at timestamptz,
   add column if not exists deleted_at timestamptz;
+
+-- ─── Account deletion: nothing may block removing a person ──────────────────
+alter table public.messages drop constraint if exists messages_sender_id_fkey;
+alter table public.messages add constraint messages_sender_id_fkey foreign key (sender_id) references public.profiles(id) on delete set null;
+alter table public.business_accounts drop constraint if exists business_accounts_owner_profile_id_fkey;
+alter table public.business_accounts add constraint business_accounts_owner_profile_id_fkey foreign key (owner_profile_id) references public.profiles(id) on delete set null;
+
+
+-- >>> migration 20261002134642_launch_checklist.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002134642_launch_checklist.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-02_1346 UTC
+-- PURPOSE : Business & legal launch checklist ticks (items live in @handled/core
+--           launch-checklist.ts): who ticked it, when, and a note (policy number, attorney…).
+-- ============================================================================
+create table if not exists public.launch_checklist (
+  key text primary key,
+  done_at timestamptz,
+  done_by text,
+  note text,
+  updated_at timestamptz not null default now()
+);
+alter table public.launch_checklist enable row level security;
 
 
 -- >>> seed.sql
