@@ -8,7 +8,7 @@
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";
 
-export type CategoryId = "cleaning" | "outdoor" | "pets" | "removal" | "repair_remodel" | "errands" | "events";
+export type CategoryId = "cleaning" | "outdoor" | "pets" | "removal" | "repair_remodel" | "errands" | "transport" | "events";
 
 /** Lifecycle of a job. Order matters: it's the order the ops board shows columns. */
 export const JOB_STATUSES = [

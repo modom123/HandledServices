@@ -55,6 +55,8 @@ export interface Service {
   trades: string[];
   /** Minimum days' notice (events). */
   leadDays?: number;
+  /** What to put in the notes for this service (shown as the placeholder). */
+  notesHint?: string;
   /** Work that legally needs a licensed tradesperson — dispatch only to pros with a license on file. */
   licensed?: boolean;
   price: (a: Answers) => PriceResult;
@@ -67,6 +69,7 @@ export const CATEGORIES: { id: CategoryId; name: string; icon: string; blurb: st
   { id: "removal", name: "Haul Away", icon: "🚛", blurb: "Junk, furniture and heavy items gone today — or a container dropped off for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Assistant", icon: "🛍️", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
+  { id: "transport", name: "Transportation", icon: "🚘", blurb: "Private drivers, black cars, airport rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
 
@@ -1362,6 +1365,210 @@ export const SERVICES: Service[] = [
     },
   },
 
+  // ───────────────────────────── TRANSPORTATION ─────────────────────────────
+  // Booked with licensed operator companies only (state/federal authority, passenger-carrier
+  // insurance). Date + exact pickup time like events; pickup = the booking address.
+  {
+    slug: "private-driver",
+    name: "Private Driver / Black Car",
+    category: "transport",
+    icon: "🚘",
+    tagline: "A professional driver by the hour — meetings, nights out, a day of errands.",
+    description: "A licensed, insured chauffeur and late-model sedan, SUV or Sprinter van for as many hours as you need. Waiting time included; make as many stops as you like within your hours.",
+    includes: ["Licensed operator & vetted chauffeur", "Late-model vehicle, cleaned for you", "Waiting time included", "Live driver contact on the day"],
+    questions: [
+      { id: "vehicle", label: "Vehicle", type: "select", default: "sedan", options: [{ value: "sedan", label: "Black sedan (up to 3 passengers)" }, { value: "suv", label: "Black SUV (up to 6)" }, { value: "sprinter", label: "Executive Sprinter (up to 12)" }] },
+      { id: "hours", label: "Hours", type: "number", min: 2, max: 24, default: 3, unit: "hrs", help: "2-hour minimum. A full day is about 10 hours." },
+      { id: "passengers", label: "Passengers", type: "number", min: 1, max: 12, default: 2 },
+      { id: "meet_greet", label: "Meet & greet with a sign (airport, hotel, office lobby)", type: "toggle", default: false },
+    ],
+    minimum: 170,
+    spread: [1, 1.1],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once", "weekly"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 1,
+    notesHint: "Pickup time, drop-off address, stops in order, flight number if any, anything the driver should know",
+    price: (a) => {
+      const veh = s(a, "vehicle", "sedan");
+      const rate = { sedan: 85, suv: 110, sprinter: 150 }[veh] ?? 85;
+      const h = Math.max(2, n(a, "hours", 3));
+      const items: LineItem[] = [{ label: `${({ sedan: "Black sedan", suv: "Black SUV", sprinter: "Executive Sprinter" } as Record<string, string>)[veh] ?? "Vehicle"} · ${h} hours × $${rate}`, amount: h * rate }];
+      if (b(a, "meet_greet")) items.push({ label: "Meet & greet", amount: 25 });
+      const base = sum(items);
+      return { items, base, hours: h };
+    },
+  },
+  {
+    slug: "airport-transfer",
+    name: "Airport Transfer",
+    category: "transport",
+    icon: "✈️",
+    tagline: "Flat-rate rides to and from the airport — flight tracked.",
+    description: "Door-to-terminal rides in a sedan, SUV or Sprinter. Your driver tracks your flight, waits for delays and meets you at baggage claim on request.",
+    includes: ["Flat rate, tolls and parking included", "Flight tracking", "Free waiting for flight delays", "Licensed operator & vetted chauffeur"],
+    questions: [
+      { id: "vehicle", label: "Vehicle", type: "select", default: "sedan", options: [{ value: "sedan", label: "Sedan (up to 3 passengers, 3 bags)" }, { value: "suv", label: "SUV (up to 6, 6 bags)" }, { value: "sprinter", label: "Sprinter (up to 12, 12 bags)" }] },
+      { id: "trip", label: "Trip", type: "select", default: "one_way", options: [{ value: "one_way", label: "One way" }, { value: "round_trip", label: "Round trip" }] },
+      { id: "passengers", label: "Passengers", type: "number", min: 1, max: 12, default: 2 },
+      { id: "meet_greet", label: "Meet at baggage claim with a sign", type: "toggle", default: false },
+    ],
+    minimum: 95,
+    spread: [1, 1.1],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 1,
+    notesHint: "Airport, airline and flight number(s), pickup time, return date and time for round trips, number of bags",
+    price: (a) => {
+      const veh = s(a, "vehicle", "sedan");
+      const each = { sedan: 95, suv: 130, sprinter: 195 }[veh] ?? 95;
+      const legs = s(a, "trip", "one_way") === "round_trip" ? 2 : 1;
+      const items: LineItem[] = [{ label: `${legs === 2 ? "Round trip" : "One way"} × $${each}`, amount: legs * each }];
+      if (b(a, "meet_greet")) items.push({ label: `Meet & greet${legs === 2 ? " (arrival)" : ""}`, amount: 25 });
+      const base = sum(items);
+      return { items, base, hours: legs * 1.5 };
+    },
+  },
+  {
+    slug: "limousine",
+    name: "Limousine",
+    category: "transport",
+    icon: "🥂",
+    tagline: "Stretch and SUV limos for weddings, proms and big nights.",
+    description: "A chauffeured stretch or SUV limousine by the hour, with a red-carpet option for weddings and proms. Licensed operators with passenger-carrier insurance.",
+    includes: ["Licensed operator & vetted chauffeur", "Stretch or SUV limousine", "Ice, water & sound system", "Red carpet for weddings & proms (option)"],
+    questions: [
+      { id: "vehicle", label: "Limousine", type: "select", default: "stretch", options: [{ value: "stretch", label: "Stretch limo (up to 10)" }, { value: "suv_limo", label: "SUV limo (up to 18)" }] },
+      { id: "hours", label: "Hours", type: "number", min: 3, max: 12, default: 4, unit: "hrs", help: "3-hour minimum." },
+      { id: "passengers", label: "Passengers", type: "number", min: 1, max: 18, default: 8 },
+      { id: "occasion", label: "Occasion", type: "select", default: "night_out", options: [{ value: "wedding", label: "Wedding" }, { value: "prom", label: "Prom / homecoming" }, { value: "night_out", label: "Night out / birthday" }, { value: "corporate", label: "Corporate" }] },
+      { id: "red_carpet", label: "Red carpet & decorations", type: "toggle", default: false },
+    ],
+    minimum: 405,
+    spread: [1, 1.1],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 2,
+    notesHint: "Pickup time and address, every stop in order, drop-off, and whether anyone aboard is under 21",
+    price: (a) => {
+      const veh = s(a, "vehicle", "stretch");
+      const rate = veh === "suv_limo" ? 195 : 135;
+      const h = Math.max(3, n(a, "hours", 4));
+      const items: LineItem[] = [{ label: `${veh === "suv_limo" ? "SUV limo" : "Stretch limo"} · ${h} hours × $${rate}`, amount: h * rate }];
+      if (b(a, "red_carpet")) items.push({ label: "Red carpet & decorations", amount: 150 });
+      if (s(a, "occasion", "night_out") === "prom") items.push({ label: "Prom night (peak demand)", amount: Math.round(h * rate * 0.1) });
+      const base = sum(items);
+      return { items, base, hours: h };
+    },
+  },
+  {
+    slug: "party-bus",
+    name: "Party Bus",
+    category: "transport",
+    icon: "🎉",
+    tagline: "Lights, sound and room to move — for 20 to 40 guests.",
+    description: "A chauffeured party bus with LED lighting, sound system and wrap-around seating for bachelor and bachelorette parties, birthdays, game days and bar crawls.",
+    includes: ["Licensed operator & CDL driver", "LED lights & sound system", "Wrap-around seating", "Ice & coolers"],
+    questions: [
+      { id: "size", label: "Bus size", type: "select", default: "20", options: [{ value: "20", label: "Up to 20 guests" }, { value: "30", label: "Up to 30 guests" }, { value: "40", label: "Up to 40 guests" }] },
+      { id: "hours", label: "Hours", type: "number", min: 4, max: 12, default: 4, unit: "hrs", help: "4-hour minimum." },
+      { id: "weekend_night", label: "Friday or Saturday night", type: "toggle", default: true },
+    ],
+    minimum: 900,
+    spread: [1, 1.1],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 3,
+    notesHint: "Pickup time and address, stops in order, drop-off, the occasion, and whether anyone aboard is under 21",
+    price: (a) => {
+      const size = s(a, "size", "20");
+      const rate = { "20": 225, "30": 275, "40": 325 }[size] ?? 225;
+      const h = Math.max(4, n(a, "hours", 4));
+      const items: LineItem[] = [{ label: `Party bus up to ${size} · ${h} hours × $${rate}`, amount: h * rate }];
+      if (b(a, "weekend_night")) items.push({ label: "Friday / Saturday night", amount: Math.round(h * rate * 0.15) });
+      const base = sum(items);
+      return { items, base, hours: h };
+    },
+  },
+  {
+    slug: "charter-bus",
+    name: "Tour & Charter Bus",
+    category: "transport",
+    icon: "🚌",
+    tagline: "Mini-coaches and motorcoaches by the day — tours, teams, groups.",
+    description: "Full-day charters for tours, school and church groups, sports teams, weddings and company outings. Professional CDL drivers, restroom-equipped motorcoaches, multi-day trips.",
+    includes: ["Licensed operator & CDL driver", "Up to 10 hours of service per day", "Restroom on motorcoaches", "Luggage bays"],
+    questions: [
+      { id: "vehicle", label: "Coach", type: "select", default: "motorcoach", options: [{ value: "minicoach", label: "Mini-coach (up to 30)" }, { value: "motorcoach", label: "Motorcoach (up to 56, restroom)" }] },
+      { id: "days", label: "Days", type: "number", min: 1, max: 14, default: 1 },
+      { id: "passengers", label: "Passengers", type: "number", min: 1, max: 56, default: 40 },
+      { id: "overnight", label: "Overnight trip (driver lodging)", type: "toggle", default: false },
+      { id: "out_of_state", label: "Leaves Michigan", type: "toggle", default: false },
+    ],
+    minimum: 1100,
+    spread: [1, 1.15],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 7,
+    notesHint: "Itinerary: pickup time and place, each stop, overnight hotels, return time, total miles if known",
+    price: (a) => {
+      const veh = s(a, "vehicle", "motorcoach");
+      const day = veh === "minicoach" ? 1100 : 1800;
+      const d = Math.max(1, n(a, "days", 1));
+      const items: LineItem[] = [{ label: `${veh === "minicoach" ? "Mini-coach" : "Motorcoach"} · ${d} day${d > 1 ? "s" : ""} × $${day}`, amount: d * day }];
+      if (b(a, "overnight") && d > 1) items.push({ label: `Driver lodging · ${d - 1} night${d > 2 ? "s" : ""} × $200`, amount: (d - 1) * 200 });
+      const base = sum(items);
+      return { items, base, hours: d * 10 };
+    },
+  },
+  {
+    slug: "event-shuttle",
+    name: "Corporate & Event Shuttle",
+    category: "transport",
+    icon: "🚐",
+    tagline: "Loops between hotels, offices, parking and your venue.",
+    description: "Scheduled shuttle loops for corporate events, conferences, weddings and festivals: Sprinters, mini-coaches or motorcoaches running between hotels, parking and the venue, with an on-site coordinator for larger fleets.",
+    includes: ["Licensed operator & vetted drivers", "Loop schedule planned for you", "Signage at each stop", "On-site coordinator for 3+ vehicles"],
+    questions: [
+      { id: "vehicle", label: "Vehicle", type: "select", default: "sprinter", options: [{ value: "sprinter", label: "Sprinter (12 per vehicle)" }, { value: "minicoach", label: "Mini-coach (30)" }, { value: "motorcoach", label: "Motorcoach (56)" }] },
+      { id: "vehicles", label: "Number of vehicles", type: "number", min: 1, max: 10, default: 1 },
+      { id: "hours", label: "Hours of service", type: "number", min: 3, max: 14, default: 4, unit: "hrs", help: "3-hour minimum per vehicle." },
+    ],
+    minimum: 450,
+    spread: [1, 1.1],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once", "weekly"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 7,
+    notesHint: "Event, stops (hotels, parking, venue), first and last run times, expected riders",
+    price: (a) => {
+      const veh = s(a, "vehicle", "sprinter");
+      const rate = { sprinter: 150, minicoach: 210, motorcoach: 260 }[veh] ?? 150;
+      const v = Math.max(1, n(a, "vehicles", 1));
+      const h = Math.max(3, n(a, "hours", 4));
+      const items: LineItem[] = [{ label: `${v} × ${veh} · ${h} hours × $${rate}`, amount: v * h * rate }];
+      if (v >= 3) items.push({ label: "On-site shuttle coordinator", amount: h * 45 });
+      const base = sum(items);
+      return { items, base, hours: h };
+    },
+  },
+
   // ───────────────────────────── PARTIES & EVENTS ─────────────────────────────
   {
     slug: "event-package",
@@ -1694,6 +1901,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "electrical", label: "Electrical (licensed)" },
   { id: "hvac", label: "HVAC (licensed)" },
   { id: "low_voltage", label: "Cameras & low-voltage" },
+  { id: "transportation", label: "Transportation operator (licensed)" },
   { id: "event_planner", label: "Event planning & coordination" },
   { id: "catering", label: "Catering (food-service license)" },
   { id: "food_truck", label: "Food truck (food-service license)" },

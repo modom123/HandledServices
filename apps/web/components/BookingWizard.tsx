@@ -23,6 +23,11 @@ const START_TIMES = Array.from({ length: 30 }, (_, i) => {
   const h = Math.floor(mins / 60), m = mins % 60;
   return { v: `${String(h).padStart(2, "0")}:${m ? "30" : "00"}`, l: `${((h + 11) % 12) + 1}:${m ? "30" : "00"} ${h < 12 ? "am" : "pm"}` };
 });
+/** Rides run around the clock (early airport runs, late pickups). */
+const PICKUP_TIMES = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2), m = i % 2 ? "30" : "00";
+  return { v: `${String(h).padStart(2, "0")}:${m}`, l: `${((h + 11) % 12) + 1}:${m} ${h < 12 ? "am" : "pm"}` };
+});
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
@@ -184,7 +189,7 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
             )}
             <div>
               <label className="label">Anything we should know?</label>
-              <textarea className="input min-h-24" placeholder="Gate code, pets, parking, what's in the garage, the tree is leaning toward the house…" value={notes} onChange={(e) => { setNotes(e.target.value); resetAi(); }} />
+              <textarea className="input min-h-24" placeholder={svc?.notesHint ?? "Gate code, pets, parking, what's in the garage, the tree is leaning toward the house…"} value={notes} onChange={(e) => { setNotes(e.target.value); resetAi(); }} />
             </div>
             <div>
               <label className="label">
@@ -207,13 +212,13 @@ export function BookingWizard({ initialService, prefill = {} }: { initialService
             <div className="max-w-[10rem]"><label className="label">Service ZIP code</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
             {svc?.leadDays ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                <div><label className="label">Event date</label>
+                <div><label className="label">{svc.category === "transport" ? "Pickup date" : "Event date"}</label>
                   <input type="date" className="input" min={addDays(svc.leadDays)} max={addDays(365)} value={date < addDays(svc.leadDays) ? "" : date}
                     onChange={(e) => { setDate(e.target.value); setWin("flexible"); }} />
                   <p className="mt-1 text-xs text-ink-soft">Book at least {svc.leadDays} days ahead — up to a year out.</p></div>
-                <div><label className="label">Start time</label>
+                <div><label className="label">{svc.category === "transport" ? "Pickup time" : "Start time"}</label>
                   <select className="input" value={String(answers.start_time ?? "18:00")} onChange={(e) => setAnswers((cur) => ({ ...cur, start_time: e.target.value }))}>
-                    {START_TIMES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+                    {(svc.category === "transport" ? PICKUP_TIMES : START_TIMES).map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
                   </select></div>
               </div>
             ) : (

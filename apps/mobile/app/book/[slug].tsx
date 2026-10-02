@@ -125,7 +125,7 @@ export default function Book() {
         <View style={{ marginTop: 14 }}><Text style={s.label}>How often</Text><View style={s.row}>{svc.frequencies.map((x) => <Chip key={x} label={x} on={frequency === x} onPress={() => setFrequency(x)} />)}</View></View>
       )}
       <Text style={s.h2}>Details</Text>
-      <Field label="Notes for the pro" value={notes} onChangeText={setNotes} multiline placeholder="Gate code, pets, what needs hauling…" />
+      <Field label="Notes for the pro" value={notes} onChangeText={setNotes} multiline placeholder={svc.notesHint ?? "Gate code, pets, what needs hauling…"} />
       <Text style={s.label}>{rule.need === "required" ? `Photos — required (at least ${rule.min})` : rule.need === "recommended" ? "Photos — recommended" : "Photos (optional)"}</Text>
       {rule.tips.length ? <Text style={s.p}>{rule.tips.map((t) => `📷 ${t}`).join("   ")}</Text> : null}
       <Button title={`📷 Add photos (${photos.length})`} kind="ghost" onPress={addPhotos} style={{ marginTop: 6 }} />
@@ -135,7 +135,7 @@ export default function Book() {
       {svc.leadDays ? (
         <>
           <Field label={`Event date (YYYY-MM-DD) — at least ${svc.leadDays} days out`} value={date} onChangeText={(t) => { setDate(t); setWin("flexible"); }} placeholder="2026-12-12" />
-          <Field label="Start time (e.g. 6:00 pm)" value={String(answers.start_time ?? "")} onChangeText={(t) => setAnswers((cur) => ({ ...cur, start_time: t }))} />
+          <Field label={svc.category === "transport" ? "Pickup time (e.g. 5:30 am)" : "Start time (e.g. 6:00 pm)"} value={String(answers.start_time ?? "")} onChangeText={(t) => setAnswers((cur) => ({ ...cur, start_time: t }))} />
         </>
       ) : (
         <Calendar service={svc.slug} zip={f.zip} date={date} win={win} onChange={(d, w) => { setDate(d); setWin(w); }} />

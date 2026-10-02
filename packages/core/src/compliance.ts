@@ -12,7 +12,7 @@ import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor,
 
 export const AGREEMENT_VERSION = "2026-10-v2"; // v2: Pro Program benefits
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v3"; // v3: licensed painting, lead-safe practices
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v4"; // v4: transportation by licensed carriers
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 
@@ -84,7 +84,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     });
   }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, remodeling and food service", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, remodeling, food service and passenger transportation", expiring: valid(c.license_expires) && soon(c.license_expires) });
   steps.push(
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
     { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },

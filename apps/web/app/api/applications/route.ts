@@ -9,7 +9,7 @@
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { BRAND } from "@handled/core";
+import { BRAND, COVERAGE_KINDS } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { sendEmail, siteUrl } from "@/lib/notify";
 import { logRecruiting, onApplication, signInUrl } from "@/lib/recruiting";
@@ -19,7 +19,7 @@ const Body = z.object({
   trades: z.array(z.string()).min(1), zips: z.string().max(400).optional(), years_experience: z.coerce.number().int().min(0).max(80).optional(),
   crew_size: z.coerce.number().int().min(1).max(200).optional(), insured: z.boolean().default(false), license_number: z.string().max(80).optional(),
   has_vehicle: z.boolean().default(true), message: z.string().max(2000).optional(),
-  specialties: z.array(z.string().max(40)).max(40).default([]), coverages_held: z.array(z.enum(["auto", "workers_comp", "bond", "liquor"])).default([]),
+  specialties: z.array(z.string().max(40)).max(40).default([]), coverages_held: z.array(z.enum(COVERAGE_KINDS)).default([]),
   equipment: z.string().max(500).optional(), references_text: z.string().max(1000).optional(), work_links: z.string().max(1000).optional(),
   source: z.string().max(60).optional(), ref: z.string().max(60).optional(), utm: z.record(z.string(), z.string().max(120)).optional(),
 });

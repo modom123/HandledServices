@@ -18,7 +18,7 @@
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, requiredCoverages, specialtiesFor } from "@handled/core";
+import { AGREEMENT_VERSION, COVERAGES, COVERAGE_KINDS, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { uploadDoc } from "@/lib/photos";
@@ -39,7 +39,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
   z.object({ step: z.literal("specialties") }),
   z.object({ step: z.literal("area"), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), time_off: z.string().max(2000).optional() }),
-  z.object({ step: z.literal("coverage"), coverage: z.enum(["auto", "workers_comp", "bond", "liquor"]), expires_on: date.optional(), exempt: z.literal("true").optional() }),
+  z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
 ]);
 

@@ -9,7 +9,7 @@ import { BusinessForm } from "@/components/forms";
 export const metadata = { title: "For Business" };
 
 const POINTS = [
-  ["One vendor for every site", "Cleaning, windows, power washing, grounds, snow, painting, junk-outs, repairs and office events under one contract."],
+  ["One vendor for every site", "Cleaning, windows, power washing, grounds, snow, painting, junk-outs, repairs, office events and executive cars, airport runs and event shuttles under one contract."],
   ["SLA dashboard", "Every visit time-stamped with photos. See completion and response times by location."],
   ["Prepaid monthly billing", "One invoice per month, paid in advance by card or ACH — PO numbers and cost centers included."],
   ["Backup crews built in", "If a pro can’t make it, AI dispatch re-routes to the next qualified crew automatically."],

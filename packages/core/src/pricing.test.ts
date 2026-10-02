@@ -119,7 +119,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "painting", "plumbing", "remodel"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "painting", "plumbing", "remodel", "transportation"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
@@ -406,4 +406,25 @@ test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
   assert.equal(reminderDue(R, day(40), 4), null, "all reminders sent");
   assert.equal(shouldDrop(R, day(31), 4), true);
   assert.equal(shouldDrop(R, day(31), 2), false, "still reminding");
+});
+
+test("transportation: hourly minimums, licensed operators with passenger-carrier insurance", async () => {
+  const { requiredCoverages } = await import("./vetting.ts");
+  const { sizeNeedsSiteVisit } = await import("./intake.ts");
+  assert.equal(estimate({ slug: "private-driver", answers: { vehicle: "sedan", hours: 1 } }).point, 170, "2-hour minimum");
+  assert.ok(estimate({ slug: "limousine", answers: { vehicle: "suv_limo", hours: 4 } }).point > estimate({ slug: "limousine", answers: { vehicle: "stretch", hours: 4 } }).point);
+  assert.equal(estimate({ slug: "airport-transfer", answers: { vehicle: "sedan", trip: "round_trip" } }).point, 190);
+  assert.ok(estimate({ slug: "party-bus", answers: { size: "40", hours: 4, weekend_night: true } }).point > 1300);
+  assert.equal(estimate({ slug: "charter-bus", answers: { vehicle: "motorcoach", days: 2, overnight: true } }).point, 3800);
+  assert.deepEqual(requiredCoverages(["transportation"]), ["passenger_auto"]);
+  assert.ok(sizeNeedsSiteVisit("event-shuttle", { vehicles: 6 }));
+  assert.ok(sizeNeedsSiteVisit("charter-bus", { out_of_state: true }));
+  const pro: Contractor = {
+    id: "t", profile_id: null, business_name: "T", contact_name: "T", email: "t@x", phone: "1", trades: ["transportation"], service_zips: [], status: "approved",
+    rating: 5, jobs_completed: 20, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+  };
+  const job = { service_slug: "limousine", zip: "48201", scheduled_date: null };
+  assert.equal(rankContractors([pro], job).length, 0, "needs authority on file");
+  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1" }], job).length, 0, "needs passenger-carrier insurance");
+  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", coverage: { passenger_auto: "2099-01-01" } }], job).length, 1);
 });

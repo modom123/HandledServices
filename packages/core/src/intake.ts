@@ -132,6 +132,8 @@ const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "interior-painting": (a) => (Number(a.rooms ?? 0) > 15 ? "More than 15 rooms" : null),
   "exterior-painting": (a) => (a.building === "commercial" ? "Commercial building" : Number(a.sqft ?? 0) > 5000 ? "Building over 5,000 sq ft" : null),
   "power-washing": (a) => (Number(a.sqft ?? 0) > 5000 ? "Over 5,000 sq ft" : null),
+  "event-shuttle": (a) => (Number(a.vehicles ?? 0) > 4 ? "More than 4 shuttles (we plan the loops with you)" : null),
+  "charter-bus": (a) => (a.out_of_state === true || a.out_of_state === "true" ? "Out-of-state trip (routing and federal authority confirmed first)" : Number(a.days ?? 0) > 3 ? "Trip longer than 3 days" : null),
   "large-item-removal": (a) => (Number(a.heaviest ?? 0) > 1000 ? "An item over 1,000 lb" : Number(a.specialty ?? 0) > 2 ? "More than 2 specialty items" : null),
   "junk-removal": (a) => (a.volume === "double" && a.kind === "heavy" ? "Two truckloads of heavy debris" : null),
 };

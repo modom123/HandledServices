@@ -10,13 +10,17 @@
  *           Confirm requirements with counsel and your insurance broker before each new state.
  */
 
-export type CoverageKey = "gl" | "auto" | "workers_comp" | "bond" | "liquor";
+export type CoverageKey = "gl" | "auto" | "workers_comp" | "bond" | "liquor" | "passenger_auto";
+
+/** Coverage kinds a pro uploads beyond general liability (documents, onboarding, applications). */
+export const COVERAGE_KINDS = ["auto", "workers_comp", "bond", "liquor", "passenger_auto"] as const;
 
 export const COVERAGES: Record<CoverageKey, { label: string; detail: string }> = {
   gl: { label: "General liability", detail: "Per-occurrence limit shown for your trade, $2M aggregate. Handled LLC named as additional insured." },
   auto: { label: "Commercial auto", detail: "$1M combined single limit on the vehicle used for jobs. Personal auto policies usually exclude business use." },
   workers_comp: { label: "Workers' comp", detail: "Required if you have employees (Michigan law). Solo owners sign a no-employees statement instead." },
   bond: { label: "Fidelity / janitorial bond", detail: "$10,000+ dishonesty bond for unsupervised in-home access. Usually about $100–200 a year." },
+  passenger_auto: { label: "Passenger carrier auto liability", detail: "$1.5M combined single limit for vehicles seating up to 15 passengers, $5M for 16 or more (federal minimums for interstate passenger carriers; venues and corporate clients expect it for local trips too). Every vehicle and driver listed." },
   liquor: { label: "Liquor liability", detail: "$1M, required whenever alcohol is served. Alcohol service also needs the proper MLCC license." },
 };
 
@@ -138,6 +142,23 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: null, preferred: ["Municipal hauler registration where your city requires it"], glMin: GL1, requires: ["auto"],
     conditional: [{ key: "workers_comp", when: "you have employees" }],
     skillsCheck: "Truck and container inventory by size, landfill / transfer-station accounts, sample weigh tickets, 2 references.",
+  },
+  transportation: {
+    does: "Chauffeured transportation by licensed operators: private drivers and black cars, airport transfers, limousines, party buses, tour and charter buses, corporate and event shuttles.",
+    specialties: [
+      { id: "black_car", label: "Black car / executive", slug: "private-driver" },
+      { id: "airport", label: "Airport transfers", slug: "airport-transfer" },
+      { id: "limo", label: "Limousines", slug: "limousine" },
+      { id: "party_bus", label: "Party buses", slug: "party-bus" },
+      { id: "coach", label: "Tour & charter coaches", slug: "charter-bus" },
+      { id: "shuttle", label: "Corporate & event shuttles", slug: "event-shuttle" },
+      { id: "weddings_transport", label: "Weddings & proms" },
+    ],
+    license: "Michigan passenger-for-hire / limousine carrier authority (MDOT), plus a USDOT number and FMCSA operating authority for interstate trips or vehicles seating 16+. Operator companies only — no individual drivers in personal cars",
+    preferred: ["Drivers with a clean motor-vehicle record; CDL with passenger endorsement and DOT drug & alcohol testing for 16+ passenger vehicles", "Vehicle list with seats, year and current inspections", "NLA or UMA membership"],
+    glMin: GL1, requires: ["passenger_auto"],
+    conditional: [{ key: "workers_comp", when: "you have employee drivers (most operators do)" }],
+    skillsCheck: "Authority lookups (MDOT; FMCSA/USDOT where required), fleet list and inspection records, driver roster with motor-vehicle records, safety rating, 3 corporate or event references.",
   },
   pet_waste: {
     does: "Weekly yard scooping, deodorizing and disposal.",

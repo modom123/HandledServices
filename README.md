@@ -7,7 +7,8 @@
 # Handled — AI-run home & business services
 
 A services company that delivers cleaning, power washing, lawn & snow, trees, pet care, hauling, handyman and
-licensed trades, interior & exterior painting, remodels, errands and events through vetted subcontractors. AI runs it day to day, IEBC's AI workforce staffs it, and a small
+licensed trades, interior & exterior painting, remodels, errands, events and transportation (licensed operators) through vetted
+subcontractors. AI runs it day to day, IEBC's AI workforce staffs it, and a small
 human team manages it. Business plan: [`docs/BUSINESS_PLAN_2026-10-01_1830.md`](docs/BUSINESS_PLAN_2026-10-01_1830.md).
 
 ```

@@ -11,7 +11,7 @@
  *             recruitingSweep()      — daily: setup reminders, stuck applicants, drop-offs
  */
 import "server-only";
-import { BRAND, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { notify } from "./push";
@@ -306,7 +306,7 @@ export async function decideDocument(contractorId: string, docId: string, decisi
   if (decision === "verify") {
     if (doc.kind === "coi" && doc.expires_on) await db().from("contractors").update({ insured_until: doc.expires_on }).eq("id", contractorId);
     if (doc.kind === "license" && doc.expires_on) await db().from("contractors").update({ license_expires: doc.expires_on }).eq("id", contractorId);
-    if (["auto", "workers_comp", "bond", "liquor"].includes(doc.kind) && doc.expires_on) {
+    if ((COVERAGE_KINDS as readonly string[]).includes(doc.kind) && doc.expires_on) {
       const { data: c } = await db().from("contractors").select("coverage").eq("id", contractorId).single();
       await db().from("contractors").update({ coverage: { ...(c?.coverage ?? {}), [doc.kind]: doc.expires_on } }).eq("id", contractorId);
     }
