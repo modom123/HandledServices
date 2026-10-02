@@ -66,7 +66,7 @@ export default function Earnings() {
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}>
       <Card style={{ backgroundColor: C.tint, borderColor: C.brand }}>
         <Text style={s.label}>Ready to pay out</Text>
-        <Text style={{ fontSize: 32, fontWeight: "800", color: C.deep }}>{money(info?.balance ?? 0)}</Text>
+        <Text style={{ fontSize: 34, fontWeight: "800", color: C.deep }}>{money(info?.balance ?? 0)}</Text>
         {!info ? <Text style={s.p}>Loading…</Text>
           : !info.allowed ? <Text style={s.p}>⚡ Instant pay: {info.reason}. Approved payouts go out free on the weekly run.</Text>
           : !info.ready ? (

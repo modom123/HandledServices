@@ -66,7 +66,7 @@ export default function Booking() {
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
-      <Text style={{ fontSize: 34 }}>{svc?.icon}</Text>
+      <Text style={{ fontSize: 36 }}>{svc?.icon}</Text>
       <Text style={s.h1}>{svc?.name}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}><Status status={job.status} /><Text style={s.p}>{job.ref}</Text></View>
       <Text style={[s.p, { marginTop: 6 }]}>{job.scheduled_date ?? "Date TBD"} · {TIME_WINDOW_LABEL[job.time_window]}</Text>
@@ -74,7 +74,7 @@ export default function Booking() {
 
       {pro ? (
         <Card style={{ marginTop: 14, backgroundColor: C.tint, borderColor: C.brand }}>
-          <Text style={{ fontWeight: "800", color: C.deep, fontSize: 16 }}>Covered ✓</Text>
+          <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>Covered ✓</Text>
           <Text style={s.b}>{pro.business_name}{pro.contact_first_name ? ` · ${pro.contact_first_name}` : ""}</Text>
           <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} jobs completed · vetted & insured</Text>
         </Card>
@@ -84,7 +84,7 @@ export default function Booking() {
 
       <Card style={{ marginTop: 6 }}>
         <Text style={s.label}>Price</Text>
-        <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }}>{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</Text>
+        <Text style={{ fontSize: 24, fontWeight: "800", color: C.ink }}>{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</Text>
         <Text style={s.p}>{job.remedy ? "No charge" : job.paid_at ? `Paid ${money(job.amount_paid)}` : job.deposit_paid_at ? `Deposit paid ${money(job.amount_paid)} · balance ${money(due)} due${job.balance_due_date ? ` ${job.balance_due_date}` : ""}` : job.price_final ? "Payment due — your pro is dispatched once paid" : "Firm price after the free site visit"}</Text>
         {unpaid ? <Button title={depositDue ? `Pay ${money(due)} deposit` : job.deposit_paid_at ? `Pay balance ${money(due)}` : `Pay ${money(due)}`} onPress={pay} style={{ marginTop: 10 }} /> : null}
         <Pressable onPress={() => Linking.openURL(`${API_URL}/invoice/${id}`)}><Text style={[s.p, { color: C.brand, fontWeight: "700", marginTop: 10 }]}>Invoice & service agreement →</Text></Pressable>
@@ -102,7 +102,7 @@ export default function Booking() {
       {job.status === "completed" && !rated && (
         <Card>
           <Text style={s.b}>How did {pro?.business_name ?? "we"} do?</Text>
-          <View style={{ flexDirection: "row", gap: 6, marginVertical: 10 }}>{[1, 2, 3, 4, 5].map((n) => <Pressable key={n} onPress={() => setStars(n)}><Text style={{ fontSize: 32, opacity: n <= stars ? 1 : 0.25 }}>★</Text></Pressable>)}</View>
+          <View style={{ flexDirection: "row", gap: 6, marginVertical: 10 }}>{[1, 2, 3, 4, 5].map((n) => <Pressable key={n} onPress={() => setStars(n)}><Text style={{ fontSize: 34, opacity: n <= stars ? 1 : 0.25 }}>★</Text></Pressable>)}</View>
           <Button title="Submit rating" onPress={rate} />
         </Card>
       )}
@@ -111,7 +111,7 @@ export default function Booking() {
       {events.map((e) => (
         <View key={e.id} style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.brand, marginTop: 6 }} />
-          <View style={{ flex: 1 }}><Text style={{ color: C.ink }}>{e.message}</Text><Text style={[s.p, { fontSize: 12 }]}>{new Date(e.created_at).toLocaleString()}</Text></View>
+          <View style={{ flex: 1 }}><Text style={{ color: C.ink }}>{e.message}</Text><Text style={[s.p, { fontSize: 14 }]}>{new Date(e.created_at).toLocaleString()}</Text></View>
         </View>
       ))}
     </ScrollView>

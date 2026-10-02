@@ -30,7 +30,7 @@ export default function Chat() {
       <ScrollView ref={scroll} contentContainerStyle={s.pad}>
         {turns.map((t, i) => (
           <View key={i} style={{ alignSelf: t.role === "user" ? "flex-end" : "flex-start", backgroundColor: t.role === "user" ? C.brand : C.white, borderRadius: 16, padding: 12, marginBottom: 8, maxWidth: "85%", borderWidth: t.role === "user" ? 0 : 1, borderColor: C.line }}>
-            <Text style={{ color: t.role === "user" ? C.white : C.ink, fontSize: 15 }}>{t.content}</Text>
+            <Text style={{ color: t.role === "user" ? C.white : C.ink, fontSize: 17 }}>{t.content}</Text>
           </View>
         ))}
         {busy && <Text style={s.p}>…</Text>}

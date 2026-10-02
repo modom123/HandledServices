@@ -90,7 +90,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
 
       <div className="border-t border-line pt-6">
         <h2 className="text-base font-bold">{SERVICE_AGREEMENT_TITLE}</h2>
-        <div className="mt-3 space-y-3 text-[13px] leading-relaxed">{SERVICE_AGREEMENT.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="text-ink-soft">{s.p}</span></div>)}</div>
+        <div className="mt-3 space-y-3 text-[15px] leading-relaxed">{SERVICE_AGREEMENT.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="text-ink-soft">{s.p}</span></div>)}</div>
         <div className="mt-6 rounded-xl border border-line p-4">
           {job.terms_accepted_at
             ? <>Accepted electronically by <b>{job.contact_name}</b> on {new Date(job.terms_accepted_at).toLocaleString("en-US")} (version {job.terms_version}).</>

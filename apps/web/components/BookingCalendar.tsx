@@ -48,7 +48,7 @@ export function BookingCalendar({ service, zip, date, window: win, onChange }: {
     <div className="space-y-4">
       {data.mode === "request" && <p className="rounded-xl bg-amber-50 p-3 text-sm">We’re still adding pros in {zip}. Pick your preferred time and we’ll confirm it within one business day.</p>}
       <div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS.map((w) => <div key={w}>{w}</div>)}</div>
+        <div className="grid grid-cols-7 gap-1 text-center text-[13px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS.map((w) => <div key={w}>{w}</div>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-1">
           {Array.from({ length: lead }).map((_, i) => <div key={`pad${i}`} />)}
           {data.days.map((d) => {
@@ -59,17 +59,17 @@ export function BookingCalendar({ service, zip, date, window: win, onChange }: {
             return (
               <button key={d.date} type="button" disabled={disabled} onClick={() => onChange(d.date, pickWindow(d, win))}
                 className={`relative rounded-xl border p-1.5 text-left transition ${sel ? "border-brand bg-brand text-white" : disabled ? "border-transparent bg-paper text-ink-soft/50" : "border-line bg-white hover:border-brand"}`}>
-                <div className="text-[10px] uppercase opacity-70">{dt.getDate() === 1 || d === data.days[0] ? dt.toLocaleDateString("en-US", { month: "short" }) : " "}</div>
+                <div className="text-[12px] uppercase opacity-70">{dt.getDate() === 1 || d === data.days[0] ? dt.toLocaleDateString("en-US", { month: "short" }) : " "}</div>
                 <div className="text-base font-bold leading-none">{dt.getDate()}</div>
                 <div className="mt-1 flex items-center gap-1">
                   <span className={`h-1.5 w-1.5 rounded-full ${sel ? "bg-white" : dot}`} />
-                  <span className="text-[9px]">{d.closed ? "closed" : d.level === "full" ? "full" : d.rush ? `+${RUSH_SURCHARGE * 100}%` : ""}</span>
+                  <span className="text-[11px]">{d.closed ? "closed" : d.level === "full" ? "full" : d.rush ? `+${RUSH_SURCHARGE * 100}%` : ""}</span>
                 </div>
               </button>
             );
           })}
         </div>
-        <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-ink-soft">
+        <div className="mt-2 flex flex-wrap gap-3 text-[13px] text-ink-soft">
           <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />open</span>
           <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />few spots left</span>
           <span><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />full</span>
@@ -86,13 +86,13 @@ export function BookingCalendar({ service, zip, date, window: win, onChange }: {
               return (
                 <button key={w} type="button" disabled={off} onClick={() => onChange(day.date, w)}
                   className={`rounded-xl border px-3 py-2 text-left text-sm ${win === w ? "border-brand bg-brand-tint font-semibold text-brand-dark" : off ? "border-line bg-paper text-ink-soft/50" : "border-line bg-white hover:border-brand"}`}>
-                  {TIME_WINDOW_LABEL[w]}<div className="text-[11px] font-normal text-ink-soft">{data.mode === "request" ? "on request" : off ? "full" : left <= 2 ? `${left} left` : "available"}</div>
+                  {TIME_WINDOW_LABEL[w]}<div className="text-[13px] font-normal text-ink-soft">{data.mode === "request" ? "on request" : off ? "full" : left <= 2 ? `${left} left` : "available"}</div>
                 </button>
               );
             })}
             <button type="button" onClick={() => onChange(day.date, "flexible")}
               className={`rounded-xl border px-3 py-2 text-left text-sm ${win === "flexible" ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white hover:border-brand"}`}>
-              {TIME_WINDOW_LABEL.flexible}<div className="text-[11px] font-normal text-ink-soft">fastest to confirm</div>
+              {TIME_WINDOW_LABEL.flexible}<div className="text-[13px] font-normal text-ink-soft">fastest to confirm</div>
             </button>
           </div>
         </div>

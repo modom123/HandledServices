@@ -39,7 +39,7 @@ export default function OfferScreen() {
   return (
     <View style={s.screen}>
       <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 220 }]}>
-        <Text style={{ fontSize: 40 }}>{w.icon}</Text>
+        <Text style={{ fontSize: 42 }}>{w.icon}</Text>
         <Text style={s.h1}>{w.title}</Text>
         <Text style={s.p}>{w.when}</Text>
         <Card style={{ marginTop: 12 }}>
@@ -63,8 +63,8 @@ export default function OfferScreen() {
         {live ? (
           <>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
-              <View><Text style={s.label}>Your payout</Text><Text style={{ fontSize: 34, fontWeight: "800", color: C.deep }}>{offer.payout ? money(offer.payout) : "Site visit"}</Text></View>
-              <View style={{ alignItems: "flex-end" }}><Text style={s.p}>Expires in</Text><Text style={{ fontSize: 24, fontWeight: "800", color: secs < 300 ? C.red : C.ink }}>{Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}</Text></View>
+              <View><Text style={s.label}>Your payout</Text><Text style={{ fontSize: 36, fontWeight: "800", color: C.deep }}>{offer.payout ? money(offer.payout) : "Site visit"}</Text></View>
+              <View style={{ alignItems: "flex-end" }}><Text style={s.p}>Expires in</Text><Text style={{ fontSize: 26, fontWeight: "800", color: secs < 300 ? C.red : C.ink }}>{Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}</Text></View>
             </View>
             <Pressable onPress={() => setAgree(!agree)} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 12 }}>
               <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: C.brand, backgroundColor: agree ? C.brand : C.white, alignItems: "center", justifyContent: "center" }}>{agree ? <Text style={{ color: C.white, fontWeight: "800" }}>✓</Text> : null}</View>

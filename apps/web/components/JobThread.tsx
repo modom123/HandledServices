@@ -42,7 +42,7 @@ export function JobThread({ jobId, userId, as, initial }: { jobId: string; userI
         {msgs.length === 0 && <p className="text-ink-soft">No messages yet.</p>}
         {msgs.map((m) => (
           <div key={m.id} className={`max-w-[80%] rounded-2xl px-3.5 py-2 ${m.sender_role === as ? "ml-auto bg-brand text-white" : "bg-paper"}`}>
-            <div className="text-[10px] uppercase opacity-60">{m.sender_role}</div>{m.body}
+            <div className="text-[12px] uppercase opacity-60">{m.sender_role}</div>{m.body}
           </div>
         ))}
       </div>

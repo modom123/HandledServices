@@ -39,7 +39,7 @@ export default function Home() {
           {SERVICES.filter((x) => x.category === c.id).map((x) => (
             <Link key={x.slug} href={{ pathname: "/book/[slug]", params: { slug: x.slug } }} asChild>
               <Pressable><Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <Text style={{ fontSize: 28 }}>{x.icon}</Text>
+                <Text style={{ fontSize: 30 }}>{x.icon}</Text>
                 <View style={{ flex: 1 }}><Text style={s.b}>{x.name}</Text><Text style={s.p}>{x.tagline}</Text></View>
                 <Text style={{ color: C.brand, fontWeight: "700" }}>from {money(x.minimum)}</Text>
               </Card></Pressable>

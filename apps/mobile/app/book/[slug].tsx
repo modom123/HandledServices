@@ -82,13 +82,13 @@ export default function Book() {
       <Text style={s.h1}>{svc.icon} {svc.name}</Text>
       <Card style={{ marginTop: 12, backgroundColor: C.tint, borderColor: C.brand }}>
         <Text style={s.label}>{siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit"}</Text>
-        <Text style={{ fontSize: 28, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
+        <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(est.point)}</Text>
         <Text style={s.p}>{siteVisit ? "Free site visit confirms the firm price." : BRAND.promise}</Text>
       </Card>
       {svc.questions.map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
           <Text style={s.label}>{q.label}</Text>
-          {q.help ? <Text style={[s.p, { marginBottom: 6, fontSize: 12 }]}>{q.help}</Text> : null}
+          {q.help ? <Text style={[s.p, { marginBottom: 6, fontSize: 14 }]}>{q.help}</Text> : null}
           {q.type === "number" && q.max >= 200 && (
             <NumberBox value={Number(answers[q.id])} min={q.min} max={q.max} unit={q.unit} onChange={(v) => setAnswers((cur) => ({ ...cur, [q.id]: v }))} />
           )}
@@ -190,9 +190,9 @@ function Calendar({ service, zip, date, win, onChange }: { service: string; zip:
           return (
             <Pressable key={d.date} disabled={off} onPress={() => onChange(d.date, win)}
               style={{ width: 62, marginRight: 6, padding: 8, borderRadius: 12, borderWidth: 1, borderColor: sel ? C.brand : C.line, backgroundColor: sel ? C.brand : off ? C.paper : C.white, opacity: off ? 0.45 : 1 }}>
-              <Text style={{ fontSize: 11, color: sel ? C.white : C.soft }}>{dt.toLocaleDateString("en-US", { weekday: "short" })}</Text>
-              <Text style={{ fontSize: 18, fontWeight: "800", color: sel ? C.white : C.ink }}>{dt.getDate()}</Text>
-              <Text style={{ fontSize: 10, color: sel ? C.white : d.level === "limited" ? "#b45309" : C.soft }}>{d.closed ? "closed" : d.level === "full" ? "full" : d.rush ? `+${RUSH_SURCHARGE * 100}%` : d.level === "limited" ? "few left" : dt.toLocaleDateString("en-US", { month: "short" })}</Text>
+              <Text style={{ fontSize: 13, color: sel ? C.white : C.soft }}>{dt.toLocaleDateString("en-US", { weekday: "short" })}</Text>
+              <Text style={{ fontSize: 20, fontWeight: "800", color: sel ? C.white : C.ink }}>{dt.getDate()}</Text>
+              <Text style={{ fontSize: 12, color: sel ? C.white : d.level === "limited" ? "#b45309" : C.soft }}>{d.closed ? "closed" : d.level === "full" ? "full" : d.rush ? `+${RUSH_SURCHARGE * 100}%` : d.level === "limited" ? "few left" : dt.toLocaleDateString("en-US", { month: "short" })}</Text>
             </Pressable>
           );
         })}

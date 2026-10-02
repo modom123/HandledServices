@@ -175,7 +175,7 @@ export default function ProJob() {
           )}
           {mat.expenses.map((e) => (
             <View key={e.id} style={{ flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.line, paddingTop: 8, marginTop: 8 }}>
-              <Text style={[s.p, { flex: 1 }]}>{e.description}{"\n"}<Text style={{ fontSize: 12 }}>{EXP_STATUS[e.status] ?? e.status}{e.status === "rejected" && e.notes ? ` — ${e.notes}` : ""}</Text></Text>
+              <Text style={[s.p, { flex: 1 }]}>{e.description}{"\n"}<Text style={{ fontSize: 14 }}>{EXP_STATUS[e.status] ?? e.status}{e.status === "rejected" && e.notes ? ` — ${e.notes}` : ""}</Text></Text>
               <Text style={s.b}>{money(Number(e.amount))}</Text>
             </View>
           ))}

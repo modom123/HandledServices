@@ -35,7 +35,7 @@ export function PhotoStrip({ shots, onChange, max = 8 }: { shots: Shot[]; onChan
               {p.uri ? <Image source={{ uri: p.uri }} style={{ width: 76, height: 76, borderRadius: 10 }} /> : <View style={{ width: 76, height: 76, borderRadius: 10, backgroundColor: C.line }} />}
               <Pressable accessibilityLabel="Remove photo" onPress={() => onChange(shots.filter((x) => x.path !== p.path))}
                 style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(11,27,43,0.7)", alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: C.white, fontSize: 12 }}>✕</Text>
+                <Text style={{ color: C.white, fontSize: 14 }}>✕</Text>
               </Pressable>
             </View>
           ))}
