@@ -10,7 +10,7 @@
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  */
 import { adminClient } from "@/lib/supabase/server";
-import { collectBalances, dispatchJob, raiseAlert, sendPaymentLink } from "@/lib/jobs";
+import { collectBalances, raiseAlert, redispatchExpired, sendPaymentLink } from "@/lib/jobs";
 import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee, runWeeklyPayouts } from "@/lib/pro-benefits";
 import { recruitingSweep } from "@/lib/recruiting";
 import { clearStaleLocations } from "@/lib/roster";
@@ -23,19 +23,8 @@ export async function GET(req: Request) {
   const db = adminClient();
   const now = new Date().toISOString();
 
-  // 1. Expired offers → mark expired, re-dispatch jobs that are still unassigned
-  const { data: expired } = await db.from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", now).select("job_id, contractor_id");
-  const jobIds = [...new Set((expired ?? []).map((o: { job_id: string }) => o.job_id))];
-  let redispatched = 0;
-  for (const jobId of jobIds) {
-    const { data: job } = await db.from("jobs").select("id, contractor_id, status").eq("id", jobId).single();
-    const { count } = await db.from("job_offers").select("id", { count: "exact", head: true }).eq("job_id", jobId).eq("status", "offered");
-    if (job && !job.contractor_id && job.status === "dispatched" && !count) {
-      const { data: tried } = await db.from("job_offers").select("contractor_id").eq("job_id", jobId);
-      await dispatchJob(jobId, { exclude: (tried ?? []).map((t: { contractor_id: string }) => t.contractor_id) });
-      redispatched++;
-    }
-  }
+  // 1. Expired offers → re-dispatch (also runs every 10 minutes: /api/cron/dispatch)
+  const { expired, redispatched } = await redispatchExpired();
 
   // 2. Unassigned jobs within 24h → critical alert (once per job)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -81,5 +70,5 @@ export async function GET(req: Request) {
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
 
-  return Response.json({ locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired: expired?.length ?? 0, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

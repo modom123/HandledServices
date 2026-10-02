@@ -46,8 +46,8 @@
     "extra": {
       "createdAt": "2026-10-01_1800 UTC",
       "project": "Handled (myhumanai) mobile app",
-      "privacyPolicyUrl": "https://YOUR-DOMAIN/privacy",
-      "termsUrl": "https://YOUR-DOMAIN/terms/service-agreement",
+      "privacyPolicyUrl": "filled from EXPO_PUBLIC_API_URL by app.config.js",
+      "termsUrl": "filled from EXPO_PUBLIC_API_URL by app.config.js",
       "eas": {
         "projectId": "run `eas init` to fill this in"
       },

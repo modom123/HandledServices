@@ -2,6 +2,8 @@
  * FILE    : apps/web/lib/readiness.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
+ * UPDATED : 2026-10-02_1329 UTC — text messages (Twilio), Stripe dispute/subscription webhook events,
+ *           sales tax, Vercel Pro for the 10-minute dispatch cron, migrations 13–16.
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
@@ -32,6 +34,9 @@ export async function readiness(): Promise<Check[]> {
   add("AI (Claude)", "Anthropic API key", has("ANTHROPIC_API_KEY") ? true : "warn", has("ANTHROPIC_API_KEY") ? "set" : "missing — quotes/dispatch/QA fall back to rules, chat & assistant offline", "Add ANTHROPIC_API_KEY from console.anthropic.com");
   add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend");
   add("Email", "Ops inbox", has("OPS_EMAIL") ? true : "warn", process.env.OPS_EMAIL ?? "missing", "Add OPS_EMAIL — receives critical alerts, new pro applications and the daily brief");
+  add("Text messages", "Twilio SMS", has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && (has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM")) ? true : "warn",
+    has("TWILIO_ACCOUNT_SID") ? "set" : "missing — customers and pros get push + email only", "Twilio → buy a number, register A2P 10DLC for business texting, then set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM)");
+  add("Website & Vercel", "Vercel plan (10-minute dispatch)", process.env.VERCEL_PLAN === "pro" ? true : "warn", process.env.VERCEL_PLAN === "pro" ? "Pro" : "confirm you're on Vercel Pro — Hobby runs crons once a day and doesn't allow commercial use", "Upgrade the Vercel team to Pro, then set VERCEL_PLAN=pro to clear this check");
   add("Mobile app", "Push notifications", has("EXPO_ACCESS_TOKEN") ? true : "warn", has("EXPO_ACCESS_TOKEN") ? "Expo access token set" : "works without it; add EXPO_ACCESS_TOKEN for signed push requests", "expo.dev → Account → Access tokens → create → add EXPO_ACCESS_TOKEN in Vercel");
   add("IEBC workforce", "IEBC API key", has("IEBC_API_KEY") ? true : "warn", has("IEBC_API_KEY") ? "set" : "missing — IEBC agents can't connect", "Add IEBC_API_KEY (openssl rand -hex 32) and paste the same key in IEBC MasterHub → Handled Ops");
   add("IEBC workforce", "Allowed origin", has("IEBC_ALLOWED_ORIGIN") ? true : "warn", process.env.IEBC_ALLOWED_ORIGIN ?? "* (any website may call with the key)", "Set IEBC_ALLOWED_ORIGIN to the MasterHub's web address");
@@ -46,7 +51,9 @@ export async function readiness(): Promise<Check[]> {
     } catch (e) {
       add("Payments (Stripe)", "Stripe account", false, `key rejected: ${e instanceof Error ? e.message : e}`, "Re-copy STRIPE_SECRET_KEY");
     }
-    add("Payments (Stripe)", "Webhook secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded and checkout.session.async_payment_failed; copy the signing secret`);
+    add("Payments (Stripe)", "Webhook secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated and customer.subscription.deleted; copy the signing secret`);
+    add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services; turn on before adding states that tax services", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
+    add("Payments (Stripe)", "Customer billing portal", true, "used for Handled Plus manage/cancel — enable it in Stripe → Settings → Billing → Customer portal");
   // ── Pro recruiting (background checks)
   add("Pro recruiting", "Background checks (Checkr)", has("CHECKR_API_KEY") && has("CHECKR_PACKAGE") ? true : "warn",
     has("CHECKR_API_KEY") ? (has("CHECKR_PACKAGE") ? "automated — ordered as soon as a pro's W-9 and agreement are in" : "CHECKR_PACKAGE missing") : "manual — ops gets a task to order each check",
@@ -71,6 +78,10 @@ export async function readiness(): Promise<Check[]> {
     ["10 pro benefits", () => db.from("pro_program_settings").select("id").limit(1)],
     ["11 dispatch geo & availability", () => db.from("zip_geo").select("zip").limit(1)],
     ["12 pro recruiting", () => db.from("recruiting_events").select("id").limit(1)],
+    ["13 pro promises", () => db.from("contractors").select("referral_bonus_paid_at").limit(1)],
+    ["14 pro roster (on call, location)", () => db.from("contractors").select("on_call_until, last_located_at").limit(1)],
+    ["15 customer timing & budget", () => db.from("jobs").select("urgency, needed_by, customer_budget").limit(1)],
+    ["16 launch & growth (Plus, promos, tips, disputes)", () => db.from("promo_codes").select("code").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

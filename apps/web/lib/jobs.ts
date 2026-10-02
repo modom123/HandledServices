@@ -356,6 +356,26 @@ async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: s
   return id && !exclude.includes(id) ? { contractorId: id, kind } : null;
 }
 
+/**
+ * Offers past their expiry → expired; any job left with no open offer and no pro goes out again
+ * to the next pros (excluding everyone already tried). Runs every 10 minutes and in the daily sweep.
+ */
+export async function redispatchExpired() {
+  const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id");
+  const jobIds = [...new Set((expired ?? []).map((o: { job_id: string }) => o.job_id))];
+  let redispatched = 0;
+  for (const jobId of jobIds) {
+    const { data: job } = await db().from("jobs").select("id, contractor_id, status").eq("id", jobId).single();
+    const { count } = await db().from("job_offers").select("id", { count: "exact", head: true }).eq("job_id", jobId).eq("status", "offered");
+    if (job && !job.contractor_id && job.status === "dispatched" && !count) {
+      const { data: tried } = await db().from("job_offers").select("contractor_id").eq("job_id", jobId);
+      await dispatchJob(jobId, { exclude: (tried ?? []).map((t: { contractor_id: string }) => t.contractor_id) });
+      redispatched++;
+    }
+  }
+  return { expired: expired?.length ?? 0, redispatched };
+}
+
 /** A pro accepts an offer. Race-safe: only one pro can win the job. */
 export async function acceptOffer(offerId: string, contractorId: string, meta: { ip?: string | null } = {}) {
   const { data: offer } = await db().from("job_offers").select("*").eq("id", offerId).eq("contractor_id", contractorId).maybeSingle();

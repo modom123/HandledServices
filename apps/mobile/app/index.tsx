@@ -9,7 +9,6 @@ import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, router } from "expo-router";
 import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
 import { API_URL, api, supabase } from "../lib/supabase";
-import { unregisterPush } from "../lib/push";
 import { Button, C, Card, s } from "../components/ui";
 
 type Me = { email: string; role: string; contractorId: string | null } | null;
@@ -47,7 +46,7 @@ export default function Home() {
           ))}
         </View>
       ))}
-      {me && <Pressable onPress={async () => { await unregisterPush(); await supabase.auth.signOut(); }}><Text style={[s.p, { textAlign: "center", marginTop: 20 }]}>Signed in as {me.email} · Sign out</Text></Pressable>}
+      {me && <Pressable onPress={() => router.push("/account")}><Text style={[s.p, { textAlign: "center", marginTop: 20 }]}>Signed in as {me.email} · Account & sign out</Text></Pressable>}
     </ScrollView>
   );
 }
