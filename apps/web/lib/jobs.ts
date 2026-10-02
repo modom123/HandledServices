@@ -8,6 +8,7 @@
  *           for discounts; the pro's payout stays on the list price); attribution; referral reward on completion.
  * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
  *           needed-by date) and their budget.
+ * UPDATED : 2026-10-02_2239 UTC — completion email invites a Google review (when NEXT_PUBLIC_GOOGLE_REVIEW_URL is set).
  * UPDATED : 2026-10-02_0233 UTC — recurring visits and redos are offered to the same pro first (24h / 12h),
  *           never forced on them; offers another pro won are marked "taken", not held against anyone.
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: booking → final price (AI check runs
@@ -594,14 +595,14 @@ export async function finalizeJob(jobId: string, summary?: string) {
     data: { type: "job", jobId: job.id },
     sms: { to: job.contact_phone, body: `${BRAND.name}: your ${getService(job.service_slug)?.name} is done ✓ See photos, rate or tip your pro: ${siteUrl()}/account/jobs/${job.id}` },
     email: { to: job.contact_email, subject: `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
-      text: `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.` },
+      text: `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account${BRAND.googleReviewUrl ? `\n\nWould you share your experience on Google too? It's how neighbors find good pros: ${BRAND.googleReviewUrl}` : ""}\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.` },
     locale: job.locale,
     es: {
       title: "Listo ✓ — ¿cómo lo hicimos?",
       body: `${summary ?? "Su trabajo está terminado."} Toque para ver las fotos y calificar a su profesional.`,
       sms: `${BRAND.name}: su ${svcEs(job.service_slug)} está listo ✓ Vea las fotos, califique o deje propina a su profesional: ${siteUrl()}/account/jobs/${job.id}`,
       subject: `¡Listo! ${svcEs(job.service_slug)} — ${job.ref}`,
-      text: `${summary ?? "Su trabajo está terminado."}\n\nCalifique a su profesional (toma 10 segundos): ${siteUrl()}/account\n\n¿No quedó bien? Responda dentro de ${BRAND.guaranteeDays} días y lo solucionamos.`,
+      text: `${summary ?? "Su trabajo está terminado."}\n\nCalifique a su profesional (toma 10 segundos): ${siteUrl()}/account${BRAND.googleReviewUrl ? `\n\n¿Compartiría su experiencia en Google también? Así es como los vecinos encuentran buenos profesionales: ${BRAND.googleReviewUrl}` : ""}\n\n¿No quedó bien? Responda dentro de ${BRAND.guaranteeDays} días y lo solucionamos.`,
     },
   });
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));

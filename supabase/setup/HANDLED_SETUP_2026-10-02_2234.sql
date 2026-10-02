@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_1420.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_2234.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-02_1420 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 20 migrations + production seed.
+-- CREATED : 2026-10-02_2234 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 21 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1429,6 +1429,38 @@ alter table public.launch_checklist enable row level security;
 alter table public.jobs add column if not exists locale text not null default 'en' check (locale in ('en','es'));
 alter table public.contractor_applications add column if not exists locale text not null default 'en' check (locale in ('en','es'));
 alter table public.job_events add column if not exists message_es text;
+
+
+-- >>> migration 20261002223400_waitlist_google_reviews.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002223400_waitlist_google_reviews.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-02_2234 UTC
+-- PURPOSE : Growth — finding customers and pros:
+--             • waitlist — people who asked for a service where we have no pros yet; they're
+--               told the day a pro starts covering their ZIP, and the counts drive recruiting
+--               (Hub → Supply gaps)
+--             • reviews.google_clicked_at — customer tapped "Review us on Google" after rating
+-- ============================================================================
+
+create table if not exists public.waitlist (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (position('@' in email) > 1),
+  phone text,
+  name text,
+  zip text not null check (zip ~ '^[0-9]{5}$'),
+  service_slug text not null,
+  locale text not null default 'en' check (locale in ('en','es')),
+  profile_id uuid references public.profiles(id) on delete set null,
+  source text not null default 'booking',
+  created_at timestamptz not null default now(),
+  notified_at timestamptz,
+  unique (email, service_slug, zip)
+);
+alter table public.waitlist enable row level security; -- written and read by the server only
+create index if not exists waitlist_open_idx on public.waitlist (service_slug, zip) where notified_at is null;
+
+alter table public.reviews add column if not exists google_clicked_at timestamptz;
 
 
 -- >>> seed.sql

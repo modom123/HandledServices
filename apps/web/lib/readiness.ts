@@ -4,12 +4,13 @@
  * CREATED : 2026-10-01_1940 UTC
  * UPDATED : 2026-10-02_1329 UTC — text messages (Twilio), Stripe dispute/subscription webhook events,
  *           sales tax, Vercel Pro for the 10-minute dispatch cron, migrations 13–16.
+ * UPDATED : 2026-10-02_2252 UTC — Google review link check; migration 19 (waitlist & Google reviews).
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
  */
 import "server-only";
-import { BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
+import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 import { getStripe } from "./stripe";
@@ -27,6 +28,7 @@ export async function readiness(): Promise<Check[]> {
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   add("Website & Vercel", "Site URL", site.startsWith("https://") ? true : "warn", site || "not set", "Vercel → Settings → Environment Variables → NEXT_PUBLIC_SITE_URL = https://your-domain (used in every email link)");
   add("Website & Vercel", "Support email & phone", !BRAND_PLACEHOLDERS, BRAND_PLACEHOLDERS ? "still the placeholder support@handled.example / (555)" : "set", "Set NEXT_PUBLIC_SUPPORT_EMAIL and NEXT_PUBLIC_SUPPORT_PHONE in Vercel (and EXPO_PUBLIC_… for the app)");
+  add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Google Business Profile → Ask for reviews → copy the link → set NEXT_PUBLIC_GOOGLE_REVIEW_URL in Vercel and EXPO_PUBLIC_GOOGLE_REVIEW_URL for the app");
   add("Website & Vercel", "Cron secret", has("CRON_SECRET"), has("CRON_SECRET") ? "set" : "missing — daily brief & sweep will 401", "Add CRON_SECRET (any long random string) in Vercel");
   add("Website & Vercel", "Invoice link signing", has("INVOICE_SIGNING_SECRET") ? true : "warn", has("INVOICE_SIGNING_SECRET") ? "set" : "falling back to the service role key", "Add INVOICE_SIGNING_SECRET (long random string)");
   add("Supabase", "Project URL & public key", supabaseConfigured, supabaseConfigured ? "set" : "missing", "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from Supabase → Project Settings → API");
@@ -84,6 +86,7 @@ export async function readiness(): Promise<Check[]> {
     ["16 launch & growth (Plus, promos, tips, disputes)", () => db.from("promo_codes").select("code").limit(1)],
     ["17 business & legal checklist", () => db.from("launch_checklist").select("key").limit(1)],
     ["18 message language", () => db.from("jobs").select("locale").limit(1)],
+    ["19 waitlist & Google reviews", () => db.from("waitlist").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

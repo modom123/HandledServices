@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish (locale prop).
+ * UPDATED : 2026-10-02_2237 UTC — after rating, everyone is invited to review us on Google (GoogleReviewAsk).
  * PURPOSE : Live job messages between customer, pro and ops (Supabase realtime + RLS).
  */
 "use client";
@@ -10,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { browserClient } from "@/lib/supabase/browser";
 import { PhotoPicker } from "./PhotoPicker";
-import { t as tr, type Locale } from "@handled/core";
+import { BRAND, t as tr, type Locale } from "@handled/core";
 
 type Msg = { id: number; sender_role: string; body: string; created_at: string };
 
@@ -59,7 +60,7 @@ export function ReviewForm({ jobId, contractorId, locale = "en" }: { jobId: stri
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [done, setDone] = useState(false);
-  if (done) return <div className="card text-sm">{t("Thanks for the review!")} ⭐</div>;
+  if (done) return <div className="card space-y-3 text-sm"><div>{t("Thanks for the review!")} ⭐</div>{rating <= 3 && <p className="text-ink-soft">{t("Sorry it wasn’t great — our team will reach out to make it right.")}</p>}<GoogleReviewAsk jobId={jobId} locale={locale} /></div>;
   return (
     <form className="card space-y-3" onSubmit={async (e) => {
       e.preventDefault();
@@ -71,6 +72,22 @@ export function ReviewForm({ jobId, contractorId, locale = "en" }: { jobId: stri
       <textarea className="input" placeholder={t("Optional comment")} value={comment} onChange={(e) => setComment(e.target.value)} />
       <button className="btn-primary">{t("Submit review")}</button>
     </form>
+  );
+}
+
+/**
+ * Public Google review ask. Shown to everyone who rates a job, whatever the stars —
+ * Google's rules forbid asking only happy customers ("review gating").
+ */
+export function GoogleReviewAsk({ jobId, locale = "en" }: { jobId: string; locale?: Locale }) {
+  const t = (s: string) => tr(locale, s);
+  if (!BRAND.googleReviewUrl) return null;
+  return (
+    <div className="rounded-xl bg-paper p-3">
+      <p>{t("Would you share your experience on Google too? It’s how neighbors find good pros.")}</p>
+      <a className="btn-ghost mt-2 inline-flex" href={BRAND.googleReviewUrl} target="_blank" rel="noopener noreferrer"
+        onClick={() => { fetch(`/api/account/jobs/${jobId}/google-review`, { method: "POST" }).catch(() => {}); }}>{t("Review us on Google")} ↗</a>
+    </div>
   );
 }
 

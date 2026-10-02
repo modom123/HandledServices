@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0244 UTC — pitch mentions car detailing and grocery & medical deliveries.
  * UPDATED : 2026-10-02_0301 UTC — booking horizon 45 days.
+ * UPDATED : 2026-10-02_2229 UTC — googleReviewUrl (NEXT_PUBLIC_ / EXPO_PUBLIC_GOOGLE_REVIEW_URL).
  * PURPOSE : Single place to rename/rebrand the company. "Handled" is a working name —
  *           run a trademark search before launch and change it here.
  */
@@ -13,9 +14,12 @@
 // (each referenced literally so Next.js and Expo can inline them at build time)
 let supportEmail = "support@handled.example";
 let supportPhone = "(555) 010-2026";
+// Google Business Profile → "Ask for reviews" link (https://g.page/r/…/review). Empty = not asked.
+let googleReviewUrl = "";
 try {
   supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || process.env.EXPO_PUBLIC_SUPPORT_EMAIL || supportEmail;
   supportPhone = process.env.NEXT_PUBLIC_SUPPORT_PHONE || process.env.EXPO_PUBLIC_SUPPORT_PHONE || supportPhone;
+  googleReviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || process.env.EXPO_PUBLIC_GOOGLE_REVIEW_URL || "";
 } catch {
   // no `process` in this runtime — keep defaults
 }
@@ -30,6 +34,8 @@ export const BRAND = {
     "One app for everything your home or business needs — cleaning, repairs, painting, hauling, lawn and snow, pet care, car detailing, grocery and medical deliveries, events and rides. Upfront prices, vetted pros, and an AI operations team that makes sure it's done right.",
   supportEmail,
   supportPhone,
+  /** Where happy customers leave a public Google review. Asked of everyone who rates us (Google forbids asking only happy ones). */
+  googleReviewUrl,
   serviceArea: "Launch market — set in the ops hub",
   partner: "Built and operated with IEBC — Integrated Efficiency Business Consultants",
   guaranteeDays: 30,

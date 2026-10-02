@@ -4,13 +4,14 @@
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Shared pickers for booking and rescheduling: the availability calendar (real open
  *           days and arrival windows for the ZIP) and a typed number box. English / Spanish.
+ * UPDATED : 2026-10-02_2255 UTC — no pros in the ZIP yet → waitlist sign-up (we tell them when it opens).
  */
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, type DaySlots, type TimeWindow } from "@handled/core";
-import { api } from "../lib/supabase";
+import { api, supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
-import { C, Chip, s } from "./ui";
+import { Button, C, Chip, s } from "./ui";
 
 /** Typed number entry for large ranges (square feet, linear feet): clamps when you finish typing. */
 export function NumberBox({ value, min, max, unit, onChange }: { value: number; min: number; max: number; unit?: string; onChange: (v: number) => void }) {
@@ -49,6 +50,7 @@ export function Calendar({ service, zip, date, win, onChange, today = false, unt
   return (
     <View style={{ marginBottom: 12 }}>
       {data.mode === "request" && <Text style={[s.p, { marginBottom: 8 }]}>{t("We're adding pros in your area — pick a time and we'll confirm within one business day.")}</Text>}
+      {data.mode === "request" && <Waitlist service={service} zip={zip} />}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
         {data.days.map((d) => {
           const dt = new Date(`${d.date}T12:00:00`);
@@ -73,6 +75,31 @@ export function Calendar({ service, zip, date, win, onChange, today = false, unt
           })}
         </View>
       )}
+    </View>
+  );
+}
+
+/** No pro covers this ZIP yet: get told the day one does. */
+function Waitlist({ service, zip }: { service: string; zip: string }) {
+  const { t, locale } = useI18n();
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
+  const [msg, setMsg] = useState("");
+  useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session?.user.email) setEmail((e) => e || data.session!.user.email!); }); }, []);
+  if (state === "done") return <Text style={[s.p, { marginBottom: 10 }]}>✓ {locale === "es" ? `Listo. Le avisaremos en cuanto tengamos un profesional en ${zip}.` : `You're on the list. We'll tell you the day a pro covers ${zip}.`}</Text>;
+  return (
+    <View style={{ marginBottom: 12, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.white }}>
+      <Text style={{ fontWeight: "700", marginBottom: 4 }}>{t("Rather wait for a confirmed pro?")}</Text>
+      <Text style={[s.p, { marginBottom: 8 }]}>{locale === "es" ? `Únase a la lista de espera y le avisaremos en cuanto un profesional cubra ${zip}.` : `Join the waitlist and we'll tell you the day a pro covers ${zip}.`}</Text>
+      <TextInput style={[s.input, { marginBottom: 8 }]} placeholder={t("Email")} autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+      <TextInput style={[s.input, { marginBottom: 8 }]} placeholder={t("Mobile (optional, for a text)")} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+      <Button kind="ghost" title={t("Notify me")} busy={state === "busy"} disabled={!email.includes("@")} onPress={async () => {
+        setState("busy"); setMsg("");
+        const r = await api<{ error?: string }>("/api/waitlist", { method: "POST", body: JSON.stringify({ email, phone: phone || null, zip, service, locale, source: "app" }) });
+        if (r.ok) setState("done"); else { setState("idle"); setMsg(t(r.data.error ?? "Try again")); }
+      }} />
+      {msg ? <Text style={{ color: "#be123c", marginTop: 6 }}>{msg}</Text> : null}
     </View>
   );
 }

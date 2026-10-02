@@ -683,3 +683,36 @@ test("every price-breakdown line has a Spanish template", async () => {
   }
   assert.deepEqual([...missing], [], "add Spanish templates to i18n-lines-es.ts");
 });
+
+test("supply gaps: no pros, thin coverage and covered areas", async () => {
+  const { serviceGaps, gapsByService, JOBS_PER_PRO_MONTH } = await import("./gaps.ts");
+  const pro: Contractor = {
+    id: "a", profile_id: null, business_name: "A", contact_name: "A", email: "a@x", phone: "1", trades: ["cleaning"],
+    service_zips: ["48201"], status: "approved", rating: 4.9, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
+    insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null, coverage: { bond: "2099-01-01" },
+  };
+  const many = (n: number, d: { service_slug: string; zip: string; no_pro?: boolean }) => Array.from({ length: n }, () => ({ ...d }));
+  const rows = serviceGaps({
+    contractors: [pro, { ...pro, id: "b", status: "vetting" }],
+    jobs: [
+      ...many(3, { service_slug: "house-cleaning", zip: "48201" }),                       // covered
+      ...many(2, { service_slug: "lawn-care", zip: "48201", no_pro: true }),            // no lawn pro
+      { service_slug: "nope", zip: "48201" }, { service_slug: "house-cleaning", zip: "bad" }, // ignored
+    ],
+    waitlist: [{ service_slug: "house-cleaning", zip: "90210" }],
+  });
+  const by = (slug: string, zip: string) => rows.find((r) => r.slug === slug && r.zip === zip)!;
+  assert.equal(rows.length, 3);
+  assert.equal(by("house-cleaning", "48201").level, "ok");
+  assert.equal(by("house-cleaning", "48201").pros, 1, "vetting pros don't count");
+  assert.equal(by("lawn-care", "48201").level, "none");
+  assert.equal(by("lawn-care", "48201").noPro, 2);
+  assert.equal(by("house-cleaning", "90210").level, "none");
+  assert.equal(by("house-cleaning", "90210").needed, 1);
+  assert.notEqual(rows[rows.length - 1].level, "none", "gaps sort first");
+  const busy = serviceGaps({ contractors: [pro], jobs: many(JOBS_PER_PRO_MONTH * 2 + 1, { service_slug: "house-cleaning", zip: "48201" }), waitlist: [] });
+  assert.equal(busy[0].level, "thin");
+  assert.equal(busy[0].needed, 2);
+  const svc = gapsByService(rows);
+  assert.equal(svc.find((s) => s.slug === "house-cleaning")!.zipsWithoutPros, 1);
+});

@@ -8,6 +8,7 @@
  *           the customer's language on its own.
  * UPDATED : 2026-10-02_1405 UTC — every pricing question, answer, help line and "included" item
  *           (i18n-catalog-es.ts); units; frequencies.
+ * UPDATED : 2026-10-02_2246 UTC — waitlist and Google review wording.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -247,6 +248,18 @@ const ES: Record<string, string> = {
   "hrs": "h", "sq ft": "pies²", "Yes": "Sí", "No": "No",
   "One time": "Una vez", "Weekly (save 20%)": "Semanal (ahorre 20%)", "Every 2 weeks (save 15%)": "Cada 2 semanas (ahorre 15%)", "Monthly (save 10%)": "Mensual (ahorre 10%)", "Quarterly (save 5%)": "Trimestral (ahorre 5%)", "Weekly": "Semanal", "Every 2 weeks": "Cada 2 semanas", "Monthly": "Mensual", "Quarterly": "Trimestral",
   "As soon as possible": "Lo antes posible", "This week": "Esta semana", "Within 2 weeks": "En 2 semanas", "Within a month": "En un mes", "I'm flexible": "Tengo flexibilidad",
+  // waitlist & Google reviews
+  "Rather wait for a confirmed pro?": "¿Prefiere esperar a un profesional confirmado?",
+  "Mobile (optional, for a text)": "Celular (opcional, para un mensaje de texto)",
+  "Notify me": "Avisarme",
+  "Enter a valid email and 5-digit ZIP": "Ingrese un correo válido y un código postal de 5 dígitos",
+  "Couldn't save — try again": "No se pudo guardar — intente de nuevo",
+  "Not available right now": "No está disponible en este momento",
+  "Too many requests — please wait a few minutes and try again.": "Demasiadas solicitudes — espere unos minutos e intente de nuevo.",
+  "Would you share your experience on Google too? It’s how neighbors find good pros.": "¿Compartiría su experiencia en Google también? Así es como los vecinos encuentran buenos profesionales.",
+  "Review us on Google": "Déjenos una reseña en Google",
+  "Not now": "Ahora no",
+  "Sorry it wasn’t great — our team will reach out to make it right.": "Lamentamos que no haya salido bien — nuestro equipo se comunicará para solucionarlo.",
 };
 
 const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: string }> = {

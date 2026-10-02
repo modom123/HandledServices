@@ -5,8 +5,9 @@
  * PURPOSE : Growth — where bookings come from (first-touch source, last 30 days), Handled Plus
  *           members and monthly revenue, promo codes (create / on-off / uses), gift card balances
  *           outstanding, referral rewards, tips to pros, and open chargebacks.
+ * UPDATED : 2026-10-02_2253 UTC — Google review taps and waitlist size.
  */
-import { HANDLED_PLUS, money } from "@handled/core";
+import { BRAND, HANDLED_PLUS, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Badge, Empty, Stat } from "@/components/ui";
 import { NewPromo, PromoToggle } from "@/components/PromoAdmin";
@@ -18,12 +19,15 @@ export default async function Growth() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return <Empty>Connect Supabase (service role key) to see growth numbers.</Empty>;
   const db = adminClient();
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const [{ data: jobs }, { count: members }, { data: promos }, { data: tips }, { data: disputes }] = await Promise.all([
+  const [{ data: jobs }, { count: members }, { data: promos }, { data: tips }, { data: disputes }, { count: rated }, { count: googled }, { count: waiting }] = await Promise.all([
     db.from("jobs").select("attribution, price_final, paid_at, discount, member_benefit").gte("created_at", since).limit(5000),
     db.from("memberships").select("id", { count: "exact", head: true }).eq("status", "active"),
     db.from("promo_codes").select("*").order("created_at", { ascending: false }).limit(300),
     db.from("tips").select("amount").eq("status", "paid").gte("created_at", since),
     db.from("payment_disputes").select("*").is("closed_at", null).order("created_at", { ascending: false }),
+    db.from("reviews").select("id", { count: "exact", head: true }).gte("created_at", since),
+    db.from("reviews").select("id", { count: "exact", head: true }).gte("created_at", since).not("google_clicked_at", "is", null),
+    db.from("waitlist").select("id", { count: "exact", head: true }).is("notified_at", null),
   ]);
   const bySource = new Map<string, { bookings: number; paid: number; revenue: number }>();
   for (const j of (jobs ?? []) as Rec[]) {
@@ -41,12 +45,14 @@ export default async function Growth() {
   return (
     <div className="space-y-10">
       <h1 className="text-2xl font-bold">Growth</h1>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={`${HANDLED_PLUS.name} members`} value={members ?? 0} hint={`${money((members ?? 0) * HANDLED_PLUS.monthly)}/month`} />
         <Stat label="Gift card balances owed" value={money(giftOut)} />
         <Stat label="Discounts given (30d)" value={money(discounts)} hint="from our share" />
         <Stat label="Tips to pros (30d)" value={money((tips ?? []).reduce((t: number, x: Rec) => t + Number(x.amount), 0))} />
         <Stat label="Open chargebacks" value={(disputes ?? []).length} />
+        <Stat label="Went to Google to review (30d)" value={`${googled ?? 0} of ${rated ?? 0}`} hint={BRAND.googleReviewUrl ? "customers who rated us, then tapped Review on Google" : "set NEXT_PUBLIC_GOOGLE_REVIEW_URL to start asking"} />
+        <Stat label="Waitlist" value={waiting ?? 0} hint="waiting for a pro in their area — see Supply gaps" />
       </div>
 
       <section>

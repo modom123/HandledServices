@@ -6,6 +6,7 @@
  *           daily; Mondays the free weekly payout run (after the guaranteed-minimum top-ups).
  * UPDATED : 2026-10-02_0302 UTC — alerts when an open job reaches or passes the customer's needed-by date.
  * UPDATED : 2026-10-02_0255 UTC — clears pro phone locations older than 12h and lapsed on-call flags.
+ * UPDATED : 2026-10-02_2247 UTC — tells waitlisted customers when a pro now covers their ZIP.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  */
@@ -15,6 +16,7 @@ import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee, runWe
 import { recruitingSweep } from "@/lib/recruiting";
 import { clearStaleLocations } from "@/lib/roster";
 import type { Job } from "@handled/core";
+import { notifyWaitlist } from "@/lib/waitlist";
 
 export const maxDuration = 300;
 
@@ -66,9 +68,10 @@ export async function GET(req: Request) {
   const locationsCleared = await clearStaleLocations(); // privacy: forget old phone locations
   const stats = await refreshProStats(); // acceptance + on-time → tiers and dispatch ranking
   const referrals = await payReferralBonuses();
+  const waitlist = await notifyWaitlist().catch((e) => { console.error("[waitlist]", e); return 0; }); // their area is open now → tell them
   const monday = new Date().getUTCDay() === 1;
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
 
-  return Response.json({ locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

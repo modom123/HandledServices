@@ -4,13 +4,14 @@
  * CREATED : 2026-10-01_2047 UTC
  * UPDATED : 2026-10-02_1329 UTC — live pro ETA, tip your pro, reschedule.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish; reschedule right in the app.
+ * UPDATED : 2026-10-02_2256 UTC — after rating, everyone is invited to review us on Google.
  * PURPOSE : Customer booking screen — "Covered ✓" by which pro, live timeline (realtime),
  *           pay now, invoice & agreement, and rating when done. Opened from notifications.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { TIME_WINDOW_LABEL, TIP_PRESETS, getService, money, moneyRange, type Job, type TimeWindow } from "@handled/core";
+import { BRAND, TIME_WINDOW_LABEL, TIP_PRESETS, getService, money, moneyRange, type Job, type TimeWindow } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Status, s } from "../../components/ui";
 import { PhotoStrip } from "../../components/PhotoStrip";
@@ -67,7 +68,12 @@ export default function Booking() {
   }
   async function rate() {
     const { error } = await supabase.from("reviews").insert({ job_id: id, rating: stars });
-    if (error) Alert.alert(t("Couldn't save"), error.message); else { setRated(true); Alert.alert(t("Thank you!"), t("Your rating helps us send the best pros.")); }
+    if (error) return Alert.alert(t("Couldn't save"), error.message);
+    setRated(true);
+    // Asked of everyone, whatever the stars — Google forbids asking only happy customers.
+    const google = BRAND.googleReviewUrl;
+    Alert.alert(t("Thank you!"), google ? t("Would you share your experience on Google too? It’s how neighbors find good pros.") : t("Your rating helps us send the best pros."),
+      google ? [{ text: t("Not now"), style: "cancel" }, { text: t("Review us on Google"), onPress: () => { api(`/api/account/jobs/${id}/google-review`, { method: "POST" }).catch(() => {}); Linking.openURL(google); } }] : undefined);
   }
 
   return (

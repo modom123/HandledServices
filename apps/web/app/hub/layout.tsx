@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0255 UTC — Live roster in the nav.
  * UPDATED : 2026-10-02_1329 UTC — Growth page in the nav.
+ * UPDATED : 2026-10-02_2250 UTC — Supply gaps in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -22,6 +23,7 @@ const NAV = [
   ["/hub/roster", "📍", "Live roster"],
   ["/hub/pros", "🧰", "Hiring & pros"],
   ["/hub/recruiting", "🧲", "Recruiting"],
+  ["/hub/gaps", "🕳️", "Supply gaps"],
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/growth", "📈", "Growth"],

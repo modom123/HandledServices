@@ -5,12 +5,14 @@
  * PURPOSE : Booking calendar — pick a day (open / limited / full from real pro capacity in
  *           the customer's ZIP) and an arrival window with spots left.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish (locale prop).
+ * UPDATED : 2026-10-02_2245 UTC — no pros in the ZIP yet → waitlist sign-up next to the request option.
  * UPDATED : 2026-10-02_0302 UTC — today (same-day slots from on-call pros), until (only days up to
  *           the customer's deadline), earliest (ASAP: pick the first open slot, priority or not).
  */
 "use client";
 
 import { useEffect, useState } from "react";
+import { WaitlistForm } from "./WaitlistForm";
 import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, t as tr, type DaySlots, type Locale, type TimeWindow } from "@handled/core";
 
 type Avail = { mode: "live" | "request"; pros: number; days: DaySlots[] };
@@ -60,6 +62,7 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
     <div className="space-y-4">
       {data.mode === "live" && !data.days.some((x) => !x.closed && x.level !== "full") && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? "No hay horarios disponibles antes de su fecha. Elija una opción más adelante en “¿Para cuándo lo necesita?”, o llámenos y trataremos de acomodarlo." : "No open slots before your date. Choose a later “When do you need it?” option, or call us and we’ll try to fit you in."}</p>}
       {data.mode === "request" && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Todavía estamos sumando profesionales en ${zip}. Elija su horario preferido y se lo confirmamos en un día hábil.` : `We’re still adding pros in ${zip}. Pick your preferred time and we’ll confirm it within one business day.`}</p>}
+      {data.mode === "request" && <WaitlistForm service={service} zip={zip} locale={locale} />}
       <div>
         <div className="grid grid-cols-7 gap-1 text-center text-[13px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS[locale === "es" ? "es" : "en"].map((w) => <div key={w}>{w}</div>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-1">

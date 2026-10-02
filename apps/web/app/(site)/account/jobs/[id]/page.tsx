@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_1329 UTC — live pro tracker, reschedule, tip your pro.
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish, including the timeline (message_es).
+ * UPDATED : 2026-10-02_2238 UTC — Google review ask for customers who rated but haven't reviewed on Google.
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  */
 import { notFound, redirect } from "next/navigation";
@@ -13,7 +14,7 @@ import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
-import { AddJobPhotos, CancelBooking, JobThread, PayNow, ReviewForm } from "@/components/JobThread";
+import { AddJobPhotos, CancelBooking, GoogleReviewAsk, JobThread, PayNow, ReviewForm } from "@/components/JobThread";
 import { Reschedule, TipBox, TrackPro } from "@/components/AccountExtras";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
@@ -26,7 +27,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
   const [{ data: events }, { data: msgs }, { data: review }] = await Promise.all([
     v.db.from("job_events").select("id, message, message_es, created_at").eq("job_id", id).order("created_at"),
     v.db.from("messages").select("id, sender_role, body, created_at").eq("job_id", id).order("created_at"),
-    v.db.from("reviews").select("rating").eq("job_id", id).maybeSingle(),
+    v.db.from("reviews").select("rating, google_clicked_at").eq("job_id", id).maybeSingle(),
   ]);
   const [photos, mine] = await Promise.all([signedUrls(job.completion_photos ?? []), signedUrls(job.photos ?? [])]);
   const s = getService(job.service_slug);
@@ -63,6 +64,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <CancelBooking jobId={job.id} late={isLate(job)} fee={money(Math.min(LATE_CANCEL_FEE, Number(job.amount_paid)))} paid={Number(job.amount_paid) > 0} locale={l} />
         )}
         {job.status === "completed" && !review && <ReviewForm jobId={job.id} contractorId={job.contractor_id} locale={l} />}
+        {review && !review.google_clicked_at && BRAND.googleReviewUrl && <div className="card text-sm"><GoogleReviewAsk jobId={job.id} locale={l} /></div>}
         {job.status === "completed" && job.contractor_id && !job.remedy && <TipBox jobId={job.id} tipped={Number(job.tip_total ?? 0)} locale={l} />}
         {job.contractor_id && <JobThread jobId={job.id} userId={v.userId} as="customer" initial={msgs ?? []} locale={l} />}
       </div>
