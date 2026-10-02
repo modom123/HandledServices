@@ -31,7 +31,7 @@ const TRUST = ["Insured & background-checked pros", "Upfront, all-in price", "Ph
 
 const MORE = [
   { href: "/events", icon: "🎉", title: "Parties & events", body: "Planning, catering, food trucks, DJs, rentals and the venue — or plan by budget.", cta: "Plan my event" },
-  { href: "/services?cat=transport", icon: "🚘", title: "Rides", body: "Black cars, airport transfers, limos, party buses and event shuttles.", cta: "Book a ride" },
+  { href: "/services?cat=transport", icon: "🚘", title: "Rides", body: "Black cars, airport rides, game day & concert rides, limos, party buses and shuttles.", cta: "Book a ride" },
   { href: "/business", icon: "🏢", title: "For businesses", body: "Every location, one vendor, one prepaid monthly invoice.", cta: "Commercial accounts" },
   { href: "/pros", icon: "🧰", title: "Own a crew?", body: "Prepaid jobs on your phone, weekly pay, no lead fees.", cta: "Become a pro" },
 ];

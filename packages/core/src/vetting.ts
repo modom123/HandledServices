@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/vetting.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2109 UTC
+ * UPDATED : 2026-10-02_0251 UTC — transportation specialty: sporting events & concerts.
  * PURPOSE : What each trade does and specializes in, and what we require before a pro in
  *           that trade gets offers: license, insurance coverages and minimums, and the
  *           skills check. Drives the application form, onboarding checklist, Hub
@@ -174,7 +175,7 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     skillsCheck: "Truck and container inventory by size, landfill / transfer-station accounts, sample weigh tickets, 2 references.",
   },
   transportation: {
-    does: "Chauffeured transportation by licensed operators: private drivers and black cars, airport transfers, limousines, party buses, tour and charter buses, corporate and event shuttles.",
+    does: "Chauffeured transportation by licensed operators: private drivers and black cars, airport transfers, game day and concert rides, limousines, party buses, tour and charter buses, corporate and event shuttles.",
     specialties: [
       { id: "black_car", label: "Black car / executive", slug: "private-driver" },
       { id: "airport", label: "Airport transfers", slug: "airport-transfer" },
@@ -182,6 +183,7 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
       { id: "party_bus", label: "Party buses", slug: "party-bus" },
       { id: "coach", label: "Tour & charter coaches", slug: "charter-bus" },
       { id: "shuttle", label: "Corporate & event shuttles", slug: "event-shuttle" },
+      { id: "game_day", label: "Sporting events & concerts", slug: "game-day-rides" },
       { id: "weddings_transport", label: "Weddings & proms" },
     ],
     license: "Michigan passenger-for-hire / limousine carrier authority (MDOT), plus a USDOT number and FMCSA operating authority for interstate trips or vehicles seating 16+. Operator companies only — no individual drivers in personal cars",

@@ -11,6 +11,7 @@
  *           answer applies (showIf, e.g. mini-split zones), and rides move up to a vehicle
  *           big enough for the passenger count, so the price rises as passengers are added.
  * UPDATED : 2026-10-02_0244 UTC — grocery pickup & delivery, mobile car detailing, medical deliveries.
+ * UPDATED : 2026-10-02_0251 UTC — game day & concert rides (sporting events, concerts, festivals).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -84,7 +85,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "removal", name: "Haul Away", short: "Haul Away", icon: "🚛", blurb: "Junk, furniture and heavy items gone today — or a container dropped off for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Grocery delivery, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
-  { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
+  { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
 
@@ -1680,6 +1681,49 @@ export const SERVICES: Service[] = [
       if (b(a, "overnight") && d > 1) items.push({ label: `Driver lodging · ${d - 1} night${d > 2 ? "s" : ""} × $200`, amount: (d - 1) * 200 });
       const base = sum(items);
       return { items, base, hours: d * 10 };
+    },
+  },
+  {
+    slug: "game-day-rides",
+    name: "Game Day & Concert Rides",
+    category: "transport",
+    icon: "🏟️",
+    tagline: "Door to the gate for the game or the show — your driver waits and brings everyone home.",
+    description: "Round trips to sporting events, concerts and festivals in an SUV, Sprinter, party bus or coach. Drop-off at the gate or lot, your driver waits through the event and picks you up after — no parking, no traffic stress, no one has to drive home. Tailgate kits on request.",
+    includes: ["Licensed operator & vetted chauffeur", "Drop-off and pickup at the venue", "Driver waits through the event", "Live driver contact for the post-event pickup"],
+    questions: [
+      { id: "event", label: "Event", type: "select", default: "sports", options: [{ value: "sports", label: "Sporting event" }, { value: "concert", label: "Concert or show" }, { value: "festival", label: "Festival" }] },
+      { id: "vehicle", label: "Vehicle", type: "select", default: "sprinter", options: [{ value: "suv", label: "Black SUV (up to 6)" }, { value: "sprinter", label: "Sprinter van (up to 12)" }, { value: "party_bus", label: "Party bus (up to 20–40)" }, { value: "minicoach", label: "Mini-coach (up to 30)" }, { value: "motorcoach", label: "Motorcoach (up to 56)" }] },
+      { id: "passengers", label: "Passengers", type: "number", min: 1, max: 56, default: 8 },
+      { id: "hours", label: "Hours, pickup to drop-off", type: "number", min: 4, max: 14, default: 6, unit: "hrs", help: "Most games and concerts are 5–7 hours door to door. 4-hour minimum." },
+      { id: "big_event", label: "Playoffs, championship, sold-out tour or festival weekend", type: "toggle", default: false },
+      { id: "tailgate", label: "Tailgate kit (cooler with ice, folding table & chairs)", type: "toggle", default: false },
+    ],
+    minimum: 440,
+    spread: [1, 1.1],
+    payoutShare: 0.8,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["transportation"],
+    licensed: true,
+    leadDays: 2,
+    notesHint: "Venue and event, pickup time and address, drop-off spot (gate or lot), where to meet after, and whether anyone aboard is under 21",
+    price: (a) => {
+      const chosen = s(a, "vehicle", "sprinter");
+      const pax = n(a, "passengers", 8);
+      // party buses size up within party buses; everything else up the van → coach ladder
+      const { veh, upgraded } = chosen === "party_bus"
+        ? fitVehicle("party_bus", pax, [["party_bus", 20], ["party_bus_30", 30], ["party_bus_40", 40], ["motorcoach", 56]])
+        : fitVehicle(chosen, pax, [["suv", 6], ["sprinter", 12], ["minicoach", 30], ["motorcoach", 56]]);
+      const rate = ({ suv: 110, sprinter: 150, party_bus: 225, party_bus_30: 275, party_bus_40: 325, minicoach: 210, motorcoach: 260 } as Record<string, number>)[veh] ?? 150;
+      const name = ({ suv: "Black SUV", sprinter: "Sprinter van", party_bus: "Party bus (20)", party_bus_30: "Party bus (30)", party_bus_40: "Party bus (40)", minicoach: "Mini-coach", motorcoach: "Motorcoach" } as Record<string, string>)[veh] ?? "Vehicle";
+      const h = Math.max(4, n(a, "hours", 6));
+      const items: LineItem[] = [{ label: `${name}${upgraded ? " (sized up to seat everyone)" : ""} · ${h} hours × $${rate}`, amount: h * rate }];
+      if (b(a, "big_event")) items.push({ label: "Peak event (playoffs, sold-out show, festival)", amount: Math.round(h * rate * 0.15) });
+      if (b(a, "tailgate")) items.push({ label: "Tailgate kit", amount: 75 });
+      items.push({ label: "Venue bus / limo parking, if the venue charges — billed at cost", amount: 0 });
+      const base = sum(items);
+      return { items, base, hours: h };
     },
   },
   {

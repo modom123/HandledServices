@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/business.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0244 UTC
+ * UPDATED : 2026-10-02_0251 UTC — game day & concert rides under corporate transportation.
  * PURPOSE : How we present services to businesses: grouped by what a facility needs (not by
  *           the home categories), plus the industries we serve and the services each one
  *           usually books. Used by the For Business page and its proposal form.
@@ -17,7 +18,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "buildout", title: "Painting & build-outs", icon: "🎨", blurb: "Tenant turnovers, refreshes and remodels, scheduled around your hours.", slugs: ["interior-painting", "exterior-painting", "bathroom-remodel", "kitchen-remodel"] },
   { id: "cleanouts", title: "Clean-outs & hauling", icon: "🚛", blurb: "Office moves, unit turnovers and furniture removal — or a container for the week.", slugs: ["junk-removal", "large-item-removal", "junk-container"] },
   { id: "courier", title: "Courier & delivery", icon: "📦", blurb: "Medical courier for clinics and labs, plus same-day runs and supply pickups.", slugs: ["medical-delivery", "errands", "grocery-delivery"] },
-  { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles and team charters.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus"] },
+  { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
   { id: "events", title: "Corporate events & catering", icon: "🍽️", blurb: "Team lunches, client dinners, company BBQs and holiday parties, start to finish.", slugs: ["catering", "event-planning", "food-truck", "event-venue", "event-rentals", "dj-music"] },
   { id: "fleet", title: "Fleet & staff perks", icon: "🚗", blurb: "On-site detailing for company vehicles — or as a perk in your lot.", slugs: ["mobile-car-detailing", "personal-assistant"] },
 ];

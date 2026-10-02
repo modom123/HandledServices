@@ -509,6 +509,8 @@ test("rides: more passengers than the vehicle seats moves up a size", () => {
   assert.ok(p("airport-transfer", { vehicle: "sedan", passengers: 8 }) > p("airport-transfer", { vehicle: "suv", passengers: 6 }));
   assert.ok(p("limousine", { vehicle: "stretch", passengers: 14 }) > p("limousine", { vehicle: "stretch", passengers: 10 }));
   assert.ok(p("charter-bus", { vehicle: "minicoach", passengers: 45 }) > p("charter-bus", { vehicle: "minicoach", passengers: 30 }));
+  assert.ok(p("game-day-rides", { vehicle: "suv", passengers: 10 }) > p("game-day-rides", { vehicle: "suv", passengers: 6 }), "game day: SUV → Sprinter");
+  assert.ok(p("game-day-rides", { vehicle: "party_bus", passengers: 35 }) > p("game-day-rides", { vehicle: "party_bus", passengers: 20 }), "game day: bigger party bus");
 });
 
 // ── Pro promises: real stats, daily limit, referral ──
