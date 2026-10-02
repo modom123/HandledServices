@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2043 UTC — Uber-style offers: GET returns the work order (exact address
  *           only after acceptance); accepting requires agreeing to the work order terms,
  *           recorded with version, time and IP.
+ * UPDATED : 2026-10-02_1412 UTC — work order in the pro's language.
  * PURPOSE : Pro: view, accept or pass on a job offer (web portal + mobile app).
  */
 import { z } from "zod";
@@ -12,6 +13,7 @@ import { buildWorkOrder, type Job } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { acceptOffer, declineOffer } from "@/lib/jobs";
+import { localeOf } from "@/lib/push";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const v = await getViewer(req);
@@ -25,7 +27,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const live = offer.status === "offered" && new Date(offer.expires_at) > new Date() && !job?.contractor_id;
   return Response.json({
     offer: { id: offer.id, status: live ? "offered" : offer.status === "offered" ? "expired" : offer.status, payout: offer.payout, expires_at: offer.expires_at, job_id: offer.job_id },
-    workOrder: buildWorkOrder(job as Job, { reveal: won, payout: offer.payout }),
+    workOrder: buildWorkOrder(job as Job, { reveal: won, payout: offer.payout, locale: await localeOf(v.userId) }),
   });
 }
 

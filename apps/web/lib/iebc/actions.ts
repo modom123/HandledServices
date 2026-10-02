@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_0157 UTC — actions receive the acting agent (ctx.actor) for the audit
  *           trail; recruiting actions go through lib/recruiting (same path as the Hub buttons):
  *           pipeline, invite/decline, nudge, documents with AI readings, background checks.
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : The actions IEBC's AI employees may take in this business. Each action
  *           declares its scope (which department may use it), whether it writes, and
  *           its risk. The gateway (gateway.ts) enforces scopes + autonomy and logs
@@ -18,6 +19,7 @@ import { adminClient } from "../supabase/server";
 import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink, setStatus } from "../jobs";
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
 import { sendEmail } from "../notify";
+import { localeOf } from "../push";
 import { activatePro, decideDocument, inviteApplicant, logRecruiting, nudgePro, orderBackgroundCheck, pipeline, rejectApplicant, revivePro } from "../recruiting";
 
 export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales";
@@ -204,7 +206,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     run: async ({ ref: r, price }) => {
       const job = await jobByRef(r);
       await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: splitJob(price, job.service_slug).payout, status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
-      await addEvent(job.id, "quoted", `Firm price: ${money(price)} — pay to lock in your pro.`, "IEBC workforce");
+      await addEvent(job.id, "quoted", `Firm price: ${money(price)} — pay to lock in your pro.`, "IEBC workforce", true, `Precio final: ${money(price)}. Pague para asegurar a su profesional.`);
       const fresh = await getJob(job.id);
       const link = fresh && !fresh.paid_at ? await sendPaymentLink(fresh) : null;
       return { ref: r, price, payment_link_sent: Boolean(link) };
@@ -330,13 +332,14 @@ export const ACTIONS: Record<string, ActionDef> = {
 
   // ─── retention / customer care ───
   "retention.message_customer": def({
-    scope: "retention", write: true, risk: "low", description: "Send the customer on a job a message (job thread + email). Use for follow-ups, review requests, apologies.",
+    scope: "retention", write: true, risk: "low", description: "Send the customer on a job a message (job thread + email). Use for follow-ups, review requests, apologies. Write subject and body in the customer's language (the job's locale: en or es).",
     params: z.object({ ref, subject: z.string().max(150), body: z.string().min(1).max(3000) }),
     run: async ({ ref: r, subject, body }) => {
       const job = await jobByRef(r);
       await db().from("messages").insert({ job_id: job.id, sender_role: "ops", body });
-      await sendEmail(job.contact_email, subject, `${body}\n\n— The ${BRAND.name} team`);
-      return "sent";
+      const lang = await localeOf(job.customer_id, job.locale);
+      await sendEmail(job.contact_email, subject, `${body}\n\n— ${lang === "es" ? `El equipo de ${BRAND.name}` : `The ${BRAND.name} team`}`);
+      return { sent: true, customer_language: lang };
     },
   }),
   "retention.make_it_right": def({
@@ -353,13 +356,14 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   }),
   "retention.email_customer": def({
-    scope: "retention", write: true, risk: "high", description: "Email a past customer by address (win-back). High-risk: outbound marketing needs approval.",
+    scope: "retention", write: true, risk: "high", description: "Email a past customer by address (win-back). High-risk: outbound marketing needs approval. Write in the customer's language (their last booking's locale: en or es).",
     params: z.object({ email: z.string().email(), subject: z.string().max(150), body: z.string().min(1).max(3000) }),
     run: async ({ email, subject, body }) => {
-      const { count } = await db().from("jobs").select("id", { count: "exact", head: true }).ilike("contact_email", email);
-      if (!count) throw new Error("Not an existing customer");
-      await sendEmail(email, subject, `${body}\n\n— The ${BRAND.name} team`);
-      return "sent";
+      const { data: last } = await db().from("jobs").select("customer_id, locale").ilike("contact_email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!last) throw new Error("Not an existing customer");
+      const lang = await localeOf(last.customer_id, last.locale);
+      await sendEmail(email, subject, `${body}\n\n— ${lang === "es" ? `El equipo de ${BRAND.name}` : `The ${BRAND.name} team`}`);
+      return { sent: true, customer_language: lang };
     },
   }),
 

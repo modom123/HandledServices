@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/account.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Delete my account (required by Apple and Google; also the right thing to do).
  *           Refused while the person has work in progress — upcoming paid bookings must be
  *           cancelled first, and pros must finish or hand off assigned jobs and be paid out.
@@ -14,6 +15,7 @@ import "server-only";
 import { adminClient } from "./supabase/server";
 import { getStripe } from "./stripe";
 import { sendEmail } from "./notify";
+import { localeOf } from "./push";
 import { BRAND } from "@handled/core";
 
 const db = () => adminClient();
@@ -56,9 +58,11 @@ export async function deleteAccount(userId: string, email: string, contractorId:
     }).eq("id", contractorId);
   }
 
-  // the login itself (profile row cascades)
+  // the login itself (profile row cascades) — read their language first for the goodbye email
+  const lang = await localeOf(userId);
   const { error } = await db().auth.admin.deleteUser(userId);
   if (error) return { ok: false, error: `Couldn't delete the login: ${error.message}` };
-  await sendEmail(email, `Your ${BRAND.name} account was deleted`, `Your ${BRAND.name} account and personal details have been deleted. We keep invoices and payment records (name and email only) for as long as tax law requires${contractorId ? ", and your tax forms (W-9 / 1099) for IRS retention" : ""}.\n\nIf you didn't ask for this, reply to this email right away.\n\n— ${BRAND.name}`);
+  if (lang === "es") await sendEmail(email, `Su cuenta de ${BRAND.name} fue eliminada`, `Su cuenta de ${BRAND.name} y sus datos personales fueron eliminados. Conservamos las facturas y los registros de pago (solo nombre y correo) durante el tiempo que exige la ley fiscal${contractorId ? ", y sus formularios fiscales (W-9 / 1099) según los plazos del IRS" : ""}.\n\nSi usted no lo solicitó, responda a este correo de inmediato.\n\n— ${BRAND.name}`);
+  else await sendEmail(email, `Your ${BRAND.name} account was deleted`, `Your ${BRAND.name} account and personal details have been deleted. We keep invoices and payment records (name and email only) for as long as tax law requires${contractorId ? ", and your tax forms (W-9 / 1099) for IRS retention" : ""}.\n\nIf you didn't ask for this, reply to this email right away.\n\n— ${BRAND.name}`);
   return { ok: true };
 }

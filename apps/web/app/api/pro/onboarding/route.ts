@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-02_0233 UTC — pros set their own daily job limit (dispatch never offers past it).
  * UPDATED : 2026-10-01_2109 UTC — specialties and trade-specific coverage steps.
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Pro self-onboarding (web portal + mobile). Multipart form with `step`:
  *             w9         legal_name, entity_type, tin_last4, address_line, city, state, zip, file
  *             coi        expires_on, file          (staff verifies → insured_until)
@@ -25,7 +26,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
 import { zipCentroid } from "@/lib/geo";
-import { afterOnboardingStep, logRecruiting } from "@/lib/recruiting";
+import { afterOnboardingStep, docName, logRecruiting } from "@/lib/recruiting";
 import { signedDocUrl } from "@/lib/photos";
 import { aiCheckDocument } from "@/lib/ai/doccheck";
 import { notify } from "@/lib/push";
@@ -139,7 +140,9 @@ export async function POST(req: Request) {
       await db.from("contractor_documents").update({ ai_check: check }).eq("id", theDoc);
       await logRecruiting("doc_ai_check", { contractorId: id }, `${kind}: ${check.meets_requirements ? "looks good" : check.problems.join("; ")}`, "ai");
       if (!check.readable) await notify(pro.profile_id, { title: "Please re-upload your document", body: "We couldn't read it — try a clearer photo or the PDF.", data: { type: "onboarding" },
-        email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` } });
+        email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` },
+        es: { title: "Vuelva a subir su documento", body: "No pudimos leerlo: intente con una foto más clara o el PDF.",
+          subject: "Vuelva a subir su documento", text: `No pudimos leer el documento (${docName(kind, "es")}) que subió. Suba una foto más clara o el PDF de su aseguradora o del estado.\n\nSu configuración: ${siteUrl()}/pro/onboarding` } });
     });
   }
   return done();

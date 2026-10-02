@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/visit.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
  * PURPOSE : The visit itself, for customers:
  *             onMyWay()       — pro taps "On my way": customer gets a text + push with a live link
  *             trackPro()      — "Your pro is ~12 minutes away": distance and ETA from the pro's
@@ -11,13 +12,19 @@
  *                               (free until 24 hours before); keeps the pro if they're free
  */
 import "server-only";
-import { BRAND, TIME_WINDOW_LABEL, getService, isRush, liveLocation, localDate, milesBetween, offDuty, type Contractor, type Job, type TimeWindow } from "@handled/core";
+import { BRAND, TIME_WINDOW_LABEL, getService, serviceText, t, isRush, liveLocation, localDate, milesBetween, offDuty, type Contractor, type Job, type TimeWindow } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, dispatchJob, getJob, raiseAlert } from "./jobs";
 import { notify } from "./push";
 import { siteUrl } from "./notify";
 
 const db = () => adminClient();
+
+/** "2026-10-05" → "lunes, 5 de octubre" (Spanish texts). */
+function esDate(d: string | null | undefined) {
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return d ?? "";
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("es-US", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
 
 /** Road distance ≈ 1.3 × straight line; ~25 mph average in town, plus 3 minutes to park. */
 export function etaMinutes(miles: number) {
@@ -31,10 +38,18 @@ export async function onMyWay(jobId: string, contractorId: string) {
   await db().from("jobs").update({ en_route_at: new Date().toISOString() }).eq("id", jobId);
   const { data: pro } = await db().from("contractors").select("business_name, contact_name").eq("id", contractorId).single();
   const link = `${siteUrl()}/account/jobs/${jobId}`;
-  await addEvent(jobId, "en_route", `${pro?.contact_name?.split(" ")[0] ?? "Your pro"} is on the way.`, "pro");
+  const first = pro?.contact_name?.split(" ")[0];
+  const svc = getService(job.service_slug);
+  const svcEs = svc ? serviceText("es", svc.slug, svc).name : "servicio";
+  await addEvent(jobId, "en_route", `${first ?? "Your pro"} is on the way.`, "pro", true, `${first ?? "Su profesional"} va en camino.`);
   await notify(job.customer_id, {
     title: "Your pro is on the way 🚗", body: `${pro?.business_name ?? "Your pro"} is heading to you now. Track them live.`, data: { type: "job", jobId },
-    sms: { to: job.contact_phone, body: `${BRAND.name}: ${pro?.contact_name?.split(" ")[0] ?? "Your pro"} from ${pro?.business_name ?? "your pro"} is on the way for your ${getService(job.service_slug)?.name}. Track live: ${link}` },
+    sms: { to: job.contact_phone, body: `${BRAND.name}: ${pro?.contact_name?.split(" ")[0] ?? "Your pro"} from ${pro?.business_name ?? "your pro"} is on the way for your ${svc?.name}. Track live: ${link}` },
+    locale: job.locale,
+    es: {
+      title: "Su profesional va en camino 🚗", body: `${pro?.business_name ?? "Su profesional"} se dirige a su domicilio ahora. Sígalo en vivo.`,
+      sms: `${BRAND.name}: ${first ?? "Su profesional"} de ${pro?.business_name ?? "su equipo profesional"} va en camino para su ${svcEs}. Sígalo en vivo: ${link}`,
+    },
   });
   return { ok: true };
 }
@@ -76,8 +91,10 @@ export async function rescheduleJob(jobId: string, customerId: string, date: str
     const { data: pro } = await db().from("contractors").select("*").eq("id", job.contractor_id).single();
     const { count } = await db().from("jobs").select("id", { count: "exact", head: true }).eq("contractor_id", job.contractor_id).eq("scheduled_date", date).neq("status", "cancelled");
     keepPro = Boolean(pro) && !offDuty(pro as Contractor, date, window) && (count ?? 0) < Math.max(1, (pro as Contractor).daily_capacity);
-    if (!keepPro && pro) await notify((pro as Contractor).profile_id, { title: `Rescheduled: ${job.ref}`, body: `The customer moved this job to ${date} — it's been released since you're not free then.`, data: { type: "job_pro", jobId } });
-    if (keepPro && pro) await notify((pro as Contractor).profile_id, { title: `Moved: ${job.ref}`, body: `The customer moved this job to ${date}, ${TIME_WINDOW_LABEL[window]}. It's still yours.`, data: { type: "job_pro", jobId }, email: { to: (pro as Contractor).email, subject: `Job moved — ${job.ref} is now ${date}`, text: `The customer moved ${job.ref} to ${date}, ${TIME_WINDOW_LABEL[window]}. It's still yours — nothing to do.` } });
+    if (!keepPro && pro) await notify((pro as Contractor).profile_id, { title: `Rescheduled: ${job.ref}`, body: `The customer moved this job to ${date} — it's been released since you're not free then.`, data: { type: "job_pro", jobId },
+      es: { title: `Cambio de fecha: ${job.ref}`, body: `El cliente cambió este trabajo al ${esDate(date)} — se liberó porque usted no está disponible ese día.` } });
+    if (keepPro && pro) await notify((pro as Contractor).profile_id, { title: `Moved: ${job.ref}`, body: `The customer moved this job to ${date}, ${TIME_WINDOW_LABEL[window]}. It's still yours.`, data: { type: "job_pro", jobId }, email: { to: (pro as Contractor).email, subject: `Job moved — ${job.ref} is now ${date}`, text: `The customer moved ${job.ref} to ${date}, ${TIME_WINDOW_LABEL[window]}. It's still yours — nothing to do.` },
+      es: { title: `Cambio de fecha: ${job.ref}`, body: `El cliente cambió este trabajo al ${esDate(date)}, ${t("es", TIME_WINDOW_LABEL[window])}. Sigue siendo suyo.`, subject: `Trabajo con nueva fecha — ${job.ref} ahora es el ${esDate(date)}`, text: `El cliente cambió ${job.ref} al ${esDate(date)}, ${t("es", TIME_WINDOW_LABEL[window])}. Sigue siendo suyo — no tiene que hacer nada.` } });
   }
   await db().from("job_offers").update({ status: "taken" }).eq("job_id", jobId).eq("status", "offered");
   await db().from("jobs").update({
@@ -85,7 +102,9 @@ export async function rescheduleJob(jobId: string, customerId: string, date: str
     needed_by: job.needed_by && job.needed_by < date ? date : job.needed_by ?? null,
     ...(keepPro ? {} : { contractor_id: null, status: job.status === "assigned" ? "scheduled" : job.status }),
   }).eq("id", jobId);
-  await addEvent(jobId, "rescheduled", `Moved from ${from} to ${date}, ${TIME_WINDOW_LABEL[window]}.${keepPro ? " Same pro." : ""}`, "customer");
+  const fromEs = job.scheduled_date ? `${esDate(job.scheduled_date)}, ${t("es", TIME_WINDOW_LABEL[job.time_window as TimeWindow] ?? job.time_window)}` : null;
+  await addEvent(jobId, "rescheduled", `Moved from ${from} to ${date}, ${TIME_WINDOW_LABEL[window]}.${keepPro ? " Same pro." : ""}`, "customer", true,
+    `${fromEs ? `Cambio de fecha: del ${fromEs} al` : "Programado para el"} ${esDate(date)}, ${t("es", TIME_WINDOW_LABEL[window])}.${keepPro ? " Mismo profesional." : ""}`);
   if (!keepPro && (job.paid_at || job.deposit_paid_at)) await dispatchJob(jobId).catch(async (e) => raiseAlert("dispatch", "warn", `${job.ref}: re-dispatch after reschedule failed`, String(e), jobId));
   return { ok: true, keptPro: keepPro };
 }

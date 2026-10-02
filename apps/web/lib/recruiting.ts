@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/recruiting.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Automated pro recruiting & onboarding. Every touch is logged to recruiting_events.
  *             onApplication()        — AI screen → invite automatically, or ask staff to decide
  *             inviteApplicant()      — pro record + welcome email with a one-click sign-in link
@@ -14,7 +15,7 @@ import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
-import { notify } from "./push";
+import { localeOf, notify } from "./push";
 import { raiseAlert } from "./jobs";
 import { aiScreenApplication } from "./ai/screen";
 
@@ -50,8 +51,46 @@ export async function signInUrl(email: string, next = "/pro/onboarding"): Promis
   return `${siteUrl()}/login?next=${encodeURIComponent(next)}&email=${encodeURIComponent(email)}`;
 }
 
-function stepsList(c: Contractor) {
-  return onboardingChecklist(c as never).steps.filter((s) => !s.done).map((s) => `• ${s.label}`).join("\n");
+// ─── Spanish for pros and applicants ─────────────────────────────────────────
+
+const STEP_ES: Record<string, string> = {
+  w9: "W-9 registrado",
+  agreement: "Contrato de contratista independiente firmado",
+  specialties: "Especialidades elegidas",
+  area: "Zona de trabajo y horario",
+  coi: "Certificado de seguro (COI) verificado",
+  license: "Licencia del oficio verificada",
+  background: "Verificación de antecedentes aprobada",
+  payout: "Método de pago configurado",
+  "coverage:workers_comp": "Seguro de compensación laboral (o declaración de no tener empleados)",
+  "coverage:gl": "Seguro de responsabilidad civil general verificado",
+  "coverage:auto": "Seguro de auto comercial verificado",
+  "coverage:bond": "Fianza de fidelidad / limpieza verificada",
+  "coverage:passenger_auto": "Seguro de responsabilidad para transporte de pasajeros verificado",
+  "coverage:liquor": "Seguro de responsabilidad por bebidas alcohólicas verificado",
+};
+const DOC_ES: Record<string, string> = {
+  w9: "W-9", coi: "certificado de seguro (COI)", license: "licencia", background: "informe de antecedentes", agreement: "contrato",
+  auto: "seguro de auto comercial", workers_comp: "seguro de compensación laboral", bond: "fianza", liquor: "seguro de bebidas alcohólicas", passenger_auto: "seguro de transporte de pasajeros",
+};
+/** A setup step's label in the person's language. */
+export const stepLabel = (s: { key: string; label: string }, lang: string) => (lang === "es" ? STEP_ES[s.key] ?? s.label : s.label);
+/** A document kind in words (English stays the upper-case code it always was). */
+export const docName = (kind: string, lang: string) => (lang === "es" ? DOC_ES[kind] ?? kind.toUpperCase() : kind.toUpperCase());
+/** Fallback language for a pro without an account yet: the language they applied in. */
+async function appLocale(c: { application_id?: string | null }): Promise<string | null> {
+  if (!c.application_id) return null;
+  const { data } = await db().from("contractor_applications").select("locale").eq("id", c.application_id).maybeSingle();
+  return (data?.locale as string | undefined) ?? null;
+}
+/** A pro's language: their profile toggle, else the language they applied in. */
+export async function proLocale(c: { profile_id?: string | null; application_id?: string | null }) {
+  return localeOf(c.profile_id, await appLocale(c));
+}
+const first = (name: unknown) => String(name ?? "").split(" ")[0];
+
+function stepsList(c: Contractor, lang = "en") {
+  return onboardingChecklist(c as never).steps.filter((s) => !s.done).map((s) => `• ${stepLabel(s, lang)}`).join("\n");
 }
 
 // ─── application → invite ────────────────────────────────────────────────────
@@ -96,7 +135,10 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);
   await logRecruiting("invited", { applicationId: appId, contractorId: pro.id }, why || null, actor);
   const link = await signInUrl(pro.email);
-  await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
+  const lang = await localeOf(pro.profile_id, app.locale);
+  if (lang === "es") await sendEmail(pro.email, `Tiene una invitación de ${BRAND.name}: termine su configuración en unos 15 minutos`,
+    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
+  else await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
     `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
 }
@@ -105,7 +147,8 @@ export async function rejectApplicant(appId: string, actor: string, reason?: str
   const { data: app } = await db().from("contractor_applications").update({ status: "rejected", stage: "rejected", decided_by: actor, last_contact_at: new Date().toISOString() }).eq("id", appId).select("*").single();
   if (!app) return;
   await logRecruiting("rejected", { applicationId: appId }, reason ?? null, actor);
-  await sendEmail(app.email, `Your ${BRAND.name} application`, `Hi ${String(app.contact_name).split(" ")[0]},\n\nThanks for applying. We can't offer work right now${reason ? ` (${reason})` : " in your trade and area"}. We'll keep your details and reach out if that changes.\n\n— ${BRAND.name}`);
+  if (app.locale === "es") await sendEmail(app.email, `Su solicitud en ${BRAND.name}`, `Hola ${first(app.contact_name)}:\n\nGracias por su solicitud. Por ahora no podemos ofrecerle trabajo${reason ? ` (${reason})` : " en su oficio y zona"}. Guardaremos sus datos y le escribiremos si eso cambia.\n\n— ${BRAND.name}`);
+  else await sendEmail(app.email, `Your ${BRAND.name} application`, `Hi ${String(app.contact_name).split(" ")[0]},\n\nThanks for applying. We can't offer work right now${reason ? ` (${reason})` : " in your trade and area"}. We'll keep your details and reach out if that changes.\n\n— ${BRAND.name}`);
 }
 
 // ─── onboarding progress → background check → activation ────────────────────
@@ -151,7 +194,10 @@ export async function orderBackgroundCheck(contractorId: string) {
     await db().from("contractors").update({ background_provider_id: cand.id, background_status: "invited" }).eq("id", contractorId);
     await logRecruiting("background_ordered", { contractorId }, `Checkr candidate ${cand.id}`);
     await notify(c.profile_id, { title: "Background check: check your email", body: "Checkr sent you a secure link to consent and finish your check.", data: { type: "onboarding" },
-      email: { to: c.email, subject: "Your background check link (from Checkr)", text: `Next step: Checkr — our screening provider — has emailed you a secure link to consent and complete your background check. It usually takes 1–3 business days.\n\n— ${BRAND.name}` } });
+      email: { to: c.email, subject: "Your background check link (from Checkr)", text: `Next step: Checkr — our screening provider — has emailed you a secure link to consent and complete your background check. It usually takes 1–3 business days.\n\n— ${BRAND.name}` },
+      locale: await appLocale(c),
+      es: { title: "Verificación de antecedentes: revise su correo", body: "Checkr le envió un enlace seguro para dar su consentimiento y completar la verificación.",
+        subject: "Su enlace para la verificación de antecedentes (de Checkr)", text: `Siguiente paso: Checkr, nuestro proveedor de verificación, le envió por correo un enlace seguro para dar su consentimiento y completar su verificación de antecedentes. Normalmente tarda de 1 a 3 días hábiles.\n\n— ${BRAND.name}` } });
   } catch (e) {
     await db().from("contractors").update({ background_status: "pending" }).eq("id", contractorId);
     await raiseAlert("recruiting", "warn", `Background check didn't start: ${c.business_name}`, `${e instanceof Error ? e.message : e}. Order it by hand.`);
@@ -196,7 +242,10 @@ export async function activatePro(contractorId: string, actor: string) {
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
   await notify(c.profile_id, { title: "You're live 🎉", body: "Setup is complete. Job offers in your area start now.", data: { type: "pro_home" },
-    email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` } });
+    email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` },
+    locale: await appLocale(c),
+    es: { title: "¡Ya está activo! 🎉", body: "Su configuración está completa. Las ofertas de trabajo en su zona empiezan ahora.",
+      subject: `Ya está activo en ${BRAND.name}`, text: `Le damos la bienvenida, ${first(c.contact_name)}. Su configuración está completa y verificada. Empezará a recibir ofertas de trabajo en su zona y especialidades de inmediato.\n\nActive las notificaciones en la app de ${BRAND.name} para no perderse ninguna oferta.\nSu panel: ${siteUrl()}/pro\n\n— ${BRAND.name}` } });
   return true;
 }
 
@@ -217,7 +266,14 @@ export async function recruitingSweep(now = new Date()) {
     if (due !== null && !onUs) {
       const link = await signInUrl(c.email);
       const n = due + 1;
+      const k = left.length, steps = k > 1 ? "pasos" : "paso";
       await notify(c.profile_id, {
+        locale: await appLocale(c as never),
+        es: {
+          title: `Termine su configuración en ${BRAND.name}`, body: `Le ${k > 1 ? "quedan" : "queda"} ${k} ${steps}: las ofertas empiezan cuando termine.`,
+          subject: n === 1 ? "Su configuración lo espera: unos 15 minutos" : n === s.reminderDays.length ? "Último recordatorio: termine su configuración para recibir trabajos" : `Le quedan ${k} ${steps} para empezar a recibir trabajos`,
+          text: `Hola ${first(c.contact_name)}:\n\nEstá a ${k} ${steps} de recibir trabajos prepagados:\n${left.map((x) => `• ${stepLabel(x, "es")}`).join("\n")}\n\nUn clic inicia su sesión:\n${link}\n\n¿Tiene dudas con algo (seguro, licencia)? Solo responda: le ayudamos.\n\n— ${BRAND.name}`,
+        },
         title: `Finish your ${BRAND.name} setup`, body: `${left.length} step${left.length > 1 ? "s" : ""} left — offers start when you're done.`, data: { type: "onboarding" },
         email: { to: c.email, subject: n === 1 ? "Your setup is waiting — about 15 minutes" : n === s.reminderDays.length ? "Last reminder: finish setup to start getting jobs" : `${left.length} steps left to start getting jobs`,
           text: `Hi ${String(c.contact_name).split(" ")[0]},\n\nYou're ${left.length} step${left.length > 1 ? "s" : ""} away from getting prepaid jobs:\n${left.map((x) => `• ${x.label}`).join("\n")}\n\nOne click signs you in:\n${link}\n\nStuck on something (insurance, license)? Just reply — we'll help.\n\n— ${BRAND.name}` },
@@ -228,7 +284,8 @@ export async function recruitingSweep(now = new Date()) {
     } else if (!onUs && shouldDrop(s, invited, c.onboarding_reminders, now)) {
       await db().from("contractors").update({ dropped_at: now.toISOString() }).eq("id", c.id);
       await logRecruiting("dropped", { contractorId: c.id }, `${left.length} steps never finished`);
-      await sendEmail(c.email, `We'll keep your ${BRAND.name} spot`, `Hi ${String(c.contact_name).split(" ")[0]},\n\nWe haven't heard from you, so we've paused your setup. Your progress is saved — sign in any time to pick up where you left off: ${await signInUrl(c.email)}\n\n— ${BRAND.name}`);
+      if ((await proLocale(c as never)) === "es") await sendEmail(c.email, `Guardamos su lugar en ${BRAND.name}`, `Hola ${first(c.contact_name)}:\n\nNo hemos sabido de usted, así que pausamos su configuración. Su avance está guardado: inicie sesión cuando quiera para continuar donde se quedó: ${await signInUrl(c.email)}\n\n— ${BRAND.name}`);
+      else await sendEmail(c.email, `We'll keep your ${BRAND.name} spot`, `Hi ${String(c.contact_name).split(" ")[0]},\n\nWe haven't heard from you, so we've paused your setup. Your progress is saved — sign in any time to pick up where you left off: ${await signInUrl(c.email)}\n\n— ${BRAND.name}`);
       dropped++;
     }
   }
@@ -282,7 +339,10 @@ export async function nudgePro(contractorId: string, note: string | null | undef
   const left = onboardingChecklist(c as never).steps.filter((s) => !s.done);
   const link = await signInUrl(c.email);
   await notify(c.profile_id, { title: `Finish your ${BRAND.name} setup`, body: `${left.length} step(s) left`, data: { type: "onboarding" },
-    email: { to: c.email, subject: "Quick note about your setup", text: `Hi ${String(c.contact_name).split(" ")[0]},\n\n${note ? `${note}\n\n` : ""}You're ${left.length} step${left.length === 1 ? "" : "s"} away from getting jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}\n\nOne click signs you in: ${link}\n\nReply if you need help.\n\n— ${BRAND.name}` } });
+    email: { to: c.email, subject: "Quick note about your setup", text: `Hi ${String(c.contact_name).split(" ")[0]},\n\n${note ? `${note}\n\n` : ""}You're ${left.length} step${left.length === 1 ? "" : "s"} away from getting jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}\n\nOne click signs you in: ${link}\n\nReply if you need help.\n\n— ${BRAND.name}` },
+    locale: await appLocale(c),
+    es: { title: `Termine su configuración en ${BRAND.name}`, body: `Le ${left.length === 1 ? "queda" : "quedan"} ${left.length} paso(s)`,
+      subject: "Una nota rápida sobre su configuración", text: `Hola ${first(c.contact_name)}:\n\n${note ? `${note}\n\n` : ""}Está a ${left.length} paso${left.length === 1 ? "" : "s"} de recibir trabajos:\n${left.map((s) => `• ${stepLabel(s, "es")}`).join("\n")}\n\nUn clic inicia su sesión: ${link}\n\nResponda si necesita ayuda.\n\n— ${BRAND.name}` } });
   await db().from("contractors").update({ last_reminder_at: new Date().toISOString() }).eq("id", contractorId);
   await logRecruiting("nudge", { contractorId }, note ?? null, actor);
   return { sent: true, steps_left: left.map((s) => s.label) };
@@ -312,8 +372,12 @@ export async function decideDocument(contractorId: string, docId: string, decisi
     }
     if (doc.kind === "background") await db().from("contractors").update({ background_checked: true, background_checked_at: now, background_status: "clear" }).eq("id", contractorId);
   } else {
-    const { data: c } = await db().from("contractors").select("profile_id, email").eq("id", contractorId).single();
-    if (c) await notify(c.profile_id, { title: "Please re-upload a document", body: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.`, data: { type: "onboarding" },
+    const { data: c } = await db().from("contractors").select("profile_id, email, application_id").eq("id", contractorId).single();
+    const docEs = docName(String(doc.kind), "es");
+    if (c) await notify(c.profile_id, {
+      locale: await appLocale(c),
+      es: { title: "Vuelva a subir un documento", body: `Su ${docEs} no fue aceptado${notes ? `: ${notes}` : ""}.`,
+        subject: "Vuelva a subir un documento", text: `Su ${docEs} no fue aceptado${notes ? `: ${notes}` : ""}.\n\nSuba uno nuevo aquí: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` }, title: "Please re-upload a document", body: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.`, data: { type: "onboarding" },
       email: { to: c.email, subject: "Please re-upload a document", text: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.\n\nUpload a new one here: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` } });
   }
   await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor);

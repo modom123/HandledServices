@@ -114,7 +114,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -212,7 +212,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               {rule && rule.tips.length > 0 && (
                 <ul className="mb-2 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">{rule.tips.map((tip) => <li key={tip}>📷 {t(tip)}</li>)}</ul>
               )}
-              <PhotoPicker value={photos} onChange={(p) => { setPhotos(p); resetAi(); }} onError={setError} />
+              <PhotoPicker value={photos} onChange={(p) => { setPhotos(p); resetAi(); }} onError={setError} locale={locale} />
               <p className="mt-1 text-xs text-ink-soft">{t("Our AI checks your photos so the price fits the job — no surprises on the day.")}</p>
               {photosMissing && photos.length > 0 && <p className="mt-1 text-xs text-amber-800">{photosMissing}</p>}
             </div>

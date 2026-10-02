@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/jobs.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
  * UPDATED : 2026-10-02_1329 UTC — text messages at each step (paid, covered, tomorrow, arrived, done; offers to pros).
  * UPDATED : 2026-10-02_0316 UTC — booking applies Plus member saving, promo codes and gift cards (our share pays
  *           for discounts; the pro's payout stays on the list price); attribution; referral reward on completion.
@@ -21,7 +22,7 @@ import { z } from "zod";
 import {
   BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
-  neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving,
+  neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
@@ -30,7 +31,7 @@ import { aiRankCandidates } from "./ai/dispatch";
 import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
-import { notify } from "./push";
+import { localeOf, notify } from "./push";
 import { amountDue, chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 import { invoiceUrl, readQuoteToken } from "./invoice";
 import { syncCatalog } from "./catalog";
@@ -65,13 +66,24 @@ export const BookingSchema = z.object({
   promo_code: z.string().max(40).nullable().optional(),
   /** First-touch marketing source (utm_*, referrer, landing page) for "where bookings come from". */
   attribution: z.record(z.string(), z.string().max(300)).nullable().optional(),
+  /** Language the customer booked in — their texts, emails and timeline follow it. */
+  locale: z.enum(["en", "es"]).default("en"),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
 const db = () => adminClient();
 
-export async function addEvent(jobId: string, kind: string, message: string, actor = "system", visible = true) {
-  await db().from("job_events").insert({ job_id: jobId, kind, message, actor, visible_to_customer: visible });
+// ── Spanish helpers ──
+/** Spanish service name ("" when unknown). */
+const svcEs = (slug: string) => { const s = getService(slug); return s ? serviceText("es", slug, s).name : ""; };
+/** "vie, 3 oct" for a YYYY-MM-DD date. */
+const dayEs = (iso: string | null | undefined) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("es-US", { weekday: "short", month: "short", day: "numeric" }) : "");
+const PROMISE_ES = t("es", BRAND.promise);
+const FREQ_ES: Record<string, string> = { weekly: "semanal", biweekly: "quincenal", monthly: "mensual", quarterly: "trimestral" };
+
+/** Timeline entry. Pass `es` for the Spanish version customers see when their language is Spanish. */
+export async function addEvent(jobId: string, kind: string, message: string, actor = "system", visible = true, es?: string | null) {
+  await db().from("job_events").insert({ job_id: jobId, kind, message, actor, visible_to_customer: visible, message_es: es ?? null });
 }
 
 export async function getJob(id: string): Promise<Job | null> {
@@ -148,6 +160,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     .single();
   if (error) throw new Error(error.message);
   let job = data as Job;
+  // booking in Spanish (signed in) → remember it on the account too
+  if (customerId && input.locale === "es") await db().from("profiles").update({ locale: "es" }).eq("id", customerId);
   if (ben?.promoCode && !ben.isGift && ben.promoAmount > 0) {
     await recordPromoUse(ben.promoCode, job.id, job.contact_email, ben.promoAmount);
     await flagPromoAbuse(ben.promoCode, job.address, job.id);
@@ -161,12 +175,17 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   const svc = getService(job.service_slug)!;
   const ai = job.ai_quote as { customer_summary?: string; risk_flags?: string[]; ops_notes?: string } | null;
   if (svc.slug === "junk-container" && job.scheduled_date)
-    await addEvent(job.id, "scheduled", `Container drop-off ${job.scheduled_date}, pickup ${containerPickup(job.scheduled_date, (job.answers as Record<string, unknown>).days)}. Need it longer? Message us — extra days are $12 each.`, "system");
-  if (ai?.customer_summary) await addEvent(job.id, "ai_quote", `AI reviewed your details: ${ai.customer_summary}`, "ai");
+    await addEvent(job.id, "scheduled", `Container drop-off ${job.scheduled_date}, pickup ${containerPickup(job.scheduled_date, (job.answers as Record<string, unknown>).days)}. Need it longer? Message us — extra days are $12 each.`, "system", true,
+      `Entrega del contenedor: ${dayEs(job.scheduled_date)}; recogida: ${dayEs(containerPickup(job.scheduled_date, (job.answers as Record<string, unknown>).days))}. ¿Lo necesita más tiempo? Escríbanos — cada día extra cuesta $12.`);
+  if (ai?.customer_summary) await addEvent(job.id, "ai_quote", `AI reviewed your details: ${ai.customer_summary}`, "ai", true, `La IA revisó sus detalles: ${ai.customer_summary}`);
   if (ai?.risk_flags?.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes ?? null, job.id);
 
+  const es = (await localeOf(job.customer_id, job.locale)) === "es";
   if (job.status === "site_visit") {
-    await sendEmail(job.contact_email, `${BRAND.name}: free site visit ${job.ref} booked`,
+    if (es) await sendEmail(job.contact_email, `${BRAND.name}: visita al sitio gratuita ${job.ref} reservada`,
+      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn profesional le visitará para confirmar un precio firme para su ${svcEs(svc.slug)} (estimado ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
+      `No debe nada hasta que apruebe la cotización y pague para asegurar el trabajo.\n\nSu estimado y acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    else await sendEmail(job.contact_email, `${BRAND.name}: free site visit ${job.ref} booked`,
       `Hi ${job.contact_name.split(" ")[0]},\n\nA pro will visit to confirm a firm price for your ${svc.name} (estimated ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
       `Nothing is owed until you approve the quote and pay to lock in the work.\n\nYour estimate & service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     await dispatchJob(job.id, { siteVisit: true });
@@ -175,7 +194,9 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   if (!paymentUrl) {
     // Stripe not configured — ops collects payment by phone/invoice, then marks it paid.
     await raiseAlert("payment", "warn", `${job.ref}: collect ${money(job.payment_plan === "deposit" ? job.deposit_amount : job.price_final)}${job.payment_plan === "deposit" ? " deposit" : ""} before dispatch`, `${job.contact_name} · ${job.contact_phone}. Mark paid in the Handled Hub to dispatch.`, job.id);
-    await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: complete payment`,
+    if (es) await sendEmail(job.contact_email, `${BRAND.name} reserva ${job.ref}: complete su pago`,
+      `Gracias por reservar ${svcEs(svc.slug)} — ${money(job.price_final)}. Un coordinador le contactará para tomar el pago; su profesional queda confirmado en cuanto se pague.\n\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\n\n${PROMISE_ES}`);
+    else await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: complete payment`,
       `Thanks for booking ${svc.name} — ${money(job.price_final)}. A coordinator will contact you to take payment; your pro is confirmed as soon as it's paid.\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n${BRAND.promise}`);
   }
 }
@@ -211,7 +232,11 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   const paid = data as Job;
   const balance = Math.max(0, price - paidNow);
   const label = p.kind === "change_order" ? "Change order paid" : full ? (firstPayment ? "Paid in full" : "Balance paid — paid in full") : "Deposit received";
-  await addEvent(jobId, "paid", `${label} — ${money(p.amount)}${!full ? ` · balance ${money(balance)} due ${paid.balance_due_date ?? "before the job"}` : ""}.`, p.via);
+  const labelEs = p.kind === "change_order" ? "Trabajo adicional pagado" : full ? (firstPayment ? "Pagado por completo" : "Saldo pagado — pagado por completo") : "Depósito recibido";
+  const dueEs = paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "antes del trabajo";
+  const svcNameEs = svcEs(job.service_slug);
+  await addEvent(jobId, "paid", `${label} — ${money(p.amount)}${!full ? ` · balance ${money(balance)} due ${paid.balance_due_date ?? "before the job"}` : ""}.`, p.via, true,
+    `${labelEs} — ${money(p.amount)}${!full ? ` · saldo de ${money(balance)}, vence ${dueEs}` : ""}.`);
   if (firstPayment || full || p.kind === "change_order") await notify(paid.customer_id, {
     title: full ? (firstPayment ? "Paid — you're locked in" : "Paid in full ✓") : "Deposit received — date locked in",
     body: !full ? `Balance ${money(balance)} is charged to your card on ${paid.balance_due_date ?? "the day before"}.` : paid.contractor_id ? `Your ${svc?.name} is confirmed.` : `We're matching your ${svc?.name} with a vetted pro now.`,
@@ -219,11 +244,21 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
     sms: firstPayment ? { to: paid.contact_phone, body: `${BRAND.name}: ${label.toLowerCase()} for your ${svc?.name} (${paid.ref}). ${paid.contractor_id ? "Your pro is confirmed." : "We're matching a vetted pro now — we'll text you when it's covered."} ${siteUrl()}/account/jobs/${paid.id}` } : null,
     email: { to: paid.contact_email, subject: `${label} — ${svc?.name} (${paid.ref})`,
       text: `Thanks! We received ${money(p.amount)}.${!full ? ` Your date is locked in. The balance of ${money(balance)} will be charged to the card you used on ${paid.balance_due_date ?? "the day before your job"}.` : ""} ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
+    locale: paid.locale,
+    es: {
+      title: full ? (firstPayment ? "Pagado — su reserva está asegurada" : "Pagado por completo ✓") : "Depósito recibido — fecha asegurada",
+      body: !full ? `El saldo de ${money(balance)} se cobrará a su tarjeta ${paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "el día anterior"}.` : paid.contractor_id ? `Su ${svcNameEs} está confirmado.` : `Estamos asignando un profesional verificado para su ${svcNameEs}.`,
+      sms: `${BRAND.name}: ${labelEs.toLowerCase()} para su ${svcNameEs} (${paid.ref}). ${paid.contractor_id ? "Su profesional está confirmado." : "Estamos asignando un profesional verificado — le avisaremos por mensaje cuando esté cubierto."} ${siteUrl()}/account/jobs/${paid.id}`,
+      subject: `${labelEs} — ${svcNameEs} (${paid.ref})`,
+      text: `¡Gracias! Recibimos ${money(p.amount)}.${!full ? ` Su fecha está asegurada. El saldo de ${money(balance)} se cobrará a la tarjeta que usó ${paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "el día antes de su trabajo"}.` : ""} ${paid.contractor_id ? "Su profesional está confirmado." : "Estamos asignándole un profesional verificado — recibirá una notificación en cuanto su trabajo esté cubierto."}\n\nFactura y acuerdo de servicio: ${invoiceUrl(paid.id)}\nSiga su reserva: ${siteUrl()}/account\n\n${PROMISE_ES}`,
+    },
   });
   if (p.kind === "change_order" && paid.contractor_id) {
     const { data: pro } = await db().from("contractors").select("profile_id, email").eq("id", paid.contractor_id).single();
     if (pro) await notify(pro.profile_id, { title: `Extra work approved · ${paid.ref}`, body: `The customer paid ${money(p.amount)}. Go ahead — your payout is now ${money(paid.contractor_payout)}.`, data: { type: "job_pro", jobId },
-      email: { to: pro.email, subject: `Extra work approved — ${paid.ref}`, text: `The customer approved and paid ${money(p.amount)} for the extra work. Go ahead.\n\nYour payout for this job is now ${money(paid.contractor_payout)}.` } });
+      email: { to: pro.email, subject: `Extra work approved — ${paid.ref}`, text: `The customer approved and paid ${money(p.amount)} for the extra work. Go ahead.\n\nYour payout for this job is now ${money(paid.contractor_payout)}.` },
+      es: { title: `Trabajo adicional aprobado · ${paid.ref}`, body: `El cliente pagó ${money(p.amount)}. Adelante — su pago ahora es de ${money(paid.contractor_payout)}.`,
+        subject: `Trabajo adicional aprobado — ${paid.ref}`, text: `El cliente aprobó y pagó ${money(p.amount)} por el trabajo adicional. Adelante.\n\nSu pago por este trabajo ahora es de ${money(paid.contractor_payout)}.` } });
   }
   if (firstPayment && !paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
   return paid;
@@ -240,7 +275,8 @@ export async function collectBalances() {
     const got = await chargeSavedCard(job, due, "balance");
     if (got) { await markPaid(job.id, { amount: got, via: "saved card", kind: "balance" }); charged++; continue; }
     await sendPaymentLink(job);
-    await notify(job.customer_id, { title: "Balance due", body: `Please pay ${money(due)} to keep your ${getService(job.service_slug)?.name} on schedule.`, data: { type: "job", jobId: job.id } });
+    await notify(job.customer_id, { title: "Balance due", body: `Please pay ${money(due)} to keep your ${getService(job.service_slug)?.name} on schedule.`, data: { type: "job", jobId: job.id },
+      locale: job.locale, es: { title: "Saldo pendiente", body: `Por favor pague ${money(due)} para mantener su ${svcEs(job.service_slug)} en el calendario.` } });
     await raiseAlert("payment", "warn", `${job.ref}: balance ${money(due)} unpaid`, "Saved card failed or missing — payment link sent. The pro can't start until it's paid.", job.id);
     linked++;
   }
@@ -252,6 +288,13 @@ export async function sendPaymentLink(job: Job) {
   const url = await paymentCheckoutUrl(job);
   const deposit = job.payment_plan === "deposit" && !job.deposit_paid_at && !Number(job.amount_paid);
   const amt = amountDue(job, deposit ? "deposit" : "full");
+  if (url && (await localeOf(job.customer_id, job.locale)) === "es") {
+    const kindEs = deposit ? "depósito " : Number(job.amount_paid) ? "saldo " : "";
+    await sendEmail(job.contact_email, `${BRAND.name}: pague ${kindEs ? `el ${kindEs}de ` : ""}${money(amt)} para ${job.ref}`,
+      `Su ${svcEs(job.service_slug)}: ${deposit ? `un depósito de ${money(amt)} asegura su fecha (saldo pendiente ${job.balance_due_date ? `el ${dayEs(job.balance_due_date)}` : "antes del trabajo"}).` : Number(job.amount_paid) ? `saldo restante de ${money(amt)}.` : `${money(amt)}, pagado por adelantado para asegurar a su profesional.`}\n\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\nPague de forma segura aquí: ${url}\n\n${PROMISE_ES}`);
+    await sendSms(job.contact_phone, `${BRAND.name}: ${kindEs ? `${kindEs}de ` : ""}${money(amt)} pendiente para su ${svcEs(job.service_slug)} (${job.ref}). Pague de forma segura: ${url}`);
+    return url;
+  }
   if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}for ${job.ref}`,
     `Your ${getService(job.service_slug)?.name}: ${deposit ? `a ${money(amt)} deposit locks in your date (balance due ${job.balance_due_date ?? "before the job"}).` : Number(job.amount_paid) ? `remaining balance ${money(amt)}.` : `${money(amt)}, paid upfront to lock in your pro.`}\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
   if (url) await sendSms(job.contact_phone, `${BRAND.name}: ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}due for your ${getService(job.service_slug)?.name} (${job.ref}). Pay securely: ${url}`);
@@ -334,6 +377,10 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const pay = payFor(p.id);
     const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
     const lead = offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
+    const nameEs = serviceText("es", svc.slug, svc).name;
+    const leadEs = offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? "Nueva visita al sitio" : "Nuevo trabajo"} · ${pay ? money(pay) : "visita al sitio"}`;
+    const whyEs = offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
+    const expiresEs = new Date(expires).toLocaleTimeString("es-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" });
     const why = offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
     await notify(pro.profile_id, {
       title: lead,
@@ -343,6 +390,13 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
       sms: { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` },
       email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${pay ? money(pay) : "site visit"} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })} ET):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
+      es: {
+        title: leadEs,
+        body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}`,
+        sms: `${BRAND.name}: ${leadEs} — ${nameEs}, ${job.city} ${job.zip}, ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs} ${siteUrl()}/pro/offers/${offerId}`,
+        subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? "visita al sitio" : "trabajo"}: ${nameEs} · ${pay ? money(pay) : "visita al sitio"} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
+        text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: pay, locale: "es" }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
+      },
     });
   }
   return { offers: picks.length, ai: Boolean(ai) };
@@ -408,7 +462,10 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   const job = won as Job;
   const svc = getService(job.service_slug);
   const when = `${job.scheduled_date ? new Date(`${job.scheduled_date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "your visit"} · ${TIME_WINDOW_LABEL[job.time_window]}`;
-  await addEvent(job.id, "assigned", `Covered: ${pro?.business_name ?? "Your pro"} (${pro?.rating ?? "5.0"}★) is confirmed for ${when}.`, "system");
+  const whenEs = `${job.scheduled_date ? dayEs(job.scheduled_date) : "su visita"} · ${t("es", TIME_WINDOW_LABEL[job.time_window])}`;
+  const nameEs = svcEs(job.service_slug);
+  await addEvent(job.id, "assigned", `Covered: ${pro?.business_name ?? "Your pro"} (${pro?.rating ?? "5.0"}★) is confirmed for ${when}.`, "system", true,
+    `Cubierto: ${pro?.business_name ?? "Su profesional"} (${pro?.rating ?? "5.0"}★) está confirmado para ${whenEs}.`);
   await addEvent(job.id, "terms", `Pro accepted work order v${WORK_ORDER_VERSION}`, "pro", false);
   // customer: your job is covered
   await notify(job.customer_id, {
@@ -417,6 +474,14 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     data: { type: "job", jobId: job.id },
     sms: { to: job.contact_phone, body: `${BRAND.name}: you're covered ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) will do your ${svc?.name} — ${when}. ${siteUrl()}/account/jobs/${job.id}` },
     email: { to: job.contact_email, subject: `Your job is covered — ${job.ref}`, text: `Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
+    locale: job.locale,
+    es: {
+      title: "Su trabajo está cubierto ✓",
+      body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) se encargará de su ${nameEs} — ${whenEs}.`,
+      sms: `${BRAND.name}: está cubierto ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) hará su ${nameEs} — ${whenEs}. ${siteUrl()}/account/jobs/${job.id}`,
+      subject: `Su trabajo está cubierto — ${job.ref}`,
+      text: `Buenas noticias: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, verificado y asegurado) se encargará de su ${nameEs} el ${whenEs}.\n\nSiga su reserva y escriba a su profesional: ${siteUrl()}/account\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}`,
+    },
   });
   // pro: confirmed, here is the full work order
   if (pro) await notify(pro.profile_id, {
@@ -424,6 +489,12 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     body: `${svc?.name} · ${job.address}, ${job.city} · ${when}`,
     data: { type: "job_pro", jobId: job.id },
     email: { to: pro.email, subject: `Confirmed: ${svc?.name} ${job.ref} — work order`, text: `You've got it, ${pro.contact_name?.split(" ")[0] ?? "pro"}. Full work order below.\n\n${workOrderText(buildWorkOrder(job, { reveal: true }))}\n\nOpen the job: ${siteUrl()}/pro/jobs/${job.id}` },
+    es: {
+      title: `Trabajo confirmado · ${job.ref}`,
+      body: `${nameEs} · ${job.address}, ${job.city} · ${whenEs}`,
+      subject: `Confirmado: ${nameEs} ${job.ref} — orden de trabajo`,
+      text: `Es suyo, ${pro.contact_name?.split(" ")[0] ?? "profesional"}. La orden de trabajo completa está abajo.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es" }), "es")}\n\nAbra el trabajo: ${siteUrl()}/pro/jobs/${job.id}`,
+    },
   });
   return { ok: true, job };
 }
@@ -458,9 +529,10 @@ export async function startJob(jobId: string, contractorId: string): Promise<{ o
     .eq("id", jobId).eq("contractor_id", contractorId).eq("status", "assigned")
     .select("id").maybeSingle();
   if (data) {
-    await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro");
+    await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro", true, "Su profesional llegó y comenzó el trabajo.");
     const job = await getJob(jobId);
-    if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId }, sms: { to: job.contact_phone, body: `${BRAND.name}: your pro has arrived and started on your ${getService(job.service_slug)?.name}.` } });
+    if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId }, sms: { to: job.contact_phone, body: `${BRAND.name}: your pro has arrived and started on your ${getService(job.service_slug)?.name}.` },
+      locale: job.locale, es: { title: "Su profesional llegó", body: `Comenzó el trabajo de su ${svcEs(job.service_slug)}.`, sms: `${BRAND.name}: su profesional llegó y comenzó con su ${svcEs(job.service_slug)}.` } });
   }
   return data ? { ok: true } : { ok: false, error: "Job can't be started" };
 }
@@ -473,7 +545,7 @@ export async function completeJob(jobId: string, contractorId: string, photos: s
     .eq("id", jobId).eq("contractor_id", contractorId).in("status", ["assigned", "in_progress"])
     .select("*").maybeSingle();
   if (!data) return false;
-  await addEvent(jobId, "submitted", "Work finished — checking completion photos.", "pro");
+  await addEvent(jobId, "submitted", "Work finished — checking completion photos.", "pro", true, "Trabajo terminado — revisando las fotos finales.");
   if (note) await db().from("messages").insert({ job_id: jobId, sender_role: "pro", body: note });
   return true;
 }
@@ -515,7 +587,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
-  await addEvent(job.id, "completed", summary ?? "Job complete. Thank you!", "system");
+  await addEvent(job.id, "completed", summary ?? "Job complete. Thank you!", "system", true, summary ?? "Trabajo terminado. ¡Gracias!");
   await notify(job.customer_id, {
     title: "Done ✓ — how did we do?",
     body: `${summary ?? "Your job is complete."} Tap to see photos and rate your pro.`,
@@ -523,6 +595,14 @@ export async function finalizeJob(jobId: string, summary?: string) {
     sms: { to: job.contact_phone, body: `${BRAND.name}: your ${getService(job.service_slug)?.name} is done ✓ See photos, rate or tip your pro: ${siteUrl()}/account/jobs/${job.id}` },
     email: { to: job.contact_email, subject: `Done! ${getService(job.service_slug)?.name} — ${job.ref}`,
       text: `${summary ?? "Your job is complete."}\n\nRate your pro (takes 10 seconds): ${siteUrl()}/account\n\nNot right? Reply within ${BRAND.guaranteeDays} days and we'll make it right.` },
+    locale: job.locale,
+    es: {
+      title: "Listo ✓ — ¿cómo lo hicimos?",
+      body: `${summary ?? "Su trabajo está terminado."} Toque para ver las fotos y calificar a su profesional.`,
+      sms: `${BRAND.name}: su ${svcEs(job.service_slug)} está listo ✓ Vea las fotos, califique o deje propina a su profesional: ${siteUrl()}/account/jobs/${job.id}`,
+      subject: `¡Listo! ${svcEs(job.service_slug)} — ${job.ref}`,
+      text: `${summary ?? "Su trabajo está terminado."}\n\nCalifique a su profesional (toma 10 segundos): ${siteUrl()}/account\n\n¿No quedó bien? Responda dentro de ${BRAND.guaranteeDays} días y lo solucionamos.`,
+    },
   });
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
@@ -568,7 +648,8 @@ async function scheduleNextVisit(job: Job) {
   // Paid upfront: charge the saved card now; the visit is dispatched only once paid.
   if (await chargeSavedCard(nextJob as Job)) {
     await markPaid(nextJob.id, { amount: Number(nextJob.price_final), via: "saved card" });
-    await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked and prepaid — offered to your pro first.`);
+    await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked and prepaid — offered to your pro first.`, "system", true,
+      `Próxima visita ${FREQ_ES[job.frequency] ?? job.frequency} reservada y prepagada — se ofrece primero a su profesional.`);
   } else {
     await sendPaymentLink(nextJob as Job);
     await raiseAlert("payment", "warn", `${nextJob.ref}: recurring visit unpaid`, "Saved card failed or missing — payment link emailed. Not dispatched until paid.", nextJob.id);
@@ -583,11 +664,19 @@ export async function sendDayBeforeReminders() {
   for (const job of (data ?? []) as Job[]) {
     const svc = getService(job.service_slug);
     const window = TIME_WINDOW_LABEL[job.time_window];
+    const windowEs = t("es", window);
+    const nameEs = svcEs(job.service_slug);
     await notify(job.customer_id, {
       title: "Tomorrow: your pro is coming",
       body: `${svc?.name} · ${window}. Please make sure we can get access.`,
       data: { type: "job", jobId: job.id },
       sms: { to: job.contact_phone, body: `${BRAND.name} reminder: your ${svc?.name} is tomorrow, ${window}. Please make sure we can get in. Need to change it? ${siteUrl()}/account/jobs/${job.id}` },
+      locale: job.locale,
+      es: {
+        title: "Mañana: llega su profesional",
+        body: `${nameEs} · ${windowEs}. Por favor asegúrese de que podamos tener acceso.`,
+        sms: `Recordatorio de ${BRAND.name}: su ${nameEs} es mañana, ${windowEs}. Por favor asegúrese de que podamos entrar. ¿Necesita cambiarlo? ${siteUrl()}/account/jobs/${job.id}`,
+      },
     });
     if (job.contractor_id) {
       const { data: pro } = await db().from("contractors").select("profile_id, email, phone").eq("id", job.contractor_id).single();
@@ -597,6 +686,13 @@ export async function sendDayBeforeReminders() {
         data: { type: "job_pro", jobId: job.id },
         sms: { to: pro.phone, body: `${BRAND.name}: tomorrow ${svc?.name} ${job.ref} — ${job.address}, ${job.city}, ${window}. ${siteUrl()}/pro/jobs/${job.id}` },
         email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: workOrderText(buildWorkOrder(job, { reveal: true })) },
+        es: {
+          title: `Mañana · ${nameEs} · ${job.ref}`,
+          body: `${job.address}, ${job.city} · ${windowEs}`,
+          sms: `${BRAND.name}: mañana ${nameEs} ${job.ref} — ${job.address}, ${job.city}, ${windowEs}. ${siteUrl()}/pro/jobs/${job.id}`,
+          subject: `Mañana: ${nameEs} ${job.ref}`,
+          text: workOrderText(buildWorkOrder(job, { reveal: true, locale: "es" }), "es"),
+        },
       });
     }
     sent++;

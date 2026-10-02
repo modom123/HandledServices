@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/pro-benefits.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
  * PURPOSE : The six Pro Program benefits, applied under the rules set in
  *           Handled Hub → Pro Program (who qualifies, amounts):
  *             cancelJob()          — refunds, the late/lockout fee, and show-up pay to the pro
@@ -17,17 +18,23 @@
  */
 import "server-only";
 import {
-  BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
+  BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, serviceText, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
   type Contractor, type Job, type ProPolicy,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, getJob, raiseAlert } from "./jobs";
-import { notify } from "./push";
+import { localeOf, notify } from "./push";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { chargeSavedCard, connectReady, createCheckout, getStripe, refundAcross } from "./stripe";
 import { uploadDoc } from "./photos";
 
 const db = () => adminClient();
+
+/** "2026-10-05" → "lunes, 5 de octubre" (Spanish texts). */
+function esDate(d: string | null | undefined) {
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return d ?? "";
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("es-US", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 // ─── Policy ──────────────────────────────────────────────────────────────────
@@ -115,13 +122,22 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
   }
 
   const label = { customer: "Cancelled by the customer", late: "Late cancellation", lockout: "Pro couldn't get access", ops: "Cancelled by Handled", weather: "Cancelled for weather", pro: "Pro cancelled" }[why];
-  await addEvent(jobId, "cancelled", `${label}. ${refunded ? `Refunded ${money(refunded)}.` : ""}${fee ? ` ${money(fee)} fee kept.` : ""}${note ? ` ${note}` : ""}`, actor);
+  const labelEs = { customer: "Cancelado por el cliente", late: "Cancelación tardía", lockout: "El profesional no pudo entrar", ops: "Cancelado por Handled", weather: "Cancelado por el clima", pro: "El profesional canceló" }[why];
+  await addEvent(jobId, "cancelled", `${label}. ${refunded ? `Refunded ${money(refunded)}.` : ""}${fee ? ` ${money(fee)} fee kept.` : ""}${note ? ` ${note}` : ""}`, actor, true,
+    `${labelEs}. ${refunded ? `Reembolso de ${money(refunded)}.` : ""}${fee ? ` Se retuvo un cargo de ${money(fee)}.` : ""}${note ? ` ${note}` : ""}`);
   if (proPay) await addEvent(jobId, "human_touch", `Show-up pay ${money(proPay)} to the pro`, actor, false);
   const svc = getService(job.service_slug);
+  const svcEs = svc ? serviceText("es", svc.slug, svc).name : "";
   await notify(job.customer_id, {
     title: `Cancelled — ${svc?.name}`, body: refunded ? `We refunded ${money(refunded)} to your card.` : "Your booking is cancelled.",
     data: { type: "job", jobId },
     email: { to: job.contact_email, subject: `Cancelled: ${svc?.name} (${job.ref})`, text: `Your ${svc?.name} on ${job.scheduled_date ?? "the booked date"} is cancelled (${label.toLowerCase()}).${refunded ? `\n\nRefund: ${money(refunded)} to your card (5–10 business days).` : ""}${fee ? `\nFee kept: ${money(fee)} (late cancellation / no access, per the Service Agreement).` : ""}\n\nBook again any time: ${siteUrl()}/services\n\n— ${BRAND.name}` },
+    locale: job.locale,
+    es: {
+      title: `Cancelado — ${svcEs}`, body: refunded ? `Reembolsamos ${money(refunded)} a su tarjeta.` : "Su reserva está cancelada.",
+      subject: `Cancelado: ${svcEs} (${job.ref})`,
+      text: `Su servicio de ${svcEs} del ${job.scheduled_date ? esDate(job.scheduled_date) : "día reservado"} está cancelado (${labelEs.toLowerCase()}).${refunded ? `\n\nReembolso: ${money(refunded)} a su tarjeta (de 5 a 10 días hábiles).` : ""}${fee ? `\nCargo retenido: ${money(fee)} (cancelación tardía / sin acceso, según el Acuerdo de Servicio).` : ""}\n\nReserve de nuevo cuando quiera: ${siteUrl()}/services\n\n— ${BRAND.name}`,
+    },
   });
   if (job.contractor_id) {
     const { data: pro } = await db().from("contractors").select("profile_id, email").eq("id", job.contractor_id).single();
@@ -129,6 +145,11 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
       title: `Job cancelled · ${job.ref}`, body: proPay ? `You'll get ${money(proPay)} show-up pay on your next payout.` : `${svc?.name} on ${job.scheduled_date} is off your schedule.`,
       data: { type: "job_pro", jobId },
       email: { to: pro.email, subject: `Cancelled: ${job.ref}`, text: `${svc?.name} on ${job.scheduled_date} (${job.city}) is cancelled: ${label.toLowerCase()}.${proPay ? `\n\nShow-up pay: ${money(proPay)}, added to your next payout.` : ""}` },
+      es: {
+        title: `Trabajo cancelado · ${job.ref}`, body: proPay ? `Recibirá ${money(proPay)} de pago por presentarse en su próximo pago.` : `${svcEs} del ${esDate(job.scheduled_date)} ya no está en su agenda.`,
+        subject: `Cancelado: ${job.ref}`,
+        text: `${svcEs} del ${esDate(job.scheduled_date)} (${job.city}) está cancelado: ${labelEs.toLowerCase()}.${proPay ? `\n\nPago por presentarse: ${money(proPay)}, agregado a su próximo pago.` : ""}`,
+      },
     });
   }
   return { ok: true, reason: why, refunded, fee, proPay };
@@ -211,7 +232,9 @@ export async function approveExpense(expenseId: string, who: string) {
   await db().from("job_expenses").update({ status: "approved", decided_by: who, decided_at: new Date().toISOString() }).eq("id", expenseId);
   const canCharge = Boolean(job.stripe_customer_id && job.stripe_payment_method);
   // tell the customer before the card is charged (Service Agreement §3)
-  if (canCharge) await sendEmail(job.contact_email, `Materials for ${job.ref}: ${money(Number(e.amount))}`, `Your pro needed materials that weren't in your price: ${e.description}. We're charging ${money(Number(e.amount))} (at cost, no markup) to the card on file. The receipt is on file — reply for a copy.\n\n— ${BRAND.name}`);
+  const es = (await localeOf(job.customer_id, job.locale)) === "es";
+  if (canCharge && es) await sendEmail(job.contact_email, `Materiales para ${job.ref}: ${money(Number(e.amount))}`, `Su profesional necesitó materiales que no estaban incluidos en su precio: ${e.description}. Cobraremos ${money(Number(e.amount))} (al costo, sin recargo) a la tarjeta registrada. Tenemos el recibo — responda a este correo si desea una copia.\n\n— ${BRAND.name}`);
+  else if (canCharge) await sendEmail(job.contact_email, `Materials for ${job.ref}: ${money(Number(e.amount))}`, `Your pro needed materials that weren't in your price: ${e.description}. We're charging ${money(Number(e.amount))} (at cost, no markup) to the card on file. The receipt is on file — reply for a copy.\n\n— ${BRAND.name}`);
   const got = canCharge ? await chargeSavedCard(job, Number(e.amount), "materials", expenseId.slice(0, 8)) : 0;
   if (got) {
     const { data: pay } = await db().from("payments").select("id").eq("job_id", job.id).eq("kind", "materials").order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -220,7 +243,8 @@ export async function approveExpense(expenseId: string, who: string) {
   }
   const link = await createCheckout({ amount: Number(e.amount), kind: "materials", job, name: `Materials — ${job.ref}`, description: `${e.description} (at cost, receipt on file)`, customerEmail: job.contact_email, customerName: job.contact_name, createdBy: who });
   await db().from("job_expenses").update({ status: "billed", payment_id: link?.paymentId ?? null }).eq("id", expenseId);
-  if (link) await sendEmail(job.contact_email, `Materials for ${job.ref}: ${money(Number(e.amount))}`, `Your pro needed materials that weren't in your price: ${e.description}. Cost: ${money(Number(e.amount))} (at cost, no markup).\n\nPay here: ${link.url}\n\n— ${BRAND.name}`);
+  if (link && es) await sendEmail(job.contact_email, `Materiales para ${job.ref}: ${money(Number(e.amount))}`, `Su profesional necesitó materiales que no estaban incluidos en su precio: ${e.description}. Costo: ${money(Number(e.amount))} (al costo, sin recargo).\n\nPague aquí: ${link.url}\n\n— ${BRAND.name}`);
+  else if (link) await sendEmail(job.contact_email, `Materials for ${job.ref}: ${money(Number(e.amount))}`, `Your pro needed materials that weren't in your price: ${e.description}. Cost: ${money(Number(e.amount))} (at cost, no markup).\n\nPay here: ${link.url}\n\n— ${BRAND.name}`);
   else await raiseAlert("materials", "warn", `${job.ref}: collect materials ${money(Number(e.amount))}`, "Stripe isn't configured — collect by hand, then mark the expense paid.", job.id);
   return { status: "billed" };
 }
@@ -238,7 +262,8 @@ export async function rejectExpense(expenseId: string, who: string, why: string)
   const { data: e } = await db().from("job_expenses").update({ status: "rejected", decided_by: who, decided_at: new Date().toISOString(), notes: why }).eq("id", expenseId).eq("status", "pending").select("*").maybeSingle();
   if (!e) return;
   const { data: pro } = await db().from("contractors").select("profile_id, email").eq("id", e.contractor_id).single();
-  if (pro) await notify(pro.profile_id, { title: "Materials not approved", body: `${money(Number(e.amount))} — ${why}`, data: { type: "job_pro", jobId: e.job_id }, email: { to: pro.email, subject: "Materials receipt not approved", text: `${e.description} (${money(Number(e.amount))}) wasn't approved: ${why}` } });
+  if (pro) await notify(pro.profile_id, { title: "Materials not approved", body: `${money(Number(e.amount))} — ${why}`, data: { type: "job_pro", jobId: e.job_id }, email: { to: pro.email, subject: "Materials receipt not approved", text: `${e.description} (${money(Number(e.amount))}) wasn't approved: ${why}` },
+    es: { title: "Materiales no aprobados", body: `${money(Number(e.amount))} — ${why}`, subject: "Recibo de materiales no aprobado", text: `${e.description} (${money(Number(e.amount))}) no fue aprobado: ${why}` } });
 }
 
 // ─── 4. Insurance stipend ──────────────────────────────────────────────────────
@@ -254,7 +279,8 @@ export async function grantStipends() {
     const { data: claimed } = await db().from("contractors").update({ insurance_stipend_paid_at: new Date().toISOString() }).eq("id", c.id).is("insurance_stipend_paid_at", null).select("id").maybeSingle();
     if (!claimed) continue;
     await db().from("payouts").insert({ contractor_id: c.id, amount: policy.insurance.stipend, status: "approved", kind: "stipend", reason: `Insurance stipend after ${policy.insurance.afterJobs} jobs` });
-    await notify(c.profile_id, { title: `${money(policy.insurance.stipend)} insurance stipend`, body: "Thanks for great work — it's on your next payout.", data: { type: "earnings" }, email: { to: c.email, subject: `${money(policy.insurance.stipend)} insurance stipend`, text: `You've finished ${policy.insurance.afterJobs} jobs with ${BRAND.name}. We've added a ${money(policy.insurance.stipend)} insurance stipend to your next payout.` } });
+    await notify(c.profile_id, { title: `${money(policy.insurance.stipend)} insurance stipend`, body: "Thanks for great work — it's on your next payout.", data: { type: "earnings" }, email: { to: c.email, subject: `${money(policy.insurance.stipend)} insurance stipend`, text: `You've finished ${policy.insurance.afterJobs} jobs with ${BRAND.name}. We've added a ${money(policy.insurance.stipend)} insurance stipend to your next payout.` },
+      es: { title: `Apoyo para seguro de ${money(policy.insurance.stipend)}`, body: "Gracias por su excelente trabajo — se incluirá en su próximo pago.", subject: `Apoyo para seguro de ${money(policy.insurance.stipend)}`, text: `Ha completado ${policy.insurance.afterJobs} trabajos con ${BRAND.name}. Agregamos un apoyo para seguro de ${money(policy.insurance.stipend)} a su próximo pago.` } });
     n++;
   }
   return n;
@@ -339,7 +365,8 @@ export async function runWeeklyPayouts(now = new Date()) {
     if (!(await connectReady(pro.stripe_account_id))) {
       waiting++;
       await notify(pro.profile_id, { title: `${money(amount)} is waiting for you`, body: "Finish your payout setup in Earnings so we can send it.", data: { type: "earnings" },
-        email: { to: pro.email, subject: `${money(amount)} is ready — finish your payout setup`, text: `You have ${money(amount)} approved. Finish your Stripe payout setup so we can send it: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
+        email: { to: pro.email, subject: `${money(amount)} is ready — finish your payout setup`, text: `You have ${money(amount)} approved. Finish your Stripe payout setup so we can send it: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` },
+        es: { title: `${money(amount)} le están esperando`, body: "Termine la configuración de pagos en Ganancias para que podamos enviarlo.", subject: `${money(amount)} listos — termine la configuración de pagos`, text: `Tiene ${money(amount)} aprobados. Termine la configuración de pagos en Stripe para que podamos enviarlos: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
       continue;
     }
     const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
@@ -358,7 +385,8 @@ export async function runWeeklyPayouts(now = new Date()) {
       if (neg.length) await db().from("payouts").update({ paid_at: stamp, stripe_transfer_id: t.id, week_of: week }).in("id", neg);
       paid++; total = r2(total + amount);
       await notify(pro.profile_id, { title: `Paid: ${money(amount)}`, body: `Your weekly payout is on its way to your bank (${pos.length} item${pos.length === 1 ? "" : "s"}).`, data: { type: "earnings" },
-        email: { to: pro.email, subject: `${BRAND.name} weekly payout: ${money(amount)}`, text: `We sent ${money(amount)} to your Stripe account for the week of ${week}. It reaches your bank on Stripe's standard schedule (usually 2 business days).\n\nStatement for every job: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
+        email: { to: pro.email, subject: `${BRAND.name} weekly payout: ${money(amount)}`, text: `We sent ${money(amount)} to your Stripe account for the week of ${week}. It reaches your bank on Stripe's standard schedule (usually 2 business days).\n\nStatement for every job: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` },
+        es: { title: `Pagado: ${money(amount)}`, body: `Su pago semanal va en camino a su banco (${pos.length} concepto${pos.length === 1 ? "" : "s"}).`, subject: `Pago semanal de ${BRAND.name}: ${money(amount)}`, text: `Enviamos ${money(amount)} a su cuenta de Stripe por la semana del ${esDate(week)}. Llegará a su banco según el calendario estándar de Stripe (normalmente 2 días hábiles).\n\nDetalle de cada trabajo: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
     } catch (e) {
       await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", pos);
       failed.push(`${pro.business_name}: ${e instanceof Error ? e.message : "transfer failed"}`);
@@ -406,7 +434,8 @@ export async function payReferralBonuses() {
     if (!ref || ref.status !== "approved") continue;
     await db().from("payouts").insert({ contractor_id: ref.id, amount: PRO_REFERRAL.bonus, status: "approved", kind: "referral", reason: `Referral bonus — ${c.business_name} finished ${PRO_REFERRAL.afterJobs} jobs` });
     await notify(ref.profile_id, { title: `${money(PRO_REFERRAL.bonus)} referral bonus`, body: `${c.business_name} finished ${PRO_REFERRAL.afterJobs} jobs. It's on your next payout.`, data: { type: "earnings" },
-      email: { to: ref.email, subject: `${money(PRO_REFERRAL.bonus)} referral bonus`, text: `Thanks for referring ${c.business_name}. They've finished ${PRO_REFERRAL.afterJobs} jobs, so we've added ${money(PRO_REFERRAL.bonus)} to your next payout.\n\n— ${BRAND.name}` } });
+      email: { to: ref.email, subject: `${money(PRO_REFERRAL.bonus)} referral bonus`, text: `Thanks for referring ${c.business_name}. They've finished ${PRO_REFERRAL.afterJobs} jobs, so we've added ${money(PRO_REFERRAL.bonus)} to your next payout.\n\n— ${BRAND.name}` },
+      es: { title: `Bono por referido de ${money(PRO_REFERRAL.bonus)}`, body: `${c.business_name} completó ${PRO_REFERRAL.afterJobs} trabajos. Se incluirá en su próximo pago.`, subject: `Bono por referido de ${money(PRO_REFERRAL.bonus)}`, text: `Gracias por referir a ${c.business_name}. Ya completó ${PRO_REFERRAL.afterJobs} trabajos, así que agregamos ${money(PRO_REFERRAL.bonus)} a su próximo pago.\n\n— ${BRAND.name}` } });
     n++;
   }
   return n;

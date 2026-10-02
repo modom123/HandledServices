@@ -19,7 +19,7 @@ import { useI18n } from "../../lib/i18n";
 import { Calendar } from "../../components/BookingPickers";
 
 type Pro = { business_name: string; contact_first_name: string; rating: number; jobs_completed: number };
-type Ev = { id: number; message: string; created_at: string };
+type Ev = { id: number; message: string; message_es?: string | null; created_at: string };
 
 export default function Booking() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,7 +35,7 @@ export default function Booking() {
     const [{ data: j }, { data: p }, { data: ev }, { data: rv }] = await Promise.all([
       supabase.from("jobs").select("*").eq("id", id).single(),
       supabase.rpc("job_pro", { p_job: id }),
-      supabase.from("job_events").select("id, message, created_at").eq("job_id", id).order("created_at", { ascending: false }),
+      supabase.from("job_events").select("id, message, message_es, created_at").eq("job_id", id).order("created_at", { ascending: false }),
       supabase.from("reviews").select("id").eq("job_id", id).maybeSingle(),
     ]);
     setJob(j as Job); setPro(((p ?? []) as Pro[])[0] ?? null); setEvents((ev ?? []) as Ev[]); setRated(Boolean(rv));
@@ -135,7 +135,7 @@ export default function Booking() {
       {events.map((e) => (
         <View key={e.id} style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.brand, marginTop: 6 }} />
-          <View style={{ flex: 1 }}><Text style={{ color: C.ink }}>{e.message}</Text><Text style={[s.p, { fontSize: 14 }]}>{new Date(e.created_at).toLocaleString(es ? "es-US" : "en-US")}</Text></View>
+          <View style={{ flex: 1 }}><Text style={{ color: C.ink }}>{es ? e.message_es ?? e.message : e.message}</Text><Text style={[s.p, { fontSize: 14 }]}>{new Date(e.created_at).toLocaleString(es ? "es-US" : "en-US")}</Text></View>
         </View>
       ))}
     </ScrollView>

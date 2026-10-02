@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_1348.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_1420.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-02_1348 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 19 migrations + production seed.
+-- CREATED : 2026-10-02_1420 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 20 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1412,6 +1412,23 @@ create table if not exists public.launch_checklist (
   updated_at timestamptz not null default now()
 );
 alter table public.launch_checklist enable row level security;
+
+
+-- >>> migration 20261002141249_message_language.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002141249_message_language.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-02_1412 UTC
+-- PURPOSE : Each person chooses English or Spanish, and every text, email, push notification
+--           and timeline entry follows it:
+--             • profiles.locale (already exists) — signed-in customers and pros
+--             • jobs.locale — the language a booking was made in (guests have no profile)
+--             • contractor_applications.locale — applicants, before they have an account
+--             • job_events.message_es — Spanish version of each timeline entry
+-- ============================================================================
+alter table public.jobs add column if not exists locale text not null default 'en' check (locale in ('en','es'));
+alter table public.contractor_applications add column if not exists locale text not null default 'en' check (locale in ('en','es'));
+alter table public.job_events add column if not exists message_es text;
 
 
 -- >>> seed.sql

@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0233 UTC — a redo is an offer to the original pro, then any pro (paid from our take).
  * UPDATED : 2026-10-01_2124 UTC — Pay protection: a refund that isn't the pro's fault comes
  *           out of our take first when the pro qualifies (Hub → Pro Program).
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
  * PURPOSE : Making it right after an upfront payment — never by holding money back:
  *             refund         — partial or full, back to the card. Shared with the pro in the
  *                              original split, or charged to the pro first when the pro was at
@@ -14,15 +15,22 @@
  *                              on the original job, capped so the pair can't go negative.
  */
 import "server-only";
-import { BRAND, estimate, getService, money, qualifies, refundSplit, splitJob, type Answers, type Contractor, type Job } from "@handled/core";
+import { BRAND, estimate, getService, serviceText, money, qualifies, refundSplit, splitJob, type Answers, type Contractor, type Job } from "@handled/core";
 import { getPolicy } from "./pro-benefits";
 import { adminClient } from "./supabase/server";
 import { addEvent, dispatchJob, getJob } from "./jobs";
 import { refundPayment } from "./stripe";
 import { sendEmail } from "./notify";
 import { syncCatalog } from "./catalog";
+import { localeOf } from "./push";
 
 const db = () => adminClient();
+
+/** "2026-10-05" → "lunes, 5 de octubre" (Spanish texts). */
+function esDate(d: string | null | undefined) {
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return d ?? "";
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("es-US", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
 
 export async function issueRefund(jobId: string, amount: number, proAtFault: boolean, actor: string, reason: string) {
   const job = await getJob(jobId);
@@ -45,9 +53,10 @@ export async function issueRefund(jobId: string, amount: number, proAtFault: boo
     if (payout && payout.status !== "paid") await db().from("payouts").update({ amount: split.newPayout }).eq("id", payout.id);
     else if (payout) await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: jobId, amount: -split.fromPro, status: "clawback", kind: "clawback", reason });
   }
-  await addEvent(jobId, "refund", `Refund issued: ${money(split.refund)}. ${reason}`, actor);
+  await addEvent(jobId, "refund", `Refund issued: ${money(split.refund)}. ${reason}`, actor, true, `Reembolso emitido: ${money(split.refund)}. ${reason}`);
   await addEvent(jobId, "human_touch", `Refund ${money(split.refund)} (pro ${money(split.fromPro)} / us ${money(split.fromUs)})${protectPro ? " · pay protection" : ""}`, actor, false);
-  await sendEmail(job.contact_email, `Refund issued — ${job.ref}`, `We've refunded ${money(split.refund)} to your card (allow 5–10 business days). ${reason}\n\nWe're sorry it wasn't right. — ${BRAND.name}`);
+  if ((await localeOf(job.customer_id, job.locale)) === "es") await sendEmail(job.contact_email, `Reembolso emitido — ${job.ref}`, `Reembolsamos ${money(split.refund)} a su tarjeta (puede tardar de 5 a 10 días hábiles). ${reason}\n\nLamentamos que no haya quedado bien. — ${BRAND.name}`);
+  else await sendEmail(job.contact_email, `Refund issued — ${job.ref}`, `We've refunded ${money(split.refund)} to your card (allow 5–10 business days). ${reason}\n\nWe're sorry it wasn't right. — ${BRAND.name}`);
   return { ok: true, ...split };
 }
 
@@ -77,9 +86,10 @@ export async function createRedo(jobId: string, date: string, actor: string, not
     contractor_id: null, notes: `REDO of ${parent.ref}: ${note}`,
   });
   await dispatchJob(redo.id);
-  await addEvent(parent.id, "remedy", `Free redo scheduled for ${date} (${redo.ref}).`, actor);
+  await addEvent(parent.id, "remedy", `Free redo scheduled for ${date} (${redo.ref}).`, actor, true, `Trabajo repetido sin costo programado para el ${esDate(date)} (${redo.ref}).`);
   await addEvent(parent.id, "human_touch", `Redo ${redo.ref}`, actor, false);
-  await sendEmail(parent.contact_email, `We'll make it right — ${parent.ref}`, `We're sending a pro back on ${date} to fix it, free of charge. Your original pro gets the first chance; if they can't make it, another vetted pro will. You'll get a notification once it's confirmed.\n\n— ${BRAND.name}`);
+  if ((await localeOf(parent.customer_id, parent.locale)) === "es") await sendEmail(parent.contact_email, `Lo vamos a solucionar — ${parent.ref}`, `Enviaremos a un profesional de nuevo el ${esDate(date)} para rehacer el trabajo, sin costo. Su profesional original tiene la primera opción; si no puede asistir, irá otro profesional verificado. Recibirá una notificación cuando esté confirmado.\n\n— ${BRAND.name}`);
+  else await sendEmail(parent.contact_email, `We'll make it right — ${parent.ref}`, `We're sending a pro back on ${date} to fix it, free of charge. Your original pro gets the first chance; if they can't make it, another vetted pro will. You'll get a notification once it's confirmed.\n\n— ${BRAND.name}`);
   return { ok: true, ref: redo.ref };
 }
 
@@ -100,9 +110,11 @@ export async function createComplimentary(jobId: string, serviceSlug: string, an
     price_final: 0, contractor_payout: payout, estimate_low: 0, estimate_high: 0, contractor_id: null,
     notes: `COMPLIMENTARY (from ${parent.ref}): ${note}`,
   });
-  await addEvent(parent.id, "remedy", `Complimentary ${svc.name} scheduled for ${date} (${job.ref}) — on us.`, actor);
+  const svcEs = serviceText("es", svc.slug, svc).name;
+  await addEvent(parent.id, "remedy", `Complimentary ${svc.name} scheduled for ${date} (${job.ref}) — on us.`, actor, true, `${svcEs} de cortesía programado para el ${esDate(date)} (${job.ref}) — por nuestra cuenta.`);
   await addEvent(parent.id, "human_touch", `Complimentary ${svc.slug} ${job.ref}`, actor, false);
-  await sendEmail(parent.contact_email, `A thank-you from ${BRAND.name}`, `We've added a free ${svc.name} on ${date} — on us. ${note}`);
+  if ((await localeOf(parent.customer_id, parent.locale)) === "es") await sendEmail(parent.contact_email, `Un agradecimiento de ${BRAND.name}`, `Agregamos un servicio gratuito de ${svcEs} el ${esDate(date)} — por nuestra cuenta. ${note}`);
+  else await sendEmail(parent.contact_email, `A thank-you from ${BRAND.name}`, `We've added a free ${svc.name} on ${date} — on us. ${note}`);
   await dispatchJob(job.id);
   return { ok: true, ref: job.ref, payout, ourTakeLeft: ourTake - payout };
 }

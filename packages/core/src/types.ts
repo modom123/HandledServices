@@ -88,6 +88,8 @@ export interface Job {
   ai_dispatch: unknown;
   ai_qa: unknown;
   priority: "normal" | "high" | "urgent";
+  /** Language the booking was made in (texts, emails and timeline follow it for guests). */
+  locale?: "en" | "es" | null;
   /** What the customer told us: how soon they need it, the last acceptable day, and their budget. */
   urgency?: "asap" | "this_week" | "two_weeks" | "month" | "flexible" | null;
   needed_by?: string | null;

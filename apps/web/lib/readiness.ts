@@ -83,6 +83,7 @@ export async function readiness(): Promise<Check[]> {
     ["15 customer timing & budget", () => db.from("jobs").select("urgency, needed_by, customer_budget").limit(1)],
     ["16 launch & growth (Plus, promos, tips, disputes)", () => db.from("promo_codes").select("code").limit(1)],
     ["17 business & legal checklist", () => db.from("launch_checklist").select("key").limit(1)],
+    ["18 message language", () => db.from("jobs").select("locale").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

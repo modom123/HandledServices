@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/pro/layout.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_1412 UTC — EN | ES switch (saved on the pro's account: texts and emails follow it).
  * PURPOSE : Pro portal shell. Pros mostly use the mobile app; this is the web twin.
  */
 import Link from "next/link";
@@ -10,6 +11,8 @@ import { Logo } from "@/components/site";
 import { NotConfigured } from "@/components/ui";
 import { getViewer } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
+import { LangSwitch } from "@/components/LangSwitch";
+import { getLocale } from "@/lib/locale";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +26,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
     );
   return (
     <>
-      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">Jobs</Link><Link href="/pro/schedule">Calendar</Link><Link href="/pro/earnings">Earnings</Link><Link href="/pro/onboarding">Setup & documents</Link><form action="/auth/signout" method="post"><button className="text-ink-soft">Sign out</button></form></div></div></header>
+      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">Jobs</Link><Link href="/pro/schedule">Calendar</Link><Link href="/pro/earnings">Earnings</Link><Link href="/pro/onboarding">Setup & documents</Link><LangSwitch locale={await getLocale()} /><form action="/auth/signout" method="post"><button className="text-ink-soft">Sign out</button></form></div></div></header>
       <main className="wrap py-8">{children}</main>
     </>
   );

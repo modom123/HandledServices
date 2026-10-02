@@ -2,16 +2,18 @@
  * FILE    : apps/web/app/api/hub/charges/route.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2053 UTC
+ * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Staff: Quick Charge — create a Stripe payment link for any amount (with or
  *           without a job), email it to the customer, and list recent links.
  */
 import { z } from "zod";
-import { BRAND, money, type Job } from "@handled/core";
+import { BRAND, money, t, type Job } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { createCheckout } from "@/lib/stripe";
 import { sendEmail } from "@/lib/notify";
 import { addEvent } from "@/lib/jobs";
+import { localeOf } from "@/lib/push";
 
 const Body = z.object({
   amount: z.number().positive().max(250000),
@@ -52,7 +54,14 @@ export async function POST(req: Request) {
     await addEvent(job.id, "charge_link", `${b.kind.replace("_", " ")} link sent: ${money(b.amount)} — ${b.description}`, who, false);
     await addEvent(job.id, "human_touch", `Quick Charge ${money(b.amount)}`, who, false);
   }
-  if (b.send_email) await sendEmail(email, `${BRAND.name}: ${b.kind === "change_order" ? "change order" : "payment"} of ${money(b.amount)}${job ? ` for ${job.ref}` : ""}`,
+  // the customer's language: their account toggle (by job, else by email), else the booking's language
+  const prof = job?.customer_id ? null : (await db.from("profiles").select("id").ilike("email", email).maybeSingle()).data;
+  const lang = b.send_email ? await localeOf(job?.customer_id ?? prof?.id ?? null, job?.locale) : "en";
+  const name = b.customer_name ?? job?.contact_name;
+  // staff write the description; the rest of the email follows the customer's language
+  if (b.send_email && lang === "es") await sendEmail(email, `${BRAND.name}: ${b.kind === "change_order" ? "orden de cambio" : "pago"} de ${money(b.amount)}${job ? ` para ${job.ref}` : ""}`,
+    `Hola${name ? ` ${name.split(" ")[0]}` : ""}:\n\n${b.description}: ${money(b.amount)}.\nPague de forma segura aquí: ${r.url}\n\n${t("es", BRAND.promise)}\n— ${BRAND.name}`);
+  else if (b.send_email) await sendEmail(email, `${BRAND.name}: ${b.kind === "change_order" ? "change order" : "payment"} of ${money(b.amount)}${job ? ` for ${job.ref}` : ""}`,
     `Hi${b.customer_name ?? job?.contact_name ? ` ${(b.customer_name ?? job!.contact_name).split(" ")[0]}` : ""},\n\n${b.description}: ${money(b.amount)}.\nPay securely here: ${r.url}\n\n${BRAND.promise}\n— ${BRAND.name}`);
   return Response.json({ ok: true, url: r.url, paymentId: r.paymentId });
 }
