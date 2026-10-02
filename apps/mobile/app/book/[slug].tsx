@@ -23,6 +23,7 @@ export default function Book() {
   const [frequency, setFrequency] = useState<Frequency>("once");
   const [urgency, setUrgency] = useState<Urgency | null>(null);
   const [budget, setBudget] = useState("");
+  const [promo, setPromo] = useState("");
   const [date, setDate] = useState(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
   const [win, setWin] = useState<TimeWindow>("morning");
   const [notes, setNotes] = useState("");
@@ -69,7 +70,7 @@ export default function Book() {
     setBusy(true);
     const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, promo_code: promo || null, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert("Couldn't book", r.data.error ?? "Please check the form");
@@ -139,6 +140,8 @@ export default function Book() {
       <Field label="Street address" value={f.address} onChangeText={set("address")} />
       <Field label="City" value={f.city} onChangeText={set("city")} />
       <View style={{ width: 80 }}><Field label="State" value={f.state} onChangeText={set("state")} maxLength={2} autoCapitalize="characters" /></View>
+      <Field label="Promo, gift card or referral code (optional)" value={promo} onChangeText={(v) => setPromo(v.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} autoCapitalize="characters" />
+      <Text style={[s.p, { fontSize: 14, marginTop: -6, marginBottom: 6 }]}>Savings and Plus member pricing are applied at checkout.</Text>
       <Text style={s.h2}>Contact</Text>
       <Field label="Full name" value={f.contact_name} onChangeText={set("contact_name")} />
       <Field label="Email" value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />

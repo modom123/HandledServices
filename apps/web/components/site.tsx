@@ -2,6 +2,7 @@
  * FILE    : apps/web/components/site.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_1329 UTC — footer: Handled Plus, gift cards, reviews.
  * PURPOSE : Public website header and footer.
  */
 import Link from "next/link";
@@ -59,6 +60,9 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
             <li><Link href="/events" className="hover:text-ink">Parties & events</Link></li>
             <li><Link href="/business" className="hover:text-ink">Commercial accounts</Link></li>
+            <li><Link href="/plus" className="hover:text-ink">⭐ Handled Plus</Link></li>
+            <li><Link href="/gift-cards" className="hover:text-ink">🎁 Gift cards</Link></li>
+            <li><Link href="/reviews" className="hover:text-ink">Customer reviews</Link></li>
             <li><Link href="/pros" className="hover:text-ink">Join as a pro</Link></li>
             <li><Link href="/hub" className="hover:text-ink">Handled Hub</Link></li>
             <li>{BRAND.supportPhone}</li>

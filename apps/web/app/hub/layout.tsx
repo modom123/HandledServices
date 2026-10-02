@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0255 UTC — Live roster in the nav.
+ * UPDATED : 2026-10-02_1329 UTC — Growth page in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -23,6 +24,7 @@ const NAV = [
   ["/hub/recruiting", "🧲", "Recruiting"],
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/finance", "💵", "Finance"],
+  ["/hub/growth", "📈", "Growth"],
   ["/hub/charges", "💳", "Quick Charge"],
   ["/hub/pro-program", "🏅", "Pro Program"],
   ["/hub/workforce", "🏢", "IEBC Workforce"],
