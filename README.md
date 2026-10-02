@@ -106,7 +106,7 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 | `read` | `read.kpis`, `read.jobs`, `read.job`, `read.pros`, `read.alerts`, `read.applications`, `read.reviews`, `read.lapsed_customers` | all |
 | `ops` | `ops.dispatch_job`, `ops.set_job_status`*, `ops.add_job_note`, `ops.create_alert`, `ops.approve_qa`† | Arthur Vance (autonomous), Katerina Rostova |
 | `finance` | `finance.payout_queue`, `finance.set_job_price`†, `finance.mark_payout_paid`† | Eleanor Wei |
-| `recruiting` | `recruiting.decide_application`†, `recruiting.activate_pro`†, `recruiting.flag_expiring_insurance` | Tyler Walsh, Marcus Hill |
+| `recruiting` | `recruiting.pipeline`, `recruiting.history`, `recruiting.documents`, `recruiting.nudge_pro`, `recruiting.revive_pro`, `recruiting.add_note`, `recruiting.order_background_check`, `recruiting.decide_application`†, `recruiting.verify_document`†, `recruiting.activate_pro`†, `recruiting.flag_expiring_insurance` | Tyler Walsh (pipeline & follow-up, autonomous), Marcus Hill (documents & background checks, autonomous) |
 | `retention` | `retention.message_customer`, `retention.email_customer`† | Diego Martinez (autonomous) |
 | `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account` | Elena Markov, Clara Dubois (autonomous) |
 

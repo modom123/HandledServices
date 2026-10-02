@@ -182,7 +182,18 @@ export async function maybeActivate(contractorId: string, actor = "auto-activate
     await raiseAlert("recruiting", "info", `Ready to activate: ${c.business_name}`, "Every step is done and verified. Activate in Hub → Pros.");
     return false;
   }
-  await db().from("contractors").update({ status: "approved", onboarded_at: new Date().toISOString(), dropped_at: null }).eq("id", contractorId).eq("status", "vetting");
+  return activatePro(contractorId, actor);
+}
+
+/** Activate a pro whose setup is complete (any actor: auto, staff, IEBC). */
+export async function activatePro(contractorId: string, actor: string) {
+  const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
+  if (!c) throw new Error("No such pro");
+  if (c.status === "approved") return true;
+  const { steps, complete } = onboardingChecklist(c as never);
+  if (!complete) throw new Error(`Setup incomplete: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
+  const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
+  if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
   await notify(c.profile_id, { title: "You're live 🎉", body: "Setup is complete. Job offers in your area start now.", data: { type: "pro_home" },
     email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` } });
@@ -260,4 +271,51 @@ export async function pipeline() {
     rows.push({ app: { id: null, business_name: c.business_name, contact_name: c.contact_name, email: c.email, phone: c.phone, trades: c.trades, created_at: c.created_at, source: "added by staff" }, pro: c, stage, label: STAGE_LABEL[stage], done: steps.filter((x) => x.done).length, total: steps.length, left: steps.filter((x) => !x.done).map((x) => x.label) });
   }
   return rows;
+}
+
+// ─── shared staff / IEBC actions ─────────────────────────────────────────────
+
+/** Personal reminder now (email + push, one-click link, the steps left). */
+export async function nudgePro(contractorId: string, note: string | null | undefined, actor: string) {
+  const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
+  if (!c) throw new Error("No such pro");
+  const left = onboardingChecklist(c as never).steps.filter((s) => !s.done);
+  const link = await signInUrl(c.email);
+  await notify(c.profile_id, { title: `Finish your ${BRAND.name} setup`, body: `${left.length} step(s) left`, data: { type: "onboarding" },
+    email: { to: c.email, subject: "Quick note about your setup", text: `Hi ${String(c.contact_name).split(" ")[0]},\n\n${note ? `${note}\n\n` : ""}You're ${left.length} step${left.length === 1 ? "" : "s"} away from getting jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}\n\nOne click signs you in: ${link}\n\nReply if you need help.\n\n— ${BRAND.name}` } });
+  await db().from("contractors").update({ last_reminder_at: new Date().toISOString() }).eq("id", contractorId);
+  await logRecruiting("nudge", { contractorId }, note ?? null, actor);
+  return { sent: true, steps_left: left.map((s) => s.label) };
+}
+
+export async function revivePro(contractorId: string, actor: string, note?: string | null) {
+  await db().from("contractors").update({ dropped_at: null, invited_at: new Date().toISOString(), onboarding_reminders: 0 }).eq("id", contractorId);
+  await logRecruiting("revived", { contractorId }, note ?? null, actor);
+}
+
+/**
+ * Verify or reject a pro's document. Verifying a COI sets insured_until; a license sets
+ * license_expires; trade coverage sets coverage[kind]; a background report clears the check.
+ * Then setup is re-checked (background check / auto-activate).
+ */
+export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null) {
+  const { data: doc } = await db().from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", contractorId).single();
+  if (!doc) throw new Error("No such document");
+  const now = new Date().toISOString();
+  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: notes ?? doc.notes }).eq("id", docId);
+  if (decision === "verify") {
+    if (doc.kind === "coi" && doc.expires_on) await db().from("contractors").update({ insured_until: doc.expires_on }).eq("id", contractorId);
+    if (doc.kind === "license" && doc.expires_on) await db().from("contractors").update({ license_expires: doc.expires_on }).eq("id", contractorId);
+    if (["auto", "workers_comp", "bond", "liquor"].includes(doc.kind) && doc.expires_on) {
+      const { data: c } = await db().from("contractors").select("coverage").eq("id", contractorId).single();
+      await db().from("contractors").update({ coverage: { ...(c?.coverage ?? {}), [doc.kind]: doc.expires_on } }).eq("id", contractorId);
+    }
+    if (doc.kind === "background") await db().from("contractors").update({ background_checked: true, background_checked_at: now, background_status: "clear" }).eq("id", contractorId);
+  } else {
+    const { data: c } = await db().from("contractors").select("profile_id, email").eq("id", contractorId).single();
+    if (c) await notify(c.profile_id, { title: "Please re-upload a document", body: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.`, data: { type: "onboarding" },
+      email: { to: c.email, subject: "Please re-upload a document", text: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.\n\nUpload a new one here: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` } });
+  }
+  await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor);
+  return { document: doc.kind, decision };
 }

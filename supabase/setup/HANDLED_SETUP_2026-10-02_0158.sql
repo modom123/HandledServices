@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0147.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0158.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-02_0147 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 12 migrations + production seed.
+-- CREATED : 2026-10-02_0158 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 13 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1125,6 +1125,24 @@ create trigger contractors_promote_profile after insert or update of profile_id 
 -- backfill: existing pro records whose person already had a login
 update public.contractors c set profile_id = p.id from public.profiles p
   where c.profile_id is null and lower(p.email) = lower(c.email);
+
+
+-- >>> migration 20261002015700_iebc_recruiting_roles.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002015700_iebc_recruiting_roles.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-02_0157 UTC
+-- PURPOSE : IEBC recruiting agents work the automated onboarding pipeline.
+--             • Tyler Walsh — recruiting pipeline: screening, invites, follow-up with stuck applicants
+--             • Marcus Hill — onboarding compliance: documents (with AI readings) & background checks
+--           Both run low-risk actions (reminders, notes, revive, order a background check) on
+--           their own; inviting, activating and verifying documents are high-risk and always
+--           wait for human approval in Handled Hub → IEBC Workforce.
+-- ============================================================================
+update public.iebc_agents set role_here = 'Recruiting pipeline: screening, invites & follow-up with stuck applicants', autonomy = 'autonomous'
+  where iebc_employee_id = 'tylerw';
+update public.iebc_agents set role_here = 'Onboarding compliance: insurance & license documents, background checks', autonomy = 'autonomous'
+  where iebc_employee_id = 'marcushr';
 
 
 -- >>> seed.sql

@@ -10,7 +10,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { adminClient } from "../supabase/server";
-import { ACTIONS, effectiveRisk } from "./actions";
+import { ACTIONS, effectiveRisk, type ActionCtx } from "./actions";
 
 export interface Agent {
   id: string;
@@ -67,12 +67,12 @@ export async function invoke(agent: Agent, action: string, rawParams: unknown, r
 
   const needsApproval = def.write && (agent.autonomy !== "autonomous" || effectiveRisk(action, params) === "high");
   if (needsApproval) return { status: "pending_approval", action_id: await log("pending_approval", params, null) };
-  return execute(action, params, (status, result) => log(status, params, result));
+  return execute(action, params, (status, result) => log(status, params, result), { actor: `${agent.name} (IEBC)` });
 }
 
-export async function execute(action: string, params: unknown, record: (status: "executed" | "failed", result: unknown) => Promise<string | undefined>): Promise<Outcome> {
+export async function execute(action: string, params: unknown, record: (status: "executed" | "failed", result: unknown) => Promise<string | undefined>, ctx: ActionCtx = { actor: "IEBC" }): Promise<Outcome> {
   try {
-    const result = await ACTIONS[action].run(params as never);
+    const result = await ACTIONS[action].run(params as never, ctx);
     return { status: "executed", result, action_id: await record("executed", result) };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);

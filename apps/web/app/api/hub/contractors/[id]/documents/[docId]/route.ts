@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/api/hub/contractors/[id]/documents/[docId]/route.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
+ * UPDATED : 2026-10-02_0157 UTC — uses decideDocument() (shared with the IEBC agents).
  * PURPOSE : Staff: open (signed URL), verify or reject a pro's compliance document.
  *           Verifying a COI sets insured_until; a license sets license_expires; a
  *           background report marks the background check cleared; auto, workers' comp, bond
@@ -11,7 +12,7 @@ import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { signedDocUrl } from "@/lib/photos";
-import { afterOnboardingStep } from "@/lib/recruiting";
+import { decideDocument } from "@/lib/recruiting";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) {
   const v = await getViewer(req);
@@ -28,22 +29,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string; do
   const body = z.object({ decision: z.enum(["verify", "reject"]), notes: z.string().max(500).optional() }).safeParse(await req.json().catch(() => null));
   if (!body.success) return deny(400, "decision required");
   const { id, docId } = await ctx.params;
-  const db = adminClient();
-  const { data: doc } = await db.from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", id).single();
-  if (!doc) return deny(404, "Not found");
-  const now = new Date().toISOString();
-  const who = v!.fullName ?? v!.email;
-  await db.from("contractor_documents").update({ status: body.data.decision === "verify" ? "verified" : "rejected", verified_by: who, verified_at: now, notes: body.data.notes ?? doc.notes }).eq("id", docId);
-  if (body.data.decision === "verify") {
-    if (doc.kind === "coi" && doc.expires_on) await db.from("contractors").update({ insured_until: doc.expires_on }).eq("id", id);
-    if (doc.kind === "license" && doc.expires_on) await db.from("contractors").update({ license_expires: doc.expires_on }).eq("id", id);
-    if (["auto", "workers_comp", "bond", "liquor"].includes(doc.kind) && doc.expires_on) {
-      const { data: c } = await db.from("contractors").select("coverage").eq("id", id).single();
-      await db.from("contractors").update({ coverage: { ...(c?.coverage ?? {}), [doc.kind]: doc.expires_on } }).eq("id", id);
-    }
-    if (doc.kind === "background") await db.from("contractors").update({ background_checked: true, background_checked_at: now, background_status: "clear" }).eq("id", id);
+  try {
+    await decideDocument(id, docId, body.data.decision, v!.fullName ?? v!.email, body.data.notes ?? null);
+  } catch (e) {
+    return deny(404, e instanceof Error ? e.message : "Not found");
   }
-  // verified documents may complete setup → background check / auto-activate
-  await afterOnboardingStep(id, `${doc.kind} ${body.data.decision === "verify" ? "verified" : "rejected"}`, who);
   return Response.json({ ok: true });
 }

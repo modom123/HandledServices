@@ -22,9 +22,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     .eq("id", id).eq("status", "pending_approval").select("*").maybeSingle();
   if (!row) return deny(409, "Already decided");
   if (body.data.decision === "reject") return Response.json({ status: "rejected" });
+  const { data: agent } = await db.from("iebc_agents").select("name").eq("id", row.agent_id).maybeSingle();
   const out = await execute(row.action, row.params, async (status, result) => {
     await db.from("agent_actions").update({ status, result }).eq("id", id);
     return id;
-  });
+  }, { actor: `${agent?.name ?? "IEBC agent"} (IEBC), approved by ${v!.fullName ?? v!.email}` });
   return Response.json(out);
 }
