@@ -12,6 +12,8 @@
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
 import { ES_LINES } from "./i18n-lines-es.ts";
+import { ES_PRO_PORTAL } from "./i18n-pro-es.ts";
+import { ES_PROS_SIGNUP } from "./i18n-pros-es.ts";
 
 export type Locale = "en" | "es";
 export const LOCALES: Locale[] = ["en", "es"];
@@ -310,7 +312,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
 
 /** Translate a UI string (English is the key). */
 export function t(locale: Locale | string | null | undefined, en: string): string {
-  return locale === "es" ? ES[en] ?? ES_CATALOG[en] ?? en : en;
+  return locale === "es" ? ES[en] ?? ES_CATALOG[en] ?? ES_PRO_PORTAL[en] ?? ES_PROS_SIGNUP[en] ?? en : en;
 }
 
 export function serviceText(locale: Locale | string | null | undefined, slug: string, en: { name: string; tagline: string }) {

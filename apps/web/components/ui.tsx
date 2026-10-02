@@ -4,7 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Small shared UI pieces (badges, stats, empty states).
  */
-import { JOB_STATUS_LABEL, type JobStatus } from "@handled/core";
+import { JOB_STATUS_LABEL, t as tr, type JobStatus, type Locale } from "@handled/core";
 
 const STATUS_COLOR: Record<JobStatus, string> = {
   requested: "bg-sky-100 text-sky-800",
@@ -19,8 +19,8 @@ const STATUS_COLOR: Record<JobStatus, string> = {
   cancelled: "bg-rose-100 text-rose-700",
 };
 
-export function StatusBadge({ status }: { status: JobStatus }) {
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLOR[status]}`}>{JOB_STATUS_LABEL[status]}</span>;
+export function StatusBadge({ status, locale = "en" }: { status: JobStatus; locale?: Locale }) {
+  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLOR[status]}`}>{tr(locale, JOB_STATUS_LABEL[status])}</span>;
 }
 
 export function Badge({ children, tone = "slate" }: { children: React.ReactNode; tone?: "slate" | "green" | "amber" | "red" | "brand" }) {
