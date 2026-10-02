@@ -1,12 +1,13 @@
 /*
- * FILE    : apps/web/app/(site)/page.tsx
+ * FILE    : apps/web/app/(site)/home/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0218 UTC — new layout chosen by the owner: hero with the 8 category
  *           tiles, trust strip, compact "browse by category" cards (3 examples + see all),
  *           how it works, why us, and one row of tiles for events, rides, business and pros.
  *           Categories and counts come from the catalog, so new services appear automatically.
- * PURPOSE : Home page.
+ * UPDATED : 2026-10-02_0244 UTC — moved to /home; the splash page at / introduces the company first.
+ * PURPOSE : Home page (the first page after the splash).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
@@ -25,11 +26,6 @@ const COMPARE = [
   ["One app for every home & business service", "One trade per site"],
 ];
 
-/** Short names for the hero tiles. */
-const SHORT: Record<string, string> = {
-  cleaning: "Cleaning", outdoor: "Lawn & Snow", pets: "Pet Care", removal: "Haul Away",
-  repair_remodel: "Repairs", errands: "Errands", transport: "Rides", events: "Events",
-};
 
 const TRUST = ["Insured & background-checked pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
 
@@ -64,7 +60,7 @@ export default function Home() {
           {cats.map((c) => (
             <Link key={c.id} href={`/services?cat=${c.id}`} className="card flex flex-col items-center px-1 py-3 text-center transition hover:border-brand hover:bg-brand-tint sm:p-4">
               <span className="text-2xl sm:text-3xl">{c.icon}</span>
-              <span className="mt-1.5 text-xs font-semibold leading-tight sm:text-sm">{SHORT[c.id] ?? c.name}</span>
+              <span className="mt-1.5 text-xs font-semibold leading-tight sm:text-sm">{c.short}</span>
               <span className="mt-1 hidden text-xs text-ink-soft sm:block">{c.list.length} services</span>
             </Link>
           ))}

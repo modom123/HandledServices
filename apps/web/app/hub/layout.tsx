@@ -39,7 +39,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
-        <Link href="/" className="flex items-center gap-2 px-2 font-extrabold"><span className="grid h-7 w-7 place-items-center rounded-md bg-brand">✓</span>{BRAND.name} <span className="text-xs font-normal text-white/50">Hub</span></Link>
+        <Link href="/home" className="flex items-center gap-2 px-2 font-extrabold"><span className="grid h-7 w-7 place-items-center rounded-md bg-brand">✓</span>{BRAND.name} <span className="text-xs font-normal text-white/50">Hub</span></Link>
         <nav className="mt-6 flex gap-1 overflow-x-auto md:flex-col">
           {NAV.map(([href, icon, label]) => (
             <Link key={href} href={href} className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white">{icon} {label}</Link>

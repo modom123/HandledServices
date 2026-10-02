@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/brand.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0244 UTC — pitch mentions car detailing and grocery & medical deliveries.
  * PURPOSE : Single place to rename/rebrand the company. "Handled" is a working name —
  *           run a trademark search before launch and change it here.
  */
@@ -25,7 +26,7 @@ export const BRAND = {
   legalName: "Handled Services LLC",
   tagline: "Home & business services. Handled.",
   pitch:
-    "One app for everything your home or business needs — cleaning, repairs, painting, hauling, lawn and snow, pet care, errands, events and rides. Upfront prices, vetted pros, and an AI operations team that makes sure it's done right.",
+    "One app for everything your home or business needs — cleaning, repairs, painting, hauling, lawn and snow, pet care, car detailing, grocery and medical deliveries, events and rides. Upfront prices, vetted pros, and an AI operations team that makes sure it's done right.",
   supportEmail,
   supportPhone,
   serviceArea: "Launch market — set in the ops hub",

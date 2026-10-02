@@ -32,7 +32,7 @@
 ## 1. Supabase (database) — 15 minutes
 
 1. supabase.com → **New project** → region **US East** → save the database password somewhere safe.
-2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 43 services and your launch market. Run it once, on a new project.)
+2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 46 services and your launch market. Run it once, on a new project.)
 3. **Do NOT run** `supabase/demo_data.sql` on this project; it's fake people for testing only.
 4. **Authentication → URL Configuration**
    - Site URL: `https://YOUR-DOMAIN`

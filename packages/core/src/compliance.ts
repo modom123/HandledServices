@@ -84,7 +84,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     });
   }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, remodeling, food service and passenger transportation", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, remodeling, food service, passenger transportation and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
   steps.push(
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
     { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },

@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-02_0233 UTC — calculator audit: questions can be shown only when another
  *           answer applies (showIf, e.g. mini-split zones), and rides move up to a vehicle
  *           big enough for the passenger count, so the price rises as passengers are added.
+ * UPDATED : 2026-10-02_0244 UTC — grocery pickup & delivery, mobile car detailing, medical deliveries.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -76,15 +77,15 @@ export interface Service {
   price: (a: Answers) => PriceResult;
 }
 
-export const CATEGORIES: { id: CategoryId; name: string; icon: string; blurb: string }[] = [
-  { id: "cleaning", name: "Cleaning & Organizing", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing — plus decluttering." },
-  { id: "outdoor", name: "Lawn, Leaves & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
-  { id: "pets", name: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away", icon: "🚛", blurb: "Junk, furniture and heavy items gone today — or a container dropped off for the week." },
-  { id: "repair_remodel", name: "Repairs, Painting & Remodels", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
-  { id: "errands", name: "Errands & Assistant", icon: "🛍️", blurb: "Dry cleaning, shopping, returns and drop-offs, or an assistant for the day." },
-  { id: "transport", name: "Transportation", icon: "🚘", blurb: "Private drivers, black cars, airport rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
-  { id: "events", name: "Parties & Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
+export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: string; blurb: string }[] = [
+  { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing, mobile car detailing — plus decluttering." },
+  { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
+  { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
+  { id: "removal", name: "Haul Away", short: "Haul Away", icon: "🚛", blurb: "Junk, furniture and heavy items gone today — or a container dropped off for the week." },
+  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
+  { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Grocery delivery, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
+  { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
+  { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
@@ -381,6 +382,46 @@ export const SERVICES: Service[] = [
   },
 
   // ───────────────────────────── OUTDOOR ─────────────────────────────
+  {
+    slug: "mobile-car-detailing",
+    name: "Mobile Car Detailing",
+    category: "cleaning",
+    icon: "🚗",
+    tagline: "Showroom clean in your driveway or office lot.",
+    description: "A detailer comes to your home or workplace with water, power and pro products: hand wash and wax, full interior shampoo and wipe-down, or a full detail inside and out — up to ceramic coating. Fleets and multiple cars welcome.",
+    includes: ["Comes to you — home or office lot", "Pro-grade, paint-safe products", "Interior vacuum, shampoo & wipe-down (interior packages)", "Before & after photos"],
+    questions: [
+      { id: "vehicle", label: "Vehicle size", type: "select", default: "sedan", options: [{ value: "sedan", label: "Car / coupe" }, { value: "suv", label: "Small SUV / crossover" }, { value: "large", label: "Truck, minivan or 3-row SUV" }] },
+      { id: "package", label: "Package", type: "select", default: "full", options: [{ value: "exterior", label: "Exterior — hand wash, wheels & wax" }, { value: "interior", label: "Interior — vacuum, shampoo & wipe-down" }, { value: "full", label: "Full detail — inside & out" }, { value: "ceramic", label: "Full detail + ceramic coating" }] },
+      { id: "vehicles", label: "Vehicles", type: "number", min: 1, max: 10, default: 1 },
+      { id: "pet_hair", label: "Heavy pet hair", type: "toggle", default: false },
+      { id: "stains", label: "Heavy stains or odor treatment", type: "toggle", default: false },
+      { id: "headlights", label: "Headlight restoration", type: "toggle", default: false },
+      { id: "no_hookup", label: "No outdoor water or outlet we can use", type: "toggle", default: false, help: "We bring our own water tank and power." },
+    ],
+    minimum: 79,
+    spread: [1, 1],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once", "biweekly", "monthly"],
+    trades: ["auto_detailing"],
+    notesHint: "Where the car will be parked, make/model/color, anything to watch for (scratches, child seats to leave in)",
+    price: (a) => {
+      const veh = s(a, "vehicle", "sedan");
+      const pkg = s(a, "package", "full");
+      const v = Math.max(1, n(a, "vehicles", 1));
+      const table: Record<string, Record<string, number>> = { exterior: { sedan: 79, suv: 99, large: 119 }, interior: { sedan: 119, suv: 139, large: 159 }, full: { sedan: 179, suv: 209, large: 239 }, ceramic: { sedan: 599, suv: 749, large: 899 } };
+      const each = table[pkg]?.[veh] ?? 179;
+      const items: LineItem[] = [{ label: `${({ exterior: "Exterior detail", interior: "Interior detail", full: "Full detail", ceramic: "Full detail + ceramic coating" } as Record<string, string>)[pkg] ?? "Detail"} · ${v} vehicle${v > 1 ? "s" : ""} × $${each}`, amount: v * each }];
+      if (b(a, "pet_hair")) items.push({ label: `Pet hair removal × ${v}`, amount: 40 * v });
+      if (b(a, "stains")) items.push({ label: `Stain & odor treatment × ${v}`, amount: 50 * v });
+      if (b(a, "headlights")) items.push({ label: `Headlight restoration × ${v}`, amount: 60 * v });
+      if (b(a, "no_hookup")) items.push({ label: "Self-contained water & power", amount: 20 });
+      const base = sum(items);
+      const hrs = ({ exterior: 1.25, interior: 2, full: 3, ceramic: 7 } as Record<string, number>)[pkg] ?? 3;
+      return { items, base, hours: v * hrs * (veh === "large" ? 1.25 : 1) };
+    },
+  },
   {
     slug: "lawn-care",
     name: "Lawn Care",
@@ -1366,6 +1407,84 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "grocery-delivery",
+    name: "Grocery Pickup & Delivery",
+    category: "errands",
+    icon: "🛒",
+    tagline: "Your list, your store, at your door — groceries at receipt price.",
+    description: "A background-checked shopper picks your order from the stores you choose (or collects your curbside pickup order), keeps cold food cold and brings it to your door. Groceries are billed at the receipt price with no markup; you pay a flat delivery fee.",
+    includes: ["Background-checked, bonded shopper", "Groceries at receipt price — no markup", "Insulated bags for cold & frozen", "Text or call for substitutions", "Photo at delivery"],
+    questions: [
+      { id: "order", label: "Order size", type: "select", default: "medium", options: [{ value: "small", label: "Small (up to 15 items)" }, { value: "medium", label: "Medium (16–40 items)" }, { value: "large", label: "Large (41–80 items)" }, { value: "stock_up", label: "Stock-up (80+ items)" }] },
+      { id: "stores", label: "Stores", type: "number", min: 1, max: 4, default: 1, help: "Already ordered curbside? Count that store — we'll just pick it up." },
+      { id: "miles", label: "Miles from the store to you", type: "number", min: 1, max: 30, default: 5, unit: "mi", help: "First 5 miles included." },
+      { id: "cold", label: "Refrigerated or frozen items", type: "toggle", default: true },
+      { id: "carry_in", label: "Carry in & put away", type: "toggle", default: false },
+      { id: "rush", label: "Within 2 hours", type: "toggle", default: false },
+    ],
+    minimum: 25,
+    spread: [1, 1],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly"],
+    trades: ["errands"],
+    notesHint: "Store(s), your list or a shared-list link, OK to substitute?, curbside order number if you have one, gate or door instructions",
+    price: (a) => {
+      const order = s(a, "order", "medium");
+      const stores = Math.max(1, n(a, "stores", 1));
+      const miles = n(a, "miles", 5);
+      const items: LineItem[] = [{ label: "Grocery delivery", amount: 19 }];
+      const shop = ({ small: 0, medium: 10, large: 22, stock_up: 35 } as Record<string, number>)[order] ?? 10;
+      if (shop) items.push({ label: `Shopping — ${({ medium: "16–40", large: "41–80", stock_up: "80+" } as Record<string, string>)[order] ?? ""} items`, amount: shop });
+      if (stores > 1) items.push({ label: `${stores - 1} more store${stores > 2 ? "s" : ""} × $10`, amount: (stores - 1) * 10 });
+      if (miles > 5) items.push({ label: `${miles - 5} extra miles × $1.25`, amount: Math.round((miles - 5) * 1.25) });
+      if (b(a, "cold")) items.push({ label: "Insulated cold & frozen handling", amount: 5 });
+      if (b(a, "carry_in")) items.push({ label: "Carry in & put away", amount: 15 });
+      if (b(a, "rush")) items.push({ label: "Within 2 hours", amount: 15 });
+      items.push({ label: "Groceries — billed at receipt price, no markup", amount: 0 });
+      const base = sum(items);
+      return { items, base, hours: 0.75 + stores * 0.4 + ({ small: 0.25, medium: 0.5, large: 0.9, stock_up: 1.3 } as Record<string, number>)[order]! + miles / 30 };
+    },
+  },
+  {
+    slug: "medical-delivery",
+    name: "Medical Deliveries",
+    category: "errands",
+    icon: "💊",
+    tagline: "Prescriptions, supplies and lab specimens — handled with care, signed for.",
+    description: "Courier delivery for patients, caregivers, pharmacies, clinics and labs: prescription pickups, medical supplies and equipment, lab specimens and records. Couriers are background-checked and HIPAA-trained; specimen couriers also have bloodborne-pathogen training. Signature and chain-of-custody log on every run.",
+    includes: ["Background-checked, HIPAA-trained courier", "Signature & chain-of-custody log", "Sealed, labeled transport", "Cold chain on request", "Live updates and photo proof"],
+    questions: [
+      { id: "item", label: "What are we delivering?", type: "select", default: "prescription", options: [{ value: "prescription", label: "Prescription pickup (pharmacy)" }, { value: "supplies", label: "Medical supplies or equipment" }, { value: "specimens", label: "Lab specimens (clinics & labs)" }, { value: "documents", label: "Records, films or documents" }] },
+      { id: "stops", label: "Drop-off stops", type: "number", min: 1, max: 20, default: 1 },
+      { id: "miles", label: "Total miles", type: "number", min: 1, max: 80, default: 10, unit: "mi", help: "First 10 miles included." },
+      { id: "temp", label: "Temperature-controlled (cold chain)", type: "toggle", default: false },
+      { id: "equipment", label: "Large equipment (wheelchair, walker, oxygen concentrator)", type: "toggle", default: false },
+      { id: "stat", label: "STAT — picked up within 90 minutes", type: "toggle", default: false },
+    ],
+    minimum: 24,
+    spread: [1, 1],
+    payoutShare: 0.75,
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly", "monthly"],
+    trades: ["medical_courier"],
+    licensed: true, // HIPAA training certificate on file (vetting: medical_courier)
+    notesHint: "Pickup place and contact, drop-off(s), who may sign, time window. Prescriptions: tell the pharmacy we're picking up for you (we don't carry controlled substances without the pharmacy's approval).",
+    price: (a) => {
+      const item = s(a, "item", "prescription");
+      const stops = Math.max(1, n(a, "stops", 1));
+      const miles = n(a, "miles", 10);
+      const items: LineItem[] = [{ label: ({ prescription: "Prescription pickup & delivery", supplies: "Medical supplies delivery", specimens: "Lab specimen courier (sealed, UN3373 packaging)", documents: "Records & documents courier" } as Record<string, string>)[item] ?? "Medical delivery", amount: ({ prescription: 24, supplies: 29, specimens: 35, documents: 24 } as Record<string, number>)[item] ?? 24 }];
+      if (stops > 1) items.push({ label: `${stops - 1} more stop${stops > 2 ? "s" : ""} × $12`, amount: (stops - 1) * 12 });
+      if (miles > 10) items.push({ label: `${miles - 10} extra miles × $1.50`, amount: Math.round((miles - 10) * 1.5) });
+      if (b(a, "temp")) items.push({ label: "Temperature-controlled transport", amount: 25 });
+      if (b(a, "equipment")) items.push({ label: "Large equipment handling", amount: 25 });
+      if (b(a, "stat")) items.push({ label: "STAT pickup", amount: 35 });
+      const base = sum(items);
+      return { items, base, hours: 0.75 + stops * 0.3 + miles / 30 };
+    },
+  },
+  {
     slug: "personal-assistant",
     name: "Personal Assistant for the Day",
     category: "errands",
@@ -1919,7 +2038,9 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "pet_waste", label: "Pet waste removal" },
   { id: "pet_care", label: "Dog walking & pet sitting" },
   { id: "pressure_washing", label: "Power / pressure washing" },
-  { id: "errands", label: "Errands & personal assistant" },
+  { id: "errands", label: "Errands, grocery delivery & personal assistant" },
+  { id: "medical_courier", label: "Medical courier (prescriptions, specimens, supplies)" },
+  { id: "auto_detailing", label: "Mobile car detailing" },
   { id: "hauling", label: "Junk & item hauling" },
   { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },

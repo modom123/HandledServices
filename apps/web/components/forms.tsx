@@ -2,12 +2,15 @@
  * FILE    : apps/web/components/forms.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-02_0244 UTC — business form: services grouped by facility need, an
+ *           industry picker that pre-selects what that industry usually books, plus city/ZIP
+ *           and how often.
  * PURPOSE : Pro application form and commercial account form.
  */
 "use client";
 
 import { useState } from "react";
-import { COVERAGES, SERVICES, TRADES, TRADE_PROFILES, specialtiesFor, type CoverageKey } from "@handled/core";
+import { BUSINESS_GROUPS, COVERAGES, INDUSTRIES, SERVICE_BY_SLUG, TRADES, TRADE_PROFILES, specialtiesFor, type CoverageKey } from "@handled/core";
 
 function useSubmit(url: string) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -113,23 +116,63 @@ export function ApplyForm() {
   );
 }
 
-export function BusinessForm() {
+export function BusinessForm({ industry: startIndustry = "" }: { industry?: string }) {
   const { state, error, submit } = useSubmit("/api/business");
-  const [services, setServices] = useState<string[]>([]);
+  const [industry, setIndustry] = useState(startIndustry);
+  const [services, setServices] = useState<string[]>(INDUSTRIES.find((i) => i.id === startIndustry)?.slugs ?? []);
+  function pickIndustry(id: string) {
+    setIndustry(id);
+    const preset = INDUSTRIES.find((i) => i.id === id)?.slugs ?? [];
+    setServices((cur) => [...new Set([...cur, ...preset])]);
+  }
   if (state === "done") return <div className="card text-center"><div className="text-3xl">🤝</div><h2 className="mt-2 text-xl font-bold">Thanks — we’ll be in touch today</h2><p className="mt-2 text-sm text-ink-soft">An account manager will send a site-by-site proposal within one business day.</p></div>;
+  const industryName = INDUSTRIES.find((i) => i.id === industry)?.name;
   return (
-    <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); submit({ ...Object.fromEntries(new FormData(e.currentTarget)), services_needed: services }); }}>
+    <form className="card space-y-5" onSubmit={(e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+      const extra = [industryName && `Industry: ${industryName}`, f.city && `City/ZIP: ${f.city}`, f.cadence && `How often: ${f.cadence}`].filter(Boolean).join(" · ");
+      submit({ company: f.company, contact_name: f.contact_name, email: f.email, phone: f.phone, locations: f.locations, services_needed: services, notes: [extra, f.notes].filter(Boolean).join("\n") });
+    }}>
+      <div>
+        <h2 className="text-xl font-bold">Request a proposal</h2>
+        <p className="mt-1 text-sm text-ink-soft">Free walkthrough, one price per site, one monthly invoice. Reply within one business day.</p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className="label">Company</label><input name="company" required className="input" /></div>
         <div><label className="label">Your name</label><input name="contact_name" required className="input" /></div>
         <div><label className="label">Work email</label><input name="email" type="email" required className="input" /></div>
         <div><label className="label">Phone</label><input name="phone" type="tel" className="input" /></div>
+        <div><label className="label">City or ZIP</label><input name="city" className="input" /></div>
+        <div><label className="label">Locations</label><input name="locations" type="number" min={1} defaultValue={1} className="input" /></div>
       </div>
-      <div><label className="label">Number of locations</label><input name="locations" type="number" min={1} defaultValue={1} className="input w-32" /></div>
-      <div><label className="label">Services needed</label><Chips options={SERVICES.map((s) => ({ id: s.slug, label: s.name }))} value={services} onChange={setServices} /></div>
-      <div><label className="label">Anything else</label><textarea name="notes" className="input min-h-24" placeholder="Square footage, schedules, current vendor pain points…" /></div>
+      <div>
+        <label className="label">Your industry</label>
+        <select className="input" value={industry} onChange={(e) => pickIndustry(e.target.value)}>
+          <option value="">Choose one (we’ll suggest services)</option>
+          {INDUSTRIES.map((i) => <option key={i.id} value={i.id}>{i.icon} {i.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">Services needed {services.length > 0 && <span className="normal-case text-brand">· {services.length} selected</span>}</label>
+        <div className="space-y-3">
+          {BUSINESS_GROUPS.map((g) => (
+            <div key={g.id}>
+              <div className="mb-1.5 text-sm font-semibold">{g.icon} {g.title}</div>
+              <Chips options={g.slugs.filter((s) => SERVICE_BY_SLUG[s]).map((s) => ({ id: s, label: SERVICE_BY_SLUG[s].name }))} value={services} onChange={setServices} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="label">How often</label>
+        <select name="cadence" className="input" defaultValue="Recurring + one-off">
+          {["Daily / nightly", "Weekly", "Monthly", "Seasonal", "One-time project", "Recurring + one-off"].map((c) => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+      <div><label className="label">Anything else</label><textarea name="notes" className="input min-h-24" placeholder="Square footage, hours you’re open, current vendor pain points…" /></div>
       {state === "error" && <p className="text-sm text-rose-700">{error}</p>}
-      <button className="btn-primary" disabled={state === "busy"}>{state === "busy" ? "Sending…" : "Request a proposal"}</button>
+      <button className="btn-primary w-full sm:w-auto" disabled={state === "busy"}>{state === "busy" ? "Sending…" : "Request my proposal"}</button>
     </form>
   );
 }

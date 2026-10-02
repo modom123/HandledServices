@@ -9,7 +9,7 @@ import { BRAND, CATEGORIES } from "@handled/core";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <Link href="/" className={`flex items-center gap-2 font-extrabold tracking-tight ${className}`}>
+    <Link href="/home" className={`flex items-center gap-2 font-extrabold tracking-tight ${className}`}>
       <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">✓</span>
       <span className="text-lg">{BRAND.name}</span>
     </Link>

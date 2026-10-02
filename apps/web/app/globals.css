@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2359 UTC — eggshell page background (#F0EAD6) instead of near-white;
  *           cards and inputs stay white so they stand out; borders a touch darker.
  * UPDATED : 2026-10-02_0209 UTC — all text sizes +2px (theme text scale + body).
+ * UPDATED : 2026-10-02_0244 UTC — splash page fade-in.
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  */
@@ -58,3 +59,8 @@ body {
 @utility input { @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20; }
 @utility label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-soft; }
 @utility wrap { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
+
+/* splash page: gentle fade-up on load (off for people who prefer less motion) */
+@keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.splash-in { animation: splash-in 0.7s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .splash-in { animation: none; } }
