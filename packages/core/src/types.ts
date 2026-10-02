@@ -161,4 +161,9 @@ export interface Contractor {
   availability?: { days: number[]; windows: string[] } | null;
   /** Dates (YYYY-MM-DD) the pro is off. */
   time_off?: string[] | null;
+  // live status (see roster.ts): on call until, and the last phone location while on call / on a job
+  on_call_until?: string | null;
+  last_lat?: number | null;
+  last_lng?: number | null;
+  last_located_at?: string | null;
 }

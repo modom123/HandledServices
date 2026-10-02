@@ -2,6 +2,7 @@
  * FILE    : apps/mobile/app/_layout.tsx
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_1800 UTC
+ * UPDATED : 2026-10-02_0255 UTC — My calendar screen for pros.
  * UPDATED : 2026-10-01_2047 UTC — push notifications: register on sign-in, open the right
  *           screen when a notification is tapped (offer → offer screen, job → job screen).
  */
@@ -37,6 +38,7 @@ export default function Layout() {
         <Stack.Screen name="pro/offer/[id]" options={{ title: "Job offer", presentation: "modal" }} />
         <Stack.Screen name="pro/[id]" options={{ title: "Job" }} />
         <Stack.Screen name="pro/earnings" options={{ title: "Earnings" }} />
+        <Stack.Screen name="pro/schedule" options={{ title: "My calendar" }} />
       </Stack>
     </>
   );

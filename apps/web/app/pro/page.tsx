@@ -3,12 +3,15 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_2109 UTC — Pro tier, progress to the next tier, probation, referral bonus.
+ * UPDATED : 2026-10-02_0255 UTC — On call switch (shares location while on call / on a job today), link to My calendar.
  * PURPOSE : Pro home — open offers, upcoming jobs, earnings.
  */
 import Link from "next/link";
 import { PROBATION, PRO_REFERRAL, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getPolicy } from "@/lib/pro-benefits";
+import { OnCallToggle } from "@/components/Roster";
+import { localDate, onCall } from "@handled/core";
 import { Empty, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import Link2 from "next/link";
 
@@ -37,6 +40,9 @@ export default async function ProHome() {
         </Link>
       )}
       <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">Status: {me?.status}{me?.status !== "approved" ? " — offers start once insurance & background check are verified" : ""}</p></div>
+      {me?.status === "approved" && (
+        <OnCallToggle onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate() && ["assigned", "in_progress"].includes(j.status))} />
+      )}
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Earned this month" value={money(earned)} />
         <Stat label="Rating" value={`${me?.rating ?? "—"} ★`} />
@@ -81,7 +87,7 @@ export default async function ProHome() {
         </div>
       </section>
       <section>
-        <h2 className="mb-3 font-bold">Your schedule</h2>
+        <div className="mb-3 flex items-center justify-between"><h2 className="font-bold">Your schedule</h2><Link href="/pro/schedule" className="text-sm font-semibold text-brand">My calendar & days off →</Link></div>
         {!upcoming.length && <Empty>Nothing scheduled.</Empty>}
         <div className="space-y-3">
           {upcoming.map((j) => (

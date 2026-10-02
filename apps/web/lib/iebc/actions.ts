@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/iebc/actions.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
+ * UPDATED : 2026-10-02_0255 UTC — read.roster: live pro status, location and week ahead.
  * UPDATED : 2026-10-02_0157 UTC — actions receive the acting agent (ctx.actor) for the audit
  *           trail; recruiting actions go through lib/recruiting (same path as the Hub buttons):
  *           pipeline, invite/decline, nudge, documents with AI readings, background checks.
@@ -96,6 +97,11 @@ export const ACTIONS: Record<string, ActionDef> = {
       if (status) q = q.eq("status", status);
       return (await q).data;
     },
+  }),
+  "read.roster": def({
+    scope: "read", write: false, risk: "low", description: "Live roster: each active pro's status now (on a job / on call / booked / open / off), live location while on call or on a job, today's jobs, and the next 7 days booked vs daily limit.",
+    params: z.object({}),
+    run: async () => (await import("../roster")).liveRoster(),
   }),
   "read.alerts": def({
     scope: "read", write: false, risk: "low", description: "Unresolved ops alerts.",

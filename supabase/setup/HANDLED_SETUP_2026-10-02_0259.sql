@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0251.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-02_0259.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-02_0251 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 15 migrations + production seed.
+-- CREATED : 2026-10-02_0259 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 16 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1185,6 +1185,27 @@ alter table public.contractors add column if not exists referral_bonus_paid_at t
 
 alter table public.job_offers add column if not exists kind text not null default 'job'
   check (kind in ('job','recurring','redo'));
+
+
+-- >>> migration 20261002025553_pro_roster.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002025553_pro_roster.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-02_0255 UTC
+-- PURPOSE : Know where pros are and when they can work:
+--             • on_call_until — the pro switched "On call" on (same-day work) until this time
+--             • last_lat / last_lng / last_located_at — last phone location, shared only while
+--               on call or on a job today; the daily sweep clears it after 12 hours
+--           Their calendar (jobs ahead, days off, daily limit) uses existing columns.
+-- ============================================================================
+alter table public.contractors
+  add column if not exists on_call_until timestamptz,
+  add column if not exists last_lat double precision,
+  add column if not exists last_lng double precision,
+  add column if not exists last_located_at timestamptz;
+
+create index if not exists contractors_on_call_idx on public.contractors (on_call_until) where on_call_until is not null;
+create index if not exists jobs_contractor_date_idx on public.jobs (contractor_id, scheduled_date);
 
 
 -- >>> seed.sql

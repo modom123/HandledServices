@@ -16,7 +16,9 @@
     "android": {
       "package": "com.handled.app",
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ]
     },
     "plugins": [
@@ -33,6 +35,12 @@
         {
           "color": "#0e7c66"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pros: Handled uses your location only while you're on call or on a job today, to send you nearby work and tell customers you're on the way."
+        }
       ]
     ],
     "extra": {
@@ -42,8 +50,9 @@
       "termsUrl": "https://YOUR-DOMAIN/terms/service-agreement",
       "eas": {
         "projectId": "run `eas init` to fill this in"
-      }
+      },
+      "updatedAt": "2026-10-02_0254 UTC — on-call status and job-time location for pros (expo-location)"
     },
-    "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices \u2014 and run your jobs if you're a Handled pro."
+    "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices — and run your jobs if you're a Handled pro."
   }
 }

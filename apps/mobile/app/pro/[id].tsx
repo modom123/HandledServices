@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2140 UTC — materials receipts (reimbursed at cost) and "Can't get in?".
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  */
+import { shareLocationOnce } from "../../lib/location";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -110,7 +111,7 @@ export default function ProJob() {
         {svc.questions.filter((q) => questionVisible(q, job.answers as Record<string, string | number | boolean>, svc.questions)).map((q) => <Text key={q.id} style={s.p}>{q.label}: <Text style={s.b}>{String(job.answers[q.id] ?? "—")}</Text></Text>)}
         {job.notes ? <Text style={[s.p, { marginTop: 8 }]}>“{job.notes}”</Text> : null}
       </Card>
-      {job.status === "assigned" && <Button title="I've arrived — start job" onPress={() => post({ action: "start" })} busy={busy} />}
+      {job.status === "assigned" && <Button title="I've arrived — start job" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "start" }); }} busy={busy} />}
       {(job.status === "assigned" || job.status === "in_progress") && (
         <Card style={{ marginTop: 12 }}>
           <Text style={s.b}>Finish the job</Text>

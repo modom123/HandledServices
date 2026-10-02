@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0233 UTC — pro promises: real acceptance/on-time stats and referral bonuses
  *           daily; Mondays the free weekly payout run (after the guaranteed-minimum top-ups).
+ * UPDATED : 2026-10-02_0255 UTC — clears pro phone locations older than 12h and lapsed on-call flags.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  */
@@ -11,6 +12,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, dispatchJob, raiseAlert, sendPaymentLink } from "@/lib/jobs";
 import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee, runWeeklyPayouts } from "@/lib/pro-benefits";
 import { recruitingSweep } from "@/lib/recruiting";
+import { clearStaleLocations } from "@/lib/roster";
 import type { Job } from "@handled/core";
 
 export const maxDuration = 300;
@@ -62,11 +64,12 @@ export async function GET(req: Request) {
   const balances = await collectBalances();
   const stipends = await grantStipends();
   const recruiting = await recruitingSweep(); // setup reminders, stuck applicants, drop-offs, auto-activation
+  const locationsCleared = await clearStaleLocations(); // privacy: forget old phone locations
   const stats = await refreshProStats(); // acceptance + on-time → tiers and dispatch ranking
   const referrals = await payReferralBonuses();
   const monday = new Date().getUTCDay() === 1;
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
 
-  return Response.json({ balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired: expired?.length ?? 0, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired: expired?.length ?? 0, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

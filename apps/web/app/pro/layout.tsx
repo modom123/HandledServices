@@ -23,7 +23,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
     );
   return (
     <>
-      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">Jobs</Link><Link href="/pro/earnings">Earnings</Link><Link href="/pro/onboarding">Setup & documents</Link><form action="/auth/signout" method="post"><button className="text-ink-soft">Sign out</button></form></div></div></header>
+      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">Jobs</Link><Link href="/pro/schedule">Calendar</Link><Link href="/pro/earnings">Earnings</Link><Link href="/pro/onboarding">Setup & documents</Link><form action="/auth/signout" method="post"><button className="text-ink-soft">Sign out</button></form></div></div></header>
       <main className="wrap py-8">{children}</main>
     </>
   );

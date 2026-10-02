@@ -555,3 +555,27 @@ test("business groups and industries only list real services", async () => {
   const { SERVICE_BY_SLUG } = await import("./services.ts");
   for (const g of [...BUSINESS_GROUPS, ...INDUSTRIES]) for (const s of g.slugs) assert.ok(SERVICE_BY_SLUG[s], `${g.id}: unknown service ${s}`);
 });
+
+// ── Roster: on call, live location, calendar ──
+
+test("on call: available today outside usual days, ranked up, live location used", async () => {
+  const { localDate, proStatus, proCalendar, liveLocation } = await import("./roster.ts");
+  const now = new Date();
+  const today = localDate(now);
+  const pro = { id: "p", business_name: "A", contact_name: "A", email: "a@x", phone: "", zip: "48201", service_zips: [], trades: ["cleaning"], status: "approved",
+    rating: 5, jobs_completed: 20, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+    coverage: { bond: "2099-01-01" }, base_lat: 42.33, base_lng: -83.05, service_radius_mi: 10, availability: { days: [], windows: [] }, time_off: [today] } as unknown as Contractor;
+  const job = { service_slug: "house-cleaning", zip: "48201", scheduled_date: today, time_window: "morning", lat: 42.6, lng: -83.6 };
+  assert.equal(rankContractors([pro], job).length, 0, "day off and 30+ miles from base");
+  const on = { ...pro, on_call_until: new Date(now.getTime() + 3600000).toISOString(), last_lat: 42.59, last_lng: -83.59, last_located_at: now.toISOString() };
+  const [r] = rankContractors([on], job);
+  assert.ok(r, "on call + nearby now → eligible");
+  assert.ok(r.reasons.includes("on call now") && r.reasons.includes("live location"));
+  assert.equal(liveLocation({ ...on, last_located_at: new Date(now.getTime() - 3600000).toISOString() }), null, "stale location ignored");
+  assert.equal(proStatus(on, []), "on_call");
+  assert.equal(proStatus(pro, [{ status: "in_progress" }]), "on_job");
+  assert.equal(proStatus(pro, []), "off");
+  const cal = proCalendar({ ...pro, time_off: [], availability: { days: [1, 2, 3, 4, 5], windows: [] } }, [{ id: "j", service_slug: "house-cleaning", scheduled_date: "2026-10-05", time_window: "morning", status: "assigned" }], "2026-10-04", 2);
+  assert.equal(cal[0].off, "Doesn't work Sundays");
+  assert.equal(cal[1].open, 2);
+});

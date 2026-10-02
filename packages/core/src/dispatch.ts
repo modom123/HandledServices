@@ -6,6 +6,9 @@
  * UPDATED : 2026-10-01_2334 UTC — availability (working days, windows, time off), distance from
  *           the pro's base within their radius, and quality from QA pass and redo rates.
  * UPDATED : 2026-10-02_0233 UTC — the daily capacity a pro sets is a hard limit (no offers past it).
+ * UPDATED : 2026-10-02_0254 UTC — same-day jobs: pros who are On call can take work even on a day
+ *           they don't usually work, rank +15, and are measured from where they are now (fresh
+ *           phone location) as well as from base.
  * PURPOSE : Deterministic contractor scoring. Filters to pros who are approved, insured,
  *           qualified for the trade and serve the ZIP, then ranks them. The AI dispatcher
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
@@ -15,6 +18,7 @@
 import { getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
 import { proTier } from "./pro-program.ts";
+import { liveLocation, localDate, onCall } from "./roster.ts";
 import { PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
 
 export interface DispatchCandidate {
@@ -60,6 +64,18 @@ export function proDistance(c: Contractor, job: Pick<DispatchJob, "lat" | "lng">
   return milesBetween({ lat: c.base_lat, lng: c.base_lng }, { lat: job.lat, lng: job.lng });
 }
 
+/** Same-day job: miles from where the pro is right now (fresh phone location), else null. */
+export function liveDistance(c: Contractor, job: Pick<DispatchJob, "lat" | "lng" | "scheduled_date">, now = new Date()): number | null {
+  const here = liveLocation(c, now);
+  if (!here || job.lat == null || job.lng == null || job.scheduled_date !== localDate(now)) return null;
+  return milesBetween(here, { lat: job.lat, lng: job.lng });
+}
+
+/** On call for this job: switched on and the job is today. */
+export function onCallFor(c: Contractor, job: Pick<DispatchJob, "scheduled_date">, now = new Date()): boolean {
+  return onCall(c, now) && job.scheduled_date === localDate(now);
+}
+
 /** Does the pro work this date (and window)? Returns the reason they don't, or null. */
 export function offDuty(c: Contractor, date: string | null | undefined, window?: string | null): string | null {
   if (!date) return null;
@@ -77,7 +93,9 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (c.status !== "approved") return "not approved";
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
   if (svc?.licensed && !c.license_number) return "license required";
-  const miles = proDistance(c, job);
+  const base = proDistance(c, job);
+  const live = liveDistance(c, job, today);
+  const miles = base != null && live != null ? Math.min(base, live) : base ?? live;
   if (miles != null) {
     if (miles > (c.service_radius_mi ?? 25)) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
   } else if (c.service_zips.length && !c.service_zips.includes(job.zip) && !c.service_zips.includes(job.zip.slice(0, 3) + "*"))
@@ -89,6 +107,8 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
     if (missing) return `${missing.replace("_", " ")} coverage missing or expired`;
   }
   if (c.jobs_completed < PROBATION.jobs && Number(job.price_final ?? 0) > PROBATION.maxJobPrice) return "on probation: job too large";
+  // switched On call → available today even outside their usual days and hours
+  if (onCallFor(c, job, today)) return null;
   return offDuty(c, job.scheduled_date, job.time_window);
 }
 
@@ -128,7 +148,10 @@ export function rankContractors(
       score += Number(c.on_time_rate) * 10 + Number(c.acceptance_rate) * 8;
       if (c.on_time_rate < 0.85) reasons.push(`${Math.round(c.on_time_rate * 100)}% on time`);
       // proximity
-      const miles = proDistance(c, job);
+      const live = liveDistance(c, job);
+      const miles = live ?? proDistance(c, job);
+      if (onCallFor(c, job)) { score += 15; reasons.push("on call now"); }
+      if (live != null) reasons.push("live location");
       if (miles != null) {
         score += 12 * Math.max(0, 1 - miles / Math.max(1, c.service_radius_mi ?? 25));
         reasons.push(`${miles < 1 ? "<1" : Math.round(miles)} mi away`);
