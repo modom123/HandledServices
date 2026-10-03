@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish and the language switch.
+ * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies on the website).
  * PURPOSE : Account — Handled Plus, give $25 / get $25 referral (share sheet), sign out, and
  *           delete my account (required by the App Store and Google Play).
  */
@@ -64,6 +65,7 @@ export default function Account() {
         </Card>
       )}
       <View style={{ marginTop: 24, gap: 10 }}>
+        <Button title={t("My contracts")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/account/contracts`)} />
         <Button title={t("Sign out")} kind="ghost" onPress={signOut} />
         <Button title={busy ? t("Deleting…") : t("Delete my account")} kind="ghost" onPress={confirmDelete} busy={busy} />
       </View>

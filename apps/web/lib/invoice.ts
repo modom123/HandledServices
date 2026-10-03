@@ -3,7 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2030 UTC
  * PURPOSE : Signed, login-free links to a job's Invoice & Service Agreement.
- * UPDATED : 2026-10-03_0028 UTC — signed one-click unsubscribe tokens for reminder emails.
+ * UPDATED : 2026-10-03_0027 UTC — signed one-click unsubscribe tokens for reminder emails.
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";

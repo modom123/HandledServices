@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-02_1405 UTC — every pricing question, answer, help line and "included" item
  *           (i18n-catalog-es.ts); units; frequencies.
  * UPDATED : 2026-10-02_2246 UTC — waitlist and Google review wording.
- * UPDATED : 2026-10-03_0043 UTC — "Email me this price".
+ * UPDATED : 2026-10-03_0027 UTC — "Email me this price".
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -264,6 +264,17 @@ const ES: Record<string, string> = {
   "Sent — check your inbox. Your answers are saved in the link.": "Enviado — revise su correo. Sus respuestas quedan guardadas en el enlace.",
   "We’ll email the price and a reminder or two. Unsubscribe anytime.": "Le enviaremos el precio y uno o dos recordatorios. Puede cancelar la suscripción cuando quiera.",
   "Enter a valid email": "Ingrese un correo válido",
+  "My contracts": "Mis contratos",
+  "Your signature also covers:": "Su firma también cubre:",
+  "Each one starts with a short plain-English version. Copies of everything you sign are saved in My contracts.": "Cada uno empieza con una versión corta en lenguaje sencillo (en inglés). Las copias de todo lo que firme se guardan en Mis contratos.",
+  "I have read and agree to the Independent Contractor Agreement and the documents listed above.": "He leído y acepto el Acuerdo de Contratista Independiente y los documentos indicados arriba.",
+  "My account": "Mi cuenta",
+  "Every agreement you accepted, with the exact text as it was when you agreed. Print or save any of them as a PDF.": "Cada acuerdo que aceptó, con el texto exacto tal como estaba cuando lo aceptó. Puede imprimir o guardar cualquiera como PDF.",
+  "The legal text of our agreements is in English. If you have questions, write to us.": "El texto legal de nuestros acuerdos está en inglés. Si tiene preguntas, escríbanos.",
+  "Nothing yet — the agreements for each booking will appear here.": "Todavía nada: aquí aparecerán los acuerdos de cada reserva.",
+  "See all current terms & agreements": "Ver todos los términos y acuerdos vigentes",
+  "Every agreement you signed, with the exact text as it was when you signed.": "Cada acuerdo que firmó, con el texto exacto tal como estaba cuando lo firmó.",
+  "Nothing yet — sign your agreement in setup and your copies will appear here.": "Todavía nada: firme su acuerdo en la configuración y sus copias aparecerán aquí.",
   "Sorry it wasn’t great — our team will reach out to make it right.": "Lamentamos que no haya salido bien — nuestro equipo se comunicará para solucionarlo.",
 };
 

@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/(site)/plus/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
+ * UPDATED : 2026-10-03_0043 UTC — auto-renewal disclosure and link to the Plus, Gift Card & Promo Terms.
  * PURPOSE : Handled Plus — the membership: no priority fees, 10% off every job, first pick of
  *           same-day slots. Join (signed in) → Stripe subscription; manage from My account.
  */
@@ -35,6 +36,7 @@ export default async function PlusPage({ searchParams }: { searchParams: Promise
             {joined ? <p className="rounded-xl bg-brand-tint p-4 font-semibold text-brand-dark">Welcome to {HANDLED_PLUS.name}! Your savings apply to your next booking.</p>
               : v ? <PlusButton member={member} />
               : <Link href="/login?next=/plus" className="btn-primary px-6 py-3">Sign in to join</Link>}
+            {!joined && <p className="mt-3 text-xs text-ink-soft">Renews automatically every month at {money(HANDLED_PLUS.monthly)} until you cancel — cancel online anytime. By joining you agree to the <Link href="/terms/plus-gift-cards-promos" className="underline">Plus, Gift Card &amp; Promo Terms</Link>.</p>}
           </div>
         </div>
         <div className="card">

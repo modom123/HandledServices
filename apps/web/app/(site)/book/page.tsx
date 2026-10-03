@@ -3,7 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0302 UTC — ?when= and ?budget= prefill (from the AI concierge).
- * UPDATED : 2026-10-03_0040 UTC — ?frequency= and yes/no answers (true/false) for links in saved-price and
+ * UPDATED : 2026-10-03_0027 UTC — ?frequency= and yes/no answers (true/false) for links in saved-price and
  *           seasonal emails; utm_* params are tracking only, never answers.
  */
 import { BookingWizard } from "@/components/BookingWizard";

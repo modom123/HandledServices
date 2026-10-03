@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0233 UTC — pros set their own daily job limit (dispatch never offers past it).
  * UPDATED : 2026-10-01_2109 UTC — specialties, trade-specific coverage, requirements by trade.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)
+ * UPDATED : 2026-10-03_0042 UTC — signing lists the Code of Conduct, policies, consents and trade addenda it covers.
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
  */
@@ -13,6 +14,7 @@ import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
 import { AGREEMENT_SECTIONS, AGREEMENT_TITLE } from "@/lib/agreement";
+import { proSigningSet } from "@/lib/contracts";
 import { Badge } from "@/components/ui";
 import { Field, StepForm } from "@/components/ProOnboarding";
 
@@ -71,10 +73,15 @@ export default async function Onboarding() {
       <div className="mt-3">
         <details className="rounded-xl border border-line p-3 text-sm"><summary className="cursor-pointer font-semibold">{AGREEMENT_TITLE}</summary>
           {es && <p className="mt-3 text-xs text-ink-soft">El texto legal del acuerdo está en inglés. Si tiene preguntas, escríbanos antes de firmar.</p>}
-          <div className="mt-3 space-y-3">{AGREEMENT_SECTIONS.map((s) => <div key={s.h}><div className="font-semibold">{s.h}</div><p className="text-ink-soft">{s.p}</p></div>)}</div></details>
+          <div className="mt-3 space-y-3">{AGREEMENT_SECTIONS.map((s) => <div key={s.h}><div className="font-semibold">{s.h}</div><p className="whitespace-pre-line text-ink-soft">{s.p}</p></div>)}</div></details>
+        <div className="mt-3 rounded-xl bg-paper p-3 text-sm">
+          <div className="font-semibold">{t("Your signature also covers:")}</div>
+          <ul className="mt-1 list-disc pl-5">{proSigningSet((pro.trades ?? []) as string[]).slice(1).map((c) => <li key={c.key}><a href={`/terms/${c.key}`} target="_blank" rel="noopener noreferrer" className="text-brand underline">{c.title}</a></li>)}</ul>
+          <p className="mt-2 text-xs text-ink-soft">{t("Each one starts with a short plain-English version. Copies of everything you sign are saved in My contracts.")}</p>
+        </div>
         <StepForm step="agreement" cta={t("Sign agreement")} locale={l}>
           <Field label={t("Type your full name to sign")} name="signer_name" required />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="agree" value="true" required /> {t("I have read and agree to the Independent Contractor Agreement.")}</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="agree" value="true" required /> {t("I have read and agree to the Independent Contractor Agreement and the documents listed above.")}</label>
         </StepForm>
       </div>
     );

@@ -5,7 +5,7 @@
  * UPDATED : 2026-10-02_1329 UTC — promo / gift / referral code with live savings, attribution, Spanish.
  * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) limits the
  *           calendar to their deadline; optional budget shows whether the price fits.
- * UPDATED : 2026-10-03_0041 UTC — "Email me this price" (SaveQuote) and ?frequency= from email links.
+ * UPDATED : 2026-10-03_0027 UTC — "Email me this price" (SaveQuote) and ?frequency= from email links.
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.

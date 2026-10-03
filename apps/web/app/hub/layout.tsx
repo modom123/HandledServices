@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0255 UTC — Live roster in the nav.
  * UPDATED : 2026-10-02_1329 UTC — Growth page in the nav.
  * UPDATED : 2026-10-02_2250 UTC — Supply gaps in the nav.
+ * UPDATED : 2026-10-03_0043 UTC — Contract library in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -31,6 +32,7 @@ const NAV = [
   ["/hub/pro-program", "🏅", "Pro Program"],
   ["/hub/workforce", "🏢", "IEBC Workforce"],
   ["/hub/assistant", "✨", "AI assistant"],
+  ["/hub/contracts", "📜", "Contract library"],
   ["/hub/setup", "🚀", "Go-live setup"],
 ] as const;
 

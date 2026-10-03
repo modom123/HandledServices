@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/compliance.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
+ * UPDATED : 2026-10-03_0042 UTC — AGREEMENT_VERSION v3 and SERVICE_AGREEMENT_VERSION v5 (full contract library).
  * PURPOSE : Subcontractor onboarding & 1099 rules shared by the Handled Hub, the pro
  *           portal and IEBC agents. Pros are independent contractors (their own business,
  *           tools, insurance and schedule; free to accept or decline any job) — never
@@ -10,9 +11,9 @@
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
-export const AGREEMENT_VERSION = "2026-10-v2"; // v2: Pro Program benefits
+export const AGREEMENT_VERSION = "2026-10-v3"; // v3: full plain-English agreement + Code of Conduct, deactivation policy, consents, trade addenda
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v4"; // v4: transportation by licensed carriers
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v5"; // v5: full plain-English agreement + service addenda; Terms of Use with dispute resolution
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 

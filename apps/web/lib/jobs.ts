@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
  *           needed-by date) and their budget.
  * UPDATED : 2026-10-02_2239 UTC — completion email invites a Google review (when NEXT_PUBLIC_GOOGLE_REVIEW_URL is set).
+ * UPDATED : 2026-10-03_0041 UTC — each booking records the contracts accepted (frozen copy) for My contracts.
  * UPDATED : 2026-10-02_0233 UTC — recurring visits and redos are offered to the same pro first (24h / 12h),
  *           never forced on them; offers another pro won are marked "taken", not held against anyone.
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: booking → final price (AI check runs
@@ -37,6 +38,8 @@ import { amountDue, chargeSavedCard, paymentCheckoutUrl } from "./stripe";
 import { invoiceUrl, readQuoteToken } from "./invoice";
 import { syncCatalog } from "./catalog";
 import { sendSms } from "./sms";
+import { bookingContracts } from "./contracts";
+import { recordAcceptance } from "./contracts/record";
 
 export const BookingSchema = z.object({
   service_slug: z.string().refine((s) => Boolean(getService(s)), "Unknown service"),
@@ -161,6 +164,10 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     .single();
   if (error) throw new Error(error.message);
   let job = data as Job;
+  // the contracts accepted with this booking → the customer's "My contracts" (frozen copy of the text)
+  await recordAcceptance(bookingContracts(job.service_slug, input.customer_type === "commercial"), {
+    profileId: customerId, email: job.contact_email, signerName: job.contact_name, jobId: job.id, method: "booking", ip,
+  }).catch((e) => console.error("[contracts]", e));
   // booking in Spanish (signed in) → remember it on the account too
   if (customerId && input.locale === "es") await db().from("profiles").update({ locale: "es" }).eq("id", customerId);
   if (ben?.promoCode && !ben.isGift && ben.promoAmount > 0) {

@@ -2,8 +2,10 @@
  * FILE    : apps/web/app/hub/customers/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-03_0042 UTC — link to each customer's signed contracts.
  * PURPOSE : Customers (rolled up from jobs), commercial accounts and AI-chat leads.
  */
+import Link from "next/link";
 import { getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty } from "@/components/ui";
@@ -35,7 +37,7 @@ export default async function Customers() {
         <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Customer</th><th className="p-3">Type</th><th className="p-3">Jobs</th><th className="p-3">Lifetime spend</th><th className="p-3">Plan</th><th className="p-3">Last booking</th></tr></thead>
           <tbody>{customers.slice(0, 200).map((c) => (
-            <tr key={c.email} className="border-t border-line"><td className="p-3"><div className="font-semibold">{c.name}</div><div className="text-xs text-ink-soft">{c.email} · {c.phone}</div></td><td className="p-3">{c.type}</td><td className="p-3">{c.jobs}</td><td className="p-3">{money(c.spend)}</td><td className="p-3">{c.recurring ? <Badge tone="green">recurring</Badge> : "—"}</td><td className="p-3 text-xs">{new Date(c.last).toLocaleDateString()}</td></tr>
+            <tr key={c.email} className="border-t border-line"><td className="p-3"><div className="font-semibold">{c.name}</div><div className="text-xs text-ink-soft">{c.email} · {c.phone} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(c.email)}`}>contracts</Link></div></td><td className="p-3">{c.type}</td><td className="p-3">{c.jobs}</td><td className="p-3">{money(c.spend)}</td><td className="p-3">{c.recurring ? <Badge tone="green">recurring</Badge> : "—"}</td><td className="p-3 text-xs">{new Date(c.last).toLocaleDateString()}</td></tr>
           ))}</tbody>
         </table></div>
       </section>

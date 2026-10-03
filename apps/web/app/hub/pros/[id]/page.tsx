@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/hub/pros/[id]/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
+ * UPDATED : 2026-10-03_0042 UTC — link to the pro's signed contracts.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  */
@@ -46,7 +47,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         <div>
           <Link href="/hub/pros" className="text-xs text-ink-soft">← Pros</Link>
           <h1 className="text-2xl font-bold">{pro.business_name}</h1>
-          <p className="text-sm text-ink-soft">{pro.contact_name} · {pro.phone} · {pro.email}</p>
+          <p className="text-sm text-ink-soft">{pro.contact_name} · {pro.phone} · {pro.email} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(pro.email)}`}>Signed contracts</Link></p>
           <p className="text-xs text-ink-soft">{pro.trades.map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ")} · ZIPs {pro.service_zips.join(", ") || "—"}</p>
           <p className="text-xs text-ink-soft">
             <b>{proTier(pro).badge} {proTier(pro).name}</b>{pro.jobs_completed < PROBATION.jobs ? ` · probation (${PROBATION.jobs - pro.jobs_completed} job(s) left, max $${PROBATION.maxJobPrice})` : ""}

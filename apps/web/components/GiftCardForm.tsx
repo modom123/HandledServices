@@ -2,6 +2,7 @@
  * FILE    : apps/web/components/GiftCardForm.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
+ * UPDATED : 2026-10-03_0043 UTC — gift card terms notice and link.
  * PURPOSE : Gift card purchase form → /api/gift-cards → Stripe Checkout.
  */
 "use client";
@@ -40,6 +41,7 @@ export function GiftCardForm() {
       <div><label className="label">Message (optional)</label><textarea name="message" maxLength={300} className="input min-h-20" placeholder="Happy birthday — enjoy a day off!" /></div>
       {err && <p className="text-sm text-rose-700">{err}</p>}
       <button className="btn-primary w-full" disabled={busy || !(amount >= 25 && amount <= 1000)}>{busy ? "One moment…" : `Buy $${amount} gift card`}</button>
+      <p className="text-xs text-ink-soft">Good for at least 5 years, with no inactivity fees. By buying you agree to the <a href="/terms/plus-gift-cards-promos" className="underline">Plus, Gift Card &amp; Promo Terms</a>.</p>
     </form>
   );
 }

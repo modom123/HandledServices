@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2140 UTC — Earnings opens the in-app earnings screen (instant pay).
  * UPDATED : 2026-10-02_0255 UTC — On call switch (location shared while on call / on a job today) and My calendar.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
+ * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies in the pro portal).
  * PURPOSE : Pro mode — live job offers (accept/pass) and today's schedule.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -54,6 +55,7 @@ export default function ProHome() {
         <Button title={t("Setup & documents")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/onboarding`)} style={{ flex: 1 }} />
         <Button title={`⚡ ${t("Earnings")}`} kind="ghost" onPress={() => router.push("/pro/earnings")} style={{ flex: 1 }} />
       </View>
+      <Button title={t("My contracts")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/contracts`)} style={{ marginTop: 8 }} />
       <Card style={{ marginTop: 12, borderColor: onCall.on ? C.brand : undefined }}>
         <Text style={s.b}>{onCall.on ? `🟢 ${t("You're on call")}` : `⚪ ${t("Off call")}`}</Text>
         <Text style={s.p}>{onCall.on ? `${t("Same-day jobs near you come to you first")}${onCall.until ? ` ${t("until")} ${new Date(onCall.until).toLocaleTimeString(locale === "es" ? "es-US" : "en-US", { hour: "numeric", minute: "2-digit" })}` : ""}.` : t("Go on call to get same-day jobs, even on a day you don't usually work.")}</Text>

@@ -7,7 +7,7 @@
  * UPDATED : 2026-10-02_0302 UTC — alerts when an open job reaches or passes the customer's needed-by date.
  * UPDATED : 2026-10-02_0255 UTC — clears pro phone locations older than 12h and lapsed on-call flags.
  * UPDATED : 2026-10-02_2247 UTC — tells waitlisted customers when a pro now covers their ZIP.
- * UPDATED : 2026-10-03_0036 UTC — unpaid bookings get the payment link on day 1, 3 and 7 (was once);
+ * UPDATED : 2026-10-03_0027 UTC — unpaid bookings get the payment link on day 1, 3 and 7 (was once);
  *           saved prices get follow-ups on day 1 and 4.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.

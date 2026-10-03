@@ -6,7 +6,7 @@
  *           members and monthly revenue, promo codes (create / on-off / uses), gift card balances
  *           outstanding, referral rewards, tips to pros, and open chargebacks.
  * UPDATED : 2026-10-02_2253 UTC — Google review taps and waitlist size.
- * UPDATED : 2026-10-03_0045 UTC — seasonal reminders, saved prices and unpaid-booking follow-ups, with results.
+ * UPDATED : 2026-10-03_0027 UTC — seasonal reminders, saved prices and unpaid-booking follow-ups, with results.
  */
 import { BRAND, HANDLED_PLUS, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";

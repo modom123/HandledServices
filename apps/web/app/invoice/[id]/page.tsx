@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/invoice/[id]/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2030 UTC
+ * UPDATED : 2026-10-03_0042 UTC — prints the service-specific addenda and links the Terms of Use.
  * PURPOSE : Invoice & Service Agreement for one job — what was booked, the price, payment
  *           status and the full customer terms it was accepted under. Opens from the
  *           signed link in every email (no login), or for the signed-in customer / staff.
@@ -14,6 +15,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { getViewer, isStaff } from "@/lib/auth";
 import { validInvoiceToken } from "@/lib/invoice";
 import { SERVICE_AGREEMENT, SERVICE_AGREEMENT_TITLE } from "@/lib/service-agreement";
+import { addendaForService } from "@/lib/contracts";
 import { PrintButton } from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -90,7 +92,14 @@ export default async function Invoice({ params, searchParams }: { params: Promis
 
       <div className="border-t border-line pt-6">
         <h2 className="text-base font-bold">{SERVICE_AGREEMENT_TITLE}</h2>
-        <div className="mt-3 space-y-3 text-[15px] leading-relaxed">{SERVICE_AGREEMENT.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="text-ink-soft">{s.p}</span></div>)}</div>
+        <div className="mt-3 space-y-3 text-[15px] leading-relaxed">{SERVICE_AGREEMENT.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="whitespace-pre-line text-ink-soft">{s.p}</span></div>)}</div>
+        {addendaForService(job.service_slug).map((ad) => (
+          <div key={ad.key} className="mt-6">
+            <h3 className="text-base font-bold">{ad.title} (v{ad.version})</h3>
+            <div className="mt-2 space-y-3 text-[15px] leading-relaxed">{ad.sections.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="whitespace-pre-line text-ink-soft">{s.p}</span></div>)}</div>
+          </div>
+        ))}
+        <p className="mt-4 text-xs text-ink-soft">Also part of this agreement: the <a href="/terms/terms-of-use" className="underline">Terms of Use</a> (including how disputes are resolved). All current terms: /terms. Your signed copies: My account → My contracts.</p>
         <div className="mt-6 rounded-xl border border-line p-4">
           {job.terms_accepted_at
             ? <>Accepted electronically by <b>{job.contact_name}</b> on {new Date(job.terms_accepted_at).toLocaleString("en-US")} (version {job.terms_version}).</>

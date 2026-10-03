@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0316 UTC — Handled Plus, refer-a-friend code, delete my account.
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish and the language toggle.
+ * UPDATED : 2026-10-03_0040 UTC — My contracts link.
  * PURPOSE : Customer portal — all jobs, recurring plans, quick rebook.
  */
 import Link from "next/link";
@@ -36,7 +37,7 @@ export default async function Account() {
     <div className="wrap py-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-3xl font-extrabold tracking-tight">{t("My bookings")}</h1><p className="text-sm text-ink-soft">{v.email}</p></div>
-        <div className="flex gap-2"><Link href="/book" className="btn-primary">{t("Book a service")}</Link><form action="/auth/signout" method="post"><button className="btn-ghost">{t("Sign out")}</button></form></div>
+        <div className="flex gap-2"><Link href="/book" className="btn-primary">{t("Book a service")}</Link><Link href="/account/contracts" className="btn-ghost">{t("My contracts")}</Link><form action="/auth/signout" method="post"><button className="btn-ghost">{t("Sign out")}</button></form></div>
       </div>
       {(plans ?? []).length > 0 && (
         <div className="mt-8 grid gap-3 sm:grid-cols-2">

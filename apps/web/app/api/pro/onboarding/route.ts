@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0233 UTC — pros set their own daily job limit (dispatch never offers past it).
  * UPDATED : 2026-10-01_2109 UTC — specialties and trade-specific coverage steps.
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
+ * UPDATED : 2026-10-03_0041 UTC — signing records the full contract set (frozen copies) for the pro's My contracts.
  * PURPOSE : Pro self-onboarding (web portal + mobile). Multipart form with `step`:
  *             w9         legal_name, entity_type, tin_last4, address_line, city, state, zip, file
  *             coi        expires_on, file          (staff verifies → insured_until)
@@ -31,6 +32,8 @@ import { signedDocUrl } from "@/lib/photos";
 import { aiCheckDocument } from "@/lib/ai/doccheck";
 import { notify } from "@/lib/push";
 import { siteUrl } from "@/lib/notify";
+import { proSigningSet } from "@/lib/contracts";
+import { recordAcceptance, requestMeta } from "@/lib/contracts/record";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
@@ -124,6 +127,9 @@ export async function POST(req: Request) {
     await db.from("contractors").update({ agreement_version: AGREEMENT_VERSION, agreement_signed_at: signedAt, agreement_signer: b.signer_name }).eq("id", id);
     await db.from("contractor_documents").insert({ contractor_id: id, kind: "agreement", status: "verified", verified_by: "e-signature", verified_at: signedAt,
       notes: `Signed v${AGREEMENT_VERSION} by "${b.signer_name}" · ip ${req.headers.get("x-forwarded-for") ?? "?"}` });
+    // one e-signature covers the whole set: agreement, policies, consents and the addenda for their trades
+    const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
+    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, method: "signature", ...requestMeta(req) });
   } else if (b.step === "payout") {
     await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id);
   }

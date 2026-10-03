@@ -5,7 +5,7 @@
  * UPDATED : 2026-10-02_1329 UTC — text messages (Twilio), Stripe dispute/subscription webhook events,
  *           sales tax, Vercel Pro for the 10-minute dispatch cron, migrations 13–16.
  * UPDATED : 2026-10-02_2252 UTC — Google review link check; migration 19 (waitlist & Google reviews).
- * UPDATED : 2026-10-03_0045 UTC — migration 20 (seasonal reminders & quote follow-ups).
+ * UPDATED : 2026-10-03_0027 UTC — migration 20 (seasonal reminders & quote follow-ups).
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.

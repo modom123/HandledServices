@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/app/api/unsubscribe/route.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
- * CREATED : 2026-10-03_0035 UTC
+ * CREATED : 2026-10-03_0027 UTC
  * PURPOSE : One-click unsubscribe from reminder emails (seasonal reminders, saved-price
  *           follow-ups). GET from the link in the email shows a confirmation page; POST is the
  *           mail app's one-click (List-Unsubscribe-Post). Signed per address — no login.

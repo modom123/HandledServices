@@ -2,7 +2,7 @@
  * FILE    : apps/web/app/api/cron/daily-brief/route.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * UPDATED : 2026-10-03_0037 UTC — also sends seasonal reminders to past customers (once a day).
+ * UPDATED : 2026-10-03_0027 UTC — also sends seasonal reminders to past customers (once a day).
  * PURPOSE : Vercel cron 12:00 UTC — AI morning brief to the ops dashboard + email.
  */
 import { buildDailyBrief } from "@/lib/ai/brief";

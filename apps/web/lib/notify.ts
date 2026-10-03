@@ -2,7 +2,7 @@
  * FILE    : apps/web/lib/notify.ts
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * UPDATED : 2026-10-03_0028 UTC — optional email headers (List-Unsubscribe for reminder emails).
+ * UPDATED : 2026-10-03_0027 UTC — optional email headers (List-Unsubscribe for reminder emails).
  * PURPOSE : Outbound email (Resend). Without RESEND_API_KEY messages are logged, so
  *           every flow still works in development.
  */
