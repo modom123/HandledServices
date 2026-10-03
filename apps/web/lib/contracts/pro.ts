@@ -56,7 +56,7 @@ const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1
 /** Trades (by label) whose vetting profile requires this coverage. */
 const tradesRequiring = (k: CoverageKey) => Object.entries(TRADE_PROFILES).filter(([, p]) => p.requires.includes(k)).map(([id]) => label(id));
 /** Trades (by label) with a general-liability minimum above the base $1M. */
-const highGlTrades = Object.entries(TRADE_PROFILES).filter(([, p]) => p.glMin > 1_000_000).map(([id, p]) => `${label(id)} (${money(p.glMin)})`);
+const highGlTrades = Object.entries(TRADE_PROFILES).filter(([, p]) => p.glMin > 1_000_000).map(([id, p]) => `${money(p.glMin)} for ${label(id)}`);
 const NEC_YEAR = 2026;
 
 /**
@@ -187,7 +187,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "20. Insurance",
-      p: `You'll keep, at your own cost, for as long as you accept jobs:\n• General liability insurance of at least $1,000,000 per occurrence and $2,000,000 aggregate${highGlTrades.length ? ` (higher for ${list(highGlTrades)})` : ""}, naming ${L} as additional insured.\n• Auto insurance for any vehicle you use for jobs. Personal auto policies often exclude business use — make sure yours covers it. Commercial auto (${COVERAGES.auto.detail.split(".")[0]}) is required for ${list(tradesRequiring("auto"))}.\n• Workers' compensation for your own employees where Michigan (or your state) requires it. If you have no employees, you'll sign a no-employees statement and get coverage before anyone works for you on a ${N} job.\n• The trade-specific coverages for your trades, shown in your onboarding checklist — for example a fidelity bond for ${list(tradesRequiring("bond"))}; passenger carrier auto liability for transportation; liquor liability whenever alcohol is served.\n\nYou'll upload current certificates and tell us right away if coverage is cancelled, reduced or lapses. We verify policies with carriers. Offers stop automatically the day a required policy expires and restart as soon as a renewal is verified. Your insurance is primary for your work.`,
+      p: `You'll keep, at your own cost, for as long as you accept jobs:\n• General liability insurance of at least $1,000,000 per occurrence and $2,000,000 aggregate${highGlTrades.length ? ` (higher: ${list(highGlTrades)})` : ""}, naming ${L} as additional insured.\n• Auto insurance for any vehicle you use for jobs. Personal auto policies often exclude business use — make sure yours covers it. Commercial auto (${COVERAGES.auto.detail.split(".")[0]}) is required for ${list(tradesRequiring("auto"))}.\n• Workers' compensation for your own employees where Michigan (or your state) requires it. If you have no employees, you'll sign a no-employees statement and get coverage before anyone works for you on a ${N} job.\n• The trade-specific coverages for your trades, shown in your onboarding checklist — for example a fidelity bond for ${list(tradesRequiring("bond"))}; passenger carrier auto liability for transportation; liquor liability whenever alcohol is served.\n\nYou'll upload current certificates and tell us right away if coverage is cancelled, reduced or lapses. We verify policies with carriers. Offers stop automatically the day a required policy expires and restart as soon as a renewal is verified. Your insurance is primary for your work.`,
     },
     {
       h: "21. Licenses and permits",
@@ -486,3 +486,329 @@ export const PRO_LOCATION_CONSENT: Contract = {
     },
   ],
 };
+
+// ─── 6. Trade addenda ────────────────────────────────────────────────────────────
+
+const addendum = (key: string, title: string, trades: string[], summary: string[], sections: { h: string; p: string }[]): Contract => ({
+  key,
+  title: `${N} Pro Addendum — ${title}`,
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Pros who do ${list(trades.map(label))} jobs; adds to the Independent Contractor Agreement and wins over it for these trades if they conflict.`,
+  summary,
+  sections,
+  trades,
+});
+
+/** Building trades: the state-licensed ones (from LICENSED_TRADES) plus related home-improvement trades. */
+const BUILDING = ["plumbing", "electrical", "hvac", "remodel", "painting"];
+const BUILDING_TRADES = [...new Set([...LICENSED_TRADES.filter((t) => BUILDING.includes(t)), "remodel", "painting", "low_voltage", "handyman"])];
+
+export const PRO_ADDENDA: Contract[] = [
+  addendum("pro-addendum-transportation", "Passenger Transportation", ["transportation"], [
+    "Only licensed carrier companies: MDOT authority for Michigan trips; USDOT number and FMCSA authority for interstate trips or where federal rules apply.",
+    `${N} arranges rides as the customer's agent. You are the carrier and are fully responsible for operating the vehicle and the trip.`,
+    "Passenger carrier insurance, inspected vehicles and qualified drivers (right license class, clean record, drug & alcohol testing and hours-of-service limits where they apply).",
+    "Nobody under 21 drinks. Drivers never drink. Accessibility and service animals are welcome; child seats per Michigan law.",
+    "Report any accident or injury immediately, and to us within 24 hours.",
+  ], [
+    {
+      h: "1. Who you are and who we are",
+      p: `Transportation jobs go only to licensed passenger carrier companies — never individual drivers in personal cars. You, the carrier, provide the vehicle and driver and are solely responsible for operating the trip safely and lawfully. ${N} books the ride and collects payment as the customer's agent; we are not a motor carrier, don't operate vehicles and don't control your drivers or vehicles.${COUNSEL}`,
+    },
+    {
+      h: "2. Operating authority",
+      p: "You'll hold and keep current: Michigan passenger-for-hire / limousine carrier authority from MDOT for intrastate trips; and a USDOT number and FMCSA operating authority for interstate trips, and wherever federal rules otherwise require them (for example vehicles designed to seat 16 or more including the driver). You'll follow any airport, venue or city permit rules for pickups and staging. Tell us immediately if any authority is suspended or revoked — offers stop until it's restored.",
+    },
+    {
+      h: "3. Vehicles and insurance",
+      p: `• Every vehicle used must be listed on your account with seats, year and current inspection, registered and in safe working order, and inspected as MDOT (and FMCSA, where it applies) requires.\n• You'll carry ${COVERAGES.passenger_auto.label.toLowerCase()}: ${COVERAGES.passenger_auto.detail} These are our minimums; if the law or a venue or corporate customer requires more, the higher amount applies.${COUNSEL}\n• Michigan no-fault (PIP) coverage as required for your vehicles, and workers' compensation for employee drivers.\n• Name ${L} as additional insured where your carrier allows.`,
+    },
+    {
+      h: "4. Drivers",
+      p: "Every driver must be listed on your account and must: hold the right license class and endorsements for the vehicle (a CDL with passenger endorsement for vehicles designed to seat 16 or more); have a clean motor-vehicle record that meets your insurer's standard and ours; pass our background check; be enrolled in DOT drug and alcohol testing where required (CDL drivers); and follow federal hours-of-service limits where they apply (for passenger-carrying vehicles: no more than 10 hours driving after 8 consecutive hours off duty, no driving after 15 hours on duty, and the 60/70-hour weekly limits). Drivers never use alcohol or drugs within the times prohibited by law and never drive impaired or fatigued. No handheld phone use while driving.",
+    },
+    {
+      h: "5. Passengers, alcohol and conduct",
+      p: `• Drivers never drink alcohol on duty.\n• Where Michigan law allows alcohol in the passenger area of a chartered limousine or bus, only passengers 21 or older may drink. If anyone under 21 is aboard, follow the customer's agreement and the law — no alcohol for anyone under 21, and you may end service if it happens.${COUNSEL}\n• You may refuse or end a ride (safely, at a public, lit place) for violence, threats, illegal activity or conduct that makes driving unsafe; report it to us right away.\n• Don't exceed seated capacity. Everyone wears a seatbelt where one is provided.`,
+    },
+    {
+      h: "6. Accessibility and children",
+      p: "Don't refuse a passenger because of a disability or a service animal. When a booking requests a wheelchair-accessible vehicle, provide one that meets ADA standards or tell us immediately if you can't. Children must ride in the car seats or boosters Michigan law requires; the customer provides them unless the booking says you will.",
+    },
+    {
+      h: "7. Accidents and incidents",
+      p: "After any accident: make sure everyone is safe, call 911 if anyone is hurt, exchange information, and follow your insurer's and the law's reporting rules (including FMCSA accident-register rules where they apply). Tell us immediately if passengers are affected, and in writing within 24 hours in every case.",
+    },
+  ]),
+
+  addendum("pro-addendum-medical-courier", "Medical Courier & HIPAA", ["medical_courier"], [
+    `On medical runs you're a subcontractor business associate under HIPAA: use only the minimum patient information needed, keep it safe, and report any problem within 24 hours.`,
+    "Keep packages sealed, locked and with you. Never leave one unattended or at a door unless the sender's instructions say so.",
+    "No photos of labels except the proof the app requires. No detours and no passengers on medical runs.",
+    "Current HIPAA training (and bloodborne-pathogens training for specimens) is required. Specimens are packaged by the sender (UN3373 Category B); you keep them upright, at the right temperature, with a spill kit.",
+    "Chain of custody: scan or sign at every handoff, and check ID where required.",
+  ], [
+    {
+      h: "1. HIPAA: you're a subcontractor business associate",
+      p: `When you carry prescriptions, specimens, records or other items for clinics, pharmacies or labs, you may see protected health information (PHI) — names, addresses, phone numbers and labels. ${N} signs business associate agreements with these customers, and you agree to the same restrictions as a subcontractor business associate under 45 C.F.R. § 164.502(e) and § 164.504(e). This addendum is your written subcontractor agreement for that purpose.${COUNSEL}`,
+    },
+    {
+      h: "2. Minimum necessary",
+      p: "Use and look at only the information you need to pick up and deliver: typically the recipient's name, address, phone and sealed package labels. Never open a sealed package, read enclosed documents, or discuss a patient, delivery or what you carried with anyone except the sender, recipient and our team.",
+    },
+    {
+      h: "3. Safeguards",
+      p: "• Keep packages sealed and in your control at all times; lock them in your vehicle (in a locked compartment or container where possible) whenever you step away.\n• Never leave a package unattended, with a neighbor or at a door unless the sender's written instructions allow it.\n• No photos of labels or contents except the proof-of-delivery photo or scan the app requires, framed to show as little patient information as possible.\n• Keep your phone locked with a passcode; don't save patient details outside the app.\n• No detours, personal stops or passengers during a medical run — go directly from pickup to delivery.",
+    },
+    {
+      h: "4. Reporting breaches and incidents",
+      p: "Report to us within 24 hours of discovering it (immediately if you can) any loss, theft, misdelivery, opened or damaged package, wrong-recipient handoff, or any use or disclosure of PHI not allowed here. Cooperate with our investigation and the customer's breach-notification duties, and don't contact the patient about the incident yourself unless we ask.",
+    },
+    {
+      h: "5. Training and certificates",
+      p: "Keep a current HIPAA training certificate on file (it's part of onboarding; offers stop when it expires). For lab specimens you also need current OSHA bloodborne-pathogens training. DOT hazmat awareness for UN3373 specimens is strongly recommended. Training is required because the law requires it, not to control how you work.",
+    },
+    {
+      h: "6. Specimens and temperature-sensitive items",
+      p: "• The sender packages specimens as UN3373 Biological Substance, Category B (triple packaging, absorbent, labeled). Don't accept a package that's leaking, damaged or not properly labeled — tell the sender and us.\n• Keep specimens upright, secured, away from passengers' space, and within the temperature range on the package or work order, using a validated cooler or container when required.\n• Carry a spill kit and gloves. If a package leaks, follow your bloodborne-pathogens training, don't clean up without protection, and report it immediately.",
+    },
+    {
+      h: "7. Chain of custody and handoff",
+      p: "Scan or sign at every pickup and delivery in the app with the time. Hand off only to the named recipient or an authorized person at the facility, and check photo ID (and get a signature) where the work order requires it — always for controlled substances. If you can't deliver, follow the sender's instructions or return the package to the sender the same day; never keep it overnight unless the sender's written instructions allow it.",
+    },
+    {
+      h: "8. Controlled substances",
+      p: `Prescriptions that include controlled substances must be handed only to the patient or their authorized adult (18+) after an ID check and signature — never left at a door. Never open, count or hold them longer than the run requires. Report any loss or theft to us and the pharmacy immediately so the pharmacy can make its required DEA reports. Follow any added pharmacy rules on the work order.${COUNSEL}`,
+    },
+    {
+      h: "9. Returning or destroying PHI",
+      p: "When a run ends, or this agreement ends, return any paperwork with patient information to the sender or destroy it securely (shred), and delete any patient details from your devices. If you can't, keep protecting it under this addendum for as long as you have it.",
+    },
+  ]),
+
+  addendum("pro-addendum-licensed-trades", "Licensed Trades & Home Improvement", BUILDING_TRADES, [
+    "Licensed work (plumbing, electrical, HVAC, and residential remodeling and painting over the Michigan threshold) needs a current license in your business's name. Handyman and low-voltage pros never do work that needs a license they don't hold.",
+    "The licensed party pulls permits; permit costs go on the customer's invoice through a change order. Work passes code and inspections.",
+    "EPA lead-safe (RRP) certification for painting or remodeling disturbing paint in pre-1978 homes.",
+    "Licensed and remodel work carries a 1-year workmanship warranty (repairs at no extra payout unless someone else caused the problem).",
+    "Once we pay you, you waive lien rights for that work — and you pay your suppliers and helpers so customers never face a lien.",
+    "Clean up every day; shut off and restore utilities safely.",
+  ], [
+    {
+      h: "1. Licenses",
+      p: `Work that Michigan requires a license for goes only to properly licensed pros: plumbing, electrical and mechanical (HVAC) contractor licenses from LARA with work done by a licensed master or journeyman; a Residential Builder or Maintenance & Alteration Contractor license for residential remodeling and painting jobs over the state threshold (currently $600); and EPA Section 608 certification for refrigerant work. The license must be current and held by your business (or its qualifying officer) as the law requires. Handyman and low-voltage pros don't do plumbing, electrical (line-voltage), HVAC or other licensed work — stop and tell us if a job turns out to need it.`,
+    },
+    {
+      h: "2. Permits and inspections",
+      p: "Where a job requires a permit, the licensed party pulls it before work starts, posts it as required, and schedules the inspections. Permit fees are passed to the customer on the invoice through a change order (if not already in the price). Work must meet the applicable codes and pass inspection; fixing a failed inspection caused by your work is at no extra payout.",
+    },
+    {
+      h: "3. Lead-safe work (RRP)",
+      p: "For painting, remodeling or repair that disturbs painted surfaces in homes or child-occupied facilities built before 1978, the firm must be EPA RRP-certified, a certified renovator must direct the work, and lead-safe practices, the EPA \"Renovate Right\" pamphlet and record-keeping are required.",
+    },
+    {
+      h: "4. Workmanship warranty",
+      p: `Licensed-trade and remodel work carries a 1-year workmanship warranty from completion (other work in these trades carries the standard ${BRAND.guaranteeDays}-day redo). During the warranty you'll repair defects in your workmanship at no extra payout. Problems caused by others — the customer, another contractor, misuse, normal wear, or manufacturer defects in products you didn't choose — aren't covered, and a repair for them is a new paid job. Manufacturer warranties on products pass to the customer; register them where required.${COUNSEL}`,
+    },
+    {
+      h: "5. Liens and paying your suppliers",
+      p: `${N} collects from the customer and pays you. Once your payout for a job (or phase) is paid, you waive and release any construction lien rights against the customer's property for that work, and you'll sign a written lien waiver in the form Michigan's Construction Lien Act requires if we or the customer ask. You'll pay your suppliers, subcontractors and helpers in full and on time so that no one files a lien against a customer. If a lien is filed because you didn't pay someone, you'll get it released at your cost, and we may use payouts owed to you to pay that person directly.${COUNSEL}`,
+    },
+    {
+      h: "6. Materials",
+      p: "Materials not in the price are bought and reimbursed through the app's approved process (receipt upload; our OK above the auto-approve limit; a change order for big amounts). Use materials that meet code and the scope. Don't substitute a different product the customer chose without their OK through the app.",
+    },
+    {
+      h: "7. Site care, cleanup and utilities",
+      p: "Protect floors, furniture and finishes; contain dust; clean up at the end of each day and haul away your debris (unless the scope says otherwise). Before shutting off water, gas or power, tell the customer; restore service safely when you're done or explain in the app why you can't. Never leave a hazard (open wiring, gas off without notice, open trenches, unsecured ladders) unattended.",
+    },
+  ]),
+
+  addendum("pro-addendum-pet-care", "Pet Care & Pet Waste", ["pet_care", "pet_waste"], [
+    "Pets stay on leash outside a fenced area — always. Never off-leash at parks or on walks.",
+    "We confirm the pet's vaccinations with the owner; you may decline any pet that isn't up to date.",
+    "You can always refuse or stop with an aggressive animal. It never counts against you.",
+    "Emergency? Get the pet to safety, call the owner and us. We may authorize vet care where the owner has agreed in advance.",
+    "Respect weather limits, secure gates, and keep keys and lockbox codes safe.",
+  ], [
+    {
+      h: "1. Leashes and gates",
+      p: "Dogs stay on a secure leash at all times outside a fully fenced area — never off-leash on walks, at parks or dog parks unless the owner has given written permission through us and the area allows it. Walk one household's dogs at a time unless the owner agrees. Check gates and doors before letting a pet into a yard, and close them every time — this applies to pet-waste visits too.",
+    },
+    {
+      h: "2. Vaccinations and health",
+      p: "Before a first visit, we ask the owner to confirm the pet's vaccinations (rabies and others the vet recommends) and any medical needs. You may decline any pet that isn't up to date. Give medication only as the owner's written instructions say. Wash your hands between pets and between yards.",
+    },
+    {
+      h: "3. Aggressive or unsafe animals",
+      p: "If an animal acts aggressively or you feel unsafe, don't enter or stop the visit, keep yourself safe, and tell the owner and us. You can refuse any animal, at any time. This never counts against you.",
+    },
+    {
+      h: "4. Emergencies",
+      p: `If a pet is hurt, sick, lost or bitten: get the pet (and yourself) to safety, call the owner, and call us. If the owner can't be reached and the pet needs urgent care, take it to the owner's listed vet or the nearest emergency vet. ${N} may authorize treatment up to the amount the owner agreed to in the customer pet-care addendum; you never pay vet bills yourself. Report any bite to us and as local law requires.`,
+    },
+    {
+      h: "5. Weather",
+      p: "In extreme heat (generally 85°F+ with high humidity), extreme cold (generally below 20°F or icy conditions) or storms, shorten walks, avoid hot pavement and ice-melt salt, and keep the pet safe indoors where possible. Tell the owner what you did.",
+    },
+    {
+      h: "6. Keys, lockboxes and pet waste",
+      p: "Keys and codes are used only for that visit, never copied, and returned when the service ends. Lock up as you found it. Bag pet waste and dispose of it as the work order says (customer's bin or yours), never in a storm drain.",
+    },
+  ]),
+
+  addendum("pro-addendum-events-food", "Events, Food & Venues", ["event_planner", "catering", "food_truck", "dj_music", "rentals", "venue"], [
+    "Food service needs your health-department or MDARD license and a certified food protection manager; food handlers follow the Michigan Food Code.",
+    "Label allergens and keep foods at safe temperatures.",
+    "Alcohol only with a proper MLCC license and liquor liability insurance, by trained servers — never to anyone under 21 or visibly intoxicated.",
+    "Follow venue rules, capacity limits, noise ordinances and permit rules. Set up safely, especially sound, power and tents.",
+    "Rentals: inspect and photo at delivery and pickup. Coordinate with the event's planner.",
+  ], [
+    {
+      h: "1. Food licenses and food safety",
+      p: "Caterers need a food-service license from the county health department; food trucks need a mobile food establishment license (MDARD / county). Each operation needs a certified food protection manager, and everyone handling food follows the Michigan Food Code: handwashing, hot and cold holding temperatures, no bare-hand contact with ready-to-eat food, and staying home when sick. Keep your latest inspection on file with us.",
+    },
+    {
+      h: "2. Allergens",
+      p: "Label every dish with major allergens (milk, eggs, fish, shellfish, tree nuts, peanuts, wheat, soy and sesame) and with what the customer requested (vegan, halal, kosher, gluten-free). Prevent cross-contact for allergy-safe orders, and never claim a dish is allergen-free unless you're sure.",
+    },
+    {
+      h: "3. Alcohol",
+      p: `Serve alcohol only when you (or the venue) hold the right Michigan Liquor Control Commission license or permit for that event, carry liquor liability insurance (${COVERAGES.liquor.detail.split(".")[0]}), and use servers with responsible-service training (such as TIPS or ServSafe Alcohol). Check ID; never serve anyone under 21 or anyone visibly intoxicated; stop service at the agreed time. You may refuse service to anyone, and doing so never counts against you.${COUNSEL}`,
+    },
+    {
+      h: "4. Venues",
+      p: "Venue owners keep a current certificate of occupancy, respect the posted capacity, keep exits, fire equipment and accessible routes clear, and tell the customer the venue's rules in advance. Vendors follow the venue's rules on load-in, open flames, décor, noise and end times.",
+    },
+    {
+      h: "5. Sound, lighting and power",
+      p: "Set up equipment safely: secure speakers and stands, tape down or cover cables across walkways, don't overload circuits, keep liquids away from equipment, and use weatherproof gear and GFCI protection outdoors. Follow local noise ordinances and the venue's sound limits and curfews.",
+    },
+    {
+      h: "6. Rentals: delivery, setup and pickup",
+      p: "Deliver and pick up in the agreed windows. Set up tents, staging and inflatables per the manufacturer's instructions, anchored for wind, with any required tent permit (and call 811 before staking into the ground where required). Supervise or brief the customer on inflatable safety rules. Photograph items at delivery and pickup; report damage or missing items through the app within 24 hours of pickup so we can handle it with the customer — don't charge customers directly.",
+    },
+    {
+      h: "7. Working with the planner",
+      p: "Be set up and ready before the event start time. Coordinate timing, power, load-in and changes with the event planner on site (or with us if there isn't one). A planner's coordination is about the event schedule the customer set — how you do your own work stays up to you.",
+    },
+  ]),
+
+  addendum("pro-addendum-errands-delivery", "Errands & Deliveries", ["errands"], [
+    "Spend customer or company money only on what the customer asked for, and upload every receipt.",
+    "Never use customer funds, cards or items for anything personal. No cash handling.",
+    "Age-restricted items (alcohol, tobacco, vape, cannabis, some medicines) need an ID check at handoff — 21+ where the law says so.",
+    "Keep cold food cold and hot food hot; don't deliver anything unsafe.",
+    "Your auto insurance must cover business or delivery use — personal policies often exclude it.",
+  ], [
+    {
+      h: "1. Purchases",
+      p: `Buy only what the customer listed (or approved substitutions in the app), up to the shopping limit on the job (currently ${money(P.materials.shoppingMax)} without the customer's extra OK). Upload an itemized receipt for every purchase. Reimbursement is at cost; we never pay you more than the receipt and you never pay for the customer's items from your payout.`,
+    },
+    {
+      h: "2. Customer funds and items",
+      p: "Never use a customer's or our money, card, account or items for anything personal, and never keep change, rewards points or extras that belong to the customer. Don't accept or carry cash for a customer — all payment goes through the app.",
+    },
+    {
+      h: "3. Age-restricted items",
+      p: "Deliver alcohol, tobacco, vaping products, cannabis or other age-restricted items only where the law and the seller allow, and only to the customer (or an adult they named) after checking a valid photo ID showing they're of legal age (21+ for alcohol, tobacco and cannabis). If they can't show ID or appear intoxicated, don't hand it over — return it as the app instructs.",
+    },
+    {
+      h: "4. Food safety",
+      p: "Keep perishables in insulated bags or coolers, deliver promptly, and don't leave them in a hot or freezing car. Don't deliver items that are damaged, spoiled, recalled or past date — tell the customer in the app and let them choose a substitute or refund.",
+    },
+    {
+      h: "5. Vehicle insurance",
+      p: "If you drive for jobs, your auto insurance must cover business or delivery use. Many personal policies exclude it; get a business-use or delivery endorsement or a commercial policy, and keep proof on file. Without it, offers for driving jobs stop.",
+    },
+  ]),
+
+  addendum("pro-addendum-hauling", "Hauling, Junk Removal & Containers", ["hauling", "dumpster"], [
+    "Dispose of everything lawfully at licensed facilities, and upload the receipts or weigh tickets.",
+    "Don't take prohibited items (hazardous waste, tires and appliances only where allowed, etc.).",
+    "Donations go only where the customer agreed, with a receipt.",
+    "Secure and tarp every load. Respect weight limits.",
+    "Place containers carefully, with permits for the street, and protect driveways and lawns.",
+  ], [
+    {
+      h: "1. Lawful disposal",
+      p: "Take everything to licensed landfills, transfer stations or recycling facilities and upload the receipt or weigh ticket. Illegal dumping leads to immediate deactivation and you pay any fines and cleanup. Recycle appliances, electronics, metal and tires where the law requires, and remove refrigerant from appliances only through a certified technician or facility.",
+    },
+    {
+      h: "2. Prohibited items",
+      p: "Don't accept hazardous waste (paint, solvents, chemicals, propane tanks, asbestos, medical waste, ammunition) unless you're licensed and equipped to handle it. If you find it, leave it and tell the customer and us; we'll point the customer to a proper disposal option.",
+    },
+    {
+      h: "3. Donations and customer items",
+      p: "Take items to donation or resale only when the customer agreed in the app, and upload the donation receipt for the customer. Never keep, sell or give away a customer's items for yourself. Don't take anything not on the job list without the customer's OK.",
+    },
+    {
+      h: "4. Loads, weight and placement",
+      p: "Secure and tarp every load so nothing falls or blows out. Stay within your vehicle's and container's weight limits; overweight fees are passed to the customer only if the customer's loading caused them and the work order says so. Place containers where the customer chose, using boards to protect driveways; get the city's permit before placing on a street or sidewalk. Photograph the area before and after placement and pickup.",
+    },
+  ]),
+
+  addendum("pro-addendum-outdoor-and-heights", "Outdoor Work, Trees, Snow & Heights", ["lawn", "tree", "snow", "gutters", "pressure_washing", "windows"], [
+    "Use ladders and fall protection properly; you can always refuse unsafe heights.",
+    "Tree work follows ANSI Z133 safety basics. Stay at least 10 feet from power lines — always.",
+    "Call 811 before digging, staking or grinding stumps.",
+    "Snow: mark obstacles, salt sensibly, and follow the trigger and timing in the work order.",
+    "Use chemicals per the label, with an MDARD applicator certificate where required. Keep runoff out of storm drains.",
+  ], [
+    {
+      h: "1. Ladders and fall protection",
+      p: "Use ladders rated for the load, on level footing, at a safe angle, with three points of contact; secure or tie off extension ladders. Use fall protection when working on roofs or at heights where OSHA requires it. You can refuse any job or part of a job you think is unsafe at height — tell us and it doesn't count against you.",
+    },
+    {
+      h: "2. Tree work and power lines",
+      p: "Tree work follows ANSI Z133 safety standards (personal protective equipment, chainsaw safety, rigging, work zones and a qualified crew). Stay — and keep tools, ropes, branches and equipment — at least 10 feet from overhead power lines; if a tree is near or touching a line, stop and call the utility. Work near lines only with a qualified line-clearance arborist where the law allows. Protect structures, lawns and driveways; get permits for street trees or right-of-way work where required.",
+    },
+    {
+      h: "3. Call 811 before you dig",
+      p: "Before digging, staking, aerating deeply, installing posts or grinding stumps, contact MISS DIG 811 at least 3 business days ahead (as Michigan law requires) and respect the marks. Private lines (sprinklers, invisible fences, lighting) aren't marked by 811 — ask the customer.",
+    },
+    {
+      h: "4. Snow and ice",
+      p: "Put out plow markers before the season (or the first visit) and note obstacles. Follow the trigger depth and timing in the work order (for example, plow at 2 inches and finish by the time stated). Use salt and ice melt sensibly; avoid pet-unsafe products where the work order says pets are present. Don't push snow into streets, onto sidewalks or into neighbors' property. Photograph conditions when you finish.",
+    },
+    {
+      h: "5. Chemicals and runoff",
+      p: "Apply fertilizer, weed control and pesticides only as the label directs, and only with MDARD commercial applicator certification where Michigan requires it. Post required notices. For pressure and soft washing, protect plants, cover outlets and fixtures, and keep wash water and chemicals out of storm drains as local rules require.",
+    },
+  ]),
+
+  addendum("pro-addendum-home-services", "Cleaning, Carpet, Organizing & Auto Detailing", ["cleaning", "carpet", "organizing", "auto_detailing"], [
+    "Use products per their label and safety data sheet (SDS); never mix chemicals.",
+    "Handle customer belongings with care and report any breakage right away with photos.",
+    "Never throw anything away without the customer's clear OK.",
+    "Auto detailing: photograph the vehicle's condition before you start.",
+  ], [
+    {
+      h: "1. Chemicals",
+      p: "Use products according to their labels and keep their safety data sheets (SDS) available on your phone or in your vehicle. Never mix chemicals (for example bleach and ammonia). Ventilate, use gloves and eye protection as the label says, and keep products away from children and pets. Use the customer's requested products (for example fragrance-free) when the work order says so.",
+    },
+    {
+      h: "2. Customer belongings",
+      p: "Move items carefully and put them back where they were. Don't clean or treat valuables, artwork, antiques or electronics unless the work order covers them. Report anything broken or damaged immediately in the app with photos — honest reporting is always better than discovery later.",
+    },
+    {
+      h: "3. Discarding items",
+      p: "Never throw away, donate or remove anything unless the customer has clearly OK'd it in the app or on the work order. When organizing or clearing out, sort into keep, donate and discard piles and get the customer's sign-off before anything leaves. Treat sensitive items (documents, photos, medications) with care and shred documents only on the customer's request.",
+    },
+    {
+      h: "4. Vehicles",
+      p: "Before you start a detail, walk around the vehicle and photograph existing scratches, dents, stains and damage, and note them in the app. Remove and return personal items to the customer, never keep anything found in a vehicle, and don't drive the vehicle unless the work order allows it. Follow local rules on water runoff; use self-contained water collection where required.",
+    },
+  ]),
+];
+
+/**
+ * Trades with no addendum — fully covered by the main agreement. Computed so a trade added to
+ * TRADES later shows up here until someone writes its addendum (currently empty).
+ */
+export const CORE_ONLY_TRADES: string[] = TRADES.map((t) => t.id).filter((id) => !PRO_ADDENDA.some((a) => a.trades?.includes(id)));
+
+// ─── 7. Everything a pro signs ─────────────────────────────────────────────────
+
+export const PRO_CONTRACTS: Contract[] = [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...PRO_ADDENDA];

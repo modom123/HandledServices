@@ -6,6 +6,7 @@
  *           the website (/terms/…), prints on invoices, is signed in the pro portal, and is
  *           exported to docs/CONTRACTS_*.md for attorney review (scripts/build-contracts-md.ts).
  *           TEMPLATES — not legal advice; have counsel in each state review before use.
+ * UPDATED : 2026-10-03_0047 UTC — Spanish translations (ContractTranslation); English controls.
  */
 
 export type ContractAudience = "customer" | "business" | "pro";
@@ -33,4 +34,12 @@ export interface Contract {
   services?: string[];
   /** Pro trades an addendum applies to (pro addenda only). */
   trades?: string[];
+}
+
+/** A full translation of a contract (same section count and order as the English). */
+export interface ContractTranslation {
+  title: string;
+  appliesTo: string;
+  summary: string[];
+  sections: ContractSection[];
 }
