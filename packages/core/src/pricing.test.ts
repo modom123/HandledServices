@@ -11,7 +11,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SERVICES, defaultAnswers, type Answers, type Question } from "./services.ts";
-import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT } from "./pricing.ts";
+import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT, BOOKING_FEE } from "./pricing.ts";
 import { rankContractors } from "./dispatch.ts";
 import type { Contractor } from "./types.ts";
 
@@ -188,7 +188,8 @@ test("plan-by-budget splits exactly the budget and flags tight budgets", async (
   assert.ok(planEventBudget({ budget: 1000, guests: 100, eventType: "birthday" }).warnings.length > 0);
   assert.equal(planEventBudget({ budget: 5000, guests: 50, eventType: "birthday", haveVenue: true }).lines.some((l) => l.key === "venue"), false);
   const e = estimate({ slug: "event-package", answers: { budget: 10000, guests: 120, event_type: "corporate", venue: "need" } });
-  assert.equal(e.point, 10000); assert.equal(e.low, 10000); assert.equal(e.high, 10000);
+  // the budget is the service price; the booking fee is on top
+  assert.equal(e.point, 10000 + BOOKING_FEE); assert.equal(e.low, 10000 + BOOKING_FEE); assert.equal(e.high, 10000 + BOOKING_FEE);
 });
 
 test("work order hides the exact address until the pro accepts", async () => {
@@ -413,11 +414,11 @@ test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
 test("transportation: hourly minimums, licensed operators with passenger-carrier insurance", async () => {
   const { requiredCoverages } = await import("./vetting.ts");
   const { sizeNeedsSiteVisit } = await import("./intake.ts");
-  assert.equal(estimate({ slug: "private-driver", answers: { vehicle: "sedan", hours: 1 } }).point, 170, "2-hour minimum");
+  assert.equal(estimate({ slug: "private-driver", answers: { vehicle: "sedan", hours: 1 } }).point, 170 + BOOKING_FEE, "2-hour minimum (+ booking fee)");
   assert.ok(estimate({ slug: "limousine", answers: { vehicle: "suv_limo", hours: 4 } }).point > estimate({ slug: "limousine", answers: { vehicle: "stretch", hours: 4 } }).point);
-  assert.equal(estimate({ slug: "airport-transfer", answers: { vehicle: "sedan", trip: "round_trip" } }).point, 190);
+  assert.equal(estimate({ slug: "airport-transfer", answers: { vehicle: "sedan", trip: "round_trip" } }).point, 190 + BOOKING_FEE);
   assert.ok(estimate({ slug: "party-bus", answers: { size: "40", hours: 4, weekend_night: true } }).point > 1300);
-  assert.equal(estimate({ slug: "charter-bus", answers: { vehicle: "motorcoach", days: 2, overnight: true } }).point, 3800);
+  assert.equal(estimate({ slug: "charter-bus", answers: { vehicle: "motorcoach", days: 2, overnight: true } }).point, 3800 + BOOKING_FEE);
   assert.deepEqual(requiredCoverages(["transportation"]), ["passenger_auto"]);
   assert.ok(sizeNeedsSiteVisit("event-shuttle", { vehicles: 6 }));
   assert.ok(sizeNeedsSiteVisit("charter-bus", { out_of_state: true }));
@@ -765,4 +766,30 @@ test("pro fairness: deduction notice, clawback cap, chargebacks, warnings, offer
   const strong = { jobs_completed: 200, rating: 4.95, on_time_rate: 0.99, acceptance_rate: 0.05 };
   assert.equal(proTier(strong).id, PRO_TIERS[PRO_TIERS.length - 1].id);
   assert.equal(acceptanceRate([...Array(10)].map(() => ({ status: "expired" })), 0.7), 0.7);
+});
+
+test("market pricing: booking fee, sliding commission, counters, learning, offer bounds", async () => {
+  const { splitJob, commissionRate, priceForPayout, marketFactor, offerCheck, BOOKING_FEE, MARKET_BOUNDS } = await import("./pricing.ts");
+  // small jobs: small cut, so a $60 mow pays the pro $51 (+ our $4 fee)
+  const mow = splitJob(60 + BOOKING_FEE);
+  assert.equal(mow.payout, 51); assert.equal(mow.fee, BOOKING_FEE); assert.equal(mow.take, 13);
+  assert.equal(commissionRate(60), 0.15); assert.equal(commissionRate(600), 0.32); assert.equal(commissionRate(5000), 0.32);
+  // payout never goes down when the price goes up
+  let last = -1;
+  for (let p = 20; p <= 3000; p += 7) { const x = splitJob(p).payout; assert.ok(x >= last, `payout drops at ${p}`); last = x; }
+  // counters: the lowest price that pays at least the pro's number
+  for (const want of [45, 51, 120, 333, 900]) { const p = priceForPayout(want); assert.ok(splitJob(p).payout >= want); assert.ok(splitJob(p - 1).payout < want, `not minimal for ${want}`); }
+  // learning needs enough samples, is damped and bounded
+  const sig = (n: number, price: number, outcome: "accepted" | "declined" | "countered", counter?: number) => Array.from({ length: n }, () => ({ price, suggested: 100, outcome, counter }));
+  assert.equal(marketFactor(sig(3, 100, "declined")).factor, 1, "too few samples");
+  const up = marketFactor([...sig(6, 100, "countered", 125), ...sig(4, 100, "declined")]);
+  assert.ok(up.factor > 1 && up.factor <= MARKET_BOUNDS.max, `raises when pros counter (${up.factor})`);
+  const down = marketFactor(sig(10, 88, "accepted"));
+  assert.ok(down.factor < 1 && down.factor >= MARKET_BOUNDS.min, `lowers when pros accept below (${down.factor})`);
+  assert.equal(marketFactor(sig(20, 300, "countered", 400)).factor, MARKET_BOUNDS.max, "bounded");
+  // name-your-price bounds
+  assert.equal(offerCheck(100, 100).level, "ok");
+  assert.equal(offerCheck(85, 100).level, "low");
+  assert.equal(offerCheck(70, 100).ok, false);
+  assert.equal(offerCheck(400, 100).ok, false);
 });

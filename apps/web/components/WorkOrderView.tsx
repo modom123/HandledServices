@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_2043 UTC
  * PURPOSE : The pro's work order (offer page + job sheet) and the Uber-style accept panel.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
+ * UPDATED : 2026-10-03_0150 UTC — counter offer ("Not enough? Name your pay").
  */
 "use client";
 
@@ -44,13 +45,24 @@ function useCountdown(until: string) {
   return { done: s === 0, label: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` };
 }
 
-export function AcceptPanel({ offerId, payout, expiresAt, status, jobId, locale = "en" }: { offerId: string; payout: string; expiresAt: string; status: string; jobId: string; locale?: Locale }) {
+export function AcceptPanel({ offerId, payout, expiresAt, status, jobId, locale = "en", payoutAmount = 0, counter = null }: { offerId: string; payout: string; expiresAt: string; status: string; jobId: string; locale?: Locale; payoutAmount?: number; counter?: number | null }) {
   const t = (s: string) => tr(locale, s);
   const router = useRouter();
   const { done, label } = useCountdown(expiresAt);
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [countering, setCountering] = useState(false);
+  const [want, setWant] = useState(String(Math.round(payoutAmount * 1.15) || ""));
+  const [why, setWhy] = useState("");
+  async function sendCounter() {
+    setBusy(true);
+    const res = await fetch(`/api/pro/offers/${offerId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "counter", payout: Number(want), note: why }) });
+    const j = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok || !j.ok) return setMsg(t(j.error ?? "Not available"));
+    router.refresh();
+  }
   async function act(action: "accept" | "decline") {
     setBusy(true);
     const res = await fetch(`/api/pro/offers/${offerId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action === "accept" ? { action, accept_terms: true } : { action }) });
@@ -60,6 +72,7 @@ export function AcceptPanel({ offerId, payout, expiresAt, status, jobId, locale 
     router.push(action === "accept" ? `/pro/jobs/${jobId}` : "/pro");
   }
   if (status === "accepted") return <div className="card border-brand bg-brand-tint text-center font-semibold text-brand-dark">{t("✓ You accepted this job —")} <a className="underline" href={`/pro/jobs/${jobId}`}>{t("open job")}</a></div>;
+  if (status === "countered") return <div className="card text-center text-sm">{locale === "es" ? `Envió una contraoferta${counter ? ` de ${counter.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` : ""}. Si el cliente la acepta, el trabajo es suyo y le avisaremos.` : `You countered${counter ? ` at ${counter.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` : ""}. If the customer accepts, the job is yours and we'll let you know.`}</div>;
   if (status !== "offered" || done) return <div className="card text-center text-ink-soft">{t(status === "declined" ? "This offer has been passed." : "This offer has expired or was taken by another pro.")}</div>;
   return (
     <div className="card sticky bottom-4 space-y-3 border-brand shadow-lg">
@@ -73,6 +86,15 @@ export function AcceptPanel({ offerId, payout, expiresAt, status, jobId, locale 
         <button className="btn-primary flex-[2] py-3 text-base" disabled={busy || !agree} onClick={() => act("accept")}>{busy ? "…" : t("Accept job")}</button>
       </div>
       <p className="text-xs text-ink-soft">{t("First pro to accept gets it. The exact address unlocks the moment you accept.")}</p>
+      {payoutAmount > 0 && (!countering
+        ? <button className="text-sm text-brand underline" onClick={() => setCountering(true)}>{t("Not enough? Name your pay")}</button>
+        : <div className="space-y-2 rounded-xl bg-paper p-3 text-sm">
+            <div className="font-semibold">{t("What would you do it for?")}</div>
+            <div className="flex items-center gap-1"><span className="text-ink-soft">$</span><input className="input" inputMode="numeric" value={want} onChange={(e) => setWant(e.target.value.replace(/[^\d]/g, ""))} /></div>
+            <input className="input" value={why} maxLength={500} onChange={(e) => setWhy(e.target.value)} placeholder={t("Why (optional) — e.g. the yard is bigger than listed")} />
+            <button className="btn-ghost w-full" disabled={busy || !(Number(want) > payoutAmount)} onClick={sendCounter}>{t("Send counter to the customer")}</button>
+            <p className="text-xs text-ink-soft">{t("The customer sees the price it makes and decides. Other pros can still accept the original offer meanwhile.")}</p>
+          </div>)}
       {msg && <p className="text-sm text-rose-700">{msg}</p>}
     </div>
   );

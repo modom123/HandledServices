@@ -6,9 +6,11 @@
  *           only after acceptance); accepting requires agreeing to the work order terms,
  *           recorded with version, time and IP.
  * UPDATED : 2026-10-02_1412 UTC — work order in the pro's language.
+ * UPDATED : 2026-10-03_0149 UTC — counter: "I'll do it for $X" (the customer decides).
  * PURPOSE : Pro: view, accept or pass on a job offer (web portal + mobile app).
  */
 import { z } from "zod";
+import { proCounter } from "@/lib/market";
 import { buildWorkOrder, type Job } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
@@ -34,6 +36,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("accept"), accept_terms: z.literal(true, { message: "Agree to the work order to accept" }) }),
   z.object({ action: z.literal("decline") }),
+  z.object({ action: z.literal("counter"), payout: z.coerce.number().min(1).max(100000), note: z.string().max(500).default("") }),
 ]);
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -43,6 +46,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const body = Body.safeParse(await req.json().catch(() => null));
   if (!body.success) return deny(400, body.error.issues[0]?.message ?? "action required");
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  if (body.data.action === "counter") { const r = await proCounter(id, v.contractorId, body.data.payout, body.data.note); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   const result = body.data.action === "accept" ? await acceptOffer(id, v.contractorId, { ip }) : await declineOffer(id, v.contractorId);
   return Response.json(result, { status: result.ok ? 200 : 409 });
 }

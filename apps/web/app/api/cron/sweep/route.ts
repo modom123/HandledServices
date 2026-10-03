@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_2247 UTC — tells waitlisted customers when a pro now covers their ZIP.
  * UPDATED : 2026-10-03_0027 UTC — unpaid bookings get the payment link on day 1, 3 and 7 (was once);
  *           saved prices get follow-ups on day 1 and 4.
+ * UPDATED : 2026-10-03_0149 UTC — no pro yet after a while → the customer is nudged to raise their offer.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  */
@@ -19,6 +20,7 @@ import { recruitingSweep } from "@/lib/recruiting";
 import { clearStaleLocations } from "@/lib/roster";
 import { notifyWaitlist } from "@/lib/waitlist";
 import { sendBookingFollowups, sendQuoteFollowups } from "@/lib/reminders";
+import { nudgeLowOffers } from "@/lib/market";
 
 export const maxDuration = 300;
 
@@ -54,6 +56,7 @@ export async function GET(req: Request) {
   // 4. Booked but unpaid → payment link on day 1, 3 and 7; saved prices → follow-ups on day 1 and 4
   const reminded = await sendBookingFollowups().catch((e) => { console.error("[booking followups]", e); return 0; });
   const quoteFollowups = await sendQuoteFollowups().catch((e) => { console.error("[quote followups]", e); return 0; });
+  const offerNudges = await nudgeLowOffers().catch((e) => { console.error("[offer nudges]", e); return 0; }); // no pro yet → suggest raising
 
   // 5. Balances due after a deposit → charge the saved card, else payment link + alert
   const balances = await collectBalances();
@@ -67,5 +70,5 @@ export async function GET(req: Request) {
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
 
-  return Response.json({ quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

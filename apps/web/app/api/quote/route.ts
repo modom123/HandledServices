@@ -5,9 +5,11 @@
  * UPDATED : 2026-10-01_2334 UTC — returns a signed quote token: booking with it charges exactly
  *           the price shown (corrected answers included), with no second AI call.
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
+ * UPDATED : 2026-10-03_0149 UTC — suggested price includes the learned local market factor (?zip).
  * PURPOSE : Instant quote. Deterministic estimate always; AI price check when there are notes or photos.
  */
 import { z } from "zod";
+import { getMarketFactor } from "@/lib/market";
 import { getService, isRush, photoProblem, sizeNeedsSiteVisit } from "@handled/core";
 import { quoteToken } from "@/lib/invoice";
 import { aiQuote } from "@/lib/ai/quote";
@@ -23,6 +25,7 @@ const Body = z.object({
   photos: z.array(z.string().startsWith("booking/")).max(8).default([]),
   ai: z.boolean().default(false),
   locale: z.enum(["en", "es"]).optional(),
+  zip: z.string().regex(/^\d{5}$/).optional(),
 });
 
 export async function POST(req: Request) {
@@ -40,6 +43,7 @@ export async function POST(req: Request) {
     photoUrls: b.ai ? await signedUrls(b.photos) : [],
     rush,
     locale: b.locale,
+    market: await getMarketFactor(b.service_slug, b.zip),
   });
   const notes = b.ai ? b.notes?.trim() || null : null;
   const token = b.ai ? quoteToken({ slug: b.service_slug, answers: b.answers, frequency: b.frequency, photos: b.photos, notes, rush, ai, exp: Date.now() + 2 * 3600 * 1000 }) : null;

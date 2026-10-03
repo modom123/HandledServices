@@ -12,6 +12,10 @@
  *           big enough for the passenger count, so the price rises as passengers are added.
  * UPDATED : 2026-10-02_0244 UTC — grocery pickup & delivery, mobile car detailing, medical deliveries.
  * UPDATED : 2026-10-02_0251 UTC — game day & concert rides (sporting events, concerts, festivals).
+ * UPDATED : 2026-10-03_0147 UTC — market recalibration (Detroit metro 2026): house cleaning re-weighted to a visit
+ *           base + bed/bath (standard 3/2 ≈ $193, deep ≈ $309, move ≈ $367); lawn mowing raised so pros clear
+ *           local rates after plan discounts; snow per-visit lowered to market; grocery & medical delivery,
+ *           dog-poop scooping and full car detail nudged up so pro payouts meet local independent rates.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -160,20 +164,21 @@ export const SERVICES: Service[] = [
     frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["cleaning"],
     price: (a) => {
-      // Square footage drives the price: $0.12/sq ft up to 2,000 sq ft, $0.09/sq ft beyond.
+      // Square footage drives the price: a $45 visit base plus $0.06/sq ft up to 2,000 sq ft, $0.045/sq ft beyond
+      // (Detroit-metro 2026: standard clean of a 3 bd / 2 ba, 1,800 sq ft ≈ $150–$220).
       const sqft = n(a, "sqft", 1800);
-      const area = Math.round(Math.min(sqft, 2000) * 0.12 + Math.max(0, sqft - 2000) * 0.09);
+      const area = Math.round(45 + Math.min(sqft, 2000) * 0.06 + Math.max(0, sqft - 2000) * 0.045);
       const baths = n(a, "bathrooms", 2);
       const beds = n(a, "bedrooms", 3);
       const items: LineItem[] = [{ label: `${sqft.toLocaleString("en-US")} sq ft`, amount: area }];
-      if (baths > 1) items.push({ label: `${baths - 1} extra bathroom${baths > 2 ? "s" : ""}`, amount: (baths - 1) * 20 });
+      if (baths > 1) items.push({ label: `${baths - 1} extra bathroom${baths > 2 ? "s" : ""}`, amount: (baths - 1) * 25 });
       // Two bedrooms are in the base; each one more adds, each one fewer (studio / 1-bed) takes off.
-      if (beds > 2) items.push({ label: `${beds - 2} extra bedroom${beds > 3 ? "s" : ""}/office${beds > 3 ? "s" : ""}`, amount: (beds - 2) * 10 });
-      if (beds < 2) items.push({ label: beds === 0 ? "Studio" : "1 bedroom", amount: (beds - 2) * 10 });
+      if (beds > 2) items.push({ label: `${beds - 2} extra bedroom${beds > 3 ? "s" : ""}/office${beds > 3 ? "s" : ""}`, amount: (beds - 2) * 15 });
+      if (beds < 2) items.push({ label: beds === 0 ? "Studio" : "1 bedroom", amount: (beds - 2) * 15 });
       const subtotal = sum(items);
       const level = s(a, "level", "standard");
-      if (level === "deep") items.push({ label: "Deep clean", amount: Math.round(subtotal * 0.5) });
-      if (level === "move") items.push({ label: "Move-in/out clean", amount: Math.round(subtotal * 0.8) });
+      if (level === "deep") items.push({ label: "Deep clean", amount: Math.round(subtotal * 0.6) });
+      if (level === "move") items.push({ label: "Move-in/out clean", amount: Math.round(subtotal * 0.9) });
       if (b(a, "pets")) items.push({ label: "Pet hair", amount: 20 });
       if (b(a, "fridge_oven")) items.push({ label: "Fridge & oven interior", amount: 60 });
       const base = sum(items);
@@ -411,8 +416,8 @@ export const SERVICES: Service[] = [
       const veh = s(a, "vehicle", "sedan");
       const pkg = s(a, "package", "full");
       const v = Math.max(1, n(a, "vehicles", 1));
-      const table: Record<string, Record<string, number>> = { exterior: { sedan: 79, suv: 99, large: 119 }, interior: { sedan: 119, suv: 139, large: 159 }, full: { sedan: 179, suv: 209, large: 239 }, ceramic: { sedan: 599, suv: 749, large: 899 } };
-      const each = table[pkg]?.[veh] ?? 179;
+      const table: Record<string, Record<string, number>> = { exterior: { sedan: 79, suv: 99, large: 119 }, interior: { sedan: 119, suv: 139, large: 159 }, full: { sedan: 189, suv: 219, large: 249 }, ceramic: { sedan: 599, suv: 749, large: 899 } };
+      const each = table[pkg]?.[veh] ?? 189;
       const items: LineItem[] = [{ label: `${({ exterior: "Exterior detail", interior: "Interior detail", full: "Full detail", ceramic: "Full detail + ceramic coating" } as Record<string, string>)[pkg] ?? "Detail"} · ${v} vehicle${v > 1 ? "s" : ""} × $${each}`, amount: v * each }];
       if (b(a, "pet_hair")) items.push({ label: `Pet hair removal × ${v}`, amount: 40 * v });
       if (b(a, "stains")) items.push({ label: `Stain & odor treatment × ${v}`, amount: 50 * v });
@@ -448,15 +453,17 @@ export const SERVICES: Service[] = [
       { id: "aeration", label: "Core aeration", type: "toggle", default: false },
       { id: "fertilize", label: "Fertilization", type: "toggle", default: false },
     ],
-    minimum: 45,
+    minimum: 55,
     spread: [0.95, 1.1],
     payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly"],
     trades: ["lawn"],
     price: (a) => {
-      const mow = { small: 45, quarter: 60, half: 85, acre: 125 }[s(a, "lot", "quarter")] ?? 60;
-      const mult = mow / 60;
+      // Detroit-metro 2026 per-cut market: < ¼ ac $40–$60, ¼–½ ac $55–$80, ½–1 ac $85–$130, 1+ ac $130–$200.
+      // Priced so the pro still clears a local independent's rate after the weekly-plan discount.
+      const mow = { small: 55, quarter: 75, half: 105, acre: 160 }[s(a, "lot", "quarter")] ?? 75;
+      const mult = mow / 75;
       const items: LineItem[] = [{ label: "Mow, edge & blow", amount: mow }];
       if (b(a, "leaves")) items.push({ label: "Leaf cleanup", amount: Math.round(160 * mult) });
       if (b(a, "aeration")) items.push({ label: "Core aeration", amount: Math.round(120 * mult) });
@@ -605,17 +612,17 @@ export const SERVICES: Service[] = [
         ],
       },
     ],
-    minimum: 45,
+    minimum: 40,
     spread: [1, 1.1],
     payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["snow", "lawn"],
     price: (a) => {
-      const per = { one_car: 45, two_car: 65, large: 95, lot_small: 175, lot_large: 375 }[s(a, "area", "two_car")] ?? 65;
+      const per = { one_car: 40, two_car: 50, large: 75, lot_small: 175, lot_large: 375 }[s(a, "area", "two_car")] ?? 50;
       const lot = s(a, "area", "two_car").startsWith("lot");
       const items: LineItem[] = [{ label: "Plow / snow-blow", amount: per }];
-      if (b(a, "walks")) items.push({ label: "Sidewalks & walks", amount: lot ? 45 : 20 });
+      if (b(a, "walks")) items.push({ label: "Sidewalks & walks", amount: lot ? 45 : 15 });
       if (b(a, "steps")) items.push({ label: "Steps & porch", amount: 15 });
       if (b(a, "salt")) items.push({ label: "Ice melt", amount: lot ? 60 : 20 });
       const visit = sum(items);
@@ -743,7 +750,7 @@ export const SERVICES: Service[] = [
     price: (a) => {
       const dogs = n(a, "dogs", 1);
       const yard = { small: 1, medium: 1.2, large: 1.6 }[s(a, "yard", "medium")] ?? 1.2;
-      const items: LineItem[] = [{ label: `Visit — ${dogs} dog${dogs > 1 ? "s" : ""}`, amount: Math.round((18 + (dogs - 1) * 5) * yard) }];
+      const items: LineItem[] = [{ label: `Visit — ${dogs} dog${dogs > 1 ? "s" : ""}`, amount: Math.round((21 + (dogs - 1) * 5) * yard) }];
       if (b(a, "first_cleanup")) items.push({ label: "Initial heavy cleanup", amount: 75 });
       if (b(a, "deodorize")) items.push({ label: "Deodorizer", amount: 12 });
       const base = sum(items);
@@ -1434,7 +1441,7 @@ export const SERVICES: Service[] = [
       const order = s(a, "order", "medium");
       const stores = Math.max(1, n(a, "stores", 1));
       const miles = n(a, "miles", 5);
-      const items: LineItem[] = [{ label: "Grocery delivery", amount: 19 }];
+      const items: LineItem[] = [{ label: "Grocery delivery", amount: 25 }];
       const shop = ({ small: 0, medium: 10, large: 22, stock_up: 35 } as Record<string, number>)[order] ?? 10;
       if (shop) items.push({ label: `Shopping — ${({ medium: "16–40", large: "41–80", stock_up: "80+" } as Record<string, string>)[order] ?? ""} items`, amount: shop });
       if (stores > 1) items.push({ label: `${stores - 1} more store${stores > 2 ? "s" : ""} × $10`, amount: (stores - 1) * 10 });
@@ -1463,7 +1470,7 @@ export const SERVICES: Service[] = [
       { id: "equipment", label: "Large equipment (wheelchair, walker, oxygen concentrator)", type: "toggle", default: false },
       { id: "stat", label: "STAT — picked up within 90 minutes", type: "toggle", default: false },
     ],
-    minimum: 24,
+    minimum: 29,
     spread: [1, 1],
     payoutShare: 0.75,
     siteVisit: false,
@@ -1475,7 +1482,7 @@ export const SERVICES: Service[] = [
       const item = s(a, "item", "prescription");
       const stops = Math.max(1, n(a, "stops", 1));
       const miles = n(a, "miles", 10);
-      const items: LineItem[] = [{ label: ({ prescription: "Prescription pickup & delivery", supplies: "Medical supplies delivery", specimens: "Lab specimen courier (sealed, UN3373 packaging)", documents: "Records & documents courier" } as Record<string, string>)[item] ?? "Medical delivery", amount: ({ prescription: 24, supplies: 29, specimens: 35, documents: 24 } as Record<string, number>)[item] ?? 24 }];
+      const items: LineItem[] = [{ label: ({ prescription: "Prescription pickup & delivery", supplies: "Medical supplies delivery", specimens: "Lab specimen courier (sealed, UN3373 packaging)", documents: "Records & documents courier" } as Record<string, string>)[item] ?? "Medical delivery", amount: ({ prescription: 29, supplies: 35, specimens: 45, documents: 29 } as Record<string, number>)[item] ?? 29 }];
       if (stops > 1) items.push({ label: `${stops - 1} more stop${stops > 2 ? "s" : ""} × $12`, amount: (stops - 1) * 12 });
       if (miles > 10) items.push({ label: `${miles - 10} extra miles × $1.50`, amount: Math.round((miles - 10) * 1.5) });
       if (b(a, "temp")) items.push({ label: "Temperature-controlled transport", amount: 25 });

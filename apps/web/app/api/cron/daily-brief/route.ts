@@ -4,12 +4,14 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-03_0027 UTC — also sends seasonal reminders to past customers (once a day).
  * UPDATED : 2026-10-03_0123 UTC — pro standing sweep (written warnings, reviews, yearly background re-checks).
+ * UPDATED : 2026-10-03_0149 UTC — market pricing: suggested prices learn from offer outcomes daily.
  * PURPOSE : Vercel cron 12:00 UTC — AI morning brief to the ops dashboard + email.
  */
 import { buildDailyBrief } from "@/lib/ai/brief";
 import { sendDayBeforeReminders } from "@/lib/jobs";
 import { sendSeasonalReminders } from "@/lib/reminders";
 import { standingSweep } from "@/lib/standing";
+import { refreshMarketFactors } from "@/lib/market";
 import { adminClient } from "@/lib/supabase/server";
 import { opsEmail, sendEmail } from "@/lib/notify";
 import { BRAND } from "@handled/core";
@@ -21,10 +23,11 @@ export async function GET(req: Request) {
   const reminders = await sendDayBeforeReminders().catch((e) => { console.error("[reminders]", e); return 0; });
   const seasonal = await sendSeasonalReminders().catch((e) => { console.error("[seasonal]", e); return 0; }); // once a day
   const standing = await standingSweep().catch((e) => { console.error("[standing]", e); return null; }); // warnings, reviews, yearly re-checks
+  const market = await refreshMarketFactors().catch((e) => { console.error("[market]", e); return null; }); // learn suggested prices from offers
   const brief = await buildDailyBrief();
-  if (!brief) return Response.json({ ok: false, reason: "AI unavailable", reminders, seasonal, standing });
+  if (!brief) return Response.json({ ok: false, reason: "AI unavailable", reminders, seasonal, standing, market });
   const body = [`Yesterday:\n- ${brief.yesterday.join("\n- ")}`, `Today:\n- ${brief.today.join("\n- ")}`, `Risks:\n- ${brief.risks.join("\n- ")}`, `Actions:\n1. ${brief.actions.join("\n1. ")}`].join("\n\n");
   await adminClient().from("ops_alerts").insert({ kind: "daily_brief", severity: "info", title: brief.headline, body });
   if (opsEmail()) await sendEmail(opsEmail(), `${BRAND.name} brief: ${brief.headline}`, body);
-  return Response.json({ ok: true, brief, reminders, seasonal, standing });
+  return Response.json({ ok: true, brief, reminders, seasonal, standing, market });
 }

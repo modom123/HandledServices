@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1329 UTC — live pro tracker, reschedule, tip your pro.
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish, including the timeline (message_es).
  * UPDATED : 2026-10-02_2238 UTC — Google review ask for customers who rated but haven't reviewed on Google.
+ * UPDATED : 2026-10-03_0151 UTC — while no pro has taken it: pros' counters (accept one) and raise your offer.
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  */
 import { notFound, redirect } from "next/navigation";
@@ -15,6 +16,9 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
 import { AddJobPhotos, CancelBooking, GoogleReviewAsk, JobThread, PayNow, ReviewForm } from "@/components/JobThread";
+import { MarketBox, type Counter } from "@/components/MarketBox";
+import { adminClient } from "@/lib/supabase/server";
+import type { Locale } from "@handled/core";
 import { Reschedule, TipBox, TrackPro } from "@/components/AccountExtras";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +52,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <PayNow jobId={job.id} amount={money(job.payment_plan === "deposit" && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
             label={job.payment_plan === "deposit" && !job.deposit_paid_at ? (es ? "de depósito" : "deposit") : job.deposit_paid_at ? (es ? `saldo${job.balance_due_date ? ` (se cobra automáticamente el ${job.balance_due_date})` : ""}` : `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}`) : ""} locale={l} />
         )}
+        {(job.paid_at || job.deposit_paid_at) && !job.contractor_id && !job.remedy && ["dispatched", "scheduled"].includes(job.status) && <MarketPanel jobId={job.id} price={Number(job.price_final)} suggested={job.suggested_price ?? null} locale={l} />}
         <TrackPro jobId={job.id} locale={l} />
         {job.paid_at && <p className="text-sm text-brand-dark">{t("Paid")} {money(job.amount_paid)}{Number(job.amount_refunded) > 0 ? ` · ${es ? "reembolsado" : "refunded"} ${money(job.amount_refunded)}` : ""}</p>}
         {mine.length > 0 && (
@@ -79,4 +84,12 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
       </div>
     </div>
   );
+}
+
+/** Pros' counters on this job (first name, rating, jobs, price) + raise-your-offer. */
+async function MarketPanel({ jobId, price, suggested, locale }: { jobId: string; price: number; suggested: number | null; locale: Locale }) {
+  const { data } = await adminClient().from("job_offers").select("id, counter_price, counter_note, contractors(contact_name, rating, jobs_completed)").eq("job_id", jobId).eq("status", "countered").order("counter_price");
+  const counters: Counter[] = ((data ?? []) as unknown as { id: string; counter_price: number; counter_note: string | null; contractors: { contact_name: string; rating: number; jobs_completed: number } | null }[])
+    .map((o) => ({ id: o.id, who: String(o.contractors?.contact_name ?? "Pro").split(" ")[0], rating: Number(o.contractors?.rating ?? 5), jobs: Number(o.contractors?.jobs_completed ?? 0), price: Number(o.counter_price), note: o.counter_note }));
+  return <MarketBox jobId={jobId} price={price} suggested={suggested} counters={counters} locale={locale} />;
 }

@@ -13,15 +13,21 @@
  *             CORE_ONLY_SERVICES / customerCoverageGaps() — every service is covered by an addendum
  *           Numbers come from @handled/core so a price change never leaves a contract stale.
  *           "[Confirm with counsel.]" marks the judgment calls. TEMPLATES — not legal advice.
+ * UPDATED : 2026-10-03_0152 UTC — market pricing (suggested price that learns from what pros accept,
+ *           name your price within OFFER_BOUNDS, flat BOOKING_FEE, pro counteroffers, raising an offer):
+ *           Terms of Use, Service Agreement, Business MSA and Plus/promo terms updated to match.
  */
 import {
   AI_MAX_CUT,
   AI_MAX_RAISE,
+  BOOKING_FEE,
   BRAND,
   DEPOSIT,
   DISCOUNT_FLOOR,
   HANDLED_PLUS,
   LATE_CANCEL_FEE,
+  MARKET_BOUNDS,
+  OFFER_BOUNDS,
   PRO_POLICY_DEFAULTS,
   RECURRING_DISCOUNT,
   REFERRAL,
@@ -49,6 +55,12 @@ const US = `${BRAND.legalName} ("${BRAND.name}", "we", "us")`;
 const CONTACT = `email ${BRAND.supportEmail} or call ${BRAND.supportPhone}`;
 const MATERIALS_OK = money(PRO_POLICY_DEFAULTS.materials.autoApproveUpTo);
 const SHOPPING_MAX = money(PRO_POLICY_DEFAULTS.materials.shoppingMax);
+/** How far the learned local market can move a suggested price, and the name-your-price range. */
+const MARKET_DOWN = pct(1 - MARKET_BOUNDS.min);
+const MARKET_UP = pct(MARKET_BOUNDS.max - 1);
+const OFFER_LOW = pct(OFFER_BOUNDS.min);
+const OFFER_HIGH = `${OFFER_BOUNDS.max} times`;
+const FEE = money(BOOKING_FEE);
 const PLAN_DISCOUNTS = `weekly ${pct(RECURRING_DISCOUNT.weekly)}, every two weeks ${pct(RECURRING_DISCOUNT.biweekly)}, monthly ${pct(RECURRING_DISCOUNT.monthly)}, quarterly ${pct(RECURRING_DISCOUNT.quarterly)}`;
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -62,8 +74,8 @@ export const TERMS_OF_USE: Contract = {
   appliesTo: `Everyone who visits the ${BRAND.name} website or app, creates an account, gets a price, or books a service.`,
   summary: [
     "You must be 18 or older to use the app and book services.",
-    `${BRAND.name} is the company you deal with. We price, book, manage and guarantee the job. Independent, vetted pros do the work.`,
-    "Our AI gives prices and answers. It can make mistakes. The firm price is the one on your invoice.",
+    `${BRAND.name} is the company you deal with. We suggest the price, book, manage and guarantee the job. Independent, vetted pros do the work.`,
+    "Our AI suggests prices and answers questions. It can make mistakes. You may offer your own price within limits. The firm price is the one on your invoice.",
     "We text and email you about your jobs. You can stop marketing email anytime, and reply STOP to stop texts.",
     "Be honest and respectful. Don't misuse the app, our pros or other people's information.",
     "If we have a problem, we talk first. If we can't fix it in 30 days, a neutral arbitrator decides, one person at a time. Small claims court is always an option.",
@@ -92,21 +104,22 @@ export const TERMS_OF_USE: Contract = {
       "You can close your account at any time by contacting us. Bookings already paid for still follow their Service Agreement.",
     )],
     ["How the marketplace works", p(
-      `${BRAND.name} is a service company that runs on a network of independent pros. When you book, you contract with us. We set the price, schedule the job, choose a qualified pro, check the work and stand behind it with our guarantee.`,
+      `${BRAND.name} is a service company that runs on a network of independent pros. When you book, you contract with us. We suggest a price (and you may offer a different one within limits), schedule the job, choose a qualified pro, check the work and stand behind it with our guarantee.`,
       "The work itself is done by independent, insured, background-checked service businesses (\"pros\"). Pros are not our employees. They control how they do the work, within the scope you paid for.",
       "Some services, like rides and licensed trade work, must be done by a company that holds a special license. For those, we book a licensed company for you. The extra terms for that service (an \"addendum\") explain who does what.",
       "We may decline any booking. For example, if the job is outside our area, unsafe, unlawful, or not something we can do well.",
     )],
     ["Prices, quotes and our AI", p(
-      "We use software, including artificial intelligence (AI), to give instant prices, answer questions, read photos, schedule pros and check work.",
-      "AI can make mistakes. A price range, a chat answer or a photo estimate is not a promise. The firm price is the price on your invoice when you book and pay. If the job turns out to be different from what you described, the Service Agreement explains how a change order works.",
+      "We use software, including artificial intelligence (AI), to suggest prices, answer questions, read photos, schedule pros and check work.",
+      "Suggested price and name your price: for each job we show a suggested price. It is based on the details you give us, our standard rates, and what pros in your area have actually accepted for similar jobs. You may book at that price or offer a different price within the limits shown. Pros decide whether to take a job at the price offered, so a lower offer may take longer or may not be taken. The Service Agreement explains suggested prices, offers, the booking fee, pro counteroffers and raising your offer.",
+      "AI can make mistakes. A suggested price, a price range, a chat answer or a photo estimate is not a promise. The firm price is the price on your invoice: the price you agreed to and paid when you booked, plus any raise or pro counteroffer you accepted. If the job turns out to be different from what you described, the Service Agreement explains how a change order works.",
       "Some jobs need a pro to see them first (a free site visit). A firm quote after a site visit is good for 14 days.",
       "Please don't rely on our AI for medical, legal, safety, tax or financial advice. For emergencies like gas leaks, fires, flooding with electrical risk, or medical problems, call 911 or your utility first.",
       "If you think a price is wrong, ask us before you pay. We will check it. If we made an obvious pricing error, we may correct it before the work starts, and you may cancel for a full refund.",
     )],
     ["Payments", p(
       "Payments are processed by Stripe, our payment provider. Your card details go straight to Stripe. We don't store your full card number.",
-      "By saving a card, you let us charge it for bookings you make, balances due on deposits, approved change orders and materials, recurring plans you sign up for, memberships, tips you choose to give, and fees described in the Service Agreement (like a late-cancellation fee).",
+      "By saving a card, you let us charge it for bookings you make, balances due on deposits, raises to your offer and pro counteroffers you accept, approved change orders and materials, recurring plans you sign up for, memberships, tips you choose to give, and fees described in the Service Agreement (like a late-cancellation fee).",
       "Refunds go back to the original payment method. Gift card and credit amounts go back to your gift card or credit balance.",
       "Stripe's own terms also apply to your payment.",
     )],
@@ -260,22 +273,22 @@ export const SERVICE_AGREEMENT: Contract = {
   appliesTo: "Every booking. You accept it when you book and pay, and it prints on your invoice.",
   summary: [
     `You book and pay ${BRAND.name}. We schedule, manage and guarantee the job. An independent, insured, background-checked pro does the work. Please don't pay your pro directly.`,
-    "You pay upfront. The price on your invoice is your price. Extra work only happens after you approve and pay for it.",
+    `We suggest a price based on what pros near you actually accept. You may offer a different price within limits, but a lower offer may take longer or may not be taken. You pay upfront, and the price includes a flat ${FEE} booking fee.`,
+    "Until a pro accepts, you may raise your offer, and a pro may counter with a higher price. Paying more is always your choice, and we only charge the difference. Extra work only happens after you approve and pay for it.",
     `Cancel or move your booking free up to 24 hours before your arrival window. Inside 24 hours, or if your pro can't get in, we keep a ${money(LATE_CANCEL_FEE)} fee and refund the rest.`,
     `Not right? Tell us within ${BRAND.guaranteeDays} days with photos. We send the pro back free, give you a free service, or refund you.`,
     "Report any damage within 72 hours with photos. Every pro carries liability insurance, and we handle the claim with you.",
-    "Please give access, secure pets and valuables, tell us about hazards, and have an adult (18+) home for in-home work unless we agree otherwise.",
-    "Respect goes both ways. Harassment or discrimination ends the job.",
+    "Please give access, secure pets and valuables, tell us about hazards, and have an adult (18+) home for in-home work unless we agree otherwise. Respect goes both ways: harassment or discrimination ends the job.",
     "Book future work with pros you meet through us, so this agreement and our guarantee keep protecting you.",
   ],
   sections: numbered([
     ["Who you're contracting with", p(
-      `You are contracting with ${US}. We price, schedule, manage and guarantee your job. The work is done by an independent, insured, background-checked service business that we select and quality-check ("your pro"). Pros are independent businesses, not our employees.`,
+      `You are contracting with ${US}. We suggest the price, schedule, manage and guarantee your job. The work is done by an independent, insured, background-checked service business that we select and quality-check ("your pro"). Pros are independent businesses, not our employees.`,
       "You pay us. We pay your pro after the work is done and passes our quality check. Please don't pay your pro directly. Payments made outside the app are not covered by this agreement or our guarantee.",
       "Some services have extra terms (an \"addendum\"), for example rides, medical deliveries, pet care, events, construction and remodels, errands, hauling, car detailing, and home and yard services. If your service has an addendum, it is part of this agreement.",
     )],
     ["What's included (scope)", p(
-      "We will do the work described on your invoice. We price it from the details and photos you give us. Please describe the job fully and honestly. Anything not listed on the invoice is not included.",
+      "We will do the work described on your invoice. Our suggested price is based on the details and photos you give us. Please describe the job fully and honestly. Anything not listed on the invoice is not included.",
       "If you add notes, we read them, but a note does not add work unless it is reflected in the price and the invoice.",
     )],
     ["Changes on site (change orders)", p(
@@ -286,17 +299,31 @@ export const SERVICE_AGREEMENT: Contract = {
     )],
     ["Price", p(
       ul(
-        "Upfront price: you see the price before you book. It includes labor and the materials listed. The price on your invoice is the price you pay for that scope.",
+        `Suggested price: before you book, we show a suggested price. It is based on the details and photos you give us, our standard rates, and what pros in your area have actually accepted for similar jobs lately. What pros accept can move the suggested price up or down, but only within set limits (no more than ${MARKET_DOWN} lower or ${MARKET_UP} higher than our standard price).`,
+        `Name your price: you may book at the suggested price or offer a different price, from ${OFFER_LOW} of the suggested price up to ${OFFER_HIGH} the suggested price. Pros choose whether to take a job at the price offered. A lower offer may take longer to be taken, or may not be taken at all, and we tell you before you book when an offer is low. Whatever price you choose, you pay it upfront, the same way.`,
+        `Booking fee: every booking includes a flat ${FEE} booking fee (for recurring plans, on each visit). It is already included in the price we show you and is listed on your invoice. ${BRAND.name} keeps it to run booking, payments and support. It is not part of your pro's pay, and promo codes, ${HANDLED_PLUS.name} savings and other discounts don't reduce it. There is no booking fee on free redos or complimentary services.`,
+        "Upfront price: you see the full price before you book. It includes labor, the materials listed and the booking fee. The price on your invoice (your offer, plus any raise or counteroffer you accepted) is the price you pay for that scope.",
         `Priority fee: jobs that start within ${RUSH_HOURS} hours of booking have a ${pct(RUSH_SURCHARGE)} priority (rush) fee, shown before you book. ${HANDLED_PLUS.name} members don't pay it.`,
         `Recurring plans: plans get a discount on each visit (${PLAN_DISCOUNTS}), shown on your invoice.`,
-        `AI price check: our AI may check your details and photos and adjust the instant price, but only within set limits (no more than ${pct(AI_MAX_CUT)} lower or ${pct(AI_MAX_RAISE)} higher than our standard price). If a job needs more than that, we offer a free site visit instead. You always see the final price before you pay.`,
-        "Your budget: if you tell us your budget, we use it to suggest options. It doesn't change the price unless we agree on a different scope.",
+        `AI price check: our AI may check your details and photos and adjust the suggested price, but only within set limits (no more than ${pct(AI_MAX_CUT)} lower or ${pct(AI_MAX_RAISE)} higher than our standard price). If a job needs more than that, we offer a free site visit instead. You always see the final price before you pay.`,
+        "Your budget: if you tell us your budget, we use it to suggest options. It doesn't change the price unless we agree on a different scope or you choose to offer a different price.",
         "Site visits: on-site estimates are free. A firm quote after a site visit is good for 14 days.",
         "Price errors: if there is an obvious mistake in a price, we may correct it before work starts. If you don't accept the corrected price, you get a full refund.",
       ),
     )],
+    ["Pro counteroffers and raising your offer", p(
+      "After you book and pay, we offer your job to qualified pros at your price. Each pro sees exactly what they would be paid and decides whether to take it.",
+      ul(
+        "Counteroffers: a pro may reply with the pay they would accept instead. We then show you the full price that counteroffer means for you. You may accept it, and we charge only the difference and give the job to that pro at the pay they asked for. Or you may keep waiting at your price. While you decide, other pros may still take your job at your original price. Counteroffers end as soon as any pro takes the job.",
+        "Raising your offer: until a pro accepts your job, you may raise your price. We charge only the difference, to your saved card or through a payment link. Your job is then offered to pros again at the higher price.",
+        "No pro yet: if no pro has taken your job after a while, we may suggest a higher price, one time. You never have to raise it. You may keep waiting, or cancel under \"Rescheduling and cancelling\" below. If we can't find a pro for your date, we will offer another time or a full refund.",
+      ),
+      "The price you end up paying (your offer, plus any raise or counteroffer you accepted) becomes the price on your invoice. Refunds, cancellations and our guarantee apply to that total.",
+    )],
     ["Payment", p(
       "The full price is paid upfront to schedule the work, unless a deposit applies (see below). Payments are processed by Stripe. You can pay by card, and larger jobs may be paid by bank transfer (ACH) where we offer it.",
+      "If you raise your offer or accept a pro's counteroffer, we charge only the difference, to your saved card or through a payment link we send you.",
+      `How your price is shared: from the price you pay, ${BRAND.name} keeps the booking fee and a commission, and your pro is paid the rest. Promo codes and ${HANDLED_PLUS.name} savings come out of our share, never your pro's pay.`,
       "Your pro is only paid by us. Please don't pay your pro in cash or any other way.",
     )],
     ["Deposits for large jobs and events", p(
@@ -485,6 +512,7 @@ export const BUSINESS_MSA: Contract = {
     )],
     ["Ordering, scope and changes", p(
       "Each Order lists the work included. Work not listed is not included. If site conditions differ from what we were told, we send a change order priced at our standard rates. Extra work is done only after an authorized user approves it.",
+      `Pricing: unless an Order fixes the price, bookings made through your business account use the same suggested price and offer process as our customer Service Agreement. We show a suggested price, an authorized user may offer a different price within the limits shown, pros may counter, and a flat ${FEE} booking fee per booking (per visit for recurring services) is included in the price shown. Where an Order fixes the price, that price applies.`,
       "Recurring services continue on the Order's schedule until the Order ends or is changed. Either side may change a recurring schedule with 14 days' notice; price changes take effect at the next billing period after notice.",
     )],
     ["Invoicing and payment", p(
@@ -611,7 +639,7 @@ export const MEMBERSHIP_PROMO_TERMS: Contract = {
     [`${HANDLED_PLUS.name}: what you get`, p(
       `${HANDLED_PLUS.name} is a paid membership. While your membership is active, you get:`,
       ul(...HANDLED_PLUS.perks),
-      `The ${pct(HANDLED_PLUS.discountPct)} member discount applies to the job price after any plan discount. Like other discounts, it may be limited on some jobs so the pro's pay is never cut (see "Promo codes" below). First pick of same-day slots means members are offered open same-day slots first; it doesn't guarantee a slot.`,
+      `The ${pct(HANDLED_PLUS.discountPct)} member discount applies to the job price after any plan discount. Like other discounts, it may be limited on some jobs so the pro's pay is never cut (see "Promo codes" below). First pick of same-day slots means members are offered open same-day slots first; it doesn't guarantee a slot. The member discount doesn't apply to the ${FEE} booking fee included in each booking.`,
       "We may change or add benefits. If we reduce benefits or raise the price, we will tell you at least 30 days before your next renewal, and you can cancel before it applies.",
     )],
     [`${HANDLED_PLUS.name}: automatic renewal`, p(
@@ -645,7 +673,7 @@ export const MEMBERSHIP_PROMO_TERMS: Contract = {
         "Codes may have limits, which we show: first job only, minimum order, a certain service, an end date, or a set number of uses.",
         "Codes have no cash value, can't be sold or traded, and can't be applied to a booking you already paid for.",
         `Some discounts are capped so the pro's pay is never cut. Discounts come out of our share, not the pro's. On each job, we keep at least ${pct(DISCOUNT_FLOOR)} of the price after paying the pro, so a large discount may be reduced on some jobs. The app shows the discount you actually get before you pay.`,
-        "Tips, taxes and gift card purchases don't get promo discounts.",
+        `Tips, taxes, the ${FEE} booking fee and gift card purchases don't get promo discounts.`,
         "If you cancel or get a refund, we refund what you actually paid. Single-use codes may be restored at our discretion.",
         "We may end or change a promotion at any time, but not for bookings already paid.",
       ),

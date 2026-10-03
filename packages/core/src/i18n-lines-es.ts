@@ -278,4 +278,6 @@ export const ES_LINES: Record<string, string> = {
   "{#}-day rental": "Renta de {#} días",
   "{#}-person loading crew, {#} hours": "Equipo de carga de {#} personas, {#} horas",
   "{#}rd crew member ({#} lb+ item)": "{#}.º integrante del equipo (artículo de {#} lb+)",
+  "Booking fee": "Cargo por reserva",
+  "Local market adjustment": "Ajuste según el mercado local",
 };

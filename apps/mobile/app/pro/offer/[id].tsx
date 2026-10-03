@@ -3,11 +3,12 @@
  * PROJECT : Handled (myhumanai)
  * CREATED : 2026-10-01_2047 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
+ * UPDATED : 2026-10-03_0152 UTC — market pricing ("Not enough? Name your pay" counter offer; "countered" status).
  * PURPOSE : Uber-style incoming job: big payout, countdown, the work order (area only until
  *           accepted), job terms, "I agree" and one-tap Accept / Pass. First to accept wins.
  */
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { money, type WorkOrder } from "@handled/core";
 import { api } from "../../../lib/supabase";
@@ -17,13 +18,19 @@ import { useI18n } from "../../../lib/i18n";
 type OfferResp = { offer: { id: string; status: string; payout: number; expires_at: string; job_id: string }; workOrder: WorkOrder; error?: string };
 
 export default function OfferScreen() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const es = locale === "es";
   const { id } = useLocalSearchParams<{ id: string }>();
   const [data, setData] = useState<OfferResp | null>(null);
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { api<OfferResp>(`/api/pro/offers/${id}`).then((r) => r.ok ? setData(r.data) : Alert.alert(t("Offer unavailable"), r.data.error ?? "")); }, [id]);
+  // counter offer ("I'll do it for $X" — the customer decides)
+  const [countering, setCountering] = useState(false);
+  const [want, setWant] = useState("");
+  const [why, setWhy] = useState("");
+  const [countered, setCountered] = useState<number | null>(null);
+  useEffect(() => { api<OfferResp>(`/api/pro/offers/${id}`).then((r) => { if (!r.ok) return Alert.alert(t("Offer unavailable"), r.data.error ?? ""); setData(r.data); setWant(String(Math.round(Number(r.data.offer.payout) * 1.15) || "")); }); }, [id]);
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   if (!data) return <View style={[s.screen, s.pad]}><Text style={s.p}>{t("Loading offer…")}</Text></View>;
   const { offer, workOrder: w } = data;
@@ -39,9 +46,20 @@ export default function OfferScreen() {
     else router.back();
   }
 
+  async function sendCounter() {
+    const payout = Math.round(Number(want) || 0);
+    setBusy(true);
+    const r = await api<{ ok: boolean; error?: string }>(`/api/pro/offers/${id}`, { method: "POST", body: JSON.stringify({ action: "counter", payout, note: why.trim() }) });
+    setBusy(false);
+    if (!r.ok || !r.data.ok) return Alert.alert(t("Not available"), t(r.data.error ?? "Try again"));
+    setCountered(payout);
+    setCountering(false);
+    setData((d) => (d ? { ...d, offer: { ...d.offer, status: "countered" } } : d));
+  }
+
   return (
     <View style={s.screen}>
-      <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 220 }]}>
+      <ScrollView contentContainerStyle={[s.pad, { paddingBottom: countering ? 480 : 260 }]}>
         <Text style={{ fontSize: 42 }}>{w.icon}</Text>
         <Text style={s.h1}>{w.title}</Text>
         <Text style={s.p}>{w.when}</Text>
@@ -77,7 +95,23 @@ export default function OfferScreen() {
               <Button title={t("Pass")} kind="ghost" onPress={() => act("decline")} disabled={busy} style={{ flex: 1 }} />
               <Button title={t("Accept job")} onPress={() => act("accept")} busy={busy} disabled={!agree} style={{ flex: 2 }} />
             </View>
+            {Number(offer.payout) > 0 && (!countering ? (
+              <Pressable onPress={() => setCountering(true)} style={{ marginTop: 10, alignSelf: "center" }}><Text style={{ color: C.brand, fontWeight: "700" }}>{t("Not enough? Name your pay")}</Text></Pressable>
+            ) : (
+              <View style={{ marginTop: 10, backgroundColor: C.paper, borderRadius: 12, padding: 12 }}>
+                <Text style={s.b}>{t("What would you do it for?")}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+                  <Text style={s.p}>$</Text>
+                  <TextInput value={want} onChangeText={(v) => setWant(v.replace(/[^\d]/g, ""))} keyboardType="number-pad" style={[s.input, { flex: 1, paddingVertical: 8 }]} />
+                </View>
+                <TextInput value={why} onChangeText={setWhy} maxLength={500} placeholder={t("Why (optional) — e.g. the yard is bigger than listed")} placeholderTextColor={C.soft} style={[s.input, { marginTop: 6, paddingVertical: 8, fontSize: 15 }]} />
+                <Button title={t("Send counter to the customer")} kind="ghost" busy={busy} disabled={!(Number(want) > Number(offer.payout))} onPress={sendCounter} style={{ marginTop: 8, paddingVertical: 10 }} />
+                <Text style={[s.p, { fontSize: 13, marginTop: 6 }]}>{t("The customer sees the price it makes and decides. Other pros can still accept the original offer meanwhile.")}</Text>
+              </View>
+            ))}
           </>
+        ) : offer.status === "countered" ? (
+          <Text style={[s.b, { textAlign: "center" }]}>{es ? `Envió una contraoferta${countered ? ` de ${money(countered)}` : ""} — si el cliente la acepta, el trabajo es suyo y le avisaremos.` : `You countered${countered ? ` at ${money(countered)}` : ""} — if the customer accepts, the job is yours and we'll let you know.`}</Text>
         ) : (
           <Text style={[s.b, { textAlign: "center" }]}>{offer.status === "accepted" ? `✓ ${t("You accepted this job")}` : t("This offer expired or another pro took it.")}</Text>
         )}

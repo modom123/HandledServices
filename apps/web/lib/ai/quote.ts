@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2334 UTC — never underbid: the AI corrects quantities the photos
  *           contradict (re-priced by the rules engine), may raise up to 40% and cut at most 10%;
  *           anything bigger becomes a free site visit (aiPriceDecision in @handled/core).
+ * UPDATED : 2026-10-03_0148 UTC — baseline uses the learned local market factor.
  * PURPOSE : AI quote review. Claude reads the customer's answers, notes and photos and
  *           proposes a price for the work that's really there.
  */
@@ -58,8 +59,10 @@ export async function aiQuote(input: {
   jobId?: string | null;
   /** Language for what the customer reads (customer_summary, action_reason, change reasons). */
   locale?: "en" | "es";
+  /** Learned local market factor (lib/market). */
+  market?: number;
 }): Promise<{ baseline: Estimate; ai: AiQuote | null }> {
-  const baseline = estimate({ slug: input.slug, answers: input.answers, frequency: input.frequency, rush: input.rush });
+  const baseline = estimate({ slug: input.slug, answers: input.answers, frequency: input.frequency, rush: input.rush, market: input.market });
   const svc = getService(input.slug)!;
   const hasSignal = Boolean(input.notes?.trim()) || Boolean(input.photoUrls?.length);
   if (!hasSignal) return { baseline, ai: null }; // nothing for the AI to add — skip the call
@@ -90,7 +93,7 @@ export async function aiQuote(input: {
   if (!out) return { baseline, ai: null };
   // corrections are re-priced by the rules engine, not taken on trust
   const fixed = applyCorrections(input.slug, input.answers, out.corrected_answers);
-  const corrected = estimate({ slug: input.slug, answers: fixed.answers, frequency: input.frequency, rush: input.rush });
+  const corrected = estimate({ slug: input.slug, answers: fixed.answers, frequency: input.frequency, rush: input.rush, market: input.market });
   const d = aiPriceDecision(corrected, out.proposed_price, { needsSiteVisit: out.needs_site_visit, confidence: out.confidence });
   // never more than 10% under what the customer's own answers price at
   const final = Math.max(d.final, Math.round(baseline.point * (1 - AI_MAX_CUT)));

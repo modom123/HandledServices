@@ -2,6 +2,7 @@
  * FILE    : apps/mobile/lib/es-app.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
+ * UPDATED : 2026-10-03_0152 UTC — market pricing (raise your offer / pros' counters on the job screen).
  * PURPOSE : Spanish for the customer screens of the app (home, booking, my bookings, job,
  *           account, sign-in, chat). Shared words live in @handled/core i18n.ts.
  */
@@ -138,4 +139,10 @@ export const ES_APP: Record<string, string> = {
   "Your price": "Su precio",
   "Per visit": "Por visita",
   "Details": "Detalles",
+
+  // Market pricing — raise your offer (job screen)
+  "Couldn't raise your offer": "No se pudo subir su oferta",
+  "Offer raised ✓": "Oferta subida ✓",
+  "Pros who'd do it for a bit more can send a counter offer — see and accept them on your booking page on the website.": "Los profesionales que lo harían por un poco más pueden enviar una contraoferta — véalas y acéptelas en la página de su reserva en el sitio web.",
+  "See pros' counter offers": "Ver contraofertas de profesionales",
 };

@@ -10,6 +10,8 @@
  *           needed-by date) and their budget.
  * UPDATED : 2026-10-02_2239 UTC — completion email invites a Google review (when NEXT_PUBLIC_GOOGLE_REVIEW_URL is set).
  * UPDATED : 2026-10-03_0041 UTC — each booking records the contracts accepted (frozen copy) for My contracts.
+ * UPDATED : 2026-10-03_0148 UTC — market pricing: name-your-price at booking, raises / accepted counters
+ *           (offer_raise payments), price signals on every offer outcome.
  * UPDATED : 2026-10-02_0233 UTC — recurring visits and redos are offered to the same pro first (24h / 12h),
  *           never forced on them; offers another pro won are marked "taken", not held against anyone.
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: booking → final price (AI check runs
@@ -22,7 +24,7 @@
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, PROBATION, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+  BRAND, JOB_STATUS_LABEL, PROBATION, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
 } from "@handled/core";
@@ -66,6 +68,8 @@ export const BookingSchema = z.object({
   /** How soon they need it and what they want to spend (tracked; budget never changes the price). */
   urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).nullable().optional(),
   customer_budget: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
+  /** Name your price: what the customer offers (total, booking fee included). Within OFFER_BOUNDS of our suggestion. */
+  customer_offer: z.coerce.number().min(1).max(10_000_000).nullable().optional(),
   /** Promo code, gift card or referral code typed at checkout. */
   promo_code: z.string().max(40).nullable().optional(),
   /** First-touch marketing source (utm_*, referrer, landing page) for "where bookings come from". */
@@ -99,11 +103,12 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
-  const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush });
+  const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
+  const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush, market });
   // the price the customer saw (signed quote) if nothing changed since; otherwise check now
   const q = readQuoteToken(quote_token);
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
@@ -112,7 +117,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
-      : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush });
+      : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market });
   const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await zipCentroid(input.zip);
@@ -123,7 +128,15 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     instructions = `TWO VISITS. Drop off the ${input.answers.size ?? 15}-yard container on ${fmt(new Date(`${input.scheduled_date}T12:00:00`))} (${input.time_window}); pick it up on ${fmt(pickup)}. Use driveway boards. Upload the landfill weigh ticket as a receipt — any weight over the allowance is billed to the customer at cost.`;
   }
-  const listPrice = siteVisit ? null : ai?.final_price ?? est.point;
+  const suggested = siteVisit ? null : ai?.final_price ?? est.point;
+  // Name your price: the customer's offer replaces our suggestion (within bounds); pros see the pay it makes and decide
+  let offer: number | null = null;
+  if (suggested && customer_offer && Math.round(customer_offer) !== suggested) {
+    const chk = offerCheck(Math.round(customer_offer), suggested);
+    if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.min)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
+    offer = Math.round(customer_offer);
+  }
+  const listPrice = offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
   // Plus member saving and promo codes come out of our share (the pro's payout is set on the list price)
   const rushFee = rush && listPrice ? Math.round(listPrice - listPrice / (1 + RUSH_SURCHARGE)) : 0;
@@ -156,6 +169,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       payment_plan: plan ? "deposit" : "full",
       deposit_amount: plan?.amount ?? null,
       balance_due_date: plan?.balanceDue ?? null,
+      suggested_price: suggested,
+      customer_offer: offer,
+      booking_fee: listPrice ? bookingFeeOf(listPrice) : 0,
       terms_version: SERVICE_AGREEMENT_VERSION,
       terms_accepted_at: new Date().toISOString(),
       terms_accepted_ip: ip,
@@ -221,11 +237,13 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   const svc = getService(job.service_slug);
   const patch: Record<string, unknown> = {};
   let price = Number(job.price_final ?? 0);
-  if (p.kind === "change_order") {
+  if (p.kind === "change_order" || p.kind === "offer_raise") {
     price = Math.round((price + p.amount) * 100) / 100;
     patch.price_final = price;
     patch.estimate_low = price; patch.estimate_high = price;
-    if (!Number(job.amount_refunded)) patch.contractor_payout = splitJob(price, job.service_slug).payout;
+    // pay follows the list price (promo / Plus savings stay on our side)
+    if (!Number(job.amount_refunded)) patch.contractor_payout = splitJob(price + Number(job.discount ?? 0) + Number(job.member_benefit ?? 0), job.service_slug).payout;
+    if (p.kind === "offer_raise") patch.customer_offer = price;
   }
   const paidNow = Math.round((Number(job.amount_paid ?? 0) + p.amount) * 100) / 100;
   const firstPayment = !job.paid_at && !job.deposit_paid_at;
@@ -267,6 +285,11 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
       email: { to: pro.email, subject: `Extra work approved — ${paid.ref}`, text: `The customer approved and paid ${money(p.amount)} for the extra work. Go ahead.\n\nYour payout for this job is now ${money(paid.contractor_payout)}.` },
       es: { title: `Trabajo adicional aprobado · ${paid.ref}`, body: `El cliente pagó ${money(p.amount)}. Adelante — su pago ahora es de ${money(paid.contractor_payout)}.`,
         subject: `Trabajo adicional aprobado — ${paid.ref}`, text: `El cliente aprobó y pagó ${money(p.amount)} por el trabajo adicional. Adelante.\n\nSu pago por este trabajo ahora es de ${money(paid.contractor_payout)}.` } });
+  }
+  if (p.kind === "offer_raise") {
+    await addEvent(jobId, "offer_raised", `Offer raised to ${money(price)}.`, p.via, true, `Oferta aumentada a ${money(price)}.`);
+    await (await import("./market")).afterRaisePaid(paid as Job & { pending_counter_offer?: string | null });
+    return paid;
   }
   if (firstPayment && !paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
   return paid;
@@ -428,7 +451,13 @@ async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: s
  * to the next pros (excluding everyone already tried). Runs every 10 minutes and in the daily sweep.
  */
 export async function redispatchExpired() {
-  const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id");
+  const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id, contractor_id");
+  // nobody took it at this price → a market signal (per job, not per pro)
+  const { recordSignal } = await import("./market");
+  for (const jobId of new Set((expired ?? []).map((o: { job_id: string }) => o.job_id))) {
+    const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price, contractor_id").eq("id", jobId).single();
+    if (sj && !sj.contractor_id) await recordSignal(sj as Job, "expired");
+  }
   const jobIds = [...new Set((expired ?? []).map((o: { job_id: string }) => o.job_id))];
   let redispatched = 0;
   for (const jobId of jobIds) {
@@ -465,6 +494,8 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   }
   const now = new Date().toISOString();
   await db().from("job_offers").update({ status: "accepted", responded_at: now, work_order_version: WORK_ORDER_VERSION, terms_accepted_at: now, accepted_ip: meta.ip ?? null }).eq("id", offerId);
+  { const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price").eq("id", offer.job_id).single();
+    if (sj) await (await import("./market")).recordSignal(sj as Job, "accepted", contractorId); }
   await db().from("job_offers").update({ status: "taken" }).eq("job_id", offer.job_id).eq("status", "offered");
   const { data: pro } = await db().from("contractors").select("business_name, contact_name, email, profile_id, rating").eq("id", contractorId).single();
   const job = won as Job;
@@ -517,6 +548,8 @@ export async function declineOffer(offerId: string, contractorId: string) {
     .select("job_id")
     .maybeSingle();
   if (!offer) return { ok: false };
+  { const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price").eq("id", offer.job_id).single();
+    if (sj) await (await import("./market")).recordSignal(sj as Job, "declined", contractorId); }
   const { count } = await db().from("job_offers").select("id", { count: "exact", head: true }).eq("job_id", offer.job_id).eq("status", "offered");
   if (!count) {
     const { data: tried } = await db().from("job_offers").select("contractor_id").eq("job_id", offer.job_id);

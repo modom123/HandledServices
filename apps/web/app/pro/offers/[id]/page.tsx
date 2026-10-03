@@ -5,6 +5,7 @@
  * PURPOSE : Uber-style job offer (linked from the offer email/push): payout, countdown,
  *           work order and one-tap accept with the terms agreement.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
+ * UPDATED : 2026-10-03_0150 UTC — pros can counter with the pay they want.
  */
 import { notFound } from "next/navigation";
 import { buildWorkOrder, money, t as tr, type Job } from "@handled/core";
@@ -29,7 +30,7 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
     <div className="mx-auto max-w-2xl space-y-4">
       <div><div className="text-3xl">{w.icon}</div><h1 className="text-2xl font-bold">{w.title}</h1><p className="text-sm text-ink-soft">{w.when}</p></div>
       <WorkOrderView w={w} locale={l} />
-      <AcceptPanel locale={l} offerId={offer.id} payout={offer.payout ? money(offer.payout) : tr(l, "Site visit")} expiresAt={offer.expires_at} status={status} jobId={offer.job_id} />
+      <AcceptPanel locale={l} offerId={offer.id} payout={offer.payout ? money(offer.payout) : tr(l, "Site visit")} payoutAmount={Number(offer.payout ?? 0)} counter={offer.counter_payout ? Number(offer.counter_payout) : null} expiresAt={offer.expires_at} status={status} jobId={offer.job_id} />
     </div>
   );
 }

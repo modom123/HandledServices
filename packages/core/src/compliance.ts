@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-03_0042 UTC — AGREEMENT_VERSION v3 and SERVICE_AGREEMENT_VERSION v5 (full contract library).
+ * UPDATED : 2026-10-03_0151 UTC — v4 / v6 for market pricing.
  * PURPOSE : Subcontractor onboarding & 1099 rules shared by the Handled Hub, the pro
  *           portal and IEBC agents. Pros are independent contractors (their own business,
  *           tools, insurance and schedule; free to accept or decline any job) — never
@@ -11,9 +12,9 @@
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
-export const AGREEMENT_VERSION = "2026-10-v3"; // v3: full plain-English agreement + Code of Conduct, deactivation policy, consents, trade addenda
+export const AGREEMENT_VERSION = "2026-10-v4"; // v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v5"; // v5: full plain-English agreement + service addenda; Terms of Use with dispute resolution
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v6"; // v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 

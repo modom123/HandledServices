@@ -7,14 +7,19 @@
  *           customer.ts. Same summary bullets and sections, same order and numbering; numbers
  *           come from @handled/core so they always match the English. The English controls.
  *           TEMPLATES — not legal advice.
+ * UPDATED : 2026-10-03_0152 UTC — market pricing (precio sugerido, "proponga su precio", cargo de reserva,
+ *           contraofertas de profesionales, aumentar la oferta): mirrors customer.ts section for section.
  */
 import {
   AI_MAX_CUT,
   AI_MAX_RAISE,
+  BOOKING_FEE,
   BRAND,
   DEPOSIT,
   HANDLED_PLUS,
   LATE_CANCEL_FEE,
+  MARKET_BOUNDS,
+  OFFER_BOUNDS,
   PRO_POLICY_DEFAULTS,
   RECURRING_DISCOUNT,
   RUSH_HOURS,
@@ -37,6 +42,12 @@ const numbered = (items: [string, string][]): ContractSection[] => items.map(([h
 const US = `${BRAND.legalName} ("${BRAND.name}", "nosotros")`;
 const CONTACT = `escriba a ${BRAND.supportEmail} o llame al ${BRAND.supportPhone}`;
 const MATERIALS_OK = money(PRO_POLICY_DEFAULTS.materials.autoApproveUpTo);
+/** Cuánto puede mover el mercado local un precio sugerido, y el rango de "proponga su precio". */
+const MARKET_DOWN = pct(1 - MARKET_BOUNDS.min);
+const MARKET_UP = pct(MARKET_BOUNDS.max - 1);
+const OFFER_LOW = pct(OFFER_BOUNDS.min);
+const OFFER_HIGH = `${OFFER_BOUNDS.max} veces`;
+const FEE = money(BOOKING_FEE);
 const PLAN_DISCOUNTS = `semanal ${pct(RECURRING_DISCOUNT.weekly)}, cada dos semanas ${pct(RECURRING_DISCOUNT.biweekly)}, mensual ${pct(RECURRING_DISCOUNT.monthly)}, trimestral ${pct(RECURRING_DISCOUNT.quarterly)}`;
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -47,8 +58,8 @@ const TERMS_OF_USE_ES: ContractTranslation = {
   appliesTo: `Toda persona que visita el sitio web o la app de ${BRAND.name}, crea una cuenta, obtiene un precio o reserva un servicio.`,
   summary: [
     "Debe tener 18 años o más para usar la app y reservar servicios.",
-    `${BRAND.name} es la empresa con la que usted trata. Nosotros ponemos el precio, reservamos, gestionamos y garantizamos el trabajo. Profesionales independientes y verificados hacen el trabajo.`,
-    "Nuestra IA da precios y respuestas. Puede cometer errores. El precio firme es el que aparece en su factura.",
+    `${BRAND.name} es la empresa con la que usted trata. Nosotros sugerimos el precio, reservamos, gestionamos y garantizamos el trabajo. Profesionales independientes y verificados hacen el trabajo.`,
+    "Nuestra IA sugiere precios y responde preguntas. Puede cometer errores. Usted puede ofrecer su propio precio dentro de ciertos límites. El precio firme es el que aparece en su factura.",
     "Le enviamos mensajes de texto y correos electrónicos sobre sus trabajos. Puede dejar de recibir correos de publicidad en cualquier momento, y responder STOP para dejar de recibir mensajes de texto.",
     "Sea honesto y respetuoso. No haga mal uso de la app, de nuestros profesionales ni de la información de otras personas.",
     "Si tenemos un problema, primero hablamos. Si no podemos resolverlo en 30 días, un árbitro neutral decide, una persona a la vez. El tribunal de reclamos menores siempre es una opción.",
@@ -77,21 +88,22 @@ const TERMS_OF_USE_ES: ContractTranslation = {
       "Puede cerrar su cuenta en cualquier momento comunicándose con nosotros. Las reservas ya pagadas siguen rigiéndose por su Acuerdo de servicio.",
     )],
     ["Cómo funciona la plataforma", p(
-      `${BRAND.name} es una empresa de servicios que funciona con una red de profesionales independientes. Cuando usted reserva, contrata con nosotros. Nosotros fijamos el precio, programamos el trabajo, elegimos a un profesional calificado, revisamos el trabajo y lo respaldamos con nuestra garantía.`,
+      `${BRAND.name} es una empresa de servicios que funciona con una red de profesionales independientes. Cuando usted reserva, contrata con nosotros. Nosotros sugerimos un precio (y usted puede ofrecer otro dentro de ciertos límites), programamos el trabajo, elegimos a un profesional calificado, revisamos el trabajo y lo respaldamos con nuestra garantía.`,
       "El trabajo en sí lo hacen negocios de servicios independientes, asegurados y con verificación de antecedentes (\"profesionales\"). Los profesionales no son nuestros empleados. Ellos deciden cómo hacer el trabajo, dentro del alcance por el que usted pagó.",
       "Algunos servicios, como los traslados y los trabajos de oficios con licencia, deben ser realizados por una empresa que tenga una licencia especial. En esos casos, reservamos una empresa con licencia para usted. Los términos adicionales de ese servicio (un \"anexo\") explican quién hace qué.",
       "Podemos rechazar cualquier reserva. Por ejemplo, si el trabajo está fuera de nuestra zona, es inseguro, es ilegal o no es algo que podamos hacer bien.",
     )],
     ["Precios, cotizaciones y nuestra IA", p(
-      "Usamos software, incluida la inteligencia artificial (IA), para dar precios al instante, responder preguntas, analizar fotos, programar profesionales y revisar trabajos.",
-      "La IA puede cometer errores. Un rango de precios, una respuesta en el chat o un estimado a partir de fotos no es una promesa. El precio firme es el precio de su factura cuando reserva y paga. Si el trabajo resulta ser diferente a lo que usted describió, el Acuerdo de servicio explica cómo funciona una orden de cambio.",
+      "Usamos software, incluida la inteligencia artificial (IA), para sugerir precios, responder preguntas, analizar fotos, programar profesionales y revisar trabajos.",
+      "Precio sugerido y \"proponga su precio\": para cada trabajo le mostramos un precio sugerido. Se basa en los detalles que usted nos da, en nuestras tarifas estándar y en lo que los profesionales de su zona realmente han aceptado por trabajos similares. Usted puede reservar a ese precio u ofrecer un precio diferente dentro de los límites que se muestran. Los profesionales deciden si aceptan un trabajo al precio ofrecido, así que una oferta más baja puede tardar más o puede no ser aceptada. El Acuerdo de servicio explica los precios sugeridos, las ofertas, el cargo de reserva, las contraofertas de los profesionales y cómo aumentar su oferta.",
+      "La IA puede cometer errores. Un precio sugerido, un rango de precios, una respuesta en el chat o un estimado a partir de fotos no es una promesa. El precio firme es el precio de su factura: el precio que usted aceptó y pagó al reservar, más cualquier aumento o contraoferta de un profesional que usted haya aceptado. Si el trabajo resulta ser diferente a lo que usted describió, el Acuerdo de servicio explica cómo funciona una orden de cambio.",
       "Algunos trabajos requieren que un profesional los vea primero (una visita al lugar gratuita). Una cotización firme después de una visita al lugar es válida por 14 días.",
       "Por favor, no confíe en nuestra IA para consejos médicos, legales, de seguridad, de impuestos o financieros. En emergencias como fugas de gas, incendios, inundaciones con riesgo eléctrico o problemas médicos, llame primero al 911 o a su compañía de servicios públicos.",
       "Si cree que un precio está mal, pregúntenos antes de pagar. Lo revisaremos. Si cometimos un error evidente en el precio, podemos corregirlo antes de que empiece el trabajo, y usted puede cancelar con reembolso total.",
     )],
     ["Pagos", p(
       "Los pagos los procesa Stripe, nuestro proveedor de pagos. Los datos de su tarjeta van directamente a Stripe. No guardamos el número completo de su tarjeta.",
-      "Al guardar una tarjeta, usted nos permite cobrarle las reservas que haga, los saldos pendientes de depósitos, las órdenes de cambio y los materiales aprobados, los planes recurrentes a los que se inscriba, las membresías, las propinas que decida dar y los cargos descritos en el Acuerdo de servicio (como un cargo por cancelación tardía).",
+      "Al guardar una tarjeta, usted nos permite cobrarle las reservas que haga, los saldos pendientes de depósitos, los aumentos de su oferta y las contraofertas de profesionales que usted acepte, las órdenes de cambio y los materiales aprobados, los planes recurrentes a los que se inscriba, las membresías, las propinas que decida dar y los cargos descritos en el Acuerdo de servicio (como un cargo por cancelación tardía).",
       "Los reembolsos se devuelven al método de pago original. Los montos de tarjetas de regalo y créditos se devuelven a su saldo de tarjeta de regalo o de crédito.",
       "Los términos propios de Stripe también se aplican a su pago.",
     )],
@@ -242,22 +254,22 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
   appliesTo: "Cada reserva. Usted lo acepta cuando reserva y paga, y aparece impreso en su factura.",
   summary: [
     `Usted reserva y le paga a ${BRAND.name}. Nosotros programamos, gestionamos y garantizamos el trabajo. Un profesional independiente, asegurado y con verificación de antecedentes hace el trabajo. Por favor, no le pague directamente a su profesional.`,
-    "Usted paga por adelantado. El precio de su factura es su precio. El trabajo adicional solo se hace después de que usted lo apruebe y lo pague.",
+    `Le sugerimos un precio basado en lo que los profesionales cerca de usted realmente aceptan. Puede ofrecer un precio diferente dentro de ciertos límites, pero una oferta más baja puede tardar más o puede no ser aceptada. Usted paga por adelantado, y el precio incluye un cargo de reserva fijo de ${FEE}.`,
+    "Mientras ningún profesional acepte, usted puede aumentar su oferta, y un profesional puede hacer una contraoferta con un precio más alto. Pagar más siempre es su decisión, y solo le cobramos la diferencia. El trabajo adicional solo se hace después de que usted lo apruebe y lo pague.",
     `Cancele o cambie su reserva gratis hasta 24 horas antes de su horario de llegada. Con menos de 24 horas, o si su profesional no puede entrar, nos quedamos con un cargo de ${money(LATE_CANCEL_FEE)} y le reembolsamos el resto.`,
     `¿Algo no quedó bien? Avísenos dentro de ${BRAND.guaranteeDays} días con fotos. Enviamos al profesional de vuelta sin costo, le damos un servicio gratis o le hacemos un reembolso.`,
     "Reporte cualquier daño dentro de 72 horas con fotos. Todo profesional tiene seguro de responsabilidad civil, y nosotros manejamos el reclamo con usted.",
-    "Por favor, dé acceso, asegure a sus mascotas y objetos de valor, infórmenos sobre peligros y tenga a un adulto (18+) en casa para los trabajos dentro del hogar, a menos que acordemos otra cosa.",
-    "El respeto es mutuo. El acoso o la discriminación terminan el trabajo.",
+    "Por favor, dé acceso, asegure a sus mascotas y objetos de valor, infórmenos sobre peligros y tenga a un adulto (18+) en casa para los trabajos dentro del hogar, a menos que acordemos otra cosa. El respeto es mutuo: el acoso o la discriminación terminan el trabajo.",
     "Reserve los trabajos futuros con los profesionales que conozca a través de nosotros, para que este acuerdo y nuestra garantía lo sigan protegiendo.",
   ],
   sections: numbered([
     ["Con quién contrata usted", p(
-      `Usted contrata con ${US}. Nosotros ponemos el precio, programamos, gestionamos y garantizamos su trabajo. El trabajo lo hace un negocio de servicios independiente, asegurado y con verificación de antecedentes, que nosotros seleccionamos y cuya calidad revisamos ("su profesional"). Los profesionales son negocios independientes, no nuestros empleados.`,
+      `Usted contrata con ${US}. Nosotros sugerimos el precio, programamos, gestionamos y garantizamos su trabajo. El trabajo lo hace un negocio de servicios independiente, asegurado y con verificación de antecedentes, que nosotros seleccionamos y cuya calidad revisamos ("su profesional"). Los profesionales son negocios independientes, no nuestros empleados.`,
       "Usted nos paga a nosotros. Nosotros le pagamos a su profesional después de que el trabajo esté hecho y pase nuestro control de calidad. Por favor, no le pague directamente a su profesional. Los pagos hechos fuera de la app no están cubiertos por este acuerdo ni por nuestra garantía.",
       "Algunos servicios tienen términos adicionales (un \"anexo\"), por ejemplo traslados, entregas médicas, cuidado de mascotas, eventos, construcción y remodelaciones, mandados, acarreo, limpieza de autos (detailing), y servicios para el hogar y el jardín. Si su servicio tiene un anexo, este forma parte de este acuerdo.",
     )],
     ["Qué incluye (alcance)", p(
-      "Haremos el trabajo descrito en su factura. Le ponemos precio según los detalles y las fotos que usted nos da. Por favor, describa el trabajo de forma completa y honesta. Todo lo que no aparezca en la factura no está incluido.",
+      "Haremos el trabajo descrito en su factura. Nuestro precio sugerido se basa en los detalles y las fotos que usted nos da. Por favor, describa el trabajo de forma completa y honesta. Todo lo que no aparezca en la factura no está incluido.",
       "Si agrega notas, las leemos, pero una nota no agrega trabajo a menos que se refleje en el precio y en la factura.",
     )],
     ["Cambios en el lugar (órdenes de cambio)", p(
@@ -268,17 +280,31 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
     )],
     ["Precio", p(
       ul(
-        "Precio por adelantado: usted ve el precio antes de reservar. Incluye la mano de obra y los materiales indicados. El precio de su factura es el precio que usted paga por ese alcance.",
+        `Precio sugerido: antes de reservar, le mostramos un precio sugerido. Se basa en los detalles y las fotos que usted nos da, en nuestras tarifas estándar y en lo que los profesionales de su zona han aceptado recientemente por trabajos similares. Lo que aceptan los profesionales puede subir o bajar el precio sugerido, pero solo dentro de límites fijos (no más de ${MARKET_DOWN} por debajo ni ${MARKET_UP} por encima de nuestro precio estándar).`,
+        `Proponga su precio: usted puede reservar al precio sugerido u ofrecer un precio diferente, desde el ${OFFER_LOW} del precio sugerido hasta ${OFFER_HIGH} el precio sugerido. Los profesionales deciden si aceptan un trabajo al precio ofrecido. Una oferta más baja puede tardar más en ser aceptada, o puede no ser aceptada nunca, y le avisamos antes de reservar cuando una oferta es baja. Sea cual sea el precio que elija, lo paga por adelantado, de la misma forma.`,
+        `Cargo de reserva: cada reserva incluye un cargo de reserva fijo de ${FEE} (en los planes recurrentes, en cada visita). Ya está incluido en el precio que le mostramos y aparece en su factura. ${BRAND.name} se lo queda para operar las reservas, los pagos y la atención al cliente. No forma parte del pago de su profesional, y los códigos promocionales, los ahorros de ${HANDLED_PLUS.name} y otros descuentos no lo reducen. No hay cargo de reserva en los trabajos rehechos gratis ni en los servicios de cortesía.`,
+        "Precio por adelantado: usted ve el precio completo antes de reservar. Incluye la mano de obra, los materiales indicados y el cargo de reserva. El precio de su factura (su oferta, más cualquier aumento o contraoferta que usted haya aceptado) es el precio que usted paga por ese alcance.",
         `Cargo de prioridad: los trabajos que empiezan dentro de las ${RUSH_HOURS} horas siguientes a la reserva tienen un cargo de prioridad (urgencia) de ${pct(RUSH_SURCHARGE)}, que se muestra antes de reservar. Los miembros de ${HANDLED_PLUS.name} no lo pagan.`,
         `Planes recurrentes: los planes tienen un descuento en cada visita (${PLAN_DISCOUNTS}), que se muestra en su factura.`,
-        `Revisión de precio por IA: nuestra IA puede revisar sus detalles y fotos y ajustar el precio al instante, pero solo dentro de límites fijos (no más de ${pct(AI_MAX_CUT)} por debajo ni ${pct(AI_MAX_RAISE)} por encima de nuestro precio estándar). Si un trabajo necesita más que eso, en su lugar le ofrecemos una visita al lugar gratuita. Usted siempre ve el precio final antes de pagar.`,
-        "Su presupuesto: si nos dice su presupuesto, lo usamos para sugerirle opciones. No cambia el precio a menos que acordemos un alcance diferente.",
+        `Revisión de precio por IA: nuestra IA puede revisar sus detalles y fotos y ajustar el precio sugerido, pero solo dentro de límites fijos (no más de ${pct(AI_MAX_CUT)} por debajo ni ${pct(AI_MAX_RAISE)} por encima de nuestro precio estándar). Si un trabajo necesita más que eso, en su lugar le ofrecemos una visita al lugar gratuita. Usted siempre ve el precio final antes de pagar.`,
+        "Su presupuesto: si nos dice su presupuesto, lo usamos para sugerirle opciones. No cambia el precio a menos que acordemos un alcance diferente o que usted decida ofrecer un precio diferente.",
         "Visitas al lugar: los estimados en el lugar son gratuitos. Una cotización firme después de una visita al lugar es válida por 14 días.",
         "Errores de precio: si hay un error evidente en un precio, podemos corregirlo antes de que empiece el trabajo. Si usted no acepta el precio corregido, recibe un reembolso total.",
       ),
     )],
+    ["Contraofertas de profesionales y aumento de su oferta", p(
+      "Después de que usted reserva y paga, ofrecemos su trabajo a profesionales calificados a su precio. Cada profesional ve exactamente cuánto se le pagaría y decide si lo acepta.",
+      ul(
+        "Contraofertas: un profesional puede responder con el pago que sí aceptaría. Entonces le mostramos el precio total que esa contraoferta significa para usted. Usted puede aceptarla: le cobramos solo la diferencia y le damos el trabajo a ese profesional con el pago que pidió. O puede seguir esperando a su precio. Mientras usted decide, otros profesionales todavía pueden aceptar su trabajo a su precio original. Las contraofertas terminan en cuanto cualquier profesional acepta el trabajo.",
+        "Aumentar su oferta: mientras ningún profesional acepte su trabajo, usted puede aumentar su precio. Le cobramos solo la diferencia, a su tarjeta guardada o mediante un enlace de pago. Luego su trabajo se ofrece de nuevo a los profesionales al precio más alto.",
+        "Todavía sin profesional: si ningún profesional ha aceptado su trabajo después de un tiempo, podemos sugerirle un precio más alto, una sola vez. Nunca está obligado a aumentarlo. Puede seguir esperando o cancelar según \"Cambios de fecha y cancelaciones\" más abajo. Si no encontramos un profesional para su fecha, le ofreceremos otro horario o un reembolso total.",
+      ),
+      "El precio que usted termine pagando (su oferta, más cualquier aumento o contraoferta que haya aceptado) pasa a ser el precio de su factura. Los reembolsos, las cancelaciones y nuestra garantía se aplican a ese total.",
+    )],
     ["Pago", p(
       "El precio completo se paga por adelantado para programar el trabajo, a menos que se aplique un depósito (vea más abajo). Los pagos los procesa Stripe. Puede pagar con tarjeta, y los trabajos más grandes pueden pagarse por transferencia bancaria (ACH) donde la ofrezcamos.",
+      "Si usted aumenta su oferta o acepta la contraoferta de un profesional, le cobramos solo la diferencia, a su tarjeta guardada o mediante un enlace de pago que le enviamos.",
+      `Cómo se reparte su precio: del precio que usted paga, ${BRAND.name} se queda con el cargo de reserva y una comisión, y a su profesional se le paga el resto. Los códigos promocionales y los ahorros de ${HANDLED_PLUS.name} salen de nuestra parte, nunca del pago de su profesional.`,
       "A su profesional solo le pagamos nosotros. Por favor, no le pague a su profesional en efectivo ni de ninguna otra forma.",
     )],
     ["Depósitos para trabajos grandes y eventos", p(

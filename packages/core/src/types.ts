@@ -121,6 +121,13 @@ export interface Job {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+  /** Market pricing: our suggestion, the customer's offer, the booking fee inside price_final. */
+  suggested_price?: number | null;
+  customer_offer?: number | null;
+  booking_fee?: number | null;
+  offer_nudged_at?: string | null;
+  pending_counter_offer?: string | null;
+  pending_raise?: number | null;
   updated_at: string;
 }
 

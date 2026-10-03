@@ -5,11 +5,13 @@
  * UPDATED : 2026-10-02_1329 UTC — live pro ETA, tip your pro, reschedule.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish; reschedule right in the app.
  * UPDATED : 2026-10-02_2256 UTC — after rating, everyone is invited to review us on Google.
+ * UPDATED : 2026-10-03_0154 UTC — accept pros' counter offers in the app.
+ * UPDATED : 2026-10-03_0152 UTC — market pricing (raise your offer while no pro has taken the job; pros' counters open on the website).
  * PURPOSE : Customer booking screen — "Covered ✓" by which pro, live timeline (realtime),
  *           pay now, invoice & agreement, and rating when done. Opened from notifications.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { BRAND, TIME_WINDOW_LABEL, TIP_PRESETS, getService, money, moneyRange, type Job, type TimeWindow } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
@@ -111,6 +113,9 @@ export default function Booking() {
         </Card>
       )}
 
+      {(job.paid_at || job.deposit_paid_at) && !job.contractor_id && !job.remedy && ["dispatched", "scheduled"].includes(job.status) && Number(job.price_final) > 0 ? (
+        <RaiseCard job={job} onDone={load} />
+      ) : null}
       <TrackCard jobId={job.id} />
       {["requested", "quoted", "scheduled", "dispatched", "assigned"].includes(job.status) && !job.remedy && job.scheduled_date ? (
         <RescheduleCard job={job} onDone={load} />
@@ -197,6 +202,51 @@ function RescheduleCard({ job, onDone }: { job: Job; onDone: () => void }) {
         }} />
         <Button title={t("Keep current time")} kind="ghost" style={{ flex: 1 }} onPress={() => setOpen(false)} />
       </View>
+    </Card>
+  );
+}
+
+/**
+ * While no pro has taken the job: raise your offer (only the difference is charged — saved card,
+ * else a payment link) — or accept a pro's counter offer (from /api/account/jobs/[id]/counters).
+ */
+function RaiseCard({ job, onDone }: { job: Job; onDone: () => void }) {
+  const { t, locale } = useI18n();
+  const es = locale === "es";
+  const price = Number(job.price_final ?? 0);
+  const suggested = job.suggested_price ? Number(job.suggested_price) : null;
+  const [raise, setRaise] = useState(String(Math.max(Math.round(price * 1.1), Math.round(suggested ?? 0))));
+  const [busy, setBusy] = useState(false);
+  const [counters, setCounters] = useState<{ id: string; who: string; rating: number; jobs: number; price: number; note: string | null }[]>([]);
+  useEffect(() => { api<{ counters?: typeof counters }>(`/api/account/jobs/${job.id}/counters`).then((r) => setCounters(r.data.counters ?? [])).catch(() => {}); }, [job.id]);
+  const want = Math.round(Number(raise) || 0);
+  async function go(body: Record<string, unknown> = { price: want }) {
+    setBusy(true);
+    const r = await api<{ ok?: boolean; url?: string; charged?: number; error?: string }>(`/api/account/jobs/${job.id}/raise`, { method: "POST", body: JSON.stringify(body) });
+    setBusy(false);
+    if (r.data.url) { await Linking.openURL(r.data.url); return onDone(); }
+    if (!r.ok || r.data.ok === false) return Alert.alert(t("Couldn't raise your offer"), t(r.data.error ?? "Try again"));
+    Alert.alert(t("Offer raised ✓"), es ? `Su oferta ahora es ${money(want)}. La enviamos de nuevo a los profesionales.` : `Your offer is now ${money(want)}. We've sent it back out to pros.`);
+    onDone();
+  }
+  return (
+    <Card style={{ marginTop: 12 }}>
+      <Text style={s.b}>{es ? `Buscando un profesional a su precio · ${money(price)}` : `Finding a pro at your price · ${money(price)}`}</Text>
+      <Text style={[s.p, { marginTop: 8, fontWeight: "700", color: C.ink }]}>{t("Raise your offer")}</Text>
+      <Text style={s.p}>{es ? "Una oferta más alta se envía de nuevo a los profesionales con mejor pago. Solo paga la diferencia." : "A higher offer goes back out to pros at the higher pay. You only pay the difference."}{suggested && price < suggested ? (es ? ` Sugerido: ${money(suggested)}.` : ` Suggested: ${money(suggested)}.`) : ""}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
+        <Text style={s.p}>$</Text>
+        <TextInput value={raise} onChangeText={(v) => setRaise(v.replace(/[^\d]/g, ""))} keyboardType="number-pad" accessibilityLabel={t("Raise your offer")} style={[s.input, { flex: 1, paddingVertical: 8 }]} />
+        <Button title={es ? `Subir a ${money(want)}` : `Raise to ${money(want)}`} kind="ghost" busy={busy} disabled={!(want > price)} onPress={() => go()} style={{ paddingVertical: 10 }} />
+      </View>
+      {counters.length > 0 && <Text style={[s.p, { marginTop: 10 }]}>{es ? "Estos profesionales ofrecieron hacerlo por un poco más. Acepte uno y el trabajo es suyo — solo cobramos la diferencia." : "These pros offered to do it for a bit more. Accept one and the job is theirs — we only charge the difference."}</Text>}
+      {counters.map((c) => (
+        <View key={c.id} style={{ marginTop: 8, padding: 10, borderRadius: 12, backgroundColor: C.paper }}>
+          <Text style={s.b}>{c.who} · {c.rating.toFixed(1)}★ · {c.jobs} {es ? "trabajos" : "jobs"}</Text>
+          {c.note ? <Text style={s.p}>“{c.note}”</Text> : null}
+          <Button title={es ? `Aceptar ${money(c.price)} (+${money(c.price - price)})` : `Accept ${money(c.price)} (+${money(c.price - price)})`} busy={busy} onPress={() => go({ counter_offer_id: c.id })} style={{ marginTop: 6 }} />
+        </View>
+      ))}
     </Card>
   );
 }

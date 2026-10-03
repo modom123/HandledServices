@@ -6,6 +6,8 @@
  * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) limits the
  *           calendar to their deadline; optional budget shows whether the price fits.
  * UPDATED : 2026-10-03_0027 UTC — "Email me this price" (SaveQuote) and ?frequency= from email links.
+ * UPDATED : 2026-10-03_0150 UTC — name your price (around our suggestion, which learns the local market);
+ *           shows what the pro earns and the booking fee.
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.
@@ -20,7 +22,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible,
+  questionVisible, offerCheck, splitJob, BOOKING_FEE,
 } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
@@ -79,7 +81,16 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [perks, setPerks] = useState<Perks | null>(null);
   const [budget, setBudget] = useState((initialBudget ?? "").replace(/[^\d.]/g, ""));
 
-  const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date) }) : null), [svc, answers, frequency, date]);
+  // what pros in this area actually accept (learned) — the same factor the server prices with
+  const [market, setMarket] = useState(1);
+  useEffect(() => {
+    if (!slug) return;
+    const zip = /^\d{5}$/.test(form.zip) ? form.zip : "";
+    fetch(`/api/market?service=${slug}${zip ? `&zip=${zip}` : ""}`).then((r) => r.json()).then((j) => setMarket(Number(j.factor) || 1)).catch(() => {});
+  }, [slug, form.zip]);
+  const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market }) : null), [svc, answers, frequency, date, market]);
+  // Name your price ("" = our suggestion)
+  const [offer, setOffer] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
 
   function pick(s: string) {
@@ -94,7 +105,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   async function runAi() {
     setAiTried(true);
     setAiBusy(true);
-    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes, photos, ai: true, locale }) });
+    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes, photos, ai: true, locale, ...(/^\d{5}$/.test(form.zip) ? { zip: form.zip } : {}) }) });
     const json = await res.json().catch(() => ({}));
     setAiBusy(false);
     setAi(json.ai ?? null);
@@ -116,7 +127,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -126,7 +137,11 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   }
 
   const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
-  const listTotal = ai?.final_price ?? est?.point ?? 0;
+  const suggested = ai?.final_price ?? est?.point ?? 0;
+  const offerNum = Math.round(Number(offer) || 0);
+  const offerChk = offerNum && suggested ? offerCheck(offerNum, suggested) : null;
+  const named = Boolean(offerChk?.ok && offerNum !== suggested);
+  const listTotal = named ? offerNum : suggested;
   // Plus member saving + promo / gift card, from the server (same rules as at booking)
   async function checkPerks(code = promo) {
     if (!svc || siteVisit || !listTotal) return setPerks(null);
@@ -305,7 +320,25 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
-          <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(ai?.final_price ?? est.point)}</div>
+          <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
+          {!siteVisit && svc.slug !== "event-package" && (
+            <div className="mt-3 rounded-xl border border-line p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold">{t("Name your price")}</span>
+                {named && <button type="button" className="text-xs text-brand underline" onClick={() => setOffer("")}>{t("Use suggested")} {money(suggested)}</button>}
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">{locale === "es" ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).min, Math.round(listTotal * 0.95))))}>−5%</button>
+                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer || String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, ""))} aria-label={t("Your price")} /></div>
+                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
+              </div>
+              {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.min)} para este trabajo.` : `Offers start at ${money(offerChk.min)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
+              {offerChk?.ok && offerChk.level === "low" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
+              {offerChk?.ok && offerNum > suggested && <p className="mt-1 text-xs text-brand-dark">✓ {t("A higher offer usually gets a pro faster.")}</p>}
+              <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Su profesional gana ${money(splitJob(listTotal).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</p>
+            </div>
+          )}
           {svc.slug !== "event-package" && (() => {
             const fit = budgetFit(Number(budget), siteVisit ? price.low : ai?.final_price ?? est.point);
             return (

@@ -3,6 +3,9 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0039 UTC
  * UPDATED : 2026-10-03_0115 UTC — declining offers never affects pay, tier or offer order (system changed to match).
+ * UPDATED : 2026-10-03_0152 UTC — market pricing (customers name the price within a learned market range; pros
+ *           accept, decline or counter; payout = price − BOOKING_FEE − sliding COMMISSION): sections 3, 4, 8, 10
+ *           and the summary updated; the old "we set the price" note replaced.
  * PURPOSE : Every contract a pro (independent contractor) signs in the pro portal:
  *             PRO_AGREEMENT                — Independent Contractor Agreement (replaces and expands the
  *                                            v2 text in lib/agreement.ts; keeps every v2 promise)
@@ -20,7 +23,9 @@
  */
 import {
   AGREEMENT_VERSION,
+  BOOKING_FEE,
   BRAND,
+  COMMISSION,
   COVERAGES,
   LATE_CANCEL_FEE,
   LICENSED_TRADES,
@@ -38,6 +43,7 @@ import {
   TRADE_PROFILES,
   money,
   necThreshold,
+  splitJob,
   type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
 import type { Contract } from "./types";
 
@@ -58,6 +64,10 @@ const tradesRequiring = (k: CoverageKey) => Object.entries(TRADE_PROFILES).filte
 /** Trades (by label) with a general-liability minimum above the base $1M. */
 const highGlTrades = Object.entries(TRADE_PROFILES).filter(([, p]) => p.glMin > 1_000_000).map(([id, p]) => `${money(p.glMin)} for ${label(id)}`);
 const NEC_YEAR = 2026;
+/** Worked payout example for section 8: a $100 service plus the booking fee. */
+const EX_PRICE = 100 + BOOKING_FEE;
+const EX = splitJob(EX_PRICE);
+const COMMISSION_TEXT = `${pct(COMMISSION.minRate)} on jobs of ${money(COMMISSION.from)} or less, rising evenly to ${pct(COMMISSION.maxRate)} on jobs of ${money(COMMISSION.to)} or more`;
 
 /**
  * Objective deactivation thresholds referenced by the agreement and the Deactivation Policy.
@@ -84,8 +94,8 @@ export const PRO_AGREEMENT: Contract = {
   appliesTo: `Every pro (independent business) who accepts jobs through ${N}; signed in the pro portal before the first offer and re-signed whenever the version changes.`,
   summary: [
     "You run your own business. You choose which offers to take, when and where you work, how you do the work, and who helps you. You can work for anyone else, including our competitors.",
-    "Every offer shows the scope, the date and your exact payout before you say yes. Customers prepay. Payouts go out free every week; instant cash-out is optional for a small fee.",
-    "Discounts and promotions never reduce your payout. Tips are 100% yours. You never pay lead fees or a subscription.",
+    "Every offer shows the scope, the date and your exact payout before you say yes. You can accept, decline, or counter with the pay you want. Customers prepay. Payouts go out free every week; instant cash-out is optional for a small fee.",
+    `Your payout is the job price minus the customer's ${money(BOOKING_FEE)} booking fee (ours) and our commission: ${COMMISSION_TEXT}. Discounts and promotions never reduce your payout. Tips are 100% yours. You never pay lead fees or a subscription.`,
     `Fix workmanship problems within ${BRAND.guaranteeDays} days at no extra payout. A refund only comes out of your pay when your workmanship caused it — capped at that job's payout, with notice and a chance to respond.`,
     "Keep your insurance, licenses and documents current. Offers pause automatically when one expires and restart when it's renewed.",
     "Don't take customers you met through us off the platform for 12 months. There is no non-compete.",
@@ -103,11 +113,11 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "3. What we do, and what you do",
-      p: `What ${N} does:\n• markets the services and finds customers;\n• contracts with the customer, sets the customer's price and collects payment up front;\n• sends job offers to pros who are eligible for them;\n• handles scheduling, reminders, customer messages and customer support;\n• backs the customer's satisfaction guarantee (redo, free extra service or refund), and pays for a redo from our share when you choose not to do it;\n• pays you for completed work on the schedule below, with a statement for every job.\n\nWhat you do:\n• do the work you accept, safely, lawfully and to the standard in the work order;\n• keep your insurance, licenses, certifications, tax forms and documents current;\n• communicate with the customer and us through the app about access, timing and anything that changes the job;\n• take the before-and-after photos that show the work is done;\n• pay your own taxes, helpers and suppliers.\n\nAn honest note about pricing: we set the price the customer pays, and your payout is a share of it. Our share is always between ${pct(TAKE_MIN)} and ${pct(TAKE_MAX)} of the job price. You see the exact payout before you accept and are always free to decline. You don't negotiate the price with the customer.${COUNSEL}`,
+      p: `What ${N} does:\n• markets the services and finds customers;\n• contracts with the customer, shows the customer a suggested price, and collects the agreed price up front;\n• sends job offers to pros who are eligible for them;\n• handles scheduling, reminders, customer messages and customer support;\n• backs the customer's satisfaction guarantee (redo, free extra service or refund), and pays for a redo from our share when you choose not to do it;\n• pays you for completed work on the schedule below, with a statement for every job.\n\nWhat you do:\n• do the work you accept, safely, lawfully and to the standard in the work order;\n• keep your insurance, licenses, certifications, tax forms and documents current;\n• communicate with the customer and us through the app about access, timing and anything that changes the job;\n• take the before-and-after photos that show the work is done;\n• pay your own taxes, helpers and suppliers.\n\nAn honest note about pricing: we don't decide on our own what a job pays. We show the customer a suggested price, based on our standard rates and on what pros in the area actually accept, and the customer may offer a different price within set limits. You then decide what you'll work for: every offer shows your exact payout, and you may accept it, decline it, or counter with the pay you want (section 4). The price of each job is set by that back-and-forth — the customer's offer and pros' choices to accept, decline or counter — not by us alone. We keep the customer's booking fee and a published commission that slides with job size (section 8); we don't change those for individual pros. Counters go through the app; you don't negotiate with the customer directly or outside the platform.${COUNSEL}`,
     },
     {
       h: "4. Job offers: always your choice",
-      p: `Offers are optional. You may accept, decline or ignore any offer, for any reason or none. Some offers go to several pros at once and the first to accept gets the job; an offer another pro takes first never counts against you.\n\nWho gets an offer depends on objective eligibility rules: you're active, your trade and specialties match, the job is within your driving distance and on a day and time you work (or you're On call for today), your daily job limit isn't full, your insurance, required coverages, licenses and background check are current, and — while you're on probation — the job is within the probation size cap (section 9).\n\nWhen a recurring customer you serve has another visit, or a customer you served needs a redo, we offer that job to you first, alone, for a set time before anyone else (currently 24 hours for recurring visits and 12 hours for redos). You can pass; then it goes out normally.\n\nDeclining or ignoring offers never affects your payout rate, your tier, the order in which you receive offers, or your account. We don't use acceptance rates for any of those.`,
+      p: `Offers are optional. You may accept, decline or ignore any offer, for any reason or none. Some offers go to several pros at once and the first to accept gets the job; an offer another pro takes first never counts against you.\n\nWho gets an offer depends on objective eligibility rules: you're active, your trade and specialties match, the job is within your driving distance and on a day and time you work (or you're On call for today), your daily job limit isn't full, your insurance, required coverages, licenses and background check are current, and — while you're on probation — the job is within the probation size cap (section 9).\n\nWhen a recurring customer you serve has another visit, or a customer you served needs a redo, we offer that job to you first, alone, for a set time before anyone else (currently 24 hours for recurring visits and 12 hours for redos). You can pass; then it goes out normally.\n\nCounters. Instead of accepting or declining, you may counter with the pay you want for the job, up to twice the payout offered. We show the customer the price your counter means for them, and they may accept it or keep waiting. By countering, you agree to do the job at the pay you asked for if the customer accepts it while it's still open; if they do, they pay the difference and the job is assigned to you automatically, as an accepted job under section 5, and we tell you right away. While the customer decides, other pros may still accept the original offer, and all counters end as soon as anyone accepts. If the job is bigger than described, message us instead of countering higher.\n\nRaised offers. Until a pro accepts, the customer may raise their price. The job is then offered again at the higher pay, and the new offer shows your new exact payout.\n\nDeclining, ignoring or countering offers never affects your payout rate, your tier, the order in which you receive offers, or your account. We don't use acceptance rates for any of those.`,
     },
     {
       h: "5. Accepting a job: the work order",
@@ -123,7 +133,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "8. How you're paid",
-      p: `• Payout shown first. Every offer shows your exact payout. That is what you're paid for the work order, plus any approved change orders, materials, tips and benefits.\n• Customers prepay. Customers pay us before you're dispatched, so you never invoice or chase money.\n• Approval. Your payout is approved when you mark the job complete and your completion photos pass review. Photo review checks that the work in the work order was done; it doesn't tell you how to do it.\n• Weekly payouts. Approved payouts (jobs, show-up pay, stipends, materials, tips, bonuses and approved top-ups, minus any clawback under section 17) are sent automatically every Monday, free, to the bank account in your name through Stripe.\n• Instant pay (optional). You may cash out approved payouts early for a fee of ${pct(P.instantPay.feePct, 1)} (minimum ${cents(P.instantPay.minFee)}), once you qualify under the published rules. The weekly payout is always free.\n• Statements. You get a statement for every payout showing each job, its payout and any adjustment with the reason.\n• No fees to work. You never pay lead fees, sign-up fees, subscriptions or software fees.\n\nIf you think a payout is wrong, tell us within 90 days of the statement and we'll review it with you. Missing that window doesn't waive any right the law gives you.`,
+      p: `• Payout shown first. Every offer shows your exact payout. That is what you're paid for the work order, plus any approved change orders, materials, tips and benefits. If a customer accepts your counter, your payout is the pay you countered with.\n• How the payout is figured. Payout = the job's agreed price, minus the booking fee, minus our commission. The booking fee (${money(BOOKING_FEE)} per booking, or per visit for recurring plans) is paid by the customer on top of the service price and kept by us; it never comes out of your pay. Our commission is a percentage of the service price (the price without the booking fee) and slides with job size: ${COMMISSION_TEXT}. That way small jobs carry a small cut, and every extra dollar of price still raises your payout. Our commission rate always stays between ${pct(TAKE_MIN)} and ${pct(TAKE_MAX)}. Payouts are rounded down to the whole dollar. Example: on a job priced at ${money(EX_PRICE)} (a ${money(EX_PRICE - BOOKING_FEE)} service plus the booking fee), your payout is ${money(EX.payout)}.\n• Tier boosts. Published tier boosts (section 15) are added on top of the payout.\n• Customers prepay. Customers pay us before you're dispatched, so you never invoice or chase money.\n• Approval. Your payout is approved when you mark the job complete and your completion photos pass review. Photo review checks that the work in the work order was done; it doesn't tell you how to do it.\n• Weekly payouts. Approved payouts (jobs, show-up pay, stipends, materials, tips, bonuses and approved top-ups, minus any clawback under section 17) are sent automatically every Monday, free, to the bank account in your name through Stripe.\n• Instant pay (optional). You may cash out approved payouts early for a fee of ${pct(P.instantPay.feePct, 1)} (minimum ${cents(P.instantPay.minFee)}), once you qualify under the published rules. The weekly payout is always free.\n• Statements. You get a statement for every payout showing each job, its payout and any adjustment with the reason.\n• No fees to work. You never pay lead fees, sign-up fees, subscriptions or software fees.\n\nIf you think a payout is wrong, tell us within 90 days of the statement and we'll review it with you. Missing that window doesn't waive any right the law gives you.`,
     },
     {
       h: "9. Probation: your first jobs",
@@ -131,7 +141,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "10. Discounts, promotions and tips",
-      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout. Your payout is based on the job's list price, and every discount comes out of our share.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
+      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout. Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
     },
     {
       h: "11. Materials and parts",
