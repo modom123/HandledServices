@@ -8,6 +8,7 @@
  *           Same section count, order and numbering as the English; numbers come from the same
  *           constants so both languages always match. The English text controls.
  *           TEMPLATES — not legal advice; have counsel review before use.
+ * UPDATED : 2026-10-03_1311 UTC — Anexo de Equipo de Trabajo (pro-crew-addendum).
  */
 import { BRAND, COVERAGES, LICENSED_TRADES, LOCATION_FRESH_MIN, ON_CALL_MAX_HOURS, PRO_POLICY_DEFAULTS, TRADES, money, t } from "@handled/core";
 import { DEACTIVATION_RULES } from "./pro";
@@ -534,4 +535,42 @@ export const PRO_ES_B: Record<string, ContractTranslation> = {
       p: `Antes de comenzar un detallado, recorra el vehículo y fotografíe los rayones, abolladuras, manchas y daños existentes, y anótelos en la aplicación. Retire los objetos personales y devuélvalos al cliente, nunca se quede con nada que encuentre en un vehículo, y no maneje el vehículo a menos que la orden de trabajo lo permita. Siga las normas locales sobre escurrimiento de agua; use un sistema autónomo de recolección de agua cuando se requiera.`,
     },
   ]),
+  "pro-crew-addendum": {
+    title: "Anexo de Equipo de Trabajo",
+    appliesTo: `Empresas de profesionales que envían a miembros de su equipo (ayudantes, aprendices, jefes de cuadrilla o técnicos con licencia) a trabajos de ${N}; forma parte del Contrato de Contratista Independiente.`,
+    summary: [
+      "Su equipo trabaja para su empresa, no para nosotros. Usted los elige, los dirige, organiza sus horarios y les paga.",
+      "Usted confirma que cada miembro de su equipo tiene permiso legal para trabajar en los Estados Unidos, y conserva sus formularios I-9 y registros de nómina.",
+      "Usted tiene seguro de accidentes laborales (workers' compensation) para su equipo antes de que cualquiera de ellos haga un trabajo.",
+      "Todas las personas que envíe deben estar registradas en la aplicación y aprobar primero nuestra verificación de antecedentes.",
+      "El trabajo que requiere licencia solo se envía a un miembro del equipo que tenga la licencia (o lo hace usted). Los ayudantes nunca van solos.",
+      "Usted es responsable del trabajo y la conducta de su equipo, igual que de los suyos. Su pago cubre todo el trabajo; usted le paga a su equipo.",
+    ],
+    sections: [
+      {
+        h: "1. Su equipo, su negocio",
+        p: `Este anexo complementa el Contrato de Contratista Independiente (sección sobre ayudantes) cuando su empresa envía a trabajos de ${N} a personas distintas de usted. Los miembros de su equipo son sus empleados o sus propios subcontratistas. Usted los elige y decide quién va a cada trabajo, cómo trabajan, sus horarios, su pago y sus herramientas. No son empleados ni contratistas de ${N}, y nosotros no los dirigimos, no organizamos sus horarios, no los capacitamos ni les pagamos. Le pagamos a su empresa por el trabajo; usted le paga a su equipo completo y a tiempo, como lo exige la ley.`,
+      },
+      {
+        h: "2. Permiso para trabajar, nómina e impuestos",
+        p: `Al registrar a un miembro de su equipo, usted confirma que tiene permiso legal para trabajar en los Estados Unidos, que completó y conserva el Formulario I-9 de cada empleado (y, si usa E-Verify, sus registros), y que usted se encarga de sus salarios, horas extra, impuestos sobre la nómina, retenciones y formularios de impuestos. No registre ni envíe a nadie que usted sepa que no está autorizado para trabajar. Podemos pedirle que lo confirme por escrito en cualquier momento; no recopilamos ni guardamos los documentos migratorios de su equipo.${COUNSEL}`,
+      },
+      {
+        h: "3. Seguro de accidentes laborales y otros seguros",
+        p: `Antes de que cualquier miembro de su equipo haga un trabajo de ${N}, usted debe tener un seguro de accidentes laborales (workers' compensation) que lo cubra (la declaración de que no tiene empleados deja de aplicar en cuanto tiene un equipo) y subir un certificado vigente. Su seguro de responsabilidad civil general debe cubrir el trabajo que haga su equipo. No se puede enviar a ningún miembro del equipo a un trabajo mientras su certificado de accidentes laborales falte o esté vencido.`,
+      },
+      {
+        h: "4. Verificación de antecedentes y registro",
+        p: `Por la seguridad del cliente, todas las personas que usted envíe deben estar registradas en la aplicación con su nombre real y aprobar nuestra verificación de antecedentes antes de entrar a la casa o negocio de un cliente, la misma verificación que usted aprobó. Cada miembro del equipo autoriza la verificación personalmente con nuestro proveedor. Los resultados nos llegan a nosotros; si un resultado necesita revisión, seguimos el proceso de acción adversa que exige la ley antes de tomar cualquier decisión. Nunca lleve a un trabajo a alguien que no esté registrado y aprobado. Quite a un miembro del equipo de su lista el mismo día en que deje de trabajar para usted.`,
+      },
+      {
+        h: "5. Trabajo con licencia y quién va solo",
+        p: `El trabajo que legalmente requiere licencia (por ejemplo, plomería, electricidad o calefacción y aire acondicionado) solo se envía a un miembro del equipo cuya propia licencia esté registrada, o lo hace usted como titular de la licencia. Los aprendices trabajan solo junto a un técnico con licencia, como lo exige la ley de Michigan. Los ayudantes van con usted o con un jefe de cuadrilla; nunca se les envía solos a un trabajo. Elija en la aplicación quién va antes del trabajo, para que el cliente sepa quién llegará.`,
+      },
+      {
+        h: "6. Responsabilidad",
+        p: `Usted es responsable del trabajo, la conducta, la seguridad y el cumplimiento del Código de Conducta por parte de su equipo, igual que si usted mismo hiciera el trabajo. Los reembolsos por mano de obra y los daños causados por su equipo se manejan según el proceso de reembolsos y deducciones del contrato. Los reclamos de su equipo contra usted o contra nosotros (incluidos los reclamos de salarios o de clasificación) están cubiertos por la sección de indemnización del contrato. Las calificaciones y la situación de la cuenta se aplican a su empresa en conjunto.`,
+      },
+    ],
+  },
 };

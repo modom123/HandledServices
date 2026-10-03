@@ -8,12 +8,13 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)
  * UPDATED : 2026-10-03_1247 UTC — "What pros make" leads with the share pros keep (68–85%), a full day and the
  *           small-to-large job range per trade (core earnings.ts) instead of single small-job numbers.
+ * UPDATED : 2026-10-03_1311 UTC — fast track to Pro+ and crew accounts on the recruiting page.
  * PURPOSE : Subcontractor recruiting page + application.
  */
 import { ApplyForm } from "@/components/forms";
 import { getPolicy } from "@/lib/pro-benefits";
 import { getLocale } from "@/lib/locale";
-import { BRAND, COVERAGES, PRO_PROMISES, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
+import { BRAND, COVERAGES, FAST_TRACK, PRO_PROMISES, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
 
 export const metadata = { title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
 
@@ -122,6 +123,10 @@ export default async function ProsPage() {
               <ul className="mt-3 space-y-1 text-sm">{tier.perks.map((p) => <li key={p}>✓ {t(p)}</li>)}</ul>
             </div>
           ))}
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="card"><div className="font-semibold">{es ? "¿Ya es maestro en su oficio? Empiece en Pro+" : "Already a master at your trade? Start at Pro+"}</div><p className="mt-1 text-sm text-ink-soft">{es ? `Con ${FAST_TRACK.minYears}+ años de experiencia, envíe fotos de su trabajo y haga un trabajo de prueba pagado que revisamos personalmente. Si pasa, empieza en Pro+ desde el primer día, sin esperar ${PRO_TIERS[1].min.jobs} trabajos.` : `With ${FAST_TRACK.minYears}+ years in the trade, send photos of your work and do one paid trial job we review by hand. Pass, and you start at Pro+ from day one instead of waiting ${PRO_TIERS[1].min.jobs} jobs.`}</p></div>
+          <div className="card"><div className="font-semibold">{es ? "¿Tiene un equipo? Tráigalo" : "Have a crew? Bring them"}</div><p className="mt-1 text-sm text-ink-soft">{es ? "Registre a su gente (jefes de cuadrilla, técnicos con licencia, aprendices, ayudantes) y envíelos a trabajos de su empresa. Cada persona pasa la verificación de antecedentes; su empresa los dirige y les paga." : "List your people (crew leads, licensed techs, apprentices, helpers) and send them on your company’s jobs. Each person passes the background check; your company directs and pays them."}</p></div>
         </div>
         <p className="mt-4 text-sm text-ink-soft">{es ? `Recomiende a un gran profesional y gane ${money(PRO_REFERRAL.bonus)} cuando complete su ${PRO_REFERRAL.afterJobs}.º trabajo.` : `Refer a great pro and earn ${money(PRO_REFERRAL.bonus)} when they finish their ${PRO_REFERRAL.afterJobs}th job.`}</p>
       </section>

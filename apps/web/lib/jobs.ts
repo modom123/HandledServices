@@ -20,6 +20,7 @@
  * PURPOSE : The job pipeline — booking → price → payment → dispatch → pro accepts → work →
  *           AI QA → completion, payout and review request. All writes use the service
  *           role; route handlers must authorize the caller before calling these.
+ * UPDATED : 2026-10-03_1311 UTC — fast track: the trial job always gets a human review (not auto-approved).
  */
 import "server-only";
 import { z } from "zod";
@@ -603,9 +604,14 @@ export async function runQa(jobId: string, note: string | null) {
       { onConflict: "job_id", ignoreDuplicates: true },
     );
   // Probation: a new pro's first jobs always get a human review and a call to the customer.
-  const { data: pro } = job.contractor_id ? await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).maybeSingle() : { data: null };
+  const { data: pro } = job.contractor_id ? await db().from("contractors").select("jobs_completed, fast_track_status, fast_track_trial_job_id, business_name").eq("id", job.contractor_id).maybeSingle() : { data: null };
   const probation = pro != null && Number(pro.jobs_completed) < PROBATION.jobs;
-  if (qa && qa.passed && !qa.needs_human_review && !probation) {
+  // Fast track: the first job finished after we start the trial is the trial job — always a human review.
+  const trial = pro?.fast_track_status === "trial" && (!pro.fast_track_trial_job_id || pro.fast_track_trial_job_id === jobId);
+  if (trial && !pro!.fast_track_trial_job_id) await db().from("contractors").update({ fast_track_trial_job_id: jobId }).eq("id", job.contractor_id!);
+  if (trial) {
+    await raiseAlert("qa", "info", `${job.ref}: fast-track trial job — ${pro!.business_name}`, `Their trial job for Pro+. AI photo QA ${qa ? `${qa.passed ? "passed" : "flagged"} (${qa.score})` : "unavailable"}${qa?.issues.length ? `: ${qa.issues.join("; ")}` : ""}. Look at the photos, call the customer, approve the job, then decide in Hub → Pros → ${pro!.business_name} → Fast track.`, jobId);
+  } else if (qa && qa.passed && !qa.needs_human_review && !probation) {
     await finalizeJob(jobId, qa.customer_summary);
   } else if (probation && qa?.passed) {
     await raiseAlert("qa", "info", `${job.ref}: probation job — human review + customer call`, `New pro (job ${Number(pro!.jobs_completed) + 1} of ${PROBATION.jobs}). AI photo QA passed (${qa.score}). Look at the photos, call the customer, then approve.`, jobId);

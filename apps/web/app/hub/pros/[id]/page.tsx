@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-03_0042 UTC — link to the pro's signed contracts.
  * UPDATED : 2026-10-03_0124 UTC — standing panel: events, warn / suspend / deactivate / reinstate / appeal.
+ * UPDATED : 2026-10-03_1311 UTC — crew panel (background checks per crew member) and fast-track review.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  */
@@ -15,6 +16,11 @@ import { COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardi
 import { getViewer } from "@/lib/auth";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { DocDecision, ProStatusControls } from "@/components/HubActions";
+import { HubCrewDecision } from "@/components/Crew";
+import { FastTrackReview } from "@/components/FastTrack";
+import { crewReady, FAST_TRACK, type CrewMember } from "@handled/core";
+import { listCrew } from "@/lib/crew";
+import { signedUrls } from "@/lib/photos";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -61,6 +67,8 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         <Badge tone={pro.status === "approved" ? "green" : pro.status === "suspended" ? "red" : "amber"}>{pro.status}</Badge>
       </div>
       <StandingPanel pro={pro as unknown as StandingPro} />
+      <FastTrackPanel pro={pro as unknown as FastTrackPro} />
+      <CrewPanel pro={pro} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Our take from their work" value={money(Number(sc.take_generated ?? 0))} hint={`${money(Number(sc.take_90d ?? 0))} last 90 days · ~${money(Number(sc.take_90d ?? 0) * 4)}/yr pace`} />
@@ -134,4 +142,61 @@ async function StandingPanel({ pro }: { pro: StandingPro }) {
             <div className="mt-2"><StandingActions contractorId={pro.id} appealOpen={Boolean(st.appeal_decide_by)} /></div>
           </div>
         );
+}
+
+async function CrewPanel({ pro }: { pro: Contractor }) {
+  const crew = await listCrew(pro.id, true);
+  if (!crew.length && !pro.crew_attested_at) return null;
+  const notReady = crewReady(pro);
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">Crew ({crew.filter((m) => m.active).length} active)</div>
+        <div className="text-xs text-ink-soft">Crew Addendum {pro.crew_attested_at ? `signed ${pro.crew_attested_at.slice(0, 10)}` : "not signed"} · {notReady ? <b className="text-amber-800">can’t send crew: {notReady}</b> : "can send crew"}</div></div>
+      <ul className="mt-2 divide-y divide-line text-sm">
+        {crew.map((m: CrewMember) => (
+          <li key={m.id} className={`flex flex-wrap items-center justify-between gap-2 py-2 ${m.active ? "" : "opacity-50"}`}>
+            <div><b>{m.full_name}</b> · {m.role}{m.license_number ? ` · license ${m.license_number}` : ""}{m.years_experience ? ` · ${m.years_experience} yrs` : ""} · {m.trades.join(", ") || "—"}
+              <div className="text-xs text-ink-soft">{m.email ?? "no email"}{m.phone ? ` · ${m.phone}` : ""} · added {m.created_at.slice(0, 10)}{m.active ? "" : " · removed"}</div></div>
+            <div className="flex items-center gap-2 text-xs"><span>background: <b>{m.background_status}</b>{m.background_checked_at ? ` ${m.background_checked_at.slice(0, 10)}` : ""}</span>{m.active && <HubCrewDecision id={m.id} />}</div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-ink-soft">Crew work for the pro’s company (Crew Addendum): the company handles their right to work (I-9), pay and workers’ comp. We only list them, run the background check and check licenses for licensed work. Record a hand-run result here when Checkr isn’t connected; anything but clear follows the adverse-action process.</p>
+    </div>
+  );
+}
+
+type FastTrackPro = { id: string; fast_track_status?: string; fast_track?: { years?: number; summary?: string; references?: string; photos?: string[]; trades?: string[] } | null; fast_track_applied_at?: string | null; fast_track_trial_job_id?: string | null; fast_track_note?: string | null; fast_track_decided_by?: string | null; tier_floor?: string | null };
+
+async function FastTrackPanel({ pro }: { pro: FastTrackPro }) {
+  const st = pro.fast_track_status ?? "none";
+  if (st === "none") return null;
+  const ft = pro.fast_track ?? {};
+  const db = adminClient();
+  const [photos, trial] = await Promise.all([
+    signedUrls(ft.photos ?? []),
+    pro.fast_track_trial_job_id
+      ? db.from("jobs").select("id, ref, status, completion_photos, reviews(rating, comment)").eq("id", pro.fast_track_trial_job_id).maybeSingle().then((r) => r.data as { id: string; ref: string; status: string; completion_photos: string[]; reviews: { rating: number; comment: string | null }[] | { rating: number; comment: string | null } | null } | null)
+      : Promise.resolve(null),
+  ]);
+  const trialPhotos = trial ? await signedUrls(trial.completion_photos ?? []) : [];
+  const review = trial ? (Array.isArray(trial.reviews) ? trial.reviews[0] : trial.reviews) : null;
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">Fast track to Pro+: {st}</div>
+        <div className="text-xs text-ink-soft">applied {pro.fast_track_applied_at?.slice(0, 10) ?? "—"}{pro.fast_track_decided_by ? ` · decided by ${pro.fast_track_decided_by}` : ""}{pro.tier_floor ? ` · floor ${pro.tier_floor}` : ""}</div></div>
+      <p className="mt-1 text-sm"><b>{ft.years ?? "?"} years</b> · {(ft.trades ?? []).join(", ")}</p>
+      {ft.summary && <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">{ft.summary}</p>}
+      {ft.references && <p className="mt-1 text-xs text-ink-soft">References: {ft.references}</p>}
+      {photos.length > 0 && <div className="mt-2 grid grid-cols-5 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Portfolio" className="aspect-square rounded-lg object-cover" /></a>)}</div>}
+      {trial && (
+        <div className="mt-3 rounded-xl border border-line p-2 text-sm">Trial job <Link href={`/hub/jobs/${trial.id}`} className="underline">{trial.ref}</Link> · {trial.status}{review ? ` · customer ${review.rating}★${review.comment ? ` “${review.comment}”` : ""}` : " · no review yet"}
+          {trialPhotos.length > 0 && <div className="mt-2 grid grid-cols-6 gap-2">{trialPhotos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt="Trial job" className="aspect-square rounded-lg object-cover" /></a>)}</div>}
+        </div>
+      )}
+      {pro.fast_track_note && <p className="mt-2 text-xs text-ink-soft">Note: {pro.fast_track_note}</p>}
+      <div className="mt-3"><FastTrackReview contractorId={pro.id} status={st} trialDone={trial?.status === "completed"} /></div>
+      <p className="mt-2 text-xs text-ink-soft">How it works: look at the portfolio → start the trial (their next completed job is the trial; probation still applies) → look at the trial photos, call the customer ({FAST_TRACK.trialMinRating}★+ to pass) → approve. Approved pros start at Pro+ and skip the probation job-size limit; the floor holds for {FAST_TRACK.graceJobs} jobs, then only while rating and on-time stay at Pro+ level.</p>
+    </div>
+  );
 }

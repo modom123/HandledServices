@@ -6,6 +6,8 @@
  *           (instant cash-out optional), recurring visits offered to the same pro first, daily limit.
  * UPDATED : 2026-10-03_0115 UTC — tiers no longer depend on accepting offers (declining is always free;
  *           independent-contractor safeguard).
+ * UPDATED : 2026-10-03_1311 UTC — proven-skill fast track: an approved master starts at Pro+ (tier_floor) while
+ *           their numbers hold up (crew.ts → fastTrackFloorHolds).
  * PURPOSE : The Handled Pro Program — what we offer subcontractors. Tiers earned from real
  *           performance (jobs, rating, on-time) unlock a bigger payout share and
  *           first pick of offers. Every boost is clamped so our take never drops below
@@ -14,6 +16,7 @@
 import { TAKE_MIN, estimate, money, splitJob } from "./pricing.ts";
 import { defaultAnswers, getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
+import { fastTrackFloorHolds } from "./crew.ts";
 
 export type ProTierId = "pro" | "pro_plus" | "elite";
 
@@ -47,14 +50,18 @@ export const PRO_TIERS: ProTier[] = [
   },
 ];
 
-type TierStats = Pick<Contractor, "jobs_completed" | "rating" | "on_time_rate">;
+type TierStats = Pick<Contractor, "jobs_completed" | "rating" | "on_time_rate"> & Partial<Pick<Contractor, "tier_floor">>;
 
 const meets = (c: TierStats, t: ProTier) =>
   c.jobs_completed >= t.min.jobs && Number(c.rating) >= t.min.rating && Number(c.on_time_rate) >= t.min.onTime;
 
 /** The highest tier the pro qualifies for right now (recomputed from live stats, never stale). */
 export function proTier(c: TierStats): ProTier {
-  return [...PRO_TIERS].reverse().find((t) => meets(c, t)) ?? PRO_TIERS[0];
+  const earned = [...PRO_TIERS].reverse().find((t) => meets(c, t)) ?? PRO_TIERS[0];
+  // proven-skill fast track: start at Pro+ while the numbers hold up (crew.ts)
+  const floor = PRO_TIERS.find((t) => t.id === c.tier_floor);
+  if (floor && PRO_TIERS.indexOf(floor) > PRO_TIERS.indexOf(earned) && fastTrackFloorHolds({ ...c, tier_floor: c.tier_floor ?? null }, floor.min)) return floor;
+  return earned;
 }
 
 /** What's left to reach the next tier, for the pro's dashboard. */

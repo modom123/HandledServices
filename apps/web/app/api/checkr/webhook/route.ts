@@ -7,10 +7,18 @@
  *           review under the FCRA adverse-action process. Checkr signs each webhook with an
  *           HMAC-SHA256 of the raw body using your API key (X-Checkr-Signature) — confirm the
  *           scheme in your Checkr dashboard when you add the endpoint.
+ * UPDATED : 2026-10-03_1311 UTC — crew members' checks come back here too (candidate not a pro → crew_members).
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { adminClient } from "@/lib/supabase/server";
 import { onBackgroundResult } from "@/lib/recruiting";
+import { setCrewBackground } from "@/lib/crew";
+
+/** A Checkr candidate that isn't a pro may be a crew member (crew.ts). */
+async function crewOf(candidateId: string) {
+  const { data } = await adminClient().from("crew_members").select("id").eq("background_provider_id", candidateId).maybeSingle();
+  return data?.id as string | undefined;
+}
 
 export async function POST(req: Request) {
   const key = process.env.CHECKR_API_KEY;
@@ -26,12 +34,14 @@ export async function POST(req: Request) {
     if (c) {
       const result = (obj.result ?? obj.status ?? "consider") as string;
       await onBackgroundResult(c.id, result === "clear" ? "clear" : "consider");
-    }
+    } else { const crew = await crewOf(obj.candidate_id); if (crew) await setCrewBackground(crew, (obj.result ?? obj.status) === "clear" ? "clear" : "consider"); }
   } else if ((event.type === "report.suspended" || event.type === "report.canceled") && obj?.candidate_id) {
     const { data: c } = await adminClient().from("contractors").select("id").eq("background_provider_id", obj.candidate_id).maybeSingle();
     if (c) await onBackgroundResult(c.id, event.type === "report.suspended" ? "suspended" : "canceled");
+    else { const crew = await crewOf(obj.candidate_id); if (crew) await setCrewBackground(crew, event.type === "report.suspended" ? "suspended" : "canceled"); }
   } else if (event.type === "invitation.completed" && obj?.candidate_id) {
     await adminClient().from("contractors").update({ background_status: "pending" }).eq("background_provider_id", obj.candidate_id);
+    await adminClient().from("crew_members").update({ background_status: "pending" }).eq("background_provider_id", obj.candidate_id);
   }
   return Response.json({ received: true });
 }

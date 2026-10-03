@@ -10,6 +10,7 @@
  *           TEMPLATES — not legal advice.
  * UPDATED : 2026-10-03_0152 UTC — market pricing (Business MSA: precio sugerido y ofertas salvo que un Pedido
  *           fije el precio; Plus/promos: el cargo de reserva no se descuenta), mirroring customer.ts.
+ * UPDATED : 2026-10-03_1311 UTC — adenda de construcción: el equipo que el cliente compra debe ser nuevo; nunca instalamos usado.
  */
 import {
   BOOKING_FEE,
@@ -503,6 +504,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
         "Los materiales se indican en su cotización. Los materiales de pedido especial (como gabinetes, encimeras, azulejos y accesorios) se piden después de que usted paga el depósito y aprueba sus elecciones. Los pedidos especiales normalmente no se pueden devolver. Si cancela o cambia de opinión después de hacer el pedido, usted paga el costo de los materiales, más cualquier cargo por reposición que cobre el proveedor, menos lo que el proveedor reembolse. Usted se queda con los materiales que haya pagado.",
         "Los retrasos en las entregas de los proveedores pueden mover su calendario. Le mantendremos informado.",
         "Los materiales que usted mismo proporcione deben estar en el sitio y ser los correctos. No están cubiertos por nuestra garantía, y los retrasos que causen pueden tener un costo adicional.",
+        "El equipo que usted compre para que lo instalemos (por ejemplo, un calentador de agua en un trabajo de solo instalación) debe ser nuevo y sin usar, en su empaque original, y del tamaño y tipo correctos para su casa. Nuestra garantía de mano de obra de 1 año cubre nuestra instalación; el equipo en sí lo cubre su fabricante o vendedor, no nosotros. No instalamos equipo usado.",
       )],
       ["Gravámenes y renuncias a gravámenes", p(
         "Según la Ley de Gravámenes de Construcción de Michigan (Michigan Construction Lien Act), los contratistas, proveedores y trabajadores a quienes no se les paga pueden tener derecho a imponer un gravamen sobre su propiedad. Para protegerle, en los proyectos donde los gravámenes son posibles, le daremos una declaración jurada con la lista de contratistas y proveedores, y con el pago final le entregamos renuncias a gravámenes del contratista y de los proveedores principales. Por favor, no le pague directamente a ningún contratista ni proveedor." + COUNSEL,

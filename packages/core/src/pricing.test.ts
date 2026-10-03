@@ -862,3 +862,44 @@ test("pricing accuracy: flags under/overpriced services from what happened after
   assert.equal(thin.verdict, "no_data");
   assert.deepEqual(pricingAccuracy([{ slug: "snow-removal", factor: 1, quotes: none, jobs: [], signals: { accepted: 0, declined: 0, countered: 0, expired: 0, counterRatios: [] } }, { slug: "house-cleaning", factor: 1, quotes: none, jobs: Array.from({ length: 12 }, () => job({ actualHours: 4.5 })), signals: quiet }]).map((r) => r.verdict), ["underpriced", "no_data"]);
 });
+
+test("water heater options: value, install-only and repair price below a standard replacement", () => {
+  const p = (job: string, extra: Record<string, string> = {}) => estimate({ slug: "water-heater", answers: { job, type: "tank50", fuel: "gas", ...extra } }).point;
+  const replace = p("replace"), budget = p("budget"), install = p("install"), repair = p("repair");
+  assert.ok(replace > budget && budget > install && install > repair, `${replace} > ${budget} > ${install} > ${repair}`);
+  assert.ok(repair >= 175 && repair <= 400, `repair ${repair}`);
+  assert.ok(install >= 500 && install <= 950, `install-only ${install}`);
+  assert.ok(replace - budget >= 150 && replace - budget <= 300);
+  assert.ok(p("repair", { type: "tankless" }) > repair, "tankless repair adds a descale");
+  const svc = SERVICES.find((s) => s.slug === "water-heater")!;
+  assert.match(svc.description, /never used/);
+});
+
+test("crews: who can be sent, and when the company can send crew at all", async () => {
+  const { crewCanTake, crewReady } = await import("./crew.ts");
+  const m = { active: true, role: "lead" as const, background_status: "clear" as const, license_number: null, trades: ["handyman"] };
+  assert.equal(crewCanTake(m, "handyman"), null);
+  assert.match(crewCanTake({ ...m, background_status: "invited" }, "handyman")!, /Background/);
+  assert.match(crewCanTake({ ...m, role: "helper" }, "handyman")!, /never alone/);
+  assert.match(crewCanTake(m, "water-heater")!, /licensed tech/);
+  assert.equal(crewCanTake({ ...m, role: "licensed", license_number: "PL-1", trades: ["plumbing"] }, "water-heater"), null);
+  assert.match(crewCanTake({ ...m, role: "licensed", license_number: "EL-1", trades: ["electrical"] }, "water-heater")!, /trade/);
+  const future = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  assert.match(crewReady({ crew_attested_at: null, coverage: { workers_comp: future } })!, /Crew Addendum/);
+  assert.match(crewReady({ crew_attested_at: "2026-10-03", coverage: { workers_comp: "exempt" } })!, /workers' comp/);
+  assert.equal(crewReady({ crew_attested_at: "2026-10-03", coverage: { workers_comp: future } }), null);
+});
+
+test("fast track: approved masters start at Pro+ while their numbers hold up", async () => {
+  const { proTier } = await import("./pro-program.ts");
+  const { FAST_TRACK, fastTrackProblem } = await import("./crew.ts");
+  const fresh = { jobs_completed: 0, rating: 5, on_time_rate: 1 };
+  assert.equal(proTier(fresh).id, "pro");
+  assert.equal(proTier({ ...fresh, tier_floor: "pro_plus" }).id, "pro_plus");
+  assert.equal(proTier({ jobs_completed: FAST_TRACK.graceJobs - 1, rating: 3.9, on_time_rate: 0.5, tier_floor: "pro_plus" }).id, "pro_plus", "grace period");
+  assert.equal(proTier({ jobs_completed: FAST_TRACK.graceJobs, rating: 4.5, on_time_rate: 0.95, tier_floor: "pro_plus" }).id, "pro", "floor lapses when numbers drop");
+  assert.equal(proTier({ jobs_completed: 150, rating: 4.9, on_time_rate: 0.97, tier_floor: "pro_plus" }).id, "elite", "earned tier wins when higher");
+  assert.match(fastTrackProblem({ years: 2, photos: 5, summary: "x".repeat(60) })!, /years/);
+  assert.match(fastTrackProblem({ years: 8, photos: 1, summary: "x".repeat(60) })!, /photos/);
+  assert.equal(fastTrackProblem({ years: 8, photos: 4, summary: "Twelve years of finish carpentry and cabinets in Monterrey and Detroit." }), null);
+});

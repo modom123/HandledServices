@@ -318,7 +318,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "junk-container": ["Contenedor de basura (entrega y retiro)", "Dejamos un contenedor, usted lo llena en una semana y lo retiramos."],
   "handyman": ["Mantenimiento general", "Su lista de pendientes, resuelta en una visita."],
   "plumbing": ["Reparaciones de plomería", "Tapones, fugas, inodoros y llaves: arreglados hoy."],
-  "water-heater": ["Cambio de calentador de agua", "Tanque nuevo o sin tanque, instalado y el viejo retirado."],
+  "water-heater": ["Calentadores de agua: cambio y reparación", "Tanque nuevo, solo instalación o reparación, con plomeros con licencia."],
   "hvac-install": ["Instalación de aire y calefacción", "Aire acondicionado, calefacción, bomba de calor y minisplits; cotización gratis."],
   "lighting-install": ["Instalación de lámparas y ventiladores", "Lámparas, ventiladores de techo, luces empotradas y exteriores."],
   "camera-install": ["Instalación de cámaras de seguridad", "Timbres, cámaras Wi-Fi y cableadas, listas en su teléfono."],

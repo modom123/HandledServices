@@ -102,6 +102,8 @@ export interface Job {
   attribution?: Record<string, string> | null;
   /** Pro tapped "On my way". */
   en_route_at?: string | null;
+  /** The crew member the pro company is sending (crew.ts). Null = the pro themself. */
+  crew_member_id?: string | null;
   disputed_at?: string | null;
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;
@@ -188,4 +190,9 @@ export interface Contractor {
   last_lat?: number | null;
   last_lng?: number | null;
   last_located_at?: string | null;
+  // crews and the proven-skill fast track (see crew.ts)
+  crew_attested_at?: string | null;
+  fast_track_status?: "none" | "applied" | "trial" | "approved" | "declined" | null;
+  /** Approved fast track: at least this tier while their numbers hold up (proTier). */
+  tier_floor?: "pro_plus" | null;
 }

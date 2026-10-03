@@ -6,6 +6,9 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (customers name the price within a learned market range; pros
  *           accept, decline or counter; payout = price − BOOKING_FEE − sliding COMMISSION): sections 3, 4, 8, 10
  *           and the summary updated; the old "we set the price" note replaced.
+ * UPDATED : 2026-10-03_1311 UTC — PRO_CREW_ADDENDUM (crew accounts): crew are the company's, right-to-work and I-9 on the
+ *           company, workers' comp before any crew job, listed + background-checked, licensed work to license
+ *           holders, helpers never alone.
  * PURPOSE : Every contract a pro (independent contractor) signs in the pro portal:
  *             PRO_AGREEMENT                — Independent Contractor Agreement (replaces and expands the
  *                                            v2 text in lib/agreement.ts; keeps every v2 promise)
@@ -20,6 +23,7 @@
  *           free choice of offers, own schedule, methods, tools, helpers and other clients; quality
  *           judged by results. "[Confirm with counsel.]" marks real legal judgment calls.
  *           TEMPLATES — not legal advice; have counsel review before use.
+ * UPDATED : 2026-10-03_1311 UTC — tiers: the proven-skill fast track to Pro+ (portfolio + reviewed paid trial job).
  */
 import {
   AGREEMENT_VERSION,
@@ -44,7 +48,7 @@ import {
   money,
   necThreshold,
   splitJob,
-  type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
+  type CoverageKey, DEACTIVATION_RULES, FAST_TRACK } from "@handled/core";
 import type { Contract } from "./types";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
@@ -82,7 +86,7 @@ const tierLines = PRO_TIERS.map((t) =>
   t.payoutBoost
     ? `• ${t.name} — ${t.min.jobs}+ completed jobs, ${t.min.rating}★+ rating and ${pct(t.min.onTime)}+ on time: +${pct(t.payoutBoost)} of the job price added to every payout, and ranked ahead of lower tiers for offers.`
     : `• ${t.name} — every active pro. Standard payout shown on each offer.`,
-).join("\n");
+).concat(`• Fast track: a pro with ${FAST_TRACK.minYears}+ years in the trade may send a portfolio of past work and do one paid trial job that we review by hand; if approved, they start at ${PRO_TIERS.find((t) => t.id === FAST_TRACK.tier)!.name} and keep it for their first ${FAST_TRACK.graceJobs} jobs, then for as long as their rating and on-time numbers meet that tier's minimums. Applying is optional; it never affects offers.`).join("\n");
 
 // ─── 1. Independent Contractor Agreement ─────────────────────────────────────────
 
@@ -803,6 +807,50 @@ export const PRO_ADDENDA: Contract[] = [
  */
 export const CORE_ONLY_TRADES: string[] = TRADES.map((t) => t.id).filter((id) => !PRO_ADDENDA.some((a) => a.trades?.includes(id)));
 
+// ─── 6b. Crew Addendum (signed when a pro company adds its first crew member) ──────
+
+export const PRO_CREW_ADDENDUM: Contract = {
+  key: "pro-crew-addendum",
+  title: "Crew Addendum",
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Pro companies that send crew members (helpers, apprentices, crew leads or licensed techs) to ${N} jobs; part of the Independent Contractor Agreement.`,
+  summary: [
+    "Your crew works for your company, not for us. You choose, direct, schedule and pay them.",
+    "You confirm every crew member is legally allowed to work in the United States, and you keep their I-9 and payroll records.",
+    "You carry workers' compensation for your crew before any of them works a job.",
+    "Everyone you send must be listed in the app and pass our background check first.",
+    "Licensed work is sent only to a crew member holding the license (or done by you). Helpers never go alone.",
+    "You're responsible for your crew's work and conduct, the same as your own. Your payout covers the whole job; you pay your crew.",
+  ],
+  sections: [
+    {
+      h: "1. Your crew, your business",
+      p: `This addendum adds to the Independent Contractor Agreement (section on helpers) when your company sends people other than you to ${N} jobs. Crew members are your employees or your own subcontractors. You choose them and decide who goes to which job, how they work, their hours, their pay and their tools. They are not ${N}'s employees or contractors, and we don't direct, schedule, train or pay them. We pay your company for the job; you pay your crew in full and on time, as the law requires.`,
+    },
+    {
+      h: "2. Right to work, payroll and taxes",
+      p: `By listing a crew member, you confirm that they are legally allowed to work in the United States, that you completed and keep Form I-9 for each employee (and, where you use E-Verify, its records), and that you handle their wages, overtime, payroll taxes, withholding and tax forms. Don't list or send anyone you know is not authorized to work. We may ask you to confirm this in writing at any time; we don't collect or keep your crew's immigration documents.${COUNSEL}`,
+    },
+    {
+      h: "3. Workers' compensation and insurance",
+      p: `Before any crew member works a ${N} job, you must carry workers' compensation insurance covering them (the no-employees statement no longer applies once you have a crew) and upload a current certificate. Your general liability insurance must cover work done by your crew. Crew members can't be sent to a job while your workers' comp certificate is missing or expired.`,
+    },
+    {
+      h: "4. Background checks and listing",
+      p: `For customer safety, everyone you send must be listed in the app with their real name and pass our background check before they enter a customer's home or business, the same check you passed. The crew member authorizes the check themselves with our screening provider. Results go to us; if a result needs review, we follow the legally required adverse-action process before any decision. Never bring anyone to a job who isn't listed and cleared. Remove a crew member from your list the day they stop working for you.`,
+    },
+    {
+      h: "5. Licensed work and who goes alone",
+      p: `Work that legally needs a license (for example plumbing, electrical or HVAC) is sent only to a crew member whose own license is on file, or done by you as the license holder. Apprentices work only alongside a licensed tech, as Michigan law requires. Helpers go with you or a crew lead; they're never sent to a job alone. Choose who goes in the app before the job so the customer knows who is coming.`,
+    },
+    {
+      h: "6. Responsibility",
+      p: `You are responsible for your crew's work, conduct, safety and compliance with the Code of Conduct, the same as if you did the work yourself. Workmanship refunds and damage caused by your crew are handled under the agreement's refund and deduction process. Claims by your crew against you or us (including wage or classification claims) are covered by the agreement's indemnity section. Ratings and standing apply to your company as a whole.`,
+    },
+  ],
+};
+
 // ─── 7. Everything a pro signs ─────────────────────────────────────────────────
 
-export const PRO_CONTRACTS: Contract[] = [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...PRO_ADDENDA];
+export const PRO_CONTRACTS: Contract[] = [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...PRO_ADDENDA, PRO_CREW_ADDENDUM];

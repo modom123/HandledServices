@@ -19,6 +19,8 @@
  * UPDATED : 2026-10-03_1247 UTC — water heater recalibrated to a standard-grade unit (50-gal gas ≈ $1,250
  *           suggested, was ≈ $2,030) with our commission capped at 15% (maxCommission) so the pro
  *           still clears a fair labor margin after buying the tank.
+ * UPDATED : 2026-10-03_1311 UTC — water heater: value-brand replacement, install-only (customer's new unit) and
+ *           repair options. New units only, never used.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -1005,13 +1007,26 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "water-heater",
-    name: "Water Heater Replacement",
+    name: "Water Heater Replace & Repair",
     category: "repair_remodel",
     icon: "🔥",
-    tagline: "New tank or tankless, installed and hauled away.",
-    description: "Water heater replacement with the unit, permit, code-required parts and haul-away of the old tank. Gas or electric, tank or tankless.",
-    includes: ["New standard-grade unit included", "Licensed plumber", "Permit pulled where required", "Old tank hauled away", "Manufacturer + 1-year labor warranty"],
+    tagline: "New tank, install-only or repair, by licensed plumbers.",
+    description: "Replace your water heater with a new standard-grade or value-brand unit (permit, code parts and haul-away included), have us install a new unit you bought, or repair the one you have. Gas or electric, tank or tankless. We install new units only, never used ones: a used tank has no manufacturer warranty and no way to know how long it will last.",
+    includes: ["New unit included on replacements", "Licensed plumber", "Permit pulled where required", "Old tank hauled away", "Manufacturer + 1-year labor warranty"],
     questions: [
+      {
+        id: "job",
+        label: "What do you need?",
+        type: "select",
+        default: "replace",
+        options: [
+          { value: "replace", label: "Replace: new standard-grade unit" },
+          { value: "budget", label: "Replace: new value-brand unit (lowest price)" },
+          { value: "install", label: "Install only: I bought a new unit" },
+          { value: "repair", label: "Repair my water heater" },
+        ],
+        help: "Not sure? Pick repair. If it can’t be fixed for a fair price, your plumber quotes a replacement on the spot.",
+      },
       {
         id: "type",
         label: "Type",
@@ -1034,10 +1049,10 @@ export const SERVICES: Service[] = [
           { value: "electric", label: "Electric" },
         ],
       },
-      { id: "expansion", label: "Add expansion tank", type: "toggle", default: false },
-      { id: "tight", label: "Tight closet / attic install", type: "toggle", default: false },
+      { id: "expansion", label: "Add expansion tank", type: "toggle", default: false, showIf: { id: "job", is: ["replace", "budget", "install"] } },
+      { id: "tight", label: "Tight closet / attic install", type: "toggle", default: false, showIf: { id: "job", is: ["replace", "budget", "install"] } },
     ],
-    minimum: 1050,
+    minimum: 175,
     spread: [0.95, 1.15],
     payoutShare: 0.75,
     maxCommission: 0.15,
@@ -1045,17 +1060,31 @@ export const SERVICES: Service[] = [
     frequencies: ["once"],
     trades: ["plumbing"],
     licensed: true,
-    // Standard-grade unit (Rheem / A.O. Smith / Bradford White builder line) installed — metro Detroit
-    // street price ≈ $1,150–1,450 for a 40–50 gal tank. Premium units are a change order, not the default.
+    // Metro Detroit street prices: standard-grade (Rheem / A.O. Smith / Bradford White builder line) 40–50 gal
+    // tank installed ≈ $1,150–1,450; value brand ≈ $175–250 less; install-only labor ≈ $500–900; repair ≈ $150–350.
+    // Premium units are a change order, not the default. New units only — never used.
     price: (a) => {
-      const unit = { tank40: 950, tank50: 1050, tank75: 1800, tankless: 2900 }[s(a, "type", "tank50")] ?? 1050;
+      const job = s(a, "job", "replace");
+      const type = s(a, "type", "tank50");
       const gas = s(a, "fuel", "gas") === "gas";
-      const items: LineItem[] = [{ label: `${s(a, "type", "tank50")} ${gas ? "gas" : "electric"} — unit + install`, amount: gas ? unit + 100 : unit }];
+      const fuel = gas ? "gas" : "electric";
+      const items: LineItem[] = [];
+      if (job === "repair") {
+        items.push({ label: `Water heater repair — ${fuel}`, amount: gas ? 245 : 215 });
+        if (type === "tankless") items.push({ label: "Tankless descale & service", amount: 100 });
+        return { items, base: sum(items), hours: type === "tankless" ? 2.5 : 1.5 };
+      }
+      if (job === "install") {
+        const labor = { tank40: 575, tank50: 575, tank75: 700, tankless: 1150 }[type] ?? 575;
+        items.push({ label: `${type} ${fuel} — install only (your new unit)`, amount: gas ? labor + 100 : labor });
+      } else {
+        const unit = (job === "budget" ? { tank40: 800, tank50: 875, tank75: 1600, tankless: 2600 } : { tank40: 950, tank50: 1050, tank75: 1800, tankless: 2900 })[type] ?? 1050;
+        items.push({ label: `${type} ${fuel} — ${job === "budget" ? "value unit" : "unit"} + install`, amount: gas ? unit + 100 : unit });
+      }
       items.push({ label: "Permit & code parts", amount: 100 });
       if (b(a, "expansion")) items.push({ label: "Expansion tank", amount: 175 });
       if (b(a, "tight")) items.push({ label: "Difficult access", amount: 250 });
-      const base = sum(items);
-      return { items, base, hours: s(a, "type", "tank50") === "tankless" ? 7 : 4 };
+      return { items, base: sum(items), hours: type === "tankless" ? 7 : 4 };
     },
   },
   {

@@ -10,6 +10,7 @@
  *           they don't usually work, rank +15, and are measured from where they are now (fresh
  *           phone location) as well as from base.
  * UPDATED : 2026-10-03_0115 UTC — acceptance rate removed from ranking; on-time weight 18.
+ * UPDATED : 2026-10-03_1311 UTC — an approved fast-track pro (tier_floor) skips the probation job-size limit.
  * PURPOSE : Deterministic contractor scoring. Filters to pros who are approved, insured,
  *           qualified for the trade and serve the ZIP, then ranks them. The AI dispatcher
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
@@ -108,7 +109,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
     const missing = requiredCoverages(svc.trades.filter((t) => c.trades.includes(t))).find((k) => !coverageValid(c.coverage, k, today));
     if (missing) return `${missing.replace("_", " ")} coverage missing or expired`;
   }
-  if (c.jobs_completed < PROBATION.jobs && Number(job.price_final ?? 0) > PROBATION.maxJobPrice) return "on probation: job too large";
+  if (c.jobs_completed < PROBATION.jobs && !c.tier_floor && Number(job.price_final ?? 0) > PROBATION.maxJobPrice) return "on probation: job too large";
   // switched On call → available today even outside their usual days and hours
   if (onCallFor(c, job, today)) return null;
   return offDuty(c, job.scheduled_date, job.time_window);

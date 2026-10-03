@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — standing card (warning / pause / deactivation) with the appeal form.
  * PURPOSE : Pro home — open offers, upcoming jobs, earnings.
+ * UPDATED : 2026-10-03_1311 UTC — fast-track link on the tier card; approved fast-track pros skip the probation size limit.
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -119,7 +120,7 @@ export default async function ProHome() {
               <div className="font-semibold">{es
                 ? <>{tier.badge} Profesional {tier.name}{tier.payoutBoost ? ` · +${Math.round(tier.payoutBoost * 100)}% del precio del trabajo en cada pago` : ""}</>
                 : <>{tier.badge} {tier.name} pro{tier.payoutBoost ? ` · +${Math.round(tier.payoutBoost * 100)}% of the job price on every payout` : ""}</>}</div>
-              {me.jobs_completed < PROBATION.jobs && <span className="text-xs text-ink-soft">{es
+              {me.jobs_completed < PROBATION.jobs && !me.tier_floor && <span className="text-xs text-ink-soft">{es
                 ? `Periodo de prueba: falta(n) ${PROBATION.jobs - me.jobs_completed} trabajo(s) (trabajos de hasta ${money(PROBATION.maxJobPrice)})`
                 : `Probation: ${PROBATION.jobs - me.jobs_completed} job(s) left (jobs up to ${money(PROBATION.maxJobPrice)})`}</span>}
             </div>
@@ -127,6 +128,13 @@ export default async function ProHome() {
             {prog.next && (es
               ? <div className="mt-2 text-sm">Siguiente: <b>{prog.next.badge} {prog.next.name}</b> (+{Math.round(prog.next.payoutBoost * 100)}% de pago, ofertas antes). Para llegar: {prog.todo.map((x) => todoText(l, x)).join(", ")}.</div>
               : <div className="mt-2 text-sm">Next: <b>{prog.next.badge} {prog.next.name}</b> (+{Math.round(prog.next.payoutBoost * 100)}% pay, earlier offers). To get there: {prog.todo.join(", ")}.</div>)}
+            {tier.id === "pro" && (
+              <Link href="/pro/fast-track" className="mt-2 block text-sm font-semibold text-brand underline">{
+                me.fast_track_status === "applied" ? (es ? "Vía rápida: estamos revisando su portafolio" : "Fast track: we’re reviewing your portfolio")
+                : me.fast_track_status === "trial" ? (es ? "Vía rápida: su próximo trabajo terminado es su prueba" : "Fast track: your next finished job is your trial")
+                : me.fast_track_status === "declined" ? (es ? "Vía rápida: vea la respuesta" : "Fast track: see our answer")
+                : (es ? "¿Ya es maestro en su oficio? Empiece en Pro+ con la vía rápida →" : "Already a master at your trade? Start at Pro+ with the fast track →")}</Link>
+            )}
             <div className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
               {benefitLines(policy).filter((b) => b.rule.enabled).map((b) => {
                 const no = whyNot(b.rule, me as Contractor);

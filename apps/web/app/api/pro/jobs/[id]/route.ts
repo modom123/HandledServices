@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-01_2334 UTC — scope_change: more work on site → priced change order.
  * UPDATED : 2026-10-02_1329 UTC — on_my_way: customer gets a text with a live tracking link.
  * UPDATED : 2026-10-03_0123 UTC — "release": a pro hands back an upcoming job (late cancel inside 24h).
+ * UPDATED : 2026-10-03_1311 UTC — "crew": who the pro company is sending (crew accounts).
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
  */
 import { after } from "next/server";
@@ -15,9 +16,11 @@ import { addEvent, completeJob, getJob, raiseAlert, runQa, startJob } from "@/li
 import { requestScopeChange } from "@/lib/scope";
 import { onMyWay } from "@/lib/visit";
 import { proReleaseJob } from "@/lib/standing";
+import { assignCrew } from "@/lib/crew";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
+  z.object({ action: z.literal("crew"), crew_member_id: z.string().uuid().nullable() }),
   z.object({ action: z.literal("on_my_way") }),
   z.object({ action: z.literal("release"), reason: z.string().trim().min(3).max(500) }),
   z.object({ action: z.literal("lockout"), note: z.string().min(3).max(1000) }),
@@ -42,6 +45,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await raiseAlert("lockout", "warn", `${job.ref}: pro can't get in`, `${body.data.note}. Call the customer now. If there's still no access, cancel the job as "lockout" (the fee is kept and the pro gets show-up pay).`, id);
     return Response.json({ ok: true });
   }
+  if (body.data.action === "crew") { const r = await assignCrew(id, v.contractorId, body.data.crew_member_id); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (body.data.action === "release") { const r = await proReleaseJob(id, v.contractorId, body.data.reason); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (body.data.action === "on_my_way") { const r = await onMyWay(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (body.data.action === "start") { const r = await startJob(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }

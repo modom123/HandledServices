@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (suggested price that learns from what pros accept,
  *           name your price within OFFER_BOUNDS, flat BOOKING_FEE, pro counteroffers, raising an offer):
  *           Terms of Use, Service Agreement, Business MSA and Plus/promo terms updated to match.
+ * UPDATED : 2026-10-03_1311 UTC — construction addendum: equipment you buy for us to install must be new; we never install used.
  */
 import {
   AI_MAX_CUT,
@@ -967,6 +968,7 @@ const CONSTRUCTION: Contract = {
       "Materials are listed on your quote. Special-order materials (such as cabinets, counters, tile and fixtures) are ordered after you pay the deposit and approve your choices. Special orders usually can't be returned. If you cancel or change your mind after ordering, you pay the cost of the materials, plus any restocking fees the supplier charges, minus what the supplier refunds. You get any materials you've paid for.",
       "Delivery delays by suppliers may move your schedule. We will keep you informed.",
       "Materials you supply yourself must be on site and correct. They are not covered by our warranty, and delays they cause may cost extra.",
+      "Equipment you buy for us to install (for example, a water heater on an install-only job) must be new and unused, in its original packaging, and the right size and type for your home. Our 1-year workmanship warranty covers our installation; the equipment itself is covered by its maker or seller, not by us. We don't install used equipment.",
     )],
     ["Liens and lien waivers", p(
       "Under the Michigan Construction Lien Act, contractors, suppliers and workers who aren't paid may have the right to place a lien on your property. To protect you, for projects where liens are possible, we will give you a sworn statement listing the contractors and suppliers, and on final payment we provide waivers of lien from the contractor and major suppliers. Please don't pay any contractor or supplier directly." + COUNSEL,

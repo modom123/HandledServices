@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_1329 UTC — "On my way" (texts the customer a live tracking link).
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
+ * UPDATED : 2026-10-03_1311 UTC — crew accounts: pick who's doing the job.
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
@@ -19,6 +20,9 @@ import { StatusBadge } from "@/components/ui";
 import { CompleteJob, LockoutReport, MaterialsForm, OnMyWay, ScopeChange, StartJob } from "@/components/ProActions";
 import { ReleaseJob } from "@/components/Standing";
 import { JobThread } from "@/components/JobThread";
+import { CrewPicker } from "@/components/Crew";
+import { listCrew } from "@/lib/crew";
+import { crewCanTake, crewReady } from "@handled/core";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -40,6 +44,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
     v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
     getPolicy(),
   ]);
+  const crew = ["assigned", "in_progress"].includes(job.status) ? await listCrew(v.contractorId!) : [];
   const trade = s.trades.find((x) => (me?.trades ?? []).includes(x));
   const noMaterials = me ? whyNot(policy.materials, me as Contractor, trade) : "pro not found";
   type Q = (typeof s.questions)[number];
@@ -75,6 +80,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
       </div>
       <div className="space-y-4">
         {job.status === "assigned" && job.scheduled_date === localDate() && <OnMyWay locale={l} jobId={job.id} sent={Boolean(job.en_route_at)} />}
+        {crew.length > 0 && <CrewPicker jobId={job.id} es={es} current={job.crew_member_id ?? null} blocked={me ? crewReady(me as Contractor) : null}
+          options={crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, job.service_slug) }))} />}
         {job.status === "assigned" && <StartJob locale={l} jobId={job.id} />}
         {(job.status === "assigned" || job.status === "in_progress") && <CompleteJob locale={l} jobId={job.id} />}
         {job.status === "qa_review" && <div className="card text-sm">{t("Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.")}</div>}

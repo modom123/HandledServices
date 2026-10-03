@@ -11,6 +11,7 @@
  *           numbering; numbers come from the same @handled/core constants so both languages
  *           always render the same figures. The English version controls.
  *           TEMPLATES — not legal advice; have counsel review before use.
+ * UPDATED : 2026-10-03_1311 UTC — niveles: vía rápida a Pro+ (portafolio + trabajo de prueba pagado revisado).
  */
 import {
   AGREEMENT_VERSION,
@@ -25,6 +26,7 @@ import {
   PRO_POLICY_DEFAULTS,
   PRO_REFERRAL,
   PRO_TIERS,
+  FAST_TRACK,
   STATS_WINDOW_DAYS,
   TAKE_MAX,
   TAKE_MIN,
@@ -62,7 +64,7 @@ const tierLines = PRO_TIERS.map((t) =>
   t.payoutBoost
     ? `• ${t.name} — ${t.min.jobs}+ trabajos completados, calificación de ${t.min.rating}★+ y ${pct(t.min.onTime)}+ de puntualidad: se suma +${pct(t.payoutBoost)} del precio del trabajo a cada pago, y se le da prioridad sobre los niveles inferiores para recibir ofertas.`
     : `• ${t.name} — todos los profesionales activos. Pago estándar indicado en cada oferta.`,
-).join("\n");
+).concat(`• Vía rápida: un profesional con ${FAST_TRACK.minYears}+ años en el oficio puede enviar un portafolio de trabajos anteriores y hacer un trabajo de prueba pagado que revisamos personalmente; si se aprueba, empieza en ${PRO_TIERS.find((t) => t.id === FAST_TRACK.tier)!.name} y lo conserva durante sus primeros ${FAST_TRACK.graceJobs} trabajos, y después mientras su calificación y su puntualidad cumplan los mínimos de ese nivel. Solicitarla es opcional; nunca afecta las ofertas.`).join("\n");
 
 // ─── Contrato de Contratista Independiente ──────────────────────────────────────
 
