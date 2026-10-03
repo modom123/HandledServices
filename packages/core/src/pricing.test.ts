@@ -903,3 +903,28 @@ test("fast track: approved masters start at Pro+ while their numbers hold up", a
   assert.match(fastTrackProblem({ years: 8, photos: 1, summary: "x".repeat(60) })!, /photos/);
   assert.equal(fastTrackProblem({ years: 8, photos: 4, summary: "Twelve years of finish carpentry and cabinets in Monterrey and Detroit." }), null);
 });
+
+test("city scorecard: stages climb gate by gate, and replicate needs the last 30 days too", async () => {
+  const { scoreCity, CITY_TARGETS: T, planPace } = await import("./city-scorecard.ts");
+  const base = { days: 90, completedJobs: 0, bookings: 0, take: 0, netTake: 0, refunded: 0, fillRate: null, hoursToAssign: null, activePros: 0, thinTrades: [], customers: 0,
+    repeatRate: null, planConversion: null, avgRating: null, reviews: 0, redoRate: null, aiDrivenRate: null };
+  assert.equal(scoreCity(base).stage, "launching");
+  const month = (usd: number) => usd * 90 / 30.4;
+  const traction = { ...base, completedJobs: 80, bookings: month(20_000), take: month(6_000), netTake: month(5_000), fillRate: 0.85, activePros: 12 };
+  assert.equal(scoreCity(traction).stage, "traction");
+  assert.equal(scoreCity(traction).next, "proven");
+  assert.ok(scoreCity(traction).todo.length > 0);
+  const proven = { ...traction, completedJobs: 300, bookings: month(70_000), take: month(21_000), netTake: month(18_000), refunded: month(1_000), fillRate: 0.95, hoursToAssign: 1.2,
+    activePros: 30, customers: 200, repeatRate: 0.35, planConversion: 0.25, avgRating: 4.85, reviews: 120, redoRate: 0.02, aiDrivenRate: 0.85 };
+  assert.equal(scoreCity(proven).stage, "proven");
+  const big = { ...proven, bookings: month(160_000), take: month(48_000), netTake: month(42_000), refunded: month(2_000), repeatRate: 0.45, activePros: 45 };
+  const recentGood = { ...big, days: 30, completedJobs: 120, bookings: 160_000, take: 48_000, netTake: 42_000, refunded: 2_000 };
+  assert.equal(scoreCity(big, recentGood).stage, "replicate");
+  assert.equal(scoreCity(big, recentGood).readyToReplicate, true);
+  assert.equal(scoreCity(big, { ...recentGood, fillRate: 0.7 }).readyToReplicate, false, "slipped in the last 30 days");
+  assert.equal(scoreCity({ ...big, thinTrades: ["plumbing"] }).stage, "traction", "a thin busy trade blocks proven");
+  assert.ok(T.replicate.bookingsPerMonth > T.proven.bookingsPerMonth && T.proven.bookingsPerMonth > T.traction.bookingsPerMonth);
+  const p = planPace({ launchedAt: new Date(Date.now() - 400 * 86400000).toISOString(), bookings30: 194_000, take30: 58_000, markets: 1 });
+  assert.equal(p.year, 2);
+  assert.ok(Math.abs(p.bookingsPace - 1) < 0.05, `year-2 pace ${p.bookingsPace}`);
+});
