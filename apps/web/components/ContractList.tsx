@@ -4,9 +4,10 @@
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : A person's signed contracts, newest first, grouped by when they were accepted
  *           (one booking or one signing = one group). Used in My contracts and the Hub.
+ * UPDATED : 2026-10-03_0051 UTC — Spanish titles.
  */
 import Link from "next/link";
-import { getContract } from "@/lib/contracts";
+import { getContract, localized } from "@/lib/contracts";
 import type { AcceptanceRow } from "@/lib/contracts/records";
 
 export function ContractList({ rows, hrefBase, empty, es = false }: { rows: AcceptanceRow[]; hrefBase: string; empty: string; es?: boolean }) {
@@ -30,7 +31,7 @@ export function ContractList({ rows, hrefBase, empty, es = false }: { rows: Acce
                 const outdated = current && current.version !== r.version;
                 return (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <Link href={`${hrefBase}/${r.id}`} className="text-brand underline">{r.title}</Link>
+                    <Link href={`${hrefBase}/${r.id}`} className="text-brand underline">{es && current ? localized(current, "es").title : r.title}</Link>
                     <span className="text-xs text-ink-soft">v{r.version}{outdated ? (es ? ` · versión actual ${current.version}` : ` · current is ${current.version}`) : ""}</span>
                   </li>
                 );

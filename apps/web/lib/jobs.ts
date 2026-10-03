@@ -166,7 +166,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   let job = data as Job;
   // the contracts accepted with this booking → the customer's "My contracts" (frozen copy of the text)
   await recordAcceptance(bookingContracts(job.service_slug, input.customer_type === "commercial"), {
-    profileId: customerId, email: job.contact_email, signerName: job.contact_name, jobId: job.id, method: "booking", ip,
+    profileId: customerId, email: job.contact_email, signerName: job.contact_name, jobId: job.id, method: "booking", ip, locale: input.locale,
   }).catch((e) => console.error("[contracts]", e));
   // booking in Spanish (signed in) → remember it on the account too
   if (customerId && input.locale === "es") await db().from("profiles").update({ locale: "es" }).eq("id", customerId);

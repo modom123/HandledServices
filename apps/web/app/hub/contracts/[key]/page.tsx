@@ -3,26 +3,28 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0043 UTC
  * PURPOSE : Hub → one contract: the current text, and the latest people who accepted it.
+ * UPDATED : 2026-10-03_0052 UTC — English / Spanish switch.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getService } from "@handled/core";
-import { getContract } from "@/lib/contracts";
+import { getContract, localized } from "@/lib/contracts";
 import { adminClient } from "@/lib/supabase/server";
 import { ContractView } from "@/components/ContractView";
 
 export const dynamic = "force-dynamic";
 
-export default async function HubContract({ params }: { params: Promise<{ key: string }> }) {
+export default async function HubContract({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ lang?: string }> }) {
   const c = getContract((await params).key);
   if (!c) notFound();
+  const v = localized(c, (await searchParams).lang);
   const { data: recent } = await adminClient().from("contract_acceptances").select("id, version, email, signer_name, method, accepted_at, jobs(ref)").eq("contract_key", c.key).order("accepted_at", { ascending: false }).limit(50);
   return (
     <div className="grid gap-8 xl:grid-cols-[1fr_320px]">
       <div className="card">
         <Link href="/hub/contracts" className="text-sm text-brand print:hidden">← Contract library</Link>
         {(c.services?.length || c.trades?.length) ? <p className="mt-3 text-xs text-ink-soft">{c.services?.length ? `Services: ${c.services.map((s) => getService(s)?.name ?? s).join(", ")}` : `Trades: ${c.trades!.join(", ")}`}</p> : null}
-        <div className="mt-4"><ContractView title={c.title} version={c.version} appliesTo={c.appliesTo} summary={c.summary} sections={c.sections} /></div>
+        <div className="mt-4"><ContractView title={v.title} version={c.version} appliesTo={v.appliesTo} summary={v.summary} sections={v.sections} lang={v.lang} translated={v.translated} otherLangHref={`/hub/contracts/${c.key}?lang=${v.lang === "es" ? "en" : "es"}`} /></div>
       </div>
       <aside className="card h-fit text-sm print:hidden">
         <div className="font-semibold">Latest acceptances</div>

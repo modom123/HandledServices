@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/(site)/account/contracts/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
+ * UPDATED : 2026-10-03_0051 UTC — Spanish copies note.
  * PURPOSE : Customer → My contracts. Every agreement they accepted (Terms of Use, Service
  *           Agreement and service addenda with each booking, Business Services Agreement,
  *           Plus / gift card terms), with a frozen copy of the exact text.
@@ -28,7 +29,7 @@ export default async function MyContracts() {
       <Link href="/account" className="text-sm text-brand">← {t("My account")}</Link>
       <h1 className="mt-3 text-3xl font-extrabold tracking-tight">{t("My contracts")}</h1>
       <p className="mt-2 text-ink-soft">{t("Every agreement you accepted, with the exact text as it was when you agreed. Print or save any of them as a PDF.")}</p>
-      {l === "es" && <p className="mt-2 text-sm text-ink-soft">{t("The legal text of our agreements is in English. If you have questions, write to us.")}</p>}
+      {l === "es" && <p className="mt-2 text-sm text-ink-soft">Los acuerdos que aceptó en español se guardan en español y en inglés. Si hay alguna diferencia, prevalece la versión en inglés.</p>}
       <div className="mt-6"><ContractList rows={rows} hrefBase="/account/contracts" es={l === "es"} empty={t("Nothing yet — the agreements for each booking will appear here.")} /></div>
       <p className="mt-6 text-sm"><Link href="/terms" className="text-brand underline">{t("See all current terms & agreements")}</Link></p>
     </div>

@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-01_2109 UTC — specialties, trade-specific coverage, requirements by trade.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)
  * UPDATED : 2026-10-03_0042 UTC — signing lists the Code of Conduct, policies, consents and trade addenda it covers.
+ * UPDATED : 2026-10-03_0051 UTC — the agreement (and the list) in Spanish for Spanish-speaking pros.
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
  */
@@ -13,8 +14,7 @@ import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverag
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
-import { AGREEMENT_SECTIONS, AGREEMENT_TITLE } from "@/lib/agreement";
-import { proSigningSet } from "@/lib/contracts";
+import { PRO_AGREEMENT, localized, proSigningSet } from "@/lib/contracts";
 import { Badge } from "@/components/ui";
 import { Field, StepForm } from "@/components/ProOnboarding";
 
@@ -71,12 +71,14 @@ export default async function Onboarding() {
     );
     if (key === "agreement") return (
       <div className="mt-3">
-        <details className="rounded-xl border border-line p-3 text-sm"><summary className="cursor-pointer font-semibold">{AGREEMENT_TITLE}</summary>
-          {es && <p className="mt-3 text-xs text-ink-soft">El texto legal del acuerdo está en inglés. Si tiene preguntas, escríbanos antes de firmar.</p>}
-          <div className="mt-3 space-y-3">{AGREEMENT_SECTIONS.map((s) => <div key={s.h}><div className="font-semibold">{s.h}</div><p className="whitespace-pre-line text-ink-soft">{s.p}</p></div>)}</div></details>
+        {(() => { const ag = localized(PRO_AGREEMENT, l); return (
+        <details className="rounded-xl border border-line p-3 text-sm"><summary className="cursor-pointer font-semibold">{ag.title}</summary>
+          {es && <p className="mt-3 text-xs text-ink-soft">{ag.translated ? "Esta es una traducción al español. Si hay alguna diferencia con la versión en inglés, prevalece la versión en inglés." : "El texto legal del acuerdo está en inglés. Si tiene preguntas, escríbanos antes de firmar."} <a href={`/terms/pro-agreement?lang=${es ? "en" : "es"}`} target="_blank" rel="noopener noreferrer" className="underline">{es ? "Ver en inglés" : "Ver en español"}</a></p>}
+          <div className="mt-3 rounded-xl bg-paper p-3"><div className="font-semibold">{es ? "La versión corta" : "The short version"}</div><ul className="mt-1 list-disc pl-5">{ag.summary.map((x) => <li key={x}>{x}</li>)}</ul></div>
+          <div className="mt-3 space-y-3">{ag.sections.map((s) => <div key={s.h}><div className="font-semibold">{s.h}</div><p className="whitespace-pre-line text-ink-soft">{s.p}</p></div>)}</div></details>); })()}
         <div className="mt-3 rounded-xl bg-paper p-3 text-sm">
           <div className="font-semibold">{t("Your signature also covers:")}</div>
-          <ul className="mt-1 list-disc pl-5">{proSigningSet((pro.trades ?? []) as string[]).slice(1).map((c) => <li key={c.key}><a href={`/terms/${c.key}`} target="_blank" rel="noopener noreferrer" className="text-brand underline">{c.title}</a></li>)}</ul>
+          <ul className="mt-1 list-disc pl-5">{proSigningSet((pro.trades ?? []) as string[]).slice(1).map((c) => <li key={c.key}><a href={`/terms/${c.key}${es ? "?lang=es" : ""}`} target="_blank" rel="noopener noreferrer" className="text-brand underline">{localized(c, l).title}</a></li>)}</ul>
           <p className="mt-2 text-xs text-ink-soft">{t("Each one starts with a short plain-English version. Copies of everything you sign are saved in My contracts.")}</p>
         </div>
         <StepForm step="agreement" cta={t("Sign agreement")} locale={l}>

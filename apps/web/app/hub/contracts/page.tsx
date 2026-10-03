@@ -6,9 +6,10 @@
  *           service and trade addenda) with version and how many people accepted it; look up any
  *           customer or pro by email or name to see exactly what they signed; download the whole
  *           library for the lawyer.
+ * UPDATED : 2026-10-03_0052 UTC — Spanish download; Spanish column (translated or not).
  */
 import Link from "next/link";
-import { ALL_CONTRACTS, AUDIENCE_LABEL, type Contract } from "@/lib/contracts";
+import { ALL_CONTRACTS, AUDIENCE_LABEL, spanishOf, type Contract } from "@/lib/contracts";
 import { adminClient } from "@/lib/supabase/server";
 import { ContractList } from "@/components/ContractList";
 import type { AcceptanceRow } from "@/lib/contracts/records";
@@ -41,7 +42,7 @@ export default async function ContractLibrary({ searchParams }: { searchParams: 
           <h1 className="text-2xl font-bold">Contract library</h1>
           <p className="text-sm text-ink-soft">Every agreement we use, and who signed what. Customers and pros see their own signed copies in their accounts.</p>
         </div>
-        <a href="/api/hub/contracts/export" className="btn-ghost text-sm">⬇ Download all (Markdown, for counsel)</a>
+        <div className="flex gap-2"><a href="/api/hub/contracts/export" className="btn-ghost text-sm">⬇ Download all (English)</a><a href="/api/hub/contracts/export?lang=es" className="btn-ghost text-sm">⬇ Español</a></div>
       </div>
 
       <form className="card flex flex-wrap gap-2" action="/hub/contracts">
@@ -60,7 +61,7 @@ export default async function ContractLibrary({ searchParams }: { searchParams: 
           <h2 className="mb-2 text-lg font-bold">{AUDIENCE_LABEL[g]}</h2>
           <div className="card overflow-x-auto p-0">
             <table className="w-full text-sm">
-              <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Contract</th><th className="p-3">Version</th><th className="p-3">Applies to</th><th className="p-3 text-right">Accepted (this version / all)</th></tr></thead>
+              <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Contract</th><th className="p-3">Version</th><th className="p-3">Applies to</th><th className="p-3">Español</th><th className="p-3 text-right">Accepted (this version / all)</th></tr></thead>
               <tbody>
                 {ALL_CONTRACTS.filter((c) => c.audience === g).map((c) => {
                   const t = tally.get(c.key);
@@ -69,6 +70,7 @@ export default async function ContractLibrary({ searchParams }: { searchParams: 
                       <td className="p-3"><Link href={`/hub/contracts/${c.key}`} className="font-semibold text-brand underline">{c.title}</Link></td>
                       <td className="p-3 whitespace-nowrap">{c.version}</td>
                       <td className="p-3 text-ink-soft">{c.appliesTo}</td>
+                      <td className="p-3">{spanishOf(c) ? <Link href={`/hub/contracts/${c.key}?lang=es`} className="text-brand underline">✓ ver</Link> : "—"}</td>
                       <td className="p-3 text-right whitespace-nowrap">{t ? `${t.current} / ${t.all}` : "—"}</td>
                     </tr>
                   );

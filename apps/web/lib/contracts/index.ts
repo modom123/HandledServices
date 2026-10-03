@@ -7,14 +7,16 @@
  *             bookingContracts(slug, business)  — accepted with each booking
  *             proSigningSet(trades)             — signed by a pro in onboarding
  *           Plus a content hash so a person's frozen copy can be proven unchanged.
+ * UPDATED : 2026-10-03_0050 UTC — Spanish: localized(contract, lang) from the translations in es.ts.
  */
 import { createHash } from "node:crypto";
 import { getService } from "@handled/core";
-import type { Contract } from "./types";
+import type { Contract, ContractTranslation } from "./types";
+import { CONTRACTS_ES } from "./es";
 import { BUSINESS_MSA, CUSTOMER_ADDENDA, CUSTOMER_CONTRACTS, MEMBERSHIP_PROMO_TERMS, SERVICE_AGREEMENT, TERMS_OF_USE } from "./customer";
 import { PRO_ADDENDA, PRO_AGREEMENT, PRO_BACKGROUND_CHECK_NOTICE, PRO_CODE_OF_CONDUCT, PRO_CONTRACTS, PRO_DEACTIVATION_POLICY, PRO_LOCATION_CONSENT } from "./pro";
 
-export type { Contract, ContractSection, ContractAudience } from "./types";
+export type { Contract, ContractSection, ContractAudience, ContractTranslation } from "./types";
 export { BUSINESS_MSA, MEMBERSHIP_PROMO_TERMS, PRO_AGREEMENT, SERVICE_AGREEMENT, TERMS_OF_USE };
 
 export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, ...PRO_CONTRACTS];
@@ -55,3 +57,13 @@ export function contractMarkdown(c: Contract): string {
     ...c.sections.map((s) => `### ${s.h}\n${s.p}`),
   ].filter(Boolean).join("\n\n");
 }
+
+/** The contract in a language; falls back to English (translated: false) when no translation exists. */
+export function localized(c: Contract, lang: string | null | undefined): ContractTranslation & { translated: boolean; lang: "en" | "es" } {
+  const es = lang === "es" ? CONTRACTS_ES[c.key] : undefined;
+  if (es && es.sections.length === c.sections.length) return { ...es, translated: true, lang: "es" };
+  return { title: c.title, appliesTo: c.appliesTo, summary: c.summary, sections: c.sections, translated: false, lang: lang === "es" ? "es" : "en" };
+}
+
+/** Spanish translation of a contract, if there is a complete one. */
+export const spanishOf = (c: Contract) => { const es = CONTRACTS_ES[c.key]; return es && es.sections.length === c.sections.length ? es : null; };

@@ -34,6 +34,7 @@ import { notify } from "@/lib/push";
 import { siteUrl } from "@/lib/notify";
 import { proSigningSet } from "@/lib/contracts";
 import { recordAcceptance, requestMeta } from "@/lib/contracts/record";
+import { localeOf } from "@/lib/push";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
       notes: `Signed v${AGREEMENT_VERSION} by "${b.signer_name}" · ip ${req.headers.get("x-forwarded-for") ?? "?"}` });
     // one e-signature covers the whole set: agreement, policies, consents and the addenda for their trades
     const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
-    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, method: "signature", ...requestMeta(req) });
+    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
   } else if (b.step === "payout") {
     await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id);
   }
