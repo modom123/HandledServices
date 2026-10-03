@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_0043 UTC — Contract library in the nav.
  * UPDATED : 2026-10-03_0152 UTC — Market pricing in the nav.
  * UPDATED : 2026-10-03_0210 UTC — Pro leads in the nav.
+ * UPDATED : 2026-10-03_1255 UTC — Pricing accuracy in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -32,6 +33,7 @@ const NAV = [
   ["/hub/finance", "💵", "Finance"],
   ["/hub/growth", "📈", "Growth"],
   ["/hub/market", "⚖️", "Market pricing"],
+  ["/hub/pricing-accuracy", "📐", "Pricing accuracy"],
   ["/hub/charges", "💳", "Quick Charge"],
   ["/hub/pro-program", "🏅", "Pro Program"],
   ["/hub/workforce", "🏢", "IEBC Workforce"],

@@ -835,3 +835,30 @@ test("water heater: standard tank priced to market, commission capped so the plu
   assert.ok(sp.payout - 750 >= 250, "pro clears ≥ $250 labor after a ~$750 unit + permit");
   assert.ok(commissionRate(1000, "water-heater") <= 0.15 && commissionRate(1000) === 0.32);
 });
+
+test("pricing accuracy: flags under/overpriced services from what happened after the job", async () => {
+  const { scorePricing, pricingAccuracy } = await import("./pricing-accuracy.ts");
+  const job = (o: Partial<import("./pricing-accuracy.ts").AccuracyJob> = {}) => ({ suggested: 200, final: 200, scopeExtra: 0, refunded: 0, paid: 200, estHours: 3, actualHours: 3, expenses: 0, rating: 5, ...o });
+  const quiet = { accepted: 10, declined: 3, countered: 1, expired: 0, counterRatios: [1.1] };
+  const none = { saved: 0, booked: 0 };
+  // Jobs run 50% long and pros counter: underpriced, suggested factor goes up, inside bounds.
+  const slow = scorePricing({ slug: "house-cleaning", factor: 1, quotes: none, jobs: Array.from({ length: 12 }, () => job({ actualHours: 4.5, final: 215 })), signals: { accepted: 6, declined: 4, countered: 5, expired: 1, counterRatios: [1.2, 1.25, 1.2, 1.3, 1.2] } });
+  assert.equal(slow.verdict, "underpriced");
+  assert.ok(slow.change! > 1.05 && slow.suggestedFactor! > 1 && slow.suggestedFactor! <= 1.3);
+  assert.ok(slow.evidence.some((e) => e.key === "time") && slow.evidence.some((e) => e.key === "pros"));
+  // Jobs go for less than suggested, run short, pros take everything: overpriced.
+  const rich = scorePricing({ slug: "water-heater", factor: 1, quotes: { saved: 40, booked: 3 }, jobs: Array.from({ length: 10 }, () => job({ suggested: 2000, final: 1700, paid: 1700, estHours: 4, actualHours: 2.5 })), signals: { accepted: 20, declined: 0, countered: 0, expired: 0, counterRatios: [] } });
+  assert.equal(rich.verdict, "overpriced");
+  assert.ok(rich.suggestedFactor! < 1 && rich.suggestedFactor! >= 0.85);
+  // Matches reality: on target, nothing to apply.
+  const ok = scorePricing({ slug: "lawn-care", factor: 1, quotes: none, jobs: Array.from({ length: 8 }, () => job()), signals: quiet });
+  assert.equal(ok.verdict, "on_target");
+  assert.equal(ok.suggestedFactor, null);
+  // Refunds are a quality flag, not a price change.
+  const refunds = scorePricing({ slug: "lawn-care", factor: 1, quotes: none, jobs: Array.from({ length: 8 }, (_, i) => job({ refunded: i < 2 ? 100 : 0 })), signals: quiet });
+  assert.equal(refunds.verdict, "watch");
+  // Too little data: no verdict; worst services sort first.
+  const thin = scorePricing({ slug: "snow-removal", factor: 1, quotes: none, jobs: [job()], signals: { accepted: 1, declined: 0, countered: 0, expired: 0, counterRatios: [] } });
+  assert.equal(thin.verdict, "no_data");
+  assert.deepEqual(pricingAccuracy([{ slug: "snow-removal", factor: 1, quotes: none, jobs: [], signals: { accepted: 0, declined: 0, countered: 0, expired: 0, counterRatios: [] } }, { slug: "house-cleaning", factor: 1, quotes: none, jobs: Array.from({ length: 12 }, () => job({ actualHours: 4.5 })), signals: quiet }]).map((r) => r.verdict), ["underpriced", "no_data"]);
+});
