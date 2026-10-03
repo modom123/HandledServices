@@ -8,8 +8,11 @@
  *           Same section count, order and numbering as customer.ts; numbers come from
  *           @handled/core so both languages render the same figures. English controls.
  *           TEMPLATES — not legal advice.
+ * UPDATED : 2026-10-03_0152 UTC — market pricing (Business MSA: precio sugerido y ofertas salvo que un Pedido
+ *           fije el precio; Plus/promos: el cargo de reserva no se descuenta), mirroring customer.ts.
  */
 import {
+  BOOKING_FEE,
   BRAND,
   DEPOSIT,
   DISCOUNT_FLOOR,
@@ -33,6 +36,7 @@ const numbered = (items: [string, string][]): ContractSection[] => items.map(([h
 const US = `${BRAND.legalName} ("${BRAND.name}", "nosotros")`;
 const MATERIALS_OK = money(PRO_POLICY_DEFAULTS.materials.autoApproveUpTo);
 const SHOPPING_MAX = money(PRO_POLICY_DEFAULTS.materials.shoppingMax);
+const FEE = money(BOOKING_FEE);
 const ADDENDUM_INTRO = "Este anexo complementa el Acuerdo de Servicio para los servicios indicados. Si hay un conflicto, este anexo prevalece para esos servicios.";
 
 export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
@@ -69,6 +73,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       )],
       ["Pedidos, alcance y cambios", p(
         "Cada Pedido enumera el trabajo incluido. El trabajo no enumerado no está incluido. Si las condiciones del sitio son distintas de lo que se nos informó, enviamos una orden de cambio con precio según nuestras tarifas estándar. El trabajo adicional se hace solo después de que un usuario autorizado lo apruebe.",
+        `Precios: a menos que un Pedido fije el precio, las reservas hechas a través de su cuenta empresarial usan el mismo proceso de precio sugerido y ofertas del Acuerdo de servicio para clientes. Mostramos un precio sugerido, un usuario autorizado puede ofrecer un precio diferente dentro de los límites que se muestran, los profesionales pueden hacer contraofertas, y el precio mostrado incluye un cargo de reserva fijo de ${FEE} por reserva (por visita en los servicios recurrentes). Cuando un Pedido fija el precio, se aplica ese precio.`,
         "Los servicios recurrentes continúan según el calendario del Pedido hasta que el Pedido termine o se modifique. Cualquiera de las partes puede cambiar un calendario recurrente con 14 días de aviso; los cambios de precio entran en vigor en el siguiente período de facturación después del aviso.",
       )],
       ["Facturación y pago", p(
@@ -192,7 +197,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       [`${HANDLED_PLUS.name}: lo que recibe`, p(
         `${HANDLED_PLUS.name} es una membresía pagada. Mientras su membresía esté activa, usted recibe:`,
         ul(...HANDLED_PLUS.perks.map((perk) => t("es", perk))),
-        `El descuento de miembro del ${pct(HANDLED_PLUS.discountPct)} se aplica al precio del trabajo después de cualquier descuento del plan. Al igual que otros descuentos, puede limitarse en algunos trabajos para que nunca se reduzca el pago del profesional (vea "Códigos promocionales" más abajo). Tener prioridad en horarios del mismo día significa que a los miembros se les ofrecen primero los horarios disponibles del mismo día; no garantiza un horario.`,
+        `El descuento de miembro del ${pct(HANDLED_PLUS.discountPct)} se aplica al precio del trabajo después de cualquier descuento del plan. Al igual que otros descuentos, puede limitarse en algunos trabajos para que nunca se reduzca el pago del profesional (vea "Códigos promocionales" más abajo). Tener prioridad en horarios del mismo día significa que a los miembros se les ofrecen primero los horarios disponibles del mismo día; no garantiza un horario. El descuento de miembro no se aplica al cargo de reserva de ${FEE} incluido en cada reserva.`,
         "Podemos cambiar o agregar beneficios. Si reducimos los beneficios o subimos el precio, se lo informaremos al menos 30 días antes de su próxima renovación, y usted puede cancelar antes de que se aplique.",
       )],
       [`${HANDLED_PLUS.name}: renovación automática`, p(
@@ -226,7 +231,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
           "Los códigos pueden tener límites, que mostramos: solo el primer trabajo, pedido mínimo, un servicio determinado, una fecha de vencimiento o un número fijo de usos.",
           "Los códigos no tienen valor en efectivo, no se pueden vender ni intercambiar, y no se pueden aplicar a una reserva que ya pagó.",
           `Algunos descuentos tienen un tope para que nunca se reduzca el pago del profesional. Los descuentos salen de nuestra parte, no de la del profesional. En cada trabajo, conservamos al menos el ${pct(DISCOUNT_FLOOR)} del precio después de pagar al profesional, por lo que un descuento grande puede reducirse en algunos trabajos. La aplicación muestra el descuento que realmente recibe antes de que pague.`,
-          "Las propinas, los impuestos y las compras de tarjetas de regalo no reciben descuentos promocionales.",
+          `Las propinas, los impuestos, el cargo de reserva de ${FEE} y las compras de tarjetas de regalo no reciben descuentos promocionales.`,
           "Si cancela o recibe un reembolso, le reembolsamos lo que realmente pagó. Los códigos de un solo uso pueden restablecerse a nuestra discreción.",
           "Podemos terminar o cambiar una promoción en cualquier momento, pero no para reservas ya pagadas.",
         ),
