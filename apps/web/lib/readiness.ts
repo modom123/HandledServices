@@ -12,6 +12,7 @@
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
+ * UPDATED : 2026-10-03_1418 UTC — checks migration 26 (crews & fast track) and flags catalog rows whose name or minimum is out of date.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -99,6 +100,7 @@ export async function readiness(): Promise<Check[]> {
     ["23 pro fairness (deductions, standing)", () => db.from("pro_deductions").select("id").limit(1)],
     ["24 market pricing", () => db.from("market_factors").select("service_slug").limit(1)],
     ["25 pro lead engine", () => db.from("pro_leads").select("id").limit(1)],
+    ["26 crews & fast track", () => db.from("crew_members").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();
@@ -106,10 +108,12 @@ export async function readiness(): Promise<Check[]> {
   }
 
   // ── Catalog, storage, people
-  const { data: svc } = await db.from("services").select("slug");
-  const inDb = new Set((svc ?? []).map((r: { slug: string }) => r.slug));
-  const missing = SERVICES.filter((s) => !inDb.has(s.slug)).map((s) => s.slug);
-  add("Supabase", "Service catalog synced", missing.length === 0, missing.length ? `${missing.length} missing: ${missing.join(", ")}` : `${SERVICES.length} services`, "Click “Sync service catalog” below");
+  const { data: svc } = await db.from("services").select("slug, name, minimum");
+  const rows = new Map(((svc ?? []) as { slug: string; name: string; minimum: number }[]).map((r) => [r.slug, r]));
+  const missing = SERVICES.filter((s) => !rows.has(s.slug)).map((s) => s.slug);
+  // names and minimums change when prices are recalibrated; the DB copy should follow the code
+  const stale = SERVICES.filter((s) => { const r = rows.get(s.slug); return r && (r.name !== s.name || Number(r.minimum) !== s.minimum); }).map((s) => s.slug);
+  add("Supabase", "Service catalog synced", missing.length === 0 && stale.length === 0, missing.length ? `${missing.length} missing: ${missing.join(", ")}` : stale.length ? `${stale.length} out of date: ${stale.join(", ")}` : `${SERVICES.length} services`, "Click “Sync service catalog” below");
   const { data: buckets } = await db.storage.listBuckets();
   for (const b of ["job-photos", "pro-docs"]) add("Supabase", `Storage bucket ${b}`, Boolean(buckets?.some((x) => x.id === b)), buckets?.some((x) => x.id === b) ? "exists (private)" : "missing", "Re-run the migrations — they create the buckets");
 

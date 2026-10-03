@@ -4,6 +4,10 @@
   CREATED : 2026-10-03_0147 UTC
   PURPOSE : Detroit-metro market recalibration of the suggested prices in packages/core/src/services.ts
             (default scenarios before → after, market benchmarks, pro payout under the new sliding commission).
+  UPDATED : 2026-10-03_1418 UTC — water heater recalibrated after owner review: standard 50-gal gas install ≈ $1,254 (was
+            ≈ $2,029, priced like a premium unit), with value-brand, install-only and repair options; our cut on
+            water heaters capped at 15% (Service.maxCommission). Lawn/snow/medical-delivery minimums in the database
+            seed now match the engine. Ongoing calibration: Hub → Pricing accuracy.
 -->
 
 # Pricing calibration: Detroit metro, launch 2026
