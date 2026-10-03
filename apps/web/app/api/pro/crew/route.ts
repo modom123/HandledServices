@@ -6,10 +6,14 @@
  *             { action: "sign", signer_name }            — sign the Crew Addendum (needed before adding anyone)
  *             { action: "add", full_name, email, phone?, locale, role, trades[], years_experience?, license_number? }
  *             { action: "remove", id }                   — they no longer work for the company
+ * UPDATED : 2026-10-03_1337 UTC — GET for the mobile app: the crew, whether it can be sent yet, and (?job=<id>) who can
+ *           take that job.
  */
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
-import { addCrewMember, removeCrewMember, signCrewAddendum } from "@/lib/crew";
+import { addCrewMember, listCrew, removeCrewMember, signCrewAddendum } from "@/lib/crew";
+import { adminClient } from "@/lib/supabase/server";
+import { crewCanTake, crewReady, type Contractor } from "@handled/core";
 import { requestMeta } from "@/lib/contracts/record";
 import { getLocale } from "@/lib/locale";
 
@@ -31,4 +35,21 @@ export async function POST(req: Request) {
     : d.action === "add" ? await addCrewMember(v.contractorId, { full_name: d.full_name, email: d.email, phone: d.phone ?? null, locale: d.locale, role: d.role, trades: d.trades, years_experience: d.years_experience ?? null, license_number: d.license_number || null })
     : await removeCrewMember(v.contractorId, d.id);
   return Response.json(r, { status: r.ok ? 200 : 409 });
+}
+
+export async function GET(req: Request) {
+  const v = await getViewer(req);
+  if (!v?.contractorId) return deny(403, "Pro account required");
+  const db = adminClient();
+  const jobId = new URL(req.url).searchParams.get("job");
+  const [{ data: c }, crew, { data: job }] = await Promise.all([
+    db.from("contractors").select("crew_attested_at, coverage, trades").eq("id", v.contractorId).single(),
+    listCrew(v.contractorId),
+    jobId ? db.from("jobs").select("service_slug, crew_member_id, contractor_id").eq("id", jobId).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const mine = job && job.contractor_id === v.contractorId ? job : null;
+  return Response.json({
+    attested: Boolean(c?.crew_attested_at), ready: crewReady((c ?? {}) as Pick<Contractor, "crew_attested_at" | "coverage">), trades: c?.trades ?? [], crew,
+    ...(mine ? { current: mine.crew_member_id ?? null, options: crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, mine.service_slug) })) } : {}),
+  });
 }

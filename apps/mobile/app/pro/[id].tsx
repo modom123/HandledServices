@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_1329 UTC — On my way button (customer gets a live ETA link).
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
+ * UPDATED : 2026-10-03_1337 UTC — crew accounts: pick who's doing the job.
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  */
 import { shareLocationOnce } from "../../lib/location";
@@ -18,6 +19,7 @@ import { api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 import { useI18n } from "../../lib/i18n";
 
+type CrewPick = { ready: string | null; current: string | null; options: { id: string; name: string; why: string | null }[] };
 type Materials = { allowed: boolean; reason: string | null; autoApproveUpTo: number; shopping: boolean; expenses: { id: string; amount: number; description: string; status: string; notes: string | null }[] };
 const EXP_STATUS: Record<string, string> = { pending: "waiting for approval", approved: "approved", billed: "approved — waiting on the customer", paid: "reimbursed", rejected: "not approved" };
 
@@ -36,11 +38,14 @@ export default function ProJob() {
   const [lockout, setLockout] = useState<string | null>(null);
   const [scope, setScope] = useState<Record<string, string | number | boolean> | null>(null);
   const [scopeNote, setScopeNote] = useState("");
+  const [crew, setCrew] = useState<CrewPick | null>(null);
   const load = useCallback(async () => {
     const { data } = await supabase.from("jobs").select("*").eq("id", id).single();
     setJob(data as Job);
     const m = await api<Materials>(`/api/pro/jobs/${id}/expenses`);
     if (m.ok) setMat(m.data);
+    const c = await api<CrewPick>(`/api/pro/crew?job=${id}`);
+    if (c.ok && c.data.options?.length) setCrew(c.data); else setCrew(null);
   }, [id]);
   useEffect(() => { load(); }, [load]);
   if (!job) return null;
@@ -117,6 +122,18 @@ export default function ProJob() {
         {svc.questions.filter((q) => questionVisible(q, job.answers as Record<string, string | number | boolean>, svc.questions)).map((q) => <Text key={q.id} style={s.p}>{t(q.label)}: <Text style={s.b}>{(() => { const v = job.answers[q.id]; if (v === undefined || v === null) return "—"; if (typeof v === "boolean") return t(v ? "Yes" : "No"); const o = q.type === "select" ? q.options.find((x) => x.value === v) : undefined; return o ? t(o.label) : String(v); })()}</Text></Text>)}
         {job.notes ? <Text style={[s.p, { marginTop: 8 }]}>“{job.notes}”</Text> : null}
       </Card>
+      {crew && ["assigned", "in_progress"].includes(job.status) && (
+        <Card>
+          <Text style={s.b}>{t("Who’s doing this job?")}</Text>
+          {crew.ready && <Text style={[s.p, { fontSize: 14, color: "#92400e" }]}>{t("To send your crew:")} {crew.ready.includes("workers") ? t("upload a current workers’ comp policy (the no-employees statement doesn’t cover a crew)") : t(crew.ready)}</Text>}
+          <View style={[s.row, { marginTop: 8 }]}>
+            <Chip label={t("Me")} on={!crew.current} onPress={() => crew.current && post({ action: "crew", crew_member_id: null })} />
+            {crew.options.map((o) => <Chip key={o.id} label={`${o.name}${o.why ? " ⛔" : ""}`} on={crew.current === o.id}
+              onPress={() => (o.why || crew.ready ? Alert.alert(o.name, o.why ? t(o.why) : t(crew.ready!)) : crew.current !== o.id && post({ action: "crew", crew_member_id: o.id }))} />)}
+          </View>
+          <Text style={[s.p, { fontSize: 13 }]}>{t("The customer sees the first name of who’s coming.")}</Text>
+        </Card>
+      )}
       {job.status === "assigned" && job.scheduled_date === localDate() && !job.en_route_at && <Button title={`🚗 ${t("On my way")}`} kind="ghost" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "on_my_way" }); }} busy={busy} style={{ marginBottom: 8 }} />}
       {job.status === "assigned" && job.en_route_at ? <Text style={[s.p, { marginBottom: 8 }]}>🚗 {t("The customer can see your ETA while the app is open.")}</Text> : null}
       {job.status === "assigned" && <Button title={t("I've arrived — start job")} onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "start" }); }} busy={busy} />}

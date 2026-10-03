@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_0255 UTC — On call switch (location shared while on call / on a job today) and My calendar.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies in the pro portal).
+ * UPDATED : 2026-10-03_1337 UTC — My crew, and the fast track to Pro+ for pros still at the Pro tier.
  * PURPOSE : Pro mode — live job offers (accept/pass) and today's schedule.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -24,6 +25,7 @@ export default function ProHome() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fast, setFast] = useState<{ status: string; tier: string } | null>(null);
   const [onCall, setOnCall] = useState<{ on: boolean; until: string | null }>({ on: false, until: null });
   const activeToday = jobs.some((j) => j.scheduled_date === localDate() && ["assigned", "in_progress"].includes(j.status));
   useLocationSharing(onCall.on || activeToday);
@@ -34,6 +36,7 @@ export default function ProHome() {
   }
   const load = useCallback(async () => {
     setLoading(true);
+    api<{ status: string; tier: string }>("/api/pro/fast-track").then((r) => { if (r.ok) setFast(r.data); });
     api<{ onCall: boolean; onCallUntil: string | null }>("/api/pro/schedule?days=7").then((r) => { if (r.ok) setOnCall({ on: r.data.onCall, until: r.data.onCallUntil }); });
     const [o, j] = await Promise.all([
       supabase.from("job_offers").select("id, payout, expires_at, jobs(ref, service_slug, city, zip, scheduled_date, time_window, notes)").eq("status", "offered"),
@@ -55,7 +58,17 @@ export default function ProHome() {
         <Button title={t("Setup & documents")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/onboarding`)} style={{ flex: 1 }} />
         <Button title={`⚡ ${t("Earnings")}`} kind="ghost" onPress={() => router.push("/pro/earnings")} style={{ flex: 1 }} />
       </View>
-      <Button title={t("My contracts")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/contracts`)} style={{ marginTop: 8 }} />
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+        <Button title={`👷 ${t("My crew")}`} kind="ghost" onPress={() => router.push("/pro/crew")} style={{ flex: 1 }} />
+        <Button title={t("My contracts")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/contracts`)} style={{ flex: 1 }} />
+      </View>
+      {fast && fast.tier === "pro" && fast.status !== "approved" && (
+        <Pressable onPress={() => router.push("/pro/fast-track")}>
+          <Card style={{ marginTop: 10, borderColor: C.brand, backgroundColor: C.tint }}>
+            <Text style={[s.b, { color: C.deep }]}>{fast.status === "applied" ? t("Fast track: we’re reviewing your portfolio") : fast.status === "trial" ? t("Fast track: your next finished job is your trial") : fast.status === "declined" ? t("Fast track: see our answer") : `★ ${t("Already a master at your trade? Start at Pro+ with the fast track →")}`}</Text>
+          </Card>
+        </Pressable>
+      )}
       <Card style={{ marginTop: 12, borderColor: onCall.on ? C.brand : undefined }}>
         <Text style={s.b}>{onCall.on ? `🟢 ${t("You're on call")}` : `⚪ ${t("Off call")}`}</Text>
         <Text style={s.p}>{onCall.on ? `${t("Same-day jobs near you come to you first")}${onCall.until ? ` ${t("until")} ${new Date(onCall.until).toLocaleTimeString(locale === "es" ? "es-US" : "en-US", { hour: "numeric", minute: "2-digit" })}` : ""}.` : t("Go on call to get same-day jobs, even on a day you don't usually work.")}</Text>
