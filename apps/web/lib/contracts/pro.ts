@@ -271,3 +271,218 @@ export const PRO_AGREEMENT: Contract = {
     },
   ],
 };
+
+// ─── 2. Code of Conduct ─────────────────────────────────────────────────────────
+
+export const PRO_CODE_OF_CONDUCT: Contract = {
+  key: "pro-code-of-conduct",
+  title: `${N} Pro Code of Conduct`,
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Every pro and every listed helper on every ${N} job; part of the Independent Contractor Agreement.`,
+  summary: [
+    "Be respectful, honest and safe. Zero tolerance for harassment, discrimination, violence, theft and working impaired.",
+    "Arrive in the booked window and keep the customer posted in the app — these are customer-service results, not rules about how you work.",
+    "Photos only of the work areas. Never people, documents or personal items, and never posted without written consent.",
+    "No smoking or vaping in or near customers' homes. Be careful with pets and gates.",
+    "Never be alone with a child unless the service allows it — no current service does.",
+    "Dress clean and appropriate — no uniform required. Park legally and courteously.",
+    "Report problems, incidents and anything that made you feel unsafe. Reporting in good faith never counts against you.",
+  ],
+  sections: [
+    {
+      h: "1. Why we have a code",
+      p: `Customers let you into their homes, businesses, cars and lives. This code sets the basic standards every customer can count on. It describes results and behavior, not how to do your trade — your methods, tools and order of work are yours to decide. Breaking it can lead to the steps in the Deactivation Policy.`,
+    },
+    {
+      h: "2. Respect for everyone",
+      p: "Treat customers, their families, guests, employees, neighbors, other pros and our team with courtesy and respect. Disagreements happen — handle them calmly and bring us in through the app. Never argue about a refund, rating or review with a customer; tell us and we'll handle it.",
+    },
+    {
+      h: "3. Zero tolerance",
+      p: `Any of these leads to immediate suspension and review under the Deactivation Policy:\n• harassment of any kind, including sexual comments, advances or unwanted contact, and contacting a customer for personal reasons;\n• discrimination or refusing service because of race, color, religion, national origin, sex, sexual orientation, gender identity, age, disability, marital or familial status, height, weight or any other protected trait (refusing a job for genuine safety reasons is not discrimination);\n• violence, threats or carrying a weapon into a customer's home where prohibited by law or by the customer;\n• theft, damage on purpose, or taking anything — even "trash" — without the customer's OK;\n• working under the influence of alcohol, cannabis or drugs (including impairing prescription drugs);\n• fraud: fake photos, false receipts, false completion, using someone else's account, or asking a customer to pay you directly.`,
+    },
+    {
+      h: "4. Arrival and communication",
+      p: "Customers book an arrival window, and you chose to accept it. Arrive within it. If you're going to be late, message the customer in the app before the window starts and give a realistic time. Tap \"On my way\" when you leave so the customer gets an arrival estimate. Let the customer know when you're done. Answer customer and support messages about the job within a reasonable time while the job is active. How you plan your day, route and work is up to you.",
+    },
+    {
+      h: "5. Photos and privacy",
+      p: "• Take before-and-after photos of the work areas only.\n• Never photograph or record people, children, personal documents, mail, screens, medications, valuables or anything unrelated to the job.\n• Never record audio or video of customers.\n• Don't post anything about a customer's home, business, vehicle or pets online without the customer's written consent through us.\n• Keep what you see and hear private.",
+    },
+    {
+      h: "6. In the customer's home or business",
+      p: "• No smoking, vaping or using tobacco or cannabis in or near the customer's home, business, vehicle or yard.\n• Ask before using the bathroom, outlets, water or appliances that aren't part of the job, and leave them as you found them.\n• Protect floors and furniture, and clean up your work area.\n• Don't bring guests, children or pets to a job.\n• Keep music and phone calls to a level that doesn't disturb the customer or neighbors.",
+    },
+    {
+      h: "7. Pets",
+      p: "Ask about pets before you enter and keep doors and gates closed behind you. Never let a pet out. Don't feed or give treats to a customer's pet unless the job is pet care. If a pet seems aggressive, don't enter — tell the customer and us; the job will be rescheduled and it doesn't count against you.",
+    },
+    {
+      h: "8. Children and vulnerable people",
+      p: `Never be alone with a child under 18 unless the service explicitly allows it — no ${N} service currently does. If you arrive and the only person home is a minor, don't start: message us and wait for an adult. Be patient and respectful with older or disabled customers, and never accept gifts, loans or money (other than tips through the app or offered freely) from them.`,
+    },
+    {
+      h: "9. Dress and identification",
+      p: `There's no uniform and no ${N} clothing requirement. Wear clean clothing that's appropriate and safe for the work, without offensive images or language. You may wear your own business's branding. An optional ${N} ID badge is available if you'd like customers to recognize you.`,
+    },
+    {
+      h: "10. Vehicles and parking",
+      p: "Park legally, don't block driveways, sidewalks, hydrants or neighbors, and don't park on lawns unless the customer asks. Don't leave oil or debris behind. Drive safely and lawfully in residential areas.",
+    },
+    {
+      h: "11. Reporting",
+      p: `Report through the app (or by calling ${BRAND.supportPhone} for anything urgent): any injury or damage; anything that made you feel unsafe or uncomfortable; a customer's harassment or discrimination toward you; a helper or pro breaking this code; or anything that looks like abuse, neglect or a crime (call 911 first in an emergency). You can report harassment by a customer and refuse to return to that customer. Reports made in good faith never count against you, and we don't tolerate retaliation.`,
+    },
+  ],
+};
+
+// ─── 3. Deactivation Policy ─────────────────────────────────────────────────────
+
+export const PRO_DEACTIVATION_POLICY: Contract = {
+  key: "pro-deactivation-policy",
+  title: `${N} Pro Deactivation Policy`,
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Every pro; explains the only reasons ${N} pauses or stops offers, and how to appeal. Part of the Independent Contractor Agreement.`,
+  summary: [
+    "Offers stop only for the objective reasons listed here — never for declining offers or for working with other companies.",
+    "Immediate suspension is only for safety threats, violence, theft, fraud, impairment or discrimination.",
+    "Expired insurance, licenses or required documents only pause offers until you renew — that's not a deactivation.",
+    `Performance issues (low ratings, late cancels, no-shows, repeated QA failures, off-platform solicitation) get a written warning and ${D.improveDays} days to improve first.`,
+    `You always get written notice with the reason, and can appeal to a human within ${D.appealDays} days. We decide within ${D.decisionDays} days.`,
+    "Money you've earned is always paid.",
+  ],
+  sections: [
+    {
+      h: "1. What this policy covers",
+      p: `"Deactivation" means we stop sending you offers and end the agreement. "Suspension" means offers are paused while we review something. "Pause" means offers stop automatically until a document is renewed. We use these only for the reasons below. Declining or ignoring offers, setting a small schedule, a short driving distance or a low daily limit, working with other platforms, competitors or your own customers, and making a good-faith complaint or safety report are never reasons for deactivation.`,
+    },
+    {
+      h: "2. Automatic pause: expired documents",
+      p: "Offers pause automatically, the day it happens, if any of these is expired or missing: general liability insurance, a coverage your trade requires (auto, bond, passenger carrier, liquor, workers' comp), a required license or certification (for example HIPAA training for medical deliveries), or your background check. This is not a deactivation and needs no appeal. We remind you 30 days before expiry. Upload the renewal and offers restart as soon as it's verified. Jobs you already accepted that you can no longer legally do will be reassigned; you're paid for any work already completed.",
+    },
+    {
+      h: "3. Immediate suspension, then review",
+      p: `We suspend offers right away, before an appeal, when we receive a credible report of:\n• a threat to anyone's safety, or violence;\n• theft or deliberate damage;\n• fraud (fake photos, receipts or completion; account sharing; taking payment directly);\n• working impaired by alcohol or drugs;\n• harassment, including sexual harassment, or discrimination;\n• for medical deliveries, a serious privacy (HIPAA) breach; for transportation, a serious safety violation.\n\nWe tell you in writing within one business day what was reported (without identifying a reporter where that would put them at risk), and you can give your side. A person on our team reviews the evidence — the job record, photos, messages and statements — and decides within ${D.decisionDays} days whether to reinstate you or deactivate you. If you're cleared, offers restart right away and the suspension doesn't count against you.`,
+    },
+    {
+      h: "4. After a written warning",
+      p: `These lead to a written warning first, with the facts and what needs to change. If the issue continues ${D.improveDays} days after the warning, a person on our team reviews it and may deactivate:\n• an average customer rating below ${D.minRating}★ over your last ${D.ratedJobs} rated jobs;\n• ${D.lateCancels} or more late cancels (inside ${D.lateCancelHours} hours of the window), or ${D.noShows} or more no-shows, in ${D.windowDays} days;\n• ${D.qaFailures} or more jobs in ${D.windowDays} days that failed photo review and weren't fixed;\n• soliciting customers off the platform (Agreement section 28);\n• repeated breaks of the Code of Conduct that aren't zero-tolerance items.\n\nLate cancels and no-shows caused by an emergency, illness, unsafe conditions, severe weather or the customer don't count when you tell us. Ratings you can show were retaliatory or discriminatory are removed. We publish these thresholds in your portal and give 30 days' notice before changing them.${COUNSEL}`,
+    },
+    {
+      h: "5. Notice",
+      p: "Every suspension and deactivation comes with written notice (in the portal and by email) that states the reason, the facts we relied on, and how to appeal. We never deactivate without telling you why.",
+    },
+    {
+      h: "6. Appeal to a human",
+      p: `You can appeal within ${D.appealDays} days of the notice, in the portal or by email to ${BRAND.supportEmail}. Send anything you want considered: photos, messages, receipts, witness names, your explanation. A person who wasn't involved in the original decision reviews it — never only an automated system — and decides within ${D.decisionDays} days of receiving your appeal, in writing, with reasons. If they overturn the decision, offers restart right away and the record is cleared. The appeal doesn't affect your right to use the dispute process in the Agreement.`,
+    },
+    {
+      h: "7. Coming back",
+      p: `• Expired documents: upload the renewal; offers restart once it's verified.\n• Performance deactivation: you may reapply after 6 months. Tell us what changed; you'll restart with probation jobs.\n• Background check: if a report was wrong and it's corrected, we reinstate you.\n• Zero-tolerance deactivations are permanent, unless the reason turns out to be false.`,
+    },
+    {
+      h: "8. Your money is always paid",
+      p: "Deactivation or suspension never cancels money you've earned: completed-job payouts, show-up pay, materials reimbursements, tips, stipends and bonuses are paid on the normal schedule. The only deductions are workmanship refunds and chargebacks handled under the Agreement, with notice and a chance to respond. A payout tied to a credible fraud report may be held only for that job while it's reviewed.",
+    },
+  ],
+};
+
+// ─── 4. Background Check Notice ────────────────────────────────────────────────
+
+export const PRO_BACKGROUND_CHECK_NOTICE: Contract = {
+  key: "pro-background-check",
+  title: `${N} Background Check Notice`,
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Every pro and listed helper before activation and at each re-check. Explains the process; the legally required standalone disclosure and authorization come separately from our screening provider.`,
+  summary: [
+    "This notice explains our background checks in plain English. It is NOT the legal disclosure and authorization — that is a separate standalone form our screening provider (Checkr) gives you before any check.",
+    "We check criminal records and sex-offender registries, and for driving trades your motor-vehicle record. We re-check every year.",
+    "You can get a free copy of your report and dispute anything that's wrong.",
+    "Before any decision based on a report, you get a copy, a summary of your rights and at least 5 business days to respond.",
+    "We look at each record individually — what it was, how long ago, and whether it relates to the work.",
+  ],
+  sections: [
+    {
+      h: "1. This is not the FCRA disclosure",
+      p: "Under the federal Fair Credit Reporting Act (FCRA), we must give you a clear standalone disclosure and get your written authorization before ordering a background report. Our screening provider, Checkr, gives you that standalone form (by email, before the check). This notice is extra information to help you understand the process. It does not replace that form, and signing this notice is not your authorization.",
+    },
+    {
+      h: "2. What we check",
+      p: `With your authorization, the report may include:\n• criminal records (national database, county and federal searches where you've lived);\n• national and state sex-offender registries;\n• identity and Social Security number trace;\n• for trades that drive for jobs (for example transportation, errands, medical deliveries, hauling) — your motor-vehicle record and license status.\nWe don't check credit. Each listed helper who enters customers' homes goes through the same check.`,
+    },
+    {
+      h: "3. Re-checks",
+      p: "We run a new check every year, when you add a driving trade, and if we receive credible information that a record may have changed. Each re-check uses the same standalone disclosure and authorization process (your original authorization may cover re-checks where the law allows; the form will say so).",
+    },
+    {
+      h: "4. How we decide",
+      p: `A record doesn't automatically disqualify you. We look at each one individually: the nature and seriousness of the offense, how long ago it happened, whether it relates to the work and the customers you'd serve (for example, entering homes, driving passengers, handling medications), and any evidence of rehabilitation you give us. We don't consider arrests that didn't lead to a conviction where Michigan law prohibits it, expunged or set-aside records, or juvenile records.${COUNSEL}`,
+    },
+    {
+      h: "5. Before any decision: pre-adverse action notice",
+      p: "If something in the report might lead us to not activate you or to stop offers, we first send you a pre-adverse action notice with a copy of the report, the CFPB's \"Summary of Your Rights Under the FCRA\", and the record we're concerned about. You then have at least 5 business days to tell us if the report is wrong, to dispute it with Checkr, or to share context (such as rehabilitation, or that the record isn't yours). We'll wait for a dispute you've started to be resolved before deciding.",
+    },
+    {
+      h: "6. If we decide not to proceed: adverse action notice",
+      p: "If we decide not to activate you or to stop offers based in whole or part on the report, we send an adverse action notice stating: the name, address and phone number of the screening company; that the screening company didn't make the decision and can't explain why it was made; your right to a free copy of your report if you ask within 60 days; and your right to dispute the accuracy or completeness of anything in it with the screening company.",
+    },
+    {
+      h: "7. Getting a copy and disputing",
+      p: "You can ask Checkr for a copy of your report at any time (free after an adverse action notice), and dispute anything inaccurate or incomplete directly with Checkr, which must reinvestigate, usually within 30 days. If a corrected report clears you, we'll reconsider promptly.",
+    },
+    {
+      h: "8. Michigan and fair-chance rules",
+      p: `Michigan has no statewide \"ban-the-box\" law for private businesses, but some cities (including Detroit, for city contractors) have fair-chance rules, and other states and cities where we may expand have their own — some limit when and how records can be considered or require an individualized assessment. We follow the stricter rule wherever you work, and our application doesn't ask about criminal history before a conditional offer to activate.${COUNSEL}`,
+    },
+    {
+      h: "9. Privacy",
+      p: "Background reports are seen only by the people on our team who make activation decisions, are stored securely, are used only for eligibility, and are kept only as long as the law requires.",
+    },
+  ],
+};
+
+// ─── 5. Location & Communications Consent ──────────────────────────────────────
+
+export const PRO_LOCATION_CONSENT: Contract = {
+  key: "pro-location-and-communications",
+  title: `${N} Location & Communications Consent`,
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Every pro using the ${N} app or pro portal; explains when we use your location and how we contact you, and records your consent.`,
+  summary: [
+    "We use your phone's location only while you're On call or have a job today — never on days off or when you're off call with no job.",
+    `Customers see only an approximate position, only while you're on the way to or at their job. Stored locations are erased after 12 hours.`,
+    "We text, push and email you about offers and jobs. Reply STOP to stop texts at any time; offers still show in the app.",
+    "Marketing messages are separate and optional.",
+    "We don't record calls today. If we ever start, we'll tell you first.",
+  ],
+  sections: [
+    {
+      h: "1. When we use your location",
+      p: `With your permission in your phone's settings, the app shares your location only:\n• while you've switched "On call" on (you choose how long, up to ${ON_CALL_MAX_HOURS} hours, and can turn it off any time); or\n• on a day you have a ${N} job, so we can show the customer an arrival estimate.\nWe don't collect your location on days off, or when you're off call with no job that day. If you turn location off in your phone, the app still works; you just won't get same-day "near you" offers or live arrival estimates.`,
+    },
+    {
+      h: "2. What we use it for",
+      p: `• Offering same-day jobs near where you are (for pros who are On call).\n• Telling your customer, while you're on the way to or at their job, roughly how far away you are and when you'll arrive. Customers see an approximate position (rounded to about 100 meters) and only for their own job, that day.\n• Our support team seeing who is on call or on a job, to help with emergencies, lockouts and reassignments.\nWe never sell your location, use it to monitor how you work, or share it with anyone else except as the law requires or in an emergency involving your safety.`,
+    },
+    {
+      h: "3. How long we keep it",
+      p: `A location older than ${LOCATION_FRESH_MIN} minutes isn't used or shown as live. Every stored location is erased after 12 hours, and it's erased right away when you go off call with no job that day. Job records keep only arrival and completion times, not your route.`,
+    },
+    {
+      h: "4. Texts, push notifications and email",
+      p: `By giving us your mobile number and turning on notifications, you agree that ${N} may send you automated text messages, push notifications and emails about: job offers; job updates, reminders and customer messages; payouts and statements; documents expiring; account and security notices; and this agreement. Message frequency varies with your offers and jobs. Message and data rates may apply. Consent isn't a condition of working with us — you can see offers in the app instead.\n\nReply STOP to any text to stop texts, and HELP for help. You can turn push notifications off in your phone and change email settings in the portal. Account and legal notices still come by email.\n\nMarketing (tips, promotions, recruiting events) is separate: we send it only if you opt in, and you can opt out any time without affecting your offers.`,
+    },
+    {
+      h: "5. Calls and in-app messages",
+      p: "We don't record phone calls today. If we start, we'll tell you first and announce it at the start of each recorded call. In-app messages between you, customers and our team are kept with the job record and may be reviewed for safety, quality, support and disputes. You don't have to share your personal phone number with customers.",
+    },
+    {
+      h: "6. Changing your mind",
+      p: "You can withdraw your location consent in your phone's settings, stop texts with STOP, and turn off push or marketing at any time. Withdrawing consent never counts against you; it only turns off the features that need it.",
+    },
+  ],
+};
