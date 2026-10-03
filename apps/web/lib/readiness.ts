@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_2252 UTC — Google review link check; migration 19 (waitlist & Google reviews).
  * UPDATED : 2026-10-03_0027 UTC — migration 20 (seasonal reminders & quote follow-ups).
  * UPDATED : 2026-10-03_0124 UTC — migrations 21–23 (contract records, contract language, pro fairness).
+ * UPDATED : 2026-10-03_0210 UTC — lead engine keys; migrations 24–25 (market pricing, pro lead engine).
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
@@ -31,6 +32,8 @@ export async function readiness(): Promise<Check[]> {
   add("Website & Vercel", "Site URL", site.startsWith("https://") ? true : "warn", site || "not set", "Vercel → Settings → Environment Variables → NEXT_PUBLIC_SITE_URL = https://your-domain (used in every email link)");
   add("Website & Vercel", "Support email & phone", !BRAND_PLACEHOLDERS, BRAND_PLACEHOLDERS ? "still the placeholder support@handled.example / (555)" : "set", "Set NEXT_PUBLIC_SUPPORT_EMAIL and NEXT_PUBLIC_SUPPORT_PHONE in Vercel (and EXPO_PUBLIC_… for the app)");
   add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Google Business Profile → Ask for reviews → copy the link → set NEXT_PUBLIC_GOOGLE_REVIEW_URL in Vercel and EXPO_PUBLIC_GOOGLE_REVIEW_URL for the app");
+  add("Pro recruiting", "Lead engine: finding pros", has("GOOGLE_PLACES_API_KEY") ? true : "warn", has("GOOGLE_PLACES_API_KEY") ? "Google Places key set" : "not set — CSV import only", "Google Cloud → enable Places API (New) → create an API key (restrict it to Places API) → GOOGLE_PLACES_API_KEY in Vercel. Then turn the engine on in Hub → Pro leads");
+  add("Pro recruiting", "Lead engine: invitations", has("OUTREACH_RESEND_API_KEY") && has("OUTREACH_FROM") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", has("OUTREACH_RESEND_API_KEY") ? (has("BUSINESS_POSTAL_ADDRESS") ? "set" : "BUSINESS_POSTAL_ADDRESS missing") : "not set — no invitation emails", "Use a SEPARATE domain for cold outreach (e.g. join-handled.com) in its own Resend account, set OUTREACH_RESEND_API_KEY, OUTREACH_FROM (e.g. Handled Pros <pros@join-handled.com>), optional OUTREACH_REPLY_TO, and BUSINESS_POSTAL_ADDRESS (a real mailing address — required by CAN-SPAM)");
   add("Website & Vercel", "Cron secret", has("CRON_SECRET"), has("CRON_SECRET") ? "set" : "missing — daily brief & sweep will 401", "Add CRON_SECRET (any long random string) in Vercel");
   add("Website & Vercel", "Invoice link signing", has("INVOICE_SIGNING_SECRET") ? true : "warn", has("INVOICE_SIGNING_SECRET") ? "set" : "falling back to the service role key", "Add INVOICE_SIGNING_SECRET (long random string)");
   add("Supabase", "Project URL & public key", supabaseConfigured, supabaseConfigured ? "set" : "missing", "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from Supabase → Project Settings → API");
@@ -93,6 +96,8 @@ export async function readiness(): Promise<Check[]> {
     ["21 contract records (My contracts)", () => db.from("contract_acceptances").select("id").limit(1)],
     ["22 contract language", () => db.from("contract_acceptances").select("locale").limit(1)],
     ["23 pro fairness (deductions, standing)", () => db.from("pro_deductions").select("id").limit(1)],
+    ["24 market pricing", () => db.from("market_factors").select("service_slug").limit(1)],
+    ["25 pro lead engine", () => db.from("pro_leads").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_2250 UTC — Supply gaps in the nav.
  * UPDATED : 2026-10-03_0043 UTC — Contract library in the nav.
  * UPDATED : 2026-10-03_0152 UTC — Market pricing in the nav.
+ * UPDATED : 2026-10-03_0210 UTC — Pro leads in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -25,6 +26,7 @@ const NAV = [
   ["/hub/roster", "📍", "Live roster"],
   ["/hub/pros", "🧰", "Hiring & pros"],
   ["/hub/recruiting", "🧲", "Recruiting"],
+  ["/hub/leads", "🎯", "Pro leads"],
   ["/hub/gaps", "🕳️", "Supply gaps"],
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/finance", "💵", "Finance"],

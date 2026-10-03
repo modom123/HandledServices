@@ -7,10 +7,12 @@
  *           AI-screens and auto-invites strong applicants (lib/recruiting.ts).
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
+ * UPDATED : 2026-10-03_0209 UTC — credits the pro lead it came from (link token, email or phone).
  * PURPOSE : Subcontractor application → stored, confirmed, screened, invited or queued for staff.
  */
 import { after } from "next/server";
 import { z } from "zod";
+import { markLeadConverted } from "@/lib/leads";
 import { BRAND, COVERAGE_KINDS } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { sendEmail, siteUrl } from "@/lib/notify";
@@ -26,6 +28,7 @@ const Body = z.object({
   specialties: z.array(z.string().max(40)).max(40).default([]), coverages_held: z.array(z.enum(COVERAGE_KINDS)).default([]),
   equipment: z.string().max(500).optional(), references_text: z.string().max(1000).optional(), work_links: z.string().max(1000).optional(),
   source: z.string().max(60).optional(), ref: z.string().max(60).optional(), utm: z.record(z.string(), z.string().max(120)).optional(),
+  lead: z.string().max(40).optional(),
 });
 
 export async function POST(req: Request) {
@@ -57,7 +60,8 @@ export async function POST(req: Request) {
   }
   // same email applied before and not decided → update that application instead of a duplicate
   const { data: prior } = await db.from("contractor_applications").select("id, stage").ilike("email", email).in("stage", ["applied", "screened"]).maybeSingle();
-  const row = { ...b, email, referred_by, locale, source: b.source ?? (referred_by ? "referral" : null), last_contact_at: new Date().toISOString() };
+  const { lead: leadToken, ...fields } = b;
+  const row = { ...fields, email, referred_by, locale, source: b.source ?? (leadToken ? "lead_email" : referred_by ? "referral" : null), last_contact_at: new Date().toISOString() };
   const { data, error } = prior
     ? await db.from("contractor_applications").update(row).eq("id", prior.id).select("id").single()
     : await db.from("contractor_applications").insert(row).select("id").single();
@@ -69,6 +73,7 @@ export async function POST(req: Request) {
     `Hola ${b.contact_name.split(" ")[0]}:\n\nGracias por su solicitud en ${BRAND.name}. Esto es lo que sigue:\n\n1. Revisamos su solicitud, normalmente el mismo día y siempre en menos de 2 días hábiles.\n2. Si es una buena opción, recibirá una invitación con un enlace de un clic a su lista de configuración (W-9, contrato, seguro, licencia si su oficio la requiere, verificación de antecedentes y pago). Unos 15 minutos desde su teléfono.\n3. Una vez verificado todo, empiezan las ofertas de trabajo.\n\nPara ir más rápido, tenga a la mano: su certificado de seguro${licensed ? ", su licencia del oficio" : ""} y sus datos bancarios para los pagos.\n\nLo que ofrecemos a los profesionales: ${siteUrl()}/pros\n\n— ${BRAND.name}`);
   else await sendEmail(email, `We got your ${BRAND.name} application`,
     `Hi ${b.contact_name.split(" ")[0]},\n\nThanks for applying to ${BRAND.name}. Here's what happens next:\n\n1. We review your application — usually the same day, always within 2 business days.\n2. If it's a fit, you get an invite with a one-click link to your setup checklist (W-9, agreement, insurance, license if your trade needs one, background check, payout). About 15 minutes on your phone.\n3. Once it's verified, job offers start.\n\nHave these handy to go faster: your certificate of insurance${b.trades.some((t) => ["plumbing", "electrical", "hvac", "remodel", "painting", "catering", "food_truck"].includes(t)) ? ", your trade license" : ""} and your bank details for payouts.\n\nWhat we offer pros: ${siteUrl()}/pros\n\n— ${BRAND.name}`);
+  after(() => markLeadConverted(data.id, { token: leadToken, email, phone: b.phone }).catch((e) => console.error("[lead]", e)));
   after(() => onApplication(data.id).catch((e) => console.error("[recruiting]", e)));
   return Response.json({ ok: true });
 }

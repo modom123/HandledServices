@@ -7,6 +7,7 @@
  *           and how often.
  * UPDATED : 2026-10-02_0302 UTC — business form: monthly budget and when to start.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)
+ * UPDATED : 2026-10-03_0209 UTC — carries ?lead= from the pro lead invitation.
  * PURPOSE : Pro application form and commercial account form.
  */
 "use client";
@@ -71,7 +72,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
       submit({
         ...f, trades, insured, specialties: specialties.filter((s) => specialtyOptions.some((o) => o.id === s)), coverages_held: coverages,
         years_experience: f.years_experience || undefined, crew_size: f.crew_size || undefined,
-        source: f.source || q.get("src") || undefined, ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined,
+        source: f.source || q.get("src") || undefined, ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined, lead: q.get("lead") || undefined,
       });
     }}>
       <p className="text-sm text-ink-soft">{t("Takes 2 minutes. Only the first part is required.")}</p>

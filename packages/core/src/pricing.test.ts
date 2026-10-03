@@ -793,3 +793,23 @@ test("market pricing: booking fee, sliding commission, counters, learning, offer
   assert.equal(offerCheck(70, 100).ok, false);
   assert.equal(offerCheck(400, 100).ok, false);
 });
+
+test("pro lead engine: searches, scoring, emails found, sequence, copy", async () => {
+  const { TRADE_SEARCH, TRADE_WORD, leadScore, extractEmails, nextSendAt, leadEmail, LEAD_SEQUENCE } = await import("./lead-engine.ts");
+  const { TRADES } = await import("./services.ts");
+  for (const t of TRADES) { assert.ok(TRADE_SEARCH[t.id], `search phrase for ${t.id}`); assert.ok(TRADE_WORD[t.id], `word for ${t.id}`); }
+  assert.ok(leadScore({ rating: 4.8, reviewCount: 40, email: "a@b.co", inGap: true }) > leadScore({ rating: 4.0, reviewCount: 900, phone: "1" }));
+  assert.ok(leadScore({ rating: 5, reviewCount: 50, email: "x@y.z", website: "w", inGap: true, licensed: true }) <= 100);
+  const html = `<a href="mailto:Info@SparkleClean.com">Email</a> jane&#64;sparkleclean.com noreply@wix.com logo@2x.png owner@gmail.com`;
+  assert.deepEqual(extractEmails(html, "www.sparkleclean.com"), ["info@sparkleclean.com", "jane@sparkleclean.com", "owner@gmail.com"]);
+  const t0 = new Date("2026-10-01T15:00:00Z");
+  assert.equal(nextSendAt(0, t0)!.toISOString(), t0.toISOString());
+  assert.equal(nextSendAt(1, t0)!.getTime() - t0.getTime(), 3 * 86400000);
+  assert.equal(nextSendAt(LEAD_SEQUENCE.length, t0), null);
+  const e = leadEmail({ step: 0, businessName: "Sparkle Clean", trade: "cleaning", city: "Dearborn", payExample: "$156 for a standard 3-bedroom clean", demand: 7, applyUrl: "https://x/pros?lead=abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI" });
+  assert.match(e.subject, /house cleaning jobs in Dearborn/);
+  assert.match(e.text, /7 house cleaning requests in Dearborn/);
+  assert.match(e.text, /1 Main St, Detroit, MI/);
+  assert.match(e.text, /won't email again: https:\/\/x\/u/);
+  assert.doesNotMatch(leadEmail({ step: 1, businessName: "B", trade: "plumbing", applyUrl: "u", unsubscribeUrl: "u", postalAddress: "a", demand: 0 }).text, /requests/);
+});
