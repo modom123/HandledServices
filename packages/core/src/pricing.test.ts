@@ -515,11 +515,11 @@ test("rides: more passengers than the vehicle seats moves up a size", () => {
 
 // ── Pro promises: real stats, daily limit, referral ──
 
-test("acceptance rate counts answered and lapsed offers, not ones another pro took", async () => {
+test("acceptance rate (shown to the pro only) counts answered offers — not ignored ones or ones another pro took", async () => {
   const { acceptanceRate } = await import("./pro-stats.ts");
   const o = (s: string, n: number) => Array.from({ length: n }, () => ({ status: s }));
   assert.equal(acceptanceRate([...o("accepted", 3), ...o("declined", 1)], 1), 1, "too few offers keeps the current rate");
-  assert.equal(acceptanceRate([...o("accepted", 6), ...o("declined", 2), ...o("expired", 2), ...o("taken", 10)], 1), 0.6);
+  assert.equal(acceptanceRate([...o("accepted", 6), ...o("declined", 2), ...o("expired", 2), ...o("taken", 10)], 1), 0.75);
 });
 
 test("on time = started before the booked window ends, in local time", async () => {
@@ -742,4 +742,27 @@ test("seasonal reminders: right month, long enough since, not already covered", 
   assert.equal(followupDue("2026-10-01T00:00:00Z", 1, [1, 3, 7], new Date("2026-10-03T01:00:00Z")), null);
   assert.equal(followupDue("2026-10-01T00:00:00Z", 1, [1, 3, 7], new Date("2026-10-04T01:00:00Z")), 1);
   assert.equal(followupDue("2026-10-01T00:00:00Z", 3, [1, 3, 7], new Date("2026-12-01T00:00:00Z")), null);
+});
+
+test("pro fairness: deduction notice, clawback cap, chargebacks, warnings, offers", async () => {
+  const { addBusinessDays, clawbackPlan, chargebackFromWork, standingIssues, DEACTIVATION_RULES } = await import("./pro-fairness.ts");
+  const { proTier, PRO_TIERS } = await import("./pro-program.ts");
+  const { acceptanceRate } = await import("./pro-stats.ts");
+  // Friday + 3 business days = Wednesday
+  assert.equal(addBusinessDays(new Date("2026-10-02T15:00:00Z"), 3).toISOString().slice(0, 10), "2026-10-07");
+  // half of non-tip pay, never from tips; the rest carries over
+  const plan = clawbackPlan([{ amount: 200, kind: "job" }, { amount: 50, kind: "tip" }], [{ id: "a", amount: -60 }, { id: "b", amount: -80 }]);
+  assert.equal(plan.cap, 100);
+  assert.deepEqual(plan.apply, [{ id: "a", amount: 60 }, { id: "b", amount: 40 }]);
+  assert.deepEqual(plan.carry, [{ id: "b", amount: 40 }]);
+  assert.deepEqual(clawbackPlan([{ amount: 80, kind: "tip" }], [{ id: "a", amount: -10 }]).apply, [], "tips alone never pay a deduction");
+  assert.equal(chargebackFromWork("fraudulent"), false);
+  assert.equal(chargebackFromWork("product_unacceptable"), true);
+  // warnings need enough history and real thresholds
+  assert.deepEqual(standingIssues({ ratings: [3, 3, 3], lateCancels: 0, noShows: 0, qaFailures: 0 }), []);
+  assert.equal(standingIssues({ ratings: Array(DEACTIVATION_RULES.ratedJobs).fill(4), lateCancels: 3, noShows: 2, qaFailures: 0 }).length, 3);
+  // declining offers never changes tier; ignored offers don't count at all
+  const strong = { jobs_completed: 200, rating: 4.95, on_time_rate: 0.99, acceptance_rate: 0.05 };
+  assert.equal(proTier(strong).id, PRO_TIERS[PRO_TIERS.length - 1].id);
+  assert.equal(acceptanceRate([...Array(10)].map(() => ({ status: "expired" })), 0.7), 0.7);
 });

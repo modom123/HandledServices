@@ -3,12 +3,15 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-03_0042 UTC — link to the pro's signed contracts.
+ * UPDATED : 2026-10-03_0124 UTC — standing panel: events, warn / suspend / deactivate / reinstate / appeal.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  */
 import Link from "next/link";
+import { adminClient } from "@/lib/supabase/server";
+import { StandingActions } from "@/components/Standing";
 import { notFound } from "next/navigation";
-import { COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardingChecklist, proTier, specialtiesFor, type Contractor, type CoverageKey } from "@handled/core";
+import { COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardingChecklist, proTier, specialtiesFor, type Contractor, type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { DocDecision, ProStatusControls } from "@/components/HubActions";
@@ -57,6 +60,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         </div>
         <Badge tone={pro.status === "approved" ? "green" : pro.status === "suspended" ? "red" : "amber"}>{pro.status}</Badge>
       </div>
+      <StandingPanel pro={pro as unknown as StandingPro} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Our take from their work" value={money(Number(sc.take_generated ?? 0))} hint={`${money(Number(sc.take_90d ?? 0))} last 90 days · ~${money(Number(sc.take_90d ?? 0) * 4)}/yr pace`} />
@@ -113,4 +117,21 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       </div>
     </div>
   );
+}
+
+type StandingPro = { id: string; standing?: string; standing_reason?: string | null; improve_by?: string | null; appeal_by?: string | null; appeal_decide_by?: string | null };
+
+async function StandingPanel({ pro }: { pro: StandingPro }) {
+        const { data: ev } = await adminClient().from("pro_standing_events").select("kind, note, actor, created_at, jobs(ref)").eq("contractor_id", pro.id).order("created_at", { ascending: false }).limit(15);
+        const st = pro as unknown as { standing?: string; standing_reason?: string | null; improve_by?: string | null; appeal_by?: string | null; appeal_decide_by?: string | null };
+        return (
+          <div className="card">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">Standing: {st.standing ?? "good"}</div>
+              <div className="text-xs text-ink-soft">{st.improve_by ? `improve by ${st.improve_by} · ` : ""}{st.appeal_by ? `appeal by ${st.appeal_by} · ` : ""}{st.appeal_decide_by ? <b className="text-rose-700">appeal — decide by {st.appeal_decide_by}</b> : ""}</div></div>
+            {st.standing_reason && <p className="mt-1 text-sm text-ink-soft">{st.standing_reason}</p>}
+            <ul className="mt-2 divide-y divide-line text-xs">{((ev ?? []) as unknown as { kind: string; note: string | null; actor: string | null; created_at: string; jobs: { ref: string } | null }[]).map((e, i) => <li key={i} className="py-1.5"><b>{e.kind.replace("_", " ")}</b> · {e.created_at.slice(0, 10)}{e.jobs?.ref ? ` · ${e.jobs.ref}` : ""}{e.actor ? ` · ${e.actor}` : ""}{e.note ? ` — ${e.note}` : ""}</li>)}{!ev?.length && <li className="py-1.5 text-ink-soft">No late cancels, no-shows, warnings or appeals.</li>}</ul>
+            <p className="mt-3 text-xs text-ink-soft">Policy: written warning first (with reasons, {DEACTIVATION_RULES.improveDays} days to improve) except for safety, fraud, theft, violence or discrimination. Suspend immediately only for a credible safety threat or suspected fraud. Every decision goes to the pro in writing; they can appeal within {DEACTIVATION_RULES.appealDays} days and we decide within {DEACTIVATION_RULES.decisionDays}. Earned pay is always paid.</p>
+            <div className="mt-2"><StandingActions contractorId={pro.id} appealOpen={Boolean(st.appeal_decide_by)} /></div>
+          </div>
+        );
 }

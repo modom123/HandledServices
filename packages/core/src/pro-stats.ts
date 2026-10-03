@@ -2,6 +2,8 @@
  * FILE    : packages/core/src/pro-stats.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0233 UTC
+ * UPDATED : 2026-10-03_0115 UTC — acceptance rate is informational only (not used for tiers, ranking or pay);
+ *           expired offers no longer count.
  * PURPOSE : The numbers behind tiers and dispatch, from what really happened:
  *             acceptanceRate() — offers accepted ÷ offers the pro could answer (last 90 days).
  *                                Offers another pro took first ("taken") don't count against anyone.
@@ -22,7 +24,8 @@ export const OPS_TIME_ZONE = "America/Detroit";
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
 export function acceptanceRate(offers: { status: string }[], current: number): number {
-  const counted = offers.filter((o) => ["accepted", "declined", "expired"].includes(o.status));
+  // shown to the pro for their own information only; ignored (expired) offers never count
+  const counted = offers.filter((o) => ["accepted", "declined"].includes(o.status));
   if (counted.length < MIN_OFFERS_FOR_RATE) return current;
   return r3(counted.filter((o) => o.status === "accepted").length / counted.length);
 }

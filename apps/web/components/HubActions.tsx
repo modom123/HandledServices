@@ -56,7 +56,7 @@ export function JobAdmin({ job, pros }: { job: { id: string; status: string; pri
         <div><label className="label">Assign pro directly</label>
           <select className="input" value={job.contractor_id ?? ""} onChange={(e) => patch({ contractor_id: e.target.value || null })}><option value="">—</option>{pros.map((p) => <option key={p.id} value={p.id}>{p.business_name}</option>)}</select></div>
       </div>
-      <div><label className="label">Instructions for the pro (printed on the work order)</label>
+      <div><label className="label">Customer requirements &amp; access (printed on the work order — what the customer needs, not how to do the work)</label>
         <textarea className="input min-h-20" value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Gate code, parking, what to bring, who to ask for…" />
         <button className="btn-ghost mt-1 px-3 py-1 text-xs" onClick={() => patch({ instructions: instructions || null }, "Instructions saved")}>Save instructions</button></div>
       <div><label className="label">Internal note</label><div className="flex gap-1"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} /><button className="btn-ghost px-3" disabled={!note} onClick={() => { patch({ note }); setNote(""); }}>Add</button></div></div>
@@ -437,7 +437,7 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
   const setPartner = (i: number, f: string, v: string) => set("insurance", "partners", partners.map((x, j) => (j === i ? { ...x, [f]: v } : x)));
   return (
     <div className="space-y-4">
-      {section("payProtection", "1 · Pay protection", "A refund that isn’t the pro’s fault comes out of our take first. Only what our take can’t cover touches the payout, so the job never goes below $0.", null)}
+      <div className="card"><div className="text-lg font-bold">1 · Pay protection — always on</div><p className="text-sm text-ink-soft">A refund that isn’t the pro’s fault comes out of our take first. Only what our take can’t cover touches the payout, so the job never goes below $0. It can’t be switched off: the pro agreement promises it to every pro. When a pro may be at fault, the refund still goes out right away, and the pro’s share is only a <b>proposed deduction</b> — they get written notice and 3 business days to respond, then a person decides in Finance.</p></div>
       {section("showUpPay", "2 · Show-up pay", "Late cancellation (inside 24h) or lockout: the pro gets this much from the $49 fee. It’s automatically reduced if card costs would make the cancelled job lose money.", num("showUpPay", "amount", "Show-up pay ($, max 49)"))}
       {section("instantPay", "3 · Instant pay", "Pros cash out approved payouts any time via Stripe Connect. The fee covers Stripe’s instant-payout cost.", <>
         {num("instantPay", "feePct", "Fee (0.015 = 1.5%)", 0.001)}{num("instantPay", "minFee", "Minimum fee ($)", 0.25)}{num("instantPay", "minAmount", "Minimum cash-out ($)")}
@@ -455,7 +455,7 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
       {section("materials", "5 · Materials at cost", "Pros upload receipts for parts not included in the price. The customer pays at cost first, then the pro is reimbursed, so our take never moves.", <>
         {num("materials", "autoApproveUpTo", "Auto-approve up to ($)")}{num("materials", "maxShareOfPrice", "Max materials / job price (0.5 = 50%)", 0.05, "Above this the pro must call for a change order")}{num("materials", "shoppingMax", "Errand shopping cap per job ($)", 5, "Errands buy goods for the customer, so they get a dollar cap instead")}
       </>)}
-      {section("guarantee", "6 · Guaranteed weekly minimum", "Mondays, qualifying pros who stayed available are topped up to the minimum for last week. Top-ups wait for approval in Finance and stop at the weekly budget. This is a real cost, so it starts switched off.", <>
+      {section("guarantee", "6 · Guaranteed weekly minimum", "Mondays, qualifying pros who stayed available are topped up to the minimum for last week. Top-ups wait for approval in Finance and stop at the weekly budget. This is a real cost, so it starts switched off. ⚠ Its conditions (days available, share of offers accepted) tie pay to availability — a risk for independent-contractor status. Get counsel’s OK before switching it on.", <>
         {num("guarantee", "weeklyMinimum", "Weekly minimum ($)")}{num("guarantee", "weeklyBudget", "Weekly budget cap ($)")}{num("guarantee", "minAcceptance", "Min. acceptance that week (0.9 = 90%)", 0.05)}{num("guarantee", "minDaysAvailable", "Min. days available (of 7)")}
         <div className="sm:col-span-4"><span className="label">Months it applies</span><div className="flex flex-wrap gap-1">{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => {
           const months = p.guarantee.months as number[]; const on = months.includes(i + 1);

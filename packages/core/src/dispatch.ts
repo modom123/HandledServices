@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_0254 UTC — same-day jobs: pros who are On call can take work even on a day
  *           they don't usually work, rank +15, and are measured from where they are now (fresh
  *           phone location) as well as from base.
+ * UPDATED : 2026-10-03_0115 UTC — acceptance rate removed from ranking; on-time weight 18.
  * PURPOSE : Deterministic contractor scoring. Filters to pros who are approved, insured,
  *           qualified for the trade and serve the ZIP, then ranks them. The AI dispatcher
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
@@ -93,6 +94,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (c.status !== "approved") return "not approved";
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
   if (svc?.licensed && !c.license_number) return "license required";
+  if (svc?.licensed && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
   const base = proDistance(c, job);
   const live = liveDistance(c, job, today);
   const miles = base != null && live != null ? Math.min(base, live) : base ?? live;
@@ -145,7 +147,8 @@ export function rankContractors(
       score += (1 - Math.min(1, (q.redoRate ?? 0) * 4)) * 10;
       if ((q.redoRate ?? 0) >= 0.1) reasons.push(`${Math.round((q.redoRate ?? 0) * 100)}% redos`);
       // reliability
-      score += Number(c.on_time_rate) * 10 + Number(c.acceptance_rate) * 8;
+      // accepting or declining offers never affects ranking (pros are free to decline)
+      score += Number(c.on_time_rate) * 18;
       if (c.on_time_rate < 0.85) reasons.push(`${Math.round(c.on_time_rate * 100)}% on time`);
       // proximity
       const live = liveDistance(c, job);

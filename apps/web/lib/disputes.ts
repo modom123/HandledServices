@@ -2,16 +2,19 @@
  * FILE    : apps/web/lib/disputes.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
+ * UPDATED : 2026-10-03_0119 UTC — lost chargebacks follow the pro agreement (§18).
  * PURPOSE : Card chargebacks. When a customer disputes a charge with their bank:
  *             • the dispute is recorded and the job is flagged
  *             • the pro's payout for that job is held if it hasn't gone out yet
  *             • ops get a critical alert listing the evidence we already have (signed service
  *               agreement + IP, before/after photos, AI QA result, messages) and the deadline
- *           Closed as won → held payouts are released; lost → stays held for staff to decide.
+ *           Closed as won → held payouts are released; lost → released unless the reason is about
+ *           the work ("not received"/"unacceptable"), then a proposed deduction (notice, response, a person decides).
  */
 import "server-only";
 import type Stripe from "stripe";
-import { money } from "@handled/core";
+import { chargebackFromWork, money } from "@handled/core";
+import { proposeDeduction } from "./deductions";
 import { adminClient } from "./supabase/server";
 import { addEvent, raiseAlert } from "./jobs";
 import { siteUrl } from "./notify";
@@ -20,11 +23,11 @@ const db = () => adminClient();
 
 async function jobForPaymentIntent(pi: string | null) {
   if (!pi) return null;
-  const { data: j } = await db().from("jobs").select("id, ref, contractor_id, terms_accepted_at, terms_accepted_ip, photos, completion_photos, ai_qa, status").eq("stripe_payment_intent", pi).maybeSingle();
+  const { data: j } = await db().from("jobs").select("id, ref, contractor_id, terms_accepted_at, terms_accepted_ip, photos, completion_photos, ai_qa, status, contractor_payout").eq("stripe_payment_intent", pi).maybeSingle();
   if (j) return j;
   const { data: pay } = await db().from("payments").select("job_id").eq("stripe_session_id", pi).maybeSingle();
   if (!pay?.job_id) return null;
-  return (await db().from("jobs").select("id, ref, contractor_id, terms_accepted_at, terms_accepted_ip, photos, completion_photos, ai_qa, status").eq("id", pay.job_id).maybeSingle()).data;
+  return (await db().from("jobs").select("id, ref, contractor_id, terms_accepted_at, terms_accepted_ip, photos, completion_photos, ai_qa, status, contractor_payout").eq("id", pay.job_id).maybeSingle()).data;
 }
 
 export async function handleDispute(d: Stripe.Dispute, type: string) {
@@ -62,9 +65,17 @@ export async function handleDispute(d: Stripe.Dispute, type: string) {
       await db().from("payouts").update({ status: "approved", reason: null }).eq("job_id", job.id).eq("status", "held").eq("reason", `Chargeback ${d.id}`);
       await addEvent(job.id, "dispute", `Card dispute won — held payout released.`, "stripe", false);
       await raiseAlert("dispute", "info", `Chargeback won on ${job.ref}`, "Held payout released.", job.id);
+    } else if (!chargebackFromWork(d.reason) || !job.contractor_id) {
+      // fraud, "unrecognized", duplicate, credit not processed… — not about the pro's work: their pay is released
+      await db().from("payouts").update({ status: "approved", reason: null }).eq("job_id", job.id).eq("status", "held").eq("reason", `Chargeback ${d.id}`);
+      await addEvent(job.id, "dispute", `Card dispute closed: ${d.status} (${d.reason}) — not about the work, held payout released.`, "stripe", false);
+      await raiseAlert("dispute", "warn", `Chargeback ${d.status} on ${job.ref} — ${money(amount)}`, `Reason "${d.reason}" isn't about the pro's work, so their payout was released (pro agreement §18). The loss stays with us.`, job.id);
     } else {
-      await addEvent(job.id, "dispute", `Card dispute closed: ${d.status}.`, "stripe", false);
-      await raiseAlert("dispute", "warn", `Chargeback ${d.status} on ${job.ref} — ${money(amount)}`, "Payout stays held. Decide in Finance whether to release it or claw it back per the pro agreement.", job.id);
+      // possibly about the work: the payout stays held only while the pro is asked for their side
+      const payout = Number(job.contractor_payout ?? 0);
+      await proposeDeduction({ contractorId: job.contractor_id, jobId: job.id, amount: Math.min(amount, payout), reason: `Card dispute lost on ${job.ref} — the customer said the work was ${d.reason === "product_not_received" ? "not done" : "not acceptable"}`, source: "chargeback",
+        evidence: `Dispute ${d.id}, ${money(amount)}, reason ${d.reason}. Completion photos and messages are on the job page.` });
+      await addEvent(job.id, "dispute", `Card dispute closed: ${d.status} (${d.reason}). Pro asked for their side before any deduction.`, "stripe", false);
     }
   }
 }

@@ -5,9 +5,11 @@
  * UPDATED : 2026-10-01_2109 UTC — Pro tier, progress to the next tier, probation, referral bonus.
  * UPDATED : 2026-10-02_0255 UTC — On call switch (shares location while on call / on a job today), link to My calendar.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
+ * UPDATED : 2026-10-03_0124 UTC — standing card (warning / pause / deactivation) with the appeal form.
  * PURPOSE : Pro home — open offers, upcoming jobs, earnings.
  */
 import Link from "next/link";
+import { AppealForm } from "@/components/Standing";
 import { PROBATION, PRO_REFERRAL, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -81,6 +83,19 @@ export default async function ProHome() {
   const setup = me ? onboardingChecklist(me) : null;
   return (
     <div className="space-y-8">
+      {me && (me as { standing?: string }).standing && (me as { standing?: string }).standing !== "good" && (() => {
+        const st = me as unknown as { standing: string; standing_reason: string | null; improve_by: string | null; appeal_by: string | null; appeal_decide_by: string | null };
+        const head = { warned: es ? "Advertencia por escrito" : "Written warning", suspended: es ? "Cuenta en pausa" : "Account paused", deactivated: es ? "Cuenta desactivada" : "Account deactivated" }[st.standing] ?? st.standing;
+        return (
+          <div className="card border-amber-300 bg-amber-50">
+            <div className="font-semibold">{head}</div>
+            {st.standing_reason && <p className="mt-1 text-sm">{st.standing_reason}</p>}
+            <p className="mt-1 text-sm text-ink-soft">{st.standing === "warned" ? (es ? `Sigue recibiendo ofertas. Tiene hasta el ${st.improve_by ?? "—"} para mejorar; después una persona revisa su cuenta.` : `You keep getting offers. You have until ${st.improve_by ?? "—"} to improve; then a person reviews your account.`) : (es ? "Todo lo que ganó se le paga en el calendario normal." : "Everything you've earned is still paid on the normal schedule.")}</p>
+            {st.appeal_decide_by ? <p className="mt-2 text-sm font-semibold">{es ? `Recibimos su apelación — decidiremos antes del ${st.appeal_decide_by}.` : `We have your appeal — we'll decide by ${st.appeal_decide_by}.`}</p>
+              : (!st.appeal_by || st.appeal_by >= new Date().toISOString().slice(0, 10)) && <><div className="mt-2 text-sm font-semibold">{es ? "¿Cree que es un error? Apele — una persona decide dentro de 7 días." : "Think it's wrong? Appeal — a person decides within 7 days."}</div><AppealForm es={es} /></>}
+          </div>
+        );
+      })()}
       {setup && (!setup.complete || setup.steps.some((x) => x.expiring)) && (
         <Link href="/pro/onboarding" className="card block border-amber-300 bg-amber-50">
           <div className="font-semibold">{setup.complete ? t("A document expires soon") : es ? `Termine la configuración — falta(n) ${setup.steps.filter((x) => !x.done).length} paso(s)` : `Finish setup — ${setup.steps.filter((x) => !x.done).length} step(s) left`}</div>

@@ -4,8 +4,10 @@
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-01_2124 UTC — instant pay, payout kinds (show-up, stipend, materials, guarantee).
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
+ * UPDATED : 2026-10-03_0120 UTC — deductions list (proposed / upheld / waived) with links to respond.
  * PURPOSE : Pro earnings statement — this year by month, every payout, 1099 total so far.
  */
+import Link from "next/link";
 import { getService, instantPayFee, money, necThreshold, serviceText, t as tr, whyNot, type Contractor } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { availableBalance, getPolicy } from "@/lib/pro-benefits";
@@ -28,6 +30,7 @@ export default async function Earnings() {
   const ready = !instantNo && (await connectReady(me?.stripe_account_id ?? null));
   const { data } = await v.db.from("payouts").select("id, amount, status, kind, method, instant_fee, created_at, paid_at, reason, jobs(ref, service_slug, scheduled_date)").gte("created_at", `${year}-01-01`).order("created_at", { ascending: false });
   const rows = (data ?? []) as Rec[];
+  const { data: deds } = await v.db.from("pro_deductions").select("id, amount, status, reason, respond_by, created_at, jobs(ref)").order("created_at", { ascending: false }).limit(20);
   const paid = rows.filter((r) => ["paid", "clawback"].includes(r.status)).reduce((sum, r) => sum + Number(r.amount), 0);
   const owed = rows.filter((r) => ["approved", "pending"].includes(r.status)).reduce((sum, r) => sum + Number(r.amount), 0);
   const byMonth = new Map<string, number>();
@@ -35,6 +38,17 @@ export default async function Earnings() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t("Earnings")} {year}</h1>
+      {(deds ?? []).length > 0 && (
+        <div className="card text-sm">
+          <div className="font-semibold">{es ? "Deducciones" : "Deductions"}</div>
+          <p className="text-xs text-ink-soft">{es ? "Nada se descuenta hasta que usted pueda responder y una persona decida." : "Nothing is taken until you've had the chance to respond and a person decides."}</p>
+          <ul className="mt-2 divide-y divide-line">{((deds ?? []) as unknown as { id: string; amount: number; status: string; reason: string; respond_by: string; jobs: { ref: string } | null }[]).map((d) => (
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <Link href={`/pro/deductions/${d.id}`} className="text-brand underline">{d.jobs?.ref ?? "—"} · {money(Number(d.amount))}</Link>
+              <span className="text-xs text-ink-soft">{d.status === "proposed" ? (es ? `propuesta · responda antes del ${new Date(d.respond_by).toLocaleDateString("es-US")}` : `proposed · respond by ${new Date(d.respond_by).toLocaleDateString("en-US")}`) : d.status === "upheld" ? (es ? "confirmada" : "upheld") : (es ? "anulada" : "waived")}</span>
+            </li>))}</ul>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label={t("Paid to you (1099 total so far)")} value={money(paid)} hint={paid >= necThreshold(year) ? t("You'll receive a 1099-NEC in January") : es ? `El 1099-NEC se emite a partir de ${money(necThreshold(year))}` : `1099-NEC issued at ${money(necThreshold(year))}+`} />
         <Stat label={t("Approved, paying next run")} value={money(owed)} />

@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/contracts/pro.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0039 UTC
+ * UPDATED : 2026-10-03_0115 UTC — declining offers never affects pay, tier or offer order (system changed to match).
  * PURPOSE : Every contract a pro (independent contractor) signs in the pro portal:
  *             PRO_AGREEMENT                — Independent Contractor Agreement (replaces and expands the
  *                                            v2 text in lib/agreement.ts; keeps every v2 promise)
@@ -37,8 +38,7 @@ import {
   TRADE_PROFILES,
   money,
   necThreshold,
-  type CoverageKey,
-} from "@handled/core";
+  type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
 import type { Contract } from "./types";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
@@ -64,29 +64,13 @@ const NEC_YEAR = 2026;
  * Not yet enforced in code — the lead should move these into @handled/core and build the
  * warning → review → appeal workflow before relying on them.
  */
-export const DEACTIVATION_RULES = {
-  /** Average rating below this over the last `ratedJobs` rated jobs → written warning, then review. */
-  minRating: 4.3,
-  ratedJobs: 20,
-  /** A pro cancellation inside this many hours of the arrival window is a "late cancel". */
-  lateCancelHours: 24,
-  /** Late cancels or no-shows counted over this window. */
-  windowDays: STATS_WINDOW_DAYS,
-  lateCancels: 3,
-  noShows: 2,
-  /** First-time photo-QA failures (that the pro didn't fix) over the window. */
-  qaFailures: 4,
-  /** Days a pro has to improve after a written warning before a review. */
-  improveDays: 30,
-  /** Days to ask for an appeal; days we take to decide it. */
-  appealDays: 14,
-  decisionDays: 7,
-} as const;
+// Thresholds live in @handled/core (pro-fairness.ts) so the system and the contract always match.
+export { DEACTIVATION_RULES };
 const D = DEACTIVATION_RULES;
 
 const tierLines = PRO_TIERS.map((t) =>
   t.payoutBoost
-    ? `• ${t.name} — ${t.min.jobs}+ completed jobs, ${t.min.rating}★+ rating, ${pct(t.min.onTime)}+ on time and ${pct(t.min.acceptance)}+ of offers accepted: +${pct(t.payoutBoost)} of the job price added to every payout, and ranked ahead of lower tiers for offers.`
+    ? `• ${t.name} — ${t.min.jobs}+ completed jobs, ${t.min.rating}★+ rating and ${pct(t.min.onTime)}+ on time: +${pct(t.payoutBoost)} of the job price added to every payout, and ranked ahead of lower tiers for offers.`
     : `• ${t.name} — every active pro. Standard payout shown on each offer.`,
 ).join("\n");
 
@@ -123,7 +107,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "4. Job offers: always your choice",
-      p: `Offers are optional. You may accept, decline or ignore any offer, for any reason or none. Some offers go to several pros at once and the first to accept gets the job; an offer another pro takes first never counts against you.\n\nWho gets an offer depends on objective eligibility rules: you're active, your trade and specialties match, the job is within your driving distance and on a day and time you work (or you're On call for today), your daily job limit isn't full, your insurance, required coverages, licenses and background check are current, and — while you're on probation — the job is within the probation size cap (section 9).\n\nWhen a recurring customer you serve has another visit, or a customer you served needs a redo, we offer that job to you first, alone, for a set time before anyone else (currently 24 hours for recurring visits and 12 hours for redos). You can pass; then it goes out normally.\n\nDeclining offers never changes your payout rate or ends your account. The only effect is through your acceptance rate, which is one of the published factors in offer order and tiers (section 15).${COUNSEL}`,
+      p: `Offers are optional. You may accept, decline or ignore any offer, for any reason or none. Some offers go to several pros at once and the first to accept gets the job; an offer another pro takes first never counts against you.\n\nWho gets an offer depends on objective eligibility rules: you're active, your trade and specialties match, the job is within your driving distance and on a day and time you work (or you're On call for today), your daily job limit isn't full, your insurance, required coverages, licenses and background check are current, and — while you're on probation — the job is within the probation size cap (section 9).\n\nWhen a recurring customer you serve has another visit, or a customer you served needs a redo, we offer that job to you first, alone, for a set time before anyone else (currently 24 hours for recurring visits and 12 hours for redos). You can pass; then it goes out normally.\n\nDeclining or ignoring offers never affects your payout rate, your tier, the order in which you receive offers, or your account. We don't use acceptance rates for any of those.`,
     },
     {
       h: "5. Accepting a job: the work order",
@@ -167,7 +151,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "15. Tiers, offer order and your numbers",
-      p: `Tiers are earned from your real numbers and recalculated automatically:\n${tierLines}\nTier payout boosts are capped so our share never falls below ${pct(TAKE_MIN)} of the job price.\n\nWhen several pros are eligible for a job, offers go out in an order based on objective measures over the last ${STATS_WINDOW_DAYS} days:\n• customer rating;\n• first-time photo-review pass rate;\n• redo and refund rate;\n• on-time rate (started before the end of the booked window);\n• acceptance rate (offers accepted out of offers you could answer — offers another pro took first don't count);\n• distance to the job, open slots that day, experience, matching specialties, being On call for same-day work, and your tier.\nNew pros aren't judged on a handful of jobs: rates only change once there's enough history.\n\nThese measures affect the order in which you see offers. They never change your payout rate, except the published tier boosts above. You can see your own numbers in the portal, and you can ask us to correct any that are wrong — for example, a late start caused by the customer.${COUNSEL}`,
+      p: `Tiers are earned from your real numbers and recalculated automatically:\n${tierLines}\nTier payout boosts are capped so our share never falls below ${pct(TAKE_MIN)} of the job price.\n\nWhen several pros are eligible for a job, offers go out in an order based on objective measures over the last ${STATS_WINDOW_DAYS} days:\n• customer rating;\n• first-time photo-review pass rate;\n• redo and refund rate;\n• on-time rate (started before the end of the booked window);\n• distance to the job, open slots that day, experience, matching specialties, being On call for same-day work, and your tier.\nNew pros aren't judged on a handful of jobs: rates only change once there's enough history.\n\nThese measures affect the order in which you see offers. They never change your payout rate, except the published tier boosts above. You can see your own numbers in the portal, and you can ask us to correct any that are wrong — for example, a late start caused by the customer.${COUNSEL}`,
     },
     {
       h: "16. Quality, photo review and redos",

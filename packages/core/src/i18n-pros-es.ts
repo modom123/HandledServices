@@ -41,7 +41,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Event venue / space": "Salón / espacio para eventos",
 
   // coverage details (COVERAGES; labels are in i18n-pro-es.ts)
-  "Per-occurrence limit shown for your trade, $2M aggregate. Handled LLC named as additional insured.": "Límite por incidente indicado para su oficio, $2M en total. Handled LLC nombrada como asegurado adicional.",
+  "Per-occurrence limit shown for your trade, $2M aggregate. Handled Services LLC named as additional insured.": "Límite por incidente indicado para su oficio, $2M en total. Handled Services LLC nombrada como asegurado adicional.",
   "$1M combined single limit on the vehicle used for jobs. Personal auto policies usually exclude business use.": "Límite único combinado de $1M en el vehículo que usa para los trabajos. Las pólizas de auto personales suelen excluir el uso comercial.",
   "Required if you have employees (Michigan law). Solo owners sign a no-employees statement instead.": "Obligatorio si tiene empleados (ley de Michigan). Quienes trabajan solos firman en su lugar una declaración de no tener empleados.",
   "$10,000+ dishonesty bond for unsupervised in-home access. Usually about $100–200 a year.": "Fianza contra deshonestidad de $10,000 o más para entrar a casas sin supervisión. Suele costar unos $100–200 al año.",
@@ -292,7 +292,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Skills check": "Prueba de habilidades",
   "A trade-specific check: photos of recent work, references, and for licensed trades a lookup on the state license database.": "Una revisión según su oficio: fotos de trabajos recientes, referencias y, para oficios con licencia, una consulta en la base de datos estatal de licencias.",
   "Documents": "Documentos",
-  "W-9, contractor agreement, certificate of insurance naming Handled as additional insured, license and any trade-specific coverage. We verify each policy with the carrier.": "W-9, acuerdo de contratista, certificado de seguro con Handled como asegurado adicional, licencia y cualquier cobertura propia de su oficio. Verificamos cada póliza con la aseguradora.",
+  "W-9, contractor agreement, certificate of insurance naming Handled Services LLC as additional insured, license and any trade-specific coverage. We verify each policy with the carrier.": "W-9, acuerdo de contratista, certificado de seguro con Handled Services LLC como asegurado adicional, licencia y cualquier cobertura propia de su oficio. Verificamos cada póliza con la aseguradora.",
   "Background check": "Verificación de antecedentes",
   "Criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year.": "Búsqueda de antecedentes penales y en el registro de delincuentes sexuales con nuestro proveedor de verificación. Los oficios que manejan también tienen revisión del historial de manejo. Se repite cada año.",
   "Probation jobs": "Trabajos de prueba",

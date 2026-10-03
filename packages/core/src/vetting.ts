@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2109 UTC
  * UPDATED : 2026-10-02_0251 UTC — transportation specialty: sporting events & concerts.
+ * UPDATED : 2026-10-03_0117 UTC — additional insured uses the legal name (BRAND.legalName).
  * PURPOSE : What each trade does and specializes in, and what we require before a pro in
  *           that trade gets offers: license, insurance coverages and minimums, and the
  *           skills check. Drives the application form, onboarding checklist, Hub
@@ -10,6 +11,7 @@
  *           Launch market is Michigan; license notes are for Michigan (LARA / MDARD).
  *           Confirm requirements with counsel and your insurance broker before each new state.
  */
+import { BRAND } from "./brand.ts";
 
 export type CoverageKey = "gl" | "auto" | "workers_comp" | "bond" | "liquor" | "passenger_auto";
 
@@ -17,7 +19,7 @@ export type CoverageKey = "gl" | "auto" | "workers_comp" | "bond" | "liquor" | "
 export const COVERAGE_KINDS = ["auto", "workers_comp", "bond", "liquor", "passenger_auto"] as const;
 
 export const COVERAGES: Record<CoverageKey, { label: string; detail: string }> = {
-  gl: { label: "General liability", detail: "Per-occurrence limit shown for your trade, $2M aggregate. Handled LLC named as additional insured." },
+  gl: { label: "General liability", detail: `Per-occurrence limit shown for your trade, $2M aggregate. ${BRAND.legalName} named as additional insured.` },
   auto: { label: "Commercial auto", detail: "$1M combined single limit on the vehicle used for jobs. Personal auto policies usually exclude business use." },
   workers_comp: { label: "Workers' comp", detail: "Required if you have employees (Michigan law). Solo owners sign a no-employees statement instead." },
   bond: { label: "Fidelity / janitorial bond", detail: "$10,000+ dishonesty bond for unsupervised in-home access. Usually about $100–200 a year." },
@@ -351,7 +353,7 @@ export const VETTING_STEPS = [
   { t: "Apply (5 minutes)", b: "Trades, specialties, service area, crew, equipment, insurance and two references." },
   { t: "AI screen + quick call", b: "Our AI checks the application for fit and gaps; a coordinator calls within 2 business days." },
   { t: "Skills check", b: "A trade-specific check: photos of recent work, references, and for licensed trades a lookup on the state license database." },
-  { t: "Documents", b: "W-9, contractor agreement, certificate of insurance naming Handled as additional insured, license and any trade-specific coverage. We verify each policy with the carrier." },
+  { t: "Documents", b: `W-9, contractor agreement, certificate of insurance naming ${BRAND.legalName} as additional insured, license and any trade-specific coverage. We verify each policy with the carrier.` },
   { t: "Background check", b: "Criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
   { t: "Probation jobs", b: `Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice}, and each one gets a human photo review and a follow-up call to the customer.` },
   { t: "Activated", b: "Full offers in your area and specialties. Insurance and licenses are tracked, and offers pause automatically if one lapses." },

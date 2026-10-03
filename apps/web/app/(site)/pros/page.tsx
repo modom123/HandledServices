@@ -110,7 +110,7 @@ export default async function ProsPage() {
           {PRO_TIERS.map((tier) => (
             <div key={tier.id} className={`card ${tier.id === "elite" ? "border-brand bg-brand-tint" : ""}`}>
               <div className="text-lg font-bold">{tier.badge} {tier.name}</div>
-              <div className="text-xs text-ink-soft">{tier.min.jobs ? (es ? `${tier.min.jobs}+ trabajos · ${tier.min.rating}★+ · ${Math.round(tier.min.onTime * 100)}% puntual · ${Math.round(tier.min.acceptance * 100)}% aceptadas` : `${tier.min.jobs}+ jobs · ${tier.min.rating}★+ · ${Math.round(tier.min.onTime * 100)}% on time · ${Math.round(tier.min.acceptance * 100)}% accepted`) : t("Once you’re activated")}</div>
+              <div className="text-xs text-ink-soft">{tier.min.jobs ? (es ? `${tier.min.jobs}+ trabajos · ${tier.min.rating}★+ · ${Math.round(tier.min.onTime * 100)}% puntual` : `${tier.min.jobs}+ jobs · ${tier.min.rating}★+ · ${Math.round(tier.min.onTime * 100)}% on time`) : t("Once you’re activated")}</div>
               <ul className="mt-3 space-y-1 text-sm">{tier.perks.map((p) => <li key={p}>✓ {t(p)}</li>)}</ul>
             </div>
           ))}

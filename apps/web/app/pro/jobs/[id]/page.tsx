@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2124 UTC — materials receipts, lockout report.
  * UPDATED : 2026-10-02_1329 UTC — "On my way" (texts the customer a live tracking link).
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
+ * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
@@ -16,6 +17,7 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge } from "@/components/ui";
 import { CompleteJob, LockoutReport, MaterialsForm, OnMyWay, ScopeChange, StartJob } from "@/components/ProActions";
+import { ReleaseJob } from "@/components/Standing";
 import { JobThread } from "@/components/JobThread";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
@@ -78,6 +80,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.status === "qa_review" && <div className="card text-sm">{t("Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.")}</div>}
         {(job.status === "assigned" || job.status === "in_progress") && !job.remedy && <ScopeChange locale={l} jobId={job.id} slug={job.service_slug} booked={job.answers as Record<string, string | number | boolean>} frequency={job.frequency} />}
         {(job.status === "assigned" || job.status === "in_progress") && <LockoutReport locale={l} jobId={job.id} />}
+        {job.status === "assigned" && <ReleaseJob jobId={job.id} es={l === "es"} />}
         {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) && <MaterialsForm locale={l} jobId={job.id} allowed={!noMaterials} reason={noMaterials} />}
         {(expenses ?? []).length > 0 && (
           <div className="card text-sm"><div className="font-semibold">{t("Materials")}</div>

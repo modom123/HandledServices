@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
+ * UPDATED : 2026-10-03_0121 UTC — orderBackgroundCheck(…, { recheck }) for the yearly re-check.
  * PURPOSE : Automated pro recruiting & onboarding. Every touch is logged to recruiting_events.
  *             onApplication()        — AI screen → invite automatically, or ask staff to decide
  *             inviteApplicant()      — pro record + welcome email with a one-click sign-in link
@@ -170,13 +171,16 @@ export async function afterOnboardingStep(contractorId: string, what: string, ac
  * the pro a consent link; results come back on /api/checkr/webhook). Otherwise an ops task.
  * Verify the package slug and work-location rules in your Checkr dashboard.
  */
-export async function orderBackgroundCheck(contractorId: string) {
+export async function orderBackgroundCheck(contractorId: string, opts: { recheck?: boolean } = {}) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
-  if (!c || c.background_checked || c.background_status) return;
+  if (!c) return;
+  // first check: once only. Yearly re-check: the pro keeps working while it runs (pro agreement / background notice).
+  if (!opts.recheck && (c.background_checked || c.background_status)) return;
+  if (opts.recheck && ["invited", "pending"].includes(c.background_status)) return;
   const key = process.env.CHECKR_API_KEY, pkg = process.env.CHECKR_PACKAGE;
   if (!key || !pkg) {
     await db().from("contractors").update({ background_status: "pending" }).eq("id", contractorId);
-    await raiseAlert("recruiting", "warn", `Order a background check: ${c.business_name}`, `${c.contact_name} · ${c.email}. Run it with your screening provider, then upload the report in Hub → Pros (or set CHECKR_API_KEY to automate).`);
+    await raiseAlert("recruiting", "warn", `Order a background ${opts.recheck ? "re-check (yearly)" : "check"}: ${c.business_name}`, `${c.contact_name} · ${c.email}. Run it with your screening provider, then upload the report in Hub → Pros (or set CHECKR_API_KEY to automate).`);
     await logRecruiting("background_ordered", { contractorId }, "manual (no Checkr key)");
     return;
   }

@@ -6,6 +6,7 @@
  *           sales tax, Vercel Pro for the 10-minute dispatch cron, migrations 13–16.
  * UPDATED : 2026-10-02_2252 UTC — Google review link check; migration 19 (waitlist & Google reviews).
  * UPDATED : 2026-10-03_0027 UTC — migration 20 (seasonal reminders & quote follow-ups).
+ * UPDATED : 2026-10-03_0124 UTC — migrations 21–23 (contract records, contract language, pro fairness).
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
@@ -89,6 +90,9 @@ export async function readiness(): Promise<Check[]> {
     ["18 message language", () => db.from("jobs").select("locale").limit(1)],
     ["19 waitlist & Google reviews", () => db.from("waitlist").select("id").limit(1)],
     ["20 seasonal reminders & quote follow-ups", () => db.from("saved_quotes").select("id").limit(1)],
+    ["21 contract records (My contracts)", () => db.from("contract_acceptances").select("id").limit(1)],
+    ["22 contract language", () => db.from("contract_acceptances").select("locale").limit(1)],
+    ["23 pro fairness (deductions, standing)", () => db.from("pro_deductions").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

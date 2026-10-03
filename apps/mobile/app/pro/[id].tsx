@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_2140 UTC — materials receipts (reimbursed at cost) and "Can't get in?".
  * UPDATED : 2026-10-02_1329 UTC — On my way button (customer gets a live ETA link).
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
+ * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  */
 import { shareLocationOnce } from "../../lib/location";
@@ -29,6 +30,7 @@ export default function ProJob() {
   const [busy, setBusy] = useState(false);
   const [mat, setMat] = useState<Materials | null>(null);
   const [amount, setAmount] = useState("");
+  const [release, setRelease] = useState<string | null>(null);
   const [what, setWhat] = useState("");
   const [receipt, setReceipt] = useState<{ uri: string; type: string } | null>(null);
   const [lockout, setLockout] = useState<string | null>(null);
@@ -188,6 +190,13 @@ export default function ProJob() {
           ))}
         </Card>
       )}
+      {job.status === "assigned" && (release === null
+        ? <Button title={t("Can't make it? Hand this job back")} kind="ghost" onPress={() => setRelease("")} style={{ marginTop: 12 }} />
+        : <Card style={{ marginTop: 12 }}>
+            <Text style={s.p}>{t("The job goes back out right away. Inside 24 hours of the arrival window it counts as a late cancel.")}</Text>
+            <TextInput style={[s.input, { marginTop: 8 }]} placeholder={t("Reason (only we see it)")} value={release} onChangeText={setRelease} />
+            <Button title={t("Hand it back")} kind="ghost" disabled={release.trim().length < 3} busy={busy} onPress={() => post({ action: "release", reason: release })} style={{ marginTop: 8 }} />
+          </Card>)}
     </ScrollView>
   );
 }

@@ -26,7 +26,7 @@ export function WorkOrderView({ w, locale = "en" }: { w: WorkOrder; locale?: Loc
         <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">{w.scope.map((s) => <li key={s.label}><span className="text-ink-soft">{s.label}:</span> {s.value}</li>)}</ul>
         <div className="mt-2 text-sm"><span className="text-ink-soft">{t("Included:")}</span> {w.includes.join(" · ")}</div>
         {w.customerNotes && <p className="mt-3 rounded-xl bg-paper p-3 text-sm">{t("Customer:")} “{w.customerNotes}”</p>}
-        {w.instructions && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{t("Instructions:")}</b> {w.instructions}</p>}
+        {w.instructions && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{t("Customer requirements & access:")}</b> {w.instructions}</p>}
         <p className="mt-3 text-xs text-ink-soft">📷 {w.photos}</p>
       </div>
       <div className="card">

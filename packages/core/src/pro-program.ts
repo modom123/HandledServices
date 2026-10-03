@@ -4,8 +4,10 @@
  * CREATED : 2026-10-01_2101 UTC
  * UPDATED : 2026-10-02_0233 UTC — promises match what the system does: free automatic Monday payouts
  *           (instant cash-out optional), recurring visits offered to the same pro first, daily limit.
+ * UPDATED : 2026-10-03_0115 UTC — tiers no longer depend on accepting offers (declining is always free;
+ *           independent-contractor safeguard).
  * PURPOSE : The Handled Pro Program — what we offer subcontractors. Tiers earned from real
- *           performance (jobs, rating, on-time, acceptance) unlock a bigger payout share and
+ *           performance (jobs, rating, on-time) unlock a bigger payout share and
  *           first pick of offers. Every boost is clamped so our take never drops below
  *           TAKE_MIN (15%), so better pay for the best pros can never make a job lose money.
  */
@@ -23,32 +25,32 @@ export interface ProTier {
   payoutBoost: number;
   /** Added to the dispatch score, so higher tiers see offers first. */
   dispatchBoost: number;
-  min: { jobs: number; rating: number; onTime: number; acceptance: number };
+  min: { jobs: number; rating: number; onTime: number };
   perks: string[];
 }
 
 export const PRO_TIERS: ProTier[] = [
   {
     id: "pro", name: "Pro", badge: "✓", payoutBoost: 0, dispatchBoost: 0,
-    min: { jobs: 0, rating: 0, onTime: 0, acceptance: 0 },
+    min: { jobs: 0, rating: 0, onTime: 0 },
     perks: ["Prepaid, pre-priced jobs in your area", "Weekly payouts", "No lead fees, no subscription"],
   },
   {
     id: "pro_plus", name: "Pro+", badge: "★", payoutBoost: 0.03, dispatchBoost: 6,
-    min: { jobs: 25, rating: 4.7, onTime: 0.9, acceptance: 0.6 },
+    min: { jobs: 25, rating: 4.7, onTime: 0.9 },
     perks: ["+3% of the job price on every payout", "Ranked ahead of Pro-tier pros for every offer"],
   },
   {
     id: "elite", name: "Elite", badge: "◆", payoutBoost: 0.05, dispatchBoost: 12,
-    min: { jobs: 100, rating: 4.85, onTime: 0.95, acceptance: 0.75 },
+    min: { jobs: 100, rating: 4.85, onTime: 0.95 },
     perks: ["+5% of the job price on every payout", "Top of the list for every offer, including large and commercial jobs"],
   },
 ];
 
-type TierStats = Pick<Contractor, "jobs_completed" | "rating" | "on_time_rate" | "acceptance_rate">;
+type TierStats = Pick<Contractor, "jobs_completed" | "rating" | "on_time_rate">;
 
 const meets = (c: TierStats, t: ProTier) =>
-  c.jobs_completed >= t.min.jobs && Number(c.rating) >= t.min.rating && Number(c.on_time_rate) >= t.min.onTime && Number(c.acceptance_rate) >= t.min.acceptance;
+  c.jobs_completed >= t.min.jobs && Number(c.rating) >= t.min.rating && Number(c.on_time_rate) >= t.min.onTime;
 
 /** The highest tier the pro qualifies for right now (recomputed from live stats, never stale). */
 export function proTier(c: TierStats): ProTier {
@@ -64,7 +66,6 @@ export function nextTierProgress(c: TierStats): { next: ProTier | null; todo: st
   if (c.jobs_completed < next.min.jobs) todo.push(`${next.min.jobs - c.jobs_completed} more completed jobs`);
   if (Number(c.rating) < next.min.rating) todo.push(`rating ${next.min.rating}★+ (now ${Number(c.rating).toFixed(2)})`);
   if (Number(c.on_time_rate) < next.min.onTime) todo.push(`on time ${Math.round(next.min.onTime * 100)}%+ (now ${Math.round(Number(c.on_time_rate) * 100)}%)`);
-  if (Number(c.acceptance_rate) < next.min.acceptance) todo.push(`accept ${Math.round(next.min.acceptance * 100)}%+ of offers (now ${Math.round(Number(c.acceptance_rate) * 100)}%)`);
   return { next, todo };
 }
 

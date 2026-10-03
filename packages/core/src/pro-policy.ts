@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/pro-policy.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
+ * UPDATED : 2026-10-03_0119 UTC — pay protection can't be switched off (pro agreement promise).
  * PURPOSE : The six Pro Program benefits and the rules for who qualifies. The defaults
  *           live here; Handled Hub → Pro Program saves overrides in the database
  *           (pro_program_settings). Every benefit is designed to keep a job at or above $0
@@ -56,6 +57,8 @@ export const PRO_POLICY_DEFAULTS: ProPolicy = {
 export function mergePolicy(saved: Partial<Record<keyof ProPolicy, Record<string, unknown>>> | null | undefined): ProPolicy {
   const out = structuredClone(PRO_POLICY_DEFAULTS) as unknown as Record<string, Record<string, unknown>>;
   for (const [k, v] of Object.entries(saved ?? {})) if (out[k] && v && typeof v === "object") out[k] = { ...out[k], ...v };
+  // Pay protection is a promise in the pro agreement — always on, for every pro, whatever is saved.
+  out.payProtection = structuredClone(PRO_POLICY_DEFAULTS.payProtection) as unknown as Record<string, unknown>;
   return out as unknown as ProPolicy;
 }
 

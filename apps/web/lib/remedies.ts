@@ -6,6 +6,8 @@
  * UPDATED : 2026-10-01_2124 UTC — Pay protection: a refund that isn't the pro's fault comes
  *           out of our take first when the pro qualifies (Hub → Pro Program).
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
+ * UPDATED : 2026-10-03_0119 UTC — pay protection always on; a pro-at-fault refund is only a proposed deduction
+ *           (notice, 3 business days, a person decides) — never taken automatically.
  * PURPOSE : Making it right after an upfront payment — never by holding money back:
  *             refund         — partial or full, back to the card. Shared with the pro in the
  *                              original split, or charged to the pro first when the pro was at
@@ -15,8 +17,8 @@
  *                              on the original job, capped so the pair can't go negative.
  */
 import "server-only";
-import { BRAND, estimate, getService, serviceText, money, qualifies, refundSplit, splitJob, type Answers, type Contractor, type Job } from "@handled/core";
-import { getPolicy } from "./pro-benefits";
+import { BRAND, estimate, getService, serviceText, money, refundSplit, splitJob, type Answers, type Job } from "@handled/core";
+import { proposeDeduction } from "./deductions";
 import { adminClient } from "./supabase/server";
 import { addEvent, dispatchJob, getJob } from "./jobs";
 import { refundPayment } from "./stripe";
@@ -35,13 +37,13 @@ function esDate(d: string | null | undefined) {
 export async function issueRefund(jobId: string, amount: number, proAtFault: boolean, actor: string, reason: string) {
   const job = await getJob(jobId);
   if (!job?.paid_at) return { ok: false, error: "Job isn't paid" };
-  let protectPro = false;
-  if (!proAtFault && job.contractor_id) {
-    const { data: pro } = await db().from("contractors").select("*").eq("id", job.contractor_id).single();
-    const trade = getService(job.service_slug)?.trades.find((t) => (pro?.trades ?? []).includes(t));
-    protectPro = Boolean(pro) && qualifies((await getPolicy()).payProtection, pro as Contractor, trade);
-  }
-  const split = refundSplit({ paid: Number(job.amount_paid), alreadyRefunded: Number(job.amount_refunded), payout: Number(job.contractor_payout ?? 0), refund: amount, proAtFault, protectPro });
+  // Pay protection is always on: a refund that isn't the pro's fault comes out of our share (pro agreement §17).
+  // When the pro may be at fault, the customer is refunded now from our share too, and the pro's part is only
+  // PROPOSED — notice, 3 business days to respond, a person decides (lib/deductions).
+  const base = { paid: Number(job.amount_paid), alreadyRefunded: Number(job.amount_refunded), payout: Number(job.contractor_payout ?? 0), refund: amount };
+  const protectPro = Boolean(job.contractor_id);
+  const split = refundSplit({ ...base, proAtFault: false, protectPro });
+  const proposed = proAtFault && job.contractor_id ? refundSplit({ ...base, proAtFault: true, protectPro: false }).fromPro : 0;
   if (split.refund <= 0) return { ok: false, error: "Nothing left to refund" };
   const r = await refundPayment(job, split.refund);
   if (!r.ok) return { ok: false, error: r.error };
@@ -54,7 +56,9 @@ export async function issueRefund(jobId: string, amount: number, proAtFault: boo
     else if (payout) await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: jobId, amount: -split.fromPro, status: "clawback", kind: "clawback", reason });
   }
   await addEvent(jobId, "refund", `Refund issued: ${money(split.refund)}. ${reason}`, actor, true, `Reembolso emitido: ${money(split.refund)}. ${reason}`);
-  await addEvent(jobId, "human_touch", `Refund ${money(split.refund)} (pro ${money(split.fromPro)} / us ${money(split.fromUs)})${protectPro ? " · pay protection" : ""}`, actor, false);
+  if (proposed > 0 && job.contractor_id) await proposeDeduction({ contractorId: job.contractor_id, jobId, amount: proposed, reason: `Workmanship refund on ${job.ref}: ${reason}`, source: "refund",
+    evidence: `${(job.completion_photos ?? []).length} completion photo(s) on the job page; refund of ${money(split.refund)} to the customer.` });
+  await addEvent(jobId, "human_touch", `Refund ${money(split.refund)} (pro ${money(split.fromPro)} / us ${money(split.fromUs)})${proposed > 0 ? ` · ${money(proposed)} proposed as a pro deduction (pending their response)` : " · pay protection"}`, actor, false);
   if ((await localeOf(job.customer_id, job.locale)) === "es") await sendEmail(job.contact_email, `Reembolso emitido — ${job.ref}`, `Reembolsamos ${money(split.refund)} a su tarjeta (puede tardar de 5 a 10 días hábiles). ${reason}\n\nLamentamos que no haya quedado bien. — ${BRAND.name}`);
   else await sendEmail(job.contact_email, `Refund issued — ${job.ref}`, `We've refunded ${money(split.refund)} to your card (allow 5–10 business days). ${reason}\n\nWe're sorry it wasn't right. — ${BRAND.name}`);
   return { ok: true, ...split };

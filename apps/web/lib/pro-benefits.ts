@@ -13,12 +13,14 @@
  *           Pay protection lives in remedies.ts (issueRefund).
  * UPDATED : 2026-10-02_0233 UTC — the promises behind the Pro Program, automated:
  *             runWeeklyPayouts()   — Mondays: every approved balance sent free via Stripe Connect
- *             refreshProStats()    — daily: real acceptance and on-time rates (tiers use them)
+ *             refreshProStats()    — daily: on-time rates (tiers use them) and acceptance rates (shown to the pro only)
  *             payReferralBonuses() — daily: refer-a-pro bonus once the new pro hits N jobs
+ * UPDATED : 2026-10-03_0117 UTC — applied deductions take at most half of a payout run and never tips
+ *           (the rest carries to the next run), per the pro agreement.
  */
 import "server-only";
 import {
-  BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, serviceText, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
+  BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, clawbackPlan, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, serviceText, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
   type Contractor, type Job, type ProPolicy,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -158,9 +160,28 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
 // ─── 3. Instant pay ──────────────────────────────────────────────────────────
 
 export async function availableBalance(contractorId: string) {
-  const { data } = await db().from("payouts").select("id, amount, status, paid_at").eq("contractor_id", contractorId).or("status.eq.approved,and(status.eq.clawback,paid_at.is.null)");
-  const rows = (data ?? []) as { id: string; amount: number; status: string }[];
-  return { rows, total: r2(rows.reduce((t, r) => t + Number(r.amount), 0)) };
+  const { data } = await db().from("payouts").select("id, amount, status, paid_at, kind, reason, deduction_id, job_id").eq("contractor_id", contractorId).or("status.eq.approved,and(status.eq.clawback,paid_at.is.null)");
+  const all = (data ?? []) as { id: string; amount: number; status: string; kind: string; reason: string | null; deduction_id: string | null; job_id: string | null }[];
+  const pos = all.filter((r) => r.status === "approved");
+  // applied deductions take at most half of this run's pay and never come out of tips (pro agreement §17)
+  const plan = clawbackPlan(pos, all.filter((r) => r.status === "clawback").map((r) => ({ id: r.id, amount: Number(r.amount) })));
+  const applied = new Map(plan.apply.map((x) => [x.id, x.amount]));
+  const rows = [...pos, ...all.filter((r) => applied.has(r.id)).map((r) => ({ ...r, amount: -applied.get(r.id)! }))];
+  return { contractorId, rows, total: r2(rows.reduce((t, r) => t + Number(r.amount), 0)), carry: plan.carry, all };
+}
+
+/**
+ * Before paying out: split any deduction that only partly fits this run, so the paid row is exactly
+ * the applied piece and the rest stays owed for the next run.
+ */
+async function prepareDeductions(b: Awaited<ReturnType<typeof availableBalance>>) {
+  for (const c of b.carry) {
+    const row = b.all.find((r) => r.id === c.id);
+    const applied = b.rows.find((r) => r.id === c.id);
+    if (!row || !applied) continue; // nothing applied this run — whole row waits
+    await db().from("payouts").update({ amount: applied.amount }).eq("id", row.id);
+    await db().from("payouts").insert({ contractor_id: b.contractorId, job_id: row.job_id, amount: -c.amount, status: "clawback", kind: "clawback", reason: `${row.reason ?? "Deduction"} (rest, next payout)`, deduction_id: row.deduction_id });
+  }
 }
 
 /** Pay out everything approved right now (minus the instant fee) to the pro's debit card. */
@@ -173,13 +194,15 @@ export async function cashOutNow(contractorId: string) {
   const no = whyNot(policy.instantPay, pro as Contractor);
   if (no) return { ok: false, error: `Instant pay: ${no}` };
   if (!(await connectReady(pro.stripe_account_id))) return { ok: false, error: "Finish your Stripe payout setup first", needsSetup: true };
-  const { rows, total } = await availableBalance(contractorId);
+  const bal = await availableBalance(contractorId);
+  const { rows, total } = bal;
   if (total < policy.instantPay.minAmount) return { ok: false, error: `Minimum cash-out is ${money(policy.instantPay.minAmount)} (you have ${money(total)})` };
   const fee = instantPayFee(policy, total);
   const net = r2(total - fee);
   const now = new Date().toISOString();
   const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
   const neg = rows.filter((r) => r.status === "clawback").map((r) => r.id);
+  await prepareDeductions(bal);
   // claim the rows first so two taps can't pay twice
   const { data: claimed } = await db().from("payouts").update({ status: "paid", paid_at: now, method: "instant" }).in("id", pos).eq("status", "approved").select("id");
   if ((claimed ?? []).length !== pos.length) {
@@ -360,7 +383,8 @@ export async function runWeeklyPayouts(now = new Date()) {
   for (const id of ids) {
     const { data: pro } = await db().from("contractors").select("id, profile_id, email, business_name, stripe_account_id").eq("id", id).single();
     if (!pro) continue;
-    const { rows, total: amount } = await availableBalance(id);
+    const bal = await availableBalance(id);
+    const { rows, total: amount } = bal;
     if (amount <= 0) continue;
     if (!(await connectReady(pro.stripe_account_id))) {
       waiting++;
@@ -369,6 +393,7 @@ export async function runWeeklyPayouts(now = new Date()) {
         es: { title: `${money(amount)} le están esperando`, body: "Termine la configuración de pagos en Ganancias para que podamos enviarlo.", subject: `${money(amount)} listos — termine la configuración de pagos`, text: `Tiene ${money(amount)} aprobados. Termine la configuración de pagos en Stripe para que podamos enviarlos: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
       continue;
     }
+    await prepareDeductions(bal);
     const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
     const neg = rows.filter((r) => r.status === "clawback").map((r) => r.id);
     const stamp = new Date().toISOString();

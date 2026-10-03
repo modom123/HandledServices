@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-01_1830 UTC — Uber-style reporting: bookings vs our take vs net after
  *           card fees; take-rate band check per service; payouts held until collected.
+ * UPDATED : 2026-10-03_0120 UTC — proposed pro deductions: pro's response, uphold / waive with a reason.
  * PURPOSE : Unit economics — revenue, payouts, gross margin by service; payout queue;
  *           AI cost tracking from ai_runs.
  */
@@ -11,6 +12,7 @@ import { CARD_FEE, TAKE_MAX, TAKE_MIN, getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat } from "@/components/ui";
 import { PayoutButton } from "@/components/HubActions";
+import { DeductionDecision } from "@/components/Deductions";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -21,12 +23,13 @@ export default async function Finance() {
   const v = await getViewer();
   if (!v) return null;
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const [{ data: done }, { data: payouts }, { data: runs }, { data: priced }] = await Promise.all([
+  const [{ data: done }, { data: payouts }, { data: runs }, { data: priced }, { data: deds }] = await Promise.all([
     v.db.from("jobs").select("service_slug, price_final, contractor_payout").eq("status", "completed").gte("completed_at", since),
     v.db.from("payouts").select("id, amount, status, kind, reason, created_at, contractors(business_name), jobs(ref)").in("status", ["approved", "pending", "held"]).order("created_at"),
     v.db.from("ai_runs").select("kind, input_tokens, output_tokens").gte("created_at", since),
     // pricing accuracy: last 90 days of paid jobs — did the instant price hold up on site?
     v.db.from("jobs").select("service_slug, price_final, scope_extra, ai_quote, status").not("price_final", "is", null).is("remedy", null).gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()),
+    v.db.from("pro_deductions").select("id, amount, reason, source, respond_by, pro_response, responded_at, created_at, contractors(business_name), jobs(ref)").eq("status", "proposed").order("respond_by"),
   ]);
   const acc = new Map<string, { jobs: number; changed: number; extra: number; aiUp: number; aiDown: number; siteVisits: number }>();
   for (const j of (priced ?? []) as Rec[]) {
@@ -67,6 +70,23 @@ export default async function Finance() {
           <tr key={slug} className="border-t border-line"><td className="p-3 font-medium">{getService(slug)?.name}</td><td className="p-3">{r.jobs}</td><td className="p-3">{money(r.revenue)}</td><td className="p-3">{money(r.payout)}</td><td className="p-3">{money(r.revenue - r.payout)}</td><td className="p-3">{r.revenue ? Math.round(((r.revenue - r.payout) / r.revenue) * 100) : 0}%</td><td className="p-3">{money(r.revenue / r.jobs)}</td></tr>
         ))}{!rows.size && <tr><td className="p-3 text-ink-soft">No completed jobs in the last 30 days.</td></tr>}</tbody>
       </table></div>
+      <section>
+        <h2 className="mb-1 font-bold">Proposed pro deductions</h2>
+        <p className="mb-3 text-sm text-ink-soft">Workmanship refunds and lost chargebacks the pro may owe. The customer was already refunded from our share. The pro has 3 business days to respond; you can uphold once they’ve answered or the deadline has passed. Upheld amounts come out of their payouts — never more than half a week’s pay, never tips.</p>
+        {!(deds ?? []).length ? <Empty>Nothing waiting.</Empty> : (
+          <div className="space-y-2">{((deds ?? []) as unknown as { id: string; amount: number; reason: string; source: string; respond_by: string; pro_response: string | null; contractors: { business_name: string } | null; jobs: { ref: string } | null }[]).map((d) => {
+            const canUphold = Boolean(d.pro_response) || new Date(d.respond_by) <= new Date();
+            return (
+              <div key={d.id} className="card text-sm">
+                <div className="flex flex-wrap justify-between gap-2"><b>{d.contractors?.business_name} · {d.jobs?.ref ?? "—"} · {money(Number(d.amount))}</b><span className="text-ink-soft">{d.source} · respond by {d.respond_by.slice(0, 16).replace("T", " ")} UTC</span></div>
+                <p className="mt-1 text-ink-soft">{d.reason}</p>
+                {d.pro_response ? <p className="mt-2 rounded-lg bg-paper p-2"><b>Pro:</b> {d.pro_response}</p> : <p className="mt-2 text-xs text-ink-soft">No response yet.</p>}
+                <DeductionDecision id={d.id} canUphold={canUphold} />
+              </div>
+            );
+          })}</div>
+        )}
+      </section>
       <section>
         <h2 className="mb-1 font-bold">Payout queue</h2>
         <p className="mb-3 text-sm text-ink-soft">Pros are paid from money already collected: <b>approved</b> = customer charged · <b>pending</b> = confirm payment received first · <b>held</b> = customer charge failed.</p>

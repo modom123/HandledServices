@@ -53,7 +53,7 @@ export default function OfferScreen() {
           {w.scope.map((x) => <Text key={x.label} style={s.p}>{t(x.label)}: <Text style={s.b}>{t(String(x.value))}</Text></Text>)}
           <Text style={[s.p, { marginTop: 6 }]}>{t("Included:")} {w.includes.map((x) => t(x)).join(" · ")}</Text>
           {w.customerNotes ? <Text style={[s.p, { marginTop: 6 }]}>{t("Customer:")} “{w.customerNotes}”</Text> : null}
-          {w.instructions ? <Text style={[s.p, { marginTop: 6, color: C.brand }]}>{t("Instructions:")} {w.instructions}</Text> : null}
+          {w.instructions ? <Text style={[s.p, { marginTop: 6, color: C.brand }]}>{t("Customer requirements & access:")} {w.instructions}</Text> : null}
           <Text style={[s.p, { marginTop: 6 }]}>📷 {w.photos}</Text>
         </Card>
         <Card>

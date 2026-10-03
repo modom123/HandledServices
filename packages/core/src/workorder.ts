@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish work orders (opts.locale / workOrderText(w, locale)) for pros who chose Spanish.
+ * UPDATED : 2026-10-03_0117 UTC — "Customer requirements & access" (not instructions on how to do the work).
  * PURPOSE : The work order a pro sees with every job offer (app, web, email): payout, when,
  *           where, exact scope, customer notes, ops instructions, required photos and the
  *           job terms they agree to when they accept. Before acceptance only the area is
@@ -116,7 +117,7 @@ export function workOrderText(w: WorkOrder, locale?: Locale | string | null): st
     ...w.scope.map((s) => `• ${s.label}: ${s.value}`),
     `${es ? "Incluye" : "Included"}: ${w.includes.join("; ")}`,
     ...(w.customerNotes ? ["", `${es ? "Notas del cliente" : "Customer notes"}: "${w.customerNotes}"`] : []),
-    ...(w.instructions ? ["", `${es ? `Instrucciones de ${BRAND.name}` : `Instructions from ${BRAND.name}`}: ${w.instructions}`] : []),
+    ...(w.instructions ? ["", `${es ? "Requisitos del cliente y acceso" : "Customer requirements & access"}: ${w.instructions}`] : []),
     "",
     `${es ? "FOTOS" : "PHOTOS"}: ${w.photos}`,
     "",

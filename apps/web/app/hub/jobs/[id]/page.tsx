@@ -3,9 +3,11 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0302 UTC — shows how soon the customer needs it (deadline status) and their budget.
+ * UPDATED : 2026-10-03_0124 UTC — record a pro no-show (re-dispatches; counts toward the deactivation policy).
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
  */
+import { NoShowButton } from "@/components/Standing";
 import { notFound } from "next/navigation";
 import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
 import { isLate } from "@/lib/pro-benefits";
@@ -101,6 +103,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
             <OpsRating jobId={job.id} current={opsRating} />
           </>
         )}
+        {job.contractor_id && ["assigned", "scheduled", "dispatched"].includes(job.status) && <NoShowButton jobId={job.id} />}
         <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id, instructions: job.instructions }} pros={qualified} />
         <div className="card"><div className="font-semibold">Timeline</div>
           <ol className="mt-3 space-y-3 text-sm">{(events ?? []).map((e: AnyRec) => <li key={String(e.id)}><span className="text-xs text-ink-soft">{new Date(String(e.created_at)).toLocaleString()} · {String(e.actor)}</span><div>{String(e.message)}{!e.visible_to_customer && <span className="ml-1 text-xs text-ink-soft">(internal)</span>}</div></li>)}</ol></div>
