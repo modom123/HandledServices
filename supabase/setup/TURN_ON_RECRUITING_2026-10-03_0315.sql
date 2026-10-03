@@ -9,8 +9,9 @@
 --             • lead engine: on, starting conservatively — 10 Google searches and 25 invitation emails
 --               a day — so the new outreach domain builds a good sending reputation. Raise the caps in
 --               Hub → Pro leads after 2–3 weeks if bounces stay under ~3%.
---           The engine only emails once OUTREACH_RESEND_API_KEY, OUTREACH_FROM and
+--           The engine only hands leads to Instantly once INSTANTLY_API_KEY, INSTANTLY_CAMPAIGN_ID and
 --           BUSINESS_POSTAL_ADDRESS are set in Vercel, and only searches once GOOGLE_PLACES_API_KEY is.
+-- UPDATED : 2026-10-03_0325 UTC — sending through Instantly (emails/day = new leads handed to Instantly per day).
 -- ============================================================================
 
 -- Recruiting: auto-invite + auto-activate on (keeps any other saved settings)

@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/hub/leads/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0210 UTC
+ * UPDATED : 2026-10-03_0324 UTC — invitations sent through Instantly.
  * PURPOSE : Handled Hub → Pro leads. The automatic pro-recruiting engine: what it found, who it
  *           emailed, who clicked and applied, the call list for phone-only leads, CSV import, and
  *           the settings. Setup status for the three keys it needs.
@@ -32,17 +33,17 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const calls = leads.filter((l) => l.status === "call").slice(0, 50);
   const keys = [
     ["GOOGLE_PLACES_API_KEY", Boolean(process.env.GOOGLE_PLACES_API_KEY), "finds businesses automatically (Google Cloud → Places API (New) → API key)"],
-    ["OUTREACH_RESEND_API_KEY + OUTREACH_FROM", Boolean(process.env.OUTREACH_RESEND_API_KEY && process.env.OUTREACH_FROM), "sends invitations from a SEPARATE domain (e.g. pros@join-handled.com) so cold email never affects booking emails"],
+    ["INSTANTLY_API_KEY + INSTANTLY_CAMPAIGN_ID", Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_CAMPAIGN_ID), "Instantly sends the invitations from warmed-up inboxes on a SEPARATE domain; webhook reports sends, replies, unsubscribes, bounces"],
     ["BUSINESS_POSTAL_ADDRESS", Boolean(process.env.BUSINESS_POSTAL_ADDRESS), "required by law (CAN-SPAM) in every invitation"],
   ] as const;
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Pro leads</h1>
-        <p className="text-sm text-ink-soft">Finds independent pros where we’re short (<Link href="/hub/gaps" className="text-brand underline">Supply gaps</Link>), finds the email on their own website, and sends a 3-email invitation (day 0, 3, 8). It stops when they apply, unsubscribe or bounce. Phone-only leads go to the call list below — we never send automated texts. Applicants land in <Link href="/hub/recruiting" className="text-brand underline">Recruiting</Link>.</p>
+        <p className="text-sm text-ink-soft">Finds independent pros where we’re short (<Link href="/hub/gaps" className="text-brand underline">Supply gaps</Link>), finds the email on their own website, writes each one a 3-email invitation (day 0, 3, 8) and hands it to Instantly to send. It stops when they apply, unsubscribe or bounce. Phone-only leads go to the call list below — we never send automated texts. Applicants land in <Link href="/hub/recruiting" className="text-brand underline">Recruiting</Link>.</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">{keys.map(([k, ok, why]) => <div key={k} className={`card text-xs ${ok ? "" : "border-amber-300 bg-amber-50"}`}><b>{ok ? "✓" : "⚠"} {k}</b><div className="text-ink-soft">{why}</div></div>)}</div>
-      {!outreachReady() && <p className="text-xs text-ink-soft">Without the outreach keys the engine still finds leads and builds the call list; it just doesn’t email.</p>}
+      {!outreachReady() && <p className="text-xs text-ink-soft">Without the Instantly keys the engine still finds leads and builds the call list; it just doesn’t email. Replies land in Instantly’s Unibox.</p>}
       <div className="grid gap-3 sm:grid-cols-6">
         <Stat label="Leads found" value={leads.length} />
         <Stat label="With email" value={leads.filter((l) => l.email).length} />

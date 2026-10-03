@@ -6,22 +6,26 @@
  *             1. discover  — Google Places text search for the trades and areas we're short on
  *                            (Hub → Supply gaps), rated, operating local businesses only
  *             2. enrich    — the contact email from the business's OWN website (robots.txt respected)
- *             3. send      — a 3-email invitation (day 0, 3, 8) from a separate outreach sender, with
- *                            our postal address and one-click unsubscribe; stops when they apply,
- *                            unsubscribe or bounce. Phone-only leads go to a human call list —
- *                            never automated texts (TCPA).
+ *             3. send      — each lead's 3-email invitation (day 0, 3, 8) is written here (real pay,
+ *                            real demand, postal address, unsubscribe) and handed to an Instantly
+ *                            campaign, which does the sending (warm-up, rotation, limits, replies).
+ *                            Instantly's events come back via /api/webhooks/instantly. Stops when they
+ *                            apply, reply, unsubscribe or bounce. Phone-only leads go to a human call
+ *                            list — never automated texts (TCPA).
  *             4. clean up  — Google content older than 30 days is cleared on leads that never engaged
  *           Plus: CSV import (e.g. Michigan LARA license lists), click tracking (/l/<token>) and
  *           conversion when they apply.
+ * UPDATED : 2026-10-03_0324 UTC — sending moved from a Resend outreach account to Instantly.ai.
  */
 import "server-only";
 import {
-  BRAND, SERVICES, TRADES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, nextSendAt, serviceGaps, splitJob, type Contractor,
+  BRAND, LEAD_SEQUENCE, SERVICES, TRADES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, serviceGaps, splitJob, type Contractor,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
+import { addLeadToCampaign, blockInInstantly, instantlyReady } from "./instantly";
 
 const db = () => adminClient();
 const METRO = ["Detroit", "Dearborn", "Southfield", "Royal Oak", "Warren", "Livonia", "Troy", "Sterling Heights", "Farmington Hills", "Westland"];
@@ -33,7 +37,7 @@ export async function getLeadSettings(): Promise<LeadSettings> {
   return { enabled: false, discover_per_day: 10, emails_per_day: 40, min_rating: 4.3, min_reviews: 5, trades: [], ...(data ?? {}) } as LeadSettings;
 }
 
-export const outreachReady = () => Boolean(process.env.OUTREACH_RESEND_API_KEY && process.env.OUTREACH_FROM && process.env.BUSINESS_POSTAL_ADDRESS);
+export const outreachReady = instantlyReady;
 
 async function event(leadId: string, kind: string, note?: string | null, actor = "engine") {
   await db().from("pro_lead_events").insert({ lead_id: leadId, kind, note: note ?? null, actor });
@@ -164,48 +168,65 @@ async function demandNear(trade: string, area: string | null): Promise<number> {
   return (jobs ?? 0) + (wait ?? 0);
 }
 
-async function sendOutreach(to: string, subject: string, text: string) {
-  const unsub = unsubscribeUrl(to);
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OUTREACH_RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.OUTREACH_FROM, to, subject, text, reply_to: process.env.OUTREACH_REPLY_TO || process.env.OPS_EMAIL || undefined,
-      headers: { "List-Unsubscribe": `<${unsub}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } }),
-  });
-  if (!r.ok) throw new Error(`outreach send ${r.status}: ${(await r.text()).slice(0, 200)}`);
-}
+/** Instantly sends HTML: escape, keep line breaks, make links clickable. */
+const toHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}">${u}</a>`).replace(/\n/g, "<br>");
 
+/** Hand today's best queued leads to Instantly, each with its three emails written out. Instantly sends them. */
 export async function sendLeadEmails(s: LeadSettings): Promise<{ sent: number; skipped: number }> {
   if (!outreachReady()) return { sent: 0, skipped: 0 };
-  const { data } = await db().from("pro_leads").select("*").in("status", ["queued", "emailing", "clicked"]).not("email", "is", null).lte("next_send_at", new Date().toISOString())
+  const { data } = await db().from("pro_leads").select("*").eq("status", "queued").not("email", "is", null)
     .order("score", { ascending: false }).limit(s.emails_per_day);
   let sent = 0, skipped = 0;
-  for (const l of (data ?? []) as { id: string; token: string; email: string; business_name: string; contact_name: string | null; trade: string; city: string | null; area: string | null; step: number }[]) {
-    // already applied (any channel) or unsubscribed → stop
+  for (const l of (data ?? []) as { id: string; token: string; email: string; business_name: string; contact_name: string | null; trade: string; city: string | null; area: string | null; phone: string | null; website: string | null }[]) {
+    // already applied (any channel) or unsubscribed → don't start
     const [{ data: app }, { count: out }] = await Promise.all([
       db().from("contractor_applications").select("id").ilike("email", l.email).limit(1).maybeSingle(),
       db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", l.email.toLowerCase()),
     ]);
     if (app) { await db().from("pro_leads").update({ status: "applied", application_id: app.id, next_send_at: null }).eq("id", l.id); skipped++; continue; }
     if (out) { await db().from("pro_leads").update({ status: "unsubscribed", next_send_at: null }).eq("id", l.id); skipped++; continue; }
-    const m = leadEmail({ step: l.step, businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, trade: l.trade, city: l.city,
-      payExample: payExample(l.trade), demand: await demandNear(l.trade, l.area), applyUrl: `${siteUrl()}/l/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS! });
+    const ctx = { businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, trade: l.trade, city: l.city,
+      payExample: payExample(l.trade), demand: await demandNear(l.trade, l.area), applyUrl: `${siteUrl()}/l/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS! };
+    const variables: Record<string, string> = { handled_lead_id: l.id, apply_url: ctx.applyUrl };
+    LEAD_SEQUENCE.forEach((_, i) => { const m = leadEmail({ ...ctx, step: i }); variables[`subject_${i + 1}`] = m.subject; variables[`body_${i + 1}`] = toHtml(m.text); });
     try {
-      await sendOutreach(l.email, m.subject, m.text);
+      await addLeadToCampaign({ email: l.email, firstName: ctx.firstName, companyName: l.business_name, phone: l.phone, website: l.website, variables });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await event(l.id, "send_failed", msg);
-      if (/40[03]|invalid|bounce/i.test(msg)) await db().from("pro_leads").update({ status: "bounced", next_send_at: null }).eq("id", l.id);
+      await event(l.id, "send_failed", e instanceof Error ? e.message : String(e));
       skipped++; continue;
     }
-    const step = l.step + 1;
-    const next = nextSendAt(step);
-    // after the last email next_send_at is null: the sequence is over (status stays "emailing" unless they click/apply)
-    await db().from("pro_leads").update({ step, status: "emailing", next_send_at: next?.toISOString() ?? null, last_contact_at: new Date().toISOString() }).eq("id", l.id);
-    await event(l.id, "email_sent", `step ${step}: ${m.subject}`);
+    await db().from("pro_leads").update({ status: "emailing", step: 0, next_send_at: null, last_contact_at: new Date().toISOString() }).eq("id", l.id);
+    await event(l.id, "handed_to_instantly", `3-email invitation queued in Instantly`);
     sent++;
   }
   return { sent, skipped };
+}
+
+/** Instantly events (webhook): sent, opened/clicked, replied, unsubscribed, bounced. */
+export async function onInstantlyEvent(e: { type: string; email: string; leadId?: string | null; step?: number | null; text?: string | null }) {
+  const email = e.email.trim().toLowerCase();
+  const { data: lead } = e.leadId && /^[0-9a-f-]{36}$/.test(e.leadId)
+    ? await db().from("pro_leads").select("id, status, step").eq("id", e.leadId).maybeSingle()
+    : await db().from("pro_leads").select("id, status, step").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!lead) return false;
+  const t = e.type.toLowerCase();
+  const done = ["applied", "unsubscribed", "do_not_contact"].includes(lead.status);
+  if (t.includes("unsub")) {
+    await db().from("email_optouts").upsert({ email });
+    await db().from("pro_leads").update({ status: "unsubscribed" }).eq("id", lead.id);
+  } else if (t.includes("bounce")) {
+    if (!done) await db().from("pro_leads").update({ status: "bounced" }).eq("id", lead.id);
+  } else if (t.includes("repl")) {
+    if (!done) await db().from("pro_leads").update({ status: "replied" }).eq("id", lead.id);
+    await raiseAlert("leads", "info", `A pro lead replied (${email})`, `${e.text ? `"${e.text.slice(0, 500)}"\n\n` : ""}Answer from Instantly's Unibox, then mark them in Hub → Pro leads.`);
+  } else if (t.includes("click")) {
+    if (["queued", "emailing"].includes(lead.status)) await db().from("pro_leads").update({ status: "clicked" }).eq("id", lead.id);
+  } else if (t.includes("sent")) {
+    await db().from("pro_leads").update({ step: Math.max(Number(lead.step ?? 0), Number(e.step ?? Number(lead.step ?? 0) + 1)), last_contact_at: new Date().toISOString() }).eq("id", lead.id);
+  }
+  await event(lead.id, `instantly:${t}`, e.text?.slice(0, 300) ?? null, "instantly");
+  return true;
 }
 
 // ─── Click, conversion, call list, import, clean-up ─────────────────────────
@@ -232,12 +253,17 @@ export async function markLeadConverted(applicationId: string, a: { token?: stri
   if (!lead) return null;
   await db().from("pro_leads").update({ status: "applied", application_id: applicationId, next_send_at: null }).eq("id", lead.id);
   await db().from("contractor_applications").update({ lead_id: lead.id }).eq("id", applicationId);
+  await blockInInstantly(a.email); // they applied: stop the rest of the invitation sequence
   await event(lead.id, "applied");
   return lead.id;
 }
 
 export async function setLeadStatus(id: string, status: "call" | "not_interested" | "do_not_contact" | "replied" | "queued", note: string | null, actor: string) {
   await db().from("pro_leads").update({ status, next_send_at: status === "queued" ? new Date().toISOString() : null, notes: note }).eq("id", id);
+  if (status === "not_interested" || status === "do_not_contact") {
+    const { data } = await db().from("pro_leads").select("email").eq("id", id).single();
+    if (data?.email) await blockInInstantly(data.email);
+  }
   await event(id, `status:${status}`, note, actor);
 }
 
@@ -295,6 +321,6 @@ export async function leadEngine() {
   const sent = await sendLeadEmails(s).catch((e) => { console.error("[leads send]", e); return { sent: 0, skipped: 0 }; });
   const purged = await purgeExpiredDetails().catch(() => 0);
   if (!process.env.GOOGLE_PLACES_API_KEY || !outreachReady())
-    await raiseAlert("leads", "info", "Pro lead engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing — no automatic discovery (CSV import still works). " : ""}${!outreachReady() ? "OUTREACH_RESEND_API_KEY / OUTREACH_FROM / BUSINESS_POSTAL_ADDRESS missing — no emails sent." : ""}`);
+    await raiseAlert("leads", "info", "Pro lead engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing — no automatic discovery (CSV import still works). " : ""}${!outreachReady() ? "INSTANTLY_API_KEY / INSTANTLY_CAMPAIGN_ID / BUSINESS_POSTAL_ADDRESS missing — no leads handed to Instantly." : ""}`);
   return { enabled: true, discovered, emailsFound, sent, purged };
 }

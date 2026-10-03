@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/api/unsubscribe/route.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0027 UTC
+ * UPDATED : 2026-10-03_0324 UTC — also blocks the address in Instantly (pro lead invitations).
  * PURPOSE : One-click unsubscribe from reminder emails (seasonal reminders, saved-price
  *           follow-ups). GET from the link in the email shows a confirmation page; POST is the
  *           mail app's one-click (List-Unsubscribe-Post). Signed per address — no login.
@@ -9,6 +10,7 @@
  */
 import { BRAND } from "@handled/core";
 import { validUnsubscribeToken } from "@/lib/invoice";
+import { blockInInstantly } from "@/lib/instantly";
 import { adminClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 
@@ -17,6 +19,7 @@ async function optOut(req: Request): Promise<boolean> {
   const email = (url.searchParams.get("e") ?? "").trim().toLowerCase();
   if (!email.includes("@") || !validUnsubscribeToken(email, url.searchParams.get("t"))) return false;
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) await adminClient().from("email_optouts").upsert({ email });
+  await blockInInstantly(email); // pro lead invitations stop too
   return true;
 }
 
