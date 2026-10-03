@@ -2,6 +2,8 @@
  * FILE    : apps/web/proxy.ts   (Next.js 16 "proxy", formerly middleware)
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-03_0306 UTC — ?lang=es / ?lang=en on any page sets the language (links in Spanish
+ *           Indeed posts, emails and ads open the site in Spanish).
  * PURPOSE : Refreshes the Supabase auth session cookie on every request to the
  *           signed-in areas (account, pro portal, ops hub).
  */
@@ -9,9 +11,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_KEY, SUPABASE_URL, supabaseConfigured } from "@/lib/supabase/env";
 
+const SIGNED_IN = /^\/(account|pro|hub|login)(\/|$)/;
+
 export async function proxy(request: NextRequest) {
+  // ?lang= switches the site language (and remembers it) — this request sees it too
+  const lang = request.nextUrl.searchParams.get("lang");
+  const setLang = lang === "es" || lang === "en" ? lang : null;
+  if (setLang) request.cookies.set("lang", setLang);
   let response = NextResponse.next({ request });
-  if (!supabaseConfigured) return response;
+  const remember = (r: NextResponse) => { if (setLang) r.cookies.set("lang", setLang, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" }); return r; };
+  if (!supabaseConfigured || !SIGNED_IN.test(request.nextUrl.pathname)) return remember(response);
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
     cookies: {
       getAll: () => request.cookies.getAll(),
@@ -23,7 +32,8 @@ export async function proxy(request: NextRequest) {
     },
   });
   await supabase.auth.getUser();
-  return response;
+  return remember(response);
 }
 
-export const config = { matcher: ["/account/:path*", "/pro/:path*", "/hub/:path*", "/login"] };
+// signed-in areas (session refresh) + public pages that may carry ?lang=
+export const config = { matcher: ["/account/:path*", "/pro/:path*", "/hub/:path*", "/login", "/pros", "/book", "/home", "/", "/terms/:path*", "/services/:path*", "/business", "/plus", "/gift-cards"] };
