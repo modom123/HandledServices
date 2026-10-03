@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-03_0048.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-03_0053.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-03_0048 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 23 migrations + production seed.
+-- CREATED : 2026-10-03_0053 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 24 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -1554,6 +1554,18 @@ create policy "own contracts" on public.contract_acceptances for select using (
   profile_id = auth.uid()
   or contractor_id in (select id from public.contractors where profile_id = auth.uid())
 );
+
+
+-- >>> migration 20261003004900_contract_language.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261003004900_contract_language.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-03_0049 UTC
+-- PURPOSE : Contracts in Spanish: record the language each person read when they accepted.
+--           The frozen copy (sections) also keeps the Spanish text they saw; English controls.
+-- ============================================================================
+alter table public.contract_acceptances
+  add column if not exists locale text not null default 'en' check (locale in ('en','es'));
 
 
 -- >>> seed.sql
