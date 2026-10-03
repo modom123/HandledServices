@@ -137,7 +137,7 @@ export default function Book() {
             {offerChk && !offerChk.ok ? <Text style={[s.p, { fontSize: 14, color: C.red }]}>{offerChk.level === "too_low" ? (es ? `Las ofertas empiezan en ${money(offerChk.min)} para este trabajo.` : `Offers start at ${money(offerChk.min)} for this job.`) : (es ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</Text> : null}
             {offerChk?.ok && offerChk.level === "low" ? <Text style={[s.p, { fontSize: 14, color: "#b45309" }]}>{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</Text> : null}
             {offerChk?.ok && offerNum > suggested ? <Text style={[s.p, { fontSize: 14, color: C.brand }]}>✓ {t("A higher offer usually gets a pro faster.")}</Text> : null}
-            <Text style={[s.p, { fontSize: 14, marginTop: 6 }]}>{es ? `Su profesional gana ${money(splitJob(listTotal).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</Text>
+            <Text style={[s.p, { fontSize: 14, marginTop: 6 }]}>{es ? `Su profesional gana ${money(splitJob(listTotal, slug).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal, slug).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</Text>
           </View>
         )}
         {svc.slug !== "event-package" && (

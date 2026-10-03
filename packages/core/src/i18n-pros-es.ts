@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting): trades, specialties, coverage,
  *           requirements by trade, vetting steps, promises, comparison table, application form,
  *           onboarding steps and the onboarding/application error messages.
+ * UPDATED : 2026-10-03_1247 UTC — new "What pros make" card strings; comparison and tier lines updated for counters.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -304,13 +305,20 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Do the work you’re great at. We fill your calendar and you never chase a payment.": "Haga el trabajo en el que es excelente. Nosotros llenamos su agenda y usted nunca persigue un pago.",
   "Prepaid, pre-priced jobs in your area and your specialties. No lead fees, no bidding, no invoices. Accept a job like you’d accept a ride.": "Trabajos prepagados y con precio fijo en su zona y sus especialidades. Sin cargos por cliente potencial, sin licitar y sin facturas. Acepte un trabajo como aceptaría un viaje.",
   "Apply in 5 minutes": "Postúlese en 5 minutos",
-  "What pros earn per job": "Lo que ganan los profesionales por trabajo",
-  "Typical job size, from our live pricing. Higher tiers earn up to the higher number.": "Tamaño típico del trabajo, según nuestros precios actuales. Los niveles más altos ganan hasta la cifra mayor.",
+  "What pros make": "Lo que ganan los profesionales",
+  "Trade": "Oficio",
+  "Electrical": "Electricidad",
+  "Painting": "Pintura",
+  "Per job": "Por trabajo",
+  "A full day": "Un día completo",
+  "By project": "Por proyecto",
+  "Handyman & carpentry": "Mantenimiento y carpintería",
+  "From a small job to a big one, at today’s suggested prices. A full day is a typical day’s worth of average-size jobs. Customers can offer more, and if the pay isn’t right you can counter with your number.": "De un trabajo pequeño a uno grande, con los precios sugeridos de hoy. Un día completo es un día típico de trabajos de tamaño promedio. Los clientes pueden ofrecer más y, si el pago no le conviene, puede hacer una contraoferta con su cifra.",
   "Our promises to pros": "Nuestras promesas a los profesionales",
   "Benefits that protect your pay": "Beneficios que protegen su pago",
   "Need insurance?": "¿Necesita seguro?",
   "Grow with us: Pro, Pro+ and Elite": "Crezca con nosotros: Pro, Pro+ y Elite",
-  "Tiers are earned from your real numbers (jobs, rating, on time, offers accepted) and update automatically.": "Los niveles se ganan con sus cifras reales (trabajos, calificación, puntualidad, ofertas aceptadas) y se actualizan automáticamente.",
+  "Tiers are earned from your real numbers (jobs, rating, on time) and update automatically. Passing on jobs never counts against you.": "Los niveles se ganan con sus cifras reales (trabajos, calificación, puntualidad) y se actualizan automáticamente. Dejar pasar trabajos nunca cuenta en su contra.",
   "Once you’re activated": "En cuanto se active",
   "How we’re different": "En qué somos diferentes",
   "Lead sites (Angi, Thumbtack)": "Sitios de clientes potenciales (Angi, Thumbtack)",
@@ -337,7 +345,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "You compete with other pros for each lead.": "Compite con otros profesionales por cada cliente potencial.",
   "You do: your own marketing.": "Usted: con su propia publicidad.",
   "Price": "Precio",
-  "Set upfront. You see your payout before you accept.": "Fijo por adelantado. Ve su pago antes de aceptar.",
+  "You see your pay before you accept. Too low? Counter with your number, or pass for free.": "Ve su pago antes de aceptar. ¿Muy bajo? Haga una contraoferta con su cifra o déjelo pasar sin costo.",
   "You quote, chase and negotiate.": "Usted cotiza, da seguimiento y negocia.",
   "You quote.": "Usted cotiza.",
   "Getting paid": "Cobro",

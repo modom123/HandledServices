@@ -6,21 +6,21 @@
  *           pricing engine, tiers, how we compare, the vetting process and requirements
  *           by trade (license, insurance, skills check).
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)
+ * UPDATED : 2026-10-03_1247 UTC — "What pros make" leads with the share pros keep (68–85%), a full day and the
+ *           small-to-large job range per trade (core earnings.ts) instead of single small-job numbers.
  * PURPOSE : Subcontractor recruiting page + application.
  */
 import { ApplyForm } from "@/components/forms";
 import { getPolicy } from "@/lib/pro-benefits";
 import { getLocale } from "@/lib/locale";
-import { BRAND, COVERAGES, PRO_PROMISES, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, money, samplePayouts, serviceText, t as tr, type ProPolicy } from "@handled/core";
+import { BRAND, COVERAGES, PRO_PROMISES, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
 
 export const metadata = { title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
-
-const SAMPLES = ["house-cleaning", "lawn-care", "junk-removal", "handyman", "gutter-cleaning", "carpet-cleaning", "dog-walking", "water-heater", "snow-removal", "tree-removal"];
 
 const COMPARE: [string, string, string, string][] = [
   ["What it costs you", "Nothing to join. We keep a share of each finished job.", "You pay for leads, whether you win the job or not.", "A monthly software subscription."],
   ["Who finds the customer", "We do, and the job is already sold.", "You compete with other pros for each lead.", "You do: your own marketing."],
-  ["Price", "Set upfront. You see your payout before you accept.", "You quote, chase and negotiate.", "You quote."],
+  ["Price", "You see your pay before you accept. Too low? Counter with your number, or pass for free.", "You quote, chase and negotiate.", "You quote."],
   ["Getting paid", "The customer prepays us; you're paid weekly.", "You invoice and collect.", "You invoice and collect."],
   ["Office work", "Scheduling, reminders, support and reviews handled.", "Yours.", "Yours, with better tools."],
   ["Unhappy customer", "Our team handles it with you.", "Yours.", "Yours."],
@@ -55,7 +55,8 @@ export default async function ProsPage() {
   const l = await getLocale();
   const es = l === "es";
   const t = (s: string) => tr(l, s);
-  const pays = samplePayouts(SAMPLES);
+  const show = earningsShowcase();
+  const head = earningsHeadline();
   const policy = await getPolicy().catch(() => null);
   const covLabel = (k: keyof typeof COVERAGES) => t(COVERAGES[k].label);
   return (
@@ -68,15 +69,22 @@ export default async function ProsPage() {
           <a href="#apply" className="btn-primary mt-6 inline-block px-6">{t("Apply in 5 minutes")}</a>
         </div>
         <div className="card">
-          <div className="text-sm font-semibold">{t("What pros earn per job")}</div>
-          <p className="text-xs text-ink-soft">{t("Typical job size, from our live pricing. Higher tiers earn up to the higher number.")}</p>
-          <table className="mt-3 w-full text-sm">
+          <div className="text-sm font-semibold">{t("What pros make")}</div>
+          <div className="mt-1 text-3xl font-extrabold text-brand">{es ? `Usted se queda con ${head.keepLarge}–${head.keepSmall}% de cada trabajo` : `Keep ${head.keepLarge}–${head.keepSmall}% of every job`}</div>
+          <p className="mt-1 text-sm text-ink-soft">{es ? `Mientras más pequeño el trabajo, mayor su parte. Pro+ y Elite ganan hasta ${head.topBoost}% más.` : `The smaller the job, the bigger your share. Pro+ and Elite earn up to ${head.topBoost}% more.`}</p>
+          <table className="mt-4 w-full text-sm">
+            <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-soft"><th className="pb-1 font-medium">{t("Trade")}</th><th className="pb-1 text-right font-medium">{t("Per job")}</th><th className="pb-1 text-right font-medium">{t("A full day")}</th></tr></thead>
             <tbody>
-              {pays.map((p) => (
-                <tr key={p.slug} className="border-t border-line"><td className="py-2">{p.icon} {serviceText(l, p.slug, { name: p.name, tagline: "" }).name}</td><td className="py-2 text-right font-semibold text-brand">{p.label}</td></tr>
+              {show.map((r) => (
+                <tr key={r.slug} className="border-t border-line">
+                  <td className="py-2">{r.icon} {t(r.name) === r.name ? serviceText(l, r.slug, { name: r.name, tagline: "" }).name : t(r.name)}</td>
+                  <td className="py-2 text-right text-ink-soft">{money(r.low)}–{money(r.high)}</td>
+                  <td className="py-2 text-right font-semibold text-brand">{r.day ? `${money(r.day)}+` : t("By project")}</td>
+                </tr>
               ))}
             </tbody>
           </table>
+          <p className="mt-3 text-xs text-ink-soft">{t("From a small job to a big one, at today’s suggested prices. A full day is a typical day’s worth of average-size jobs. Customers can offer more, and if the pay isn’t right you can counter with your number.")}</p>
         </div>
       </section>
 
@@ -105,7 +113,7 @@ export default async function ProsPage() {
 
       <section>
         <h2 className="text-2xl font-bold">{t("Grow with us: Pro, Pro+ and Elite")}</h2>
-        <p className="mt-2 text-ink-soft">{t("Tiers are earned from your real numbers (jobs, rating, on time, offers accepted) and update automatically.")}</p>
+        <p className="mt-2 text-ink-soft">{t("Tiers are earned from your real numbers (jobs, rating, on time) and update automatically. Passing on jobs never counts against you.")}</p>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {PRO_TIERS.map((tier) => (
             <div key={tier.id} className={`card ${tier.id === "elite" ? "border-brand bg-brand-tint" : ""}`}>

@@ -9,6 +9,8 @@
  * UPDATED : 2026-10-03_0144 UTC — market pricing: a $4 booking fee the customer pays (kept by us), a commission
  *           that slides with job size (15% on small jobs → 32% on $600+), priceForPayout() for pro counters,
  *           and a learned local market factor (marketFactor) applied to the suggested price.
+ * UPDATED : 2026-10-03_1247 UTC — per-service commission cap (Service.maxCommission) for equipment-heavy jobs
+ *           like water heaters, where the unit is most of the price.
  * PURPOSE : Deterministic instant-quote engine. Produces the price range shown to the
  *           customer, the subcontractor payout and the platform margin. The AI quote
  *           (apps/web/lib/ai/quote.ts) may adjust inside guardrails but never below the
@@ -45,9 +47,10 @@ export const bookingFeeOf = (price: number) => (price >= FEE_FROM ? BOOKING_FEE 
  * Payout still rises with every extra dollar of price.
  */
 export const COMMISSION = { minRate: 0.15, maxRate: 0.32, from: 60, to: 600 } as const;
-export function commissionRate(servicePrice: number): number {
+export function commissionRate(servicePrice: number, slug?: string): number {
   const t = Math.min(1, Math.max(0, (servicePrice - COMMISSION.from) / (COMMISSION.to - COMMISSION.from)));
-  return Math.min(TAKE_MAX, Math.max(TAKE_MIN, COMMISSION.minRate + (COMMISSION.maxRate - COMMISSION.minRate) * t));
+  const cap = (slug && getService(slug)?.maxCommission) || TAKE_MAX;
+  return Math.min(cap, TAKE_MAX, Math.max(TAKE_MIN, COMMISSION.minRate + (COMMISSION.maxRate - COMMISSION.minRate) * t));
 }
 /** Card processing estimate (Stripe US standard). Big tickets should use ACH instead. */
 export const CARD_FEE = { pct: 0.029, fixed: 0.3 };
@@ -71,10 +74,10 @@ export interface JobSplit {
  * commission slides with the service price (commissionRate), always within TAKE_MIN–TAKE_MAX; the
  * payout rounds DOWN to the dollar so rounding can never cost us money.
  */
-export function splitJob(price: number, _slug?: string): JobSplit {
+export function splitJob(price: number, slug?: string): JobSplit {
   const fee = bookingFeeOf(price);
   const service = Math.max(0, price - fee);
-  const payout = price > 0 ? Math.floor(service * (1 - commissionRate(service))) : 0;
+  const payout = price > 0 ? Math.floor(service * (1 - commissionRate(service, slug))) : 0;
   const take = Math.round((price - payout) * 100) / 100;
   const cardFee = price > 0 ? Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100 : 0;
   return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };

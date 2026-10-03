@@ -57,7 +57,7 @@ export default async function MarketPricing() {
               const fx = f.get(s.slug);
               const factor = Number(fx?.manual_factor ?? fx?.factor ?? 1);
               const e = estimate({ slug: s.slug, answers: defaultAnswers(s), market: factor });
-              const sp = splitJob(e.point);
+              const sp = splitJob(e.point, s.slug);
               const rows = by.get(s.slug) ?? [];
               const a = rows.filter((r) => r.outcome === "accepted").length, c = rows.filter((r) => r.outcome === "countered").length;
               const n = named.get(s.slug) ?? [];
@@ -67,7 +67,7 @@ export default async function MarketPricing() {
                   <td className="p-3">{s.icon} {s.name}</td>
                   <td className="p-3 text-right">{money(e.point)}</td>
                   <td className="p-3 text-right">{money(sp.payout)}</td>
-                  <td className="p-3 text-right">{money(sp.take)} <span className="text-xs text-ink-soft">({pct(commissionRate(e.point - sp.fee))} + fee)</span></td>
+                  <td className="p-3 text-right">{money(sp.take)} <span className="text-xs text-ink-soft">({pct(commissionRate(e.point - sp.fee, s.slug))} + fee)</span></td>
                   <td className="p-3 text-right">{rows.length || "—"}</td>
                   <td className="p-3 text-right">{rows.length ? `${pct(a / rows.length)} · ${pct(c / rows.length)}` : "—"}</td>
                   <td className="p-3 text-right">{avgOffer ? `${avgOffer >= 1 ? "+" : "−"}${pct(Math.abs(avgOffer - 1))} (${n.length})` : "—"}</td>

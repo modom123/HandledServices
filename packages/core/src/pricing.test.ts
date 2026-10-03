@@ -11,7 +11,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SERVICES, defaultAnswers, type Answers, type Question } from "./services.ts";
-import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT, BOOKING_FEE } from "./pricing.ts";
+import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT, BOOKING_FEE, splitJob, commissionRate } from "./pricing.ts";
 import { rankContractors } from "./dispatch.ts";
 import type { Contractor } from "./types.ts";
 
@@ -812,4 +812,26 @@ test("pro lead engine: searches, scoring, emails found, sequence, copy", async (
   assert.match(e.text, /1 Main St, Detroit, MI/);
   assert.match(e.text, /won't email again: https:\/\/x\/u/);
   assert.doesNotMatch(leadEmail({ step: 1, businessName: "B", trade: "plumbing", applyUrl: "u", unsubscribeUrl: "u", postalAddress: "a", demand: 0 }).text, /requests/);
+});
+
+test("pro earnings showcase: ranges are ordered, days computed, nothing below a fair floor", async () => {
+  const { earningsShowcase, earningsHeadline, EARNINGS_SHOWCASE } = await import("./earnings.ts");
+  const rows = earningsShowcase();
+  assert.equal(rows.length, EARNINGS_SHOWCASE.length, "every showcase trade prices");
+  for (const r of rows) {
+    assert.ok(r.low <= r.typical && r.typical <= r.high, `${r.slug} low ≤ typical ≤ high`);
+    assert.ok(r.high >= r.low * 1.5, `${r.slug} shows a real small → large range`);
+    if (r.day !== null) assert.ok(r.day >= 250, `${r.slug} full day ≥ $250`);
+  }
+  const h = earningsHeadline();
+  assert.ok(h.keepSmall > h.keepLarge && h.keepLarge >= 65);
+});
+
+test("water heater: standard tank priced to market, commission capped so the plumber clears labor", () => {
+  const e = estimate({ slug: "water-heater", answers: { type: "tank50", fuel: "gas" } });
+  assert.ok(e.point >= 1150 && e.point <= 1400, `50-gal gas suggested ${e.point}`);
+  const sp = splitJob(e.point, "water-heater");
+  assert.ok(sp.payout / e.point >= 0.84, "our cut is capped at 15% on equipment jobs");
+  assert.ok(sp.payout - 750 >= 250, "pro clears ≥ $250 labor after a ~$750 unit + permit");
+  assert.ok(commissionRate(1000, "water-heater") <= 0.15 && commissionRate(1000) === 0.32);
 });

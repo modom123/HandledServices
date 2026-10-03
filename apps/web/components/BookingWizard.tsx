@@ -336,7 +336,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.min)} para este trabajo.` : `Offers start at ${money(offerChk.min)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
               {offerChk?.ok && offerChk.level === "low" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
               {offerChk?.ok && offerNum > suggested && <p className="mt-1 text-xs text-brand-dark">✓ {t("A higher offer usually gets a pro faster.")}</p>}
-              <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Su profesional gana ${money(splitJob(listTotal).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</p>
+              <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Su profesional gana ${money(splitJob(listTotal, slug).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal, slug).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</p>
             </div>
           )}
           {svc.slug !== "event-package" && (() => {

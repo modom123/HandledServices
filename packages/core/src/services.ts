@@ -16,6 +16,9 @@
  *           base + bed/bath (standard 3/2 ≈ $193, deep ≈ $309, move ≈ $367); lawn mowing raised so pros clear
  *           local rates after plan discounts; snow per-visit lowered to market; grocery & medical delivery,
  *           dog-poop scooping and full car detail nudged up so pro payouts meet local independent rates.
+ * UPDATED : 2026-10-03_1247 UTC — water heater recalibrated to a standard-grade unit (50-gal gas ≈ $1,250
+ *           suggested, was ≈ $2,030) with our commission capped at 15% (maxCommission) so the pro
+ *           still clears a fair labor margin after buying the tank.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -67,6 +70,11 @@ export interface Service {
   spread: [number, number];
   /** Share of the final price paid to the subcontractor (0–1). */
   payoutShare: number;
+  /**
+   * Equipment-heavy jobs (the pro buys a unit that is most of the price): cap on our commission so a
+   * competitive price still leaves the pro a fair labor margin. Defaults to the sliding rate.
+   */
+  maxCommission?: number;
   /** A firm price needs eyes on site (tree work, remodels). */
   siteVisit: boolean;
   /** Recurring plans allowed for this service. */
@@ -1002,7 +1010,7 @@ export const SERVICES: Service[] = [
     icon: "🔥",
     tagline: "New tank or tankless, installed and hauled away.",
     description: "Water heater replacement with the unit, permit, code-required parts and haul-away of the old tank. Gas or electric, tank or tankless.",
-    includes: ["New unit included", "Licensed plumber", "Permit pulled where required", "Old tank hauled away", "Manufacturer + 1-year labor warranty"],
+    includes: ["New standard-grade unit included", "Licensed plumber", "Permit pulled where required", "Old tank hauled away", "Manufacturer + 1-year labor warranty"],
     questions: [
       {
         id: "type",
@@ -1029,18 +1037,21 @@ export const SERVICES: Service[] = [
       { id: "expansion", label: "Add expansion tank", type: "toggle", default: false },
       { id: "tight", label: "Tight closet / attic install", type: "toggle", default: false },
     ],
-    minimum: 1400,
+    minimum: 1050,
     spread: [0.95, 1.15],
     payoutShare: 0.75,
+    maxCommission: 0.15,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["plumbing"],
     licensed: true,
+    // Standard-grade unit (Rheem / A.O. Smith / Bradford White builder line) installed — metro Detroit
+    // street price ≈ $1,150–1,450 for a 40–50 gal tank. Premium units are a change order, not the default.
     price: (a) => {
-      const unit = { tank40: 1550, tank50: 1750, tank75: 2600, tankless: 3900 }[s(a, "type", "tank50")] ?? 1750;
+      const unit = { tank40: 950, tank50: 1050, tank75: 1800, tankless: 2900 }[s(a, "type", "tank50")] ?? 1050;
       const gas = s(a, "fuel", "gas") === "gas";
-      const items: LineItem[] = [{ label: `${s(a, "type", "tank50")} ${gas ? "gas" : "electric"} — unit + install`, amount: gas ? unit + 150 : unit }];
-      items.push({ label: "Permit & code parts", amount: 125 });
+      const items: LineItem[] = [{ label: `${s(a, "type", "tank50")} ${gas ? "gas" : "electric"} — unit + install`, amount: gas ? unit + 100 : unit }];
+      items.push({ label: "Permit & code parts", amount: 100 });
       if (b(a, "expansion")) items.push({ label: "Expansion tank", amount: 175 });
       if (b(a, "tight")) items.push({ label: "Difficult access", amount: 250 });
       const base = sum(items);

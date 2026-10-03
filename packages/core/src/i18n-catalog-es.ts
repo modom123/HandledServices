@@ -367,7 +367,7 @@ export const ES_CATALOG: Record<string, string> = {
   "Needs taking apart (bed frame, sectional, playset, hot tub cutting)": "Requiere desarmarse (marco de cama, sofá seccional, juego infantil, corte de jacuzzi)",
   "Never over your budget": "Nunca excede su presupuesto",
   "New recessed / can lights": "Luces empotradas nuevas",
-  "New unit included": "Unidad nueva incluida",
+  "New standard-grade unit included": "Unidad nueva de gama estándar incluida",
   "New unit included on replacements": "Unidad nueva incluida en reemplazos",
   "Night out / birthday": "Noche de fiesta / cumpleaños",
   "No outdoor water or outlet we can use": "Sin agua exterior ni enchufe disponible",
