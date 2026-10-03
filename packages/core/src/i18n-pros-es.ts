@@ -7,6 +7,7 @@
  *           requirements by trade, vetting steps, promises, comparison table, application form,
  *           onboarding steps and the onboarding/application error messages.
  * UPDATED : 2026-10-03_1247 UTC — new "What pros make" card strings; comparison and tier lines updated for counters.
+ * UPDATED : 2026-10-03_1413 UTC — earnings card labeled as estimates.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -305,15 +306,16 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Do the work you’re great at. We fill your calendar and you never chase a payment.": "Haga el trabajo en el que es excelente. Nosotros llenamos su agenda y usted nunca persigue un pago.",
   "Prepaid, pre-priced jobs in your area and your specialties. No lead fees, no bidding, no invoices. Accept a job like you’d accept a ride.": "Trabajos prepagados y con precio fijo en su zona y sus especialidades. Sin cargos por cliente potencial, sin licitar y sin facturas. Acepte un trabajo como aceptaría un viaje.",
   "Apply in 5 minutes": "Postúlese en 5 minutos",
-  "What pros make": "Lo que ganan los profesionales",
+  "What pros can make": "Lo que pueden ganar los profesionales",
+  "Estimates": "Estimaciones",
+  "Est. per job": "Est. por trabajo",
+  "Est. full day": "Est. día completo",
   "Trade": "Oficio",
   "Electrical": "Electricidad",
   "Painting": "Pintura",
-  "Per job": "Por trabajo",
-  "A full day": "Un día completo",
   "By project": "Por proyecto",
   "Handyman & carpentry": "Mantenimiento y carpintería",
-  "From a small job to a big one, at today’s suggested prices. A full day is a typical day’s worth of average-size jobs. Customers can offer more, and if the pay isn’t right you can counter with your number.": "De un trabajo pequeño a uno grande, con los precios sugeridos de hoy. Un día completo es un día típico de trabajos de tamaño promedio. Los clientes pueden ofrecer más y, si el pago no le conviene, puede hacer una contraoferta con su cifra.",
+  "Estimates only, not a promise of pay. They use today’s suggested prices for a small to a large job, and a full day assumes a typical day of average-size jobs. What you actually make depends on the jobs you choose, the final price, your tier and how much you work, and it’s before your own costs (supplies, gas, insurance and taxes). Every offer shows your exact pay before you accept, and you can counter if it isn’t right.": "Son solo estimaciones, no una promesa de pago. Usan los precios sugeridos de hoy para un trabajo de pequeño a grande, y un día completo supone un día típico de trabajos de tamaño promedio. Lo que realmente gane depende de los trabajos que elija, el precio final, su nivel y cuánto trabaje, y es antes de sus propios gastos (materiales, gasolina, seguro e impuestos). Cada oferta le muestra su pago exacto antes de aceptar, y puede hacer una contraoferta si no le conviene.",
   "Our promises to pros": "Nuestras promesas a los profesionales",
   "Benefits that protect your pay": "Beneficios que protegen su pago",
   "Need insurance?": "¿Necesita seguro?",

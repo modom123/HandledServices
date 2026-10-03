@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-03_1247 UTC — "What pros make" leads with the share pros keep (68–85%), a full day and the
  *           small-to-large job range per trade (core earnings.ts) instead of single small-job numbers.
  * UPDATED : 2026-10-03_1311 UTC — fast track to Pro+ and crew accounts on the recruiting page.
+ * UPDATED : 2026-10-03_1413 UTC — earnings card clearly labeled as estimates (badge, "Est." headers, plain-language disclaimer).
  * PURPOSE : Subcontractor recruiting page + application.
  */
 import { ApplyForm } from "@/components/forms";
@@ -70,22 +71,22 @@ export default async function ProsPage() {
           <a href="#apply" className="btn-primary mt-6 inline-block px-6">{t("Apply in 5 minutes")}</a>
         </div>
         <div className="card">
-          <div className="text-sm font-semibold">{t("What pros make")}</div>
+          <div className="text-sm font-semibold">{t("What pros can make")} <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{t("Estimates")}</span></div>
           <div className="mt-1 text-3xl font-extrabold text-brand">{es ? `Usted se queda con ${head.keepLarge}–${head.keepSmall}% de cada trabajo` : `Keep ${head.keepLarge}–${head.keepSmall}% of every job`}</div>
           <p className="mt-1 text-sm text-ink-soft">{es ? `Mientras más pequeño el trabajo, mayor su parte. Pro+ y Elite ganan hasta ${head.topBoost}% más.` : `The smaller the job, the bigger your share. Pro+ and Elite earn up to ${head.topBoost}% more.`}</p>
           <table className="mt-4 w-full text-sm">
-            <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-soft"><th className="pb-1 font-medium">{t("Trade")}</th><th className="pb-1 text-right font-medium">{t("Per job")}</th><th className="pb-1 text-right font-medium">{t("A full day")}</th></tr></thead>
+            <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-soft"><th className="pb-1 font-medium">{t("Trade")}</th><th className="pb-1 text-right font-medium">{t("Est. per job")}</th><th className="pb-1 text-right font-medium">{t("Est. full day")}</th></tr></thead>
             <tbody>
               {show.map((r) => (
                 <tr key={r.slug} className="border-t border-line">
                   <td className="py-2">{r.icon} {t(r.name) === r.name ? serviceText(l, r.slug, { name: r.name, tagline: "" }).name : t(r.name)}</td>
                   <td className="py-2 text-right text-ink-soft">{money(r.low)}–{money(r.high)}</td>
-                  <td className="py-2 text-right font-semibold text-brand">{r.day ? `${money(r.day)}+` : t("By project")}</td>
+                  <td className="py-2 text-right font-semibold text-brand">{r.day ? `~${money(r.day)}` : t("By project")}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-3 text-xs text-ink-soft">{t("From a small job to a big one, at today’s suggested prices. A full day is a typical day’s worth of average-size jobs. Customers can offer more, and if the pay isn’t right you can counter with your number.")}</p>
+          <p className="mt-3 text-xs text-ink-soft">{t("Estimates only, not a promise of pay. They use today’s suggested prices for a small to a large job, and a full day assumes a typical day of average-size jobs. What you actually make depends on the jobs you choose, the final price, your tier and how much you work, and it’s before your own costs (supplies, gas, insurance and taxes). Every offer shows your exact pay before you accept, and you can counter if it isn’t right.")}</p>
         </div>
       </section>
 

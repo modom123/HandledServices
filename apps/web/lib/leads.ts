@@ -16,6 +16,7 @@
  *           Plus: CSV import (e.g. Michigan LARA license lists), click tracking (/l/<token>) and
  *           conversion when they apply.
  * UPDATED : 2026-10-03_0324 UTC — sending moved from a Resend outreach account to Instantly.ai.
+ * UPDATED : 2026-10-03_1413 UTC — pay example uses the service's own commission (equipment cap); worded as an estimate in the email.
  */
 import "server-only";
 import {
@@ -152,7 +153,7 @@ const typicalPay = new Map<string, string | null>();
 function payExample(trade: string): string | null {
   if (typicalPay.has(trade)) return typicalPay.get(trade)!;
   const svc = SERVICES.find((s) => s.trades.includes(trade) && !s.siteVisit);
-  const out = svc ? `${money(splitJob(estimate({ slug: svc.slug, answers: defaultAnswers(svc) }).point).payout)} for a typical ${svc.name.toLowerCase()} job` : null;
+  const out = svc ? `${money(splitJob(estimate({ slug: svc.slug, answers: defaultAnswers(svc) }).point, svc.slug).payout)} for a typical ${svc.name.toLowerCase()} job` : null;
   typicalPay.set(trade, out);
   return out;
 }

@@ -8,6 +8,7 @@
  *             extractEmails  — contact emails from a business's own web page, best first
  *             LEAD_SEQUENCE  — 3 emails (day 0, 3, 8), then stop
  *             leadEmail      — the invitation copy (honest, specific, with unsubscribe + address)
+ * UPDATED : 2026-10-03_1413 UTC — the pay example in the invitation is labeled an estimate.
  */
 import { BRAND } from "./brand.ts";
 
@@ -92,7 +93,7 @@ export function leadEmail(c: LeadEmailCtx): { subject: string; text: string } {
   const trade = TRADE_WORD[c.trade] ?? c.trade;
   const where = c.city ? ` in ${c.city}` : " around Detroit";
   const demand = c.demand && c.demand > 0 ? `Right now we have ${c.demand} ${trade} request${c.demand === 1 ? "" : "s"}${where} and not enough pros to cover them. ` : "";
-  const pay = c.payExample ? ` (for example, ${c.payExample})` : "";
+  const pay = c.payExample ? ` (an estimate at today's suggested prices: about ${c.payExample})` : "";
   const foot = `\n\n—\n${BRAND.legalName} · ${c.postalAddress}\nThis is a business invitation from ${BRAND.name}. Not interested? One click and we won't email again: ${c.unsubscribeUrl}\n¿Prefiere español? ${c.applyUrl}${c.applyUrl.includes("?") ? "&" : "?"}lang=es`;
   const bodies = [
     {
