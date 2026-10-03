@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0210 UTC
  * PURPOSE : Hub → Pro leads controls: engine settings, run now, CSV import, and call-list actions.
+ * UPDATED : 2026-10-03_0332 UTC — lean-setup guidance for the daily cap.
  */
 "use client";
 
@@ -41,7 +42,7 @@ export function LeadSettingsPanel({ initial }: { initial: LeadSettingsForm }) {
         <button className="btn-ghost" onClick={async () => { setMsg("Running…"); const r = await post({ action: "run" }); setMsg(r.ok ? `Done: ${JSON.stringify(r.data)}` : r.data.error ?? "Failed"); router.refresh(); }}>Run now</button>
         {msg && <span className="text-sm text-ink-soft">{msg}</span>}
       </div>
-      <p className="text-xs text-ink-soft">Start small (10–40 emails a day) so the outreach domain builds a good reputation, then raise it.</p>
+      <p className="text-xs text-ink-soft">“Emails / day” = new leads handed to Instantly per day; each gets 3 emails. Lean setup: 20/day with 2 warmed-up inboxes (~60 sends/day). Add an inbox before raising it by ~10.</p>
     </div>
   );
 }
