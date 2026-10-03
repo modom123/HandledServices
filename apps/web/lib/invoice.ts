@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-01_2030 UTC
  * PURPOSE : Signed, login-free links to a job's Invoice & Service Agreement.
+ * UPDATED : 2026-10-03_0028 UTC — signed one-click unsubscribe tokens for reminder emails.
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -39,4 +40,13 @@ export function readQuoteToken(token: string | null | undefined) {
   if (want.length !== sig.length || !timingSafeEqual(Buffer.from(want), Buffer.from(sig))) return null;
   const q = JSON.parse(Buffer.from(body, "base64url").toString()) as QuotePayload;
   return q.exp > Date.now() ? q : null;
+}
+
+/** One-click unsubscribe from reminders (seasonal, quote follow-ups) — no login needed. */
+export const unsubscribeToken = (email: string) => createHmac("sha256", secret()).update(`unsub:${email.trim().toLowerCase()}`).digest("base64url").slice(0, 24);
+
+export function validUnsubscribeToken(email: string, token: string | null | undefined) {
+  if (!token) return false;
+  const a = Buffer.from(token), b = Buffer.from(unsubscribeToken(email));
+  return a.length === b.length && timingSafeEqual(a, b);
 }

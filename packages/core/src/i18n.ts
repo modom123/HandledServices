@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_1405 UTC — every pricing question, answer, help line and "included" item
  *           (i18n-catalog-es.ts); units; frequencies.
  * UPDATED : 2026-10-02_2246 UTC — waitlist and Google review wording.
+ * UPDATED : 2026-10-03_0043 UTC — "Email me this price".
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -259,6 +260,10 @@ const ES: Record<string, string> = {
   "Would you share your experience on Google too? It’s how neighbors find good pros.": "¿Compartiría su experiencia en Google también? Así es como los vecinos encuentran buenos profesionales.",
   "Review us on Google": "Déjenos una reseña en Google",
   "Not now": "Ahora no",
+  "Not ready? Email me this price": "¿No está listo? Envíeme este precio por correo",
+  "Sent — check your inbox. Your answers are saved in the link.": "Enviado — revise su correo. Sus respuestas quedan guardadas en el enlace.",
+  "We’ll email the price and a reminder or two. Unsubscribe anytime.": "Le enviaremos el precio y uno o dos recordatorios. Puede cancelar la suscripción cuando quiera.",
+  "Enter a valid email": "Ingrese un correo válido",
   "Sorry it wasn’t great — our team will reach out to make it right.": "Lamentamos que no haya salido bien — nuestro equipo se comunicará para solucionarlo.",
 };
 

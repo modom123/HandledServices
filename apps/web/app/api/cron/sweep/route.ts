@@ -7,16 +7,18 @@
  * UPDATED : 2026-10-02_0302 UTC — alerts when an open job reaches or passes the customer's needed-by date.
  * UPDATED : 2026-10-02_0255 UTC — clears pro phone locations older than 12h and lapsed on-call flags.
  * UPDATED : 2026-10-02_2247 UTC — tells waitlisted customers when a pro now covers their ZIP.
+ * UPDATED : 2026-10-03_0036 UTC — unpaid bookings get the payment link on day 1, 3 and 7 (was once);
+ *           saved prices get follow-ups on day 1 and 4.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  */
 import { adminClient } from "@/lib/supabase/server";
-import { collectBalances, raiseAlert, redispatchExpired, sendPaymentLink } from "@/lib/jobs";
+import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
 import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee, runWeeklyPayouts } from "@/lib/pro-benefits";
 import { recruitingSweep } from "@/lib/recruiting";
 import { clearStaleLocations } from "@/lib/roster";
-import type { Job } from "@handled/core";
 import { notifyWaitlist } from "@/lib/waitlist";
+import { sendBookingFollowups, sendQuoteFollowups } from "@/lib/reminders";
 
 export const maxDuration = 300;
 
@@ -49,17 +51,9 @@ export async function GET(req: Request) {
   const fourHoursAgo = new Date(Date.now() - 4 * 3600000).toISOString();
   const { count: qaBacklog } = await db.from("jobs").select("id", { count: "exact", head: true }).eq("status", "qa_review").lt("updated_at", fourHoursAgo);
 
-  // 4. Unpaid bookings older than 24h → one reminder with a fresh payment link (paid upfront, always)
-  const dayAgo = new Date(Date.now() - 86400000).toISOString();
-  const { data: unpaid } = await db.from("jobs").select("*").is("paid_at", null).is("deposit_paid_at", null).is("remedy", null).not("price_final", "is", null).in("status", ["requested", "quoted"]).lt("updated_at", dayAgo).limit(100);
-  let reminded = 0;
-  for (const j of (unpaid ?? []) as Job[]) {
-    const { count } = await db.from("job_events").select("id", { count: "exact", head: true }).eq("job_id", j.id).eq("kind", "payment_reminder");
-    if (count) continue;
-    await sendPaymentLink(j);
-    await db.from("job_events").insert({ job_id: j.id, kind: "payment_reminder", message: "Payment reminder sent", visible_to_customer: false });
-    reminded++;
-  }
+  // 4. Booked but unpaid → payment link on day 1, 3 and 7; saved prices → follow-ups on day 1 and 4
+  const reminded = await sendBookingFollowups().catch((e) => { console.error("[booking followups]", e); return 0; });
+  const quoteFollowups = await sendQuoteFollowups().catch((e) => { console.error("[quote followups]", e); return 0; });
 
   // 5. Balances due after a deposit → charge the saved card, else payment link + alert
   const balances = await collectBalances();
@@ -73,5 +67,5 @@ export async function GET(req: Request) {
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
 
-  return Response.json({ waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

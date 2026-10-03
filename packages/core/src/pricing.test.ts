@@ -716,3 +716,30 @@ test("supply gaps: no pros, thin coverage and covered areas", async () => {
   const svc = gapsByService(rows);
   assert.equal(svc.find((s) => s.slug === "house-cleaning")!.zipsWithoutPros, 1);
 });
+
+test("seasonal reminders: right month, long enough since, not already covered", async () => {
+  const { seasonalDue, seasonKey, seasonalPitch, SEASONAL, followupDue } = await import("./seasonal.ts");
+  const { getService } = await import("./services.ts");
+  for (const r of SEASONAL) {
+    assert.ok(getService(r.slug), `${r.slug} is a real service`);
+    for (const m of r.months) { const half = m <= 6 ? r.spring : r.fall; assert.ok(half.en && half.es, `${r.slug} has wording for month ${m}`); }
+  }
+  const oct = new Date("2026-10-15T12:00:00Z");
+  const hist = [
+    { service_slug: "gutter-cleaning", completed_at: "2026-04-20T00:00:00Z" },  // 178 days → due
+    { service_slug: "window-cleaning", completed_at: "2026-08-01T00:00:00Z" },  // too recent
+    { service_slug: "lawn-care", completed_at: "2025-04-01T00:00:00Z" },        // not lawn season
+    { service_slug: "leaf-removal", completed_at: "2025-10-20T00:00:00Z" },     // due
+    { service_slug: "snow-removal", completed_at: null },                        // never finished
+  ];
+  const due = seasonalDue(hist, { now: oct });
+  assert.deepEqual(due.map((d) => d.rule.slug), ["leaf-removal", "gutter-cleaning"]);
+  assert.deepEqual(seasonalDue(hist, { now: oct, skip: ["leaf-removal"] }).map((d) => d.rule.slug), ["gutter-cleaning"]);
+  assert.equal(seasonKey("gutter-cleaning", oct), "gutter-cleaning:2026-fall");
+  assert.match(seasonalPitch(due[1].rule, "es", oct), /canaletas/);
+  assert.equal(followupDue("2026-10-01T00:00:00Z", 0, [1, 3, 7], new Date("2026-10-01T12:00:00Z")), null);
+  assert.equal(followupDue("2026-10-01T00:00:00Z", 0, [1, 3, 7], new Date("2026-10-02T01:00:00Z")), 0);
+  assert.equal(followupDue("2026-10-01T00:00:00Z", 1, [1, 3, 7], new Date("2026-10-03T01:00:00Z")), null);
+  assert.equal(followupDue("2026-10-01T00:00:00Z", 1, [1, 3, 7], new Date("2026-10-04T01:00:00Z")), 1);
+  assert.equal(followupDue("2026-10-01T00:00:00Z", 3, [1, 3, 7], new Date("2026-12-01T00:00:00Z")), null);
+});

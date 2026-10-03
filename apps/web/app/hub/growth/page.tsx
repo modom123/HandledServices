@@ -6,6 +6,7 @@
  *           members and monthly revenue, promo codes (create / on-off / uses), gift card balances
  *           outstanding, referral rewards, tips to pros, and open chargebacks.
  * UPDATED : 2026-10-02_2253 UTC — Google review taps and waitlist size.
+ * UPDATED : 2026-10-03_0045 UTC — seasonal reminders, saved prices and unpaid-booking follow-ups, with results.
  */
 import { BRAND, HANDLED_PLUS, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
@@ -19,7 +20,7 @@ export default async function Growth() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return <Empty>Connect Supabase (service role key) to see growth numbers.</Empty>;
   const db = adminClient();
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const [{ data: jobs }, { count: members }, { data: promos }, { data: tips }, { data: disputes }, { count: rated }, { count: googled }, { count: waiting }] = await Promise.all([
+  const [{ data: jobs }, { count: members }, { data: promos }, { data: tips }, { data: disputes }, { count: rated }, { count: googled }, { count: waiting }, { data: sends }, { data: saved }, { data: recentJobs }] = await Promise.all([
     db.from("jobs").select("attribution, price_final, paid_at, discount, member_benefit").gte("created_at", since).limit(5000),
     db.from("memberships").select("id", { count: "exact", head: true }).eq("status", "active"),
     db.from("promo_codes").select("*").order("created_at", { ascending: false }).limit(300),
@@ -28,6 +29,9 @@ export default async function Growth() {
     db.from("reviews").select("id", { count: "exact", head: true }).gte("created_at", since),
     db.from("reviews").select("id", { count: "exact", head: true }).gte("created_at", since).not("google_clicked_at", "is", null),
     db.from("waitlist").select("id", { count: "exact", head: true }).is("notified_at", null),
+    db.from("marketing_sends").select("email, kind, key, job_id, sent_at").gte("sent_at", since).limit(20000),
+    db.from("saved_quotes").select("id, booked_job_id").gte("created_at", since).limit(20000),
+    db.from("jobs").select("id, contact_email, service_slug, created_at, paid_at").gte("created_at", since).limit(20000),
   ]);
   const bySource = new Map<string, { bookings: number; paid: number; revenue: number }>();
   for (const j of (jobs ?? []) as Rec[]) {
@@ -41,6 +45,14 @@ export default async function Growth() {
   const all = (promos ?? []) as Rec[];
   const staffCodes = all.filter((p) => p.source === "staff");
   const giftOut = all.filter((p) => p.kind === "gift" && p.active).reduce((t, p) => t + Number(p.balance ?? 0), 0);
+  // Reminders: sent in the last 30 days, and bookings that followed within 14 days
+  const sendRows = (sends ?? []) as { email: string; kind: string; key: string; job_id: string | null; sent_at: string }[];
+  const jobRows = (recentJobs ?? []) as { id: string; contact_email: string; service_slug: string; created_at: string; paid_at: string | null }[];
+  const seasonalSends = sendRows.filter((r) => r.kind === "seasonal");
+  const seasonalBooked = seasonalSends.filter((r) => jobRows.some((j) => j.contact_email.toLowerCase() === r.email && j.service_slug === r.key.split(":")[0] && j.created_at >= r.sent_at && new Date(j.created_at).getTime() - new Date(r.sent_at).getTime() < 14 * 86400000)).length;
+  const bookingNudged = [...new Set(sendRows.filter((r) => r.kind === "booking_followup" && r.job_id).map((r) => r.job_id))];
+  const bookingRecovered = bookingNudged.filter((id) => jobRows.find((j) => j.id === id)?.paid_at).length;
+  const savedRows = (saved ?? []) as { id: string; booked_job_id: string | null }[];
   const discounts = ((jobs ?? []) as Rec[]).reduce((t, j) => t + Number(j.discount ?? 0) + Number(j.member_benefit ?? 0), 0);
   return (
     <div className="space-y-10">
@@ -53,6 +65,9 @@ export default async function Growth() {
         <Stat label="Open chargebacks" value={(disputes ?? []).length} />
         <Stat label="Went to Google to review (30d)" value={`${googled ?? 0} of ${rated ?? 0}`} hint={BRAND.googleReviewUrl ? "customers who rated us, then tapped Review on Google" : "set NEXT_PUBLIC_GOOGLE_REVIEW_URL to start asking"} />
         <Stat label="Waitlist" value={waiting ?? 0} hint="waiting for a pro in their area — see Supply gaps" />
+        <Stat label="Seasonal reminders (30d)" value={seasonalSends.length} hint={`${seasonalBooked} booked that service within 14 days`} />
+        <Stat label="Saved prices (30d)" value={savedRows.length} hint={`${savedRows.filter((q) => q.booked_job_id).length} booked · follow-ups on day 1 and 4`} />
+        <Stat label="Unpaid bookings nudged (30d)" value={bookingNudged.length} hint={`${bookingRecovered} paid after a reminder (day 1, 3, 7)`} />
       </div>
 
       <section>

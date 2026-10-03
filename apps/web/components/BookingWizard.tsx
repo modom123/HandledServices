@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1329 UTC — promo / gift / referral code with live savings, attribution, Spanish.
  * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) limits the
  *           calendar to their deadline; optional budget shows whether the price fits.
+ * UPDATED : 2026-10-03_0041 UTC — "Email me this price" (SaveQuote) and ?frequency= from email links.
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.
@@ -14,6 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
+import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
@@ -45,7 +47,7 @@ function readAttribution(): Record<string, string> | null {
 
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, locale = "en" }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; locale?: Locale }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en" }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -57,7 +59,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const known = new Set(svc.questions.map((q) => q.id));
     return { ...defaultAnswers(svc), ...Object.fromEntries(Object.entries(prefill).filter(([k]) => known.has(k))) };
   });
-  const [frequency, setFrequency] = useState<Frequency>("once");
+  const [frequency, setFrequency] = useState<Frequency>(() => (svc?.frequencies.includes(initialFrequency as Frequency) ? (initialFrequency as Frequency) : "once"));
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate());
@@ -348,6 +350,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span><span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span></li>
             ))}
           </ul>
+          {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ {t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
             {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise)}
