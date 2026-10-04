@@ -4,9 +4,10 @@
  * CREATED : 2026-10-01_2145 UTC
  * PURPOSE : Parties & Events landing page — planning, catering, food trucks, DJs, rentals
  *           and venues, booked separately or coordinated as one event.
+ * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  */
 import Link from "next/link";
-import { BRAND, SERVICES, defaultAnswers, estimate, money, moneyRange } from "@handled/core";
+import { BRAND, SERVICES, defaultAnswers, estimate, money, moneyRange, priceHint } from "@handled/core";
 
 export const metadata = { title: "Parties & Events", description: "Event planning, catering, food trucks, DJs, seating rentals and venues — one team, one invoice." };
 
@@ -36,7 +37,7 @@ export default function Events() {
           <div className="grid grid-cols-2 gap-3">
             {list.filter((s) => !["event-package", "event-planning"].includes(s.slug)).slice(0, 4).map((s) => (
               <Link key={s.slug} href={`/book?service=${s.slug}`} className="rounded-2xl bg-white/10 p-4 transition hover:bg-white/15">
-                <div className="text-2xl">{s.icon}</div><div className="mt-2 text-sm font-semibold">{s.name}</div><div className="text-xs text-white/60">from {money(s.minimum)}</div>
+                <div className="text-2xl">{s.icon}</div><div className="mt-2 text-sm font-semibold">{s.name}</div><div className="text-xs text-white/60">{priceHint(s.slug)}</div>
               </Link>
             ))}
           </div>

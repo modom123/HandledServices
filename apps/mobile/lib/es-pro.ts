@@ -120,7 +120,7 @@ export const ES_PRO: Record<string, string> = {
   "Store purchases for the customer": "Compras en tienda para el cliente",
   "Parts not included in the price": "Piezas no incluidas en el precio",
   "$ amount": "Monto en $",
-  "What you bought (e.g. groceries at Kroger)": "Lo que compró (p. ej., víveres en Kroger)",
+  "What you bought (e.g. supplies at Home Depot)": "Lo que compró (p. ej., materiales en Home Depot)",
   "What you bought (e.g. wax ring + supply line)": "Lo que compró (p. ej., anillo de cera + manguera de suministro)",
   "Receipt added ✓ (retake)": "Recibo agregado ✓ (volver a tomar)",
   "Photo of receipt": "Foto del recibo",

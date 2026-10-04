@@ -7,9 +7,10 @@
  *           need, how a business account works, account features, then the proposal form.
  * PURPOSE : Commercial accounts landing page.
  * UPDATED : 2026-10-04_1934 UTC — ?lead= from the business sales email (pilot offer applied on sign-up).
+ * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  */
 import Link from "next/link";
-import { BUSINESS_GROUPS, INDUSTRIES, businessServices, money } from "@handled/core";
+import { BUSINESS_GROUPS, INDUSTRIES, businessServices, money, priceHint } from "@handled/core";
 import { BusinessForm } from "@/components/forms";
 
 export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, one prepaid monthly invoice." };
@@ -84,7 +85,7 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
                     <li key={s.slug}>
                       <Link href={`/services/${s.slug}`} className="flex items-center justify-between gap-3 py-2 hover:text-brand">
                         <span>{s.icon} {s.name}</span>
-                        <span className="shrink-0 text-xs text-ink-soft">{s.category === "events" ? "by quote" : `from ${money(s.minimum)}`}</span>
+                        <span className="shrink-0 text-xs text-ink-soft">{s.category === "events" ? "by quote" : priceHint(s.slug)}</span>
                       </Link>
                     </li>
                   ))}

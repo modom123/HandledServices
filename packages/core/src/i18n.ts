@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-02_2246 UTC — waitlist and Google review wording.
  * UPDATED : 2026-10-03_0027 UTC — "Email me this price".
  * UPDATED : 2026-10-04_1934 UTC — new services (small moves, large-item delivery, staging moves, unit turnover) and the Haul Away category renamed.
+ * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -294,7 +295,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
   removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, o un contenedor por una semana." },
   repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
-  errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Entrega de víveres, entregas médicas, tintorería, devoluciones, o un asistente por el día." },
+  errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
   events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres y salones, en una sola factura." },
 };
@@ -333,8 +334,8 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "bathroom-remodel": ["Remodelación de baño", "Del diseño a la entrega, con un solo encargado."],
   "kitchen-remodel": ["Remodelación de cocina", "Gabinetes, encimeras y distribución, con precio cerrado."],
   "home-remodel": ["Remodelación de casa completa", "Sótanos, ampliaciones y renovaciones completas."],
-  "errands": ["Mandados y recogidas", "Tintorería, víveres, devoluciones y entregas: hecho."],
-  "grocery-delivery": ["Compra y entrega de víveres", "Su lista, su tienda, a su puerta; víveres al precio del recibo."],
+  "errands": ["Mandados y recogidas", "Tintorería, devoluciones, recogidas y entregas: hecho."],
+  "courier": ["Mensajería el mismo día", "Documentos, paquetes y piezas al otro lado de la ciudad hoy, con foto como comprobante."],
   "medical-delivery": ["Entregas médicas", "Recetas, insumos y muestras de laboratorio, con cuidado y firma."],
   "personal-assistant": ["Asistente personal por el día", "Una mano extra por unas horas o todo el día."],
   "private-driver": ["Chofer privado / auto ejecutivo", "Un chofer profesional por hora: reuniones, salidas o un día de mandados."],

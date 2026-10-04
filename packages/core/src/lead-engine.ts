@@ -16,7 +16,7 @@ import { BRAND } from "./brand.ts";
 export const TRADE_SEARCH: Record<string, string> = {
   cleaning: "house cleaning service", windows: "window cleaning service", carpet: "carpet cleaning", organizing: "professional organizer",
   gutters: "gutter cleaning", lawn: "lawn care service", tree: "tree service", snow: "snow removal service", pet_waste: "pet waste removal",
-  pet_care: "dog walker", pressure_washing: "pressure washing service", errands: "errand service", medical_courier: "medical courier",
+  pet_care: "dog walker", pressure_washing: "pressure washing service", errands: "courier service", medical_courier: "medical courier",
   auto_detailing: "mobile car detailing", hauling: "junk removal", dumpster: "dumpster rental", handyman: "handyman",
   remodel: "remodeling contractor", painting: "house painter", plumbing: "plumber", electrical: "electrician", hvac: "HVAC contractor",
   low_voltage: "security camera installer", transportation: "limousine service", event_planner: "event planner", catering: "caterer",
@@ -27,7 +27,7 @@ export const TRADE_SEARCH: Record<string, string> = {
 export const TRADE_WORD: Record<string, string> = {
   cleaning: "house cleaning", windows: "window cleaning", carpet: "carpet cleaning", organizing: "organizing", gutters: "gutter cleaning",
   lawn: "lawn care", tree: "tree work", snow: "snow removal", pet_waste: "pet waste removal", pet_care: "dog walking and pet sitting",
-  pressure_washing: "power washing", errands: "errands and delivery", medical_courier: "medical courier", auto_detailing: "car detailing",
+  pressure_washing: "power washing", errands: "courier and errands", medical_courier: "medical courier", auto_detailing: "car detailing",
   hauling: "junk removal", dumpster: "container rental", handyman: "handyman", remodel: "remodeling", painting: "painting",
   plumbing: "plumbing", electrical: "electrical", hvac: "HVAC", low_voltage: "camera and low-voltage", transportation: "transportation",
   event_planner: "event planning", catering: "catering", food_truck: "food truck", dj_music: "DJ and music", rentals: "event rentals", venue: "event venue",

@@ -23,6 +23,7 @@
  *           repair options. New units only, never used.
  * UPDATED : 2026-10-04_1934 UTC — new services from the growth plan: small moves, same-day large item delivery (stores),
  *           home staging furniture moves and rental unit turnover (property managers). Hauling trade covers moves.
+ * UPDATED : 2026-10-04_1950 UTC — grocery pickup & delivery replaced by Same-Day Courier (documents, packages, parts; business routes).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -100,7 +101,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
   { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture — or a container for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
-  { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Grocery delivery, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
+  { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
 ];
@@ -1596,12 +1597,12 @@ export const SERVICES: Service[] = [
     name: "Errands & Pickups",
     category: "errands",
     icon: "🛍️",
-    tagline: "Dry cleaning, groceries, returns and drop-offs — done.",
+    tagline: "Dry cleaning, returns, pickups and drop-offs — done.",
     description: "A background-checked runner picks up dry cleaning and prescriptions, does the shopping, makes returns and drops things off, with photo proof at every stop. Store purchases are billed at cost with the receipt.",
     includes: ["Background-checked, bonded runner", "Photo at every stop", "Purchases at cost with receipt", "Up to 20 miles included"],
     questions: [
       { id: "stops", label: "Number of stops", type: "number", min: 1, max: 12, default: 3 },
-      { id: "shopping", label: "Includes shopping (groceries, store pickup)", type: "toggle", default: false },
+      { id: "shopping", label: "Includes store shopping or pickup", type: "toggle", default: false },
       { id: "bulky", label: "Bulky or heavy items (needs an SUV/truck)", type: "toggle", default: false },
     ],
     minimum: 39,
@@ -1621,43 +1622,42 @@ export const SERVICES: Service[] = [
     },
   },
   {
-    slug: "grocery-delivery",
-    name: "Grocery Pickup & Delivery",
+    slug: "courier",
+    name: "Same-Day Courier",
     category: "errands",
-    icon: "🛒",
-    tagline: "Your list, your store, at your door — groceries at receipt price.",
-    description: "A background-checked shopper picks your order from the stores you choose (or collects your curbside pickup order), keeps cold food cold and brings it to your door. Groceries are billed at the receipt price with no markup; you pay a flat delivery fee.",
-    includes: ["Background-checked, bonded shopper", "Groceries at receipt price — no markup", "Insulated bags for cold & frozen", "Text or call for substitutions", "Photo at delivery"],
+    icon: "📦",
+    tagline: "Documents, packages and parts across town today, with photo proof.",
+    description: "A background-checked courier picks up and delivers documents, packages, parts and supplies across metro Detroit: same day, within 2 hours, or on a regular route for your business. Photo proof at pickup and drop-off, and a signature when you need one. (Prescriptions and lab specimens go through Medical Deliveries.)",
+    includes: ["Background-checked courier", "Photo proof at pickup & drop-off", "Live tracking link", "Signature on request", "Regular business routes available"],
     questions: [
-      { id: "order", label: "Order size", type: "select", default: "medium", options: [{ value: "small", label: "Small (up to 15 items)" }, { value: "medium", label: "Medium (16–40 items)" }, { value: "large", label: "Large (41–80 items)" }, { value: "stock_up", label: "Stock-up (80+ items)" }] },
-      { id: "stores", label: "Stores", type: "number", min: 1, max: 4, default: 1, help: "Already ordered curbside? Count that store — we'll just pick it up." },
-      { id: "miles", label: "Miles from the store to you", type: "number", min: 1, max: 30, default: 5, unit: "mi", help: "First 5 miles included." },
-      { id: "cold", label: "Refrigerated or frozen items", type: "toggle", default: true },
-      { id: "carry_in", label: "Carry in & put away", type: "toggle", default: false },
-      { id: "rush", label: "Within 2 hours", type: "toggle", default: false },
+      { id: "size", label: "What are we carrying?", type: "select", default: "box", options: [
+        { value: "envelope", label: "Envelope or documents" }, { value: "box", label: "Box or package (up to 50 lb)" }, { value: "bulky", label: "Bulky or heavy (needs an SUV or truck)" },
+      ] },
+      { id: "miles", label: "Distance from pickup to drop-off", type: "number", min: 1, max: 60, default: 8, unit: "mi", help: "First 5 miles included." },
+      { id: "stops", label: "Drop-off stops", type: "number", min: 1, max: 10, default: 1 },
+      { id: "speed", label: "How fast?", type: "select", default: "same_day", options: [
+        { value: "same_day", label: "Same day" }, { value: "rush", label: "Within 2 hours" },
+      ] },
+      { id: "signature", label: "Signature required", type: "toggle", default: false },
+      { id: "round_trip", label: "Round trip (bring something back)", type: "toggle", default: false },
     ],
     minimum: 25,
-    spread: [1, 1],
-    payoutShare: 0.75,
+    spread: [0.95, 1.15],
+    payoutShare: 0.7,
     siteVisit: false,
-    frequencies: ["once", "weekly", "biweekly"],
+    frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["errands"],
-    notesHint: "Store(s), your list or a shared-list link, OK to substitute?, curbside order number if you have one, gate or door instructions",
     price: (a) => {
-      const order = s(a, "order", "medium");
-      const stores = Math.max(1, n(a, "stores", 1));
-      const miles = n(a, "miles", 5);
-      const items: LineItem[] = [{ label: "Grocery delivery", amount: 25 }];
-      const shop = ({ small: 0, medium: 10, large: 22, stock_up: 35 } as Record<string, number>)[order] ?? 10;
-      if (shop) items.push({ label: `Shopping — ${({ medium: "16–40", large: "41–80", stock_up: "80+" } as Record<string, string>)[order] ?? ""} items`, amount: shop });
-      if (stores > 1) items.push({ label: `${stores - 1} more store${stores > 2 ? "s" : ""} × $10`, amount: (stores - 1) * 10 });
-      if (miles > 5) items.push({ label: `${miles - 5} extra miles × $1.25`, amount: Math.round((miles - 5) * 1.25) });
-      if (b(a, "cold")) items.push({ label: "Insulated cold & frozen handling", amount: 5 });
-      if (b(a, "carry_in")) items.push({ label: "Carry in & put away", amount: 15 });
-      if (b(a, "rush")) items.push({ label: "Within 2 hours", amount: 15 });
-      items.push({ label: "Groceries — billed at receipt price, no markup", amount: 0 });
-      const base = sum(items);
-      return { items, base, hours: 0.75 + stores * 0.4 + ({ small: 0.25, medium: 0.5, large: 0.9, stock_up: 1.3 } as Record<string, number>)[order]! + miles / 30 };
+      const size = s(a, "size", "box");
+      const items: LineItem[] = [{ label: "Courier pickup & delivery", amount: { envelope: 25, box: 30, bulky: 55 }[size] ?? 30 }];
+      const miles = n(a, "miles", 8);
+      if (miles > 5) items.push({ label: `${miles - 5} extra miles × $1.50`, amount: Math.round((miles - 5) * 1.5) });
+      const stops = Math.max(1, n(a, "stops", 1));
+      if (stops > 1) items.push({ label: `${stops - 1} more stop${stops > 2 ? "s" : ""} × $10`, amount: (stops - 1) * 10 });
+      if (s(a, "speed", "same_day") === "rush") items.push({ label: "Within 2 hours", amount: 20 });
+      if (b(a, "signature")) items.push({ label: "Signature on delivery", amount: 3 });
+      if (b(a, "round_trip")) items.push({ label: "Return trip", amount: Math.round(sum(items) * 0.6) });
+      return { items, base: sum(items), hours: 0.75 + miles / 25 + (stops - 1) * 0.25 + (b(a, "round_trip") ? 0.5 : 0) };
     },
   },
   {
@@ -2295,7 +2295,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "pet_waste", label: "Pet waste removal" },
   { id: "pet_care", label: "Dog walking & pet sitting" },
   { id: "pressure_washing", label: "Power / pressure washing" },
-  { id: "errands", label: "Errands, grocery delivery & personal assistant" },
+  { id: "errands", label: "Errands, courier & personal assistant" },
   { id: "medical_courier", label: "Medical courier (prescriptions, specimens, supplies)" },
   { id: "auto_detailing", label: "Mobile car detailing" },
   { id: "hauling", label: "Junk hauling, moving & delivery" },

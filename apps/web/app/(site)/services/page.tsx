@@ -5,8 +5,9 @@
  * UPDATED : 2026-10-02_0212 UTC — sidebar layout chosen by the owner: categories on the left
  *           (tabs on phones), the chosen category's service cards on the right. New services
  *           and categories appear automatically from the catalog.
+ * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  */
-import { CATEGORIES, SERVICES, categoryText, money, serviceText, t } from "@handled/core";
+import { CATEGORIES, SERVICES, categoryText, priceHint, serviceText, t } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { ServicesBrowser, type BrowserCategory } from "@/components/ServicesBrowser";
 
@@ -19,7 +20,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
     id: c.id, name: categoryText(l, c.id, c).name, icon: c.icon, blurb: categoryText(l, c.id, c).blurb,
     services: SERVICES.filter((s) => s.category === c.id).map((s) => ({
       slug: s.slug, ...serviceText(l, s.slug, s), icon: s.icon, siteVisit: s.siteVisit,
-      from: s.slug === "event-package" ? t(l, "By budget") : `${t(l, "from")} ${money(s.minimum)}`,
+      from: priceHint(s.slug, l),
     })),
   })).filter((c) => c.services.length);
   return (

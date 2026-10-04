@@ -8,7 +8,7 @@
  */
 export const ES_APP: Record<string, string> = {
   "What can we take off your plate?": "¿Qué pendiente le quitamos de encima?",
-  "BRAND_PITCH": "Una sola app para todo lo que su hogar o negocio necesita: limpieza, reparaciones, pintura, retiro de cosas, jardín y nieve, mascotas, lavado de autos, víveres y entregas médicas, eventos y transporte. Precios por adelantado, profesionales verificados y un equipo con IA que se asegura de que quede bien.",
+  "BRAND_PITCH": "Una sola app para todo lo que su hogar o negocio necesita: limpieza, reparaciones, pintura, retiro de cosas, jardín y nieve, mascotas, lavado de autos, mudanzas y entregas, mensajería y entregas médicas, eventos y transporte. Precios por adelantado, profesionales verificados y un equipo con IA que se asegura de que quede bien.",
   "Ask for a price": "Pida un precio",
   "My bookings": "Mis reservas",
   "Open Pro mode": "Abrir modo profesional",

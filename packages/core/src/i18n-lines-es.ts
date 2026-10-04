@@ -321,4 +321,8 @@ export const ES_LINES: Record<string, string> = {
   "Punch list ({#} hrs)": "Lista de arreglos ({#} h)",
   "Cleanout & haul-away": "Retiro y acarreo",
   "Carpet shampoo": "Lavado de alfombras con champú",
+  "Courier pickup & delivery": "Recogida y entrega por mensajero",
+  "{#} more stop × {#}": "{#} parada más × {#}",
+  "Signature on delivery": "Firma en la entrega",
+  "Return trip": "Viaje de regreso",
 };

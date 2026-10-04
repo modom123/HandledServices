@@ -538,8 +538,8 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
   },
 
   "addendum-errands-delivery": {
-    title: "Anexo — Mandados, Compras de Supermercado y Asistente Personal",
-    appliesTo: "Mandados y recogidas, recogida y entrega de compras de supermercado, y un asistente personal por el día.",
+    title: "Anexo — Mandados, Mensajería y Asistente Personal",
+    appliesTo: "Mandados, recogidas y compras en tienda, mensajería el mismo día, y un asistente personal por el día.",
     summary: [
       "Compramos cosas por usted al costo, con el recibo. Sin recargo.",
       "Indíquenos sus preferencias de sustitución. Si algo está agotado, las seguimos o lo omitimos.",

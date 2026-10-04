@@ -5,6 +5,7 @@
  * PURPOSE : One service landing page, used for /services/<slug> and the city pages
  *           /services/<slug>/in/<city>: what's included, typical price, the questions we ask,
  *           real customer reviews, nearby cities, and search-engine markup (Service + rating).
+ * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  */
 import Link from "next/link";
 import { BRAND, SEO_CITIES, defaultAnswers, estimate, getService, money, moneyRange, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
@@ -60,7 +61,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
       <aside className="card h-fit md:sticky md:top-24">
         <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Typical price{where}</div>
         <div className="mt-1 text-3xl font-bold">{moneyRange(typical.low, typical.high)}</div>
-        <div className="mt-1 text-sm text-ink-soft">Minimum {money(s.minimum)}{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}</div>
+        <div className="mt-1 text-sm text-ink-soft">For a typical job. Yours is priced on your details in about a minute{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}.</div>
         {(s.slug === "junk-removal" || s.slug === "large-item-removal") && (
           <Link href="/services/junk-container" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🗑️ <b>Rather load it yourself over a week?</b> We drop off a container and pick it up — from {money(getService("junk-container")?.minimum ?? 349)}.</Link>
         )}

@@ -4,11 +4,12 @@
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish, with an EN | ES switch.
  * PURPOSE : Home — services, concierge, my jobs; switches to pro mode for subcontractors.
+ * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  */
 import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, router } from "expo-router";
-import { BRAND, CATEGORIES, SERVICES, money } from "@handled/core";
+import { BRAND, CATEGORIES, SERVICES, money, priceHint } from "@handled/core";
 import { API_URL, api, supabase } from "../lib/supabase";
 import { Button, C, Card, s } from "../components/ui";
 import { useI18n } from "../lib/i18n";
@@ -46,7 +47,7 @@ export default function Home() {
               <Pressable><Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <Text style={{ fontSize: 30 }}>{x.icon}</Text>
                 <View style={{ flex: 1 }}><Text style={s.b}>{svc(x).name}</Text><Text style={s.p}>{svc(x).tagline}</Text></View>
-                <Text style={{ color: C.brand, fontWeight: "700" }}>{t("from")} {money(x.minimum)}</Text>
+                <Text style={{ color: C.brand, fontWeight: "700", fontSize: 13 }}>{priceHint(x.slug, locale)}</Text>
               </Card></Pressable>
             </Link>
           ))}

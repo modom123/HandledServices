@@ -20,7 +20,7 @@ const PILLARS = [
   { icon: "✓", title: "Make-it-right guarantee", body: "Not right? A free redo or your money back within", tail: true },
 ];
 
-const PITCH_ES = "Una sola app para todo lo que su hogar o negocio necesita: limpieza, reparaciones, pintura, retiro de cosas, jardín y nieve, mascotas, lavado de autos, víveres y entregas médicas, eventos y transporte. Precios por adelantado, profesionales verificados y un equipo de operaciones con IA que se asegura de que quede bien.";
+const PITCH_ES = "Una sola app para todo lo que su hogar o negocio necesita: limpieza, reparaciones, pintura, retiro de cosas, jardín y nieve, mascotas, lavado de autos, mudanzas y entregas, mensajería y entregas médicas, eventos y transporte. Precios por adelantado, profesionales verificados y un equipo de operaciones con IA que se asegura de que quede bien.";
 
 export default async function Splash() {
   const l = await getLocale();

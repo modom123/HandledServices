@@ -194,7 +194,7 @@ export default function ProJob() {
             <>
               <Text style={s.p}>{t(mat.shopping ? "Store purchases for the customer" : "Parts not included in the price")}{locale === "es" ? `, al costo con el recibo. Hasta ${money(mat.autoApproveUpTo)} se aprueba automáticamente; llámenos antes de una compra mayor. Se le reembolsa cuando el cliente pague.` : `, at cost with the receipt. Up to ${money(mat.autoApproveUpTo)} is approved automatically — call us before a bigger purchase. You're reimbursed once the customer pays.`}</Text>
               <TextInput style={[s.input, { marginTop: 10 }]} placeholder={t("$ amount")} keyboardType="decimal-pad" value={amount} onChangeText={setAmount} />
-              <TextInput style={[s.input, { marginTop: 8 }]} placeholder={t(mat.shopping ? "What you bought (e.g. groceries at Kroger)" : "What you bought (e.g. wax ring + supply line)")} value={what} onChangeText={setWhat} />
+              <TextInput style={[s.input, { marginTop: 8 }]} placeholder={t(mat.shopping ? "What you bought (e.g. supplies at Home Depot)" : "What you bought (e.g. wax ring + supply line)")} value={what} onChangeText={setWhat} />
               <Button title={`📷 ${t(receipt ? "Receipt added ✓ (retake)" : "Photo of receipt")}`} kind="ghost" onPress={snapReceipt} style={{ marginTop: 8 }} />
               <Button title={t("Submit receipt")} busy={busy} onPress={sendReceipt} style={{ marginTop: 8 }} />
             </>

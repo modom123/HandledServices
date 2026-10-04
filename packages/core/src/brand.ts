@@ -31,7 +31,7 @@ export const BRAND = {
   legalName: "Handled Services LLC",
   tagline: "Home & business services. Handled.",
   pitch:
-    "One app for everything your home or business needs — cleaning, repairs, painting, hauling, lawn and snow, pet care, car detailing, grocery and medical deliveries, events and rides. Upfront prices, vetted pros, and an AI operations team that makes sure it's done right.",
+    "One app for everything your home or business needs — cleaning, repairs, painting, hauling, lawn and snow, pet care, car detailing, moving and delivery, same-day courier and medical deliveries, events and rides. Upfront prices, vetted pros, and an AI operations team that makes sure it's done right.",
   supportEmail,
   supportPhone,
   /** Where happy customers leave a public Google review. Asked of everyone who rates us (Google forbids asking only happy ones). */

@@ -18,6 +18,7 @@
  *           Terms of Use, Service Agreement, Business MSA and Plus/promo terms updated to match.
  * UPDATED : 2026-10-03_1311 UTC — construction addendum: equipment you buy for us to install must be new; we never install used.
  * UPDATED : 2026-10-04_1934 UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda; Business MSA: terms approved in the business account portal count as an Order.
+ * UPDATED : 2026-10-04_1950 UTC — errands addendum: grocery delivery removed, Same-Day Courier added.
  */
 import {
   AI_MAX_CUT,
@@ -1003,11 +1004,11 @@ const CONSTRUCTION: Contract = {
 
 const ERRANDS: Contract = {
   key: "addendum-errands-delivery",
-  title: "Addendum — Errands, Groceries & Personal Assistant",
+  title: "Addendum — Errands, Courier & Personal Assistant",
   version: V1,
   audience: "customer",
-  appliesTo: "Errands and pickups, grocery pickup and delivery, and a personal assistant for the day.",
-  services: ["errands", "grocery-delivery", "personal-assistant"],
+  appliesTo: "Errands, pickups and store shopping, same-day courier deliveries, and a personal assistant for the day.",
+  services: ["errands", "courier", "personal-assistant"],
   summary: [
     "We buy things for you at cost, with the receipt. No markup.",
     "Tell us your substitution choices. If something's out, we follow them or skip it.",

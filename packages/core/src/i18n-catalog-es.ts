@@ -6,6 +6,7 @@
  *           option, "what's included" item and notes hint (keyed by the English text).
  *           A test fails if a catalog string is added without a Spanish version here.
  * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
+ * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",
@@ -273,7 +274,7 @@ export const ES_CATALOG: Record<string, string> = {
   "Ice melt on request": "Deshielante a solicitud",
   "Ice, water & sound system": "Hielo, agua y sistema de sonido",
   "Includes a major holiday": "Incluye un día festivo importante",
-  "Includes shopping (groceries, store pickup)": "Incluye compras (supermercado, recogida en tienda)",
+  "Includes store shopping or pickup": "Incluye compras en tienda o recogida",
   "Inside & outside": "Interior y exterior",
   "Inside fridge & oven": "Interior del refrigerador y horno",
   "Install & test": "Instalación y prueba",
@@ -689,4 +690,17 @@ export const ES_CATALOG: Record<string, string> = {
   "Punch-list hours": "Horas de lista de arreglos",
   "Small fixes: bulbs, outlet covers, blinds, caulk, doorstops, loose hardware.": "Arreglos pequeños: focos, tapas de enchufes, persianas, silicón, topes de puerta, herrajes flojos.",
   "Shampoo the carpets": "Lavar las alfombras con champú",
+  "Background-checked courier": "Mensajero con verificación de antecedentes",
+  "Photo proof at pickup & drop-off": "Foto como comprobante en la recogida y la entrega",
+  "Live tracking link": "Enlace de seguimiento en vivo",
+  "Signature on request": "Firma a solicitud",
+  "Regular business routes available": "Rutas regulares para empresas disponibles",
+  "What are we carrying?": "¿Qué vamos a llevar?",
+  "Envelope or documents": "Sobre o documentos",
+  "Box or package (up to 50 lb)": "Caja o paquete (hasta 50 lb)",
+  "Bulky or heavy (needs an SUV or truck)": "Voluminoso o pesado (necesita SUV o camioneta)",
+  "How fast?": "¿Qué tan rápido?",
+  "Same day": "El mismo día",
+  "Signature required": "Se requiere firma",
+  "Round trip (bring something back)": "Ida y vuelta (traer algo de regreso)",
 };

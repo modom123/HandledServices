@@ -40,6 +40,7 @@ const RULES: Record<string, PhotoRule> = {
   "tree-removal": R(2, "The whole tree", "Base of the trunk", "Nearby house, fence or power lines"),
   "pet-waste-removal": O("The yard"),
   "junk-removal": R(2, "Everything that's going, wide shot", "Anything heavy or bulky", "The path out (stairs, doorways)"),
+  courier: O("The item or envelope (optional)"),
   "small-moves": O("The main rooms being moved", "Anything very large or heavy", "Stairs or elevator at each end"),
   "retail-delivery": O("The item or its listing / receipt", "Where it goes (room and path in)"),
   "staging-transport": O("The furniture at storage", "The listing's entry and stairs"),

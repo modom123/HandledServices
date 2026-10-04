@@ -8,6 +8,7 @@
  *           onboarding steps and the onboarding/application error messages.
  * UPDATED : 2026-10-03_1247 UTC — new "What pros make" card strings; comparison and tier lines updated for counters.
  * UPDATED : 2026-10-03_1413 UTC — earnings card labeled as estimates.
+ * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -22,7 +23,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Pet waste removal": "Recolección de desechos de mascotas",
   "Dog walking & pet sitting": "Paseo y cuidado de mascotas",
   "Power / pressure washing": "Lavado a presión",
-  "Errands, grocery delivery & personal assistant": "Mandados, entrega de víveres y asistente personal",
+  "Errands, courier & personal assistant": "Mandados, mensajería y asistente personal",
   "Medical courier (prescriptions, specimens, supplies)": "Mensajería médica (recetas, muestras, insumos)",
   "Mobile car detailing": "Detallado de autos a domicilio",
   "Junk hauling, moving & delivery": "Retiro de basura, mudanzas y entregas",
@@ -117,10 +118,10 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "PWNA or UAMCC training": "Capacitación de PWNA o UAMCC",
   "you run a trailer or skid unit": "usa un remolque o una unidad montada",
   "Equipment list (PSI/GPM, surface cleaner, soft-wash setup), wastewater practice, photos of 3 recent jobs, 2 references.": "Lista de equipo (PSI/GPM, limpiador de superficies, equipo de baja presión), manejo de aguas residuales, fotos de 3 trabajos recientes y 2 referencias.",
-  "Errands, pickups and drop-offs, shopping, and a personal assistant by the hour.": "Mandados, recogidas y entregas, compras y asistente personal por hora.",
+  "Errands, same-day courier runs, pickups and drop-offs, and a personal assistant by the hour.": "Mandados, mensajería el mismo día, recogidas y entregas, y asistente personal por hora.",
   "Errand runs & drop-offs": "Mandados y entregas",
   "Assistant for the day": "Asistente por el día",
-  "Grocery pickup & delivery": "Compra y entrega de víveres",
+  "Same-day courier & business routes": "Mensajería el mismo día y rutas para empresas",
   "Seniors & appointment runs": "Adultos mayores y traslados a citas",
   "Packing & move prep": "Empaque y preparación de mudanzas",
   "Clean driving record": "Historial de manejo limpio",

@@ -11,13 +11,14 @@
  *           and a learned local market factor (marketFactor) applied to the suggested price.
  * UPDATED : 2026-10-03_1247 UTC — per-service commission cap (Service.maxCommission) for equipment-heavy jobs
  *           like water heaters, where the unit is most of the price.
+ * UPDATED : 2026-10-04_1950 UTC — typicalPrice / priceHint: service lists show a typical job ("typically $X"), not the minimum.
  * PURPOSE : Deterministic instant-quote engine. Produces the price range shown to the
  *           customer, the subcontractor payout and the platform margin. The AI quote
  *           (apps/web/lib/ai/quote.ts) may adjust inside guardrails but never below the
  *           service minimum or outside ±40% of this baseline.
  */
 
-import { getService, type Answers, type LineItem } from "./services.ts";
+import { defaultAnswers, getService, type Answers, type LineItem } from "./services.ts";
 import type { CustomerType, Frequency } from "./types.ts";
 
 export const RECURRING_DISCOUNT: Record<Frequency, number> = {
@@ -291,4 +292,23 @@ export function offerCheck(offer: number, suggested: number): { ok: boolean; lev
   if (!(offer > 0) || offer < min) return { ok: false, level: "too_low", min, max };
   if (offer > max) return { ok: false, level: "too_high", min, max };
   return { ok: true, level: offer < suggested * OFFER_BOUNDS.warn ? "low" : "ok", min, max };
+}
+
+/**
+ * The price to show on a service list. Every order is different, so lists show what a TYPICAL job costs
+ * (our calculator's default job, rounded to $5) rather than the minimum ticket, which only the smallest
+ * jobs pay. Site-visit services show a free on-site quote; the event package is by budget.
+ */
+export function typicalPrice(slug: string): number | null {
+  const s = getService(slug);
+  if (!s || s.siteVisit) return null;
+  return Math.round(estimate({ slug, answers: defaultAnswers(s) }).point / 5) * 5;
+}
+
+export function priceHint(slug: string, locale: string = "en"): string {
+  const es = locale === "es";
+  if (slug === "event-package") return es ? "Según su presupuesto" : "By budget";
+  const p = typicalPrice(slug);
+  if (p === null) return es ? "Cotización gratis en sitio" : "Free on-site quote";
+  return es ? `normalmente ${money(p)}` : `typically ${money(p)}`;
 }

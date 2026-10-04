@@ -11,6 +11,7 @@
  *           Launch market is Michigan; license notes are for Michigan (LARA / MDARD).
  *           Confirm requirements with counsel and your insurance broker before each new state.
  * UPDATED : 2026-10-04_1934 UTC — vetting step names the photo ID check.
+ * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  */
 import { BRAND } from "./brand.ts";
 
@@ -125,11 +126,11 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     skillsCheck: "Equipment list (PSI/GPM, surface cleaner, soft-wash setup), wastewater practice, photos of 3 recent jobs, 2 references.",
   },
   errands: {
-    does: "Errands, pickups and drop-offs, shopping, and a personal assistant by the hour.",
+    does: "Errands, same-day courier runs, pickups and drop-offs, and a personal assistant by the hour.",
     specialties: [
       { id: "runs", label: "Errand runs & drop-offs", slug: "errands" },
       { id: "assistant", label: "Assistant for the day", slug: "personal-assistant" },
-      { id: "groceries", label: "Grocery pickup & delivery", slug: "grocery-delivery" },
+      { id: "courier", label: "Same-day courier & business routes", slug: "courier" },
       { id: "senior_help", label: "Seniors & appointment runs" },
       { id: "move_help", label: "Packing & move prep" },
     ],

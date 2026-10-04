@@ -20,7 +20,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "turnovers", title: "Unit turnovers & make-readies", icon: "🔑", blurb: "Cleanout, deep clean, touch-ups and punch list between tenants — rent-ready in one booking, photos of every room.", slugs: ["unit-turnover", "house-cleaning", "interior-painting", "carpet-cleaning"] },
   { id: "cleanouts", title: "Clean-outs, moves & hauling", icon: "🚛", blurb: "Office and small moves, abandoned items and furniture removal — or a container for the week.", slugs: ["junk-removal", "small-moves", "large-item-removal", "junk-container"] },
   { id: "delivery", title: "Large-item delivery & staging", icon: "🚚", blurb: "Same-day delivery for your store's customers, and staging furniture moved in and out of listings.", slugs: ["retail-delivery", "staging-transport"] },
-  { id: "courier", title: "Courier & delivery", icon: "📦", blurb: "Medical courier for clinics and labs, plus same-day runs and supply pickups.", slugs: ["medical-delivery", "errands", "grocery-delivery"] },
+  { id: "courier", title: "Courier & delivery", icon: "📦", blurb: "Medical courier for clinics and labs, plus same-day runs and supply pickups.", slugs: ["courier", "medical-delivery", "errands"] },
   { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
   { id: "events", title: "Corporate events & catering", icon: "🍽️", blurb: "Team lunches, client dinners, company BBQs and holiday parties, start to finish.", slugs: ["catering", "event-planning", "food-truck", "event-venue", "event-rentals", "dj-music"] },
   { id: "fleet", title: "Fleet & staff perks", icon: "🚗", blurb: "On-site detailing for company vehicles — or as a perk in your lot.", slugs: ["mobile-car-detailing", "personal-assistant"] },
@@ -29,7 +29,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
 export interface Industry { id: string; name: string; icon: string; slugs: string[] }
 
 export const INDUSTRIES: Industry[] = [
-  { id: "offices", name: "Offices", icon: "🏢", slugs: ["house-cleaning", "window-cleaning", "handyman", "catering", "airport-transfer"] },
+  { id: "offices", name: "Offices", icon: "🏢", slugs: ["house-cleaning", "courier", "window-cleaning", "handyman", "airport-transfer"] },
   { id: "retail", name: "Retail & storefronts", icon: "🛍️", slugs: ["retail-delivery", "window-cleaning", "power-washing", "snow-removal", "camera-install"] },
   { id: "real_estate", name: "Real estate agents & stagers", icon: "🏡", slugs: ["staging-transport", "house-cleaning", "junk-removal", "power-washing", "handyman"] },
   { id: "storage", name: "Self-storage facilities", icon: "🔐", slugs: ["junk-removal", "junk-container", "small-moves", "power-washing", "snow-removal"] },
