@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/lib/business.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
- * CREATED : TSTAMP UTC
+ * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business accounts (rules in core business-accounts.ts):
  *             myAccounts / memberOf     — which accounts a signed-in person belongs to (by login or email)
  *             bookingContext            — booking for one of the account's properties: pilot discount,
@@ -34,8 +34,13 @@ export interface Member { id: string; account_id: string; email: string; profile
 /** Accounts this person belongs to. Links their login to an invited email the first time they sign in. */
 export async function myAccounts(v: { userId: string; email: string }): Promise<{ account: BusinessAccount; role: Member["role"] }[]> {
   const email = v.email.trim().toLowerCase();
-  const { data } = await db().from("business_members").select("account_id, role, profile_id, email").or(`profile_id.eq.${v.userId},email.eq.${email}`);
-  const rows = (data ?? []) as Member[];
+  // two simple queries (no filter-string building with user-supplied emails)
+  const [{ data: byLogin }, { data: byEmail }] = await Promise.all([
+    db().from("business_members").select("account_id, role, profile_id, email").eq("profile_id", v.userId),
+    db().from("business_members").select("account_id, role, profile_id, email").eq("email", email),
+  ]);
+  const seen = new Set<string>();
+  const rows = ([...(byLogin ?? []), ...(byEmail ?? [])] as Member[]).filter((r) => (seen.has(r.account_id) ? false : (seen.add(r.account_id), true)));
   const unlinked = rows.filter((r) => !r.profile_id && r.email === email);
   if (unlinked.length) await db().from("business_members").update({ profile_id: v.userId }).eq("email", email).is("profile_id", null);
   if (!rows.length) return [];

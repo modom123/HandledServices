@@ -6,7 +6,7 @@
  *           the booking horizon, from real pro capacity in the customer's ZIP.
  *           Counts only pros who work that day and window and drive as far as this ZIP.
  *           GET /api/availability?service=house-cleaning&zip=48201[&today=1]
- * UPDATED : TSTAMP UTC — mode "closed" when the service isn't open yet in the ZIP's city (launch set).
+ * UPDATED : 2026-10-04_1934 UTC — mode "closed" when the service isn't open yet in the ZIP's city (launch set).
  * UPDATED : 2026-10-02_0301 UTC — today=1: same-day slots from pros who are on call or working today.
  */
 import { BRAND, buildAvailability, localDate, getService, type BookedJob, type Contractor } from "@handled/core";

@@ -6,7 +6,7 @@
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish and the language toggle.
  * UPDATED : 2026-10-03_0040 UTC — My contracts link.
  * PURPOSE : Customer portal — all jobs, recurring plans, quick rebook.
- * UPDATED : TSTAMP UTC — link to the business account portal for members.
+ * UPDATED : 2026-10-04_1934 UTC — link to the business account portal for members.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";

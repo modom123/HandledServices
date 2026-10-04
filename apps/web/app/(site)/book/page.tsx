@@ -5,7 +5,7 @@
  * UPDATED : 2026-10-02_0302 UTC — ?when= and ?budget= prefill (from the AI concierge).
  * UPDATED : 2026-10-03_0027 UTC — ?frequency= and yes/no answers (true/false) for links in saved-price and
  *           seasonal emails; utm_* params are tracking only, never answers.
- * UPDATED : TSTAMP UTC — ?property=<id>: book for a business account's property.
+ * UPDATED : 2026-10-04_1934 UTC — ?property=<id>: book for a business account's property.
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";

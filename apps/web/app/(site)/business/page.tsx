@@ -6,6 +6,7 @@
  *           industries we serve (each pre-fills the proposal form), services grouped by facility
  *           need, how a business account works, account features, then the proposal form.
  * PURPOSE : Commercial accounts landing page.
+ * UPDATED : 2026-10-04_1934 UTC — ?lead= from the business sales email (pilot offer applied on sign-up).
  */
 import Link from "next/link";
 import { BUSINESS_GROUPS, INDUSTRIES, businessServices, money } from "@handled/core";
@@ -31,8 +32,8 @@ const FEATURES = [
   ["One point of contact", "One account team and one number for every service — no vendor juggling."],
 ];
 
-export default async function BusinessPage({ searchParams }: { searchParams: Promise<{ for?: string }> }) {
-  const { for: industry } = await searchParams;
+export default async function BusinessPage({ searchParams }: { searchParams: Promise<{ for?: string; lead?: string }> }) {
+  const { for: industry, lead } = await searchParams;
   return (
     <div>
       {/* hero */}
@@ -119,7 +120,7 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
               ))}
             </div>
           </div>
-          <BusinessForm key={industry ?? ""} industry={industry ?? ""} />
+          <BusinessForm key={industry ?? ""} industry={industry ?? ""} lead={lead && /^[a-z0-9]{8,40}$/.test(lead) ? lead : null} />
         </div>
       </section>
     </div>

@@ -55,7 +55,7 @@ async function cityDigest() {
   const active = cards.filter((c) => c.market.active);
   if (!active.length) return 0;
   const lines = active.map((c) => `- ${c.market.name}: ${c.score.readyToReplicate ? "READY TO REPLICATE" : CITY_STAGE_LABEL[c.score.stage]}${c.score.todo.length ? `. Next: ${c.score.todo.slice(0, 3).map((g) => `${g.label} ${g.value} (target ${g.target})`).join("; ")}` : ""}`);
-  const body = `${lines.join("\n")}\n\nPlan year ${pace.year}: bookings run-rate ${Math.round(pace.bookingsPace * 100)}% of plan, our take ${Math.round(pace.takePace * 100)}% of plan. Details: Hub → City scorecard.`;
+  const body = `${lines.join("\n")}\n\nPlan year ${pace.year}: revenue (our take) run-rate ${Math.round(pace.takePace * 100)}% of target, bookings ${Math.round(pace.bookingsPace * 100)}% of target. Details: Hub → City scorecard.`;
   await adminClient().from("ops_alerts").insert({ kind: "city_scorecard", severity: "info", title: `City scorecard: ${active.filter((c) => c.score.readyToReplicate).length} of ${active.length} ready to replicate`, body });
   return active.length;
 }

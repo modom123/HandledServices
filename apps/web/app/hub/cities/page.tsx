@@ -6,9 +6,10 @@
  *           scored against traction / proven / ready-to-replicate gates (90 days, confirmed on the last 30),
  *           its stage and to-do list, the company's pace against the 5-year plan, and ZIP areas where jobs
  *           happen outside any market. Add or pause markets at the bottom.
+ * UPDATED : 2026-10-04_1934 UTC — pace against the growth plan where revenue = our take ($10M / $50M / $100M), AI target per year.
  */
 import Link from "next/link";
-import { CITY_TARGETS, LONG_RANGE_GOALS } from "@handled/core";
+import { CITY_TARGETS, GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "@handled/core";
 import { loadCityScorecard } from "@/lib/city-scorecard";
 import { Stat } from "@/components/ui";
 import { MarketForm } from "@/components/MarketsAdmin";
@@ -27,15 +28,15 @@ export default async function CityScorecard() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label={`Plan year ${pace.year}`} value={`${pace.plan.metros} metro${pace.plan.metros === 1 ? "" : "s"}`} hint={launchedAt ? `since first job ${launchedAt.slice(0, 10)}` : "starts at the first completed job"} />
-        <Stat label="Bookings run-rate (yearly)" value={short(pace.bookingsRunRate)} hint={`${pct(pace.bookingsPace)} of the year-${pace.year} plan (${short(pace.plan.bookings)})`} />
-        <Stat label="Our take run-rate (yearly)" value={short(pace.takeRunRate)} hint={`${pct(pace.takePace)} of the year-${pace.year} plan (${short(pace.plan.take)})`} />
-        <Stat label="Cities ready to replicate" value={`${ready} of ${cards.filter((c) => c.market.active).length}`} hint="all gates pass, held in the last 30 days" />
+        <Stat label={`Plan year ${pace.year}`} value={pace.plan.phase} hint={`target ${pace.plan.metros} cit${pace.plan.metros === 1 ? "y" : "ies"} · ${launchedAt ? `since first job ${launchedAt.slice(0, 10)}` : "starts at the first completed job"}`} />
+        <Stat label="Revenue run-rate (our take, yearly)" value={short(pace.takeRunRate)} hint={`${pct(pace.takePace)} of the year-${pace.year} target (${short(pace.plan.revenue)})`} />
+        <Stat label="Bookings run-rate (yearly)" value={short(pace.bookingsRunRate)} hint={`${pct(pace.bookingsPace)} of ${short(pace.plan.bookings)} (target revenue ÷ ${Math.round(PLAN_TAKE_RATE * 100)}% take)`} />
+        <Stat label="Cities ready to replicate" value={`${ready} of ${cards.filter((c) => c.market.active).length}`} hint={`all gates pass, held 30 days · AI target ${pct(pace.aiTarget)} this year`} />
       </div>
       <div className="card space-y-3">
-        <Meter value={pace.bookingsPace} label={`Bookings pace vs the year-${pace.year} plan`} />
-        <Meter value={pace.takePace} label={`Our take pace vs the year-${pace.year} plan`} />
-        <p className="text-xs text-ink-soft">Run-rates are the last 30 days × 12. Long-range goals (bookings through us): {LONG_RANGE_GOALS.map((g) => `${short(g.bookings)} by year ${g.year}`).join(" · ")}. The 5-year plan reaches $13.5M in bookings in year 5 with 7 metros.</p>
+        <Meter value={pace.takePace} label={`Revenue (our take) pace vs the year-${pace.year} target`} />
+        <Meter value={pace.bookingsPace} label={`Bookings pace vs the year-${pace.year} target`} />
+        <p className="text-xs text-ink-soft">Revenue means what we keep (our take), not what customers pay. Run-rates are the last 30 days × 12. Goals: {LONG_RANGE_GOALS.map((g) => `${short(g.revenue)} by year ${g.year}`).join(" · ")} (≈ {short(GROWTH_PLAN[4].bookings)} in bookings in year 5 at a {Math.round(PLAN_TAKE_RATE * 100)}% take). Most of that volume has to come from business accounts: see Customers & B2B and Business leads.</p>
       </div>
 
       {cards.length === 0 && <div className="card text-sm text-ink-soft">No markets yet. Add Metro Detroit below (ZIPs 480, 481, 482, 483), or run supabase/seed.sql.</div>}

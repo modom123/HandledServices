@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)
  * UPDATED : 2026-10-03_0209 UTC — carries ?lead= from the pro lead invitation.
  * PURPOSE : Pro application form and commercial account form.
+ * UPDATED : 2026-10-04_1934 UTC — BusinessForm passes the sales-engine lead token (pilot offer, credit).
  */
 "use client";
 
@@ -124,7 +125,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
   );
 }
 
-export function BusinessForm({ industry: startIndustry = "" }: { industry?: string }) {
+export function BusinessForm({ industry: startIndustry = "", lead = null }: { industry?: string; lead?: string | null }) {
   const { state, error, submit } = useSubmit("/api/business");
   const [industry, setIndustry] = useState(startIndustry);
   const [services, setServices] = useState<string[]>(INDUSTRIES.find((i) => i.id === startIndustry)?.slugs ?? []);
@@ -140,7 +141,7 @@ export function BusinessForm({ industry: startIndustry = "" }: { industry?: stri
       e.preventDefault();
       const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
       const extra = [industryName && `Industry: ${industryName}`, f.city && `City/ZIP: ${f.city}`, f.cadence && `How often: ${f.cadence}`].filter(Boolean).join(" · ");
-      submit({ company: f.company, contact_name: f.contact_name, email: f.email, phone: f.phone, locations: f.locations, services_needed: services, monthly_budget: f.monthly_budget ? Number(f.monthly_budget) : null, start_by: f.start_by || null, notes: [extra, f.notes].filter(Boolean).join("\n") });
+      submit({ company: f.company, contact_name: f.contact_name, email: f.email, phone: f.phone, locations: f.locations, services_needed: services, monthly_budget: f.monthly_budget ? Number(f.monthly_budget) : null, start_by: f.start_by || null, notes: [extra, f.notes].filter(Boolean).join("\n"), lead });
     }}>
       <div>
         <h2 className="text-xl font-bold">Request a proposal</h2>

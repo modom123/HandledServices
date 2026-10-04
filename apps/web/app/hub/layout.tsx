@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-03_0210 UTC — Pro leads in the nav.
  * UPDATED : 2026-10-03_1255 UTC — Pricing accuracy in the nav.
  * UPDATED : 2026-10-03_1513 UTC — City scorecard in the nav.
+ * UPDATED : 2026-10-04_1934 UTC — Business leads (sales engine) in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -31,6 +32,7 @@ const NAV = [
   ["/hub/leads", "🎯", "Pro leads"],
   ["/hub/gaps", "🕳️", "Supply gaps"],
   ["/hub/customers", "👥", "Customers & B2B"],
+  ["/hub/biz-leads", "🤝", "Business leads"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/growth", "📈", "Growth"],
   ["/hub/cities", "🏙️", "City scorecard"],

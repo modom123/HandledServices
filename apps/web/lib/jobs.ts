@@ -21,8 +21,8 @@
  *           AI QA → completion, payout and review request. All writes use the service
  *           role; route handlers must authorize the caller before calling these.
  * UPDATED : 2026-10-03_1311 UTC — fast track: the trial job always gets a human review (not auto-approved).
- * UPDATED : TSTAMP UTC — bookings blocked for services not open yet in the ZIP's city (launch set).
- * UPDATED : TSTAMP UTC — business accounts: book for a property (its address and access notes), pilot discount, priority,
+ * UPDATED : 2026-10-04_1934 UTC — bookings blocked for services not open yet in the ZIP's city (launch set).
+ * UPDATED : 2026-10-04_1934 UTC — business accounts: book for a property (its address and access notes), pilot discount, priority,
  *           and invoice-on-terms when staff approved it (dispatched without upfront payment; pros paid as usual).
  */
 import "server-only";

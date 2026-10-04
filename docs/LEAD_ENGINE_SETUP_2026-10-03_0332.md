@@ -6,6 +6,8 @@
             Google Places to find pros and Instantly.ai to send the invitations — LEAN setup
             (1 outreach domain, 2 inboxes, ~$50–60/month). Replaces the earlier guides.
             About 45 minutes, plus ~2 weeks of inbox warm-up in Instantly.
+  UPDATED : 2026-10-04_1934 UTC — added "Business sales engine": the same setup pointed at property managers, brokerages,
+            stagers, self-storage and stores, through a second Instantly campaign.
 -->
 
 # Turn on automatic pro recruiting — lean setup (Google Places + Instantly, ~$50–60/month)
@@ -120,3 +122,23 @@ Then **Redeploy** the latest production deployment. New variables apply only aft
 | **Total** | **about $50–60 a month** |
 
 That covers about 60 invitation emails a day, which reaches ~400 new pros a month across the 3 emails.
+
+## Business sales engine (customers, not pros)
+
+The same machinery finds **business customers**: property managers, real estate brokerages, home stagers,
+self-storage facilities and furniture & appliance stores. It sends them a 3-email sequence with a pilot offer
+(default: up to 20% off their first 2 jobs, always from our share). About 15 minutes once recruiting is running:
+
+1. **Instantly → Campaigns → New campaign** named "Business sales". Same template as the pro campaign: 3 steps
+   with subject `{{subject_1}}` / body `{{body_1}}`, then `{{subject_2}}`/`{{body_2}}` (wait 4 days) and
+   `{{subject_3}}`/`{{body_3}}` (wait 6 days). Use the same warmed-up inboxes; keep total sends per inbox under ~30 a day.
+2. Copy the campaign id into **Vercel → Environment Variables** as `INSTANTLY_BIZ_CAMPAIGN_ID` (Production), then redeploy.
+   Don't paste keys into chat or email.
+3. **Hub → Business leads:** tick "Engine on", pick the segments, set the pilot offer, Save. Start with
+   5 searches and 20 new sequences a day.
+4. The existing Instantly webhook already reports business replies, clicks and unsubscribes.
+
+**Day to day:** answer business replies in Instantly's Unibox the same day (they're warm), and call the
+phone-only list in Hub → Business leads. Send LinkedIn messages yourself; automating LinkedIn breaks its rules.
+When a business sets up an account from the email link, the pilot is applied automatically and you get an alert
+to call them and book the first job.

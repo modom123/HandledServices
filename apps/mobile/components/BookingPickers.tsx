@@ -4,7 +4,7 @@
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Shared pickers for booking and rescheduling: the availability calendar (real open
  *           days and arrival windows for the ZIP) and a typed number box. English / Spanish.
- * UPDATED : TSTAMP UTC — service not open yet in the city (launch set) → "coming soon" + waitlist.
+ * UPDATED : 2026-10-04_1934 UTC — service not open yet in the city (launch set) → "coming soon" + waitlist.
  * UPDATED : 2026-10-02_2255 UTC — no pros in the ZIP yet → waitlist sign-up (we tell them when it opens).
  */
 import { useEffect, useState } from "react";

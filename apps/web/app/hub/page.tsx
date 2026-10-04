@@ -3,13 +3,14 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Ops dashboard — KPIs, AI morning brief, live alerts, today's schedule.
+ * UPDATED : 2026-10-04_1934 UTC — AI-driven target follows the growth plan year (80% → 95%).
  */
 import Link from "next/link";
 import { getService, money, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty, Stat, StatusBadge } from "@/components/ui";
 import { ResolveAlert } from "@/components/HubActions";
-import { AI_DRIVEN_TARGET, aiDrivenRate } from "@/lib/metrics";
+import { aiDrivenRate, aiDrivenTargetNow } from "@/lib/metrics";
 
 type Alert = { id: string; kind: string; severity: "info" | "warn" | "critical"; title: string; body: string | null; job_id: string | null; created_at: string };
 
@@ -28,9 +29,10 @@ export default async function HubHome() {
     v.db.from("reviews").select("rating").gte("created_at", monthStart),
     v.db.from("contractor_applications").select("id", { count: "exact", head: true }).eq("status", "new"),
   ]);
-  const [auto, { count: iebcPending }] = await Promise.all([
+  const [auto, { count: iebcPending }, AI_DRIVEN_TARGET] = await Promise.all([
     aiDrivenRate(v.db, monthStart),
     v.db.from("agent_actions").select("id", { count: "exact", head: true }).eq("status", "pending_approval"),
+    aiDrivenTargetNow(v.db),
   ]);
   const revenue = (month ?? []).reduce((t, j) => t + Number(j.price_final ?? 0), 0);
   const margin = revenue - (month ?? []).reduce((t, j) => t + Number(j.contractor_payout ?? 0), 0);
@@ -47,7 +49,7 @@ export default async function HubHome() {
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-white/60">AI-driven rate (month)</div>
           <div className="mt-1 text-4xl font-extrabold">{auto.rate === null ? "—" : `${Math.round(auto.rate * 100)}%`}</div>
-          <div className="text-xs text-white/60">{auto.untouched} of {auto.completed} completed jobs had zero human touches · target {AI_DRIVEN_TARGET * 100}%</div>
+          <div className="text-xs text-white/60">{auto.untouched} of {auto.completed} completed jobs had zero human touches · target {Math.round(AI_DRIVEN_TARGET * 100)}% this plan year</div>
         </div>
         <div className="h-3 w-full max-w-sm overflow-hidden rounded-full bg-white/15"><div className={`h-full ${auto.rate !== null && auto.rate >= AI_DRIVEN_TARGET ? "bg-emerald-400" : "bg-sun"}`} style={{ width: `${Math.round((auto.rate ?? 0) * 100)}%` }} /></div>
         <Link href="/hub/workforce" className="text-sm underline">{iebcPending ?? 0} IEBC actions awaiting approval</Link>

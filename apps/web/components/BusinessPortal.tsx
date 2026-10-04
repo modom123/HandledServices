@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/components/BusinessPortal.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
- * CREATED : TSTAMP UTC
+ * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business account portal controls: add a property, edit access notes, invite colleagues,
  *           choose dedicated pros, set the billing email and ask for invoicing on terms.
  */

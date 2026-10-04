@@ -9,7 +9,9 @@
  * UPDATED : 2026-10-03_0051 UTC — the agreement (and the list) in Spanish for Spanish-speaking pros.
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
+ * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (Stripe Identity or a video call).
  */
+import { VerifyId } from "@/components/VerifyId";
 import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
@@ -144,6 +146,12 @@ export default async function Onboarding() {
           )}
         </div>
       );
+    }
+    if (key === "id") {
+      const st = (pro as Contractor & { id_verification?: { status?: string; provider?: string } | null }).id_verification;
+      return st?.provider === "manual" && st.status === "requested"
+        ? <p className="mt-2 text-sm text-ink-soft">{t("We'll verify your ID on a short video call. We'll contact you to schedule it.")}</p>
+        : <div className="mt-2 space-y-2">{st?.status === "requires_input" && <p className="text-sm text-rose-700">{t("Your ID photo couldn't be read. Please try again in good light.")}</p>}<p className="text-sm text-ink-soft">{t("Take a photo of your driver's license, state ID or passport and a selfie. It takes about 2 minutes on your phone. We only keep the result.")}</p><VerifyId label={t("Verify my ID")} /></div>;
     }
     if (key === "background") {
       const bs = (pro as Contractor & { background_status?: string | null }).background_status;

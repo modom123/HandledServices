@@ -15,7 +15,7 @@
  *             redo           — the original pro comes back free ($0 to the customer, $0 payout).
  *             complimentary  — a free extra service; the pro is paid normally out of our take
  *                              on the original job, capped so the pair can't go negative.
- * UPDATED : TSTAMP UTC — business accounts on terms: a refund before payment is a credit on the invoice.
+ * UPDATED : 2026-10-04_1934 UTC — business accounts on terms: a refund before payment is a credit on the invoice.
  */
 import "server-only";
 import { BRAND, estimate, getService, serviceText, money, refundSplit, splitJob, type Answers, type Job } from "@handled/core";

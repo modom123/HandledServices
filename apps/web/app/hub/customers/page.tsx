@@ -4,7 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-03_0042 UTC — link to each customer's signed contracts.
  * PURPOSE : Customers (rolled up from jobs), commercial accounts and AI-chat leads.
- * UPDATED : TSTAMP UTC — commercial accounts open their Hub account page (billing, properties, members, dedicated pros).
+ * UPDATED : 2026-10-04_1934 UTC — commercial accounts open their Hub account page (billing, properties, members, dedicated pros).
  */
 import Link from "next/link";
 import { getService, money } from "@handled/core";

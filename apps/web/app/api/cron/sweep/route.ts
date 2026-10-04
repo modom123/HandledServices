@@ -12,7 +12,7 @@
  * UPDATED : 2026-10-03_0149 UTC — no pro yet after a while → the customer is nudged to raise their offer.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
- * UPDATED : TSTAMP UTC — business invoices on the 1st; invoice reminders and terms holds daily.
+ * UPDATED : 2026-10-04_1934 UTC — business invoices on the 1st; invoice reminders and terms holds daily.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";

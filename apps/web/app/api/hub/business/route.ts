@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/app/api/hub/business/route.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
- * CREATED : TSTAMP UTC
+ * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Staff controls for a business account. POST JSON { action, id, ... }:
  *             terms     — billing_mode prepay | terms, terms_days, credit_limit, note (required to approve terms:
  *                         invoicing is decided case by case and the reason is kept)

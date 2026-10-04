@@ -1,7 +1,7 @@
 /*
  * FILE    : packages/core/src/launch.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
- * CREATED : TSTAMP UTC
+ * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Constraint-driven launch: a city opens with a short list of frequent, simple services
  *           (hauling, small moves, basic cleaning, lawn, handyman, turnovers) so every booking gets a
  *           pro fast; everything else shows "coming soon" with a waitlist until the city is ready.
@@ -12,7 +12,7 @@ export interface LaunchMarket { id?: string; name?: string; zip_prefixes: string
 
 /** Recommended first services for a new city (growth plan, phase 1). */
 export const LAUNCH_SET_RECOMMENDED = [
-  "junk-removal", "large-item-removal", "small-moves", "house-cleaning", "lawn-care", "snow-removal", "handyman", "unit-turnover",
+  "house-cleaning", "lawn-care", "leaf-removal", "snow-removal", "handyman", "unit-turnover", "junk-removal", "large-item-removal", "small-moves",
 ] as const;
 
 /** The market a ZIP belongs to (first match). */

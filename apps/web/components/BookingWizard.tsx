@@ -11,7 +11,7 @@
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.
- * UPDATED : TSTAMP UTC — business account bookings (?property=): address and company from the property; billed-on-account confirmation.
+ * UPDATED : 2026-10-04_1934 UTC — business account bookings (?property=): address and company from the property; billed-on-account confirmation.
  */
 "use client";
 

@@ -296,6 +296,8 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Documents": "Documentos",
   "W-9, contractor agreement, certificate of insurance naming Handled Services LLC as additional insured, license and any trade-specific coverage. We verify each policy with the carrier.": "W-9, acuerdo de contratista, certificado de seguro con Handled Services LLC como asegurado adicional, licencia y cualquier cobertura propia de su oficio. Verificamos cada póliza con la aseguradora.",
   "Background check": "Verificación de antecedentes",
+  "Photo ID + background check": "Identificación con foto y verificación de antecedentes",
+  "A photo of your ID matched to a selfie, then a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year.": "Una foto de su identificación comparada con una selfie, y luego una búsqueda de antecedentes penales y en registros de delincuentes sexuales con nuestro proveedor de verificación. Los oficios que manejan también tienen revisión del historial de manejo. Se repite cada año.",
   "Criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year.": "Búsqueda de antecedentes penales y en el registro de delincuentes sexuales con nuestro proveedor de verificación. Los oficios que manejan también tienen revisión del historial de manejo. Se repite cada año.",
   "Probation jobs": "Trabajos de prueba",
   "Your first 3 jobs are under $750, and each one gets a human photo review and a follow-up call to the customer.": "Sus primeros 3 trabajos son de menos de $750, y cada uno tiene una revisión de fotos por una persona y una llamada de seguimiento al cliente.",

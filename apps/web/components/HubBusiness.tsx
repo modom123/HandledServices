@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/components/HubBusiness.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
- * CREATED : TSTAMP UTC
+ * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Hub → business account controls: terms (case by case, with a reason and credit limit),
  *           hold, priority, pilot, status, members, properties and dedicated pros.
  */

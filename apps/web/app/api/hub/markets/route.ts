@@ -4,7 +4,7 @@
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Staff: add a market (city) or pause / resume one. POST { name, state, zip_prefixes[] } or { id, active }.
  *           A ZIP prefix can belong to one market only, so jobs are never counted twice.
- * UPDATED : TSTAMP UTC — { id, launch_services: [...] | null }: which services a city has open (null = all).
+ * UPDATED : 2026-10-04_1934 UTC — { id, launch_services: [...] | null }: which services a city has open (null = all).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";

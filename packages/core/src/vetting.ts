@@ -10,6 +10,7 @@
  *           verification, dispatch (specialty match, probation) and the /pros page.
  *           Launch market is Michigan; license notes are for Michigan (LARA / MDARD).
  *           Confirm requirements with counsel and your insurance broker before each new state.
+ * UPDATED : 2026-10-04_1934 UTC — vetting step names the photo ID check.
  */
 import { BRAND } from "./brand.ts";
 
@@ -354,7 +355,7 @@ export const VETTING_STEPS = [
   { t: "AI screen + quick call", b: "Our AI checks the application for fit and gaps; a coordinator calls within 2 business days." },
   { t: "Skills check", b: "A trade-specific check: photos of recent work, references, and for licensed trades a lookup on the state license database." },
   { t: "Documents", b: `W-9, contractor agreement, certificate of insurance naming ${BRAND.legalName} as additional insured, license and any trade-specific coverage. We verify each policy with the carrier.` },
-  { t: "Background check", b: "Criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
+  { t: "Photo ID + background check", b: "A photo of your ID matched to a selfie, then a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
   { t: "Probation jobs", b: `Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice}, and each one gets a human photo review and a follow-up call to the customer.` },
   { t: "Activated", b: "Full offers in your area and specialties. Insurance and licenses are tracked, and offers pause automatically if one lapses." },
 ];

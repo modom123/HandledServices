@@ -2,7 +2,7 @@
  * FILE    : apps/web/app/(site)/book/confirmed/page.tsx
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
- * UPDATED : TSTAMP UTC — ?billed=1: booked on a business account's invoice.
+ * UPDATED : 2026-10-04_1934 UTC — ?billed=1: booked on a business account's invoice.
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";

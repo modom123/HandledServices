@@ -11,7 +11,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (Business MSA: precio sugerido y ofertas salvo que un Pedido
  *           fije el precio; Plus/promos: el cargo de reserva no se descuenta), mirroring customer.ts.
  * UPDATED : 2026-10-03_1311 UTC — adenda de construcción: el equipo que el cliente compra debe ser nuevo; nunca instalamos usado.
- * UPDATED : TSTAMP UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas"); MSA: plazos aprobados en el portal de la cuenta empresarial.
+ * UPDATED : 2026-10-04_1934 UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas"); MSA: plazos aprobados en el portal de la cuenta empresarial.
  */
 import {
   BOOKING_FEE,

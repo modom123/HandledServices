@@ -9,7 +9,8 @@
  *           get a critical alert with the evidence we have and the deadline; won → payout released.
  *           Tips, gift cards and Handled Plus subscriptions are settled here too (lib/growth).
  * PURPOSE : Stripe webhook.
- * UPDATED : TSTAMP UTC — business invoices: paid → invoice and its jobs marked paid (lib/business settleInvoice).
+ * UPDATED : 2026-10-04_1934 UTC — pro photo ID results (identity.verification_session.*).
+ * UPDATED : 2026-10-04_1934 UTC — business invoices: paid → invoice and its jobs marked paid (lib/business settleInvoice).
  */
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
@@ -68,6 +69,16 @@ export async function POST(req: Request) {
     await handleDispute(event.data.object as Stripe.Dispute, event.type);
   }
   if (event.type.startsWith("customer.subscription.")) await syncSubscription(event.data.object as Stripe.Subscription);
+  // pro photo ID check (Stripe Identity)
+  if (event.type === "identity.verification_session.verified" || event.type === "identity.verification_session.requires_input") {
+    const vs = event.data.object as Stripe.Identity.VerificationSession;
+    const pro = vs.metadata?.contractor_id;
+    if (pro) {
+      const { idVerified, idNeedsRetry } = await import("@/lib/identity");
+      if (event.type === "identity.verification_session.verified") await idVerified(pro, "stripe_identity", vs.id);
+      else await idNeedsRetry(pro, vs.last_error?.reason ?? vs.last_error?.code ?? null);
+    }
+  }
   if (event.type === "checkout.session.async_payment_failed") {
     const session = event.data.object;
     if (session.metadata?.payment_id) await adminClient().from("payments").update({ status: "failed" }).eq("id", session.metadata.payment_id);

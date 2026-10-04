@@ -125,8 +125,9 @@ test("onboarding blocks activation until every step is done", async () => {
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201" };
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", id_verified_at: "2026-10-01" };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
+  assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
@@ -924,7 +925,56 @@ test("city scorecard: stages climb gate by gate, and replicate needs the last 30
   assert.equal(scoreCity(big, { ...recentGood, fillRate: 0.7 }).readyToReplicate, false, "slipped in the last 30 days");
   assert.equal(scoreCity({ ...big, thinTrades: ["plumbing"] }).stage, "traction", "a thin busy trade blocks proven");
   assert.ok(T.replicate.bookingsPerMonth > T.proven.bookingsPerMonth && T.proven.bookingsPerMonth > T.traction.bookingsPerMonth);
-  const p = planPace({ launchedAt: new Date(Date.now() - 400 * 86400000).toISOString(), bookings30: 194_000, take30: 58_000, markets: 1 });
+  const p = planPace({ launchedAt: new Date(Date.now() - 400 * 86400000).toISOString(), bookings30: 830_000, take30: 166_500, markets: 1 });
   assert.equal(p.year, 2);
-  assert.ok(Math.abs(p.bookingsPace - 1) < 0.05, `year-2 pace ${p.bookingsPace}`);
+  assert.ok(Math.abs(p.takePace - 1) < 0.05, `year-2 revenue pace ${p.takePace}`);
+  const { GROWTH_PLAN, LONG_RANGE_GOALS } = await import("./city-scorecard.ts");
+  for (const g of LONG_RANGE_GOALS) assert.equal(GROWTH_PLAN[g.year - 1].revenue, g.revenue, "plan hits the owner's milestones");
+  assert.equal(GROWTH_PLAN[4].bookings, 50_000_000, "$10M revenue ≈ $50M bookings at a 20% take");
+});
+
+test("launch set: only a city's launch services open; outside every city nothing is blocked", async () => {
+  const { serviceOpen, marketForZip, LAUNCH_SET_RECOMMENDED } = await import("./launch.ts");
+  const detroit = { name: "Metro Detroit", zip_prefixes: ["480", "481", "482"], launch_services: [...LAUNCH_SET_RECOMMENDED] };
+  const all = { name: "Ann Arbor", zip_prefixes: ["481"], launch_services: null };
+  assert.equal(marketForZip([detroit], "48201")?.name, "Metro Detroit");
+  assert.equal(marketForZip([detroit], "49503"), null);
+  assert.equal(serviceOpen(detroit, "junk-removal"), true);
+  assert.equal(serviceOpen(detroit, "limousine"), false);
+  assert.equal(serviceOpen(all, "limousine"), true, "no list = every service");
+  assert.equal(serviceOpen(null, "limousine"), true, "outside any city");
+  for (const s of LAUNCH_SET_RECOMMENDED) assert.ok(SERVICES.some((x) => x.slug === s), `${s} exists`);
+});
+
+test("business accounts: terms are case by case, within the credit limit and not on hold; pilot from our share", async () => {
+  const { termsDecision, pilotDiscount, invoicePeriod, daysOverdue, invoiceReminderDue, BUSINESS_TERMS } = await import("./business-accounts.ts");
+  const prepay = { billing_mode: "prepay" as const, credit_limit: 0, terms_hold: false };
+  assert.equal(termsDecision(prepay, 0, 300).onTerms, false, "every account starts on prepay");
+  const terms = { billing_mode: "terms" as const, credit_limit: 2500, terms_hold: false };
+  assert.equal(termsDecision(terms, 1000, 300).onTerms, true);
+  assert.equal(termsDecision(terms, 2400, 300).onTerms, false, "over the credit limit → prepay");
+  assert.equal(termsDecision({ ...terms, terms_hold: true }, 0, 100).onTerms, false, "overdue hold → prepay");
+  const list = 400, payout = splitJob(list, "unit-turnover").payout;
+  const pilot = pilotDiscount({ pilot_discount_pct: 20, pilot_jobs_left: 2 }, list, payout);
+  assert.ok(pilot > 0 && pilot <= list * 0.2 && list - pilot - payout >= list * 0.05 - 1, `pilot ${pilot} leaves us a margin`);
+  assert.equal(pilotDiscount({ pilot_discount_pct: 20, pilot_jobs_left: 0 }, list, payout), 0);
+  assert.equal(pilotDiscount({ pilot_discount_pct: 90, pilot_jobs_left: 1 }, list, payout) <= list * BUSINESS_TERMS.maxPilotPct / 100, true);
+  assert.deepEqual(invoicePeriod(new Date("2026-11-01T12:00:00Z")), { start: "2026-10-01", end: "2026-10-31", issue: "2026-11-01" });
+  assert.deepEqual(invoicePeriod(new Date("2027-01-01T12:00:00Z")).start, "2026-12-01");
+  assert.equal(daysOverdue("2026-11-30", new Date("2026-11-30T15:00:00Z")), 0);
+  assert.equal(daysOverdue("2026-11-30", new Date("2026-12-11T15:00:00Z")), 11);
+  assert.equal(invoiceReminderDue("2026-11-30", 0, new Date("2026-11-26T15:00:00Z")), null);
+  assert.equal(invoiceReminderDue("2026-11-30", 0, new Date("2026-11-27T15:00:00Z")), -3);
+  assert.equal(invoiceReminderDue("2026-11-30", 1, new Date("2026-12-01T15:00:00Z")), 1);
+});
+
+test("business sales engine: segments map to real services; emails are honest with an unsubscribe and address", async () => {
+  const { BIZ_SEGMENTS, bizLeadEmail, bizLeadScore, BIZ_LEAD_SEQUENCE } = await import("./biz-lead-engine.ts");
+  for (const [k, seg] of Object.entries(BIZ_SEGMENTS)) for (const s of seg.services) assert.ok(SERVICES.some((x) => x.slug === s), `${k}: ${s}`);
+  for (let i = 0; i < BIZ_LEAD_SEQUENCE.length; i++) {
+    const m = bizLeadEmail({ step: i, businessName: "Maple PM", segment: "property_manager", city: "Southfield", pilotPct: 20, pilotJobs: 2, signupUrl: "https://x/b/abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI" });
+    assert.match(m.text, /https:\/\/x\/u/); assert.match(m.text, /1 Main St/); assert.match(m.text, /https:\/\/x\/b\/abc/);
+  }
+  assert.match(bizLeadEmail({ step: 0, businessName: "A", segment: "stager", pilotPct: 20, pilotJobs: 1, signupUrl: "u", unsubscribeUrl: "u", postalAddress: "a" }).text, /up to 20% off your first job/);
+  assert.ok(bizLeadScore({ email: "a@b.co", reviewCount: 30, rating: 4.8, website: "x" }) > bizLeadScore({ phone: "1" }));
 });

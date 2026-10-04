@@ -13,6 +13,7 @@
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
  * UPDATED : 2026-10-03_1418 UTC — checks migration 26 (crews & fast track) and flags catalog rows whose name or minimum is out of date.
+ * UPDATED : 2026-10-04_1934 UTC — migration 27 (business accounts, launch sets, sales engine, photo ID) and the business sales engine key.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -36,6 +37,7 @@ export async function readiness(): Promise<Check[]> {
   add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Google Business Profile → Ask for reviews → copy the link → set NEXT_PUBLIC_GOOGLE_REVIEW_URL in Vercel and EXPO_PUBLIC_GOOGLE_REVIEW_URL for the app");
   add("Pro recruiting", "Lead engine: finding pros", has("GOOGLE_PLACES_API_KEY") ? true : "warn", has("GOOGLE_PLACES_API_KEY") ? "Google Places key set" : "not set — CSV import only", "Google Cloud → enable Places API (New) → create an API key (restrict it to Places API) → GOOGLE_PLACES_API_KEY in Vercel. Then turn the engine on in Hub → Pro leads");
   add("Pro recruiting", "Lead engine: invitations (Instantly)", has("INSTANTLY_API_KEY") && has("INSTANTLY_CAMPAIGN_ID") && has("BUSINESS_POSTAL_ADDRESS") && has("INSTANTLY_WEBHOOK_SECRET") ? true : "warn", !has("INSTANTLY_API_KEY") ? "not set — no invitation emails" : !has("INSTANTLY_CAMPAIGN_ID") ? "INSTANTLY_CAMPAIGN_ID missing" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing" : !has("INSTANTLY_WEBHOOK_SECRET") ? "INSTANTLY_WEBHOOK_SECRET missing — replies/unsubscribes won't sync" : "set", `Instantly: connect warmed-up inboxes on a separate domain, create the campaign (steps {{subject_1}}/{{body_1}} … see docs/LEAD_ENGINE_SETUP_*), API key (v2) → INSTANTLY_API_KEY, campaign id → INSTANTLY_CAMPAIGN_ID, webhook ${site || "https://your-domain"}/api/webhooks/instantly?secret=… → INSTANTLY_WEBHOOK_SECRET; plus BUSINESS_POSTAL_ADDRESS (CAN-SPAM)`);
+  add("Business sales", "Sales engine: business emails (Instantly)", has("INSTANTLY_API_KEY") && has("INSTANTLY_BIZ_CAMPAIGN_ID") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("INSTANTLY_BIZ_CAMPAIGN_ID") ? "INSTANTLY_BIZ_CAMPAIGN_ID not set — no business sales emails" : "set", "Create a second Instantly campaign (steps {{subject_1}}/{{body_1}} … 3) → INSTANTLY_BIZ_CAMPAIGN_ID; turn it on in Hub → Business leads");
   add("Website & Vercel", "Cron secret", has("CRON_SECRET"), has("CRON_SECRET") ? "set" : "missing — daily brief & sweep will 401", "Add CRON_SECRET (any long random string) in Vercel");
   add("Website & Vercel", "Invoice link signing", has("INVOICE_SIGNING_SECRET") ? true : "warn", has("INVOICE_SIGNING_SECRET") ? "set" : "falling back to the service role key", "Add INVOICE_SIGNING_SECRET (long random string)");
   add("Supabase", "Project URL & public key", supabaseConfigured, supabaseConfigured ? "set" : "missing", "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from Supabase → Project Settings → API");
@@ -101,6 +103,7 @@ export async function readiness(): Promise<Check[]> {
     ["24 market pricing", () => db.from("market_factors").select("service_slug").limit(1)],
     ["25 pro lead engine", () => db.from("pro_leads").select("id").limit(1)],
     ["26 crews & fast track", () => db.from("crew_members").select("id").limit(1)],
+    ["27 business accounts, launch sets, sales engine, photo ID", () => db.from("business_invoices").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

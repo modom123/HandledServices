@@ -5,7 +5,7 @@
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: returns a Stripe Checkout URL for the
  *           final price; nothing is dispatched until payment clears (site visits excepted).
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
- * UPDATED : TSTAMP UTC — business accounts on approved terms: no checkout; the job goes on the monthly invoice.
+ * UPDATED : 2026-10-04_1934 UTC — business accounts on approved terms: no checkout; the job goes on the monthly invoice.
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
  */
 import { after } from "next/server";

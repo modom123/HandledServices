@@ -11,8 +11,10 @@
  *                          metro playbook: open a new metro only when existing ones can fund it)
  *           A market's stage is the highest level whose gates all pass; "ready to replicate" also
  *           needs them to hold in the last 30 days, not just the 90-day window. Pure and deterministic.
- *           Business-plan trajectory (bookings and our take per year) is here too, for the "on pace"
- *           line. Thresholds come from docs/BUSINESS_PLAN (key metrics + 5-year plan).
+ *           The growth plan (revenue = our take, cities and AI targets per year) is here too, for the
+ *           "on pace" line. Thresholds come from docs/BUSINESS_PLAN (key metrics + growth plan).
+ * UPDATED : 2026-10-04_1934 UTC — growth plan to $100M: revenue means our take ($10M year 5, $50M year 7, $100M year 10),
+ *           city counts by phase, AI-driven target rising to 95%.
  */
 
 export type GateLevel = "traction" | "proven" | "replicate";
@@ -185,31 +187,45 @@ export function scoreCity(m90: CityMetrics, m30?: CityMetrics): CityScore {
 
 export const CITY_STAGE_LABEL: Record<CityStage, string> = { launching: "Launching", traction: "Traction", proven: "Proven", replicate: "Ready to replicate" };
 
-// ─── Company trajectory vs the 5-year plan ─────────────────────────────────────
+// ─── Company trajectory vs the growth plan ─────────────────────────────────────
 
-/** Business plan (docs/BUSINESS_PLAN): bookings and our take per year, and metros open by year end. */
-export const PLAN_YEARS = [
-  { year: 1, metros: 1, bookings: 670_000, take: 200_000 },
-  { year: 2, metros: 1, bookings: 2_330_000, take: 700_000 },
-  { year: 3, metros: 3, bookings: 5_190_000, take: 1_570_000 },
-  { year: 4, metros: 5, bookings: 8_980_000, take: 2_720_000 },
-  { year: 5, metros: 7, bookings: 13_550_000, take: 4_100_000 },
-] as const;
+/**
+ * Growth plan — REVENUE MEANS OUR TAKE (what we keep), as the owner's plan defines it ("$10M revenue needs
+ * ~$50M in gross marketplace volume at a 20% take"). Milestones: $10M in year 5, $50M in year 7, $100M in
+ * year 10 (owner's goals); city counts follow the phase plan (1 city in years 1–2, 3–5 by year 5,
+ * 15–20 by year 8, 40+ by year 10). Bookings shown = revenue ÷ PLAN_TAKE_RATE. aiDriven = share of jobs
+ * with no human touch (80% early → 95% from year 6). Change the numbers here; every screen follows.
+ */
+export const PLAN_TAKE_RATE = 0.2;
+export const GROWTH_PLAN = [
+  { year: 1, revenue: 500_000, metros: 1, aiDriven: 0.8, phase: "Liquidity & proof of concept" },
+  { year: 2, revenue: 2_000_000, metros: 1, aiDriven: 0.8, phase: "Liquidity & proof of concept" },
+  { year: 3, revenue: 4_000_000, metros: 3, aiDriven: 0.85, phase: "B2B expansion" },
+  { year: 4, revenue: 6_500_000, metros: 4, aiDriven: 0.9, phase: "B2B expansion" },
+  { year: 5, revenue: 10_000_000, metros: 5, aiDriven: 0.9, phase: "B2B expansion — $10M" },
+  { year: 6, revenue: 25_000_000, metros: 10, aiDriven: 0.95, phase: "Category dominance & regional scaling" },
+  { year: 7, revenue: 50_000_000, metros: 15, aiDriven: 0.95, phase: "Category dominance — $50M" },
+  { year: 8, revenue: 65_000_000, metros: 20, aiDriven: 0.95, phase: "Category dominance & regional scaling" },
+  { year: 9, revenue: 82_000_000, metros: 30, aiDriven: 0.95, phase: "Network effects" },
+  { year: 10, revenue: 100_000_000, metros: 40, aiDriven: 0.95, phase: "Network effects — $100M" },
+].map((y) => ({ ...y, bookings: Math.round(y.revenue / PLAN_TAKE_RATE) }));
 
-/** Owner's long-range goals (revenue = bookings through us). */
-export const LONG_RANGE_GOALS = [{ year: 5, bookings: 10_000_000 }, { year: 7, bookings: 50_000_000 }, { year: 10, bookings: 100_000_000 }] as const;
+/** Owner's long-range goals, revenue = our take. */
+export const LONG_RANGE_GOALS = [{ year: 5, revenue: 10_000_000 }, { year: 7, revenue: 50_000_000 }, { year: 10, revenue: 100_000_000 }] as const;
 
-/** Where the company is against the plan: which plan year it's in and the annualized pace vs that year's target. */
+/** Where the company is against the growth plan: plan year, revenue (our take) and bookings pace, cities, AI target. */
 export function planPace(o: { launchedAt: string | null; bookings30: number; take30: number; markets: number }, now = new Date()) {
   const start = o.launchedAt ? new Date(o.launchedAt) : now;
   const yearsIn = Math.max(0, (now.getTime() - start.getTime()) / (365.25 * 86400000));
-  const year = Math.min(PLAN_YEARS.length, Math.floor(yearsIn) + 1);
-  const plan = PLAN_YEARS[year - 1];
+  const year = Math.min(GROWTH_PLAN.length, Math.floor(yearsIn) + 1);
+  const plan = GROWTH_PLAN[year - 1];
   const bookingsRunRate = (o.bookings30 / 30.4) * 365.25, takeRunRate = (o.take30 / 30.4) * 365.25;
   return {
     year, plan, bookingsRunRate, takeRunRate,
+    /** Revenue (our take) run-rate ÷ this year's revenue target — the main number. */
+    takePace: plan.revenue ? takeRunRate / plan.revenue : 0,
     bookingsPace: plan.bookings ? bookingsRunRate / plan.bookings : 0,
-    takePace: plan.take ? takeRunRate / plan.take : 0,
     metrosPace: o.markets / plan.metros,
+    aiTarget: plan.aiDriven,
   };
 }

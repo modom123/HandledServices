@@ -8,6 +8,7 @@
  *           portal and IEBC agents. Pros are independent contractors (their own business,
  *           tools, insurance and schedule; free to accept or decline any job) — never
  *           employees. A pro can't be activated until every required step is done.
+ * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (ID + selfie via Stripe Identity, or staff on a video call).
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -48,10 +49,12 @@ export interface ComplianceInput {
   base_zip?: string | null;
   availability?: { days: number[]; windows: string[] } | null;
   service_radius_mi?: number | null;
+  /** Photo ID matched to a selfie (Stripe Identity) or checked by staff on a video call. */
+  id_verified_at?: string | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "specialties" | "area" | "coi" | "license" | "background" | "payout" | `coverage:${CoverageKey}`;
+  key: "w9" | "agreement" | "specialties" | "area" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -88,6 +91,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
   if (licenseRequired)
     steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, remodeling, food service, passenger transportation and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
   steps.push(
+    { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
     { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },
   );

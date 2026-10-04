@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-03_0042 UTC — link to the pro's signed contracts.
  * UPDATED : 2026-10-03_0124 UTC — standing panel: events, warn / suspend / deactivate / reinstate / appeal.
  * UPDATED : 2026-10-03_1311 UTC — crew panel (background checks per crew member) and fast-track review.
+ * UPDATED : 2026-10-04_1934 UTC — mark a pro's photo ID verified after a video call.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  */
@@ -17,6 +18,7 @@ import { getViewer } from "@/lib/auth";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { DocDecision, ProStatusControls } from "@/components/HubActions";
 import { HubCrewDecision } from "@/components/Crew";
+import { MarkIdVerified } from "@/components/VerifyId";
 import { FastTrackReview } from "@/components/FastTrack";
 import { crewReady, FAST_TRACK, type CrewMember } from "@handled/core";
 import { listCrew } from "@/lib/crew";
@@ -81,7 +83,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <div className="card">
           <div className="flex items-center justify-between"><div className="font-semibold">Onboarding & compliance</div><Badge tone={complete ? "green" : "amber"}>{steps.filter((s) => s.done).length}/{steps.length}</Badge></div>
-          <ul className="mt-3 space-y-2 text-sm">{steps.map((s) => <li key={s.key} className="flex justify-between gap-2"><span>{s.done ? "✅" : "⬜"} {s.label}{s.expiring ? " ⚠️ expiring" : ""}</span><span className="text-ink-soft">{s.detail}</span></li>)}</ul>
+          <ul className="mt-3 space-y-2 text-sm">{steps.map((s) => <li key={s.key} className="flex justify-between gap-2"><span>{s.done ? "✅" : "⬜"} {s.label}{s.expiring ? " ⚠️ expiring" : ""}</span><span className="text-ink-soft">{s.detail}{s.key === "id" && !s.done && <span className="ml-2"><MarkIdVerified contractorId={id} /></span>}</span></li>)}</ul>
           <div className="mt-4 font-semibold">Documents</div>
           <div className="mt-2 space-y-2">
             {!(docs ?? []).length && <p className="text-sm text-ink-soft">None uploaded yet — the pro uploads from Pro portal → Setup & documents.</p>}

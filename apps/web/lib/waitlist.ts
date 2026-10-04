@@ -7,7 +7,7 @@
  *             notifyWaitlist — daily sweep: once an active pro can take that service there,
  *                              email/text them a booking link in their language (once)
  *           Sign-ups also feed Hub → Supply gaps, so recruiting goes where people are waiting.
- * UPDATED : TSTAMP UTC — waits until the service is open in that city (launch set), not just covered by a pro.
+ * UPDATED : 2026-10-04_1934 UTC — waits until the service is open in that city (launch set), not just covered by a pro.
  */
 import "server-only";
 import { openFor } from "./launch";

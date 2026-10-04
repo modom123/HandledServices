@@ -8,7 +8,7 @@
  * UPDATED : 2026-10-02_2245 UTC — no pros in the ZIP yet → waitlist sign-up next to the request option.
  * UPDATED : 2026-10-02_0302 UTC — today (same-day slots from on-call pros), until (only days up to
  *           the customer's deadline), earliest (ASAP: pick the first open slot, priority or not).
- * UPDATED : TSTAMP UTC — "coming soon" + waitlist when the service isn't open yet in the customer's city.
+ * UPDATED : 2026-10-04_1934 UTC — "coming soon" + waitlist when the service isn't open yet in the customer's city.
  */
 "use client";
 

@@ -4,7 +4,7 @@
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Spanish for price-breakdown lines. Keys are the English line with every number or
  *           amount replaced by {#}; lineText() puts the numbers back in the same order.
- * UPDATED : TSTAMP UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
+ * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",

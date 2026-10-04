@@ -6,7 +6,7 @@
  * PURPOSE : How we present services to businesses: grouped by what a facility needs (not by
  *           the home categories), plus the industries we serve and the services each one
  *           usually books. Used by the For Business page and its proposal form.
- * UPDATED : TSTAMP UTC — unit turnovers, moves and large-item delivery groups; real estate and self-storage industries.
+ * UPDATED : 2026-10-04_1934 UTC — unit turnovers, moves and large-item delivery groups; real estate and self-storage industries.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 

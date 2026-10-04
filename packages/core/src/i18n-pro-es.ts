@@ -5,6 +5,7 @@
  * PURPOSE : Spanish for the pro web portal (jobs, offers, calendar, earnings, actions). Keys are the exact English text; read through t() in i18n.ts.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal): shell, home, tiers & benefits, calendar,
  *           earnings, job sheet, offer page, work order, pro actions and their error messages.
+ * UPDATED : 2026-10-04_1934 UTC — photo ID verification step.
  */
 export const ES_PRO_PORTAL: Record<string, string> = {
   // shell
@@ -44,6 +45,12 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Insurance certificate (COI) verified": "Certificado de seguro (COI) verificado",
   "Workers' comp (or no-employees statement)": "Seguro de accidentes laborales (o declaración de no tener empleados)",
   "Trade license verified": "Licencia del oficio verificada",
+  "Photo ID verified": "Identificación con foto verificada",
+  "A quick photo of your ID and a selfie (or a short video call with us)": "Una foto rápida de su identificación y una selfie (o una breve videollamada con nosotros)",
+  "Verify my ID": "Verificar mi identificación",
+  "Take a photo of your driver's license, state ID or passport and a selfie. It takes about 2 minutes on your phone. We only keep the result.": "Tome una foto de su licencia de conducir, identificación estatal o pasaporte y una selfie. Toma unos 2 minutos en su teléfono. Solo guardamos el resultado.",
+  "We'll verify your ID on a short video call. We'll contact you to schedule it.": "Verificaremos su identificación en una breve videollamada. Le contactaremos para programarla.",
+  "Your ID photo couldn't be read. Please try again in good light.": "No se pudo leer la foto de su identificación. Inténtelo de nuevo con buena luz.",
   "Background check cleared": "Verificación de antecedentes aprobada",
   "Payout method set": "Método de pago configurado",
   "General liability": "Responsabilidad civil general",

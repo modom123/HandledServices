@@ -10,7 +10,7 @@
  *           (i18n-catalog-es.ts); units; frequencies.
  * UPDATED : 2026-10-02_2246 UTC — waitlist and Google review wording.
  * UPDATED : 2026-10-03_0027 UTC — "Email me this price".
- * UPDATED : TSTAMP UTC — new services (small moves, large-item delivery, staging moves, unit turnover) and the Haul Away category renamed.
+ * UPDATED : 2026-10-04_1934 UTC — new services (small moves, large-item delivery, staging moves, unit turnover) and the Haul Away category renamed.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";

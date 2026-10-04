@@ -5,7 +5,7 @@
  * PURPOSE : Spanish for the service catalog text: every pricing question, help line, answer
  *           option, "what's included" item and notes hint (keyed by the English text).
  *           A test fails if a catalog string is added without a Spanish version here.
- * UPDATED : TSTAMP UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
+ * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",

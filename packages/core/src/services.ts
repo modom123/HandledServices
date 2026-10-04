@@ -21,7 +21,7 @@
  *           still clears a fair labor margin after buying the tank.
  * UPDATED : 2026-10-03_1311 UTC — water heater: value-brand replacement, install-only (customer's new unit) and
  *           repair options. New units only, never used.
- * UPDATED : TSTAMP UTC — new services from the growth plan: small moves, same-day large item delivery (stores),
+ * UPDATED : 2026-10-04_1934 UTC — new services from the growth plan: small moves, same-day large item delivery (stores),
  *           home staging furniture moves and rental unit turnover (property managers). Hauling trade covers moves.
  */
 

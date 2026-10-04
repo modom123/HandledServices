@@ -10,11 +10,14 @@
  *             INSTANTLY_API_KEY        — Instantly → Settings → Integrations → API keys (v2, scopes: leads, block list)
  *             INSTANTLY_CAMPAIGN_ID    — the campaign whose steps are just {{subject_N}} / {{body_N}}
  *             INSTANTLY_WEBHOOK_SECRET — any long random string, also put in the webhook URL (?secret=)
+ *             INSTANTLY_BIZ_CAMPAIGN_ID — a second campaign for the business sales engine (same template style)
+ * UPDATED : 2026-10-04_1934 UTC — a campaign per lead (pro recruiting vs business sales).
  */
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 
 const BASE = "https://api.instantly.ai/api/v2";
+export const instantlyBizReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
 export const instantlyReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
 
 async function call(path: string, body: unknown) {
@@ -37,12 +40,14 @@ export interface InstantlyLead {
   website?: string | null;
   /** Our own lead id + the pre-written emails and anything the campaign template uses. */
   variables: Record<string, string>;
+  /** Campaign to add to (default: the pro campaign, INSTANTLY_CAMPAIGN_ID). */
+  campaign?: string;
 }
 
 /** Add a lead to the campaign. Skips anyone already in the workspace (no double-emailing). */
 export async function addLeadToCampaign(l: InstantlyLead): Promise<string | null> {
   const j = await call("/leads", {
-    campaign: process.env.INSTANTLY_CAMPAIGN_ID,
+    campaign: l.campaign ?? process.env.INSTANTLY_CAMPAIGN_ID,
     email: l.email,
     first_name: l.firstName ?? undefined,
     company_name: l.companyName,

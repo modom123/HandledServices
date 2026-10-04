@@ -17,7 +17,7 @@
  *           name your price within OFFER_BOUNDS, flat BOOKING_FEE, pro counteroffers, raising an offer):
  *           Terms of Use, Service Agreement, Business MSA and Plus/promo terms updated to match.
  * UPDATED : 2026-10-03_1311 UTC — construction addendum: equipment you buy for us to install must be new; we never install used.
- * UPDATED : TSTAMP UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda; Business MSA: terms approved in the business account portal count as an Order.
+ * UPDATED : 2026-10-04_1934 UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda; Business MSA: terms approved in the business account portal count as an Order.
  */
 import {
   AI_MAX_CUT,

@@ -6,12 +6,22 @@
  *           jobs that went from booking to paid with zero human touches. Target ≥ 80%.
  *           A "human touch" is any job event logged with kind human_touch or
  *           status_manual by a staff member (IEBC AI employees don't count as human).
+ * UPDATED : 2026-10-04_1934 UTC — the target rises with the growth plan (aiDrivenTargetNow).
  */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { planPace } from "@handled/core";
 
 export const HUMAN_KINDS = ["human_touch", "status_manual"];
 export const AI_DRIVEN_TARGET = 0.8;
+
+/** This year's AI-driven target from the growth plan (80% early → 95% from year 6), counted from the first completed job. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function aiDrivenTargetNow(db: SupabaseClient<any, any, any>): Promise<number> {
+  const { data } = await db.from("jobs").select("completed_at").eq("status", "completed").order("completed_at").limit(1);
+  const first = (data?.[0] as { completed_at: string } | undefined)?.completed_at ?? null;
+  return planPace({ launchedAt: first, bookings30: 0, take30: 0, markets: 1 }).aiTarget ?? AI_DRIVEN_TARGET;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function aiDrivenRate(db: SupabaseClient<any, any, any>, sinceIso: string) {

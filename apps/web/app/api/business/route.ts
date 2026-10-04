@@ -4,7 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0302 UTC — monthly budget and how soon they want to start.
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
- * UPDATED : TSTAMP UTC — the contact becomes the account admin (business portal); sales-engine leads marked converted.
+ * UPDATED : 2026-10-04_1934 UTC — the contact becomes the account admin (business portal); sales-engine leads marked converted.
  * PURPOSE : Commercial account inquiry (offices, property managers, retail, HOAs).
  */
 import { z } from "zod";
