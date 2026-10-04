@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies in the pro portal).
  * UPDATED : 2026-10-03_1337 UTC — My crew, and the fast track to Pro+ for pros still at the Pro tier.
+ * UPDATED : 2026-10-04_2204 UTC — Jobs near you (open job board): take a job nobody took yet → the usual offer screen.
  * PURPOSE : Pro mode — live job offers (accept/pass) and today's schedule.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -18,6 +19,7 @@ import { useLocationSharing } from "../../lib/location";
 import { useI18n } from "../../lib/i18n";
 import { Button, C, Card, Status, s } from "../../components/ui";
 
+type BoardCard = { job_id: string; service: string; icon: string; city: string; zip: string; when: string; payLabel: string; miles: number | null; scope: string[]; priority: boolean; offerId: string | null };
 type Offer = { id: string; payout: number; expires_at: string; jobs: Pick<Job, "ref" | "service_slug" | "city" | "zip" | "scheduled_date" | "time_window" | "notes"> | null };
 
 export default function ProHome() {
@@ -25,6 +27,16 @@ export default function ProHome() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
+  const [board, setBoard] = useState<BoardCard[]>([]);
+  const [claiming, setClaiming] = useState<string | null>(null);
+  async function claim(b: BoardCard) {
+    if (b.offerId) return router.push({ pathname: "/pro/offer/[id]", params: { id: b.offerId } });
+    setClaiming(b.job_id);
+    const r = await api<{ ok: boolean; offerId?: string; error?: string }>("/api/pro/board", { method: "POST", body: JSON.stringify({ job_id: b.job_id }) });
+    setClaiming(null);
+    if (r.ok && r.data.offerId) router.push({ pathname: "/pro/offer/[id]", params: { id: r.data.offerId } });
+    else { Alert.alert(t("Couldn't take it"), r.data.error ?? t("Try again")); load(); }
+  }
   const [fast, setFast] = useState<{ status: string; tier: string } | null>(null);
   const [onCall, setOnCall] = useState<{ on: boolean; until: string | null }>({ on: false, until: null });
   const activeToday = jobs.some((j) => j.scheduled_date === localDate() && ["assigned", "in_progress"].includes(j.status));
@@ -37,6 +49,7 @@ export default function ProHome() {
   const load = useCallback(async () => {
     setLoading(true);
     api<{ status: string; tier: string }>("/api/pro/fast-track").then((r) => { if (r.ok) setFast(r.data); });
+    api<{ jobs: BoardCard[] }>(`/api/pro/board?locale=${locale}`).then((r) => setBoard(r.ok ? r.data.jobs ?? [] : []));
     api<{ onCall: boolean; onCallUntil: string | null }>("/api/pro/schedule?days=7").then((r) => { if (r.ok) setOnCall({ on: r.data.onCall, until: r.data.onCallUntil }); });
     const [o, j] = await Promise.all([
       supabase.from("job_offers").select("id, payout, expires_at, jobs(ref, service_slug, city, zip, scheduled_date, time_window, notes)").eq("status", "offered"),
@@ -45,7 +58,7 @@ export default function ProHome() {
     setOffers((o.data ?? []) as unknown as Offer[]);
     setJobs((j.data ?? []) as Job[]);
     setLoading(false);
-  }, []);
+  }, [locale]);
   useEffect(() => {
     load();
     const ch = supabase.channel("pro-offers").on("postgres_changes", { event: "*", schema: "public", table: "job_offers" }, load).subscribe();
@@ -91,6 +104,17 @@ export default function ProHome() {
           </Card>
         );
       })}
+      <Text style={s.h2}>{t("Jobs near you")}</Text>
+      <Text style={[s.p, { fontSize: 14 }]}>{t("Paid jobs nobody has taken yet that fit your trades, area and schedule. First to take it gets it. Taking them is always up to you.")}</Text>
+      {!board.length && <Text style={s.p}>{t("No open jobs near you right now.")}</Text>}
+      {board.map((b) => (
+        <Card key={b.job_id}>
+          <Text style={s.b}>{b.icon} {b.service} · <Text style={{ color: C.brand }}>{b.payLabel}</Text>{b.priority ? `  · ${t("Priority")}` : ""}</Text>
+          <Text style={s.p}>{b.city} {b.zip}{b.miles != null ? ` · ${b.miles} mi` : ""} · {b.when}</Text>
+          {b.scope.length ? <Text style={[s.p, { fontSize: 14 }]}>{b.scope.join(" · ")}</Text> : null}
+          <Button title={b.offerId ? `${t("View & accept")} →` : `${t("Take it")} →`} busy={claiming === b.job_id} onPress={() => claim(b)} style={{ marginTop: 10 }} />
+        </Card>
+      ))}
       <Text style={s.h2}>{t("My schedule")}</Text>
       {!jobs.length && <Text style={s.p}>{t("Nothing scheduled.")}</Text>}
       {jobs.map((j) => (

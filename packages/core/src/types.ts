@@ -108,6 +108,10 @@ export interface Job {
   billed_on_terms?: boolean | null;
   /** The crew member the pro company is sending (crew.ts). Null = the pro themself. */
   crew_member_id?: string | null;
+  /** The customer asked for this pro (a favorite or a past pro, board.ts): they get a first look. Never guaranteed. */
+  preferred_contractor_id?: string | null;
+  /** The customer asked for this crew member of that company — a request to the owner, who decides who goes. */
+  requested_crew_member_id?: string | null;
   disputed_at?: string | null;
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;

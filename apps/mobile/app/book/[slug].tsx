@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) and optional budget.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish (questions, answers, tips, steps).
  * UPDATED : 2026-10-03_0152 UTC — market pricing (local market factor from /api/market, "Name your price" → customer_offer).
+ * UPDATED : 2026-10-04_2204 UTC — "Book again with …" (?pro=&crew=): the pro gets the first look (checked on the server).
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  */
 import { useEffect, useMemo, useState } from "react";
@@ -23,7 +24,8 @@ const FREQ_TEXT: Record<Frequency, string> = { once: "One time", weekly: "Weekly
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 export default function Book() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, pro, crew } = useLocalSearchParams<{ slug: string; pro?: string; crew?: string }>();
+  const [ask, setAsk] = useState(Boolean(pro));
   const svc = getService(slug)!;
   const [answers, setAnswers] = useState<Answers>(defaultAnswers(svc));
   const { t, locale, svc: svcText } = useI18n();
@@ -101,7 +103,7 @@ export default function Book() {
     setBusy(true);
     const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
     });
     setBusy(false);
     if (!r.ok) return Alert.alert(t("Couldn't book"), r.data.error ?? t("Please check the form"));
@@ -115,6 +117,11 @@ export default function Book() {
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
       <Text style={s.h1}>{svc.icon} {svcText(svc).name}</Text>
+      {ask ? (
+        <Pressable onPress={() => setAsk(false)} style={{ backgroundColor: C.tint, borderRadius: 12, padding: 10, marginBottom: 8 }}>
+          <Text style={s.p}>★ {t("Your pro gets the first look for a few hours; if they can't, another vetted pro takes it.")} <Text style={{ textDecorationLine: "underline" }}>{t("Any pro is fine")}</Text></Text>
+        </Pressable>
+      ) : null}
       <Card style={{ marginTop: 12, backgroundColor: C.tint, borderColor: C.brand }}>
         <Text style={s.label}>{t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
         <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(listTotal)}</Text>

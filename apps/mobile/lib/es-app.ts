@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * UPDATED : 2026-10-03_0152 UTC — market pricing (raise your offer / pros' counters on the job screen).
+ * UPDATED : 2026-10-04_2204 UTC — favorites and "Book again with …".
  * PURPOSE : Spanish for the customer screens of the app (home, booking, my bookings, job,
  *           account, sign-in, chat). Shared words live in @handled/core i18n.ts.
  */
@@ -145,4 +146,7 @@ export const ES_APP: Record<string, string> = {
   "Offer raised ✓": "Oferta subida ✓",
   "Pros who'd do it for a bit more can send a counter offer — see and accept them on your booking page on the website.": "Los profesionales que lo harían por un poco más pueden enviar una contraoferta — véalas y acéptelas en la página de su reserva en el sitio web.",
   "See pros' counter offers": "Ver contraofertas de profesionales",
+  "Favorites see your next booking for that kind of work first for a few hours; if they can't, another vetted pro takes it. Not guaranteed.": "Sus favoritos ven primero su próxima reserva de ese tipo de trabajo por unas horas; si no pueden, otro profesional verificado lo toma. No está garantizado.",
+  "Your pro gets the first look for a few hours; if they can't, another vetted pro takes it.": "Su profesional lo ve primero por unas horas; si no puede, otro profesional verificado lo toma.",
+  "Any pro is fine": "Cualquier profesional",
 };

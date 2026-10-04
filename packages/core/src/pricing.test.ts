@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_0233 UTC — calculator checks for every service: more of anything never
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
+ * UPDATED : 2026-10-04_2204 UTC — open job board and favorites first-look windows.
  */
 
 import { test } from "node:test";
@@ -977,4 +978,28 @@ test("business sales engine: segments map to real services; emails are honest wi
   }
   assert.match(bizLeadEmail({ step: 0, businessName: "A", segment: "stager", pilotPct: 20, pilotJobs: 1, signupUrl: "u", unsubscribeUrl: "u", postalAddress: "a" }).text, /up to 20% off your first job/);
   assert.ok(bizLeadScore({ email: "a@b.co", reviewCount: 30, rating: 4.8, website: "x" }) > bizLeadScore({ phone: "1" }));
+});
+
+test("open job board: first looks first, then 30 min after the first targeted round; never unpaid or taken", async () => {
+  const { onBoard, BOARD, favoriteWindowHours, FAVORITES } = await import("./board.ts");
+  const now = new Date("2026-10-10T15:00:00Z");
+  const ago = (min: number) => new Date(now.getTime() - min * 60000).toISOString();
+  const job = { status: "dispatched", contractor_id: null, paid_at: ago(60), scheduled_date: "2026-10-12" };
+  assert.equal(onBoard(job, [], now), true, "never offered (no ranked pro) → open");
+  assert.equal(onBoard({ ...job, paid_at: null }, [], now), false, "unpaid");
+  assert.equal(onBoard({ ...job, billed_on_terms: true, paid_at: null }, [], now), true, "billed on account terms counts as paid");
+  assert.equal(onBoard({ ...job, contractor_id: "p" }, [], now), false, "taken");
+  assert.equal(onBoard({ ...job, status: "assigned" }, [], now), false);
+  assert.equal(onBoard({ ...job, scheduled_date: "2026-10-09" }, [], now), false, "in the past");
+  assert.equal(onBoard({ ...job, scheduled_date: "2026-11-30" }, [], now), false, `beyond ${BOARD.horizonDays} days`);
+  assert.equal(onBoard(job, [{ kind: "job", status: "offered", offered_at: ago(10) }], now), false, "first round still fresh");
+  assert.equal(onBoard(job, [{ kind: "job", status: "offered", offered_at: ago(BOARD.afterMinutes) }], now), true, "first round 30 min old");
+  assert.equal(onBoard(job, [{ kind: "job", status: "declined", offered_at: ago(5) }], now), true, "everyone passed");
+  for (const kind of ["favorite", "recurring", "redo", "account"])
+    assert.equal(onBoard(job, [{ kind, status: "offered", offered_at: ago(120) }], now), false, `${kind} first look is respected`);
+  assert.equal(onBoard(job, [{ kind: "favorite", status: "expired", offered_at: ago(240) }, { kind: "job", status: "offered", offered_at: ago(5) }], now), false, "the window after a first look is the targeted round's");
+  assert.equal(onBoard(job, [{ kind: "board", status: "offered", offered_at: ago(1) }], now), true, "a board claim doesn't hide the job");
+  assert.equal(favoriteWindowHours("2026-10-14", now), FAVORITES.firstLookHours);
+  assert.equal(favoriteWindowHours("2026-10-10", now), 1, "job today → short window so it still gets covered");
+  assert.equal(favoriteWindowHours(null, now), FAVORITES.firstLookHours);
 });

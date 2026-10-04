@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/contracts/es-customer-a.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0048 UTC
+ * UPDATED : 2026-10-04_2204 UTC — first looks (business account pros, customer favorites, crew member requests) and the open job board ("Jobs near you"); agreement v5 / Service Agreement v7.
  * PURPOSE : Spanish (neutral Latin-American, formal "usted") translations of the customer
  *           TERMS_OF_USE ("terms-of-use") and SERVICE_AGREEMENT ("service-agreement") in
  *           customer.ts. Same summary bullets and sections, same order and numbering; numbers
@@ -266,6 +267,7 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
     ["Con quién contrata usted", p(
       `Usted contrata con ${US}. Nosotros sugerimos el precio, programamos, gestionamos y garantizamos su trabajo. El trabajo lo hace un negocio de servicios independiente, asegurado y con verificación de antecedentes, que nosotros seleccionamos y cuya calidad revisamos ("su profesional"). Los profesionales son negocios independientes, no nuestros empleados.`,
       "Usted nos paga a nosotros. Nosotros le pagamos a su profesional después de que el trabajo esté hecho y pase nuestro control de calidad. Por favor, no le pague directamente a su profesional. Los pagos hechos fuera de la app no están cubiertos por este acuerdo ni por nuestra garantía.",
+      "Favoritos y pedir a un profesional: usted puede marcar a un profesional (o a un miembro del equipo de una empresa de profesionales) como favorito, o pedir a un profesional que ya tuvo cuando vuelva a reservar. Entonces le ofrecemos su trabajo primero a ese profesional durante unas horas (menos si el trabajo es pronto). Es una primera oportunidad, no una promesa: si no puede tomarlo en ese tiempo, lo toma otro profesional verificado, y su precio, fecha y garantía no cambian. Pedir a un miembro del equipo es una solicitud a esa empresa; la empresa decide a quién envía.",
       "Algunos servicios tienen términos adicionales (un \"anexo\"), por ejemplo traslados, entregas médicas, cuidado de mascotas, eventos, construcción y remodelaciones, mandados, acarreo, limpieza de autos (detailing), y servicios para el hogar y el jardín. Si su servicio tiene un anexo, este forma parte de este acuerdo.",
     )],
     ["Qué incluye (alcance)", p(

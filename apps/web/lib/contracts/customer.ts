@@ -2,6 +2,7 @@
  * FILE    : apps/web/lib/contracts/customer.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0039 UTC
+ * UPDATED : 2026-10-04_2204 UTC — first looks (business account pros, customer favorites, crew member requests) and the open job board ("Jobs near you"); agreement v5 / Service Agreement v7.
  * PURPOSE : Every contract a customer or business client agrees to, in plain English:
  *             TERMS_OF_USE            — the website/app, accounts, messages, disputes (arbitration)
  *             SERVICE_AGREEMENT       — accepted at every booking, printed on every invoice
@@ -288,6 +289,7 @@ export const SERVICE_AGREEMENT: Contract = {
     ["Who you're contracting with", p(
       `You are contracting with ${US}. We suggest the price, schedule, manage and guarantee your job. The work is done by an independent, insured, background-checked service business that we select and quality-check ("your pro"). Pros are independent businesses, not our employees.`,
       "You pay us. We pay your pro after the work is done and passes our quality check. Please don't pay your pro directly. Payments made outside the app are not covered by this agreement or our guarantee.",
+      "Favorites and asking for a pro: you may mark a pro (or a member of a pro company's crew) as a favorite, or ask for a pro you've had when you book again. We then offer your job to that pro first for a few hours (shorter when the job is soon). It is a first look, not a promise: if they can't take it in that time, another vetted pro does, and your price, date and guarantee stay the same. Asking for a crew member is a request to that company; the company decides who it sends.",
       "Some services have extra terms (an \"addendum\"), for example rides, medical deliveries, pet care, events, construction and remodels, errands, hauling, car detailing, and home and yard services. If your service has an addendum, it is part of this agreement.",
     )],
     ["What's included (scope)", p(

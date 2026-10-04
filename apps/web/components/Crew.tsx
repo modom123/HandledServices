@@ -4,6 +4,7 @@
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Crew accounts, pro side: sign the Crew Addendum, add / remove crew members, and pick who
  *           goes to a job. English and Spanish.
+ * UPDATED : 2026-10-04_2204 UTC — the job sheet shows a customer's crew member request (preselected; the owner decides).
  */
 "use client";
 
@@ -89,13 +90,15 @@ export function CrewRemove({ id, es }: { id: string; es: boolean }) {
 }
 
 /** Who goes to this job. Options come from the server with a reason when someone can't take it. */
-export function CrewPicker({ jobId, current, options, es, blocked }: { jobId: string; current: string | null; options: { id: string; name: string; why: string | null }[]; es: boolean; blocked: string | null }) {
+export function CrewPicker({ jobId, current, options, es, blocked, requested }: { jobId: string; current: string | null; options: { id: string; name: string; why: string | null }[]; es: boolean; blocked: string | null; requested?: { id: string; name: string } | null }) {
   const router = useRouter();
-  const [v, setV] = useState(current ?? "");
+  const ask = requested ? options.find((o) => o.id === requested.id && !o.why && !blocked) : undefined;
+  const [v, setV] = useState(current ?? ask?.id ?? "");
   const [msg, setMsg] = useState("");
   return (
     <div className="card space-y-2 text-sm">
       <div className="font-semibold">{es ? "¿Quién va a este trabajo?" : "Who’s doing this job?"}</div>
+      {requested && <p className="rounded bg-brand-tint p-2 text-xs">★ {es ? `El cliente pidió a ${requested.name.split(" ")[0]}. Es una solicitud: usted decide quién va.` : `The customer asked for ${requested.name.split(" ")[0]}. It’s a request — who goes is your call.`}</p>}
       {blocked && <p className="text-xs text-amber-800">{es ? "Para enviar a su equipo: " : "To send your crew: "}{blocked}</p>}
       <select className="input" value={v} onChange={(e) => setV(e.target.value)}>
         <option value="">{es ? "Yo mismo" : "Me"}</option>

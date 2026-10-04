@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-03_0040 UTC — My contracts link.
  * PURPOSE : Customer portal — all jobs, recurring plans, quick rebook.
  * UPDATED : 2026-10-04_1934 UTC — link to the business account portal for members.
+ * UPDATED : 2026-10-04_2204 UTC — My favorite pros: book again with them, or remove.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -17,6 +18,8 @@ import { siteUrl } from "@/lib/notify";
 import { CopyLink, DeleteAccount, LanguageToggle, PlusButton } from "@/components/AccountExtras";
 import { getViewer } from "@/lib/auth";
 import { myAccounts } from "@/lib/business";
+import { myFavorites } from "@/lib/favorites";
+import { RemoveFavorite } from "@/components/Favorites";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
 
@@ -33,6 +36,7 @@ export default async function Account() {
   ]);
   const list = (jobs ?? []) as Job[];
   const biz = await myAccounts(v).catch(() => []);
+  const favs = await myFavorites(v.userId).catch(() => []);
   const l = await getLocale();
   const t = (s: string) => tr(l, s);
   const name = (slug: string) => { const s = getService(slug); return s ? serviceText(l, slug, s).name : slug; };
@@ -47,6 +51,24 @@ export default async function Account() {
           {(plans ?? []).map((p: { id: string; service_slug: string; frequency: string; price: number; next_date: string }) => (
             <div key={p.id} className="card bg-brand-tint"><div className="text-sm font-semibold">{name(p.service_slug)} · {t(p.frequency)}</div><div className="text-sm text-ink-soft">{t("Next visit")} {fmtDate(p.next_date)} · {money(p.price)}</div></div>
           ))}
+        </div>
+      )}
+      {favs.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-1 font-bold">★ {l === "es" ? "Mis profesionales favoritos" : "My favorite pros"}</h2>
+          <p className="mb-3 text-xs text-ink-soft">{l === "es" ? "Ven primero sus próximas reservas por unas horas; si no pueden, otro profesional verificado lo toma. No está garantizado." : "They see your next bookings first for a few hours; if they can't, another vetted pro takes it. Not guaranteed."}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {favs.map((f) => (
+              <div key={f.id} className="card flex flex-wrap items-center justify-between gap-2">
+                <div><div className="font-semibold">{f.crew_first_name ? `${f.crew_first_name} · ${f.pro_name}` : `${f.contact_first_name || f.pro_name}${f.contact_first_name ? ` · ${f.pro_name}` : ""}`}</div>
+                  <div className="text-xs text-ink-soft">{f.rating ? `${Number(f.rating).toFixed(1)}★ · ` : ""}{f.service_slug ? name(f.service_slug) : ""}</div></div>
+                <div className="flex items-center gap-3">
+                  <Link href={`/book?${f.service_slug ? `service=${f.service_slug}&` : ""}pro=${f.contractor_id}${f.crew_member_id ? `&crew=${f.crew_member_id}` : ""}`} className="btn-primary px-3 text-sm">{l === "es" ? "Reservar de nuevo" : "Book again"}</Link>
+                  <RemoveFavorite id={f.id} es={l === "es"} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       <div className="mt-8 space-y-3">

@@ -8,6 +8,8 @@
  *             { action: "remove", id }                   — they no longer work for the company
  * UPDATED : 2026-10-03_1337 UTC — GET for the mobile app: the crew, whether it can be sent yet, and (?job=<id>) who can
  *           take that job.
+ * UPDATED : 2026-10-04_2204 UTC — ?job=<id> also returns the customer's crew member request (requested) and whether the
+ *           customer asked for this pro (askedForYou).
  */
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
@@ -16,6 +18,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { crewCanTake, crewReady, type Contractor } from "@handled/core";
 import { requestMeta } from "@/lib/contracts/record";
 import { getLocale } from "@/lib/locale";
+import { crewRequest } from "@/lib/favorites";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("sign"), signer_name: z.string().trim().min(2).max(120), agree: z.literal(true) }),
@@ -45,11 +48,12 @@ export async function GET(req: Request) {
   const [{ data: c }, crew, { data: job }] = await Promise.all([
     db.from("contractors").select("crew_attested_at, coverage, trades").eq("id", v.contractorId).single(),
     listCrew(v.contractorId),
-    jobId ? db.from("jobs").select("service_slug, crew_member_id, contractor_id").eq("id", jobId).maybeSingle() : Promise.resolve({ data: null }),
+    jobId ? db.from("jobs").select("service_slug, crew_member_id, contractor_id, preferred_contractor_id, requested_crew_member_id").eq("id", jobId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const mine = job && job.contractor_id === v.contractorId ? job : null;
+  const requested = mine ? await crewRequest(mine, v.contractorId) : null;
   return Response.json({
     attested: Boolean(c?.crew_attested_at), ready: crewReady((c ?? {}) as Pick<Contractor, "crew_attested_at" | "coverage">), trades: c?.trades ?? [], crew,
-    ...(mine ? { current: mine.crew_member_id ?? null, options: crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, mine.service_slug) })) } : {}),
+    ...(mine ? { askedForYou: mine.preferred_contractor_id === v.contractorId, requested: requested ? { id: requested.id, name: requested.name.split(" ")[0] } : null, current: mine.crew_member_id ?? null, options: crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, mine.service_slug) })) } : {}),
   });
 }

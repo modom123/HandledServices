@@ -6,13 +6,14 @@
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish, including the timeline (message_es).
  * UPDATED : 2026-10-02_2238 UTC — Google review ask for customers who rated but haven't reviewed on Google.
  * UPDATED : 2026-10-03_0151 UTC — while no pro has taken it: pros' counters (accept one) and raise your offer.
+ * UPDATED : 2026-10-04_2204 UTC — Your pro: ★ favorite the pro (and the crew member who came), "Book again with …".
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  */
 import { notFound, redirect } from "next/navigation";
 import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { isLate } from "@/lib/pro-benefits";
-import { getViewer } from "@/lib/auth";
+import { getViewer, type Viewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge, fmtDate } from "@/components/ui";
 import { AddJobPhotos, CancelBooking, GoogleReviewAsk, JobThread, PayNow, ReviewForm } from "@/components/JobThread";
@@ -20,6 +21,7 @@ import { MarketBox, type Counter } from "@/components/MarketBox";
 import { adminClient } from "@/lib/supabase/server";
 import type { Locale } from "@handled/core";
 import { Reschedule, TipBox, TrackPro } from "@/components/AccountExtras";
+import { FavoriteButton } from "@/components/Favorites";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -71,6 +73,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
         {job.status === "completed" && !review && <ReviewForm jobId={job.id} contractorId={job.contractor_id} locale={l} />}
         {review && !review.google_clicked_at && BRAND.googleReviewUrl && <div className="card text-sm"><GoogleReviewAsk jobId={job.id} locale={l} /></div>}
         {job.status === "completed" && job.contractor_id && !job.remedy && <TipBox jobId={job.id} tipped={Number(job.tip_total ?? 0)} locale={l} />}
+        {job.contractor_id && <YourPro job={job} es={es} db={v.db} />}
         {job.contractor_id && <JobThread jobId={job.id} userId={v.userId} as="customer" initial={msgs ?? []} locale={l} />}
       </div>
       <div className="card h-fit">
@@ -92,4 +95,33 @@ async function MarketPanel({ jobId, price, suggested, locale }: { jobId: string;
   const counters: Counter[] = ((data ?? []) as unknown as { id: string; counter_price: number; counter_note: string | null; contractors: { contact_name: string; rating: number; jobs_completed: number } | null }[])
     .map((o) => ({ id: o.id, who: String(o.contractors?.contact_name ?? "Pro").split(" ")[0], rating: Number(o.contractors?.rating ?? 5), jobs: Number(o.contractors?.jobs_completed ?? 0), price: Number(o.counter_price), note: o.counter_note }));
   return <MarketBox jobId={jobId} price={price} suggested={suggested} counters={counters} locale={locale} />;
+}
+
+/** Who covered the job (safe view), ★ favorite them or their crew member, and book them again. */
+async function YourPro({ job, es, db }: { job: Job; es: boolean; db: Viewer["db"] }) {
+  const [{ data: pro }, { data: crew }, { data: favs }] = await Promise.all([
+    db.rpc("job_pro", { p_job: job.id }).maybeSingle(),
+    db.rpc("job_crew", { p_job: job.id }).maybeSingle(),
+    db.from("customer_favorites").select("crew_member_id").eq("contractor_id", job.contractor_id!),
+  ]);
+  const p = pro as { business_name: string; contact_first_name: string; rating: number | null; jobs_completed: number } | null;
+  if (!p) return null;
+  const c = crew as { crew_member_id: string; first_name: string; role: string } | null;
+  const saved = (favs ?? []) as { crew_member_id: string | null }[];
+  const name = p.contact_first_name || p.business_name;
+  const again = `/book?service=${job.service_slug}&pro=${job.contractor_id}${c ? `&crew=${c.crew_member_id}` : ""}`;
+  return (
+    <div className="card space-y-3">
+      <div className="font-semibold">{es ? "Su profesional" : "Your pro"}</div>
+      <div className="text-sm">{name}{p.business_name && p.business_name !== name ? ` · ${p.business_name}` : ""}{p.rating ? ` · ${Number(p.rating).toFixed(1)}★` : ""}{c ? (es ? ` · vino ${c.first_name}` : ` · ${c.first_name} came out`) : ""}</div>
+      <div className="flex flex-wrap items-center gap-3">
+        <FavoriteButton jobId={job.id} name={name} saved={saved.some((f) => !f.crew_member_id)} es={es} />
+        {c && <FavoriteButton jobId={job.id} name={c.first_name} crew saved={saved.some((f) => f.crew_member_id === c.crew_member_id)} es={es} />}
+        {job.status === "completed" && <a href={again} className="btn-primary px-4 text-sm">{es ? `Reservar de nuevo con ${c ? c.first_name : name}` : `Book again with ${c ? c.first_name : name}`}</a>}
+      </div>
+      <p className="text-xs text-ink-soft">{es
+        ? "Sus favoritos ven primero sus próximas reservas de ese tipo de trabajo por unas horas; si no pueden, otro profesional verificado lo toma. No está garantizado. Si pide a alguien del equipo, el dueño de la empresa decide quién va."
+        : "Your favorites see your next booking for that kind of work first for a few hours; if they can't, another vetted pro takes it. Not guaranteed. Asking for someone on a crew is a request — the company owner decides who goes."}</p>
+    </div>
+  );
 }

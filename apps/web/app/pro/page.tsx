@@ -6,8 +6,9 @@
  * UPDATED : 2026-10-02_0255 UTC — On call switch (shares location while on call / on a job today), link to My calendar.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — standing card (warning / pause / deactivation) with the appeal form.
- * PURPOSE : Pro home — open offers, upcoming jobs, earnings.
+ * PURPOSE : Pro home — open offers, jobs near you, upcoming jobs, earnings.
  * UPDATED : 2026-10-03_1311 UTC — fast-track link on the tier card; approved fast-track pros skip the probation size limit.
+ * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -19,6 +20,8 @@ import { localDate, onCall, serviceText, t as tr, type ProPolicy } from "@handle
 import { getLocale } from "@/lib/locale";
 import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
+import { boardFor } from "@/lib/board";
+import { ClaimButton } from "@/components/JobBoard";
 
 /** whyNot() reason in Spanish (fixed reasons from the catalog; the ones with numbers by pattern). */
 function whyNotText(l: string, no: string): string {
@@ -76,6 +79,7 @@ export default async function ProHome() {
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
   const policy = await getPolicy();
+  const board = me?.status === "approved" ? await boardFor(v.contractorId!, es ? "es" : "en") : [];
   const list = (jobs ?? []) as Job[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
   const month = new Date().toISOString().slice(0, 7);
@@ -165,6 +169,25 @@ export default async function ProHome() {
           })}
         </div>
       </section>
+      {me?.status === "approved" && (
+        <section>
+          <h2 className="font-bold">{es ? "Trabajos cerca de usted" : "Jobs near you"}</h2>
+          <p className="mb-3 text-sm text-ink-soft">{es
+            ? "Trabajos pagados que nadie ha tomado y que encajan con sus oficios, zona y horario. El primero en tomarlo se lo lleva. Tomarlos es opcional."
+            : "Paid jobs nobody has taken yet that fit your trades, area and schedule. First to take it gets it. Taking them is always up to you."}</p>
+          {!board.length && <Empty>{es ? "No hay trabajos abiertos cerca de usted en este momento." : "No open jobs near you right now."}</Empty>}
+          <div className="space-y-3">
+            {board.map((b) => (
+              <div key={b.job_id} className="card flex flex-wrap items-center justify-between gap-4">
+                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span>{b.priority && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs">{es ? "Prioridad" : "Priority"}</span>}</div>
+                  <div className="text-sm text-ink-soft">{b.city} {b.zip}{b.miles != null ? ` · ${b.miles} mi` : ""} · {b.when}</div>
+                  {b.scope.length > 0 && <div className="mt-1 text-xs text-ink-soft">{b.scope.join(" · ")}</div>}</div>
+                <ClaimButton jobId={b.job_id} offerId={b.offerId} es={es} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <section>
         <div className="mb-3 flex items-center justify-between"><h2 className="font-bold">{t("Your schedule")}</h2><Link href="/pro/schedule" className="text-sm font-semibold text-brand">{t("My calendar & days off →")}</Link></div>
         {!upcoming.length && <Empty>{t("Nothing scheduled.")}</Empty>}

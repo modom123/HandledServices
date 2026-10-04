@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
  * UPDATED : 2026-10-03_1337 UTC — crew accounts: pick who's doing the job.
+ * UPDATED : 2026-10-04_2204 UTC — the customer's crew member request (★ on that person; the owner decides) and "asked for you".
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  */
 import { shareLocationOnce } from "../../lib/location";
@@ -19,7 +20,7 @@ import { api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 import { useI18n } from "../../lib/i18n";
 
-type CrewPick = { ready: string | null; current: string | null; options: { id: string; name: string; why: string | null }[] };
+type CrewPick = { ready: string | null; current: string | null; askedForYou?: boolean; requested?: { id: string; name: string } | null; options: { id: string; name: string; why: string | null }[] };
 type Materials = { allowed: boolean; reason: string | null; autoApproveUpTo: number; shopping: boolean; expenses: { id: string; amount: number; description: string; status: string; notes: string | null }[] };
 const EXP_STATUS: Record<string, string> = { pending: "waiting for approval", approved: "approved", billed: "approved — waiting on the customer", paid: "reimbursed", rejected: "not approved" };
 
@@ -45,7 +46,7 @@ export default function ProJob() {
     const m = await api<Materials>(`/api/pro/jobs/${id}/expenses`);
     if (m.ok) setMat(m.data);
     const c = await api<CrewPick>(`/api/pro/crew?job=${id}`);
-    if (c.ok && c.data.options?.length) setCrew(c.data); else setCrew(null);
+    if (c.ok && (c.data.options?.length || c.data.askedForYou)) setCrew(c.data); else setCrew(null);
   }, [id]);
   useEffect(() => { load(); }, [load]);
   if (!job) return null;
@@ -122,13 +123,20 @@ export default function ProJob() {
         {svc.questions.filter((q) => questionVisible(q, job.answers as Record<string, string | number | boolean>, svc.questions)).map((q) => <Text key={q.id} style={s.p}>{t(q.label)}: <Text style={s.b}>{(() => { const v = job.answers[q.id]; if (v === undefined || v === null) return "—"; if (typeof v === "boolean") return t(v ? "Yes" : "No"); const o = q.type === "select" ? q.options.find((x) => x.value === v) : undefined; return o ? t(o.label) : String(v); })()}</Text></Text>)}
         {job.notes ? <Text style={[s.p, { marginTop: 8 }]}>“{job.notes}”</Text> : null}
       </Card>
-      {crew && ["assigned", "in_progress"].includes(job.status) && (
+      {crew?.askedForYou && (
+        <Card style={{ borderColor: C.brand, backgroundColor: C.tint }}>
+          <Text style={s.b}>★ {t("This customer asked for you.")}</Text>
+          {crew.requested ? <Text style={s.p}>{locale === "es" ? `Pidieron a ${crew.requested.name}; usted decide quién va.` : `They asked for ${crew.requested.name}; who goes is your call.`}</Text> : null}
+        </Card>
+      )}
+      {crew && crew.options.length > 0 && ["assigned", "in_progress"].includes(job.status) && (
         <Card>
+          {crew.requested && !crew.askedForYou ? <Text style={[s.p, { fontSize: 14 }]}>★ {locale === "es" ? `El cliente pidió a ${crew.requested.name}. Es una solicitud: usted decide quién va.` : `The customer asked for ${crew.requested.name}. It's a request — who goes is your call.`}</Text> : null}
           <Text style={s.b}>{t("Who’s doing this job?")}</Text>
           {crew.ready && <Text style={[s.p, { fontSize: 14, color: "#92400e" }]}>{t("To send your crew:")} {crew.ready.includes("workers") ? t("upload a current workers’ comp policy (the no-employees statement doesn’t cover a crew)") : t(crew.ready)}</Text>}
           <View style={[s.row, { marginTop: 8 }]}>
             <Chip label={t("Me")} on={!crew.current} onPress={() => crew.current && post({ action: "crew", crew_member_id: null })} />
-            {crew.options.map((o) => <Chip key={o.id} label={`${o.name}${o.why ? " ⛔" : ""}`} on={crew.current === o.id}
+            {crew.options.map((o) => <Chip key={o.id} label={`${crew.requested?.id === o.id ? "★ " : ""}${o.name}${o.why ? " ⛔" : ""}`} on={crew.current === o.id}
               onPress={() => (o.why || crew.ready ? Alert.alert(o.name, o.why ? t(o.why) : t(crew.ready!)) : crew.current !== o.id && post({ action: "crew", crew_member_id: o.id }))} />)}
           </View>
           <Text style={[s.p, { fontSize: 13 }]}>{t("The customer sees the first name of who’s coming.")}</Text>

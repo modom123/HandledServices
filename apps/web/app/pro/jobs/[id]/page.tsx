@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
  * UPDATED : 2026-10-03_1311 UTC — crew accounts: pick who's doing the job.
+ * UPDATED : 2026-10-04_2204 UTC — "The customer asked for …" (crew member request) and "the customer favorited you".
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
@@ -22,6 +23,7 @@ import { ReleaseJob } from "@/components/Standing";
 import { JobThread } from "@/components/JobThread";
 import { CrewPicker } from "@/components/Crew";
 import { listCrew } from "@/lib/crew";
+import { crewRequest } from "@/lib/favorites";
 import { crewCanTake, crewReady } from "@handled/core";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
@@ -45,6 +47,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
     getPolicy(),
   ]);
   const crew = ["assigned", "in_progress"].includes(job.status) ? await listCrew(v.contractorId!) : [];
+  const asked = await crewRequest(job, v.contractorId);
   const trade = s.trades.find((x) => (me?.trades ?? []).includes(x));
   const noMaterials = me ? whyNot(policy.materials, me as Contractor, trade) : "pro not found";
   type Q = (typeof s.questions)[number];
@@ -80,7 +83,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
       </div>
       <div className="space-y-4">
         {job.status === "assigned" && job.scheduled_date === localDate() && <OnMyWay locale={l} jobId={job.id} sent={Boolean(job.en_route_at)} />}
-        {crew.length > 0 && <CrewPicker jobId={job.id} es={es} current={job.crew_member_id ?? null} blocked={me ? crewReady(me as Contractor) : null}
+        {job.preferred_contractor_id === v.contractorId && <div className="card border-brand/40 bg-brand-tint text-sm">★ {es ? "Este cliente lo pidió a usted." : "This customer asked for you."}{asked && (es ? ` Pidieron a ${asked.name.split(" ")[0]}; usted decide quién va.` : ` They asked for ${asked.name.split(" ")[0]}; who goes is your call.`)}</div>}
+        {crew.length > 0 && <CrewPicker jobId={job.id} es={es} current={job.crew_member_id ?? null} requested={asked} blocked={me ? crewReady(me as Contractor) : null}
           options={crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, job.service_slug) }))} />}
         {job.status === "assigned" && <StartJob locale={l} jobId={job.id} />}
         {(job.status === "assigned" || job.status === "in_progress") && <CompleteJob locale={l} jobId={job.id} />}

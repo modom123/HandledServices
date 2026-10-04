@@ -24,11 +24,14 @@
  * UPDATED : 2026-10-04_1934 UTC — bookings blocked for services not open yet in the ZIP's city (launch set).
  * UPDATED : 2026-10-04_1934 UTC — business accounts: book for a property (its address and access notes), pilot discount, priority,
  *           and invoice-on-terms when staff approved it (dispatched without upfront payment; pros paid as usual).
+ * UPDATED : 2026-10-04_2204 UTC — favorites: "Book again with …" (preferred pro + requested crew member, checked against the
+ *           customer's favorites and past pros); a customer's favorite pro gets a short first look (never forced),
+ *           then everyone. Lapsed board claims ("Jobs near you") aren't counted as price signals.
  */
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, BUSINESS_TERMS, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+  BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
 } from "@handled/core";
@@ -82,6 +85,10 @@ export const BookingSchema = z.object({
   locale: z.enum(["en", "es"]).default("en"),
   /** Booking for a business account's property (signed-in member). */
   business_property_id: z.string().uuid().nullable().optional(),
+  /** "Book again with …": the pro (a favorite or a past pro) gets a first look; dropped if the customer never had them. */
+  preferred_pro_id: z.string().uuid().nullable().optional(),
+  /** A crew member of that pro company — a request to the owner, who decides who goes. */
+  requested_crew_member_id: z.string().uuid().nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -109,7 +116,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, preferred_pro_id, requested_crew_member_id, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   // business account booking: the property's address, the company, and the account's billing rules
   const biz = business_property_id ? await (await import("./business")).bookingContext(customerId, input.contact_email, business_property_id) : null;
@@ -169,6 +176,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const decision = termsDecision(biz.account, await (await import("./business")).openBalance(biz.account.id), price);
     acct = { pilot, ...decision };
   }
+  const pref = await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
   const dep = price && !acct?.onTerms ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
   const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
   const { data, error } = await db()
@@ -182,6 +190,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       status: (siteVisit ? "site_visit" : acct?.onTerms ? "scheduled" : "requested") satisfies JobStatus,
       business_account_id: biz?.account.id ?? null,
       business_property_id: biz?.property.id ?? null,
+      ...pref,
       billed_on_terms: Boolean(acct?.onTerms && !siteVisit),
       estimate_low: ai?.low ?? est.low,
       estimate_high: ai?.high ?? est.high,
@@ -420,24 +429,33 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const ids = new Set(((fav ?? []) as { contractor_id: string }[]).map((f) => f.contractor_id));
     team = ranked.filter((c) => ids.has(c.contractor.id)).slice(0, 3);
   }
-  const ai = mine || team.length ? null : await aiRankCandidates(job, ranked);
+  // a customer's favorite pro (or the one they asked for with "Book again"): a short first look, then everyone
+  let favs: typeof ranked = [];
+  if (!mine && !team.length && !(opts.exclude ?? []).length && !opts.siteVisit) {
+    const ids = await (await import("./favorites")).favoriteProsFor(job);
+    favs = ids.map((id) => ranked.find((c) => c.contractor.id === id)).filter((c): c is (typeof ranked)[number] => Boolean(c)).slice(0, 2);
+  }
+  const crewAsk = favs.length ? await (await import("./favorites")).crewRequest(job, favs[0].contractor.id) : null;
+  const ai = mine || team.length || favs.length ? null : await aiRankCandidates(job, ranked);
   const order = mine
     ? [{ id: mine.contractor.id, score: mine.score, reason: dibs!.kind === "redo" ? "Original pro — first chance to fix" : "Recurring customer — same pro first" }]
     : team.length
       ? team.map((c) => ({ id: c.contractor.id, score: c.score, reason: "Account's dedicated pro — first look" }))
+    : favs.length
+      ? favs.map((c) => ({ id: c.contractor.id, score: c.score, reason: job.preferred_contractor_id === c.contractor.id ? "Customer asked for this pro — first look" : "Customer's favorite — first look" }))
     : ai?.ranking.length
       ? ai.ranking.map((r) => ({ id: r.contractor_id, score: r.score, reason: r.reason }))
       : ranked.map((c) => ({ id: c.contractor.id, score: c.score, reason: c.reasons.join(" · ") }));
-  const count = mine ? 1 : team.length ? team.length : ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
+  const count = mine ? 1 : team.length ? team.length : favs.length ? favs.length : ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
   const picks = order.slice(0, count);
   const payout = job.contractor_payout ?? 0;
   const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
   // Pro+ / Elite pros are offered a bigger payout (clamped so our take stays ≥ 15%)
   const payFor = (id: string) => (byId[id] ? tierPayout(job.price_final, payout, proTier(byId[id])) : payout);
 
-  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : team.length ? BUSINESS_TERMS.dedicatedFirstLookHours : job.priority === "normal" ? 2 : 1;
+  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : team.length ? BUSINESS_TERMS.dedicatedFirstLookHours : favs.length ? favoriteWindowHours(job.scheduled_date) : job.priority === "normal" ? 2 : 1;
   const expires = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-  const offerKind = mine ? dibs!.kind : team.length ? "account" : "job";
+  const offerKind = mine ? dibs!.kind : team.length ? "account" : favs.length ? "favorite" : "job";
   const { data: offerRows } = await db().from("job_offers").upsert(
     picks.map((p) => ({ job_id: job.id, contractor_id: p.id, kind: offerKind, payout: payFor(p.id), ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
     { onConflict: "job_id,contractor_id" },
@@ -445,7 +463,7 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const offerIdFor = Object.fromEntries(((offerRows ?? []) as { id: string; contractor_id: string }[]).map((o) => [o.contractor_id, o.id]));
   if (!opts.siteVisit) await db().from("jobs").update({ status: "dispatched", ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
   else await db().from("jobs").update({ ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
-  await addEvent(job.id, "dispatch", mine ? `Offered to the ${dibs!.kind === "redo" ? "original" : "recurring"} pro first (${hours}h)` : team.length ? `Offered to the account's ${team.length} dedicated pro(s) first (${hours}h)` : `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
+  await addEvent(job.id, "dispatch", mine ? `Offered to the ${dibs!.kind === "redo" ? "original" : "recurring"} pro first (${hours}h)` : team.length ? `Offered to the account's ${team.length} dedicated pro(s) first (${hours}h)` : favs.length ? `Offered to the customer's ${job.preferred_contractor_id ? "requested" : "favorite"} pro first (${hours}h)` : `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
 
   const svc = getService(job.service_slug)!;
   for (const p of picks) {
@@ -454,12 +472,15 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     if (!pro || !offerId) continue;
     const pay = payFor(p.id);
     const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
-    const lead = offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
+    const asked = job.preferred_contractor_id === p.id;
+    const crewAskHere = crewAsk && p.id === favs[0]?.contractor.id ? crewAsk.name.split(" ")[0] : null;
+    const hrs = `${hours} hour${hours === 1 ? "" : "s"}`, hrsEs = `${hours} hora${hours === 1 ? "" : "s"}`;
+    const lead = offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
     const nameEs = serviceText("es", svc.slug, svc).name;
-    const leadEs = offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? "Nueva visita al sitio" : "Nuevo trabajo"} · ${pay ? money(pay) : "visita al sitio"}`;
-    const whyEs = offerKind === "account" ? `La empresa lo eligió como uno de sus profesionales: usted lo ve primero por ${hours} horas. El primero en aceptar se lo lleva.` : offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
+    const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? "Nueva visita al sitio" : "Nuevo trabajo"} · ${pay ? money(pay) : "visita al sitio"}`;
+    const whyEs = offerKind === "favorite" ? `Este cliente ${asked ? "lo pidió a usted" : "lo marcó como favorito"}: usted lo ve primero por ${hrsEs}. Puede pasar sin costo; luego se ofrece a otros profesionales.${crewAskHere ? ` Pidieron a ${crewAskHere}; usted decide quién va.` : ""}` : offerKind === "account" ? `La empresa lo eligió como uno de sus profesionales: usted lo ve primero por ${hours} horas. El primero en aceptar se lo lleva.` : offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
     const expiresEs = new Date(expires).toLocaleTimeString("es-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" });
-    const why = offerKind === "account" ? `The business picked you as one of its pros: you see it first for ${hours} hours. First to accept gets it.` : offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
+    const why = offerKind === "favorite" ? `This customer ${asked ? "asked for you" : "favorited you"}: you see it first for ${hrs}. Pass at no cost; then it goes to other pros.${crewAskHere ? ` They asked for ${crewAskHere}; who goes is your call.` : ""}` : offerKind === "account" ? `The business picked you as one of its pros: you see it first for ${hours} hours. First to accept gets it.` : offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
     await notify(pro.profile_id, {
       title: lead,
       body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}`,
@@ -498,14 +519,14 @@ async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: s
  * to the next pros (excluding everyone already tried). Runs every 10 minutes and in the daily sweep.
  */
 export async function redispatchExpired() {
-  const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id, contractor_id");
-  // nobody took it at this price → a market signal (per job, not per pro)
+  const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id, contractor_id, kind");
+  // nobody took it at this price → a market signal (per job, not per pro); a lapsed board claim isn't one
   const { recordSignal } = await import("./market");
-  for (const jobId of new Set((expired ?? []).map((o: { job_id: string }) => o.job_id))) {
+  for (const jobId of new Set((expired ?? []).filter((o: { kind: string }) => o.kind !== "board").map((o: { job_id: string }) => o.job_id))) {
     const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price, contractor_id").eq("id", jobId).single();
     if (sj && !sj.contractor_id) await recordSignal(sj as Job, "expired");
   }
-  const jobIds = [...new Set((expired ?? []).map((o: { job_id: string }) => o.job_id))];
+  const jobIds = [...new Set((expired ?? []).filter((o: { kind: string }) => o.kind !== "board").map((o: { job_id: string }) => o.job_id))];
   let redispatched = 0;
   for (const jobId of jobIds) {
     const { data: job } = await db().from("jobs").select("id, contractor_id, status").eq("id", jobId).single();
@@ -592,9 +613,10 @@ export async function declineOffer(offerId: string, contractorId: string) {
     .eq("id", offerId)
     .eq("contractor_id", contractorId)
     .eq("status", "offered")
-    .select("job_id")
+    .select("job_id, kind")
     .maybeSingle();
   if (!offer) return { ok: false };
+  if (offer.kind === "board") return { ok: true }; // passing on a board claim: the job just stays on the board
   { const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price").eq("id", offer.job_id).single();
     if (sj) await (await import("./market")).recordSignal(sj as Job, "declined", contractorId); }
   const { count } = await db().from("job_offers").select("id", { count: "exact", head: true }).eq("job_id", offer.job_id).eq("status", "offered");

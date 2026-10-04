@@ -9,10 +9,11 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (raise your offer while no pro has taken the job; pros' counters open on the website).
  * PURPOSE : Customer booking screen — "Covered ✓" by which pro, live timeline (realtime),
  *           pay now, invoice & agreement, and rating when done. Opened from notifications.
+ * UPDATED : 2026-10-04_2204 UTC — ★ favorite the pro (and the crew member who came) and "Book again with …".
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { BRAND, TIME_WINDOW_LABEL, TIP_PRESETS, getService, money, moneyRange, type Job, type TimeWindow } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Status, s } from "../../components/ui";
@@ -21,6 +22,7 @@ import type { Shot } from "../../lib/photos";
 import { useI18n } from "../../lib/i18n";
 import { Calendar } from "../../components/BookingPickers";
 
+type Crew = { crew_member_id: string; first_name: string; role: string };
 type Pro = { business_name: string; contact_first_name: string; rating: number; jobs_completed: number };
 type Ev = { id: number; message: string; message_es?: string | null; created_at: string };
 
@@ -28,6 +30,8 @@ export default function Booking() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
   const [pro, setPro] = useState<Pro | null>(null);
+  const [crew, setCrew] = useState<Crew | null>(null);
+  const [favs, setFavs] = useState<(string | null)[]>([]);
   const [events, setEvents] = useState<Ev[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [rated, setRated] = useState(false);
@@ -41,6 +45,14 @@ export default function Booking() {
       supabase.from("job_events").select("id, message, message_es, created_at").eq("job_id", id).order("created_at", { ascending: false }),
       supabase.from("reviews").select("id").eq("job_id", id).maybeSingle(),
     ]);
+    if ((j as Job | null)?.contractor_id) {
+      const [{ data: c }, { data: f }] = await Promise.all([
+        supabase.rpc("job_crew", { p_job: id }),
+        supabase.from("customer_favorites").select("crew_member_id").eq("contractor_id", (j as Job).contractor_id!),
+      ]);
+      setCrew(((c ?? []) as Crew[])[0] ?? null);
+      setFavs(((f ?? []) as { crew_member_id: string | null }[]).map((x) => x.crew_member_id));
+    }
     setJob(j as Job); setPro(((p ?? []) as Pro[])[0] ?? null); setEvents((ev ?? []) as Ev[]); setRated(Boolean(rv));
   }, [id]);
   useEffect(() => {
@@ -91,6 +103,25 @@ export default function Booking() {
           <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>{t("Covered ✓")}</Text>
           <Text style={s.b}>{pro.business_name}{pro.contact_first_name ? ` · ${pro.contact_first_name}` : ""}</Text>
           <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} {t("jobs completed · vetted & insured")}</Text>
+          {crew ? <Text style={s.p}>{es ? `Viene ${crew.first_name}` : `${crew.first_name} is coming`}</Text> : null}
+          {(() => {
+            const name = pro.contact_first_name || pro.business_name;
+            const fav = async (isCrew: boolean) => {
+              const r = await api<{ ok: boolean; error?: string }>("/api/account/favorites", { method: "POST", body: JSON.stringify({ job_id: job.id, crew: isCrew }) });
+              if (!r.ok || !r.data.ok) Alert.alert(t("Couldn't save"), r.data.error ?? t("Try again")); else load();
+            };
+            return (
+              <View style={{ marginTop: 10, gap: 8 }}>
+                {favs.includes(null) ? <Text style={[s.b, { color: C.brand }]}>★ {es ? `${name} es favorito` : `${name} is a favorite`}</Text>
+                  : <Button title={`☆ ${es ? `Marcar a ${name} como favorito` : `Favorite ${name}`}`} kind="ghost" onPress={() => fav(false)} />}
+                {crew ? (favs.includes(crew.crew_member_id) ? <Text style={[s.b, { color: C.brand }]}>★ {es ? `${crew.first_name} es favorito` : `${crew.first_name} is a favorite`}</Text>
+                  : <Button title={`☆ ${es ? `Marcar a ${crew.first_name} como favorito` : `Favorite ${crew.first_name}`}`} kind="ghost" onPress={() => fav(true)} />) : null}
+                {job.status === "completed" ? <Button title={es ? `Reservar de nuevo con ${crew ? crew.first_name : name}` : `Book again with ${crew ? crew.first_name : name}`}
+                  onPress={() => router.push({ pathname: "/book/[slug]", params: { slug: job.service_slug, pro: job.contractor_id!, ...(crew ? { crew: crew.crew_member_id } : {}) } })} /> : null}
+                <Text style={[s.p, { fontSize: 13 }]}>{t("Favorites see your next booking for that kind of work first for a few hours; if they can't, another vetted pro takes it. Not guaranteed.")}</Text>
+              </View>
+            );
+          })()}
         </Card>
       ) : job.paid_at || job.deposit_paid_at ? (
         <Card style={{ marginTop: 14 }}><Text style={s.b}>{t("Finding your pro…")}</Text><Text style={s.p}>{t("You'll get a notification the moment your job is covered.")}</Text></Card>

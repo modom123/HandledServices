@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_0027 UTC — "Email me this price" (SaveQuote) and ?frequency= from email links.
  * UPDATED : 2026-10-03_0150 UTC — name your price (around our suggestion, which learns the local market);
  *           shows what the pro earns and the booking fee.
+ * UPDATED : 2026-10-04_2204 UTC — "Book again with …": the requested pro (and crew member) rides along with the booking.
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.
@@ -54,10 +55,14 @@ type AiResult = { final_price: number; low: number; high: number; customer_summa
 /** Booking for a business account's property: address and company come from the property. */
 export interface BusinessBooking { propertyId: string; propertyName: string; company: string; address: string; city: string; state: string; zip: string; billing: string; contact: { name: string; email: string; phone: string } }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking }) {
+/** "Book again with …" (?pro=&crew=): checked server-side against the customer's favorites and past pros. */
+export interface PreferredPro { proId: string; crewId: string | null; label: string; crewName: string | null }
+
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
+  const [ask, setAsk] = useState(preferred ?? null);
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
   const svc = getService(slug);
@@ -134,7 +139,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, business_property_id: business?.propertyId ?? null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -165,6 +170,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   return (
     <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
       <div>
+        {ask && <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">
+          <span>★ {es ? `Se le ofrece primero a ${ask.label} por unas horas; si no puede, otro profesional verificado lo toma.` : `${ask.label} gets the first look for a few hours; if they can't, another vetted pro takes it.`}{ask.crewName ? (es ? ` Pidió a ${ask.crewName}; el dueño de la empresa decide quién va.` : ` You asked for ${ask.crewName}; the company owner decides who goes.`) : ""}</span>
+          <button type="button" className="text-xs underline" onClick={() => setAsk(null)}>{es ? "Cualquier profesional" : "Any pro is fine"}</button></div>}
         {business && <div className="mb-4 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{business.company}</b> · {business.propertyName} ({business.address}, {business.city}) · {business.billing}</div>}
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
           {["Service", "Details", "When & where", "Review"].map((lbl, i) => (
