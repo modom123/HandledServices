@@ -21,6 +21,8 @@
  *           still clears a fair labor margin after buying the tank.
  * UPDATED : 2026-10-03_1311 UTC — water heater: value-brand replacement, install-only (customer's new unit) and
  *           repair options. New units only, never used.
+ * UPDATED : TSTAMP UTC — new services from the growth plan: small moves, same-day large item delivery (stores),
+ *           home staging furniture moves and rental unit turnover (property managers). Hauling trade covers moves.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -96,7 +98,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing, mobile car detailing — plus decluttering." },
   { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away", short: "Haul Away", icon: "🚛", blurb: "Junk, furniture and heavy items gone today — or a container dropped off for the week." },
+  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture — or a container for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Grocery delivery, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
@@ -936,6 +938,170 @@ export const SERVICES: Service[] = [
   },
 
   // ───────────────────────────── REPAIR & REMODEL ─────────────────────────────
+  {
+    slug: "small-moves",
+    name: "Small Moves & Moving Help",
+    category: "removal",
+    icon: "📦",
+    tagline: "Movers by the hour, with or without a truck — apartments, small homes, single rooms.",
+    description: "Local moves and moving labor: loading, unloading, carrying and placing furniture and boxes, with or without our truck. Priced by the hour for the crew size you need, plus the drive. Great for apartments, dorms, storage units and moving within the building.",
+    includes: ["Insured, background-checked movers", "Moving blankets, dollies & straps", "Furniture disassembly & reassembly (basic)", "Floors & doorframes protected", "Truck included when you choose it"],
+    questions: [
+      { id: "size", label: "How much are you moving?", type: "select", default: "1br", options: [
+        { value: "items", label: "A few items" }, { value: "studio", label: "Studio / dorm" }, { value: "1br", label: "1 bedroom" },
+        { value: "2br", label: "2 bedrooms" }, { value: "3br", label: "3 bedrooms" },
+      ] },
+      { id: "movers", label: "Movers", type: "select", default: "2", options: [{ value: "2", label: "2 movers" }, { value: "3", label: "3 movers (faster for 2+ bedrooms)" }] },
+      { id: "truck", label: "Truck", type: "select", default: "ours", options: [{ value: "ours", label: "Bring your truck" }, { value: "labor", label: "Labor only — I have a truck or container" }] },
+      { id: "miles", label: "Distance between the two places", type: "number", min: 0, max: 100, default: 10, unit: "miles", showIf: { id: "truck", is: ["ours"] } },
+      { id: "flights", label: "Flights of stairs (both ends together)", type: "number", min: 0, max: 10, default: 0 },
+      { id: "packing", label: "Pack boxes for me", type: "toggle", default: false },
+      { id: "heavy", label: "Piano, safe or item over 300 lb", type: "toggle", default: false },
+    ],
+    minimum: 199,
+    spread: [0.95, 1.25],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["hauling"],
+    // Metro Detroit: 2 movers ≈ $100–150/hour; truck fee ≈ $75–150 plus mileage; 2-hour minimum.
+    price: (a) => {
+      const crew = s(a, "movers", "2") === "3" ? 3 : 2;
+      const baseHours = { items: 2, studio: 3, "1br": 4, "2br": 6, "3br": 8 }[s(a, "size", "1br")] ?? 4;
+      const flights = n(a, "flights");
+      const hours = Math.max(2, Math.round((baseHours * (crew === 3 ? 0.72 : 1) + flights * 0.25) * 2) / 2);
+      const rate = crew === 3 ? 179 : 129;
+      const items: LineItem[] = [{ label: `${crew} movers × ${hours} hours (estimated)`, amount: Math.round(rate * hours) }];
+      if (s(a, "truck", "ours") === "ours") {
+        items.push({ label: "Moving truck", amount: 99 });
+        const extra = Math.max(0, n(a, "miles", 10) - 10);
+        if (extra) items.push({ label: `Drive over 10 miles (${extra} mi)`, amount: Math.round(extra * 2) });
+      }
+      if (b(a, "packing")) items.push({ label: "Packing service", amount: Math.round(baseHours * 35) });
+      if (b(a, "heavy")) items.push({ label: "Heavy item handling", amount: 150 });
+      return { items, base: sum(items), hours };
+    },
+  },
+  {
+    slug: "retail-delivery",
+    name: "Same-Day Large Item Delivery",
+    category: "removal",
+    icon: "🚚",
+    tagline: "Furniture and appliances delivered today — for stores, sellers and shoppers.",
+    description: "Same-day or scheduled delivery of large items from a store, warehouse or seller to a home or business: furniture, mattresses, appliances (not hooked up), fixtures and bulky purchases. Two-person crew, placed in the room you choose, packaging taken away. Stores can book deliveries for their customers.",
+    includes: ["2-person crew", "Blankets, straps & dollies", "Placed in the room you choose", "Packaging taken away", "Photo proof of delivery"],
+    questions: [
+      { id: "items", label: "Items", type: "number", min: 1, max: 20, default: 1 },
+      { id: "weight", label: "Heaviest item", type: "select", default: "medium", options: [
+        { value: "light", label: "Under 50 lb" }, { value: "medium", label: "50 to 150 lb" }, { value: "heavy", label: "150 to 300 lb" }, { value: "very_heavy", label: "Over 300 lb" },
+      ] },
+      { id: "miles", label: "Distance from pickup to drop-off", type: "number", min: 0, max: 100, default: 10, unit: "miles" },
+      { id: "flights", label: "Flights of stairs at drop-off", type: "number", min: 0, max: 6, default: 0 },
+      { id: "assembly", label: "Basic assembly (legs, bed frame, shelving)", type: "toggle", default: false },
+      { id: "haul_old", label: "Take away the old one", type: "toggle", default: false },
+    ],
+    minimum: 89,
+    spread: [0.95, 1.15],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once", "weekly"],
+    trades: ["hauling"],
+    price: (a) => {
+      const w = s(a, "weight", "medium");
+      const count = Math.max(1, n(a, "items", 1));
+      const items: LineItem[] = [{ label: "Pickup & delivery, 2-person crew", amount: 89 }];
+      if (count > 1) items.push({ label: `${count - 1} more item${count > 2 ? "s" : ""} × $25`, amount: (count - 1) * 25 });
+      const heavy = { light: 0, medium: 0, heavy: 40, very_heavy: 95 }[w] ?? 0;
+      if (heavy) items.push({ label: w === "very_heavy" ? "Over 300 lb (3rd mover & equipment)" : "Heavy item (150–300 lb)", amount: heavy });
+      const extra = Math.max(0, n(a, "miles", 10) - 10);
+      if (extra) items.push({ label: `Drive over 10 miles (${extra} mi)`, amount: Math.round(extra * 1.75) });
+      const flights = n(a, "flights");
+      if (flights) items.push({ label: `Stairs (${flights} flight${flights > 1 ? "s" : ""})`, amount: flights * 20 * (w === "heavy" || w === "very_heavy" ? 2 : 1) });
+      if (b(a, "assembly")) items.push({ label: "Basic assembly", amount: 45 });
+      if (b(a, "haul_old")) items.push({ label: "Haul away the old item", amount: 49 });
+      return { items, base: sum(items), hours: 1 + (count - 1) * 0.25 + extra / 30 + flights * 0.15 + (b(a, "assembly") ? 0.5 : 0) };
+    },
+  },
+  {
+    slug: "staging-transport",
+    name: "Home Staging Furniture Moves",
+    category: "removal",
+    icon: "🛋️",
+    tagline: "Staging furniture delivered, placed and picked up after the sale — for stagers and agents.",
+    description: "Furniture and decor transport for home stagers and real estate agents: pickup from your warehouse or storage, delivery and placement in the listing, and pickup when the home sells. Book one way or both trips together.",
+    includes: ["Truck & 2–3 person crew", "Blankets, wrap & dollies", "Placed where your stager wants it", "Pickup trip when the listing closes (round trip)", "Photo proof of every delivery"],
+    questions: [
+      { id: "load", label: "How much furniture?", type: "select", default: "rooms", options: [
+        { value: "few", label: "A few pieces" }, { value: "rooms", label: "2–3 rooms" }, { value: "half", label: "Half a house" }, { value: "full", label: "A full house" },
+      ] },
+      { id: "trip", label: "Trips", type: "select", default: "round", options: [{ value: "one", label: "One way (delivery or pickup)" }, { value: "round", label: "Round trip (deliver now, pick up later)" }] },
+      { id: "miles", label: "Distance from storage to the listing", type: "number", min: 0, max: 100, default: 15, unit: "miles" },
+      { id: "flights", label: "Flights of stairs at the listing", type: "number", min: 0, max: 6, default: 0 },
+      { id: "placement", label: "Help placing and setting up", type: "toggle", default: true },
+    ],
+    minimum: 249,
+    spread: [0.95, 1.2],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["hauling"],
+    price: (a) => {
+      const load = s(a, "load", "rooms");
+      const oneTrip = { few: 249, rooms: 449, half: 749, full: 1095 }[load] ?? 449;
+      const trips = s(a, "trip", "round") === "round" ? 2 : 1;
+      const items: LineItem[] = [{ label: trips === 2 ? "Delivery + pickup trip" : "One trip", amount: oneTrip * trips - (trips === 2 ? Math.round(oneTrip * 0.1) : 0) }];
+      const extra = Math.max(0, n(a, "miles", 15) - 15);
+      if (extra) items.push({ label: `Drive over 15 miles (${extra} mi, each trip)`, amount: Math.round(extra * 2 * trips) });
+      const flights = n(a, "flights");
+      if (flights) items.push({ label: `Stairs (${flights} flight${flights > 1 ? "s" : ""}, each trip)`, amount: flights * 35 * trips });
+      if (b(a, "placement")) items.push({ label: "Placement & setup", amount: { few: 40, rooms: 90, half: 150, full: 225 }[load] ?? 90 });
+      const hours = ({ few: 2, rooms: 3.5, half: 5.5, full: 8 }[load] ?? 3.5) * trips;
+      return { items, base: sum(items), hours };
+    },
+  },
+  {
+    slug: "unit-turnover",
+    name: "Rental Unit Turnover",
+    category: "repair_remodel",
+    icon: "🔑",
+    tagline: "Cleanout, deep clean, touch-ups and punch list — rent-ready in one booking.",
+    description: "Everything between one tenant and the next, for landlords and property managers: haul out what was left behind, deep clean top to bottom, patch and touch-up paint, and a handyman punch list (bulbs, outlet covers, doorstops, caulk, small repairs). One booking, one crew lead, before-and-after photos of every room. Full repaints and licensed repairs are quoted separately.",
+    includes: ["Cleanout of left-behind items", "Move-out deep clean (inside fridge, oven, cabinets)", "Nail-hole patching & touch-up paint", "Handyman punch list", "Before & after photos of every room"],
+    questions: [
+      { id: "bedrooms", label: "Bedrooms", type: "number", min: 0, max: 6, default: 2 },
+      { id: "bathrooms", label: "Bathrooms", type: "number", min: 1, max: 5, default: 1 },
+      { id: "condition", label: "Condition", type: "select", default: "average", options: [
+        { value: "light", label: "Light — tenant left it fairly clean" }, { value: "average", label: "Average wear" }, { value: "heavy", label: "Heavy — very dirty or damaged" },
+      ] },
+      { id: "cleanout", label: "Left-behind items to haul", type: "select", default: "none", options: [
+        { value: "none", label: "None" }, { value: "few", label: "A few items" }, { value: "quarter", label: "About a quarter truck" }, { value: "half", label: "About half a truck" },
+      ] },
+      { id: "touchup", label: "Rooms needing patch & touch-up paint", type: "number", min: 0, max: 10, default: 2 },
+      { id: "punch", label: "Punch-list hours", type: "number", min: 0, max: 8, default: 1, help: "Small fixes: bulbs, outlet covers, blinds, caulk, doorstops, loose hardware." },
+      { id: "carpet", label: "Shampoo the carpets", type: "toggle", default: false },
+    ],
+    minimum: 299,
+    spread: [0.95, 1.2],
+    payoutShare: 0.7,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["handyman"],
+    price: (a) => {
+      const beds = n(a, "bedrooms", 2), baths = Math.max(1, n(a, "bathrooms", 1));
+      const cond = { light: 0.85, average: 1, heavy: 1.4 }[s(a, "condition", "average")] ?? 1;
+      const clean = Math.round((180 + beds * 45 + baths * 40) * cond);
+      const items: LineItem[] = [{ label: "Move-out deep clean", amount: clean }];
+      const haul = { none: 0, few: 99, quarter: 199, half: 329 }[s(a, "cleanout", "none")] ?? 0;
+      if (haul) items.push({ label: "Cleanout & haul-away", amount: haul });
+      const rooms = n(a, "touchup");
+      if (rooms) items.push({ label: `Patch & touch-up paint (${rooms} room${rooms > 1 ? "s" : ""})`, amount: rooms * 65 });
+      const punch = n(a, "punch");
+      if (punch) items.push({ label: `Punch list (${punch} hr${punch > 1 ? "s" : ""})`, amount: punch * 79 });
+      if (b(a, "carpet")) items.push({ label: "Carpet shampoo", amount: 60 + beds * 35 });
+      const hours = (clean / 45) + (haul ? 1 : 0) + rooms * 0.75 + punch;
+      return { items, base: sum(items), hours: Math.round(hours * 2) / 2 };
+    },
+  },
   {
     slug: "handyman",
     name: "Handyman",
@@ -2132,7 +2298,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "errands", label: "Errands, grocery delivery & personal assistant" },
   { id: "medical_courier", label: "Medical courier (prescriptions, specimens, supplies)" },
   { id: "auto_detailing", label: "Mobile car detailing" },
-  { id: "hauling", label: "Junk & item hauling" },
+  { id: "hauling", label: "Junk hauling, moving & delivery" },
   { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },

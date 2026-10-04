@@ -17,6 +17,7 @@
  *           name your price within OFFER_BOUNDS, flat BOOKING_FEE, pro counteroffers, raising an offer):
  *           Terms of Use, Service Agreement, Business MSA and Plus/promo terms updated to match.
  * UPDATED : 2026-10-03_1311 UTC — construction addendum: equipment you buy for us to install must be new; we never install used.
+ * UPDATED : TSTAMP UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda.
  */
 import {
   AI_MAX_CUT,
@@ -935,7 +936,7 @@ const CONSTRUCTION: Contract = {
   version: V1,
   audience: "customer",
   appliesTo: "Handyman, plumbing, water heaters, HVAC, lighting and ceiling fans, security cameras, garbage disposals, interior and exterior painting, and bathroom, kitchen and whole-home remodels.",
-  services: ["handyman", "plumbing", "water-heater", "hvac-install", "lighting-install", "camera-install", "garbage-disposal", "interior-painting", "exterior-painting", "bathroom-remodel", "kitchen-remodel", "home-remodel"],
+  services: ["handyman", "plumbing", "water-heater", "hvac-install", "lighting-install", "camera-install", "garbage-disposal", "interior-painting", "exterior-painting", "bathroom-remodel", "kitchen-remodel", "home-remodel", "unit-turnover"],
   summary: [
     "Licensed work (plumbing, electrical, HVAC, painting, remodels) is done only by licensed contractors.",
     "The contractor pulls any permits needed. The cost is on your invoice.",
@@ -1048,11 +1049,11 @@ const ERRANDS: Contract = {
 
 const HAULING: Contract = {
   key: "addendum-hauling",
-  title: "Addendum — Junk Removal, Large Items & Containers",
+  title: "Addendum — Junk Removal, Large Items, Containers, Moves & Deliveries",
   version: V1,
   audience: "customer",
-  appliesTo: "Junk removal, large item removal, and junk container drop-off and pickup.",
-  services: ["junk-removal", "large-item-removal", "junk-container"],
+  appliesTo: "Junk removal, large item removal, junk container drop-off and pickup, small moves, same-day large item delivery, home staging furniture moves, and the cleanout part of a rental unit turnover.",
+  services: ["junk-removal", "large-item-removal", "junk-container", "small-moves", "retail-delivery", "staging-transport", "unit-turnover"],
   summary: [
     "You confirm you own the items, or have the right to have them hauled away.",
     "No hazardous waste: paint, chemicals, asbestos, propane tanks and similar items.",
@@ -1060,6 +1061,7 @@ const HAULING: Contract = {
     "We donate or recycle when we can, at our choice.",
     "Containers can mark driveways. Street placement needs a city permit.",
     "Container weight over the allowance is billed at the landfill's cost, with the weigh ticket.",
+    "Moves and deliveries: hourly moves are billed for the actual time; our liability for moved items is limited unless you buy added protection.",
   ],
   sections: numbered([
     ["Your items", p(
@@ -1094,6 +1096,16 @@ const HAULING: Contract = {
     )],
     ["Loading and access", p(
       "Our crew loads from where you tell us. Long carries, stairs and disassembly are priced on your quote. We take care, but moving heavy items through tight spaces can cause minor scuffs to walls or floors. Please point out fragile areas. Damage caused by negligence is handled under the Service Agreement.",
+    )],
+    ["Moves and deliveries", p(
+      ul(
+        "Hourly moves: your quote shows the estimated hours. You pay for the actual time, from when the crew arrives to when the last item is placed, in half-hour steps, with the minimum on your quote. If the move will run over the estimate, the crew lead tells you in the app before going past it.",
+        "Pack and prepare: boxes should be packed and closed unless you booked packing. We don't move cash, jewelry, important papers, medications, firearms, pets, plants that can't survive the trip, perishable food or hazardous items. Keep valuables with you.",
+        "Protection for your items: unless you buy added protection, our liability for loss or damage to moved or delivered items is limited to $0.60 per pound per item. Items you packed yourself are covered only for damage we caused by handling them carelessly. Report damage within 7 days, with photos." + COUNSEL,
+        "Deliveries for stores and sellers: we deliver what we pick up, in its packaging; we don't open or inspect it for defects, hook up gas, water or electric, or install anything beyond basic assembly. Proof of delivery is a photo at the drop-off.",
+        "Staging furniture: the stager or agent is our customer for both trips. Pickup is scheduled when you tell us the listing closed; if the furniture isn't ready or access isn't available at the booked time, a trip fee applies.",
+        "Moves are local, within Michigan, and priced as labor and local transport." + COUNSEL,
+      ),
     )],
   ]),
 };

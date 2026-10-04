@@ -25,7 +25,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Errands, grocery delivery & personal assistant": "Mandados, entrega de víveres y asistente personal",
   "Medical courier (prescriptions, specimens, supplies)": "Mensajería médica (recetas, muestras, insumos)",
   "Mobile car detailing": "Detallado de autos a domicilio",
-  "Junk & item hauling": "Retiro de basura y objetos",
+  "Junk hauling, moving & delivery": "Retiro de basura, mudanzas y entregas",
   "Roll-off container / dumpster": "Contenedor de basura (roll-off)",
   "Handyman": "Mantenimiento general",
   "Remodeling / general contractor": "Remodelación / contratista general",

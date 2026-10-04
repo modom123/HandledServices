@@ -10,6 +10,7 @@
  *           (i18n-catalog-es.ts); units; frequencies.
  * UPDATED : 2026-10-02_2246 UTC — waitlist and Google review wording.
  * UPDATED : 2026-10-03_0027 UTC — "Email me this price".
+ * UPDATED : TSTAMP UTC — new services (small moves, large-item delivery, staging moves, unit turnover) and the Haul Away category renamed.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -291,7 +292,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   cleaning: { name: "Limpieza y organización", short: "Limpieza", blurb: "Casas, oficinas, ventanas, alfombras, canaletas, lavado a presión, lavado de autos a domicilio y organización." },
   outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte de césped, limpieza de hojas, remoción de nieve y árboles." },
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
-  removal: { name: "Retiro de cosas", short: "Retiro", blurb: "Basura, muebles y objetos pesados hoy mismo, o un contenedor por una semana." },
+  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, o un contenedor por una semana." },
   repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
   errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Entrega de víveres, entregas médicas, tintorería, devoluciones, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
@@ -315,6 +316,10 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "pet-waste-removal": ["Limpieza de desechos de perro", "Un patio limpio cada semana. Portón cerrado, garantizado."],
   "junk-removal": ["Retiro de basura", "Precio según la cantidad; nosotros cargamos todo. Donamos y reciclamos primero."],
   "large-item-removal": ["Retiro de objetos grandes", "Precio según cuántos y cuánto pesan: de sofás a pianos."],
+  "small-moves": ["Mudanzas pequeñas y ayuda para mudarse", "Mudanceros por hora, con o sin camión: departamentos, casas pequeñas o un solo cuarto."],
+  "retail-delivery": ["Entrega de objetos grandes el mismo día", "Muebles y electrodomésticos entregados hoy, para tiendas, vendedores y compradores."],
+  "staging-transport": ["Mudanza de muebles para decoración de casas en venta", "Muebles de decoración entregados, colocados y recogidos después de la venta, para decoradores y agentes."],
+  "unit-turnover": ["Preparación de unidades de renta", "Retiro, limpieza profunda, retoques y lista de arreglos: lista para rentar en una sola reserva."],
   "junk-container": ["Contenedor de basura (entrega y retiro)", "Dejamos un contenedor, usted lo llena en una semana y lo retiramos."],
   "handyman": ["Mantenimiento general", "Su lista de pendientes, resuelta en una visita."],
   "plumbing": ["Reparaciones de plomería", "Tapones, fugas, inodoros y llaves: arreglados hoy."],

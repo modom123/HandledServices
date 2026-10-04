@@ -4,6 +4,7 @@
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Spanish for price-breakdown lines. Keys are the English line with every number or
  *           amount replaced by {#}; lineText() puts the numbers back in the same order.
+ * UPDATED : TSTAMP UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
@@ -292,4 +293,32 @@ export const ES_LINES: Record<string, string> = {
   "{#}rd crew member ({#} lb+ item)": "{#}.º integrante del equipo (artículo de {#} lb+)",
   "Booking fee": "Cargo por reserva",
   "Local market adjustment": "Ajuste según el mercado local",
+  // Small moves, large-item delivery, staging moves, unit turnover
+  "{#} movers × {#} hours (estimated)": "{#} mudanceros × {#} horas (estimado)",
+  "Moving truck": "Camión de mudanza",
+  "Drive over {#} miles ({#} mi)": "Manejo de más de {#} millas ({#} mi)",
+  "Packing service": "Servicio de empaque",
+  "Heavy item handling": "Manejo de objeto pesado",
+  "Pickup & delivery, {#}-person crew": "Recogida y entrega, equipo de {#} personas",
+  "{#} more items × {#}": "{#} objetos más × {#}",
+  "{#} more item × {#}": "{#} objeto más × {#}",
+  "Heavy item ({#}–{#} lb)": "Objeto pesado ({#}–{#} lb)",
+  "Over {#} lb ({#}rd mover & equipment)": "Más de {#} lb (tercer mudancero y equipo)",
+  "Stairs ({#} flights)": "Escaleras ({#} tramos)",
+  "Stairs ({#} flight)": "Escaleras ({#} tramo)",
+  "Basic assembly": "Armado básico",
+  "Haul away the old item": "Retiro del objeto viejo",
+  "Delivery + pickup trip": "Viaje de entrega + recogida",
+  "Placement & setup": "Colocación y acomodo",
+  "One trip": "Un viaje",
+  "Drive over {#} miles ({#} mi, each trip)": "Manejo de más de {#} millas ({#} mi, cada viaje)",
+  "Stairs ({#} flights, each trip)": "Escaleras ({#} tramos, cada viaje)",
+  "Stairs ({#} flight, each trip)": "Escaleras ({#} tramo, cada viaje)",
+  "Move-out deep clean": "Limpieza profunda de salida",
+  "Patch & touch-up paint ({#} rooms)": "Resanado y retoques de pintura ({#} cuartos)",
+  "Patch & touch-up paint ({#} room)": "Resanado y retoques de pintura ({#} cuarto)",
+  "Punch list ({#} hr)": "Lista de arreglos ({#} h)",
+  "Punch list ({#} hrs)": "Lista de arreglos ({#} h)",
+  "Cleanout & haul-away": "Retiro y acarreo",
+  "Carpet shampoo": "Lavado de alfombras con champú",
 };

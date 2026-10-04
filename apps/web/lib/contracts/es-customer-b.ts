@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (Business MSA: precio sugerido y ofertas salvo que un Pedido
  *           fije el precio; Plus/promos: el cargo de reserva no se descuenta), mirroring customer.ts.
  * UPDATED : 2026-10-03_1311 UTC — adenda de construcción: el equipo que el cliente compra debe ser nuevo; nunca instalamos usado.
+ * UPDATED : TSTAMP UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas").
  */
 import {
   BOOKING_FEE,
@@ -579,8 +580,8 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
   },
 
   "addendum-hauling": {
-    title: "Anexo — Retiro de Basura, Artículos Grandes y Contenedores",
-    appliesTo: "Retiro de basura y objetos no deseados, retiro de artículos grandes, y entrega y recogida de contenedores para basura.",
+    title: "Anexo — Retiro de Basura, Artículos Grandes, Contenedores, Mudanzas y Entregas",
+    appliesTo: "Retiro de basura y objetos no deseados, retiro de artículos grandes, entrega y recogida de contenedores para basura, mudanzas pequeñas, entrega de objetos grandes el mismo día, mudanza de muebles para decoración de casas en venta, y la parte de retiro de una preparación de unidad de renta.",
     summary: [
       "Usted confirma que es dueño de los artículos o que tiene derecho a que se los lleven.",
       "No se aceptan desechos peligrosos: pintura, productos químicos, asbesto, tanques de propano y artículos similares.",
@@ -588,6 +589,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       "Donamos o reciclamos cuando podemos, a nuestra elección.",
       "Los contenedores pueden marcar las entradas de autos. Colocarlos en la calle requiere un permiso de la ciudad.",
       "El peso del contenedor que exceda lo permitido se cobra al costo del relleno sanitario, con el comprobante de pesaje.",
+      "Mudanzas y entregas: las mudanzas por hora se cobran por el tiempo real; nuestra responsabilidad por los objetos mudados es limitada, a menos que compre protección adicional.",
     ],
     sections: numbered([
       ["Sus artículos", p(
@@ -622,6 +624,16 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       )],
       ["Carga y acceso", p(
         "Nuestro equipo carga desde donde usted nos indique. Los traslados largos, las escaleras y el desarmado se cotizan en su presupuesto. Tenemos cuidado, pero mover artículos pesados por espacios estrechos puede causar pequeñas marcas en paredes o pisos. Por favor, indíquenos las áreas frágiles. Los daños causados por negligencia se manejan según el Acuerdo de Servicio.",
+      )],
+      ["Mudanzas y entregas", p(
+        ul(
+          "Mudanzas por hora: su cotización muestra las horas estimadas. Usted paga el tiempo real, desde que llega el equipo hasta que se coloca el último objeto, en intervalos de media hora, con el mínimo indicado en su cotización. Si la mudanza va a tardar más de lo estimado, el jefe del equipo se lo avisa en la aplicación antes de pasarse.",
+          "Empaque y preparación: las cajas deben estar empacadas y cerradas, a menos que haya reservado el empaque. No mudamos dinero en efectivo, joyas, documentos importantes, medicamentos, armas de fuego, mascotas, plantas que no sobrevivan el viaje, alimentos perecederos ni artículos peligrosos. Mantenga sus objetos de valor con usted.",
+          "Protección de sus objetos: a menos que compre protección adicional, nuestra responsabilidad por pérdida o daño de los objetos mudados o entregados se limita a $0.60 por libra por objeto. Los objetos que usted empacó solo están cubiertos por daños que causamos al manejarlos con descuido. Reporte los daños dentro de 7 días, con fotos." + COUNSEL,
+          "Entregas para tiendas y vendedores: entregamos lo que recogemos, en su empaque; no lo abrimos ni lo revisamos en busca de defectos, no conectamos gas, agua ni electricidad, ni instalamos nada más allá del armado básico. El comprobante de entrega es una foto en el lugar de entrega.",
+          "Muebles de decoración: el decorador o el agente es nuestro cliente en ambos viajes. La recogida se programa cuando nos avise que la propiedad se vendió; si los muebles no están listos o no hay acceso a la hora reservada, se aplica un cargo por visita.",
+          "Las mudanzas son locales, dentro de Michigan, y se cobran como mano de obra y transporte local." + COUNSEL,
+        ),
       )],
     ]),
   },
