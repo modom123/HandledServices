@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-03_0042 UTC — link to each customer's signed contracts.
  * PURPOSE : Customers (rolled up from jobs), commercial accounts and AI-chat leads.
+ * UPDATED : TSTAMP UTC — commercial accounts open their Hub account page (billing, properties, members, dedicated pros).
  */
 import Link from "next/link";
 import { getService, money } from "@handled/core";
@@ -45,10 +46,11 @@ export default async function Customers() {
         <h2 className="mb-4 text-xl font-bold">Commercial accounts</h2>
         {!(biz ?? []).length && <Empty>No business accounts yet.</Empty>}
         <div className="grid gap-3 md:grid-cols-2">{(biz ?? []).map((b: Rec) => (
-          <div key={b.id} className="card text-sm"><div className="flex justify-between"><span className="font-semibold">{b.company}</span><Badge tone={b.status === "active" ? "green" : "amber"}>{b.status}</Badge></div>
+          <Link key={b.id} href={`/hub/business/${b.id}`} className="card block text-sm transition hover:border-brand"><div className="flex justify-between"><span className="font-semibold">{b.company}</span><Badge tone={b.status === "active" ? "green" : "amber"}>{b.status}</Badge></div>
             <div className="text-ink-soft">{b.contact_name} · {b.email} · {b.locations} location(s)</div>
             <div className="mt-1">{(b.services_needed as string[]).map((s) => getService(s)?.name ?? s).join(", ")}</div>
-            {b.monthly_value && <div className="mt-1 font-semibold">{money(b.monthly_value)}/mo</div>}</div>
+            {b.monthly_value && <div className="mt-1 font-semibold">{money(b.monthly_value)}/mo</div>}
+            <div className="mt-1 text-xs text-ink-soft">{b.billing_mode === "terms" ? `Invoiced · Net ${b.terms_days}${b.terms_hold ? " · ON HOLD" : ""}` : b.terms_requested_at ? "Prepay · asked for invoicing" : "Prepay"}{b.priority ? " · priority" : ""}{b.pilot_jobs_left > 0 ? ` · pilot ${b.pilot_discount_pct}% × ${b.pilot_jobs_left}` : ""}</div></Link>
         ))}</div>
       </section>
       <section>

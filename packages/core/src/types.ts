@@ -102,6 +102,10 @@ export interface Job {
   attribution?: Record<string, string> | null;
   /** Pro tapped "On my way". */
   en_route_at?: string | null;
+  /** Business account booking (business-accounts.ts): the account, its property, and whether it's billed on the account's invoice. */
+  business_account_id?: string | null;
+  business_property_id?: string | null;
+  billed_on_terms?: boolean | null;
   /** The crew member the pro company is sending (crew.ts). Null = the pro themself. */
   crew_member_id?: string | null;
   disputed_at?: string | null;

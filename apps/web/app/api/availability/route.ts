@@ -6,12 +6,14 @@
  *           the booking horizon, from real pro capacity in the customer's ZIP.
  *           Counts only pros who work that day and window and drive as far as this ZIP.
  *           GET /api/availability?service=house-cleaning&zip=48201[&today=1]
+ * UPDATED : TSTAMP UTC — mode "closed" when the service isn't open yet in the ZIP's city (launch set).
  * UPDATED : 2026-10-02_0301 UTC — today=1: same-day slots from pros who are on call or working today.
  */
 import { BRAND, buildAvailability, localDate, getService, type BookedJob, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { zipCentroid } from "@/lib/geo";
+import { openFor } from "@/lib/launch";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -20,6 +22,10 @@ export async function GET(req: Request) {
   const svc = getService(slug);
   const includeToday = url.searchParams.get("today") === "1" && !svc?.leadDays;
   if (!svc || !/^\d{5}$/.test(zip)) return Response.json({ error: "service and 5-digit zip required" }, { status: 400 });
+
+  // constraint-driven launch: services not open yet in this city → "coming soon" + waitlist
+  const launch = await openFor(svc.slug, zip);
+  if (!launch.open) return Response.json({ mode: "closed", market: launch.market, pros: 0, days: [] }, { headers: { "Cache-Control": "private, max-age=60" } });
 
   let contractors: Contractor[] = [];
   let jobs: BookedJob[] = [];

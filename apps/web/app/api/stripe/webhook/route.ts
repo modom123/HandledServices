@@ -9,9 +9,11 @@
  *           get a critical alert with the evidence we have and the deadline; won → payout released.
  *           Tips, gift cards and Handled Plus subscriptions are settled here too (lib/growth).
  * PURPOSE : Stripe webhook.
+ * UPDATED : TSTAMP UTC — business invoices: paid → invoice and its jobs marked paid (lib/business settleInvoice).
  */
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
+import { settleInvoice } from "@/lib/business";
 import { adminClient } from "@/lib/supabase/server";
 import { markPaid, raiseAlert } from "@/lib/jobs";
 import { reimburse } from "@/lib/pro-benefits";
@@ -54,6 +56,8 @@ export async function POST(req: Request) {
       // pass-through: the customer paid the materials at cost → reimburse the pro
       const { data: exp } = await db.from("job_expenses").select("id").eq("payment_id", row.id).maybeSingle();
       if (exp) await reimburse(exp.id, row.id);
+    } else if (row.kind === "invoice" && row.business_invoice_id) {
+      await settleInvoice(row.business_invoice_id, amount);
     } else if (row.job_id) {
       await markPaid(row.job_id, { amount, via: "card", kind: row.kind, paymentIntent: pi?.id ?? null, paymentMethod: pi?.payment_method ? String(pi.payment_method) : null });
     } else if (opsEmail()) {

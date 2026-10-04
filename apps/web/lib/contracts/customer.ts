@@ -17,7 +17,7 @@
  *           name your price within OFFER_BOUNDS, flat BOOKING_FEE, pro counteroffers, raising an offer):
  *           Terms of Use, Service Agreement, Business MSA and Plus/promo terms updated to match.
  * UPDATED : 2026-10-03_1311 UTC — construction addendum: equipment you buy for us to install must be new; we never install used.
- * UPDATED : TSTAMP UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda.
+ * UPDATED : TSTAMP UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda; Business MSA: terms approved in the business account portal count as an Order.
  */
 import {
   AI_MAX_CUT,
@@ -520,7 +520,7 @@ export const BUSINESS_MSA: Contract = {
     ["Invoicing and payment", p(
       ul(
         "Default: work is prepaid by card or ACH. Recurring services are charged before each visit or billing period.",
-        "Net terms: only if an Order says so in writing (for example, net 15 or net 30), after a credit review. Invoices are due by the date shown.",
+        "Net terms: only if an Order says so in writing (for example, net 15 or net 30), after a credit review. Terms we approve for your business account, shown in your account portal with a credit limit, count as such an Order. A booking that would go over the credit limit, or made while an invoice is more than 10 days overdue, is paid at booking instead. Invoices are due by the date shown.",
         "PO numbers and cost centers: we will put them on invoices if you give them to us. A missing PO number doesn't delay payment.",
         "Late payment: unpaid amounts on net terms carry a late fee of 1.5% per month (or the highest rate the law allows, if lower) from the due date. We may pause service after 10 days' written notice of non-payment, and require prepayment after that." + COUNSEL,
         "Disputes: tell us about a billing dispute in writing within 30 days of the invoice. Pay the part not in dispute on time. We will work in good faith to resolve the rest.",

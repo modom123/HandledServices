@@ -11,7 +11,7 @@ import { CARD_FEE, SERVICES, getService, planPace, scoreCity, type CityMetrics, 
 import { adminClient } from "./supabase/server";
 import { HUMAN_KINDS } from "./metrics";
 
-export interface Market { id: string; name: string; state: string; zip_prefixes: string[]; active: boolean; created_at: string }
+export interface Market { id: string; name: string; state: string; zip_prefixes: string[]; active: boolean; created_at: string; launch_services: string[] | null }
 export interface CityCard { market: Market; m90: CityMetrics; m30: CityMetrics; score: CityScore }
 
 type JobRow = {
@@ -37,7 +37,7 @@ export async function loadCityScorecard() {
   const since30 = new Date(now - 30 * 86400000).toISOString();
   const cols = "id, zip, status, service_slug, price_final, discount, member_benefit, contractor_payout, contractor_id, amount_paid, amount_refunded, customer_id, contact_email, plan_id, remedy, parent_job_id, paid_at, completed_at, cancel_reason";
   const [{ data: markets }, { data: done }, { data: paid }, { data: pros }, { data: plans }, { data: first }] = await Promise.all([
-    db.from("markets").select("id, name, state, zip_prefixes, active, created_at").order("created_at"),
+    db.from("markets").select("id, name, state, zip_prefixes, active, created_at, launch_services").order("created_at"),
     db.from("jobs").select(cols).eq("status", "completed").gte("completed_at", since90).limit(50000),
     db.from("jobs").select(cols).not("paid_at", "is", null).gte("paid_at", since90).is("remedy", null).limit(50000),
     db.from("contractors").select("id, base_zip, zip, trades").eq("status", "approved"),

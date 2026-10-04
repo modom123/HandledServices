@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-01_1900 UTC — Paid upfront: returns a Stripe Checkout URL for the
  *           final price; nothing is dispatched until payment clears (site visits excepted).
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
+ * UPDATED : TSTAMP UTC — business accounts on approved terms: no checkout; the job goes on the monthly invoice.
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
  */
 import { after } from "next/server";
@@ -40,10 +41,10 @@ export async function POST(req: Request) {
   const viewer = await getViewer(req);
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-    const { job, estimate } = await createJob(parsed.data, viewer?.userId ?? null, ip);
-    const checkout = job.status === "site_visit" ? null : await paymentCheckoutUrl(job);
+    const { job, estimate, billing } = await createJob(parsed.data, viewer?.userId ?? null, ip);
+    const checkout = job.status === "site_visit" || job.billed_on_terms ? null : await paymentCheckoutUrl(job);
     after(() => onBooked(job, checkout).catch((e) => console.error("[onBooked]", e)));
-    return Response.json({ id: job.id, ref: job.ref, status: job.status, price: job.price_final, estimate, checkout });
+    return Response.json({ id: job.id, ref: job.ref, status: job.status, price: job.price_final, estimate, checkout, billing });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "Booking failed" }, { status: 500 });
   }

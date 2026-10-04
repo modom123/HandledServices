@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-02_2245 UTC — no pros in the ZIP yet → waitlist sign-up next to the request option.
  * UPDATED : 2026-10-02_0302 UTC — today (same-day slots from on-call pros), until (only days up to
  *           the customer's deadline), earliest (ASAP: pick the first open slot, priority or not).
+ * UPDATED : TSTAMP UTC — "coming soon" + waitlist when the service isn't open yet in the customer's city.
  */
 "use client";
 
@@ -15,7 +16,7 @@ import { useEffect, useState } from "react";
 import { WaitlistForm } from "./WaitlistForm";
 import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, t as tr, type DaySlots, type Locale, type TimeWindow } from "@handled/core";
 
-type Avail = { mode: "live" | "request"; pros: number; days: DaySlots[] };
+type Avail = { mode: "live" | "request" | "closed"; pros: number; days: DaySlots[]; market?: string | null };
 const WEEKDAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], es: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] };
 const ES: Record<string, string> = {
   "Enter your ZIP code to see open dates and times.": "Ingrese su código postal para ver fechas y horarios disponibles.", "Checking pro availability…": "Revisando disponibilidad…",
@@ -38,6 +39,7 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
     setLoading(true);
     fetch(`/api/availability?service=${service}&zip=${zip}${today ? "&today=1" : ""}`).then((r) => r.json()).then((d: Avail) => {
       if (!live || !d.days) return;
+      if (d.mode === "closed") { setData(d); setLoading(false); return; }
       if (until) d = { ...d, days: d.days.filter((x) => x.date <= until) };
       setData(d);
       setLoading(false);
@@ -56,6 +58,12 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
   if (!/^\d{5}$/.test(zip)) return <p className="rounded-xl bg-paper p-4 text-sm text-ink-soft">{t("Enter your ZIP code to see open dates and times.")}</p>;
   if (!data) return <p className="rounded-xl bg-paper p-4 text-sm text-ink-soft">{loading ? t("Checking pro availability…") : t("Couldn’t load the calendar — try again.")}</p>;
 
+  if (data.mode === "closed") return (
+    <div className="space-y-3">
+      <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Este servicio llegará pronto${data.market ? ` a ${data.market}` : " a su zona"}. Déjenos su correo y le avisamos en cuanto abra, con un descuento de lanzamiento.` : `This service is coming soon${data.market ? ` to ${data.market}` : " to your area"}. Leave your email and we’ll tell you the day it opens, with a launch discount.`}</p>
+      <WaitlistForm service={service} zip={zip} locale={locale} />
+    </div>
+  );
   const lead = data.days[0] ? data.days[0].weekday : 0;
   const day = data.days.find((x) => x.date === date);
   return (

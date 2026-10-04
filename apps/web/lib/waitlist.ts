@@ -7,8 +7,10 @@
  *             notifyWaitlist — daily sweep: once an active pro can take that service there,
  *                              email/text them a booking link in their language (once)
  *           Sign-ups also feed Hub → Supply gaps, so recruiting goes where people are waiting.
+ * UPDATED : TSTAMP UTC — waits until the service is open in that city (launch set), not just covered by a pro.
  */
 import "server-only";
+import { openFor } from "./launch";
 import { BRAND, eligible, getService, serviceText, type Contractor } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { zipCentroid } from "./geo";
@@ -38,6 +40,7 @@ export async function notifyWaitlist(limit = 300): Promise<number> {
     const svc = getService(w.service_slug);
     if (!svc) continue;
     const g = await zipCentroid(w.zip);
+    if (!(await openFor(w.service_slug, w.zip)).open) continue; // not launched in that city yet
     const covered = contractors.some((c) => eligible(c, { service_slug: w.service_slug, zip: w.zip, scheduled_date: null, lat: g?.lat, lng: g?.lng }) === null);
     if (!covered) continue;
     const link = `${siteUrl()}/book?service=${w.service_slug}`;

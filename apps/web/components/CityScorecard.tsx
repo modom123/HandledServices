@@ -6,9 +6,9 @@
  *           next level, to-do list, every gate with 90-day and last-30-day status), meters and tiles.
  *           Status is always an icon + a word, never color alone.
  */
-import { CITY_STAGE_LABEL, TRADES, money, perMonth, type CityStage, type GateLevel, type GateResult } from "@handled/core";
+import { CITY_STAGE_LABEL, LAUNCH_SET_RECOMMENDED, SERVICES, TRADES, money, perMonth, type CityStage, type GateLevel, type GateResult } from "@handled/core";
 import type { CityCard } from "@/lib/city-scorecard";
-import { MarketToggle } from "@/components/MarketsAdmin";
+import { LaunchSet, MarketToggle } from "@/components/MarketsAdmin";
 
 const STAGES: CityStage[] = ["launching", "traction", "proven", "replicate"];
 export const LEVEL_LABEL: Record<GateLevel, string> = { traction: "Traction", proven: "Proven", replicate: "Ready to replicate" };
@@ -76,6 +76,11 @@ export function City({ c }: { c: CityCard }) {
         </div>
       )}
 
+      <details>
+        <summary className="cursor-pointer text-sm font-semibold">Open services: {m.launch_services?.length ? `${m.launch_services.length} of ${SERVICES.length} (launch set)` : `all ${SERVICES.length}`}</summary>
+        <p className="mt-1 text-xs text-ink-soft">Open a city with a few frequent, simple services so every booking gets a pro fast; everything else shows “coming soon” with a waitlist. Widen the list as the city’s gates pass.</p>
+        <div className="mt-2"><LaunchSet id={m.id} current={m.launch_services ?? null} recommended={[...LAUNCH_SET_RECOMMENDED]} services={SERVICES.map((s) => ({ slug: s.slug, name: s.name, icon: s.icon, category: s.category }))} /></div>
+      </details>
       <details>
         <summary className="cursor-pointer text-sm font-semibold">All gates</summary>
         <div className="mt-2 overflow-x-auto">

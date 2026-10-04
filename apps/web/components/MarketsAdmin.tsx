@@ -3,6 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Hub → City scorecard controls: add a city (name, state, ZIP prefixes) and pause / resume one.
+ * UPDATED : TSTAMP UTC — LaunchSet: which services a city has open (constraint-driven launch).
  */
 "use client";
 
@@ -37,4 +38,31 @@ export function MarketToggle({ id, active }: { id: string; active: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return <button className="text-xs text-ink-soft underline" disabled={busy} onClick={async () => { setBusy(true); await post({ id, active: !active }); setBusy(false); router.refresh(); }}>{active ? "Pause city" : "Resume city"}</button>;
+}
+
+/** Which services this city has open. Empty = every service open. */
+export function LaunchSet({ id, current, services, recommended }: { id: string; current: string[] | null; services: { slug: string; name: string; icon: string; category: string }[]; recommended: string[] }) {
+  const router = useRouter();
+  const [sel, setSel] = useState<string[]>(current ?? []);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async (list: string[] | null) => { setBusy(true); setMsg(""); const e = await post({ id, launch_services: list }); setBusy(false); if (e) setMsg(e); else { setSel(list ?? []); router.refresh(); } };
+  const cats = [...new Set(services.map((s) => s.category))];
+  return (
+    <div className="space-y-2 text-sm">
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-ghost px-3 py-1 text-xs" disabled={busy} onClick={() => save(recommended)}>Use the recommended launch set</button>
+        <button className="btn-ghost px-3 py-1 text-xs" disabled={busy} onClick={() => save(null)}>Open every service</button>
+        <button className="btn-primary px-3 py-1 text-xs" disabled={busy || !sel.length} onClick={() => save(sel)}>Save {sel.length} open</button>
+        {msg && <span className="text-rose-700">{msg}</span>}
+      </div>
+      {cats.map((c) => (
+        <div key={c} className="flex flex-wrap gap-x-4 gap-y-1">
+          {services.filter((s) => s.category === c).map((s) => (
+            <label key={s.slug} className="flex items-center gap-1"><input type="checkbox" checked={sel.includes(s.slug)} onChange={(e) => setSel(e.target.checked ? [...sel, s.slug] : sel.filter((x) => x !== s.slug))} />{s.icon} {s.name}</label>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }

@@ -15,6 +15,7 @@
  *             redo           — the original pro comes back free ($0 to the customer, $0 payout).
  *             complimentary  — a free extra service; the pro is paid normally out of our take
  *                              on the original job, capped so the pair can't go negative.
+ * UPDATED : TSTAMP UTC — business accounts on terms: a refund before payment is a credit on the invoice.
  */
 import "server-only";
 import { BRAND, estimate, getService, serviceText, money, refundSplit, splitJob, type Answers, type Job } from "@handled/core";
@@ -36,10 +37,23 @@ function esDate(d: string | null | undefined) {
 
 export async function issueRefund(jobId: string, amount: number, proAtFault: boolean, actor: string, reason: string) {
   const job = await getJob(jobId);
-  if (!job?.paid_at) return { ok: false, error: "Job isn't paid" };
+  if (!job?.paid_at && !job?.billed_on_terms) return { ok: false, error: "Job isn't paid" };
   // Pay protection is always on: a refund that isn't the pro's fault comes out of our share (pro agreement §17).
   // When the pro may be at fault, the customer is refunded now from our share too, and the pro's part is only
   // PROPOSED — notice, 3 business days to respond, a person decides (lib/deductions).
+  // business account on terms, not paid yet: a credit on the invoice instead of a card refund (our share; the pro keeps their pay)
+  if (job.billed_on_terms && !job.paid_at) {
+    const credit = Math.min(amount, Number(job.price_final ?? 0));
+    if (credit <= 0) return { ok: false, error: "Nothing left to credit" };
+    await db().from("jobs").update({ price_final: Number(job.price_final) - credit, amount_refunded: Number(job.amount_refunded) + credit }).eq("id", jobId);
+    const invId = (job as typeof job & { business_invoice_id?: string | null }).business_invoice_id;
+    if (invId) {
+      const { data: inv } = await db().from("business_invoices").select("total, status").eq("id", invId).maybeSingle();
+      if (inv?.status === "open") await db().from("business_invoices").update({ total: Math.max(0, Number(inv.total) - credit) }).eq("id", invId);
+    }
+    await addEvent(jobId, "refund", `Credit on your account invoice: ${money(credit)}. ${reason}`, actor, true, `Crédito en la factura de su cuenta: ${money(credit)}. ${reason}`);
+    return { ok: true, refunded: credit };
+  }
   const base = { paid: Number(job.amount_paid), alreadyRefunded: Number(job.amount_refunded), payout: Number(job.contractor_payout ?? 0), refund: amount };
   const protectPro = Boolean(job.contractor_id);
   const split = refundSplit({ ...base, proAtFault: false, protectPro });

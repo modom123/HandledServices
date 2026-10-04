@@ -11,7 +11,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (Business MSA: precio sugerido y ofertas salvo que un Pedido
  *           fije el precio; Plus/promos: el cargo de reserva no se descuenta), mirroring customer.ts.
  * UPDATED : 2026-10-03_1311 UTC — adenda de construcción: el equipo que el cliente compra debe ser nuevo; nunca instalamos usado.
- * UPDATED : TSTAMP UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas").
+ * UPDATED : TSTAMP UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas"); MSA: plazos aprobados en el portal de la cuenta empresarial.
  */
 import {
   BOOKING_FEE,
@@ -81,7 +81,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       ["Facturación y pago", p(
         ul(
           "Por defecto: el trabajo se paga por adelantado con tarjeta o ACH. Los servicios recurrentes se cobran antes de cada visita o período de facturación.",
-          "Plazos de pago a crédito: solo si un Pedido lo indica por escrito (por ejemplo, a 15 o a 30 días), después de una evaluación de crédito. Las facturas vencen en la fecha indicada.",
+          "Plazos de pago a crédito: solo si un Pedido lo indica por escrito (por ejemplo, a 15 o a 30 días), después de una evaluación de crédito. Los plazos que aprobemos para su cuenta empresarial, indicados en el portal de su cuenta con un límite de crédito, cuentan como ese Pedido. Una reserva que supere el límite de crédito, o que se haga mientras una factura tenga más de 10 días de atraso, se paga al reservar. Las facturas vencen en la fecha indicada.",
           "Números de orden de compra (PO) y centros de costo: los pondremos en las facturas si nos los proporciona. La falta de un número de PO no retrasa el pago.",
           "Pago atrasado: los montos no pagados con plazo de crédito generan un cargo por mora del 1.5% mensual (o la tasa más alta que permita la ley, si es menor) desde la fecha de vencimiento. Podemos pausar el servicio después de 10 días de aviso por escrito por falta de pago, y exigir pago por adelantado a partir de entonces." + COUNSEL,
           "Disputas: infórmenos por escrito sobre una disputa de facturación dentro de los 30 días siguientes a la factura. Pague a tiempo la parte que no está en disputa. Trabajaremos de buena fe para resolver el resto.",

@@ -64,7 +64,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return url ? Response.json({ ok: true, url }) : Response.json({ error: "Stripe isn't configured — collect payment and use Mark paid" }, { status: 503 });
   }
   // Paid upfront: nobody can put a pro on unpaid work (free site visits and remedy jobs excepted).
-  if (patch.contractor_id && !job.paid_at && !job.remedy && job.status !== "site_visit")
+  if (patch.contractor_id && !job.paid_at && !job.remedy && !job.billed_on_terms && job.status !== "site_visit")
     return deny(409, "Collect payment before assigning a pro");
   if (approve_qa) {
     await addEvent(id, "human_touch", "QA approved manually", who, false);

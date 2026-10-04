@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-03_0149 UTC — no pro yet after a while → the customer is nudged to raise their offer.
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
+ * UPDATED : TSTAMP UTC — business invoices on the 1st; invoice reminders and terms holds daily.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -21,6 +22,7 @@ import { clearStaleLocations } from "@/lib/roster";
 import { notifyWaitlist } from "@/lib/waitlist";
 import { sendBookingFollowups, sendQuoteFollowups } from "@/lib/reminders";
 import { nudgeLowOffers } from "@/lib/market";
+import { invoiceSweep, runInvoices } from "@/lib/business";
 
 export const maxDuration = 300;
 
@@ -69,6 +71,9 @@ export async function GET(req: Request) {
   const monday = new Date().getUTCDay() === 1;
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
+  // business accounts on terms: invoices on the 1st (last month's jobs); reminders and holds daily
+  const invoices = new Date().getUTCDate() === 1 ? await runInvoices().catch((e) => { console.error("[invoices]", e); return 0; }) : null;
+  const billing = await invoiceSweep().catch((e) => { console.error("[invoice sweep]", e); return null; });
 
-  return Response.json({ offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ invoices, billing, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

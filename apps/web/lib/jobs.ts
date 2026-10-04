@@ -21,11 +21,14 @@
  *           AI QA → completion, payout and review request. All writes use the service
  *           role; route handlers must authorize the caller before calling these.
  * UPDATED : 2026-10-03_1311 UTC — fast track: the trial job always gets a human review (not auto-approved).
+ * UPDATED : TSTAMP UTC — bookings blocked for services not open yet in the ZIP's city (launch set).
+ * UPDATED : TSTAMP UTC — business accounts: book for a property (its address and access notes), pilot discount, priority,
+ *           and invoice-on-terms when staff approved it (dispatched without upfront payment; pros paid as usual).
  */
 import "server-only";
 import { z } from "zod";
 import {
-  BRAND, JOB_STATUS_LABEL, PROBATION, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+  BRAND, BUSINESS_TERMS, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
 } from "@handled/core";
@@ -77,6 +80,8 @@ export const BookingSchema = z.object({
   attribution: z.record(z.string(), z.string().max(300)).nullable().optional(),
   /** Language the customer booked in — their texts, emails and timeline follow it. */
   locale: z.enum(["en", "es"]).default("en"),
+  /** Booking for a business account's property (signed-in member). */
+  business_property_id: z.string().uuid().nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -104,8 +109,17 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
+  // business account booking: the property's address, the company, and the account's billing rules
+  const biz = business_property_id ? await (await import("./business")).bookingContext(customerId, input.contact_email, business_property_id) : null;
+  if (biz) {
+    Object.assign(input, { address: biz.property.address, city: biz.property.city, state: biz.property.state, zip: biz.property.zip, customer_type: "commercial", company_name: biz.account.company, source: "business" });
+    if (biz.property.access_notes) input.notes = [input.notes, `Access (${biz.property.name}): ${biz.property.access_notes}`].filter(Boolean).join("\n");
+  }
+  // constraint-driven launch: only the city's launch services can be booked (others have a waitlist)
+  const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
+  if (!launch.open) throw new Error(`${svc.name} is coming soon${launch.market ? ` to ${launch.market}` : " to your area"}. Join the waitlist on the booking page and we'll tell you the day it opens.`);
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
@@ -143,8 +157,19 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const rushFee = rush && listPrice ? Math.round(listPrice - listPrice / (1 + RUSH_SURCHARGE)) : 0;
   const { priceBenefits, redeemGift, recordPromoUse, flagPromoAbuse } = await import("./growth");
   const ben = listPrice ? await priceBenefits({ slug: svc.slug, listPrice, payout: payout!, rushFee, email: input.contact_email, profileId: customerId, code: promo_code }) : null;
-  const price = ben ? ben.price : null;
-  const dep = price ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
+  let price = ben ? ben.price : null;
+  // account pilot discount (our share, within the margin left after any promo) and invoice-or-prepay
+  let acct: { pilot: number; onTerms: boolean; reason: string } | null = null;
+  if (biz && price && listPrice && payout) {
+    const { capDiscount } = await import("@handled/core");
+    const room = Math.max(0, capDiscount(listPrice, payout, Number.MAX_SAFE_INTEGER) - (ben?.promoAmount ?? 0) - (ben?.memberBenefit ?? 0));
+    const p = await (await import("./business")).accountPricing(biz.account, listPrice, payout, price);
+    const pilot = Math.min(p.pilot, room);
+    price = Math.max(0, price - pilot);
+    const decision = termsDecision(biz.account, await (await import("./business")).openBalance(biz.account.id), price);
+    acct = { pilot, ...decision };
+  }
+  const dep = price && !acct?.onTerms ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
   const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
   const { data, error } = await db()
     .from("jobs")
@@ -154,16 +179,19 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       instructions,
       lat: loc?.lat ?? null,
       lng: loc?.lng ?? null,
-      status: (siteVisit ? "site_visit" : "requested") satisfies JobStatus,
+      status: (siteVisit ? "site_visit" : acct?.onTerms ? "scheduled" : "requested") satisfies JobStatus,
+      business_account_id: biz?.account.id ?? null,
+      business_property_id: biz?.property.id ?? null,
+      billed_on_terms: Boolean(acct?.onTerms && !siteVisit),
       estimate_low: ai?.low ?? est.low,
       estimate_high: ai?.high ?? est.high,
       price_final: price,
       contractor_payout: payout,
-      discount: ben?.promoAmount ?? 0,
+      discount: (ben?.promoAmount ?? 0) + (acct?.pilot ?? 0),
       member_benefit: ben?.memberBenefit ?? 0,
       promo_code: ben?.promoCode && !ben.isGift && ben.promoAmount > 0 ? ben.promoCode : null,
       ai_quote: ai,
-      priority: urgencyPriority(input.urgency, rush),
+      priority: biz?.account.priority ? "high" : urgencyPriority(input.urgency, rush),
       urgency: input.urgency ?? null,
       needed_by: input.urgency ? neededBy(input.urgency) : input.scheduled_date ?? null,
       customer_budget: input.customer_budget || null,
@@ -192,7 +220,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     await flagPromoAbuse(ben.promoCode, job.address, job.id);
   }
   if (ben?.isGift && ben.promoCode && (await redeemGift(job, ben.promoCode))) job = (await getJob(job.id)) ?? job;
-  return { job, estimate: est, ai };
+  if (biz && acct?.pilot) await db().from("business_accounts").update({ pilot_jobs_left: Math.max(0, biz.account.pilot_jobs_left - 1) }).eq("id", biz.account.id);
+  return { job, estimate: est, ai, billing: acct ? { onTerms: job.billed_on_terms === true, reason: acct.reason, pilot: acct.pilot } : null };
 }
 
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
@@ -214,6 +243,14 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
       `Hi ${job.contact_name.split(" ")[0]},\n\nA pro will visit to confirm a firm price for your ${svc.name} (estimated ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
       `Nothing is owed until you approve the quote and pay to lock in the work.\n\nYour estimate & service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     await dispatchJob(job.id, { siteVisit: true });
+    return;
+  }
+  if (job.billed_on_terms) {
+    // business account approved for invoicing: no payment at booking; on the monthly invoice
+    await addEvent(job.id, "billed", `Booked on ${job.company_name ?? "your company"}'s account — it will be on your monthly invoice.`, "system", true, `Reservado a cuenta de ${job.company_name ?? "su empresa"}: aparecerá en su factura mensual.`);
+    await sendEmail(job.contact_email, `${BRAND.name} booking ${job.ref}: billed to ${job.company_name ?? "your account"}`,
+      `Thanks for booking ${svc.name} — ${money(job.price_final)}, billed to ${job.company_name ?? "your account"} on your monthly invoice. We're matching a vetted pro now.\n\nWork order & terms: ${invoiceUrl(job.id)}\nAll your properties and jobs: ${siteUrl()}/account/business\n\n${BRAND.promise}`).catch(() => {});
+    if ((process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(job.id);
     return;
   }
   if (!paymentUrl) {
@@ -337,7 +374,7 @@ export async function sendPaymentLink(job: Job) {
 export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; exclude?: string[] } = {}) {
   const job = await getJob(jobId);
   if (!job) throw new Error("Job not found");
-  if (!opts.siteVisit && !job.paid_at && !job.deposit_paid_at && !job.remedy) {
+  if (!opts.siteVisit && !job.paid_at && !job.deposit_paid_at && !job.remedy && !job.billed_on_terms) {
     await raiseAlert("unpaid_dispatch", "info", `${job.ref} not dispatched — unpaid`, "Jobs go to pros only after payment.", job.id);
     return { offers: 0, reason: "unpaid" };
   }
@@ -376,22 +413,31 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     job.contractor_payout = pay;
     await raiseAlert("remedy", "info", `${job.ref}: redo going to another pro`, `The original pro passed on the redo of ${parent?.ref ?? "the job"}. The new pro is paid ${money(pay)} from our take. Review the original pro's agreement (clawback) if warranted.`, job.id);
   }
-  const ai = mine ? null : await aiRankCandidates(job, ranked);
+  // business account with dedicated pros: they see the job first (up to 3, a short window), then everyone
+  let team: typeof ranked = [];
+  if (!mine && job.business_account_id && !(opts.exclude ?? []).length) {
+    const { data: fav } = await db().from("business_pros").select("contractor_id").eq("account_id", job.business_account_id);
+    const ids = new Set(((fav ?? []) as { contractor_id: string }[]).map((f) => f.contractor_id));
+    team = ranked.filter((c) => ids.has(c.contractor.id)).slice(0, 3);
+  }
+  const ai = mine || team.length ? null : await aiRankCandidates(job, ranked);
   const order = mine
     ? [{ id: mine.contractor.id, score: mine.score, reason: dibs!.kind === "redo" ? "Original pro — first chance to fix" : "Recurring customer — same pro first" }]
+    : team.length
+      ? team.map((c) => ({ id: c.contractor.id, score: c.score, reason: "Account's dedicated pro — first look" }))
     : ai?.ranking.length
       ? ai.ranking.map((r) => ({ id: r.contractor_id, score: r.score, reason: r.reason }))
       : ranked.map((c) => ({ id: c.contractor.id, score: c.score, reason: c.reasons.join(" · ") }));
-  const count = mine ? 1 : ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
+  const count = mine ? 1 : team.length ? team.length : ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
   const picks = order.slice(0, count);
   const payout = job.contractor_payout ?? 0;
   const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
   // Pro+ / Elite pros are offered a bigger payout (clamped so our take stays ≥ 15%)
   const payFor = (id: string) => (byId[id] ? tierPayout(job.price_final, payout, proTier(byId[id])) : payout);
 
-  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : job.priority === "normal" ? 2 : 1;
+  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : team.length ? BUSINESS_TERMS.dedicatedFirstLookHours : job.priority === "normal" ? 2 : 1;
   const expires = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-  const offerKind = mine ? dibs!.kind : "job";
+  const offerKind = mine ? dibs!.kind : team.length ? "account" : "job";
   const { data: offerRows } = await db().from("job_offers").upsert(
     picks.map((p) => ({ job_id: job.id, contractor_id: p.id, kind: offerKind, payout: payFor(p.id), ai_score: p.score, ai_reason: p.reason, status: "offered", offered_at: new Date().toISOString(), expires_at: expires, terms_accepted_at: null, work_order_version: null })),
     { onConflict: "job_id,contractor_id" },
@@ -399,7 +445,7 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const offerIdFor = Object.fromEntries(((offerRows ?? []) as { id: string; contractor_id: string }[]).map((o) => [o.contractor_id, o.id]));
   if (!opts.siteVisit) await db().from("jobs").update({ status: "dispatched", ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
   else await db().from("jobs").update({ ai_dispatch: ai ?? { ranking: order.slice(0, 5) } }).eq("id", job.id);
-  await addEvent(job.id, "dispatch", mine ? `Offered to the ${dibs!.kind === "redo" ? "original" : "recurring"} pro first (${hours}h)` : `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
+  await addEvent(job.id, "dispatch", mine ? `Offered to the ${dibs!.kind === "redo" ? "original" : "recurring"} pro first (${hours}h)` : team.length ? `Offered to the account's ${team.length} dedicated pro(s) first (${hours}h)` : `Offered to ${picks.length} pro(s)${ai ? " (AI-ranked)" : ""}`, "ai", false);
 
   const svc = getService(job.service_slug)!;
   for (const p of picks) {
@@ -408,12 +454,12 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     if (!pro || !offerId) continue;
     const pay = payFor(p.id);
     const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
-    const lead = offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
+    const lead = offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
     const nameEs = serviceText("es", svc.slug, svc).name;
-    const leadEs = offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? "Nueva visita al sitio" : "Nuevo trabajo"} · ${pay ? money(pay) : "visita al sitio"}`;
-    const whyEs = offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
+    const leadEs = offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? "Nueva visita al sitio" : "Nuevo trabajo"} · ${pay ? money(pay) : "visita al sitio"}`;
+    const whyEs = offerKind === "account" ? `La empresa lo eligió como uno de sus profesionales: usted lo ve primero por ${hours} horas. El primero en aceptar se lo lleva.` : offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
     const expiresEs = new Date(expires).toLocaleTimeString("es-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" });
-    const why = offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
+    const why = offerKind === "account" ? `The business picked you as one of its pros: you see it first for ${hours} hours. First to accept gets it.` : offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
     await notify(pro.profile_id, {
       title: lead,
       body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}`,
@@ -561,7 +607,7 @@ export async function declineOffer(offerId: string, contractorId: string) {
 
 export async function startJob(jobId: string, contractorId: string): Promise<{ ok: boolean; error?: string }> {
   const pre = await getJob(jobId);
-  if (pre && !pre.paid_at && !pre.remedy) {
+  if (pre && !pre.paid_at && !pre.remedy && !pre.billed_on_terms) {
     await raiseAlert("payment", "warn", `${pre.ref}: pro tried to start before the balance was paid`, null, jobId);
     return { ok: false, error: "The customer's balance isn't paid yet — don't start. We're collecting it now; you'll get a notification." };
   }
@@ -630,7 +676,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   if (!job) return;
   // Paid upfront: the customer's money is already collected, so the pro's payout is approved now.
   if (job.contractor_id && job.contractor_payout) {
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: job.paid_at || job.remedy ? "approved" : "held" });
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: job.paid_at || job.remedy || job.billed_on_terms ? "approved" : "held" });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }

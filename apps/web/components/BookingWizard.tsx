@@ -11,6 +11,7 @@
  * PURPOSE : 4-step booking flow: service → details & photos → when/where → review.
  *           Price updates live from the shared pricing engine; the optional AI check
  *           reads notes + photos and tightens the price before booking.
+ * UPDATED : TSTAMP UTC — business account bookings (?property=): address and company from the property; billed-on-account confirmation.
  */
 "use client";
 
@@ -49,7 +50,10 @@ function readAttribution(): Record<string, string> | null {
 
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en" }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale }) {
+/** Booking for a business account's property: address and company come from the property. */
+export interface BusinessBooking { propertyId: string; propertyName: string; company: string; address: string; city: string; state: string; zip: string; billing: string; contact: { name: string; email: string; phone: string } }
+
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -66,7 +70,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [photos, setPhotos] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate());
   const [win, setWin] = useState<TimeWindow>("morning");
-  const [form, setForm] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "", customer_type: "residential", company_name: "" });
+  const [form, setForm] = useState(business
+    ? { contact_name: business.contact.name, contact_email: business.contact.email, contact_phone: business.contact.phone, address: business.address, city: business.city, state: business.state, zip: business.zip, customer_type: "commercial", company_name: business.company }
+    : { contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "", customer_type: "residential", company_name: "" });
   const [ai, setAi] = useState<AiResult>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [quoteToken, setQuoteToken] = useState<string | null>(null);
@@ -127,13 +133,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, business_property_id: business?.propertyId ?? null }),
     });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) return setError(json.error ?? "Booking failed");
     if (json.checkout) window.location.href = json.checkout;
-    else router.push(`/book/confirmed?ref=${json.ref}`);
+    else router.push(`/book/confirmed?ref=${json.ref}${json.billing?.onTerms ? "&billed=1" : ""}`);
   }
 
   const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
@@ -158,6 +164,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   return (
     <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
       <div>
+        {business && <div className="mb-4 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{business.company}</b> · {business.propertyName} ({business.address}, {business.city}) · {business.billing}</div>}
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
           {["Service", "Details", "When & where", "Review"].map((lbl, i) => (
             <li key={lbl} className={`rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {t(lbl)}</li>

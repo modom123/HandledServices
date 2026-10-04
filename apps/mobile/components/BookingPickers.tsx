@@ -4,6 +4,7 @@
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Shared pickers for booking and rescheduling: the availability calendar (real open
  *           days and arrival windows for the ZIP) and a typed number box. English / Spanish.
+ * UPDATED : TSTAMP UTC — service not open yet in the city (launch set) → "coming soon" + waitlist.
  * UPDATED : 2026-10-02_2255 UTC — no pros in the ZIP yet → waitlist sign-up (we tell them when it opens).
  */
 import { useEffect, useState } from "react";
@@ -30,10 +31,10 @@ export function NumberBox({ value, min, max, unit, onChange }: { value: number; 
 export function Calendar({ service, zip, date, win, onChange, today = false, until, earliest = false }: { service: string; zip: string; date: string; win: TimeWindow; onChange: (d: string, w: TimeWindow) => void; today?: boolean; until?: string; earliest?: boolean }) {
   const { t, locale } = useI18n();
   const dl = locale === "es" ? "es-US" : "en-US";
-  const [data, setData] = useState<{ mode: string; days: DaySlots[] } | null>(null);
+  const [data, setData] = useState<{ mode: string; days: DaySlots[]; market?: string | null } | null>(null);
   useEffect(() => {
     if (!/^\d{5}$/.test(zip)) return setData(null);
-    api<{ mode: string; days: DaySlots[] }>(`/api/availability?service=${service}&zip=${zip}${today ? "&today=1" : ""}`).then((r) => {
+    api<{ mode: string; days: DaySlots[]; market?: string | null }>(`/api/availability?service=${service}&zip=${zip}${today ? "&today=1" : ""}`).then((r) => {
       if (!r.ok) return;
       const days = until ? r.data.days.filter((d) => d.date <= until) : r.data.days;
       setData({ ...r.data, days });
@@ -46,6 +47,12 @@ export function Calendar({ service, zip, date, win, onChange, today = false, unt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [service, zip]);
   if (!data) return <Text style={[s.p, { marginBottom: 12 }]}>{t("Enter your ZIP to see open dates.")}</Text>;
+  if (data.mode === "closed") return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={[s.p, { marginBottom: 8 }]}>{locale === "es" ? `Este servicio llegará pronto${data.market ? ` a ${data.market}` : " a su zona"}. Déjenos su correo y le avisamos en cuanto abra.` : `This service is coming soon${data.market ? ` to ${data.market}` : " to your area"}. Leave your email and we'll tell you the day it opens.`}</Text>
+      <Waitlist service={service} zip={zip} />
+    </View>
+  );
   const day = data.days.find((d) => d.date === date);
   return (
     <View style={{ marginBottom: 12 }}>
