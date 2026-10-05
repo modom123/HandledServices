@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-04_1934 UTC — migration 27 (business accounts, launch sets, sales engine, photo ID) and the business sales engine key.
  * UPDATED : 2026-10-04_2204 UTC — migration 29 (open job board, customer favorites, crew member requests).
  * UPDATED : 2026-10-05_0130 UTC — migration 30 (job-posting leads for the business sales engine).
+ * UPDATED : 2026-10-05_0148 UTC — company mailbox (Hostinger SMTP/IMAP) and migration 31 (Email Center).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -45,7 +46,8 @@ export async function readiness(): Promise<Check[]> {
   add("Supabase", "Project URL & public key", supabaseConfigured, supabaseConfigured ? "set" : "missing", "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from Supabase → Project Settings → API");
   add("Supabase", "Service role key", has("SUPABASE_SERVICE_ROLE_KEY"), has("SUPABASE_SERVICE_ROLE_KEY") ? "set" : "missing", "Add SUPABASE_SERVICE_ROLE_KEY (server only) from Supabase → Project Settings → API");
   add("AI (Claude)", "Anthropic API key", has("ANTHROPIC_API_KEY") ? true : "warn", has("ANTHROPIC_API_KEY") ? "set" : "missing — quotes/dispatch/QA fall back to rules, chat & assistant offline", "Add ANTHROPIC_API_KEY from console.anthropic.com");
-  add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend");
+  add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : has("SMTP_USER") && has("SMTP_PASSWORD") ? "not set — booking emails go from the company mailbox instead" : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend (or connect the company mailbox below)");
+  add("Email", "Company mailbox (Email Center)", has("SMTP_USER") && has("SMTP_PASSWORD") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("SMTP_USER") || !has("SMTP_PASSWORD") ? "not connected — no marketing email or inbox" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required on marketing email)" : `connected: ${process.env.SMTP_USER}`, "In Vercel set SMTP_USER=info@handledsvc.com and SMTP_PASSWORD (the Hostinger mailbox password), then Hub → Email Center → Check mailbox & domain (SPF, DKIM, DMARC)");
   add("Email", "Ops inbox", has("OPS_EMAIL") ? true : "warn", process.env.OPS_EMAIL ?? "missing", "Add OPS_EMAIL — receives critical alerts, new pro applications and the daily brief");
   add("Text messages", "Twilio SMS", has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && (has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM")) ? true : "warn",
     has("TWILIO_ACCOUNT_SID") ? "set" : "missing — customers and pros get push + email only", "Twilio → buy a number, register A2P 10DLC for business texting, then set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM)");
@@ -108,6 +110,7 @@ export async function readiness(): Promise<Check[]> {
     ["27 business accounts, launch sets, sales engine, photo ID", () => db.from("business_invoices").select("id").limit(1)],
     ["29 job board, favorites, crew requests", () => db.from("customer_favorites").select("id").limit(1)],
     ["30 job-posting leads", () => db.from("biz_leads").select("job_title").limit(1)],
+    ["31 Email Center", () => db.from("email_campaigns").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

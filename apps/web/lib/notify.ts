@@ -5,11 +5,20 @@
  * UPDATED : 2026-10-03_0027 UTC — optional email headers (List-Unsubscribe for reminder emails).
  * PURPOSE : Outbound email (Resend). Without RESEND_API_KEY messages are logged, so
  *           every flow still works in development.
+ * UPDATED : 2026-10-05_0148 UTC — no Resend key but the company mailbox is connected (Hostinger SMTP, mailbox.ts) → booking
+ *           and system emails go out from that mailbox.
  */
 import "server-only";
 
 export async function sendEmail(to: string | string[], subject: string, text: string, opts: { headers?: Record<string, string> } = {}) {
   const key = process.env.RESEND_API_KEY;
+  if (!key && process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+    const { sendMail } = await import("./mailbox");
+    const name = (process.env.EMAIL_FROM ?? "").match(/^\s*"?([^"<]+?)"?\s*</)?.[1] ?? "Handled";
+    for (const addr of Array.isArray(to) ? to : [to])
+      await sendMail({ to: addr, subject, text, fromName: name, headers: opts.headers }).catch((e) => console.error("[email] smtp send failed", e instanceof Error ? e.message : e));
+    return;
+  }
   if (!key) {
     console.info(`[email:dev] to=${to} subject="${subject}"\n${text}`);
     return;

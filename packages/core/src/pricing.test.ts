@@ -8,6 +8,7 @@
  *           Run: npm test (node --test, no extra dependencies).
  * UPDATED : 2026-10-04_2204 UTC — open job board and favorites first-look windows.
  * UPDATED : 2026-10-05_0130 UTC — job-posting letter (business sales engine).
+ * UPDATED : 2026-10-05_0148 UTC — Email Center (merge tags, rendering, law / spam checks).
  */
 
 import { test } from "node:test";
@@ -1020,4 +1021,28 @@ test("job-posting letter: names their posting, keeps to what we promise, unsubsc
   const letter = bizCoverLetter({ ...ctx, step: 0, senderName: "Jordan Smith", phone: "(313) 555-0100" });
   assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call me at \(313\) 555-0100/);
   assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /unit turnover/i, "no job title → the segment sequence");
+});
+
+test("email center: merge tags, HTML with button and footer, law and spam checks, pasted lists", async () => {
+  const { mergeTags, renderEmailHtml, lintCampaign, parseEmailList, marketingFooter, EMAIL_TEMPLATES, EMAIL_AUDIENCES } = await import("./email-center.ts");
+  assert.equal(mergeTags("Hi {{first_name|there}}, {{company}}!", { first_name: "" }), "Hi there, !");
+  assert.equal(mergeTags("Hi {{ first_name }}", { first_name: "Ana" }), "Hi Ana");
+  const foot = marketingFooter("customers", "1 Main St, Detroit, MI", "https://x/unsub");
+  assert.match(foot, /1 Main St/); assert.match(foot, /https:\/\/x\/unsub/); assert.match(foot, /booked a service/);
+  assert.match(marketingFooter("customers", "a", "u", "es"), /Cancelar la suscripción/);
+  const r = renderEmailHtml("Hello **you** <script>\n\n[Book now](https://a.co/b)\n\n• one\n• two", { footer: foot, preheader: "pre", link: (u) => `https://t/${encodeURIComponent(u)}` });
+  assert.match(r.html, /<b>you<\/b> &lt;script&gt;/, "bold, and HTML is escaped");
+  assert.match(r.html, /href="https:\/\/t\/https%3A%2F%2Fa.co%2Fb"[^>]*>Book now<\/a>/, "button with tracked link");
+  assert.match(r.html, /<li[^>]*>one<\/li>/);
+  assert.match(r.text, /Book now: https:\/\/a.co\/b/); assert.match(r.text, /Unsubscribe: https:\/\/x\/unsub/);
+  assert.ok(lintCampaign({ subject: "Re: your home", body: "Hello there, this is long enough {{book_url}}" }).blockers.some((b) => /Re:/.test(b)), "deceptive Re: subject blocked");
+  assert.ok(lintCampaign({ subject: "Hi", body: "Hello {{firstname}}, this is long enough {{book_url}}" }).blockers.some((b) => /firstname/.test(b)), "typo tag blocked");
+  assert.ok(lintCampaign({ subject: "BIG SAVINGS NOW", body: "Act now!! click here {{book_url}} and more text" }).warnings.length >= 2);
+  for (const t of EMAIL_TEMPLATES) {
+    assert.ok(t.audience in EMAIL_AUDIENCES);
+    const l = lintCampaign(t);
+    if (t.key !== "new_service") assert.deepEqual(l.blockers, [], `${t.key}: ${l.blockers.join(" ")}`);
+    else assert.ok(l.blockers.length, "new-service template makes you fill in the service name");
+  }
+  assert.deepEqual(parseEmailList("Jane Doe <JANE@x.com>\nbob@y.co, Bob\njane@x.com\nnot an email"), [{ email: "jane@x.com", name: "Jane Doe" }, { email: "bob@y.co", name: "Bob" }]);
 });
