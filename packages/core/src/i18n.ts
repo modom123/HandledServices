@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-04_1934 UTC — new services (small moves, large-item delivery, staging moves, unit turnover) and the Haul Away category renamed.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — Event Security.
+ * UPDATED : 2026-10-05_1433 UTC — Spanish for the Security category and Security Guards & Patrol.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -298,7 +299,8 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
   errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
-  events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres y salones, en una sola factura." },
+  events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres, salones y seguridad, en una sola factura." },
+  security: { name: "Guardias de seguridad y patrullaje", short: "Seguridad", blurb: "Guardias con licencia para edificios, obras, estacionamientos y eventos: puestos fijos, rondas nocturnas y vigilancia contra incendios." },
 };
 
 const ES_SERVICE: Record<string, [string, string]> = {
@@ -351,6 +353,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "catering": ["Servicio de comida", "De bocadillos a cenas servidas, con personal."],
   "food-truck": ["Reserva de food truck", "Tacos, barbacoa, pizza, hamburguesas o postres en su fiesta."],
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
+  "security-guard": ["Guardias de seguridad y patrullaje", "Guardias con licencia para su edificio, obra o estacionamiento: puesto fijo, rondas nocturnas o vigilancia contra incendios."],
   "event-security": ["Seguridad para eventos", "Seguridad uniformada y con licencia para fiestas, salones y eventos."],
   "event-rentals": ["Alquiler de sillas y fiestas", "Sillas, mesas, manteles, carpas y pistas de baile, entregadas e instaladas."],
   "event-venue": ["Alquiler y coordinación de salones", "Buscamos, visitamos y reservamos el salón ideal para sus invitados."],

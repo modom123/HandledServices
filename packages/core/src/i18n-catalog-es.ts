@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — Event Security.
+ * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol; alcohol question on Plan My Event.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",
@@ -719,4 +720,22 @@ export const ES_CATALOG: Record<string, string> = {
   "Same day": "El mismo día",
   "Signature required": "Se requiere firma",
   "Round trip (bring something back)": "Ida y vuelta (traer algo de regreso)",
+  "Alcohol will be served": "Se servirá alcohol",
+  "With alcohol and 50+ guests (or any event of 150+), we set aside part of the budget for licensed security.": "Con alcohol y 50 invitados o más (o cualquier evento de 150 o más), apartamos parte del presupuesto para seguridad con licencia.",
+  "Daily activity report with photos": "Reporte diario de actividad con fotos",
+  "Incidents reported to you right away": "Incidentes reportados a usted de inmediato",
+  "One night, weekly or monthly coverage": "Cobertura por una noche, semanal o mensual",
+  "Address and what to protect, posts or areas to cover, shift times, access (keys, codes, gate), who to call for incidents, any recent problems": "Dirección y qué proteger, puestos o áreas a cubrir, horario de turnos, acceso (llaves, códigos, portón), a quién llamar por incidentes, problemas recientes",
+  "Coverage": "Cobertura",
+  "Standing guard post (on site the whole shift)": "Guardia fijo (en el lugar todo el turno)",
+  "Mobile patrol (drive-by checks through the night)": "Patrulla móvil (rondas durante la noche)",
+  "Fire watch (alarm or sprinklers out)": "Vigilancia contra incendios (alarma o rociadores fuera de servicio)",
+  "Guards on duty": "Guardias en servicio",
+  "Hours per shift": "Horas por turno",
+  "4-hour minimum per shift.": "Mínimo de 4 horas por turno.",
+  "Patrol checks per night": "Rondas de patrulla por noche",
+  "Each check: walk the outside, test doors, check lights and the lot, photos in the report.": "En cada ronda: recorrer el exterior, probar puertas, revisar luces y el estacionamiento, con fotos en el reporte.",
+  "Days or nights covered": "Días o noches cubiertos",
+  "Per booking. Choose weekly or monthly to keep the same coverage going.": "Por reserva. Elija semanal o mensual para mantener la misma cobertura.",
+  "Unarmed (most sites)": "Sin armas (la mayoría de los lugares)",
 };

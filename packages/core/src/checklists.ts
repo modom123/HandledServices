@@ -14,6 +14,7 @@
  *           pros are independent businesses and choose their own methods, tools and order. A required item can
  *           be marked N/A with a reason (e.g. "no oven in unit"); the job can't be submitted while one is open.
  *           Services without their own template get one built from what the service includes.
+ * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol checklist (post, patrol, fire watch).
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -452,6 +453,28 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
         i("incidents", "Incident report filed (or \"no incidents\" noted)", "Reporte de incidentes presentado (o anotado \"sin incidentes\")", { required: true }),
       ] },
       FRAMES.events[1],
+    ],
+  },
+
+  "security-guard": {
+    service: "security-guard", version: 1, title: { en: "Security coverage checklist", es: "Lista de cobertura de seguridad" },
+    sections: [
+      { id: "start", en: "Start of shift", es: "Inicio del turno", items: [
+        i("orders", "Post orders confirmed: areas to cover, shift times, access, and who to call for incidents", "Órdenes del puesto confirmadas: áreas a cubrir, horario, acceso y a quién llamar por incidentes", { required: true }),
+        i("on_time", "On site (or first patrol check) at the booked time, in uniform with the agency ID", "En el lugar (o primera ronda) a la hora reservada, con uniforme e identificación de la agencia", { required: true }),
+        i("armed", "Armed officer's authorization and licenses on hand", "Autorización y licencias del oficial armado a la mano", { when: { q: "type", in: ["armed"] }, required: true }),
+      ] },
+      { id: "duty", en: "Coverage", es: "Cobertura", items: [
+        i("post", "Post staffed for the full shift; no gaps at shift change", "Puesto cubierto todo el turno; sin huecos en el cambio de turno", { when: { q: "kind", in: ["post"] }, required: true }),
+        i("rounds", "Rounds walked on the agreed schedule; doors, lights and the lot checked", "Rondas hechas según lo acordado; puertas, luces y estacionamiento revisados", { when: { q: "kind", in: ["post"] } }),
+        i("patrol", "Every booked patrol check done: outside walked, doors tested, lights and lot checked, photo each time", "Cada ronda reservada hecha: exterior recorrido, puertas probadas, luces y estacionamiento revisados, foto cada vez", { when: { q: "kind", in: ["patrol"] }, required: true, photo: true }),
+        i("fire_rounds", "Fire watch rounds of every area at least hourly, logged with times; extinguishers and exits checked", "Rondas de vigilancia contra incendios en cada área al menos cada hora, registradas con horas; extintores y salidas revisados", { when: { q: "kind", in: ["fire_watch"] }, required: true }),
+        i("incidents", "Anything unusual reported to the customer right away (police or 911 first in an emergency)", "Todo lo inusual reportado al cliente de inmediato (policía o 911 primero en una emergencia)", { required: true }),
+      ] },
+      { id: "end", en: "End of shift", es: "Fin del turno", items: [
+        i("secure", "Site left secure: doors locked, alarm set if asked", "Lugar asegurado al salir: puertas cerradas, alarma activada si se pidió", { required: true }),
+        i("report", "Daily activity report with photos filed (or \"no incidents\" noted)", "Reporte diario de actividad con fotos presentado (o anotado \"sin incidentes\")", { required: true, photo: true }),
+      ] },
     ],
   },
 

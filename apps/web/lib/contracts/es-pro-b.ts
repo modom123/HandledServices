@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-03_1311 UTC — Anexo de Equipo de Trabajo (pro-crew-addendum).
  * UPDATED : 2026-10-05_0418 UTC — Términos de Recompensas (pro-rewards-terms).
  * UPDATED : 2026-10-05_0440 UTC — anexo de Seguridad para Eventos.
+ * UPDATED : 2026-10-05_1433 UTC — anexo de seguridad: puestos fijos, patrullaje y vigilancia contra incendios (sección 7).
  */
 import { BRAND, COVERAGES, LICENSED_TRADES, LOCATION_FRESH_MIN, ON_CALL_MAX_HOURS, PRO_POLICY_DEFAULTS, TRADES, money, t } from "@handled/core";
 import { DEACTIVATION_RULES } from "./pro";
@@ -394,7 +395,7 @@ export const PRO_ES_B: Record<string, ContractTranslation> = {
     },
   ]),
 
-  "pro-addendum-security": addendum("Seguridad para Eventos", ["security"], [
+  "pro-addendum-security": addendum("Seguridad (Eventos, Puestos y Patrullaje)", ["security"], [
     `Solo agencias de guardias de seguridad con licencia en Michigan, nunca guardias independientes. Sus guardias son sus empleados, registrados en su agencia y cubiertos por su seguro de accidentes laborales.`,
     `Sin armas, salvo que la reserva indique oficiales armados; los oficiales armados solo con la autorización de su agencia y la licencia para portar armas ocultas de cada oficial.`,
     `Primero calmar la situación, llamar a la policía por delitos y emergencias, y nunca usar más fuerza de la que permite la ley. Nada de revisiones sin consentimiento.`,
@@ -407,6 +408,7 @@ export const PRO_ES_B: Record<string, ContractTranslation> = {
     { h: `4. El trabajo`, p: `Llegue antes que los invitados, preséntese con el anfitrión o el contacto en el lugar, confirme los puestos y las tareas, y cubra cada puesto durante las horas reservadas (incluido el supervisor cuando se reserve). Avísenos de inmediato si un guardia no puede asistir para ayudarle a cubrir el puesto. Marque la lista del trabajo en la app mientras avanza.` },
     { h: `5. Incidentes`, p: `Reporte en la app cualquier lesión, pelea, llamada a la policía, expulsión, daño a la propiedad o arma dentro de las 24 horas, con horarios, nombres del personal involucrado y lo que pasó, y conserve los registros de su agencia. Llámenos de inmediato por cualquier cosa grave. Coopere con la policía y con nosotros en cualquier revisión o reclamo.` },
     { h: `6. Verificación y seguros`, p: `Toda persona que envíe pasa nuestra verificación de antecedentes y de identidad con foto antes de su primer trabajo, y está registrada en su equipo (Anexo de Equipo de Trabajo). Mantenga un seguro de responsabilidad civil general de al menos $2,000,000 por incidente que nombre a ${BRAND.legalName} como asegurado adicional, y seguro de accidentes laborales para sus guardias. Algunos lugares y clientes exigen más; el trabajo lo indicará.${COUNSEL}` },
+    { h: `7. Puestos fijos, patrullaje y vigilancia contra incendios`, p: `Para la cobertura de edificios, obras y estacionamientos, siga las órdenes del puesto del cliente (áreas, horario de turnos, acceso, a quién llamar), mantenga el puesto cubierto todo el turno sin huecos en el cambio de turno, y haga cada ronda de patrulla reservada. La vigilancia contra incendios la hacen guardias capacitados para ello: rondas por cada área al menos cada hora, registradas con horas, llamando primero al 911 ante cualquier fuego o humo. Las llaves, los códigos y los códigos de alarma se usan solo para el trabajo y nunca se copian. Presente en la app un reporte diario de actividad con fotos al final de cada turno, y avise al cliente de inmediato sobre cualquier cosa inusual.` },
   ]),
   "pro-addendum-events-food": addendum("Eventos, Alimentos y Lugares para Eventos", ["event_planner", "catering", "food_truck", "dj_music", "rentals", "venue"], [
     "El servicio de alimentos requiere su licencia del departamento de salud o del MDARD y un gerente certificado en protección de alimentos; quienes manipulan alimentos siguen el Código de Alimentos de Michigan.",

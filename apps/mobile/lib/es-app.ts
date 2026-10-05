@@ -162,4 +162,5 @@ export const ES_APP: Record<string, string> = {
   "Business accounts and the Handled team sign in on the website.": "Las cuentas empresariales y el equipo de Handled inician sesión en el sitio web.",
   "No pro account for this email": "No hay cuenta de profesional con este correo",
   "Apply first — your pro account opens once you're approved. Use the email from your application.": "Primero postúlese: su cuenta de profesional se abre cuando lo aprobamos. Use el correo de su solicitud.",
+  "Add event security": "Agregar seguridad",
 };

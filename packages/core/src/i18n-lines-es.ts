@@ -6,6 +6,7 @@
  *           amount replaced by {#}; lineText() puts the numbers back in the same order.
  * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  * UPDATED : 2026-10-05_0441 UTC — Event Security lines.
+ * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol lines; event-budget security line.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
@@ -31,6 +32,12 @@ export const ES_LINES: Record<string, string> = {
   "Armed officers — {#} × {#} hrs": "Oficiales armados — {#} × {#} h",
   "On-site supervisor — {#} × {#} hrs": "Supervisor en el lugar — {#} × {#} h",
   "Plain-clothes detail": "Guardias de civil",
+  "Security — licensed guards ×{#} ~{#} hrs (door, ID & crowd control)": "Seguridad — guardias con licencia ×{#} ~{#} h (puerta, identificaciones y control de multitudes)",
+  "Unarmed guards — {#} × {#} hrs × {#} days": "Guardias sin armas — {#} × {#} h × {#} días",
+  "Armed officers — {#} × {#} hrs × {#} days": "Oficiales armados — {#} × {#} h × {#} días",
+  "Fire watch — {#} × {#} hrs × {#} days": "Vigilancia contra incendios — {#} × {#} h × {#} días",
+  "Site supervisor — {#} × {#} hrs × {#} days": "Supervisor del lugar — {#} × {#} h × {#} días",
+  "Patrol checks — {#} per night × {#} nights": "Rondas de patrulla — {#} por noche × {#} noches",
   "Dance floor": "Pista de baile",
   "Day-of coordination — {#} guests, {#} hrs": "Coordinación del día del evento — {#} invitados, {#} h",
   "Deck / patio — {#} sq ft": "Terraza / patio — {#} pies²",

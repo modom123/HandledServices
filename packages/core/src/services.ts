@@ -25,6 +25,7 @@
  *           home staging furniture moves and rental unit turnover (property managers). Hauling trade covers moves.
  * UPDATED : 2026-10-04_1950 UTC — grocery pickup & delivery replaced by Same-Day Courier (documents, packages, parts; business routes).
  * UPDATED : 2026-10-05_0438 UTC — Event Security (licensed Michigan security agencies; unarmed by default, armed on request) and the security trade.
+ * UPDATED : 2026-10-05_1433 UTC — Security category: Security Guards & Patrol (standing post, mobile patrol, fire watch; once, weekly or monthly). Plan My Event asks about alcohol and budgets licensed guards.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -104,7 +105,8 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
-  { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals and venues — one invoice." },
+  { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals, venues and event security — one invoice." },
+  { id: "security", name: "Security Guards & Patrol", short: "Security", icon: "🛡️", blurb: "Licensed guards for buildings, job sites, lots and events: standing posts, nightly patrols and fire watch." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
@@ -1997,6 +1999,7 @@ export const SERVICES: Service[] = [
           { value: "have", label: "We have a place (home, office, backyard)" },
         ],
       },
+      { id: "alcohol", label: "Alcohol will be served", type: "toggle", default: false, help: "With alcohol and 50+ guests (or any event of 150+), we set aside part of the budget for licensed security." },
     ],
     minimum: 1000,
     spread: [1, 1],
@@ -2006,7 +2009,7 @@ export const SERVICES: Service[] = [
     trades: ["event_planner"],
     leadDays: 14,
     price: (a) => {
-      const plan = planEventBudget({ budget: n(a, "budget", 5000), guests: n(a, "guests", 50), eventType: s(a, "event_type", "birthday"), haveVenue: s(a, "venue", "need") === "have" });
+      const plan = planEventBudget({ budget: n(a, "budget", 5000), guests: n(a, "guests", 50), eventType: s(a, "event_type", "birthday"), haveVenue: s(a, "venue", "need") === "have", alcohol: b(a, "alcohol") });
       return { items: plan.lines.map((l) => ({ label: `${l.label} — ${l.buys}`, amount: l.amount })), base: plan.budget, hours: 40 };
     },
   },
@@ -2223,6 +2226,70 @@ export const SERVICES: Service[] = [
       if (supervisors) items.push({ label: `On-site supervisor — ${supervisors} × ${h} hrs`, amount: supervisors * h * 48 });
       if (b(a, "plain")) items.push({ label: "Plain-clothes detail", amount: g * 25 });
       return { items, base: sum(items), hours: h };
+    },
+  },
+
+  // ───────────────────────────── SECURITY ─────────────────────────────
+  {
+    slug: "security-guard",
+    name: "Security Guards & Patrol",
+    category: "security",
+    icon: "👮",
+    tagline: "Licensed guards for your building, job site or lot — a standing post, nightly patrols or fire watch.",
+    description: "Uniformed guards from a licensed Michigan security agency for offices, stores, apartment buildings, job sites, vacant properties and parking lots. Book a standing guard post, drive-by patrols that check doors, lights and the lot, or a fire watch while your alarm or sprinklers are out. Every shift ends with a daily activity report with photos. Book one night, or weekly or monthly coverage.",
+    includes: ["Licensed security agency", "Uniformed, background-checked guards", "Daily activity report with photos", "Incidents reported to you right away", "One night, weekly or monthly coverage"],
+    notesHint: "Address and what to protect, posts or areas to cover, shift times, access (keys, codes, gate), who to call for incidents, any recent problems",
+    questions: [
+      {
+        id: "kind",
+        label: "Coverage",
+        type: "select",
+        default: "post",
+        options: [
+          { value: "post", label: "Standing guard post (on site the whole shift)" },
+          { value: "patrol", label: "Mobile patrol (drive-by checks through the night)" },
+          { value: "fire_watch", label: "Fire watch (alarm or sprinklers out)" },
+        ],
+      },
+      { id: "guards", label: "Guards on duty", type: "number", min: 1, max: 10, default: 1, showIf: { id: "kind", is: ["post", "fire_watch"] } },
+      { id: "hours", label: "Hours per shift", type: "number", min: 4, max: 12, default: 8, unit: "hrs", showIf: { id: "kind", is: ["post", "fire_watch"] }, help: "4-hour minimum per shift." },
+      { id: "visits", label: "Patrol checks per night", type: "number", min: 1, max: 6, default: 2, showIf: { id: "kind", is: ["patrol"] }, help: "Each check: walk the outside, test doors, check lights and the lot, photos in the report." },
+      { id: "days", label: "Days or nights covered", type: "number", min: 1, max: 7, default: 1, help: "Per booking. Choose weekly or monthly to keep the same coverage going." },
+      {
+        id: "type",
+        label: "Guard type",
+        type: "select",
+        default: "unarmed",
+        showIf: { id: "kind", is: ["post"] },
+        options: [
+          { value: "unarmed", label: "Unarmed (most sites)" },
+          { value: "armed", label: "Armed officers (licensed)" },
+        ],
+      },
+    ],
+    minimum: 160,
+    spread: [0.95, 1.1],
+    payoutShare: 0.78,
+    siteVisit: false,
+    licensed: true,
+    frequencies: ["once", "weekly", "monthly"],
+    trades: ["security"],
+    price: (a) => {
+      const kind = s(a, "kind", "post");
+      const d = Math.max(1, n(a, "days", 1));
+      if (kind === "patrol") {
+        const v = Math.max(1, n(a, "visits", 2));
+        const items: LineItem[] = [{ label: `Patrol checks — ${v} per night × ${d} nights`, amount: v * d * 45 }];
+        return { items, base: sum(items), hours: Math.ceil(v * d * 0.5) };
+      }
+      const g = Math.max(1, n(a, "guards", 1)), h = Math.max(4, n(a, "hours", 8));
+      const armed = kind === "post" && s(a, "type", "unarmed") === "armed";
+      const rate = kind === "fire_watch" ? 42 : armed ? 55 : 36;
+      const label = kind === "fire_watch" ? "Fire watch" : armed ? "Armed officers" : "Unarmed guards";
+      const items: LineItem[] = [{ label: `${label} — ${g} × ${h} hrs × ${d} days`, amount: g * h * d * rate }];
+      const supervisors = g >= 5 ? Math.ceil(g / 10) : 0;
+      if (supervisors) items.push({ label: `Site supervisor — ${supervisors} × ${h} hrs × ${d} days`, amount: supervisors * h * d * 46 });
+      return { items, base: sum(items), hours: g * h * d };
     },
   },
   {

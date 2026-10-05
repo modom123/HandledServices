@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-04_1934 UTC — business account bookings (?property=): address and company from the property; billed-on-account confirmation.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-05_0447 UTC — photos and notes carried in from Snap & post a job.
+ * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (Add event security); Plan My Event passes alcohol.
  */
 "use client";
 
@@ -24,7 +25,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint,
 } from "@handled/core";
@@ -392,9 +393,21 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           )}
           {bigJob && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{bigJob}: {t("a pro visits free to give you a firm quote. Nothing is charged until you approve it.")}</p>}
           {ai?.action === "site_visit" && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{ai.action_reason} Nothing is charged until you approve the firm quote.</p>}
-          {svc.slug === "event-package" && planEventBudget({ budget: Number(answers.budget), guests: Number(answers.guests), eventType: String(answers.event_type), haveVenue: answers.venue === "have" }).warnings.map((w) => (
+          {svc.slug === "event-package" && planEventBudget({ budget: Number(answers.budget), guests: Number(answers.guests), eventType: String(answers.event_type), haveVenue: answers.venue === "have", alcohol: answers.alcohol === true }).warnings.map((w) => (
             <p key={w} className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{w}</p>
           ))}
+          {svc.category === "events" && svc.slug !== "event-package" && Number(answers.guests) >= 50 && (() => {
+            const bar = answers.bar === true;
+            const sec = securityAdvice({ guests: Number(answers.guests), alcohol: bar || Number(answers.guests) < 150 });
+            return (
+              <p className="mt-2 rounded-xl border border-line p-3 text-xs">
+                🛡️ {bar || Number(answers.guests) >= 150
+                  ? (es ? `Para ${answers.guests} invitados${bar ? " con alcohol" : ""} recomendamos ${sec.guards} guardia(s) con licencia.` : `For ${answers.guests} guests${bar ? " with alcohol" : ""} we recommend ${sec.guards} licensed guard${sec.guards > 1 ? "s" : ""}.`)
+                  : (es ? `¿Habrá alcohol? Recomendamos ${sec.guards} guardia(s) con licencia.` : `Serving alcohol? We recommend ${sec.guards} licensed guard${sec.guards > 1 ? "s" : ""}.`)}{" "}
+                <a href={`/book?service=event-security&guards=${sec.guards}&hours=${sec.hours}`} target="_blank" rel="noreferrer" className="font-semibold text-brand underline">{es ? "Agregar seguridad" : "Add event security"}</a>
+              </p>
+            );
+          })()}
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
             {est.items.map((i) => (
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span><span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span></li>

@@ -7,6 +7,7 @@
  *           the home categories), plus the industries we serve and the services each one
  *           usually books. Used by the For Business page and its proposal form.
  * UPDATED : 2026-10-04_1934 UTC — unit turnovers, moves and large-item delivery groups; real estate and self-storage industries.
+ * UPDATED : 2026-10-05_1433 UTC — Security guards & patrol group; guards for retail, property managers, warehouses; event security for venues.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -23,6 +24,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "courier", title: "Courier & delivery", icon: "📦", blurb: "Medical courier for clinics and labs, plus same-day runs and supply pickups.", slugs: ["courier", "medical-delivery", "errands"] },
   { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
   { id: "events", title: "Corporate events & catering", icon: "🍽️", blurb: "Team lunches, client dinners, company BBQs and holiday parties, start to finish.", slugs: ["catering", "event-planning", "food-truck", "event-venue", "event-rentals", "dj-music"] },
+  { id: "security", title: "Security guards & patrol", icon: "🛡️", blurb: "Licensed guards for your building, job site or lot: a standing post, nightly patrols, fire watch, or security for your event.", slugs: ["security-guard", "event-security", "camera-install"] },
   { id: "fleet", title: "Fleet & staff perks", icon: "🚗", blurb: "On-site detailing for company vehicles — or as a perk in your lot.", slugs: ["mobile-car-detailing", "personal-assistant"] },
 ];
 
@@ -30,14 +32,14 @@ export interface Industry { id: string; name: string; icon: string; slugs: strin
 
 export const INDUSTRIES: Industry[] = [
   { id: "offices", name: "Offices", icon: "🏢", slugs: ["house-cleaning", "courier", "window-cleaning", "handyman", "airport-transfer"] },
-  { id: "retail", name: "Retail & storefronts", icon: "🛍️", slugs: ["retail-delivery", "window-cleaning", "power-washing", "snow-removal", "camera-install"] },
+  { id: "retail", name: "Retail & storefronts", icon: "🛍️", slugs: ["retail-delivery", "window-cleaning", "power-washing", "snow-removal", "camera-install", "security-guard"] },
   { id: "real_estate", name: "Real estate agents & stagers", icon: "🏡", slugs: ["staging-transport", "house-cleaning", "junk-removal", "power-washing", "handyman"] },
   { id: "storage", name: "Self-storage facilities", icon: "🔐", slugs: ["junk-removal", "junk-container", "small-moves", "power-washing", "snow-removal"] },
   { id: "restaurants", name: "Restaurants", icon: "🍽️", slugs: ["power-washing", "plumbing", "garbage-disposal", "gutter-cleaning", "junk-removal"] },
-  { id: "property", name: "Property managers & HOAs", icon: "🏘️", slugs: ["unit-turnover", "lawn-care", "snow-removal", "junk-removal", "handyman"] },
+  { id: "property", name: "Property managers & HOAs", icon: "🏘️", slugs: ["unit-turnover", "lawn-care", "snow-removal", "junk-removal", "handyman", "security-guard"] },
   { id: "medical", name: "Clinics, labs & pharmacies", icon: "🩺", slugs: ["medical-delivery", "house-cleaning", "window-cleaning", "handyman"] },
-  { id: "hospitality", name: "Hotels & venues", icon: "🏨", slugs: ["event-shuttle", "carpet-cleaning", "power-washing", "event-rentals", "airport-transfer"] },
-  { id: "warehouse", name: "Warehouses & light industrial", icon: "🏭", slugs: ["junk-container", "large-item-removal", "snow-removal", "lighting-install"] },
+  { id: "hospitality", name: "Hotels & venues", icon: "🏨", slugs: ["event-shuttle", "carpet-cleaning", "power-washing", "event-rentals", "airport-transfer", "event-security"] },
+  { id: "warehouse", name: "Warehouses & light industrial", icon: "🏭", slugs: ["junk-container", "large-item-removal", "snow-removal", "lighting-install", "security-guard"] },
   { id: "community", name: "Schools, churches & nonprofits", icon: "⛪", slugs: ["house-cleaning", "lawn-care", "snow-removal", "charter-bus", "catering"] },
 ];
 

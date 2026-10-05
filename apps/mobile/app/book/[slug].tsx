@@ -8,11 +8,12 @@
  * UPDATED : 2026-10-04_2204 UTC — "Book again with …" (?pro=&crew=): the pro gets the first look (checked on the server).
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  * UPDATED : 2026-10-05_0449 UTC — Snap & post a job: photos, job details, notes and timeframe arrive filled in.
+ * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (opens Event Security prefilled).
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 import { Calendar, NumberBox } from "../../components/BookingPickers";
@@ -128,6 +129,16 @@ export default function Book() {
         <Text style={s.label}>{t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
         <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(listTotal)}</Text>
         <Text style={s.p}>{siteVisit ? t("Free site visit confirms the firm price.") : t(BRAND.promise)}</Text>
+        {svc.category === "events" && svc.slug !== "event-package" && Number(answers.guests) >= 50 ? (() => {
+          const g = Number(answers.guests), bar = answers.bar === true, sure = bar || g >= 150;
+          const sec = securityAdvice({ guests: g, alcohol: bar || g < 150 });
+          return (
+            <Pressable onPress={() => router.push({ pathname: "/book/[slug]", params: { slug: "event-security", answers: JSON.stringify({ guards: sec.guards, hours: sec.hours }) } })} style={{ marginTop: 10, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, backgroundColor: C.white }}>
+              <Text style={[s.p, { fontSize: 14 }]}>🛡️ {sure ? (es ? `Para ${g} invitados${bar ? " con alcohol" : ""} recomendamos ${sec.guards} guardia(s) con licencia.` : `For ${g} guests${bar ? " with alcohol" : ""} we recommend ${sec.guards} licensed guard${sec.guards > 1 ? "s" : ""}.`) : (es ? `¿Habrá alcohol? Recomendamos ${sec.guards} guardia(s) con licencia.` : `Serving alcohol? We recommend ${sec.guards} licensed guard${sec.guards > 1 ? "s" : ""}.`)}</Text>
+              <Text style={{ color: C.brand, fontWeight: "700", marginTop: 4 }}>{t("Add event security")} →</Text>
+            </Pressable>
+          );
+        })() : null}
         {!siteVisit && svc.slug !== "event-package" && (
           <View style={{ marginTop: 10, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, backgroundColor: C.white }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>

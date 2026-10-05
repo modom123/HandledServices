@@ -6,6 +6,7 @@
  *           chosen category's service cards on the right. Every service stays in the HTML
  *           (others are just hidden) so search engines still see all links. The category is
  *           kept in the URL (?cat=transport) so it can be linked and shared.
+ * UPDATED : 2026-10-05_1433 UTC — Security category links to Event Security.
  */
 "use client";
 
@@ -60,6 +61,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
                 <p className="mt-1 text-sm text-ink-soft">{c.blurb}</p>
               </div>
               {c.id === "events" && <Link href="/events" className="text-sm font-semibold text-brand">Plan an event by budget →</Link>}
+              {c.id === "security" && <Link href="/services/event-security" className="text-sm font-semibold text-brand">Security for an event →</Link>}
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {c.services.map((s) => (

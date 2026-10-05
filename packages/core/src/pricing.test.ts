@@ -12,11 +12,12 @@
  * UPDATED : 2026-10-05_0221 UTC — job checklists.
  * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
  * UPDATED : 2026-10-05_0418 UTC — pro rewards.
+ * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
  */
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SERVICES, defaultAnswers, type Answers, type Question } from "./services.ts";
+import { SERVICES, defaultAnswers, getService, type Answers, type Question } from "./services.ts";
 import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT, BOOKING_FEE, splitJob, commissionRate } from "./pricing.ts";
 import { rankContractors } from "./dispatch.ts";
 import type { Contractor } from "./types.ts";
@@ -174,13 +175,13 @@ test("calendar availability: capacity, booked jobs, closed days, no-pro areas", 
     { contractor_id: "a", scheduled_date: "2026-10-06", time_window: "midday" as const },
     { contractor_id: "a", scheduled_date: "2026-10-06", time_window: "afternoon" as const },
   ];
-  const r = buildAvailability({ slug: "house-cleaning", zip: "48201", contractors: [pro], jobs, start, days: 7 });
+  const r = buildAvailability({ slug: "house-cleaning", zip: "48201", contractors: [pro], jobs, start, days: 7, now: new Date("2026-10-04T12:00:00Z") });
   assert.equal(r.mode, "live");
   const mon = r.days[0], tue = r.days[1], sun = r.days[6];
   assert.equal(mon.spots, 2); assert.equal(mon.windows.morning, 0); assert.equal(mon.windows.midday, 1);
   assert.equal(tue.level, "full");
   assert.equal(sun.level, "closed");
-  const none = buildAvailability({ slug: "house-cleaning", zip: "90210", contractors: [pro], jobs, start, days: 3 });
+  const none = buildAvailability({ slug: "house-cleaning", zip: "90210", contractors: [pro], jobs, start, days: 3, now: new Date("2026-10-04T12:00:00Z") });
   assert.equal(none.mode, "request");
   assert.equal(none.days[0].level, "request");
 });
@@ -1151,4 +1152,22 @@ test("pro rewards: formula, multipliers, milestones, catalog, cost stays near 10
   }
   assert.equal(REWARD_RULES_EN().length, REWARD_RULES_ES().length);
   for (const r of REWARD_RULES_EN()) assert.doesNotMatch(r, /\b(share|equity|stock|wage|salary|employee)\b/i, "points are not equity or pay");
+});
+
+test("security: event budget sets aside licensed guards when alcohol is served; guard service prices by coverage", async () => {
+  const { planEventBudget, securityAdvice } = await import("./event-budget.ts");
+  assert.equal(securityAdvice({ guests: 40, alcohol: true }).recommended, false);
+  assert.deepEqual([securityAdvice({ guests: 120, alcohol: true }).guards, securityAdvice({ guests: 120 }).guards], [3, 2]);
+  assert.equal(securityAdvice({ guests: 160 }).recommended, true);
+  const p = planEventBudget({ budget: 10000, guests: 120, eventType: "wedding", alcohol: true });
+  assert.equal(p.lines.reduce((t, l) => t + l.amount, 0), 10000);
+  assert.ok(p.lines.some((l) => l.key === "security" && l.amount === 3 * 5 * 39));
+  assert.equal(planEventBudget({ budget: 10000, guests: 120, eventType: "wedding" }).lines.some((l) => l.key === "security"), false);
+  const tight = planEventBudget({ budget: 1000, guests: 100, eventType: "birthday", alcohol: true });
+  assert.ok(!tight.lines.some((l) => l.key === "security") && tight.warnings.some((w) => w.includes("licensed guard")));
+  const post = estimate({ slug: "security-guard", answers: { kind: "post", guards: 1, hours: 8, days: 5, type: "unarmed" } });
+  assert.equal(post.items[0].amount, 1 * 8 * 5 * 36);
+  const patrol = estimate({ slug: "security-guard", answers: { kind: "patrol", visits: 3, days: 7 } });
+  assert.equal(patrol.items[0].amount, 3 * 7 * 45);
+  assert.ok(getService("security-guard")!.licensed && getService("security-guard")!.trades.includes("security"));
 });

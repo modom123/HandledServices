@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-03_1311 UTC — adenda de construcción: el equipo que el cliente compra debe ser nuevo; nunca instalamos usado.
  * UPDATED : 2026-10-04_1934 UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas"); MSA: plazos aprobados en el portal de la cuenta empresarial.
  * UPDATED : 2026-10-05_0439 UTC — Seguridad para eventos en el anexo de eventos.
+ * UPDATED : 2026-10-05_1433 UTC — anexo de guardias de seguridad y patrullaje.
  */
 import {
   BOOKING_FEE,
@@ -409,6 +410,40 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
     ]),
   },
 
+  "addendum-security": {
+    title: "Anexo — Guardias de Seguridad y Patrullaje",
+    appliesTo: "Puestos fijos de guardia, patrullaje móvil y vigilancia contra incendios para edificios, obras, propiedades desocupadas y estacionamientos.",
+    summary: [
+      "Los guardias vienen de una agencia de guardias de seguridad con licencia en Michigan; son empleados de esa agencia.",
+      "Sin armas, salvo que reserve oficiales armados. Los guardias no son policías y no pueden prometer que nada pasará.",
+      "Usted da órdenes claras del puesto, acceso seguro y un contacto para incidentes. Las llaves y los códigos se usan solo para el trabajo.",
+      "La vigilancia contra incendios no reemplaza su alarma ni sus rociadores: usted debe repararlos y seguir las órdenes del jefe de bomberos.",
+      "Un reporte diario de actividad con fotos después de cada turno; todo lo inusual se le informa de inmediato.",
+      "La cobertura semanal y mensual continúa hasta que usted la cancele; cancele antes de que empiece el siguiente turno.",
+    ],
+    sections: numbered([
+      ["Sobre este servicio", p(
+        ADDENDUM_INTRO,
+        "La seguridad la presta una agencia de guardias de seguridad con licencia en Michigan. Los guardias son empleados de esa agencia, con verificación de antecedentes, uniforme e identificación de la agencia. Los guardias no portan armas, salvo que reserve oficiales armados, que solo proporcionan agencias autorizadas para armarlos.",
+      )],
+      ["Órdenes del puesto y acceso", p(
+        ul(
+          "Indíquenos las áreas a cubrir, el horario de turnos, cómo entrar (llaves, códigos, portón), lo que está prohibido y a quién llamar por incidentes, de día y de noche. Manténgalo actualizado.",
+          "Las llaves, tarjetas de acceso y códigos de alarma se usan solo para el trabajo, nunca se copian y se devuelven cuando termina la cobertura.",
+          "Los guardias pueden observar y reportar, negar la entrada, pedir a personas que se retiren y llamar a la policía o a emergencias. Primero calman la situación y no usan más fuerza de la que permite la ley. No revisan a personas ni pertenencias sin consentimiento, y no hacen tareas ajenas a la seguridad (por ejemplo, limpieza o entregas).",
+        ),
+      )],
+      ["Vigilancia contra incendios", p(
+        "La vigilancia contra incendios es una medida temporal mientras una alarma contra incendios o un sistema de rociadores está fuera de servicio. Los guardias recorren cada área con la frecuencia que exija el jefe de bomberos o su aseguradora (al menos cada hora), registran cada ronda y llaman primero al 911 ante cualquier fuego o humo. La vigilancia no reemplaza un sistema que funcione: usted sigue siendo responsable de repararlo, avisar al departamento de bomberos cuando se requiera y seguir sus órdenes." + COUNSEL,
+      )],
+      ["Reportes e incidentes", p(
+        "Recibe un reporte diario de actividad con fotos después de cada turno. Todo lo inusual se informa de inmediato a su contacto, y en una emergencia se llama primero a la policía o al 911. Los guardias disuaden y vigilan; no son policías y no pueden garantizar que no habrá robos, daños ni lesiones. Nuestra responsabilidad se rige por el Acuerdo de Servicio.",
+      )],
+      ["Cobertura recurrente", p(
+        "La cobertura semanal y mensual se repite con el mismo horario y se cobra por período, hasta que usted la cancele o la cambie. Para cancelar o cambiar un turno, avísenos antes de que empiece; las cancelaciones tardías se rigen por el Acuerdo de Servicio.",
+      )],
+    ]),
+  },
   "addendum-events": {
     title: "Anexo — Fiestas y Eventos",
     appliesTo: "Planificación de eventos según presupuesto, planificación y coordinación de eventos, catering, food trucks, DJ y música en vivo, seguridad para eventos, alquiler de asientos y artículos para fiestas, y locales para eventos.",

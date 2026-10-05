@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-04_1934 UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda; Business MSA: terms approved in the business account portal count as an Order.
  * UPDATED : 2026-10-04_1950 UTC — errands addendum: grocery delivery removed, Same-Day Courier added.
  * UPDATED : 2026-10-05_0439 UTC — events addendum covers Event Security (licensed agencies, unarmed by default, de-escalation, incident reports).
+ * UPDATED : 2026-10-05_1433 UTC — addendum-security (standing posts, patrols, fire watch).
  */
 import {
   AI_MAX_CUT,
@@ -944,6 +945,45 @@ const EVENTS: Contract = {
   ]),
 };
 
+const SECURITY: Contract = {
+  key: "addendum-security",
+  title: "Addendum — Security Guards & Patrol",
+  version: V1,
+  audience: "customer",
+  appliesTo: "Standing guard posts, mobile patrols and fire watch for buildings, job sites, vacant properties and parking lots.",
+  services: ["security-guard"],
+  summary: [
+    "Guards come from a security guard agency licensed in Michigan; they are that agency's employees.",
+    "Unarmed unless you book armed officers. Guards are not police and can't promise nothing will happen.",
+    "You give clear post orders, safe access and a contact for incidents. Keys and codes are used only for the job.",
+    "Fire watch doesn't replace your alarm or sprinklers: you still must fix them and follow the fire marshal's orders.",
+    "A daily activity report with photos after every shift; anything unusual is reported to you right away.",
+    "Weekly and monthly coverage continues until you cancel; cancel before the next shift starts.",
+  ],
+  sections: numbered([
+    ["About this service", p(
+      ADDENDUM_INTRO,
+      "Security is provided by a security guard agency licensed in Michigan. The guards are that agency's employees, background-checked and in uniform with agency ID. Guards are unarmed unless you book armed officers, who are provided only by agencies authorized to arm them.",
+    )],
+    ["Post orders and access", p(
+      ul(
+        "Tell us the areas to cover, shift times, how to get in (keys, codes, gate), what is off limits, and who to call for incidents, day and night. Keep this up to date.",
+        "Keys, access cards and alarm codes are used only for the job, never copied, and returned when coverage ends.",
+        "Guards may observe and report, refuse entry, ask people to leave, and call police or emergency services. They de-escalate first and use no more force than the law allows. They don't search people or belongings without consent, and they don't do work outside security (for example, cleaning or deliveries).",
+      ),
+    )],
+    ["Fire watch", p(
+      "Fire watch is a temporary measure while a fire alarm or sprinkler system is out of service. Guards walk every area on the schedule the fire marshal or your insurer requires (at least hourly), log each round, and call 911 first for any fire or smoke. Fire watch doesn't replace a working system: you remain responsible for repairing it, notifying the fire department when required, and following its orders." + COUNSEL,
+    )],
+    ["Reports and incidents", p(
+      "You get a daily activity report with photos after each shift. Anything unusual is reported to your contact right away, and police or 911 are called first in an emergency. Guards are a deterrent and a set of eyes; they are not police and can't guarantee that no theft, damage or injury will happen. Our liability follows the Service Agreement.",
+    )],
+    ["Recurring coverage", p(
+      "Weekly and monthly coverage repeats on the same schedule and is charged per period, until you cancel or change it. To cancel or change a shift, tell us before the shift starts; late cancellations follow the Service Agreement.",
+    )],
+  ]),
+};
+
 const CONSTRUCTION: Contract = {
   key: "addendum-construction-remodel",
   title: "Addendum — Repairs, Trades, Painting & Remodels",
@@ -1226,7 +1266,7 @@ const HOME_YARD: Contract = {
   ]),
 };
 
-export const CUSTOMER_ADDENDA: Contract[] = [TRANSPORTATION, MEDICAL, PETS, EVENTS, CONSTRUCTION, ERRANDS, HAULING, DETAILING, HOME_YARD];
+export const CUSTOMER_ADDENDA: Contract[] = [TRANSPORTATION, MEDICAL, PETS, EVENTS, SECURITY, CONSTRUCTION, ERRANDS, HAULING, DETAILING, HOME_YARD];
 
 /** Services fully covered by the Service Agreement alone (no addendum needed). Every current service has one. */
 export const CORE_ONLY_SERVICES: string[] = [];

@@ -4,11 +4,12 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Domain types shared by the website, ops hub, portals and mobile app.
  *           Mirrors the enums in supabase/migrations/20261001172300_init.sql.
+ * UPDATED : 2026-10-05_1433 UTC — security category.
  */
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";
 
-export type CategoryId = "cleaning" | "outdoor" | "pets" | "removal" | "repair_remodel" | "errands" | "transport" | "events";
+export type CategoryId = "cleaning" | "outdoor" | "pets" | "removal" | "repair_remodel" | "errands" | "transport" | "events" | "security";
 
 /** Lifecycle of a job. Order matters: it's the order the ops board shows columns. */
 export const JOB_STATUSES = [

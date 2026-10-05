@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-04_1934 UTC — vetting step names the photo ID check.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — security trade (licensed agency, $2M GL, workers' comp).
+ * UPDATED : 2026-10-05_1433 UTC — security trade: patrol, standing posts and fire watch (security-guard).
  */
 import { BRAND } from "./brand.ts";
 
@@ -310,8 +311,8 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     skillsCheck: "Inventory list, photos of setups, tent permit experience, 2 references.",
   },
   security: {
-    does: "Licensed security guard agencies: event security, door and ID checks, crowd and parking control, armed officers where licensed.",
-    specialties: [{ id: "event_security", label: "Event security", slug: "event-security" }, { id: "door_id", label: "Door & ID checks" }, { id: "armed", label: "Armed officers" }, { id: "patrol", label: "Property patrol / standing posts" }],
+    does: "Licensed security guard agencies: event security, standing guard posts, mobile patrols and fire watch, door and ID checks, crowd and parking control, armed officers where licensed.",
+    specialties: [{ id: "event_security", label: "Event security", slug: "event-security" }, { id: "door_id", label: "Door & ID checks" }, { id: "armed", label: "Armed officers" }, { id: "patrol", label: "Property patrol / standing posts", slug: "security-guard" }, { id: "fire_watch", label: "Fire watch" }],
     license: "Michigan security guard agency license (LARA, Private Security Business and Security Alarm Act). Guards are the agency's employees and registered with it; armed officers need the agency's armed authorization and a concealed pistol license",
     preferred: ["Crowd-management or de-escalation training", "First aid / CPR"], glMin: GL2, requires: ["workers_comp"], conditional: [],
     skillsCheck: "LARA license lookup, certificate of insurance (GL $2M, workers' comp), guard training and use-of-force policy, 3 event or venue references.",
