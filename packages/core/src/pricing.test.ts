@@ -1266,3 +1266,12 @@ test("Handled Talent: 25% fee splits 20/5, retained thirds with true-up, guarant
   assert.equal(fairHiringCheck("Senior accountant, CPA, 5+ years, fluent in English, authorized to work in the U.S.").length, 0);
   assert.equal(TALENT_TERMS.contingencyPct - TALENT_TERMS.recruiterPct, 5);
 });
+
+test("bid archive: comparing two submitted versions", async () => {
+  const { compareSubmissions } = await import("./bid-engine.ts");
+  const L = (item: string, unitPrice: number, qty = 10) => ({ id: item, item, unit: "visit", qty, years: 1, unitPrice, totalPrice: unitPrice * qty, marginPct: 15 });
+  const c = compareSubmissions({ lines: [L("Mow", 45), L("Snow", 55), L("Trees", 400)], total: 5000 }, { lines: [L("Mow", 43), L("Snow", 55), L("Debris", 60)], total: 4600 });
+  assert.deepEqual(c.changed, [{ item: "Mow", unit: "visit", from: 45, to: 43, qtyFrom: 10, qtyTo: 10 }]);
+  assert.deepEqual(c.added, ["Debris"]); assert.deepEqual(c.removed, ["Trees"]);
+  assert.equal(c.diff, -400); assert.equal(c.pct, -8);
+});

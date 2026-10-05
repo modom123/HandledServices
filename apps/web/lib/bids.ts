@@ -14,13 +14,15 @@
  *             submitProQuote   — the pro's answer from that link
  *             useBestQuotes    — sets each line's pro cost to the lowest committed price
  *             signOffReview / markSubmitted / recordResult — the gate is enforced here, not only on screen
+ * UPDATED : 2026-10-05_2043 UTC — archive: document versions (never overwritten), frozen numbered submission records, re-open to
+ *           revise and resubmit, copy a bid for the next cycle; files in a submission can't be deleted.
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import {
   BID_SOURCES, BRAND, GO_NO_GO, REQ_KIND_LABEL, REVIEW_CHECKS, SERVICE_BY_SLUG, bestQuotes, priceBid, standardRequirements, submitGate,
-  type BidSource, type CostLine, type GoAnswer, type ProQuote, type ReqKind,
+  type BidSource, type CostLine, type GoAnswer, type ProQuote, type ReqKind, type ResubmitReason, type SnapshotLine, type SolicitationType,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { sendEmail, siteUrl } from "./notify";
@@ -36,24 +38,26 @@ export type Bid = {
   go: Record<string, GoAnswer>; no_bid_reason: string | null; assumptions: Record<string, number>; margin_override: boolean; ai_summary: AiRead | null;
   owner: string | null; review: Record<string, boolean>; reviewer: string | null; reviewed_at: string | null; submitted_at: string | null; submitted_by: string | null;
   our_price: number | null; award_amount: number | null; winning_price: number | null; winner: string | null; result_note: string | null; notes: string | null; created_at: string; updated_at: string;
+  solicitation_type: SolicitationType; revision: number; reopened_at: string | null; reopen_reason: string | null; reopen_note: string | null; previous_bid_id: string | null;
 };
 export type Requirement = { id: string; kind: ReqKind; text: string; source_ref: string | null; response_ref: string | null; required: boolean; done: boolean; done_by: string | null; note: string | null; origin: string; sort: number };
 export type Line = CostLine & { slug: string | null; sort: number };
 export type Quote = ProQuote & { id: string; token: string; capacity: string | null; small_business: boolean | null; note: string | null; asked_at: string; answered_at: string | null; contractor: { business_name: string; email: string | null; phone: string | null } | null };
-export type Doc = { id: string; kind: string; name: string; path: string; size: number | null; ai_read_at: string | null; uploaded_by: string | null; created_at: string };
+export type Doc = { id: string; kind: string; name: string; path: string; size: number | null; ai_read_at: string | null; uploaded_by: string | null; created_at: string; version: number; superseded_at: string | null; superseded_by: string | null; note: string | null };
+export type Submission = { id: string; number: number; reason: string; change_note: string | null; submitted_at: string; submitted_by: string; our_price: number | null; snapshot: Snapshot; document_ids: string[]; confirmation_doc_id: string | null };
 
 async function touch(id: string, patch: Record<string, unknown> = {}) {
   await db().from("bids").update({ ...patch, updated_at: now() }).eq("id", id);
 }
 
-export async function createBid(o: { notice_id?: string | null; title?: string; agency?: string | null; source?: BidSource; solicitation_number?: string | null; link?: string | null; due_at?: string | null }, actor: string): Promise<{ ok: boolean; id?: string; error?: string }> {
-  let row: Record<string, unknown> = { title: o.title, agency: o.agency ?? null, source: o.source ?? "other", solicitation_number: o.solicitation_number ?? null, link: o.link ?? null, due_at: o.due_at ?? null };
+export async function createBid(o: { notice_id?: string | null; title?: string; agency?: string | null; source?: BidSource; solicitation_type?: SolicitationType; solicitation_number?: string | null; link?: string | null; due_at?: string | null }, actor: string): Promise<{ ok: boolean; id?: string; error?: string }> {
+  let row: Record<string, unknown> = { title: o.title, agency: o.agency ?? null, source: o.source ?? "other", solicitation_type: o.solicitation_type ?? "rfq", solicitation_number: o.solicitation_number ?? null, link: o.link ?? null, due_at: o.due_at ?? null };
   if (o.notice_id) {
     const { data: existing } = await db().from("bids").select("id").eq("notice_id", o.notice_id).not("status", "in", "(no_bid,cancelled)").maybeSingle();
     if (existing) return { ok: true, id: existing.id };
     const { data: n } = await db().from("gov_opportunities").select("notice_id, title, agency, office, solicitation_number, ui_link, response_deadline").eq("notice_id", o.notice_id).maybeSingle();
     if (!n) return { ok: false, error: "Notice not found" };
-    row = { title: n.title, agency: [n.agency, n.office].filter(Boolean).join(" / ") || null, source: "sam", notice_id: n.notice_id, solicitation_number: n.solicitation_number, link: n.ui_link ?? `https://sam.gov/opp/${n.notice_id}/view`, due_at: n.response_deadline };
+    row = { title: n.title, agency: [n.agency, n.office].filter(Boolean).join(" / ") || null, source: "sam", solicitation_type: "rfq", notice_id: n.notice_id, solicitation_number: n.solicitation_number, link: n.ui_link ?? `https://sam.gov/opp/${n.notice_id}/view`, due_at: n.response_deadline };
   }
   if (!row.title || String(row.title).trim().length < 3) return { ok: false, error: "Give the bid a title" };
   const { data, error } = await db().from("bids").insert({ ...row, owner: actor, created_by: actor, status: "draft" }).select("id").single();
@@ -65,12 +69,13 @@ export async function createBid(o: { notice_id?: string | null; title?: string; 
 }
 
 export async function loadBid(id: string) {
-  const [{ data: bid }, { data: reqs }, { data: lines }, { data: quotes }, { data: docs }] = await Promise.all([
+  const [{ data: bid }, { data: reqs }, { data: lines }, { data: quotes }, { data: docs }, { data: subs }] = await Promise.all([
     db().from("bids").select("*").eq("id", id).maybeSingle(),
     db().from("bid_requirements").select("*").eq("bid_id", id).order("kind").order("sort").order("created_at"),
     db().from("bid_cost_lines").select("*").eq("bid_id", id).order("sort").order("created_at"),
     db().from("bid_pro_quotes").select("*, contractor:contractors(business_name, email, phone)").eq("bid_id", id).order("asked_at"),
     db().from("bid_documents").select("*").eq("bid_id", id).order("created_at"),
+    db().from("bid_submissions").select("*").eq("bid_id", id).order("number"),
   ]);
   if (!bid) return null;
   const b = bid as Bid;
@@ -78,8 +83,11 @@ export async function loadBid(id: string) {
   const Q = (quotes ?? []) as Quote[];
   const D = (docs ?? []) as Doc[];
   const R = (reqs ?? []) as Requirement[];
-  const gate = submitGate({ go: b.go ?? {}, requirements: R, lines: L, assumptions: b.assumptions, review: b.review ?? {}, reviewer: b.reviewer, owner: b.owner, confirmationUploaded: D.some((d) => d.kind === "confirmation"), dueAt: b.due_at, marginOverride: b.margin_override });
-  return { bid: b, requirements: R, lines: L, quotes: Q, documents: D, gate, best: bestQuotes(L, Q) };
+  const current = D.filter((d) => !d.superseded_at);
+  // after a re-open, the new submission needs its own confirmation
+  const confirmation = [...current].reverse().find((d) => d.kind === "confirmation" && (!b.reopened_at || d.created_at > b.reopened_at)) ?? null;
+  const gate = submitGate({ go: b.go ?? {}, requirements: R, lines: L, assumptions: b.assumptions, review: b.review ?? {}, reviewer: b.reviewer, owner: b.owner, confirmationUploaded: Boolean(confirmation), dueAt: b.due_at, marginOverride: b.margin_override });
+  return { bid: b, requirements: R, lines: L, quotes: Q, documents: D, current, confirmation, submissions: (subs ?? []) as Submission[], gate, best: bestQuotes(L, Q) };
 }
 
 // ───────────────────────────── documents ─────────────────────────────
@@ -95,11 +103,23 @@ export async function uploadUrl(bidId: string, name: string) {
   return { ok: true as const, path: data.path, token: data.token };
 }
 
-export async function addDocument(bidId: string, d: { kind: (typeof DOC_KINDS)[number]; name: string; path: string; size?: number | null }, actor: string) {
+/** Add a file. With `replaces`, it becomes the next version of that file; the old version is kept (superseded). */
+export async function addDocument(bidId: string, d: { kind: (typeof DOC_KINDS)[number]; name: string; path: string; size?: number | null; replaces?: string | null; note?: string | null }, actor: string) {
   if (!d.path.startsWith(`${bidId}/`)) return { ok: false, error: "Wrong file" };
-  const { error } = await db().from("bid_documents").insert({ bid_id: bidId, kind: d.kind, name: d.name.slice(0, 200), path: d.path, size: d.size ?? null, uploaded_by: actor });
-  if (error) return { ok: false, error: error.message };
-  await touch(bidId);
+  let version = 1;
+  let kind = d.kind;
+  if (d.replaces) {
+    const { data: old } = await db().from("bid_documents").select("id, version, kind, superseded_at").eq("id", d.replaces).eq("bid_id", bidId).maybeSingle();
+    if (!old) return { ok: false, error: "The file being replaced wasn't found" };
+    if (old.superseded_at) return { ok: false, error: "That file was already replaced — replace the newest version" };
+    version = Number(old.version) + 1; kind = old.kind;
+  }
+  const { data: doc, error } = await db().from("bid_documents").insert({ bid_id: bidId, kind, name: d.name.slice(0, 200), path: d.path, size: d.size ?? null, uploaded_by: actor, version, note: d.note ?? null }).select("id").single();
+  if (error || !doc) return { ok: false, error: error?.message ?? "Couldn't save the file" };
+  if (d.replaces) await db().from("bid_documents").update({ superseded_at: now(), superseded_by: doc.id }).eq("id", d.replaces);
+  // a changed response document after review needs a fresh review
+  if (["draft", "price_form"].includes(kind)) await touch(bidId, { review: {}, reviewer: null, reviewed_at: null });
+  else await touch(bidId);
   return { ok: true };
 }
 
@@ -110,11 +130,16 @@ export async function docLink(bidId: string, docId: string, seconds = 600) {
   return data?.signedUrl ?? null;
 }
 
-export async function deleteDocument(bidId: string, docId: string) {
-  const { data: d } = await db().from("bid_documents").select("path").eq("id", docId).eq("bid_id", bidId).maybeSingle();
-  if (!d) return;
+/** Delete a file uploaded by mistake. Files that were part of a submission are permanent (replace them instead). */
+export async function deleteDocument(bidId: string, docId: string): Promise<{ ok: boolean; error?: string }> {
+  const { data: d } = await db().from("bid_documents").select("path, superseded_at").eq("id", docId).eq("bid_id", bidId).maybeSingle();
+  if (!d) return { ok: false, error: "Not found" };
+  const { data: used } = await db().from("bid_submissions").select("number").eq("bid_id", bidId).or(`document_ids.cs.{${docId}},confirmation_doc_id.eq.${docId}`).limit(1);
+  if (used?.length) return { ok: false, error: `This file was part of submission #${used[0].number} and is kept for the record — upload a new version instead` };
+  if (d.superseded_at) return { ok: false, error: "Older versions are kept for the record" };
   await db().storage.from(BUCKET).remove([d.path]);
   await db().from("bid_documents").delete().eq("id", docId);
+  return { ok: true };
 }
 
 // ───────────────────────────── AI: read the solicitation ─────────────────────────────
@@ -237,7 +262,7 @@ export async function saveLines(bidId: string, lines: { id?: string; item: strin
   if (loaded) await touch(bidId, { our_price: loaded.gate.pricing.totals.totalPrice || null });
 }
 
-export async function saveBidFields(bidId: string, f: Partial<Pick<Bid, "title" | "agency" | "source" | "solicitation_number" | "link" | "due_at" | "questions_due_at" | "submit_method" | "term_years" | "notes" | "owner">>) {
+export async function saveBidFields(bidId: string, f: Partial<Pick<Bid, "title" | "agency" | "source" | "solicitation_type" | "solicitation_number" | "link" | "due_at" | "questions_due_at" | "submit_method" | "term_years" | "notes" | "owner">>) {
   await touch(bidId, f);
 }
 
@@ -344,7 +369,14 @@ export async function markSubmitted(bidId: string, actor: string) {
   const loaded = await loadBid(bidId);
   if (!loaded) return { ok: false, error: "Bid not found" };
   if (!loaded.gate.canMarkSubmitted) return { ok: false, error: `Not yet: ${loaded.gate.missing.join("; ")}` };
-  await touch(bidId, { status: "submitted", submitted_at: now(), submitted_by: actor, our_price: loaded.gate.pricing.totals.totalPrice });
+  const number = (loaded.submissions.at(-1)?.number ?? 0) + 1;
+  const { error } = await db().from("bid_submissions").insert({
+    bid_id: bidId, number, reason: number === 1 ? "initial" : loaded.bid.reopen_reason ?? "correction", change_note: number === 1 ? null : loaded.bid.reopen_note,
+    submitted_by: actor, our_price: loaded.gate.pricing.totals.totalPrice, snapshot: buildSnapshot(loaded),
+    document_ids: loaded.current.filter((d) => d.kind !== "confirmation").map((d) => d.id), confirmation_doc_id: loaded.confirmation?.id ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  await touch(bidId, { status: "submitted", submitted_at: now(), submitted_by: actor, our_price: loaded.gate.pricing.totals.totalPrice, revision: number, reopened_at: null, reopen_reason: null, reopen_note: null });
   if (loaded.bid.notice_id) await db().from("gov_opportunities").update({ status: "submitted", updated_at: now() }).eq("notice_id", loaded.bid.notice_id);
   return { ok: true };
 }
@@ -373,3 +405,67 @@ export async function addBenchmark(b: { item: string; unit: string; price: numbe
 }
 
 export const reqKindLabel = (k: string) => REQ_KIND_LABEL[k as ReqKind] ?? k;
+
+// ───────────────────────────── archive: frozen records, revisions, re-bids ─────────────────────────────
+
+export interface Snapshot {
+  bid: { title: string; agency: string | null; source: string; solicitation_type: string; solicitation_number: string | null; due_at: string | null; submit_method: string | null; term_years: number | null; link: string | null };
+  go: Record<string, string>;
+  pricing: { assumptions: Record<string, number>; lines: (SnapshotLine & { pro_unit_cost: number | null; materials_unit: number; loaded: number; benchmark: number | null })[]; totals: { yearPrice: number; totalPrice: number; totalCost: number; totalProfit: number; marginPct: number } };
+  requirements: { kind: string; text: string; source_ref: string | null; response_ref: string | null; required: boolean; done: boolean; done_by: string | null }[];
+  review: { checks: Record<string, boolean>; reviewer: string | null; reviewed_at: string | null };
+  quotes: { business_name: string; status: string; prices: Record<string, number> }[];
+  documents: { id: string; kind: string; name: string; version: number }[];
+}
+
+type Loaded = NonNullable<Awaited<ReturnType<typeof loadBid>>>;
+
+/** Exactly what was submitted, frozen: the bid, pricing line by line, the matrix, the review and the files. */
+export function buildSnapshot(l: Loaded): Snapshot {
+  const b = l.bid;
+  const p = l.gate.pricing;
+  return {
+    bid: { title: b.title, agency: b.agency, source: b.source, solicitation_type: b.solicitation_type, solicitation_number: b.solicitation_number, due_at: b.due_at, submit_method: b.submit_method, term_years: b.term_years, link: b.link },
+    go: b.go ?? {},
+    pricing: {
+      assumptions: p.assumptions as unknown as Record<string, number>,
+      lines: p.lines.map((x) => ({ id: x.id, item: x.item, unit: x.unit, qty: x.qty, years: x.years, unitPrice: x.unitPrice, totalPrice: x.totalPrice, marginPct: x.marginPct, pro_unit_cost: x.pro_unit_cost, materials_unit: Number(x.materials_unit ?? 0), loaded: x.loaded, benchmark: x.benchmark ?? null })),
+      totals: { yearPrice: p.totals.yearPrice, totalPrice: p.totals.totalPrice, totalCost: p.totals.totalCost, totalProfit: p.totals.totalProfit, marginPct: p.totals.marginPct },
+    },
+    requirements: l.requirements.map((r) => ({ kind: r.kind, text: r.text, source_ref: r.source_ref, response_ref: r.response_ref, required: r.required, done: r.done, done_by: r.done_by })),
+    review: { checks: b.review ?? {}, reviewer: b.reviewer, reviewed_at: b.reviewed_at },
+    quotes: l.quotes.map((q) => ({ business_name: q.contractor?.business_name ?? "—", status: q.status, prices: (q.prices ?? {}) as Record<string, number> })),
+    documents: l.current.map((d) => ({ id: d.id, kind: d.kind, name: d.name, version: d.version })),
+  };
+}
+
+/**
+ * Re-open a submitted bid to change and resubmit it (a correction before the deadline, an addendum, the agency's
+ * request, a best-and-final offer). Everything stays as it was; the review must be signed off again and a new
+ * confirmation uploaded, and the next submission is saved as the next numbered version with this note.
+ */
+export async function reopenForRevision(bidId: string, reason: ResubmitReason, note: string, actor: string) {
+  const { data: b } = await db().from("bids").select("status, revision").eq("id", bidId).maybeSingle();
+  if (!b) return { ok: false, error: "Bid not found" };
+  if (b.status !== "submitted") return { ok: false, error: "Only a submitted bid can be revised and resubmitted (to bid again later, start a new bid from this one)" };
+  await touch(bidId, { status: "review", reopened_at: now(), reopen_reason: reason, reopen_note: note, review: {}, reviewer: null, reviewed_at: null });
+  void actor;
+  return { ok: true };
+}
+
+/** A new bid for the next cycle of the same work: details, matrix (unchecked), price lines, pro costs and benchmarks copied. */
+export async function copyBid(bidId: string, actor: string) {
+  const l = await loadBid(bidId);
+  if (!l) return { ok: false, error: "Bid not found" };
+  const b = l.bid;
+  const { data: nb, error } = await db().from("bids").insert({
+    title: b.title, agency: b.agency, source: b.source, solicitation_type: b.solicitation_type, term_years: b.term_years, submit_method: b.submit_method,
+    assumptions: b.assumptions, notes: `Copied from the earlier bid (${b.solicitation_number ?? b.id.slice(0, 8)}). Check every item against the new solicitation.`, previous_bid_id: b.id,
+    owner: actor, created_by: actor, status: "draft",
+  }).select("id").single();
+  if (error || !nb) return { ok: false, error: error?.message ?? "Couldn't copy the bid" };
+  if (l.requirements.length) await db().from("bid_requirements").insert(l.requirements.map((r) => ({ bid_id: nb.id, kind: r.kind, text: r.text, source_ref: r.source_ref, required: r.required, origin: r.origin, sort: r.sort })));
+  else await db().from("bid_requirements").insert(standardRequirements(b.source).map((r, i) => ({ bid_id: nb.id, kind: r.kind, text: r.text, origin: "standard", sort: i })));
+  if (l.lines.length) await db().from("bid_cost_lines").insert(l.lines.map((x) => ({ bid_id: nb.id, item: x.item, unit: x.unit, qty: x.qty, years: x.years, pro_unit_cost: x.pro_unit_cost, materials_unit: x.materials_unit ?? 0, benchmark: x.benchmark ?? null, slug: x.slug, sort: x.sort })));
+  return { ok: true, id: nb.id };
+}

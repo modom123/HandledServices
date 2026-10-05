@@ -5,16 +5,17 @@
  * PURPOSE : Handled Hub → Bids: every public bid we're working, by deadline, with where each one stands in the
  *           five steps (go / no-go → compliance → pricing → review → submit), our win rate and the price benchmarks
  *           we've collected. Start a bid by hand (city, county, state, school…) or from Gov contracts.
+ * UPDATED : 2026-10-05_2043 UTC — archive: every RFP / RFQ / bid, searchable by text, type, status and year; version counts.
  */
 import Link from "next/link";
-import { BID_SOURCES, BID_STATUS_LABEL, money, type BidSource, type BidStatus } from "@handled/core";
+import { BID_SOURCES, BID_STATUS_LABEL, SOLICITATION_TYPES, money, type BidSource, type BidStatus, type SolicitationType } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { BenchmarkForm, NewBidForm } from "@/components/BidWorkspace";
 
 export const dynamic = "force-dynamic";
 
-type Row = { id: string; title: string; agency: string | null; source: BidSource; status: BidStatus; due_at: string | null; our_price: number | null; winning_price: number | null; winner: string | null; owner: string | null };
+type Row = { id: string; title: string; agency: string | null; source: BidSource; status: BidStatus; due_at: string | null; our_price: number | null; winning_price: number | null; winner: string | null; owner: string | null; solicitation_type: SolicitationType; solicitation_number: string | null; revision: number; created_at: string };
 
 function due(d: string | null) {
   if (!d) return "no date";
@@ -23,15 +24,21 @@ function due(d: string | null) {
   return h < 0 ? `${s} (passed)` : h < 72 ? `${s} — ${Math.round(h)}h left` : `${s} (${Math.floor(h / 24)}d)`;
 }
 
-export default async function Bids() {
+export default async function Bids({ searchParams }: { searchParams: Promise<{ q?: string; type?: string; status?: string; year?: string }> }) {
+  const f = await searchParams;
   const db = adminClient();
   const [{ data }, { data: bench }] = await Promise.all([
-    db.from("bids").select("id, title, agency, source, status, due_at, our_price, winning_price, winner, owner").order("due_at", { ascending: true, nullsFirst: false }).limit(500),
+    db.from("bids").select("id, title, agency, source, status, due_at, our_price, winning_price, winner, owner, solicitation_type, solicitation_number, revision, created_at").order("due_at", { ascending: false, nullsFirst: false }).limit(2000),
     db.from("bid_benchmarks").select("id, item, unit, price, agency, source, award_date").order("created_at", { ascending: false }).limit(50),
   ]);
-  const rows = (data ?? []) as Row[];
-  const active = rows.filter((r) => ["draft", "pricing", "review", "ready"].includes(r.status));
-  const done = rows.filter((r) => !["draft", "pricing", "review", "ready"].includes(r.status));
+  const all = (data ?? []) as Row[];
+  const q = (f.q ?? "").trim().toLowerCase();
+  const filtered = all.filter((r) => (!q || [r.title, r.agency, r.solicitation_number].some((x) => (x ?? "").toLowerCase().includes(q)))
+    && (!f.type || r.solicitation_type === f.type) && (!f.status || r.status === f.status) && (!f.year || (r.due_at ?? r.created_at).startsWith(f.year)));
+  const filtering = Boolean(q || f.type || f.status || f.year);
+  const rows = all;
+  const active = rows.filter((r) => ["draft", "pricing", "review", "ready"].includes(r.status)).sort((a, b) => (a.due_at ?? "9").localeCompare(b.due_at ?? "9"));
+  const years = [...new Set(all.map((r) => (r.due_at ?? r.created_at).slice(0, 4)))].sort().reverse();
   const won = rows.filter((r) => r.status === "won").length, lost = rows.filter((r) => r.status === "lost").length;
   const table = (items: Row[]) => (
     <div className="card overflow-x-auto p-0">
@@ -40,7 +47,7 @@ export default async function Bids() {
         <tbody>
           {items.map((r) => (
             <tr key={r.id} className="border-t border-line">
-              <td className="p-3"><Link href={`/hub/bids/${r.id}`} className="font-semibold text-brand hover:underline">{r.title}</Link><div className="text-xs text-ink-soft">{BID_SOURCES[r.source]}{r.agency ? ` · ${r.agency}` : ""}</div></td>
+              <td className="p-3"><Link href={`/hub/bids/${r.id}`} className="font-semibold text-brand hover:underline">{r.title}</Link><div className="text-xs text-ink-soft">{(SOLICITATION_TYPES[r.solicitation_type] ?? "").split(" — ")[0]}{r.solicitation_number ? ` ${r.solicitation_number}` : ""} · {BID_SOURCES[r.source]}{r.agency ? ` · ${r.agency}` : ""}{r.revision > 1 ? ` · ${r.revision} versions` : ""}</div></td>
               <td className="p-3 text-xs">{due(r.due_at)}</td>
               <td className="p-3 text-xs">{BID_STATUS_LABEL[r.status]}{r.status === "lost" && r.winning_price ? ` · won by ${r.winner ?? "?"} at ${money(Number(r.winning_price))}` : ""}</td>
               <td className="p-3 text-xs">{r.our_price ? money(Number(r.our_price)) : "—"}</td>
@@ -66,7 +73,18 @@ export default async function Bids() {
       </div>
       <section className="card"><h2 className="mb-3 text-lg font-bold">Start a bid</h2><NewBidForm /><p className="mt-2 text-xs text-ink-soft">Federal notices: open one in <Link href="/hub/gov" className="underline">Gov contracts</Link> and press “Start a bid”.</p></section>
       <section><h2 className="mb-2 text-lg font-bold">Working</h2>{active.length ? table(active) : <p className="text-sm text-ink-soft">No bids in progress.</p>}</section>
-      {done.length > 0 && <section><h2 className="mb-2 text-lg font-bold">Submitted, results and no-bids</h2>{table(done)}</section>}
+      <section>
+        <h2 className="mb-2 text-lg font-bold">Archive — every RFP, RFQ and bid</h2>
+        <form className="mb-3 flex flex-wrap gap-2 text-sm" action="/hub/bids">
+          <input name="q" defaultValue={f.q ?? ""} className="input w-64" placeholder="Search title, agency or number" />
+          <select name="type" defaultValue={f.type ?? ""} className="input w-auto"><option value="">All types</option>{Object.entries(SOLICITATION_TYPES).map(([k, v]) => <option key={k} value={k}>{v.split(" — ")[0]}</option>)}</select>
+          <select name="status" defaultValue={f.status ?? ""} className="input w-auto"><option value="">Any status</option>{Object.entries(BID_STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+          <select name="year" defaultValue={f.year ?? ""} className="input w-auto"><option value="">Any year</option>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+          <button className="btn-ghost">Filter</button>{filtering && <Link href="/hub/bids" className="self-center text-xs underline">clear</Link>}
+        </form>
+        {filtered.length ? table(filtered.slice(0, 300)) : <p className="text-sm text-ink-soft">{filtering ? "No bids match." : "No bids yet."}</p>}
+        <p className="mt-2 text-xs text-ink-soft">Bids are never deleted. Open one to see every submitted version exactly as it was sent, revise and resubmit, or start next cycle&apos;s bid from it.</p>
+      </section>
       <section className="card">
         <h2 className="text-lg font-bold">Price benchmarks</h2>
         <p className="mb-3 text-sm text-ink-soft">What work went for before: from award notices, published bid tabulations and our own results (added automatically when you record a result). Use them to sanity-check every price line.</p>

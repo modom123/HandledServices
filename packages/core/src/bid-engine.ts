@@ -10,14 +10,45 @@
  *                                        then margin on price; per-unit price, yearly and contract totals, warnings
  *             bestQuotes               — the lowest price pros committed to per line, and whether a backup pro exists
  *             REVIEW_CHECKS / submitGate — the review checklist and everything that must be true before "submitted"
+ *             SOLICITATION_TYPES / RESUBMIT_REASONS / compareSubmissions — the archive: every RFP / RFQ kept, every
+ *                                        submission frozen as a numbered version, and what changed between versions
  *           Pure functions: the Hub (Hub → Bids) and tests use the same math, so the number on screen is the number
  *           we bid. Pros are independent businesses: their prices are their own quotes, never set by us.
+ * UPDATED : 2026-10-05_2043 UTC — archive: solicitation types, resubmission reasons, compareSubmissions.
  */
 
 export type BidSource = "sam" | "city" | "county" | "state" | "school" | "private" | "other";
 export const BID_SOURCES: Record<BidSource, string> = {
   sam: "Federal (SAM.gov)", city: "City", county: "County", state: "State of Michigan", school: "School / college", private: "Private / institutional", other: "Other public",
 };
+
+/** What kind of solicitation it is (shown on the archive and every record). */
+export type SolicitationType = "rfq" | "rfp" | "ifb" | "rfi" | "sources_sought" | "other";
+export const SOLICITATION_TYPES: Record<SolicitationType, string> = {
+  rfq: "RFQ — request for quotes", rfp: "RFP — request for proposals", ifb: "IFB / ITB — invitation for bids", rfi: "RFI — request for information", sources_sought: "Sources sought", other: "Other",
+};
+
+/** Why a bid is being sent again. */
+export type ResubmitReason = "correction" | "addendum" | "agency_request" | "bafo" | "price_update";
+export const RESUBMIT_REASONS: Record<ResubmitReason, string> = {
+  correction: "Correction before the deadline", addendum: "Addendum issued — revised response", agency_request: "Agency asked for clarification / revision",
+  bafo: "Best and final offer (BAFO)", price_update: "Price or scope update",
+};
+
+export interface SnapshotLine { id: string; item: string; unit: string; qty: number; years: number; unitPrice: number; totalPrice: number; marginPct: number }
+
+/** What changed between two submitted versions: per-line unit prices, lines added or removed, and the total. */
+export function compareSubmissions(prev: { lines: SnapshotLine[]; total: number }, next: { lines: SnapshotLine[]; total: number }) {
+  const key = (l: SnapshotLine) => `${l.item.trim().toLowerCase()}|${l.unit.trim().toLowerCase()}`;
+  const before = new Map(prev.lines.map((l) => [key(l), l]));
+  const after = new Map(next.lines.map((l) => [key(l), l]));
+  const changed = next.lines.filter((l) => before.has(key(l)) && (before.get(key(l))!.unitPrice !== l.unitPrice || before.get(key(l))!.qty !== l.qty))
+    .map((l) => { const b = before.get(key(l))!; return { item: l.item, unit: l.unit, from: b.unitPrice, to: l.unitPrice, qtyFrom: b.qty, qtyTo: l.qty }; });
+  const added = next.lines.filter((l) => !before.has(key(l))).map((l) => l.item);
+  const removed = prev.lines.filter((l) => !after.has(key(l))).map((l) => l.item);
+  const diff = Math.round((next.total - prev.total) * 100) / 100;
+  return { changed, added, removed, totalFrom: prev.total, totalTo: next.total, diff, pct: prev.total > 0 ? Math.round((diff / prev.total) * 1000) / 10 : 0 };
+}
 
 export type BidStatus = "draft" | "no_bid" | "pricing" | "review" | "ready" | "submitted" | "won" | "lost" | "cancelled";
 export const BID_STATUS_LABEL: Record<BidStatus, string> = {
