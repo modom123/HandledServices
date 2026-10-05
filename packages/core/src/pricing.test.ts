@@ -7,6 +7,7 @@
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
  * UPDATED : 2026-10-04_2204 UTC — open job board and favorites first-look windows.
+ * UPDATED : 2026-10-05_0130 UTC — job-posting letter (business sales engine).
  */
 
 import { test } from "node:test";
@@ -1002,4 +1003,21 @@ test("open job board: first looks first, then 30 min after the first targeted ro
   assert.equal(favoriteWindowHours("2026-10-14", now), FAVORITES.firstLookHours);
   assert.equal(favoriteWindowHours("2026-10-10", now), 1, "job today → short window so it still gets covered");
   assert.equal(favoriteWindowHours(null, now), FAVORITES.firstLookHours);
+});
+
+test("job-posting letter: names their posting, keeps to what we promise, unsubscribe and address on every email", async () => {
+  const { bizLeadEmail, bizCoverLetter, jobPostNeed, BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS } = await import("./biz-lead-engine.ts");
+  for (const s of BIZ_SEGMENTS.facilities.services) assert.ok(SERVICES.some((x) => x.slug === s), s);
+  const ctx = { businessName: "Maple PM", segment: "property_manager" as const, city: "Southfield", pilotPct: 20, pilotJobs: 2, signupUrl: "https://x/b/abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI", jobTitle: "Office Cleaner", postingSource: "Indeed" };
+  const first = bizLeadEmail({ ...ctx, step: 0 });
+  assert.match(first.subject, /Office Cleaner posting on Indeed/);
+  assert.match(first.text, /for an Office Cleaner in Southfield/);
+  for (let i = 0; i < BIZ_LEAD_SEQUENCE.length; i++) { const m = bizLeadEmail({ ...ctx, step: i }); assert.match(m.text, /https:\/\/x\/u/); assert.match(m.text, /1 Main St/); }
+  assert.doesNotMatch(first.text, /Net[- ]?30|surcharge|guarantee upfront/i, "terms are case by case; prices can change with an approved change order");
+  assert.match(first.text, /approved accounts/);
+  assert.equal(jobPostNeed("Groundskeeper").work, "grounds work");
+  assert.equal(jobPostNeed("Housekeeper").work, "cleaning");
+  const letter = bizCoverLetter({ ...ctx, step: 0, senderName: "Jordan Smith", phone: "(313) 555-0100" });
+  assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call me at \(313\) 555-0100/);
+  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /unit turnover/i, "no job title → the segment sequence");
 });

@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-03_1418 UTC — checks migration 26 (crews & fast track) and flags catalog rows whose name or minimum is out of date.
  * UPDATED : 2026-10-04_1934 UTC — migration 27 (business accounts, launch sets, sales engine, photo ID) and the business sales engine key.
  * UPDATED : 2026-10-04_2204 UTC — migration 29 (open job board, customer favorites, crew member requests).
+ * UPDATED : 2026-10-05_0130 UTC — migration 30 (job-posting leads for the business sales engine).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -106,6 +107,7 @@ export async function readiness(): Promise<Check[]> {
     ["26 crews & fast track", () => db.from("crew_members").select("id").limit(1)],
     ["27 business accounts, launch sets, sales engine, photo ID", () => db.from("business_invoices").select("id").limit(1)],
     ["29 job board, favorites, crew requests", () => db.from("customer_favorites").select("id").limit(1)],
+    ["30 job-posting leads", () => db.from("biz_leads").select("job_title").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

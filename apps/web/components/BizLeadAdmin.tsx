@@ -4,6 +4,7 @@
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Hub → Business leads controls: engine settings (on/off, volume, segments, pilot offer),
  *           run now, and lead outcomes from calls.
+ * UPDATED : 2026-10-05_0130 UTC — "Add a business from a job posting" (job-posting letter by email, or print it).
  */
 "use client";
 
@@ -15,6 +16,47 @@ async function post(body: unknown) {
   const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   return r.ok ? null : String(j.error ?? "Failed");
+}
+
+const JOB_SITES = ["Indeed", "ZipRecruiter", "LinkedIn", "Craigslist", "Facebook", "Glassdoor", "Company website", "Other"];
+
+/** A business that posted a job for work we do: they get the job-posting letter (email now, or print it). */
+export function JobPostLeadForm({ sendingReady }: { sendingReady: boolean }) {
+  const router = useRouter();
+  const empty = { business_name: "", contact_name: "", email: "", phone: "", city: "", job_title: "", posting_source: "Indeed", posting_url: "", segment: "property_manager" as BizSegment };
+  const [f, setF] = useState(empty);
+  const [sendNow, setSendNow] = useState(sendingReady);
+  const [msg, setMsg] = useState<{ text: string; id?: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const field = (k: keyof typeof empty, label: string, cls = "") => <input className={`input ${cls}`} placeholder={label} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />;
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {field("business_name", "Business name *")}
+        {field("job_title", "Job they posted * (e.g. Maintenance Technician)")}
+        <select className="input" value={f.segment} onChange={(e) => setF({ ...f, segment: e.target.value as BizSegment })}>{(Object.keys(BIZ_SEGMENTS) as BizSegment[]).map((k) => <option key={k} value={k}>{BIZ_SEGMENTS[k].label}</option>)}</select>
+        {field("contact_name", "Contact name (if listed)")}
+        {field("email", "Business email (from their website)")}
+        {field("phone", "Phone")}
+        {field("city", "City")}
+        <select className="input" value={f.posting_source} onChange={(e) => setF({ ...f, posting_source: e.target.value })}>{JOB_SITES.map((x) => <option key={x}>{x}</option>)}</select>
+        {field("posting_url", "Link to the posting")}
+      </div>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={sendNow} disabled={!sendingReady} onChange={(e) => setSendNow(e.target.checked)} /> Start the email sequence now{!sendingReady && " (sending isn’t set up yet — it waits in the queue)"}</label>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn-primary" disabled={busy || f.business_name.trim().length < 2 || f.job_title.trim().length < 2} onClick={async () => {
+          setBusy(true); setMsg(null);
+          const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_job_post", ...f, send_now: sendNow }) });
+          const j = await r.json().catch(() => ({}));
+          setBusy(false);
+          if (r.ok && j.ok) { setMsg({ text: j.sent ? "Added and emailed." : f.email ? "Added to the email queue." : "Added to the call list (no email).", id: j.id }); setF(empty); router.refresh(); }
+          else setMsg({ text: String(j.error ?? "Failed"), id: j.id });
+        }}>Add lead</button>
+        {msg && <span className="text-ink-soft">{msg.text} {msg.id && <a className="font-semibold text-brand underline" href={`/hub/biz-leads/${msg.id}/letter`}>Open the letter →</a>}</span>}
+      </div>
+      <p className="text-xs text-ink-soft">Find postings by hand on the job sites (they don’t allow scraping), then get the business email from the company’s own website. Use the email only for this one business offer; anyone who unsubscribes is never emailed again.</p>
+    </div>
+  );
 }
 
 export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number } }) {

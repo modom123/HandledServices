@@ -13,6 +13,8 @@
  *             4. convert  — the link opens /business?lead=…; when they set up an account, the lead is marked
  *                           converted and the promised pilot offer is put on the account automatically.
  *           LinkedIn and phone stay manual (call list in the Hub). Google content is purged after 30 days.
+ * UPDATED : 2026-10-05_0130 UTC — job-posting track: addJobPostLead (staff add a business that posted a job for a cleaner,
+ *           handyman, maintenance tech…; emailed right away even with discovery off) and the job-posting letter.
  */
 import "server-only";
 import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, bizLeadEmail, bizLeadScore, extractEmails, type BizSegment } from "@handled/core";
@@ -110,8 +112,15 @@ const toHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").rep
 export async function sendBizLeadEmails(s: BizLeadSettings) {
   if (!instantlyBizReady()) return { sent: 0, skipped: 0 };
   const { data } = await db().from("biz_leads").select("*").eq("status", "queued").not("email", "is", null).order("score", { ascending: false }).limit(s.emails_per_day);
+  return sendTo((data ?? []) as LeadRow[]);
+}
+
+type LeadRow = { id: string; token: string; email: string; business_name: string; contact_name: string | null; segment: BizSegment; city: string | null; phone: string | null; website: string | null; job_title?: string | null; posting_source?: string | null };
+
+async function sendTo(rows: LeadRow[]) {
+  const s = await getBizLeadSettings();
   let sent = 0, skipped = 0;
-  for (const l of (data ?? []) as { id: string; token: string; email: string; business_name: string; contact_name: string | null; segment: BizSegment; city: string | null; phone: string | null; website: string | null }[]) {
+  for (const l of rows) {
     const [{ data: acct }, { count: out }] = await Promise.all([
       db().from("business_members").select("account_id").eq("email", l.email.toLowerCase()).limit(1).maybeSingle(),
       db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", l.email.toLowerCase()),
@@ -119,17 +128,43 @@ export async function sendBizLeadEmails(s: BizLeadSettings) {
     if (acct) { await db().from("biz_leads").update({ status: "converted", account_id: acct.account_id }).eq("id", l.id); skipped++; continue; }
     if (out) { await db().from("biz_leads").update({ status: "unsubscribed" }).eq("id", l.id); skipped++; continue; }
     const ctx = { businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, segment: l.segment, city: l.city, pilotPct: s.pilot_pct, pilotJobs: s.pilot_jobs,
-      signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS! };
+      signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS!,
+      jobTitle: l.job_title ?? null, postingSource: l.posting_source ?? null };
     const variables: Record<string, string> = { handled_biz_lead_id: l.id, signup_url: ctx.signupUrl };
     BIZ_LEAD_SEQUENCE.forEach((_, i) => { const m = bizLeadEmail({ ...ctx, step: i }); variables[`subject_${i + 1}`] = m.subject; variables[`body_${i + 1}`] = toHtml(m.text); });
     try {
       await addLeadToCampaign({ email: l.email, firstName: ctx.firstName, companyName: l.business_name, phone: l.phone, website: l.website, variables, campaign: process.env.INSTANTLY_BIZ_CAMPAIGN_ID });
     } catch (e) { await event(l.id, "send_failed", e instanceof Error ? e.message : String(e)); skipped++; continue; }
     await db().from("biz_leads").update({ status: "emailing", last_contact_at: new Date().toISOString() }).eq("id", l.id);
-    await event(l.id, "handed_to_instantly", "3-email sequence with pilot offer");
+    await event(l.id, "handed_to_instantly", l.job_title ? `job-posting sequence (${l.job_title})` : "3-email sequence with pilot offer");
     sent++;
   }
   return { sent, skipped };
+}
+
+export interface JobPostLead { business_name: string; contact_name?: string | null; email?: string | null; phone?: string | null; website?: string | null; city?: string | null; segment: BizSegment; job_title: string; posting_source?: string | null; posting_url?: string | null; send_now?: boolean }
+
+/** Staff add a business that posted a job for work we do. With an email it's queued (and sent now if asked); without, it's on the call list. */
+export async function addJobPostLead(l: JobPostLead, actor: string): Promise<{ ok: boolean; id?: string; sent?: boolean; error?: string }> {
+  const email = l.email?.trim().toLowerCase() || null;
+  if (email) {
+    const [{ data: dup }, { count: out }] = await Promise.all([
+      db().from("biz_leads").select("id, status").ilike("email", email.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle(),
+      db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", email),
+    ]);
+    if (out) return { ok: false, error: "That email unsubscribed from us — don't contact them." };
+    if (dup) return { ok: false, id: dup.id, error: `Already a lead (${dup.status}).` };
+  }
+  const { data, error } = await db().from("biz_leads").insert({
+    source: "manual", external_id: null, business_name: l.business_name.trim(), contact_name: l.contact_name?.trim() || null, email, phone: l.phone?.trim() || null,
+    website: l.website?.trim() || null, city: l.city?.trim() || null, segment: l.segment, job_title: l.job_title.trim(), posting_source: l.posting_source?.trim() || null,
+    posting_url: l.posting_url?.trim() || null, score: Math.min(100, bizLeadScore({ email, phone: l.phone, website: l.website }) + 30), status: email ? "queued" : "call",
+  }).select("*").single();
+  if (error || !data) return { ok: false, error: error?.message ?? "Couldn't save" };
+  await event(data.id, "found", `job posting${l.posting_source ? ` on ${l.posting_source}` : ""}: ${l.job_title}`, actor);
+  let sent = false;
+  if (email && l.send_now && instantlyBizReady()) sent = (await sendTo([data as LeadRow])).sent > 0;
+  return { ok: true, id: data.id, sent };
 }
 
 /** Instantly events for business leads (the webhook routes here when handled_biz_lead_id is present). */
