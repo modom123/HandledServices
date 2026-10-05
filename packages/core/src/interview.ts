@@ -29,7 +29,7 @@ export const COMPETENCIES: Record<Competency, { en: string; es: string; anchors:
   business: { en: "Business readiness", es: "Preparación del negocio", anchors: { 1: "No insurance and unwilling to get it; no tools or transportation", 3: "Has or will get insurance; own tools and transportation; can use a phone app", 5: "Insured and licensed where needed, set up as a business, comfortable with app, photos and receipts" } },
 };
 
-export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "painting" | "licensed" | "pets" | "transport" | "errands" | "events" | "security";
+export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "painting" | "licensed" | "pets" | "transport" | "errands" | "events" | "security" | "recruiting";
 
 const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
@@ -39,7 +39,7 @@ const GROUP_OF: Record<string, TradeGroup> = {
   painting: "painting",
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",
-  event_planner: "events", catering: "events", food_truck: "events", dj_music: "events", rentals: "events", venue: "events", security: "security",
+  event_planner: "events", catering: "events", food_truck: "events", dj_music: "events", rentals: "events", venue: "events", security: "security", recruiter: "recruiting",
 };
 export const tradeGroups = (trades: string[]): TradeGroup[] => [...new Set(trades.map((t) => GROUP_OF[t]).filter(Boolean))] as TradeGroup[];
 
@@ -86,6 +86,8 @@ export const QUESTIONS: InterviewQuestion[] = [
   q("events_late", "reliability", "On event day you're running late or a piece of equipment fails. What do you do?", "El día del evento va tarde o falla un equipo. ¿Qué hace?", "Early arrival buffer, backup equipment, tells the planner right away.", undefined, "events"),
   q("security_license", "business", "Which security agency license do you hold, how do you register your guards, and do you provide armed officers?", "¿Qué licencia de agencia de seguridad tiene, cómo registra a sus guardias y ofrece oficiales armados?", "Michigan agency license (LARA) they can provide; guards are their employees and registered; armed only with proper authorization.", "Individual freelance guards, or no agency license.", "security"),
   q("security_deescalate", "safety", "A guest who's been drinking gets loud and pushes another guest. Walk me through what your guards do.", "Un invitado que ha estado bebiendo levanta la voz y empuja a otro invitado. Explíqueme qué hacen sus guardias.", "Calm de-escalation first, separate people, involve the host, call police when needed, never more force than the law allows, written incident report.", "Goes straight to force, or no incident reporting.", "security"),
+  q("recruiting_placement", "skill", "Walk me through a recent hire you made, from the intake call to the start date. How did you find the person and close them?", "Cuénteme una contratación reciente que logró, desde la llamada de requisitos hasta el primer día. ¿Cómo encontró a la persona y cómo cerró la oferta?", "Clear intake, sourcing beyond job boards, real screening, managed both sides through offer, kept the candidate warm to the start date.", "Only posts ads and forwards résumés, or can't describe a close.", "recruiting"),
+  q("recruiting_ethics", "customer", "A client asks you to send only candidates under 35 who are 'a good culture fit.' What do you do?", "Un cliente le pide que envíe solo candidatos menores de 35 años que 'encajen con la cultura'. ¿Qué hace?", "Declines the age requirement, explains it's illegal, steers the client to real job requirements, documents it.", "Goes along with it, or quietly filters candidates.", "recruiting"),
   q("questions", null, "What questions do you have for us?", "¿Qué preguntas tiene para nosotros?", "Not scored. Good questions about how offers, pay and support work are a plus."),
 ];
 

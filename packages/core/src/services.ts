@@ -2426,4 +2426,5 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "rentals", label: "Party & event rentals" },
   { id: "venue", label: "Event venue / space" },
   { id: "security", label: "Security guard agency (licensed)" },
+  { id: "recruiter", label: "Recruiter (Handled Talent)" },
 ];

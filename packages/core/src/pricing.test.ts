@@ -1234,3 +1234,35 @@ test("bid engine: price from pro cost up, margin on price, gate blocks until eve
   assert.ok(standardRequirements("city").some((r) => r.text.includes("tax clearance")));
   assert.ok(standardRequirements("sam").some((r) => r.text.includes("SAM.gov")));
 });
+
+test("Handled Talent: 25% fee splits 20/5, retained thirds with true-up, guarantee, ownership, fair hiring", async () => {
+  const { placementFee, retainedSchedule, guaranteeOutcome, ownershipCheck, fairHiringCheck, TALENT_TERMS } = await import("./talent.ts");
+  const p = placementFee(80000);
+  assert.deepEqual([p.fee, p.recruiterPay, p.platform], [20000, 16000, 4000]);
+  const m = placementFee(20000, { minimumFee: 7500 });
+  assert.ok(m.minimumApplied); assert.equal(m.fee, 7500); assert.equal(m.recruiterPay, 6000); assert.equal(m.platform, 1500);
+  const r = retainedSchedule({ estimatedSalary: 150000, engagedOn: "2026-10-05" });
+  assert.equal(r.estimatedFee, 45000);
+  assert.deepEqual(r.payments.map((x) => x.amount), [15000, 15000, 15000]);
+  assert.equal(r.payments[0].recruiterPay, 12000);
+  assert.equal(r.payments[1].due, "2026-11-04");
+  const up = retainedSchedule({ estimatedSalary: 150000, engagedOn: "2026-10-05", actualSalary: 170000 });
+  assert.equal(up.totalFee, 51000); assert.equal(up.payments[2].amount, 21000);
+  const down = retainedSchedule({ estimatedSalary: 150000, engagedOn: "2026-10-05", actualSalary: 80000 });
+  assert.equal(down.payments[2].amount, 0, "never a negative last payment");
+  const base = { fee: 20000, recruiterPay: 16000, startDate: "2026-01-05", paidOnTime: true };
+  assert.equal(guaranteeOutcome({ ...base, endDate: "2026-02-04", reason: "resigned" }).remedy, "replacement");
+  const ref = guaranteeOutcome({ ...base, endDate: "2026-02-04", reason: "resigned", remedy: "refund" });
+  assert.equal(ref.worked, 30); assert.equal(ref.refund, 13333.33); assert.equal(ref.recruiterClawback, 10666.67);
+  assert.equal(guaranteeOutcome({ ...base, endDate: "2026-02-04", reason: "laid_off" }).covered, false);
+  assert.equal(guaranteeOutcome({ ...base, endDate: "2026-06-04", reason: "resigned" }).covered, false);
+  assert.equal(guaranteeOutcome({ ...base, endDate: "2026-02-04", reason: "resigned", paidOnTime: false }).covered, false);
+  const prior = [{ client_id: "c1", candidate_email: "Ann@x.com", recruiter_id: "r1", submitted_at: "2026-03-01T00:00:00Z" }];
+  const now = new Date("2026-10-05T00:00:00Z");
+  assert.equal(ownershipCheck(prior, { client_id: "c1", candidate_email: "ann@x.com", recruiter_id: "r2" }, now).ok, false);
+  assert.equal(ownershipCheck(prior, { client_id: "c2", candidate_email: "ann@x.com", recruiter_id: "r2" }, now).ok, true);
+  assert.equal(ownershipCheck(prior, { client_id: "c1", candidate_email: "ann@x.com", recruiter_id: "r2" }, new Date("2027-04-01T00:00:00Z")).ok, true, "ownership lapses after 12 months");
+  assert.ok(fairHiringCheck("Looking for a young, energetic salesman, native English speaker").length >= 3);
+  assert.equal(fairHiringCheck("Senior accountant, CPA, 5+ years, fluent in English, authorized to work in the U.S.").length, 0);
+  assert.equal(TALENT_TERMS.contingencyPct - TALENT_TERMS.recruiterPct, 5);
+});

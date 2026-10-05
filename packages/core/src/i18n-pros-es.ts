@@ -45,6 +45,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Party & event rentals": "Alquiler para fiestas y eventos",
   "Event venue / space": "Salón / espacio para eventos",
   "Security guard agency (licensed)": "Agencia de guardias de seguridad (con licencia)",
+  "Recruiter (Handled Talent)": "Reclutador (Handled Talent)",
 
   // coverage details (COVERAGES; labels are in i18n-pro-es.ts)
   "Per-occurrence limit shown for your trade, $2M aggregate. Handled Services LLC named as additional insured.": "Límite por incidente indicado para su oficio, $2M en total. Handled Services LLC nombrada como asegurado adicional.",

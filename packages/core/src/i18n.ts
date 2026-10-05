@@ -285,6 +285,7 @@ const ES: Record<string, string> = {
   "Every agreement you accepted, with the exact text as it was when you agreed. Print or save any of them as a PDF.": "Cada acuerdo que aceptó, con el texto exacto tal como estaba cuando lo aceptó. Puede imprimir o guardar cualquiera como PDF.",
   "The legal text of our agreements is in English. If you have questions, write to us.": "El texto legal de nuestros acuerdos está en inglés. Si tiene preguntas, escríbanos.",
   "Nothing yet — the agreements for each booking will appear here.": "Todavía nada: aquí aparecerán los acuerdos de cada reserva.",
+  "Recruiting (Handled Talent)": "Reclutamiento (Handled Talent)",
   "See all current terms & agreements": "Ver todos los términos y acuerdos vigentes",
   "Every agreement you signed, with the exact text as it was when you signed.": "Cada acuerdo que firmó, con el texto exacto tal como estaba cuando lo firmó.",
   "Nothing yet — sign your agreement in setup and your copies will appear here.": "Todavía nada: firme su acuerdo en la configuración y sus copias aparecerán aquí.",

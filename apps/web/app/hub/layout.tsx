@@ -18,6 +18,7 @@
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  * UPDATED : 2026-10-05_1441 UTC — 🏛️ Gov contracts (SAM.gov).
  * UPDATED : 2026-10-05_1954 UTC — 📝 Bids (bid engine).
+ * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (Handled Talent recruiting agency).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -42,6 +43,7 @@ const NAV = [
   ["/hub/biz-leads", "🤝", "Business leads"],
   ["/hub/gov", "🏛️", "Gov contracts"],
   ["/hub/bids", "📝", "Bids"],
+  ["/hub/talent", "🤝", "Talent (recruiting)"],
   ["/hub/email", "✉️", "Email Center"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/growth", "📈", "Growth"],

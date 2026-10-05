@@ -317,6 +317,12 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     preferred: ["Crowd-management or de-escalation training", "First aid / CPR"], glMin: GL2, requires: ["workers_comp"], conditional: [],
     skillsCheck: "LARA license lookup, certificate of insurance (GL $2M, workers' comp), guard training and use-of-force policy, 3 event or venue references.",
   },
+  recruiter: {
+    does: "Independent recruiters for Handled Talent: sourcing, screening and submitting candidates for client searches (contingency and retained).",
+    specialties: [{ id: "trades_ops", label: "Skilled trades & operations" }, { id: "tech", label: "Technical / IT" }, { id: "office", label: "Office, admin & finance" }, { id: "sales", label: "Sales & customer service" }, { id: "healthcare", label: "Healthcare" }, { id: "exec", label: "Leadership / executive search" }],
+    license: null, preferred: ["2+ years agency or in-house recruiting", "Applicant tracking and sourcing tools", "AIRS / CIR / CDR or similar certification"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Two recent placements with salary range and role (no client names needed), a sample candidate write-up, and a 20-minute mock intake call.",
+  },
   venue: {
     does: "Event spaces for parties, meetings and celebrations.",
     specialties: [{ id: "venue_small", label: "Under 100 guests", slug: "event-venue" }, { id: "venue_large", label: "100+ guests" }, { id: "outdoor", label: "Outdoor / garden" }],

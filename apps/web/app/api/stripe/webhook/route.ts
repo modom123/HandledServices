@@ -11,6 +11,7 @@
  * PURPOSE : Stripe webhook.
  * UPDATED : 2026-10-04_1934 UTC — pro photo ID results (identity.verification_session.*).
  * UPDATED : 2026-10-04_1934 UTC — business invoices: paid → invoice and its jobs marked paid (lib/business settleInvoice).
+ * UPDATED : 2026-10-05_2034 UTC — Handled Talent invoices (placements, retainer payments) → paid, recruiter share released.
  */
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
@@ -57,6 +58,8 @@ export async function POST(req: Request) {
       // pass-through: the customer paid the materials at cost → reimburse the pro
       const { data: exp } = await db.from("job_expenses").select("id").eq("payment_id", row.id).maybeSingle();
       if (exp) await reimburse(exp.id, row.id);
+    } else if (row.kind === "invoice" && (row.talent_placement_id || row.talent_retainer_id)) {
+      await (await import("@/lib/talent")).settleTalentPayment(row, amount);
     } else if (row.kind === "invoice" && row.business_invoice_id) {
       await settleInvoice(row.business_invoice_id, amount);
     } else if (row.job_id) {

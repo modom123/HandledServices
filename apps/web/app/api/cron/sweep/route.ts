@@ -14,6 +14,7 @@
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  * UPDATED : 2026-10-04_1934 UTC — business invoices on the 1st; invoice reminders and terms holds daily.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: release pending points, milestones, inactivity expiry.
+ * UPDATED : 2026-10-05_2034 UTC — Handled Talent: invoice hires on their start date and retainer payments when due.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -76,6 +77,7 @@ export async function GET(req: Request) {
   const invoices = new Date().getUTCDate() === 1 ? await runInvoices().catch((e) => { console.error("[invoices]", e); return 0; }) : null;
   const billing = await invoiceSweep().catch((e) => { console.error("[invoice sweep]", e); return null; });
   const rewards = await (await import("@/lib/rewards")).releaseRewards().catch((e) => { console.error("[rewards]", e); return null; });
+  const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
 
-  return Response.json({ invoices, billing, rewards, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

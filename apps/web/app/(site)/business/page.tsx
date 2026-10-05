@@ -8,6 +8,7 @@
  * PURPOSE : Commercial accounts landing page.
  * UPDATED : 2026-10-04_1934 UTC — ?lead= from the business sales email (pilot offer applied on sign-up).
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-10-05_2034 UTC — Handled Talent (recruiting) call-out.
  */
 import Link from "next/link";
 import { BUSINESS_GROUPS, INDUSTRIES, businessServices, money, priceHint } from "@handled/core";
@@ -93,6 +94,13 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="wrap pt-10">
+        <div className="card flex flex-wrap items-center justify-between gap-4">
+          <div><div className="text-lg font-bold">🤝 Hiring? Handled Talent recruits for you.</div><p className="text-sm text-ink-soft">Contingency search: 25% of first-year base salary, only if you hire. Retained search for leadership roles. 90-day guarantee.</p></div>
+          <Link href="/talent" className="btn-primary">Start a search</Link>
         </div>
       </section>
 

@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-05_0221 UTC — Checklists (what each kind of job includes) in the header.
  * UPDATED : 2026-10-05_0418 UTC — Rewards in the header.
  * PURPOSE : Pro portal shell. Pros mostly use the mobile app; this is the web twin.
+ * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (recruiters: Handled Talent searches).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -34,7 +35,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
     );
   return (
     <>
-      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">{t("Jobs")}</Link><Link href="/pro/schedule">{t("Calendar")}</Link><Link href="/pro/earnings">{t("Earnings")}</Link><Link href="/pro/onboarding">{t("Setup & documents")}</Link><Link href="/pro/crew">{l === "es" ? "Mi equipo" : "My crew"}</Link><Link href="/pro/rewards">{l === "es" ? "🎁 Recompensas" : "🎁 Rewards"}</Link><Link href="/pro/checklists">{l === "es" ? "Listas" : "Checklists"}</Link><Link href="/pro/contracts">{t("My contracts")}</Link><LangSwitch locale={l} /><form action="/auth/signout" method="post"><button className="text-ink-soft">{t("Sign out")}</button></form></div></div></header>
+      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">{t("Jobs")}</Link><Link href="/pro/schedule">{t("Calendar")}</Link><Link href="/pro/earnings">{t("Earnings")}</Link><Link href="/pro/onboarding">{t("Setup & documents")}</Link><Link href="/pro/crew">{l === "es" ? "Mi equipo" : "My crew"}</Link><Link href="/pro/rewards">{l === "es" ? "🎁 Recompensas" : "🎁 Rewards"}</Link><Link href="/pro/talent">{l === "es" ? "🤝 Talento" : "🤝 Talent"}</Link><Link href="/pro/checklists">{l === "es" ? "Listas" : "Checklists"}</Link><Link href="/pro/contracts">{t("My contracts")}</Link><LangSwitch locale={l} /><form action="/auth/signout" method="post"><button className="text-ink-soft">{t("Sign out")}</button></form></div></div></header>
       <main className="wrap py-8">{children}</main>
     </>
   );

@@ -6,6 +6,7 @@
  * PURPOSE : Public website header and footer.
  * UPDATED : 2026-10-05_0434 UTC — one account button (Sign in → My account / Pro portal / Hub, with Sign out), visible on phones.
  * UPDATED : 2026-10-05_0448 UTC — 📸 Snap & post a job button in the header (phones too).
+ * UPDATED : 2026-10-05_2034 UTC — footer link to Handled Talent (recruiting).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -70,6 +71,7 @@ export async function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
             <li><Link href="/events" className="hover:text-ink">{t("Parties & events")}</Link></li>
             <li><Link href="/business" className="hover:text-ink">{t("Commercial accounts")}</Link></li>
+            <li><Link href="/talent" className="hover:text-ink">{t("Recruiting (Handled Talent)")}</Link></li>
             <li><Link href="/plus" className="hover:text-ink">⭐ Handled Plus</Link></li>
             <li><Link href="/gift-cards" className="hover:text-ink">🎁 {t("Gift cards")}</Link></li>
             <li><Link href="/reviews" className="hover:text-ink">{t("Customer reviews")}</Link></li>

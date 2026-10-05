@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-05_0418 UTC — PRO_REWARDS_TERMS (Handled Pro Rewards: points, not pay or equity; 1099; expiry; changes).
  * UPDATED : 2026-10-05_0440 UTC — pro-addendum-security (licensed agencies, employees, armed rules, use of force, incidents).
  * UPDATED : 2026-10-05_1433 UTC — security addendum covers standing posts, patrols and fire watch (section 7).
+ * UPDATED : 2026-10-05_2034 UTC — pro-addendum-recruiter (Handled Talent: 20% of first-year salary, consent, ownership, fair hiring).
  */
 import {
   AGREEMENT_VERSION,
@@ -674,6 +675,20 @@ export const PRO_ADDENDA: Contract[] = [
     { h: `5. Incidents`, p: `Report any injury, fight, police call, ejection, property damage or weapon in the app within 24 hours, with times, names of staff involved and what happened, and keep your agency's own records. Call us right away for anything serious. Cooperate with police and with us in any review or claim.` },
     { h: `6. Screening and insurance`, p: `Everyone you send passes our background check and photo ID check before their first job, and is listed on your crew (Crew Addendum). Keep general liability insurance of at least $2,000,000 per occurrence naming ${BRAND.legalName} as additional insured, and workers' compensation for your guards. Some venues and customers require more; the job will say so.${COUNSEL}` },
     { h: `7. Standing posts, patrols and fire watch`, p: `For building, site and lot coverage, follow the customer's post orders (areas, shift times, access, who to call), keep the post staffed for the whole shift with no gap at shift change, and do every booked patrol check. Fire watch is done by guards trained for it: rounds of every area at least hourly, logged with times, calling 911 first for any fire or smoke. Keys, codes and alarm codes are used only for the job and never copied. File a daily activity report with photos in the app at the end of each shift, and tell the customer right away about anything unusual.` },
+  ]),
+  addendum("pro-addendum-recruiter", "Recruiting (Handled Talent)", ["recruiter"], [
+    "Your share on a contingency hire is 20% of the hire's first-year base salary (80% of our 25% fee); on retained searches, 80% of each payment we collect.",
+    "You're paid when the client pays us, through the weekly payout. If we refund a client under the 90-day guarantee, your share of the refund comes back.",
+    "Every candidate agrees in writing before you submit them, and knows which company their résumé goes to. Candidates never pay a fee.",
+    "No screening on age, sex, race, national origin, religion, disability or any other protected trait — and tell us if a client asks you to.",
+    `Clients and candidates you meet through ${N} searches stay with ${N}: no placing them around us for 12 months.`,
+  ], [
+    { h: `1. The work`, p: `You source, screen and present candidates for the searches ${N} assigns you, using your own methods, tools and schedule. ${N} owns the client relationship, the client agreement, invoicing and collections. You're an independent business, not an employee or agent of ${N} or of the client, and you don't sign anything for either.` },
+    { h: `2. Your pay`, p: `Contingency: 20% of the hire's first-year base salary — 80% of the ${N} fee (25%) — or 80% of any different fee agreed with the client. Retained: 80% of each retained payment the client pays. Your share becomes payable when the client's payment clears and goes out in the next weekly payout, with a statement. If a client gets a guarantee refund, the matching share of your pay is deducted from future payouts (as in the Independent Contractor Agreement). If a client never pays, no share is owed; we pursue collection.` },
+    { h: `3. Submissions and ownership`, p: `Submit candidates only through the ${N} portal. Before you submit, the candidate must agree in writing to be presented to that company for that role, and you confirm it. The first written submission of a candidate to a client owns that introduction for 12 months; if another recruiter submitted them first, your submission doesn't count. Never submit someone to a client outside the portal.` },
+    { h: `4. Fair hiring and honesty`, p: `Recruit on skills and the job's real requirements. Never source, screen or reject anyone because of a protected trait (age, race, color, religion, sex, pregnancy, sexual orientation, gender identity, national origin, disability, genetic information, height, weight, marital or familial status, veteran status), and report any client request to do so. Never misstate a candidate's experience, salary or interest, or a job's pay or terms. Candidates never pay a fee.` },
+    { h: `5. Candidate data`, p: `Use candidates' information only for their job search with ${N}, keep it secure, don't sell or share it, and delete your copies when the search ends or the candidate asks. Upload résumés only to the ${N} portal.${COUNSEL}` },
+    { h: `6. Non-circumvention`, p: `For 12 months after you work on a ${N} search, you won't place, or help place, a candidate you met through ${N} with that client outside ${N}, or take that client's recruiting work directly. Your own clients and candidates from before you joined stay yours.${COUNSEL}` },
   ]),
   addendum("pro-addendum-events-food", "Events, Food & Venues", ["event_planner", "catering", "food_truck", "dj_music", "rentals", "venue"], [
     "Food service needs your health-department or MDARD license and a certified food protection manager; food handlers follow the Michigan Food Code.",

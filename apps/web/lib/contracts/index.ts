@@ -8,18 +8,21 @@
  *             proSigningSet(trades)             — signed by a pro in onboarding
  *           Plus a content hash so a person's frozen copy can be proven unchanged.
  * UPDATED : 2026-10-03_0050 UTC — Spanish: localized(contract, lang) from the translations in es.ts.
+ * UPDATED : 2026-10-05_2034 UTC — Handled Talent client agreement (recruiting services).
  */
 import { createHash } from "node:crypto";
 import { getService } from "@handled/core";
 import type { Contract, ContractTranslation } from "./types";
 import { CONTRACTS_ES } from "./es";
 import { BUSINESS_MSA, CUSTOMER_ADDENDA, CUSTOMER_CONTRACTS, MEMBERSHIP_PROMO_TERMS, SERVICE_AGREEMENT, TERMS_OF_USE } from "./customer";
+import { TALENT_CLIENT_AGREEMENT } from "./talent";
 import { PRO_ADDENDA, PRO_CREW_ADDENDUM, PRO_AGREEMENT, PRO_BACKGROUND_CHECK_NOTICE, PRO_CODE_OF_CONDUCT, PRO_CONTRACTS, PRO_DEACTIVATION_POLICY, PRO_LOCATION_CONSENT } from "./pro";
 
 export type { Contract, ContractSection, ContractAudience, ContractTranslation } from "./types";
 export { BUSINESS_MSA, MEMBERSHIP_PROMO_TERMS, PRO_AGREEMENT, PRO_CREW_ADDENDUM, SERVICE_AGREEMENT, TERMS_OF_USE };
 
-export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, ...PRO_CONTRACTS];
+export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, TALENT_CLIENT_AGREEMENT, ...PRO_CONTRACTS];
+export { TALENT_CLIENT_AGREEMENT };
 
 export const getContract = (key: string) => ALL_CONTRACTS.find((c) => c.key === key) ?? null;
 
