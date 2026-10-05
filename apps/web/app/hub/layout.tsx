@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-05_0148 UTC — Email Center in the nav.
  * UPDATED : 2026-10-05_0221 UTC — Checklists (library) in the nav.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards in the nav.
+ * UPDATED : 2026-10-05_0434 UTC — Team (who has Hub access) in the nav; clearer "staff only" message.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -49,6 +50,7 @@ const NAV = [
   ["/hub/workforce", "🏢", "IEBC Workforce"],
   ["/hub/assistant", "✨", "AI assistant"],
   ["/hub/contracts", "📜", "Contract library"],
+  ["/hub/team", "👥", "Team"],
   ["/hub/setup", "🚀", "Go-live setup"],
 ] as const;
 
@@ -59,7 +61,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   const v = await getViewer();
   if (!v) redirect("/login?next=/hub");
   if (!isStaff(v))
-    return <div className="wrap py-20"><div className="card max-w-lg"><h1 className="text-xl font-bold">Staff only</h1><p className="mt-2 text-sm text-ink-soft">{v.email} isn’t on the ops team. An admin can set your role to <code>dispatcher</code> or <code>admin</code> in the profiles table.</p></div></div>;
+    return <div className="wrap py-20"><div className="card max-w-lg"><h1 className="text-xl font-bold">Staff only</h1><p className="mt-2 text-sm text-ink-soft">{v.email} isn’t on the ops team. Ask an admin to add your email in Hub → Team; you'll get a sign-in link. Looking for your bookings or your pro jobs? <a className="underline" href="/account">My account</a> · <a className="underline" href="/pro">Pro portal</a></p></div></div>;
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">

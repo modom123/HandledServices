@@ -68,7 +68,7 @@ export default async function Packet({ searchParams }: { searchParams: Promise<{
       </section>
 
       <section className="break-inside-avoid"><h2 className="mb-2 text-xl font-bold">7. Approval checklist</h2>
-        <ul className="space-y-1">{["Application received", "Application screened", "Screening interview done", "Decision by a person: invite", "W-9 on file", "Independent contractor agreement signed", "Specialties chosen", "Work area & days set", "Insurance certificate (COI) verified", "Trade coverages verified (where the trade needs them)", "Workers' comp, or a no-employees statement", "Trade license verified (where required)", "Photo ID verified", "Background check cleared", "Payout method set", "Approved — receiving job offers", "First job completed and reviewed"].map((x) => <li key={x}>☐ {x}</li>)}</ul>
+        <ul className="space-y-1">{["Application received", "Application screened", "Screening interview done", "Decision by a person: invite", "Pro account created (signed in with the application email)", "W-9 on file", "Independent contractor agreement signed", "Specialties chosen", "Work area & days set", "Insurance certificate (COI) verified", "Trade coverages verified (where the trade needs them)", "Workers' comp, or a no-employees statement", "Trade license verified (where required)", "Photo ID verified", "Background check cleared", "Payout method set", "Approved — receiving job offers", "First job completed and reviewed"].map((x) => <li key={x}>☐ {x}</li>)}</ul>
         <p className="mt-2 text-xs text-ink-soft">The Hub tracks every step for each candidate (Recruiting → click a name), shows what's next and who it waits on, and flags anyone stuck.</p>
       </section>
     </div>

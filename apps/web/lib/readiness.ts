@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-05_0221 UTC — migration 32 (job checklists).
  * UPDATED : 2026-10-05_0246 UTC — migration 33 (pro screening interviews).
  * UPDATED : 2026-10-05_0418 UTC — migration 34 (pro rewards).
+ * UPDATED : 2026-10-05_0434 UTC — OWNER_EMAILS check (first admin).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -50,6 +51,7 @@ export async function readiness(): Promise<Check[]> {
   add("Supabase", "Service role key", has("SUPABASE_SERVICE_ROLE_KEY"), has("SUPABASE_SERVICE_ROLE_KEY") ? "set" : "missing", "Add SUPABASE_SERVICE_ROLE_KEY (server only) from Supabase → Project Settings → API");
   add("AI (Claude)", "Anthropic API key", has("ANTHROPIC_API_KEY") ? true : "warn", has("ANTHROPIC_API_KEY") ? "set" : "missing — quotes/dispatch/QA fall back to rules, chat & assistant offline", "Add ANTHROPIC_API_KEY from console.anthropic.com");
   add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : has("SMTP_USER") && has("SMTP_PASSWORD") ? "not set — booking emails go from the company mailbox instead" : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend (or connect the company mailbox below)");
+  add("Access", "Owner admin (OWNER_EMAILS)", has("OWNER_EMAILS") ? true : "warn", has("OWNER_EMAILS") ? "set" : "not set — make yourself admin by adding your email", "In Vercel set OWNER_EMAILS=you@handledsvc.com (comma-separated for more), sign in once and you're an admin; add other staff in Hub → Team");
   add("Email", "Company mailbox (Email Center)", has("SMTP_USER") && has("SMTP_PASSWORD") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("SMTP_USER") || !has("SMTP_PASSWORD") ? "not connected — no marketing email or inbox" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required on marketing email)" : `connected: ${process.env.SMTP_USER}`, "In Vercel set SMTP_USER=info@handledsvc.com and SMTP_PASSWORD (the Hostinger mailbox password), then Hub → Email Center → Check mailbox & domain (SPF, DKIM, DMARC)");
   add("Email", "Ops inbox", has("OPS_EMAIL") ? true : "warn", process.env.OPS_EMAIL ?? "missing", "Add OPS_EMAIL — receives critical alerts, new pro applications and the daily brief");
   add("Text messages", "Twilio SMS", has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && (has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM")) ? true : "warn",

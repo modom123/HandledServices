@@ -4,7 +4,9 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_1329 UTC — footer: Handled Plus, gift cards, reviews; English / Spanish.
  * PURPOSE : Public website header and footer.
+ * UPDATED : 2026-10-05_0434 UTC — one account button (Sign in → My account / Pro portal / Hub, with Sign out), visible on phones.
  */
+import { AccountButton } from "./AccountButton";
 import Link from "next/link";
 import { BRAND, CATEGORIES, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
@@ -31,10 +33,9 @@ export async function SiteHeader() {
           <Link href="/events" className="hover:text-ink">{t("Events")}</Link>
           <Link href="/business" className="hover:text-ink">{t("For Business")}</Link>
           <Link href="/pros" className="hover:text-ink">{t("Become a Pro")}</Link>
-          <Link href="/account" className="hover:text-ink">{t("My Bookings")}</Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/login" className="hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">{t("Sign in")}</Link>
+          <AccountButton es={l === "es"} />
           <LangSwitch locale={l} />
           <Link href="/book" className="btn-primary">{t("Book now")}</Link>
         </div>

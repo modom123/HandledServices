@@ -82,7 +82,7 @@ ${INTERVIEW_FAQ.map((f) => `- ${f}`).join("\n")}
 - Scores come with quoted evidence, and the result is computed from the rubric above.
 
 ## 7. Approval checklist
-${["Application received", "Application screened", "Screening interview done", "Decision by a person: invite", "W-9 on file", "Independent contractor agreement signed", "Specialties chosen", "Work area & days set", "Insurance certificate (COI) verified", "Trade coverages verified (where the trade needs them)", "Workers' comp, or a no-employees statement", "Trade license verified (where required)", "Photo ID verified", "Background check cleared", "Payout method set", "Approved — receiving job offers", "First job completed and reviewed"].map((x) => `- [ ] ${x}`).join("\n")}
+${["Application received", "Application screened", "Screening interview done", "Decision by a person: invite", "Pro account created (signed in with the application email)", "W-9 on file", "Independent contractor agreement signed", "Specialties chosen", "Work area & days set", "Insurance certificate (COI) verified", "Trade coverages verified (where the trade needs them)", "Workers' comp, or a no-employees statement", "Trade license verified (where required)", "Photo ID verified", "Background check cleared", "Payout method set", "Approved — receiving job offers", "First job completed and reviewed"].map((x) => `- [ ] ${x}`).join("\n")}
 
 The Hub tracks every step for each candidate (Hub → Recruiting → click a name). It shows the next step and who it
 waits on, and flags anyone stuck: 2+ days waiting on a decision from us, or 7+ days with no progress.

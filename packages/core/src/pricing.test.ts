@@ -1122,7 +1122,8 @@ test("pro interview: plans per trade, scoring rules, no protected topics, approv
   const c1 = approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed", result: "advance" }, onboarding: [{ key: "w9", label: "W-9 on file", done: false }] });
   assert.equal(c1.next?.key, "decision", "after the interview a person decides");
   assert.equal(c1.next?.who, "staff");
-  const c2 = approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed" }, invited_at: "2026-10-02", onboarding: [{ key: "w9", label: "W-9 on file", done: true }, { key: "background", label: "Background check cleared", done: false }] });
+  assert.equal(approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed" }, invited_at: "2026-10-02" }).next?.key, "account", "after the invite: they create their pro account");
+  const c2 = approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed" }, invited_at: "2026-10-02", account_linked: true, onboarding: [{ key: "w9", label: "W-9 on file", done: true }, { key: "background", label: "Background check cleared", done: false }] });
   assert.equal(c2.next?.key, "setup:background");
 });
 

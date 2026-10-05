@@ -13,6 +13,7 @@
  *           Wording: pros are independent businesses (1099). They are "approved to receive job offers", never
  *           "hired"; we ask about their business, skills and how they treat customers — not about schedules we
  *           set, supervision, uniforms or training we require.
+ * UPDATED : 2026-10-05_0432 UTC — approval checklist: "Pro account created" (signed in with the application email) after the invite.
  */
 import { BRAND } from "./brand.ts";
 
@@ -150,6 +151,8 @@ export interface ApprovalInput {
   ai_screen?: { score?: number; recommendation?: string } | null;
   interview?: { status: string; result?: InterviewResult | null; decided?: string | null; mode?: string | null } | null;
   invited_at?: string | null;
+  /** The pro signed in with their application email (their pro account exists and is linked). */
+  account_linked?: boolean;
   onboarding?: { key: string; label: string; done: boolean; detail?: string }[];
   approved?: boolean;
   first_job_done?: boolean;
@@ -161,6 +164,7 @@ export function approvalChecklist(a: ApprovalInput): { steps: ApprovalStep[]; ne
     { key: "screen", en: "Application screened", es: "Solicitud revisada", done: Boolean(a.ai_screen), detail: a.ai_screen ? `AI ${a.ai_screen.score ?? "?"} · ${String(a.ai_screen.recommendation ?? "").replace(/_/g, " ")}` : null, who: "system" },
     { key: "interview", en: "Screening interview done", es: "Entrevista realizada", done: a.interview?.status === "completed", detail: a.interview ? `${a.interview.mode === "human" ? "In person / phone" : "AI"} · ${a.interview.status}${a.interview.result ? ` · ${RESULT_LABEL[a.interview.result]}` : ""}` : "Send the AI interview link or interview them yourself", who: "candidate" },
     { key: "decision", en: "Decision by a person: invite", es: "Decisión de una persona: invitar", done: Boolean(a.invited_at), detail: a.invited_at ? `Invited ${a.invited_at.slice(0, 10)}` : null, who: "staff" },
+    { key: "account", en: "Pro account created: signed in with the application email", es: "Cuenta de profesional creada: inició sesión con el correo de su solicitud", done: Boolean(a.account_linked), detail: a.account_linked ? null : a.invited_at ? "The invite email has a one-click sign-in link; or they choose “I'm a pro” at Sign in" : null, who: "candidate" },
     ...(a.onboarding ?? []).map((s) => ({ key: `setup:${s.key}`, en: s.label, es: s.label, done: s.done, detail: s.detail ?? null, who: (s.key === "background" || s.key === "coi" || s.key === "license" || s.key.startsWith("coverage:") ? "staff" : "candidate") as ApprovalStep["who"] })),
     { key: "approved", en: "Approved — receiving job offers", es: "Aprobado: recibe ofertas de trabajo", done: Boolean(a.approved), who: "system" },
     { key: "first_job", en: "First job completed and reviewed", es: "Primer trabajo completado y revisado", done: Boolean(a.first_job_done), who: "candidate" },

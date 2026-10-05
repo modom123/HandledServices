@@ -5,6 +5,7 @@
  * PURPOSE : Hub → Recruiting → one candidate: where they are (approval checklist from application to first job,
  *           with the next step and who it waits on), the application and AI screen, interviews (AI transcript,
  *           scores with evidence, result, decision; or the scorecard for interviewing them yourself), and history.
+ * UPDATED : 2026-10-05_0432 UTC — approval checklist shows whether the pro has signed in (account created).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -35,7 +36,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
   const done = ivs.find((i) => i.status === "completed");
   const check = approvalChecklist({
     applied_at: app.created_at, ai_screen: app.ai_screen, interview: latest ? { status: latest.status, result: latest.result, mode: latest.mode } : null,
-    invited_at: app.invited_at, onboarding: pro ? onboardingChecklist(pro as never).steps : [], approved: pro?.status === "approved", first_job_done: Boolean(firstJob?.length),
+    invited_at: app.invited_at, account_linked: Boolean(pro?.profile_id), onboarding: pro ? onboardingChecklist(pro as never).steps : [], approved: pro?.status === "approved", first_job_done: Boolean(firstJob?.length),
   });
   const plan = interviewPlan((app.trades as string[]) ?? []);
   const human = ivs.find((i) => i.mode === "human" && i.status === "in_progress");

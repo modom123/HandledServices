@@ -33,7 +33,7 @@ const question = (q: InterviewQuestion, n: string) => `
     <div class="lines"><div></div><div></div><div></div></div>
   </div>`;
 
-const checklist = ["Application received", "Application screened", "Screening interview done", "Decision by a person: invite", "W-9 on file", "Independent contractor agreement signed",
+const checklist = ["Application received", "Application screened", "Screening interview done", "Decision by a person: invite", "Pro account created (signed in with the application email)", "W-9 on file", "Independent contractor agreement signed",
   "Specialties chosen", "Work area & days set", "Insurance certificate (COI) verified", "Trade coverages verified (where the trade needs them)", "Workers' comp, or a no-employees statement",
   "Trade license verified (where required)", "Photo ID verified", "Background check cleared", "Payout method set", "Approved — receiving job offers", "First job completed and reviewed"];
 
