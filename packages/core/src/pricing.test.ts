@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
  * UPDATED : 2026-10-05_0418 UTC — pro rewards.
  * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
+ * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  */
 
 import { test } from "node:test";
@@ -1170,4 +1171,34 @@ test("security: event budget sets aside licensed guards when alcohol is served; 
   const patrol = estimate({ slug: "security-guard", answers: { kind: "patrol", visits: 3, days: 7 } });
   assert.equal(patrol.items[0].amount, 3 * 7 * 45);
   assert.ok(getService("security-guard")!.licensed && getService("security-guard")!.trades.includes("security"));
+});
+
+test("gov contracts: SAM.gov records parse, NAICS map to our services, fit scores Michigan open work highest", async () => {
+  const { parseSamOpportunity, govFit, samSearchQueries, servicesForNaics, GOV_NAICS } = await import("./gov-contracts.ts");
+  for (const n of GOV_NAICS) assert.ok(servicesForNaics(n.code).length > 0, `NAICS ${n.code} maps to no catalog service`);
+  const raw = {
+    noticeId: "abc123", title: "Janitorial Services — Detroit Federal Building", solicitationNumber: "47PF0026Q0001", fullParentPathName: "GENERAL SERVICES ADMINISTRATION.PUBLIC BUILDINGS SERVICE.PBS R5",
+    postedDate: "2026-10-01", type: "Combined Synopsis/Solicitation", typeOfSetAside: "SBA", typeOfSetAsideDescription: "Total Small Business Set-Aside (FAR 19.5)",
+    responseDeadLine: "2026-10-30T14:00:00-04:00", naicsCode: "561720", classificationCode: "S201", active: "Yes",
+    placeOfPerformance: { city: { code: "22000", name: "Detroit" }, state: { code: "MI", name: "Michigan" }, zip: "48226" },
+    pointOfContact: [{ fullName: "Pat Officer", email: "pat@gsa.gov", phone: "3135550100", type: "primary" }],
+    description: "https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=abc123", uiLink: "https://sam.gov/opp/abc123/view",
+  };
+  const o = parseSamOpportunity(raw)!;
+  assert.equal(o.ptype, "k"); assert.equal(o.agency, "GENERAL SERVICES ADMINISTRATION"); assert.equal(o.office, "PBS R5"); assert.equal(o.pop_state, "MI");
+  const now = new Date("2026-10-05T12:00:00Z");
+  const good = govFit(o, { now });
+  assert.ok(good.score >= 80 && good.biddable && good.services.includes("house-cleaning"), JSON.stringify(good));
+  assert.ok(good.flags.some((f) => f.includes("subcontracting")));
+  assert.ok(govFit({ ...o, set_aside_code: "SDVOSBC" }, { now }).score < good.score - 30);
+  assert.ok(govFit({ ...o, set_aside_code: "SDVOSBC" }, { now, certifications: ["SDVOSBC"] }).score === good.score);
+  assert.ok(govFit({ ...o, pop_state: "TX", pop_city: "Austin" }, { now }).score < good.score);
+  assert.ok(govFit({ ...o, ptype: "a" }, { now }).score <= 15);
+  assert.ok(govFit({ ...o, response_deadline: "2026-10-01T00:00:00Z" }, { now }).flags.some((f) => f.includes("passed")));
+  assert.equal(parseSamOpportunity({ title: "no id" }), null);
+  const qs = samSearchQueries({ naics: ["561720", "561730", "bad"], state: "mi", ptypes: ["o", "k", "zz"], daysBack: 7, now });
+  assert.equal(qs.length, 2);
+  const q = new URLSearchParams(qs[0]);
+  assert.deepEqual([q.get("postedFrom"), q.get("postedTo"), q.get("ncode"), q.get("state"), q.get("ptype")], ["09/28/2026", "10/05/2026", "561720", "MI", "o,k"]);
+  assert.ok(!qs[0].includes("api_key"));
 });
