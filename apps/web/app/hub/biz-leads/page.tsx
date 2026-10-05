@@ -7,11 +7,13 @@
  *           the call list (phone-only leads — call by hand, never automated texts) and the top leads.
  * UPDATED : 2026-10-05_0130 UTC — job-posting leads: add a business that posted a job for work we do; open its letter.
  * UPDATED : 2026-10-05_2134 UTC — Teaming partners (public bids) section; partners kept out of the funnel, call list and stats.
+ * UPDATED : 2026-10-05_2141 UTC — every lead opens its own page with the full note history; latest note shown in the lists.
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { getBizLeadSettings } from "@/lib/biz-leads";
+import { noteSummaries } from "@/lib/notes";
 import { instantlyBizReady } from "@/lib/instantly";
 import { Stat } from "@/components/ui";
 import { BizLeadSettingsForm, BizLeadStatus, JobPostLeadForm } from "@/components/BizLeadAdmin";
@@ -26,10 +28,12 @@ export default async function BizLeads() {
   // teaming partners are tracked here but kept out of the sales funnel, call list and stats
   const partners = everyone.filter((l) => (l.segment as string) === BIZ_PARTNER_SEGMENT);
   const leads = everyone.filter((l) => (l.segment as string) !== BIZ_PARTNER_SEGMENT);
+  const notes = await noteSummaries("biz_lead", everyone.map((l) => l.id));
+  const lastNote = (id: string) => { const s = notes[id]; return s ? <div className="mt-1 text-xs text-ink-soft">📝 {new Date(s.last.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}: {s.last.body.slice(0, 90)}{s.last.body.length > 90 ? "…" : ""}{s.count > 1 ? ` (+${s.count - 1} more)` : ""}</div> : null; };
   const n = (st: string | string[]) => leads.filter((l) => (Array.isArray(st) ? st : [st]).includes(l.status)).length;
   const Row = ({ l }: { l: Lead }) => (
     <tr className="border-t border-line">
-      <td className="p-3"><div className="font-semibold">{l.business_name}</div><div className="text-xs text-ink-soft">{BIZ_SEGMENTS[l.segment]?.label} · {l.city ?? "—"}{l.rating ? ` · ${l.rating}★ (${l.review_count})` : ""}</div>
+      <td className="p-3"><Link href={`/hub/biz-leads/${l.id}`} className="font-semibold text-brand hover:underline">{l.business_name}</Link><div className="text-xs text-ink-soft">{BIZ_SEGMENTS[l.segment]?.label} · {l.city ?? "—"}{l.rating ? ` · ${l.rating}★ (${l.review_count})` : ""}</div>{lastNote(l.id)}
         {l.job_title && <div className="text-xs">📋 Posted: {l.posting_url ? <a href={l.posting_url} target="_blank" className="underline">{l.job_title}</a> : l.job_title}{l.posting_source ? ` (${l.posting_source})` : ""} · <Link href={`/hub/biz-leads/${l.id}/letter`} className="font-semibold text-brand underline">letter</Link></div>}</td>
       <td className="p-3 text-xs">{l.email ?? "—"}<div>{l.phone ?? ""}</div>{l.website && <a href={l.website} target="_blank" className="underline">site</a>}</td>
       <td className="p-3 text-xs">{l.score}</td>
@@ -62,8 +66,8 @@ export default async function BizLeads() {
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm"><thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Firm</th><th className="p-3">Why them</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead>
             <tbody>{partners.map((l) => (
               <tr key={l.id} className="border-t border-line align-top">
-                <td className="p-3"><div className="font-semibold">{l.business_name}</div><div className="text-xs text-ink-soft">{BIZ_PARTNER_LABEL}{l.city ? ` · ${l.city}` : ""}</div>{l.website && <a href={l.website} target="_blank" className="text-xs underline">website</a>}{l.email && <div className="text-xs">{l.email}</div>}{l.phone && <div className="text-xs">{l.phone}</div>}</td>
-                <td className="p-3 text-xs whitespace-pre-wrap">{l.notes ?? ""}</td>
+                <td className="p-3"><Link href={`/hub/biz-leads/${l.id}`} className="font-semibold text-brand hover:underline">{l.business_name}</Link><div className="text-xs text-ink-soft">{BIZ_PARTNER_LABEL}{l.city ? ` · ${l.city}` : ""}</div>{l.website && <a href={l.website} target="_blank" className="text-xs underline">website</a>}{l.email && <div className="text-xs">{l.email}</div>}{l.phone && <div className="text-xs">{l.phone}</div>}</td>
+                <td className="p-3 text-xs whitespace-pre-wrap">{l.notes ?? ""}{lastNote(l.id)}</td>
                 <td className="p-3 text-xs">{l.status === "call" ? "to contact" : l.status.replace("_", " ")}</td>
                 <td className="p-3"><BizLeadStatus id={l.id} partner /></td>
               </tr>

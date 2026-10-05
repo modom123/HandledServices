@@ -217,8 +217,8 @@ export async function leadConverted(token: string, accountId: string) {
 export async function setBizLeadStatus(id: string, status: "call" | "not_interested" | "do_not_contact" | "replied" | "queued", note: string | null, actor: string) {
   // teaming partners are contacted by hand, never queued for the sales sequence
   if (status === "queued") { const { data: l } = await db().from("biz_leads").select("segment").eq("id", id).single(); if (l?.segment === "partner") status = "call"; }
-  // keep existing notes unless a new note was written (changing status alone never erases them)
-  await db().from("biz_leads").update({ status, ...(note ? { notes: note } : {}) }).eq("id", id);
+  // status only — notes are never overwritten; a note written with a status change is kept in the history (event below)
+  await db().from("biz_leads").update({ status }).eq("id", id);
   if (status === "not_interested" || status === "do_not_contact") {
     const { data } = await db().from("biz_leads").select("email").eq("id", id).single();
     if (data?.email) await blockInInstantly(data.email);

@@ -5,6 +5,7 @@
  * PURPOSE : Handled Hub → one business account: billing (prepay, or invoicing on terms approved case by case
  *           with a reason and credit limit; hold), open balance and invoices, priority dispatch, pilot offer,
  *           properties, members, dedicated pros and recent jobs.
+ * UPDATED : 2026-10-05_2141 UTC — Notes & history: permanent conversation log for the account, plus its history as a lead.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,6 +13,8 @@ import { BUSINESS_TERMS, getService, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { openBalance, type BusinessAccount, type Property } from "@/lib/business";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
+import { timeline } from "@/lib/notes";
+import { AddNote, Timeline } from "@/components/AccountNotes";
 import { AddMemberHub, AddPropertyHub, DedicatedHub, PilotControl, RunInvoices, StatusSelect, TermsControl, Toggle } from "@/components/HubBusiness";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +34,7 @@ export default async function HubBusinessAccount({ params }: { params: Promise<{
     db.from("business_invoices").select("*").eq("account_id", id).order("issued_on", { ascending: false }),
     openBalance(id),
   ]);
+  const history = await timeline("business_account", id);
   const jobRows = (jobs ?? []) as { id: string; ref: string; service_slug: string; status: string; scheduled_date: string | null; price_final: number | null; billed_on_terms: boolean; paid_at: string | null }[];
   const lifetime = jobRows.filter((j) => j.status === "completed").reduce((t, j) => t + Number(j.price_final ?? 0), 0);
   const paidInvoices = ((invoices ?? []) as { status: string; due_date: string; paid_at: string | null }[]).filter((i) => i.status === "paid");
@@ -89,6 +93,12 @@ export default async function HubBusinessAccount({ params }: { params: Promise<{
       <div className="card overflow-x-auto p-0"><div className="p-4 font-semibold">Jobs</div><table className="w-full text-sm"><tbody>
         {jobRows.map((j) => <tr key={j.id} className="border-t border-line"><td className="p-3"><Link href={`/hub/jobs/${j.id}`} className="underline">{j.ref}</Link></td><td className="p-3">{getService(j.service_slug)?.name}</td><td className="p-3 text-xs">{fmtDate(j.scheduled_date)}</td><td className="p-3"><StatusBadge status={j.status as never} /></td><td className="p-3 text-right">{money(Number(j.price_final ?? 0))} {j.billed_on_terms ? <span className="text-xs text-ink-soft">{j.paid_at ? "invoiced · paid" : "invoiced"}</span> : null}</td></tr>)}
       </tbody></table></div>
+
+      <section className="card space-y-3">
+        <h2 className="text-lg font-bold">Notes &amp; history ({history.length})</h2>
+        <AddNote subjectType="business_account" subjectId={id} />
+        <Timeline items={history} />
+      </section>
     </div>
   );
 }

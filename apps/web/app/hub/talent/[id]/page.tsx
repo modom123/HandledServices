@@ -5,12 +5,15 @@
  * PURPOSE : One Handled Talent search: the job order and fair-hiring check, terms, status, the client's review link,
  *           recruiters, the pipeline (add, submit, move, hire), hires with invoicing and the guarantee, retained payments,
  *           and the activity log.
+ * UPDATED : 2026-10-05_2141 UTC — client notes & history (permanent, shared across the client's searches).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SEARCH_STATUS_LABEL, money, type SearchStatus } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
+import { timeline } from "@/lib/notes";
+import { AddNote, Timeline } from "@/components/AccountNotes";
 import { AddCandidateForm, Pipeline, PlacementActions, RecruiterPicker, RetainerInvoiceButton, SearchControls, type PipeRow } from "@/components/TalentUI";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +32,7 @@ export default async function SearchPage({ params }: { params: Promise<{ id: str
     db.from("talent_retainer_payments").select("*").eq("search_id", id).order("created_at"),
     db.from("talent_events").select("actor, kind, note, created_at").eq("search_id", id).order("created_at", { ascending: false }).limit(40),
   ]);
+  const clientHistory = await timeline("talent_client", s.client_id);
   const c = s.talent_clients as { company: string; contact_name: string; email: string; phone: string | null; agreement_signed_at: string | null };
   const rows: PipeRow[] = (subs ?? []).map((x) => {
     const cand = x.talent_candidates as unknown as { full_name: string; email: string; current_title: string | null; location: string | null; resume_path: string | null };
@@ -79,6 +83,12 @@ export default async function SearchPage({ params }: { params: Promise<{ id: str
       {(events ?? []).length > 0 && (
         <section className="card"><h2 className="mb-2 text-lg font-bold">Activity</h2><ul className="text-xs">{(events ?? []).map((e, i) => <li key={i} className="py-0.5">{new Date(e.created_at).toLocaleString("en-US", { timeZone: "America/Detroit" })} · {e.actor} · {e.kind}{e.note ? ` — ${e.note}` : ""}</li>)}</ul></section>
       )}
+      <section className="card space-y-3">
+        <h2 className="text-lg font-bold">Client notes &amp; history ({clientHistory.length})</h2>
+        <p className="text-xs text-ink-soft">Shared across all of this client&apos;s searches. Permanent — add a new note to correct one.</p>
+        <AddNote subjectType="talent_client" subjectId={s.client_id} />
+        <Timeline items={clientHistory} />
+      </section>
     </div>
   );
 }

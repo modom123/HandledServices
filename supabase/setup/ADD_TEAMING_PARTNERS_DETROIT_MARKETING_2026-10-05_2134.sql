@@ -7,6 +7,7 @@
 --           automatically — send the drafted partnership emails from your own mailbox and update the status.
 --           Firm details came from web search results: confirm each on the firm's own site.
 --           Run once in Supabase → SQL Editor. Safe to run twice.
+-- UPDATED : 2026-10-05_2141 UTC — also starts each partner's permanent notes history (account_notes) with its note.
 -- ============================================================================
 alter table public.biz_leads drop constraint if exists biz_leads_segment_check;
 alter table public.biz_leads add constraint biz_leads_segment_check
@@ -28,3 +29,15 @@ insert into public.biz_leads (source, external_id, business_name, segment, city,
   ('manual', 'partner:marx-layne', 'Marx Layne & Company', 'partner', 'Metro Detroit', 'https://www.marxlayne.com', 60, 'call',
    'Backup. 35+ years of communications for business, government and nonprofit clients; larger firm — pitch IEBC as production subcontractor. Email #7 drafted.')
 on conflict (source, external_id) do nothing;
+
+-- start each partner's history with its note (when the account-notes table exists)
+do $$
+begin
+  if to_regclass('public.account_notes') is not null then
+    insert into public.account_notes (subject_type, subject_id, kind, body, author)
+    select 'biz_lead', l.id, 'note', l.notes, 'setup script'
+    from public.biz_leads l
+    where l.segment = 'partner' and l.notes is not null
+      and not exists (select 1 from public.account_notes n where n.subject_type = 'biz_lead' and n.subject_id = l.id);
+  end if;
+end $$;
