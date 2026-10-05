@@ -12,6 +12,7 @@
  *           fije el precio; Plus/promos: el cargo de reserva no se descuenta), mirroring customer.ts.
  * UPDATED : 2026-10-03_1311 UTC — adenda de construcción: el equipo que el cliente compra debe ser nuevo; nunca instalamos usado.
  * UPDATED : 2026-10-04_1934 UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas"); MSA: plazos aprobados en el portal de la cuenta empresarial.
+ * UPDATED : 2026-10-05_0439 UTC — Seguridad para eventos en el anexo de eventos.
  */
 import {
   BOOKING_FEE,
@@ -410,12 +411,13 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
 
   "addendum-events": {
     title: "Anexo — Fiestas y Eventos",
-    appliesTo: "Planificación de eventos según presupuesto, planificación y coordinación de eventos, catering, food trucks, DJ y música en vivo, alquiler de asientos y artículos para fiestas, y locales para eventos.",
+    appliesTo: "Planificación de eventos según presupuesto, planificación y coordinación de eventos, catering, food trucks, DJ y música en vivo, seguridad para eventos, alquiler de asientos y artículos para fiestas, y locales para eventos.",
     summary: [
       `Los eventos se reservan con un depósito del ${pct(DEPOSIT.eventShare)}. El saldo se cobra ${DEPOSIT.eventBalanceDaysBefore} días antes del evento.`,
       `El número final de invitados debe confirmarse ${DEPOSIT.eventBalanceDaysBefore} días antes. Después de eso, puede aumentar (si es posible), pero no se reembolsa si hay menos invitados.`,
       "Si un proveedor no puede asistir, lo reemplazamos con uno de igual calidad.",
       "Solo proveedores con licencia sirven alcohol.",
+      "La seguridad para eventos la brindan agencias de seguridad con licencia; los guardias calman las situaciones y llaman a la policía cuando es necesario, y usted sigue sus indicaciones de seguridad.",
       "Usted sigue las reglas del local y es responsable de los daños a los artículos alquilados.",
       "Mientras más cerca del evento cancele, mayor es la parte del precio que no se reembolsa.",
     ],
@@ -441,6 +443,15 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       ["Alcohol", p(
         "El alcohol solo lo sirven proveedores que tienen la licencia correspondiente de la Comisión de Control de Licores de Michigan (Michigan Liquor Control Commission) y seguro de responsabilidad por venta de alcohol. Los meseros pueden pedir identificación, negarse a servir a cualquier persona menor de 21 años o visiblemente intoxicada, y suspender el servicio en cualquier momento.",
         "Si usted lleva su propio alcohol donde el local lo permita, usted es responsable de servirlo legalmente y de la conducta de sus invitados." + COUNSEL,
+      )],
+      ["Seguridad para eventos", p(
+        "La seguridad la brinda una agencia de guardias de seguridad con licencia en Michigan; los guardias son empleados de esa agencia. Los guardias no portan armas, a menos que usted reserve oficiales armados, que solo los proporcionan agencias autorizadas para armarlos.",
+        ul(
+          "Los guardias cubren los puestos, horarios y tareas de su reserva (por ejemplo, control de puerta e identificaciones, lista de invitados, control de multitudes y estacionamiento). Avísenos sobre las entradas, personas importantes, riesgos conocidos y si se sirve alcohol.",
+          "Los guardias pueden negar la entrada, pedirle a alguien que se retire, detener actividades peligrosas y llamar a la policía o a emergencias. Primero calman la situación y no usan más fuerza de la que permite la ley. No son policías y no pueden prometer que no pasará nada.",
+          "Siga sus indicaciones de seguridad y no les pida nada ilegal (por ejemplo, revisar a invitados sin su consentimiento).",
+          "Si se reporta algo, recibirá un reporte de incidentes por escrito después del evento. ¿Muy pocos guardias para el público? Podemos recomendar más; usted decide.",
+        ),
       )],
       ["Locales, permisos y ruido", p(
         ul(

@@ -22,7 +22,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const comps = Object.keys(COMPETENCIES) as Competency[];
 const GROUP: Record<TradeGroup, string> = {
   cleaning: "Cleaning · windows · carpet · organizing · car detailing", repair: "Handyman · remodeling · low voltage", outdoor: "Lawn · trees · snow · gutters · pressure washing · pet waste",
-  moving: "Hauling · moving · containers", painting: "Painting", licensed: "Plumbing · electrical · HVAC", pets: "Pet care", transport: "Transportation", errands: "Errands & couriers", events: "Events",
+  moving: "Hauling · moving · containers", painting: "Painting", licensed: "Plumbing · electrical · HVAC", pets: "Pet care", transport: "Transportation", errands: "Errands & couriers", events: "Events", security: "Security (licensed agencies)",
 };
 const groups = [...new Set(QUESTIONS.filter((q) => q.group).map((q) => q.group!))];
 

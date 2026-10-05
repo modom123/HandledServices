@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-03_0027 UTC — "Email me this price".
  * UPDATED : 2026-10-04_1934 UTC — new services (small moves, large-item delivery, staging moves, unit turnover) and the Haul Away category renamed.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
+ * UPDATED : 2026-10-05_0438 UTC — Event Security.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -350,6 +351,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "catering": ["Servicio de comida", "De bocadillos a cenas servidas, con personal."],
   "food-truck": ["Reserva de food truck", "Tacos, barbacoa, pizza, hamburguesas o postres en su fiesta."],
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
+  "event-security": ["Seguridad para eventos", "Seguridad uniformada y con licencia para fiestas, salones y eventos."],
   "event-rentals": ["Alquiler de sillas y fiestas", "Sillas, mesas, manteles, carpas y pistas de baile, entregadas e instaladas."],
   "event-venue": ["Alquiler y coordinación de salones", "Buscamos, visitamos y reservamos el salón ideal para sus invitados."],
 };

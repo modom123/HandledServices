@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-03_1311 UTC — construction addendum: equipment you buy for us to install must be new; we never install used.
  * UPDATED : 2026-10-04_1934 UTC — hauling addendum covers small moves, large-item delivery and staging moves (new "Moves and deliveries" section); unit turnover under the hauling and construction addenda; Business MSA: terms approved in the business account portal count as an Order.
  * UPDATED : 2026-10-04_1950 UTC — errands addendum: grocery delivery removed, Same-Day Courier added.
+ * UPDATED : 2026-10-05_0439 UTC — events addendum covers Event Security (licensed agencies, unarmed by default, de-escalation, incident reports).
  */
 import {
   AI_MAX_CUT,
@@ -872,13 +873,14 @@ const EVENTS: Contract = {
   title: "Addendum — Parties & Events",
   version: V1,
   audience: "customer",
-  appliesTo: "Event planning by budget, event planning and coordination, catering, food trucks, DJs and live music, seating and party rentals, and event venues.",
-  services: ["event-package", "event-planning", "catering", "food-truck", "dj-music", "event-rentals", "event-venue"],
+  appliesTo: "Event planning by budget, event planning and coordination, catering, food trucks, DJs and live music, event security, seating and party rentals, and event venues.",
+  services: ["event-package", "event-planning", "catering", "food-truck", "dj-music", "event-security", "event-rentals", "event-venue"],
   summary: [
     `Events are booked with a ${pct(DEPOSIT.eventShare)} deposit. The balance is charged ${DEPOSIT.eventBalanceDaysBefore} days before the event.`,
     `Your final guest count is due ${DEPOSIT.eventBalanceDaysBefore} days before. After that, it can go up (if possible) but you're not refunded for fewer guests.`,
     "If a vendor can't make it, we replace them with one of equal quality.",
     "Only licensed providers serve alcohol.",
+    "Event security comes from licensed security agencies; guards de-escalate and call police when needed, and you follow their safety calls.",
     "You follow venue rules and are responsible for damage to rentals.",
     "The closer to the event you cancel, the more of the price is non-refundable.",
   ],
@@ -904,6 +906,15 @@ const EVENTS: Contract = {
     ["Alcohol", p(
       "Alcohol is only served by providers holding the right Michigan Liquor Control Commission license and liquor liability insurance. Servers may check ID, refuse service to anyone under 21 or visibly intoxicated, and stop service at any time.",
       "If you supply your own alcohol where the venue allows it, you are responsible for serving it lawfully and for the conduct of your guests." + COUNSEL,
+    )],
+    ["Event security", p(
+      "Security is provided by a security guard agency licensed in Michigan; the guards are that agency's employees. Guards are unarmed unless you book armed officers, who are provided only by agencies authorized to arm them.",
+      ul(
+        "Guards work the posts, hours and duties on your booking (for example door and ID checks, guest list, crowd and parking control). Tell us about entrances, VIPs, known risks and whether alcohol is served.",
+        "Guards may refuse entry, ask someone to leave, stop unsafe activity, and call police or emergency services. They de-escalate first and use no more force than the law allows. They are not police and can't promise that nothing will happen.",
+        "Please follow their safety calls and don't ask them to do anything unlawful (for example, searching guests without consent).",
+        "You get a written incident report after the event when anything is reported. Too few guards for the crowd? We may recommend more; you decide.",
+      ),
     )],
     ["Venues, permits and noise", p(
       ul(

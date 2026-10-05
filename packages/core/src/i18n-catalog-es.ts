@@ -7,6 +7,7 @@
  *           A test fails if a catalog string is added without a Spanish version here.
  * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
+ * UPDATED : 2026-10-05_0438 UTC — Event Security.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",
@@ -447,6 +448,21 @@ export const ES_CATALOG: Record<string, string> = {
   "Premium paint & primer included": "Pintura y imprimador premium incluidos",
   "Prescription pickup (pharmacy)": "Recogida de recetas (farmacia)",
   "Pro sound system": "Sistema de sonido profesional",
+  // Event Security
+  "Licensed security agency": "Agencia de seguridad con licencia",
+  "Uniformed, background-checked guards": "Guardias uniformados con verificación de antecedentes",
+  "Door, ID & guest-list checks": "Control de puerta, identificaciones y lista de invitados",
+  "Crowd & parking control": "Control de multitudes y estacionamiento",
+  "Incident report after the event": "Reporte de incidentes después del evento",
+  "Venue, entrances to cover, guest count, whether alcohol is served, VIPs or concerns, dress code (uniform or plain clothes)": "Lugar, entradas a cubrir, número de invitados, si se sirve alcohol, personas importantes o preocupaciones, vestimenta (uniforme o ropa de civil)",
+  "Guards": "Guardias",
+  "A good rule: 1 guard per 75 guests, or 1 per 50 when alcohol is served. At least 2 for 100+ guests.": "Una buena regla: 1 guardia por cada 75 invitados, o 1 por cada 50 si se sirve alcohol. Al menos 2 para 100 invitados o más.",
+  "Hours per guard": "Horas por guardia",
+  "4-hour minimum. Add 30 minutes before guests arrive and after they leave.": "Mínimo de 4 horas. Agregue 30 minutos antes de que lleguen los invitados y después de que se vayan.",
+  "Guard type": "Tipo de guardia",
+  "Unarmed (most events)": "Sin armas (la mayoría de los eventos)",
+  "Armed officers (licensed)": "Oficiales armados (con licencia)",
+  "Plain clothes instead of uniform": "Ropa de civil en lugar de uniforme",
   "Pro-grade, paint-safe products": "Productos profesionales, seguros para la pintura",
   "Project manager": "Gerente de proyecto",
   "Prom / homecoming": "Baile de graduación / homecoming",

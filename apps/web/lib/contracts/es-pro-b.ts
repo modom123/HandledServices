@@ -10,6 +10,7 @@
  *           TEMPLATES — not legal advice; have counsel review before use.
  * UPDATED : 2026-10-03_1311 UTC — Anexo de Equipo de Trabajo (pro-crew-addendum).
  * UPDATED : 2026-10-05_0418 UTC — Términos de Recompensas (pro-rewards-terms).
+ * UPDATED : 2026-10-05_0440 UTC — anexo de Seguridad para Eventos.
  */
 import { BRAND, COVERAGES, LICENSED_TRADES, LOCATION_FRESH_MIN, ON_CALL_MAX_HOURS, PRO_POLICY_DEFAULTS, TRADES, money, t } from "@handled/core";
 import { DEACTIVATION_RULES } from "./pro";
@@ -393,6 +394,20 @@ export const PRO_ES_B: Record<string, ContractTranslation> = {
     },
   ]),
 
+  "pro-addendum-security": addendum("Seguridad para Eventos", ["security"], [
+    `Solo agencias de guardias de seguridad con licencia en Michigan, nunca guardias independientes. Sus guardias son sus empleados, registrados en su agencia y cubiertos por su seguro de accidentes laborales.`,
+    `Sin armas, salvo que la reserva indique oficiales armados; los oficiales armados solo con la autorización de su agencia y la licencia para portar armas ocultas de cada oficial.`,
+    `Primero calmar la situación, llamar a la policía por delitos y emergencias, y nunca usar más fuerza de la que permite la ley. Nada de revisiones sin consentimiento.`,
+    `Llegar antes que los invitados, cubrir cada puesto durante las horas reservadas y presentar un reporte de incidentes por escrito en la app dentro de las 24 horas de cualquier hecho.`,
+    `Verificación de antecedentes e identidad de cada guardia que trabaje en un trabajo de Handled; uniformes y credenciales según lo exige la ley.`,
+  ], [
+    { h: `1. Quién puede tomar trabajos de seguridad`, p: `Los trabajos de seguridad solo se asignan a empresas con una licencia vigente de agencia de guardias de seguridad de Michigan (Ley de Negocios de Seguridad Privada y Alarmas, administrada por LARA). Los guardias que envía son sus empleados: usted los contrata, capacita, programa, dirige, supervisa y les paga, los registra en su agencia como lo exige la ley y los cubre con un seguro de accidentes laborales. ${N} no emplea, capacita ni dirige a sus guardias; reserva a su agencia para el evento del cliente.` },
+    { h: `2. Con y sin armas`, p: `Los guardias no portan armas, a menos que el trabajo indique oficiales armados. Envíe oficiales armados solo si su agencia está autorizada para proporcionarlos y cada oficial tiene licencia para portar armas ocultas y cumple con la capacitación y calificación de armas de su agencia. Nunca lleve un arma a un trabajo reservado sin armas. Siga las reglas del lugar sobre armas y rechace un trabajo que no pueda cubrir legalmente.` },
+    { h: `3. Conducta y uso de la fuerza`, p: `Sus guardias primero calman la situación, mantienen la calma y el profesionalismo, y tratan a cada invitado con respeto. Pueden negar la entrada, pedirle a alguien que se retire y detener actividades peligrosas, y llaman a la policía o a emergencias por delitos, violencia, emergencias médicas y por quien se niegue a retirarse. Nunca usan más fuerza de la que permite la ley de Michigan, nunca detienen a nadie salvo como lo permite la ley y nunca revisan a una persona ni sus pertenencias sin su consentimiento. No sirven ni beben alcohol mientras trabajan.` },
+    { h: `4. El trabajo`, p: `Llegue antes que los invitados, preséntese con el anfitrión o el contacto en el lugar, confirme los puestos y las tareas, y cubra cada puesto durante las horas reservadas (incluido el supervisor cuando se reserve). Avísenos de inmediato si un guardia no puede asistir para ayudarle a cubrir el puesto. Marque la lista del trabajo en la app mientras avanza.` },
+    { h: `5. Incidentes`, p: `Reporte en la app cualquier lesión, pelea, llamada a la policía, expulsión, daño a la propiedad o arma dentro de las 24 horas, con horarios, nombres del personal involucrado y lo que pasó, y conserve los registros de su agencia. Llámenos de inmediato por cualquier cosa grave. Coopere con la policía y con nosotros en cualquier revisión o reclamo.` },
+    { h: `6. Verificación y seguros`, p: `Toda persona que envíe pasa nuestra verificación de antecedentes y de identidad con foto antes de su primer trabajo, y está registrada en su equipo (Anexo de Equipo de Trabajo). Mantenga un seguro de responsabilidad civil general de al menos $2,000,000 por incidente que nombre a ${BRAND.legalName} como asegurado adicional, y seguro de accidentes laborales para sus guardias. Algunos lugares y clientes exigen más; el trabajo lo indicará.${COUNSEL}` },
+  ]),
   "pro-addendum-events-food": addendum("Eventos, Alimentos y Lugares para Eventos", ["event_planner", "catering", "food_truck", "dj_music", "rentals", "venue"], [
     "El servicio de alimentos requiere su licencia del departamento de salud o del MDARD y un gerente certificado en protección de alimentos; quienes manipulan alimentos siguen el Código de Alimentos de Michigan.",
     "Etiquete los alérgenos y mantenga los alimentos a temperaturas seguras.",

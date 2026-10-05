@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-04_1934 UTC — new services from the growth plan: small moves, same-day large item delivery (stores),
  *           home staging furniture moves and rental unit turnover (property managers). Hauling trade covers moves.
  * UPDATED : 2026-10-04_1950 UTC — grocery pickup & delivery replaced by Same-Day Courier (documents, packages, parts; business routes).
+ * UPDATED : 2026-10-05_0438 UTC — Event Security (licensed Michigan security agencies; unarmed by default, armed on request) and the security trade.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -2182,6 +2183,49 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "event-security",
+    name: "Event Security",
+    category: "events",
+    icon: "🛡️",
+    tagline: "Licensed, uniformed security for parties, venues and events.",
+    description: "Uniformed guards from a licensed Michigan security agency: door and ID checks, guest-list control, crowd and parking management, and a calm presence when alcohol is served. Unarmed by default; armed officers on request. You get an incident report after the event.",
+    includes: ["Licensed security agency", "Uniformed, background-checked guards", "Door, ID & guest-list checks", "Crowd & parking control", "Incident report after the event"],
+    notesHint: "Venue, entrances to cover, guest count, whether alcohol is served, VIPs or concerns, dress code (uniform or plain clothes)",
+    questions: [
+      { id: "guards", label: "Guards", type: "number", min: 1, max: 30, default: 2, help: "A good rule: 1 guard per 75 guests, or 1 per 50 when alcohol is served. At least 2 for 100+ guests." },
+      { id: "hours", label: "Hours per guard", type: "number", min: 4, max: 14, default: 5, unit: "hrs", help: "4-hour minimum. Add 30 minutes before guests arrive and after they leave." },
+      {
+        id: "type",
+        label: "Guard type",
+        type: "select",
+        default: "unarmed",
+        options: [
+          { value: "unarmed", label: "Unarmed (most events)" },
+          { value: "armed", label: "Armed officers (licensed)" },
+        ],
+      },
+      { id: "plain", label: "Plain clothes instead of uniform", type: "toggle", default: false },
+    ],
+    minimum: 220,
+    spread: [0.95, 1.12],
+    payoutShare: 0.78,
+    siteVisit: false,
+    licensed: true,
+    frequencies: ["once"],
+    trades: ["security"],
+    leadDays: 3,
+    price: (a) => {
+      const g = n(a, "guards", 2), h = Math.max(4, n(a, "hours", 5));
+      const armed = s(a, "type", "unarmed") === "armed";
+      const rate = armed ? 58 : 39;
+      const items: LineItem[] = [{ label: `${armed ? "Armed officers" : "Unarmed guards"} — ${g} × ${h} hrs`, amount: g * h * rate }];
+      const supervisors = g >= 5 ? Math.ceil(g / 10) : 0;
+      if (supervisors) items.push({ label: `On-site supervisor — ${supervisors} × ${h} hrs`, amount: supervisors * h * 48 });
+      if (b(a, "plain")) items.push({ label: "Plain-clothes detail", amount: g * 25 });
+      return { items, base: sum(items), hours: h };
+    },
+  },
+  {
     slug: "event-rentals",
     name: "Seating & Party Rentals",
     category: "events",
@@ -2314,4 +2358,5 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "dj_music", label: "DJ / live music" },
   { id: "rentals", label: "Party & event rentals" },
   { id: "venue", label: "Event venue / space" },
+  { id: "security", label: "Security guard agency (licensed)" },
 ];

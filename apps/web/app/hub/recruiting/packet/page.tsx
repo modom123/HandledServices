@@ -10,7 +10,7 @@ import Link from "next/link";
 import { COMPETENCIES, DO_NOT_ASK, INTERVIEW_PASS, QUESTIONS, TRADES, type Competency, type TradeGroup } from "@handled/core";
 import { PrintButton } from "@/components/PrintButton";
 
-const GROUP_LABEL: Record<TradeGroup, string> = { cleaning: "Cleaning, windows, carpet, organizing, detailing", repair: "Handyman, remodel, low voltage", outdoor: "Lawn, trees, snow, gutters, pressure washing, pet waste", moving: "Hauling, moving, containers", painting: "Painting", licensed: "Plumbing, electrical, HVAC", pets: "Pet care", transport: "Transportation", errands: "Errands & couriers", events: "Events" };
+const GROUP_LABEL: Record<TradeGroup, string> = { cleaning: "Cleaning, windows, carpet, organizing, detailing", repair: "Handyman, remodel, low voltage", outdoor: "Lawn, trees, snow, gutters, pressure washing, pet waste", moving: "Hauling, moving, containers", painting: "Painting", licensed: "Plumbing, electrical, HVAC", pets: "Pet care", transport: "Transportation", errands: "Errands & couriers", events: "Events", security: "Security (licensed agencies)" };
 
 export default async function Packet({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
   const es = (await searchParams).lang === "es";

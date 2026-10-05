@@ -438,6 +438,23 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
     ],
   }),
 
+  "event-security": {
+    service: "event-security", version: 1, title: { en: "Event security checklist", es: "Lista de seguridad para eventos" },
+    sections: [
+      FRAMES.events[0],
+      { id: "posts", en: "Posts & duties", es: "Puestos y tareas", items: [
+        i("briefing", "Posts, duties, entrances, guest list and emergency exits confirmed with the host", "Puestos, tareas, entradas, lista de invitados y salidas de emergencia confirmados con el anfitrión", { required: true }),
+        i("staffed", "Every booked post staffed for the full booked hours", "Cada puesto reservado cubierto durante todas las horas reservadas", { required: true }),
+        i("id_checks", "Door, ID and guest-list checks done as the host asked", "Control de puerta, identificaciones y lista de invitados según lo pidió el anfitrión"),
+        i("alcohol", "Watched for over-serving and underage drinking; told the bar staff and host about problems", "Vigilancia de exceso de alcohol y menores que beben; problemas avisados al personal del bar y al anfitrión",),
+        i("armed", "Armed officers' authorization and licenses on hand", "Autorización y licencias de los oficiales armados a la mano", { when: { q: "type", in: ["armed"] }, required: true }),
+        i("exit", "Guests out safely at the end; parking lot and entrances checked", "Invitados fuera de forma segura al final; estacionamiento y entradas revisados", { required: true }),
+        i("incidents", "Incident report filed (or \"no incidents\" noted)", "Reporte de incidentes presentado (o anotado \"sin incidentes\")", { required: true }),
+      ] },
+      FRAMES.events[1],
+    ],
+  },
+
   "dog-walking": {
     service: "dog-walking", version: 1, title: { en: "Dog walk checklist", es: "Lista de paseo de perros" },
     sections: [

@@ -14,6 +14,7 @@
  *           "hired"; we ask about their business, skills and how they treat customers — not about schedules we
  *           set, supervision, uniforms or training we require.
  * UPDATED : 2026-10-05_0432 UTC — approval checklist: "Pro account created" (signed in with the application email) after the invite.
+ * UPDATED : 2026-10-05_0441 UTC — security trade group (agency license, de-escalation).
  */
 import { BRAND } from "./brand.ts";
 
@@ -28,7 +29,7 @@ export const COMPETENCIES: Record<Competency, { en: string; es: string; anchors:
   business: { en: "Business readiness", es: "Preparación del negocio", anchors: { 1: "No insurance and unwilling to get it; no tools or transportation", 3: "Has or will get insurance; own tools and transportation; can use a phone app", 5: "Insured and licensed where needed, set up as a business, comfortable with app, photos and receipts" } },
 };
 
-export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "painting" | "licensed" | "pets" | "transport" | "errands" | "events";
+export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "painting" | "licensed" | "pets" | "transport" | "errands" | "events" | "security";
 
 const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
@@ -38,7 +39,7 @@ const GROUP_OF: Record<string, TradeGroup> = {
   painting: "painting",
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",
-  event_planner: "events", catering: "events", food_truck: "events", dj_music: "events", rentals: "events", venue: "events",
+  event_planner: "events", catering: "events", food_truck: "events", dj_music: "events", rentals: "events", venue: "events", security: "security",
 };
 export const tradeGroups = (trades: string[]): TradeGroup[] => [...new Set(trades.map((t) => GROUP_OF[t]).filter(Boolean))] as TradeGroup[];
 
@@ -83,6 +84,8 @@ export const QUESTIONS: InterviewQuestion[] = [
   q("transport_rider", "safety", "A passenger is intoxicated and getting aggressive. What do you do?", "Un pasajero está ebrio y se pone agresivo. ¿Qué hace?", "Stays calm, stops safely, doesn't escalate, calls for help when needed and reports it.", undefined, "transport"),
   q("errands_proof", "quality", "How do you prove a delivery was made, and what do you do when nobody's there to receive it?", "¿Cómo comprueba que se hizo una entrega y qué hace cuando no hay nadie para recibirla?", "Photo, signature when required, follows instructions, never leaves sensitive items unattended.", undefined, "errands"),
   q("events_late", "reliability", "On event day you're running late or a piece of equipment fails. What do you do?", "El día del evento va tarde o falla un equipo. ¿Qué hace?", "Early arrival buffer, backup equipment, tells the planner right away.", undefined, "events"),
+  q("security_license", "business", "Which security agency license do you hold, how do you register your guards, and do you provide armed officers?", "¿Qué licencia de agencia de seguridad tiene, cómo registra a sus guardias y ofrece oficiales armados?", "Michigan agency license (LARA) they can provide; guards are their employees and registered; armed only with proper authorization.", "Individual freelance guards, or no agency license.", "security"),
+  q("security_deescalate", "safety", "A guest who's been drinking gets loud and pushes another guest. Walk me through what your guards do.", "Un invitado que ha estado bebiendo levanta la voz y empuja a otro invitado. Explíqueme qué hacen sus guardias.", "Calm de-escalation first, separate people, involve the host, call police when needed, never more force than the law allows, written incident report.", "Goes straight to force, or no incident reporting.", "security"),
   q("questions", null, "What questions do you have for us?", "¿Qué preguntas tiene para nosotros?", "Not scored. Good questions about how offers, pay and support work are a plus."),
 ];
 

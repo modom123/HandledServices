@@ -26,6 +26,7 @@
  *           TEMPLATES — not legal advice; have counsel review before use.
  * UPDATED : 2026-10-03_1311 UTC — tiers: the proven-skill fast track to Pro+ (portfolio + reviewed paid trial job).
  * UPDATED : 2026-10-05_0418 UTC — PRO_REWARDS_TERMS (Handled Pro Rewards: points, not pay or equity; 1099; expiry; changes).
+ * UPDATED : 2026-10-05_0440 UTC — pro-addendum-security (licensed agencies, employees, armed rules, use of force, incidents).
  */
 import {
   AGREEMENT_VERSION,
@@ -658,6 +659,20 @@ export const PRO_ADDENDA: Contract[] = [
     },
   ]),
 
+  addendum("pro-addendum-security", "Event Security", ["security"], [
+    `Only licensed Michigan security guard agencies — never individual freelance guards. Your guards are your employees, registered with your agency and covered by your workers' comp.`,
+    `Unarmed unless the booking says armed; armed officers only with your agency's armed authorization and each officer's concealed pistol license.`,
+    `De-escalate first, call police for crimes and emergencies, and never use more force than the law allows. No searches without consent.`,
+    `Arrive before guests, staff every post for the booked hours, and file a written incident report in the app within 24 hours of anything that happens.`,
+    `Background check and ID verification for every guard who works a Handled job; uniforms and credentials as the law requires.`,
+  ], [
+    { h: `1. Who can take security jobs`, p: `Security jobs go only to companies holding a current Michigan security guard agency license (Private Security Business and Security Alarm Act, administered by LARA). The guards you send are your employees: you hire, train, schedule, direct, supervise and pay them, register them with your agency as the law requires, and cover them with workers' compensation. ${N} doesn't employ, train or direct your guards; it books your agency for the customer's event.` },
+    { h: `2. Armed and unarmed`, p: `Guards are unarmed unless the job says armed officers. Send armed officers only if your agency is authorized to provide them and each officer holds a concealed pistol license and meets your agency's firearm training and qualification. Never bring a weapon to a job booked as unarmed. Follow venue rules on weapons, and decline a job you can't staff lawfully.` },
+    { h: `3. Conduct and use of force`, p: `Your guards de-escalate first, stay calm and professional, and treat every guest with respect. They may refuse entry, ask someone to leave and stop unsafe activity, and they call police or emergency services for crimes, violence, medical emergencies and anyone who refuses to leave. They never use more force than Michigan law allows, never detain anyone except as the law permits, and never search a person or their belongings without consent. They don't serve or drink alcohol on duty.` },
+    { h: `4. The job`, p: `Arrive before guests, check in with the host or on-site contact, confirm posts and duties, and staff every post for the booked hours (supervisor included where booked). Tell us right away if a guard can't make it so we can help cover the post. Check the job checklist in the app as you go.` },
+    { h: `5. Incidents`, p: `Report any injury, fight, police call, ejection, property damage or weapon in the app within 24 hours, with times, names of staff involved and what happened, and keep your agency's own records. Call us right away for anything serious. Cooperate with police and with us in any review or claim.` },
+    { h: `6. Screening and insurance`, p: `Everyone you send passes our background check and photo ID check before their first job, and is listed on your crew (Crew Addendum). Keep general liability insurance of at least $2,000,000 per occurrence naming ${BRAND.legalName} as additional insured, and workers' compensation for your guards. Some venues and customers require more; the job will say so.${COUNSEL}` },
+  ]),
   addendum("pro-addendum-events-food", "Events, Food & Venues", ["event_planner", "catering", "food_truck", "dj_music", "rentals", "venue"], [
     "Food service needs your health-department or MDARD license and a certified food protection manager; food handlers follow the Michigan Food Code.",
     "Label allergens and keep foods at safe temperatures.",

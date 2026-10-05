@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-03_1413 UTC — earnings card labeled as estimates.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards promise.
+ * UPDATED : 2026-10-05_0439 UTC — security trade label.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -43,6 +44,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "DJ / live music": "DJ / música en vivo",
   "Party & event rentals": "Alquiler para fiestas y eventos",
   "Event venue / space": "Salón / espacio para eventos",
+  "Security guard agency (licensed)": "Agencia de guardias de seguridad (con licencia)",
 
   // coverage details (COVERAGES; labels are in i18n-pro-es.ts)
   "Per-occurrence limit shown for your trade, $2M aggregate. Handled Services LLC named as additional insured.": "Límite por incidente indicado para su oficio, $2M en total. Handled Services LLC nombrada como asegurado adicional.",

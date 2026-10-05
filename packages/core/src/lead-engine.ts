@@ -9,6 +9,7 @@
  *             LEAD_SEQUENCE  — 3 emails (day 0, 3, 8), then stop
  *             leadEmail      — the invitation copy (honest, specific, with unsubscribe + address)
  * UPDATED : 2026-10-03_1413 UTC — the pay example in the invitation is labeled an estimate.
+ * UPDATED : 2026-10-05_0438 UTC — security trade.
  */
 import { BRAND } from "./brand.ts";
 
@@ -21,6 +22,7 @@ export const TRADE_SEARCH: Record<string, string> = {
   remodel: "remodeling contractor", painting: "house painter", plumbing: "plumber", electrical: "electrician", hvac: "HVAC contractor",
   low_voltage: "security camera installer", transportation: "limousine service", event_planner: "event planner", catering: "caterer",
   food_truck: "food truck", dj_music: "DJ service", rentals: "party rental", venue: "event venue",
+  security: "security guard company",
 };
 
 /** Plain-English trade name for the email ("house cleaning", "electrical"). */
@@ -31,6 +33,7 @@ export const TRADE_WORD: Record<string, string> = {
   hauling: "junk removal", dumpster: "container rental", handyman: "handyman", remodel: "remodeling", painting: "painting",
   plumbing: "plumbing", electrical: "electrical", hvac: "HVAC", low_voltage: "camera and low-voltage", transportation: "transportation",
   event_planner: "event planning", catering: "catering", food_truck: "food truck", dj_music: "DJ and music", rentals: "event rentals", venue: "event venue",
+  security: "event security",
 };
 
 export interface LeadFacts { rating?: number | null; reviewCount?: number | null; email?: string | null; website?: string | null; phone?: string | null; inGap?: boolean; licensed?: boolean }

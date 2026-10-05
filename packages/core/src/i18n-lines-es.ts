@@ -5,6 +5,7 @@
  * PURPOSE : Spanish for price-breakdown lines. Keys are the English line with every number or
  *           amount replaced by {#}; lineText() puts the numbers back in the same order.
  * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
+ * UPDATED : 2026-10-05_0441 UTC — Event Security lines.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
@@ -26,6 +27,10 @@ export const ES_LINES: Record<string, string> = {
   "Core aeration": "Aireación del césped",
   "DJ + MC — {#} hrs": "DJ + MC — {#} h",
   "DJ — {#} hrs": "DJ — {#} h",
+  "Unarmed guards — {#} × {#} hrs": "Guardias sin armas — {#} × {#} h",
+  "Armed officers — {#} × {#} hrs": "Oficiales armados — {#} × {#} h",
+  "On-site supervisor — {#} × {#} hrs": "Supervisor en el lugar — {#} × {#} h",
+  "Plain-clothes detail": "Guardias de civil",
   "Dance floor": "Pista de baile",
   "Day-of coordination — {#} guests, {#} hrs": "Coordinación del día del evento — {#} invitados, {#} h",
   "Deck / patio — {#} sq ft": "Terraza / patio — {#} pies²",
