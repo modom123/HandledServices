@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1329 UTC — on_my_way: customer gets a text with a live tracking link.
  * UPDATED : 2026-10-03_0123 UTC — "release": a pro hands back an upcoming job (late cancel inside 24h).
  * UPDATED : 2026-10-03_1311 UTC — "crew": who the pro company is sending (crew accounts).
+ * UPDATED : 2026-10-05_0221 UTC — completion is blocked while required checklist items are open.
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
  */
 import { after } from "next/server";
@@ -51,6 +52,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (body.data.action === "start") { const r = await startJob(id, v.contractorId); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   const photos = body.data.photos.filter((p) => p.startsWith(`pro/${v.contractorId}/`));
   if (!photos.length) return deny(400, "Upload completion photos first");
+  { const job = await getJob(id);
+    if (job && job.contractor_id === v.contractorId) {
+      const open = await (await import("@/lib/checklists")).openRequired(job);
+      if (open.length) return Response.json({ ok: false, error: `Finish the checklist first (or mark items N/A with a reason): ${open.slice(0, 5).map((x) => x.text).join("; ")}${open.length > 5 ? ` and ${open.length - 5} more` : ""}`, open: open.map((x) => x.id) }, { status: 409 });
+    } }
   const ok = await completeJob(id, v.contractorId, photos, body.data.note ?? null);
   if (ok) after(() => runQa(id, body.data.action === "complete" ? body.data.note ?? null : null).catch((e) => console.error("[qa]", e)));
   return Response.json({ ok });

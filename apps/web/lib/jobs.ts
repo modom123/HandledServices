@@ -27,12 +27,13 @@
  * UPDATED : 2026-10-04_2204 UTC — favorites: "Book again with …" (preferred pro + requested crew member, checked against the
  *           customer's favorites and past pros); a customer's favorite pro gets a short first look (never forced),
  *           then everyone. Lapsed board claims ("Jobs near you") aren't counted as price signals.
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist is frozen on the job when a pro accepts.
  */
 import "server-only";
 import { z } from "zod";
 import {
   BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
-  type Contractor, type Job, type JobStatus,
+  type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -565,6 +566,7 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   { const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price").eq("id", offer.job_id).single();
     if (sj) await (await import("./market")).recordSignal(sj as Job, "accepted", contractorId); }
   await db().from("job_offers").update({ status: "taken" }).eq("job_id", offer.job_id).eq("status", "offered");
+  await (await import("./checklists")).freezeChecklist(won as Job).catch((e) => console.error("[checklist]", e));
   const { data: pro } = await db().from("contractors").select("business_name, contact_name, email, profile_id, rating").eq("id", contractorId).single();
   const job = won as Job;
   const svc = getService(job.service_slug);
@@ -663,7 +665,8 @@ export async function completeJob(jobId: string, contractorId: string, photos: s
 export async function runQa(jobId: string, note: string | null) {
   const job = await getJob(jobId);
   if (!job || job.status !== "qa_review") return;
-  const qa = await aiQualityCheck(job, await signedUrls(job.completion_photos), note);
+  const { data: checks } = await db().from("job_checklist_checks").select("item_id, status, note").eq("job_id", jobId);
+  const qa = await aiQualityCheck(job, await signedUrls(job.completion_photos), note, (checks ?? []) as ChecklistCheck[]);
   await db().from("jobs").update({ ai_qa: qa }).eq("id", jobId);
   // Our side of the job rating: a draft from the photo check (staff can override it).
   if (qa && job.contractor_id)

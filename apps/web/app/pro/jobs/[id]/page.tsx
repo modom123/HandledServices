@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
  * UPDATED : 2026-10-03_1311 UTC — crew accounts: pick who's doing the job.
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist: check items off (or N/A with the reason) as the work gets done.
  * UPDATED : 2026-10-04_2204 UTC — "The customer asked for …" (crew member request) and "the customer favorited you".
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
@@ -24,6 +25,8 @@ import { JobThread } from "@/components/JobThread";
 import { CrewPicker } from "@/components/Crew";
 import { listCrew } from "@/lib/crew";
 import { crewRequest } from "@/lib/favorites";
+import { checklistState, freezeChecklist } from "@/lib/checklists";
+import { ChecklistPanel } from "@/components/Checklist";
 import { crewCanTake, crewReady } from "@handled/core";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +51,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
   ]);
   const crew = ["assigned", "in_progress"].includes(job.status) ? await listCrew(v.contractorId!) : [];
   const asked = await crewRequest(job, v.contractorId);
+  if (!job.checklist) job.checklist = await freezeChecklist(job);
+  const cl = await checklistState(job);
   const trade = s.trades.find((x) => (me?.trades ?? []).includes(x));
   const noMaterials = me ? whyNot(policy.materials, me as Contractor, trade) : "pro not found";
   type Q = (typeof s.questions)[number];
@@ -78,7 +83,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
           {photos.length > 0 && <div className="mt-3 grid grid-cols-4 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt={t("Customer photo")} className="aspect-square rounded-lg object-cover" /></a>)}</div>}
         </div>
         {job.instructions && <p className="card bg-brand-tint text-sm text-brand-dark"><b>{t("Instructions:")}</b> {job.instructions}</p>}
-        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} w={buildWorkOrder(job, { reveal: true, locale: l })} /></div></details>
+        <ChecklistPanel jobId={job.id} checklist={cl.checklist} checks={cl.checks} es={es} locked={!["assigned", "in_progress"].includes(job.status)} />
+        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder(job, { reveal: true, locale: l })} /></div></details>
         <JobThread jobId={job.id} userId={v.userId} as="pro" initial={msgs ?? []} locale={l} />
       </div>
       <div className="space-y-4">

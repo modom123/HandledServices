@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-03_1513 UTC — City scorecard in the nav.
  * UPDATED : 2026-10-04_1934 UTC — Business leads (sales engine) in the nav.
  * UPDATED : 2026-10-05_0148 UTC — Email Center in the nav.
+ * UPDATED : 2026-10-05_0221 UTC — Checklists (library) in the nav.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  */
 import Link from "next/link";
@@ -26,6 +27,7 @@ export const metadata = { title: "Handled Hub" };
 const NAV = [
   ["/hub", "📊", "Dashboard"],
   ["/hub/jobs", "🗂️", "Jobs board"],
+  ["/hub/checklists", "✅", "Checklists"],
   ["/hub/network", "💎", "Pro Network"],
   ["/hub/roster", "📍", "Live roster"],
   ["/hub/pros", "🧰", "Hiring & pros"],

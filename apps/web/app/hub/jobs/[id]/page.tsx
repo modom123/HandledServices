@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_0302 UTC — shows how soon the customer needs it (deadline status) and their budget.
  * UPDATED : 2026-10-03_0124 UTC — record a pro no-show (re-dispatches; counts toward the deactivation policy).
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist (what the pro checked) and staff special instructions.
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
  */
@@ -15,6 +16,8 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
 import { CancelPanel, ExpenseActions, JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
+import { checklistState } from "@/lib/checklists";
+import { ChecklistView, StaffInstructions } from "@/components/Checklist";
 
 type AnyRec = Record<string, unknown>;
 
@@ -58,6 +61,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="mt-4 grid gap-1 border-t border-line pt-4 text-sm sm:grid-cols-2">{s.questions.filter((q) => questionVisible(q, job.answers as Answers, s.questions)).map((q) => <div key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</div>)}</div>
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}
         </div>
+        <HubChecklist job={job} />
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="card text-sm"><div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">✨ AI quote</div>
@@ -110,6 +114,18 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
         <div className="card"><div className="font-semibold">Messages</div>
           <div className="mt-3 space-y-2 text-sm">{(msgs ?? []).map((m: AnyRec) => <div key={String(m.id)}><span className="text-xs uppercase text-ink-soft">{String(m.sender_role)}</span> {String(m.body)}</div>)}{!(msgs ?? []).length && <p className="text-ink-soft">None.</p>}</div></div>
       </div>
+    </div>
+  );
+}
+
+/** The job's checklist with what the pro checked, and staff special instructions. */
+async function HubChecklist({ job }: { job: Job }) {
+  const cl = await checklistState(job);
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-center justify-between"><div className="font-semibold">✅ {cl.checklist.title}</div><a href={`/hub/checklists#${job.service_slug}`} className="text-xs text-brand underline">checklist library</a></div>
+      {!["completed", "cancelled"].includes(job.status) && <div><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Special instructions for this job</div><StaffInstructions jobId={job.id} extra={job.checklist_extra ?? []} /></div>}
+      <details open={["in_progress", "qa_review"].includes(job.status)}><summary className="cursor-pointer text-sm font-semibold">Checklist{job.contractor_id ? " — what the pro checked" : ""}</summary><div className="mt-2"><ChecklistView checklist={cl.checklist} checks={cl.checks} es={false} compact /></div></details>
     </div>
   );
 }

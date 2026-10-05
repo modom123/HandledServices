@@ -112,6 +112,10 @@ export interface Job {
   preferred_contractor_id?: string | null;
   /** The customer asked for this crew member of that company — a request to the owner, who decides who goes. */
   requested_crew_member_id?: string | null;
+  /** The job checklist frozen when a pro accepts (checklists.ts); null until then. */
+  checklist?: import("./checklists.ts").JobChecklist | null;
+  /** Special instructions added to this job by staff or the customer (checklists.ts). */
+  checklist_extra?: import("./checklists.ts").ChecklistExtra[] | null;
   disputed_at?: string | null;
   source: "web" | "mobile" | "business" | "phone" | "ai_chat";
   plan_id: string | null;

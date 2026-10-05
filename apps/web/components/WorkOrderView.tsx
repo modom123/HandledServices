@@ -5,14 +5,16 @@
  * PURPOSE : The pro's work order (offer page + job sheet) and the Uber-style accept panel.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0150 UTC — counter offer ("Not enough? Name your pay").
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist (special instructions first) on every work order.
  */
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { t as tr, type Locale, type WorkOrder } from "@handled/core";
+import { ChecklistView } from "./Checklist";
 
-export function WorkOrderView({ w, locale = "en" }: { w: WorkOrder; locale?: Locale }) {
+export function WorkOrderView({ w, locale = "en", hideChecklist = false }: { w: WorkOrder; locale?: Locale; hideChecklist?: boolean }) {
   const t = (s: string) => tr(locale, s);
   return (
     <div className="space-y-4">
@@ -30,6 +32,12 @@ export function WorkOrderView({ w, locale = "en" }: { w: WorkOrder; locale?: Loc
         {w.instructions && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{t("Customer requirements & access:")}</b> {w.instructions}</p>}
         <p className="mt-3 text-xs text-ink-soft">📷 {w.photos}</p>
       </div>
+      {!hideChecklist && w.checklist && (
+        <details className="card" open={w.checklist.sections.some((s) => s.id === "special")}>
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-ink-soft">✅ {locale === "es" ? w.checklist.title_es : w.checklist.title} ({w.checklist.sections.reduce((n, s) => n + s.items.length, 0)})</summary>
+          <div className="mt-3"><ChecklistView checklist={w.checklist} es={locale === "es"} compact /></div>
+        </details>
+      )}
       <div className="card">
         <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{locale === "es" ? `Condiciones del trabajo (orden de trabajo v${w.version})` : `Job terms (work order v${w.version})`}</div>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft">{w.terms.map((x) => <li key={x}>{x}</li>)}</ul>

@@ -6,12 +6,14 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing ("Not enough? Name your pay" counter offer; "countered" status).
  * PURPOSE : Uber-style incoming job: big payout, countdown, the work order (area only until
  *           accepted), job terms, "I agree" and one-tap Accept / Pass. First to accept wins.
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist (special instructions first) on the work order.
  */
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { money, type WorkOrder } from "@handled/core";
 import { api } from "../../../lib/supabase";
+import { ChecklistList } from "../../../components/Checklist";
 import { Button, C, Card, s } from "../../../components/ui";
 import { useI18n } from "../../../lib/i18n";
 
@@ -74,6 +76,12 @@ export default function OfferScreen() {
           {w.instructions ? <Text style={[s.p, { marginTop: 6, color: C.brand }]}>{t("Customer requirements & access:")} {w.instructions}</Text> : null}
           <Text style={[s.p, { marginTop: 6 }]}>📷 {w.photos}</Text>
         </Card>
+        {w.checklist ? (
+          <Card>
+            <Text style={s.label}>✅ {locale === "es" ? w.checklist.title_es : w.checklist.title}</Text>
+            <ChecklistList checklist={w.checklist} es={locale === "es"} />
+          </Card>
+        ) : null}
         <Card>
           <Text style={s.label}>{t("Job terms")} (v{w.version})</Text>
           {w.terms.map((x) => <Text key={x} style={[s.p, { marginBottom: 4 }]}>• {t(x)}</Text>)}

@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-04_2204 UTC — open job board and favorites first-look windows.
  * UPDATED : 2026-10-05_0130 UTC — job-posting letter (business sales engine).
  * UPDATED : 2026-10-05_0148 UTC — Email Center (merge tags, rendering, law / spam checks).
+ * UPDATED : 2026-10-05_0221 UTC — job checklists.
  */
 
 import { test } from "node:test";
@@ -1045,4 +1046,48 @@ test("email center: merge tags, HTML with button and footer, law and spam checks
     else assert.ok(l.blockers.length, "new-service template makes you fill in the service name");
   }
   assert.deepEqual(parseEmailList("Jane Doe <JANE@x.com>\nbob@y.co, Bob\njane@x.com\nnot an email"), [{ email: "jane@x.com", name: "Jane Doe" }, { email: "bob@y.co", name: "Bob" }]);
+});
+
+test("job checklists: every service has one, standard vs deep vs move-out differ, special instructions on top, Spanish everywhere", async () => {
+  const { buildChecklist, resolveChecklist, checklistProgress, checklistText, CHECKLISTS, checklistOutline } = await import("./checklists.ts");
+  const { buildWorkOrder, workOrderText } = await import("./workorder.ts");
+  for (const s of SERVICES) {
+    const c = buildChecklist(s.slug, Object.fromEntries(s.questions.map((q) => [q.id, q.default])));
+    const items = c.sections.flatMap((x) => x.items);
+    assert.ok(items.length >= 3, `${s.slug}: checklist too short`);
+    assert.equal(new Set(items.map((x) => x.id)).size, items.length, `${s.slug}: duplicate item ids`);
+    for (const x of items) assert.ok(x.text_es && x.text_es !== "", `${s.slug}: ${x.id} needs Spanish`);
+    assert.ok(items.some((x) => x.required), `${s.slug}: no required items`);
+    assert.ok(checklistOutline(s.slug).sections.length);
+  }
+  for (const t of Object.values(CHECKLISTS)) {
+    const svc = SERVICES.find((x) => x.slug === t.service);
+    assert.ok(svc, `${t.service}: template for an unknown service`);
+    for (const sec of t.sections) for (const it of [sec, ...sec.items]) if (it.when) assert.ok(svc!.questions.some((q) => q.id === it.when!.q), `${t.service}: condition on unknown question ${it.when.q}`);
+    for (const sec of t.sections) for (const it of sec.items) assert.ok(it.es.length > 3, `${t.service}.${sec.id}.${it.id} Spanish`);
+  }
+  const ids = (lvl: string, extra: Record<string, unknown> = {}) => buildChecklist("house-cleaning", { level: lvl, ...extra }).sections.flatMap((s) => s.items.map((x) => x.id));
+  const std = ids("standard"), deep = ids("deep"), move = ids("move");
+  assert.ok(!std.includes("detail.baseboards") && deep.includes("detail.baseboards") && move.includes("detail.baseboards"));
+  assert.ok(move.includes("kitchen.inside_cabinets") && !deep.includes("kitchen.inside_cabinets"));
+  assert.ok(ids("standard", { fridge_oven: true }).includes("kitchen.oven") && !std.includes("kitchen.oven"));
+  assert.ok(ids("standard", { pets: true }).includes("rooms.pet_hair"));
+  assert.equal(buildChecklist("house-cleaning", { level: "deep" }).title, "Deep clean checklist");
+  const job = { service_slug: "house-cleaning", answers: { level: "standard" }, notes: "Dog is friendly", instructions: "Gate code 4411", checklist_extra: [{ id: "x1", text: "Skip the office", from: "customer" as const }] };
+  const c = resolveChecklist(job);
+  assert.equal(c.sections[0].id, "special");
+  assert.deepEqual(c.sections[0].items.map((x) => x.id), ["special.instr1", "special.x1", "special.notes"]);
+  assert.equal(c.sections[0].items.find((x) => x.id === "special.x1")!.required, false, "customer requests aren't required");
+  const req = c.sections.flatMap((s) => s.items).filter((x) => x.required);
+  const p0 = checklistProgress(c, []);
+  assert.equal(p0.open.length, req.length);
+  const p1 = checklistProgress(c, req.map((x) => ({ item_id: x.id, status: "done" as const })));
+  assert.equal(p1.open.length, 0);
+  assert.match(checklistText(c, "en", [{ item_id: "kitchen.sink", status: "na", note: "no sink" }]), /N\/A \(no sink\)/);
+  // frozen checklist wins over the current template; special instructions stay live
+  const frozen = { ...buildChecklist("house-cleaning", { level: "standard" }), version: 0 };
+  assert.equal(resolveChecklist({ ...job, checklist: frozen }).version, 0);
+  const w = buildWorkOrder({ ref: "HND-1", service_slug: "house-cleaning", answers: { level: "deep" }, notes: null, scheduled_date: "2026-10-10", time_window: "morning", address: "1 A", city: "Detroit", state: "MI", zip: "48226", contact_name: "C", contact_phone: "1", company_name: null, contractor_payout: 100 } as never, { reveal: false });
+  assert.match(workOrderText(w), /DEEP CLEAN CHECKLIST/);
+  assert.match(workOrderText(buildWorkOrder({ ...w, ref: "HND-1", service_slug: "house-cleaning", answers: { level: "deep" }, scheduled_date: null, time_window: "morning", city: "Detroit", state: "MI", zip: "48226", contractor_payout: 100 } as never, { reveal: false, locale: "es" }), "es"), /LISTA DE LIMPIEZA PROFUNDA/);
 });

@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_2238 UTC — Google review ask for customers who rated but haven't reviewed on Google.
  * UPDATED : 2026-10-03_0151 UTC — while no pro has taken it: pros' counters (accept one) and raise your offer.
  * UPDATED : 2026-10-04_2204 UTC — Your pro: ★ favorite the pro (and the crew member who came), "Book again with …".
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist (what's included and, once the pro starts, what's done) and special requests.
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  */
 import { notFound, redirect } from "next/navigation";
@@ -22,6 +23,8 @@ import { adminClient } from "@/lib/supabase/server";
 import type { Locale } from "@handled/core";
 import { Reschedule, TipBox, TrackPro } from "@/components/AccountExtras";
 import { FavoriteButton } from "@/components/Favorites";
+import { checklistState } from "@/lib/checklists";
+import { ChecklistView, CustomerRequests } from "@/components/Checklist";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -74,6 +77,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
         {review && !review.google_clicked_at && BRAND.googleReviewUrl && <div className="card text-sm"><GoogleReviewAsk jobId={job.id} locale={l} /></div>}
         {job.status === "completed" && job.contractor_id && !job.remedy && <TipBox jobId={job.id} tipped={Number(job.tip_total ?? 0)} locale={l} />}
         {job.contractor_id && <YourPro job={job} es={es} db={v.db} />}
+        {job.status !== "cancelled" && <JobChecklistCard job={job} es={es} />}
         {job.contractor_id && <JobThread jobId={job.id} userId={v.userId} as="customer" initial={msgs ?? []} locale={l} />}
       </div>
       <div className="card h-fit">
@@ -122,6 +126,21 @@ async function YourPro({ job, es, db }: { job: Job; es: boolean; db: Viewer["db"
       <p className="text-xs text-ink-soft">{es
         ? "Sus favoritos ven primero sus próximas reservas de ese tipo de trabajo por unas horas; si no pueden, otro profesional verificado lo toma. No está garantizado. Si pide a alguien del equipo, el dueño de la empresa decide quién va."
         : "Your favorites see your next booking for that kind of work first for a few hours; if they can't, another vetted pro takes it. Not guaranteed. Asking for someone on a crew is a request — the company owner decides who goes."}</p>
+    </div>
+  );
+}
+
+/** What the pro will check off (and, once they're working, what's done), plus the customer's special requests. */
+async function JobChecklistCard({ job, es }: { job: Job; es: boolean }) {
+  const cl = await checklistState(job);
+  const started = ["in_progress", "qa_review", "completed"].includes(job.status);
+  const canEdit = ["requested", "quoted", "scheduled", "dispatched", "assigned", "site_visit"].includes(job.status);
+  return (
+    <div className="card space-y-3">
+      <div className="font-semibold">✅ {es ? cl.checklist.title_es : cl.checklist.title}</div>
+      <p className="text-xs text-ink-soft">{es ? "Su profesional marca cada punto al terminarlo, con fotos de antes y después." : "Your pro checks off each item as it's done, with before-and-after photos."}</p>
+      <div><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Sus solicitudes especiales" : "Your special requests"}</div><CustomerRequests jobId={job.id} extra={job.checklist_extra ?? []} es={es} canEdit={canEdit} /></div>
+      <details open={started}><summary className="cursor-pointer text-sm font-semibold">{started ? (es ? "Progreso" : "Progress") : (es ? "Qué incluye" : "What's included")}</summary><div className="mt-2"><ChecklistView checklist={cl.checklist} checks={started ? cl.checks : undefined} es={es} compact /></div></details>
     </div>
   );
 }

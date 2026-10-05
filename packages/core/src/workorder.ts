@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_2043 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish work orders (opts.locale / workOrderText(w, locale)) for pros who chose Spanish.
  * UPDATED : 2026-10-03_0117 UTC — "Customer requirements & access" (not instructions on how to do the work).
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist (checklists.ts) with special instructions is part of every work order (v3).
  * PURPOSE : The work order a pro sees with every job offer (app, web, email): payout, when,
  *           where, exact scope, customer notes, ops instructions, required photos and the
  *           job terms they agree to when they accept. Before acceptance only the area is
@@ -15,9 +16,10 @@ import { money } from "./pricing.ts";
 import { getService } from "./services.ts";
 import { TIME_WINDOW_LABEL, type Job } from "./types.ts";
 import { serviceText, t as tr, type Locale } from "./i18n.ts";
+import { checklistText, resolveChecklist, type ChecklistExtra, type JobChecklist } from "./checklists.ts";
 
 /** Bump when the per-job terms below change. */
-export const WORK_ORDER_VERSION = "2026-10-v2";
+export const WORK_ORDER_VERSION = "2026-10-v3"; // v3: job checklist
 
 export interface WorkOrder {
   version: string;
@@ -27,6 +29,8 @@ export interface WorkOrder {
   when: string;
   where: string;
   revealed: boolean;
+  /** What "done" looks like for this job, special instructions first (checklists.ts). */
+  checklist: JobChecklist;
   customer?: { name: string; phone: string | null; company: string | null };
   scope: { label: string; value: string }[];
   includes: string[];
@@ -36,7 +40,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null };
 
 /** Spanish for the fixed parts of a work order (pros who chose Spanish). */
 const WO_ES: Record<string, string> = {
@@ -76,6 +80,7 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     L("Arrive within the booked window. Running late? Message the customer in the app before the window starts."),
     L("Take before-and-after photos of every area you work on and upload them to complete the job."),
     ...(job.payment_plan === "deposit" && !job.paid_at ? [L("The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\".")] : []),
+    es ? "Marque la lista del trabajo mientras avanza; si algo no aplica, márquelo N/A con el motivo. Los puntos obligatorios deben quedar marcados para enviar el trabajo." : "Check off the job checklist as you go; mark anything that doesn't apply N/A with the reason. Required items must be checked before you submit the job.",
     L("Out-of-scope work: stop and tell us — we send the customer a change order. Do only what's on this work order."),
     L("Parts not included in the price: upload the receipt in the app. Small amounts are approved automatically; call us before a big purchase. You're reimbursed at cost once the customer pays."),
     L("Can't get in? Tap “Can't get in?” in the app and wait 15 minutes while we call the customer. A confirmed lockout earns show-up pay."),
@@ -93,6 +98,7 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     when: `${date} · ${L(TIME_WINDOW_LABEL[job.time_window])}`,
     where: opts.reveal ? `${job.address}, ${job.city}, ${job.state} ${job.zip}` : `${job.city}, ${job.state} ${job.zip} ${es ? "(dirección exacta al aceptar)" : "(exact address after you accept)"}`,
     revealed: opts.reveal,
+    checklist: resolveChecklist({ service_slug: job.service_slug, answers: job.answers as Record<string, unknown>, notes: job.notes, instructions: job.instructions, checklist: job.checklist, checklist_extra: job.checklist_extra }),
     customer: opts.reveal ? { name: job.contact_name, phone: job.contact_phone, company: job.company_name } : undefined,
     scope,
     includes: (svc?.includes ?? []).map(L),
@@ -118,6 +124,8 @@ export function workOrderText(w: WorkOrder, locale?: Locale | string | null): st
     `${es ? "Incluye" : "Included"}: ${w.includes.join("; ")}`,
     ...(w.customerNotes ? ["", `${es ? "Notas del cliente" : "Customer notes"}: "${w.customerNotes}"`] : []),
     ...(w.instructions ? ["", `${es ? "Requisitos del cliente y acceso" : "Customer requirements & access"}: ${w.instructions}`] : []),
+    "",
+    checklistText(w.checklist, es ? "es" : "en"),
     "",
     `${es ? "FOTOS" : "PHOTOS"}: ${w.photos}`,
     "",

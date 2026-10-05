@@ -10,6 +10,7 @@
  * PURPOSE : Customer booking screen — "Covered ✓" by which pro, live timeline (realtime),
  *           pay now, invoice & agreement, and rating when done. Opened from notifications.
  * UPDATED : 2026-10-04_2204 UTC — ★ favorite the pro (and the crew member who came) and "Book again with …".
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist (what's included / progress) and special requests.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
@@ -21,6 +22,35 @@ import { PhotoStrip } from "../../components/PhotoStrip";
 import type { Shot } from "../../lib/photos";
 import { useI18n } from "../../lib/i18n";
 import { Calendar } from "../../components/BookingPickers";
+import { ChecklistList } from "../../components/Checklist";
+import type { ChecklistCheck, ChecklistExtra, JobChecklist } from "@handled/core";
+
+/** What's included (or, once the pro starts, what's done) and the customer's special requests. */
+function JobChecklistCard({ jobId, es }: { jobId: string; es: boolean }) {
+  const [d, setD] = useState<{ checklist: JobChecklist; checks: ChecklistCheck[] | null; requests: ChecklistExtra[]; canEdit: boolean } | null>(null);
+  const [text, setText] = useState("");
+  const [open, setOpen] = useState(false);
+  const load = useCallback(async () => { const r = await api<typeof d>(`/api/account/jobs/${jobId}/requests`); if (r.ok) setD(r.data); }, [jobId]);
+  useEffect(() => { load(); }, [load]);
+  if (!d) return null;
+  return (
+    <Card>
+      <Pressable onPress={() => setOpen(!open)}><Text style={s.b}>✅ {es ? d.checklist.title_es : d.checklist.title} {open ? "▴" : "▾"}</Text></Pressable>
+      <Text style={[s.p, { fontSize: 13 }]}>{es ? "Su profesional marca cada punto al terminarlo, con fotos de antes y después." : "Your pro checks off each item as it's done, with before-and-after photos."}</Text>
+      {d.requests.map((x) => <Text key={x.id} style={[s.p, { fontSize: 14 }]}>📝 {x.text}</Text>)}
+      {d.canEdit && d.requests.length < 5 ? (
+        <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+          <TextInput style={[s.input, { flex: 1, fontSize: 15 }]} placeholder={es ? "Solicitud especial (p. ej. use la puerta lateral)" : "Special request (e.g. use the side door)"} value={text} onChangeText={setText} />
+          <Button title={es ? "Agregar" : "Add"} kind="ghost" disabled={text.trim().length < 3} onPress={async () => {
+            const r = await api<{ ok: boolean; error?: string }>(`/api/account/jobs/${jobId}/requests`, { method: "POST", body: JSON.stringify({ text }) });
+            if (r.ok && r.data.ok) { setText(""); load(); } else Alert.alert(es ? "No se pudo guardar" : "Couldn't save", r.data.error ?? "");
+          }} />
+        </View>
+      ) : null}
+      {open || d.checks ? <ChecklistList checklist={d.checklist} checks={d.checks ?? undefined} es={es} /> : null}
+    </Card>
+  );
+}
 
 type Crew = { crew_member_id: string; first_name: string; role: string };
 type Pro = { business_name: string; contact_first_name: string; rating: number; jobs_completed: number };
@@ -123,7 +153,9 @@ export default function Booking() {
             );
           })()}
         </Card>
-      ) : job.paid_at || job.deposit_paid_at ? (
+      ) : null}
+      {job.status !== "cancelled" ? <JobChecklistCard jobId={job.id} es={es} /> : null}
+      {pro ? null : job.paid_at || job.deposit_paid_at ? (
         <Card style={{ marginTop: 14 }}><Text style={s.b}>{t("Finding your pro…")}</Text><Text style={s.p}>{t("You'll get a notification the moment your job is covered.")}</Text></Card>
       ) : null}
 

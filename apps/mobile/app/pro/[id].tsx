@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
  * UPDATED : 2026-10-03_1337 UTC — crew accounts: pick who's doing the job.
  * UPDATED : 2026-10-04_2204 UTC — the customer's crew member request (★ on that person; the owner decides) and "asked for you".
+ * UPDATED : 2026-10-05_0221 UTC — the job checklist: tap items as they're done, hold for N/A with the reason.
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  */
 import { shareLocationOnce } from "../../lib/location";
@@ -19,6 +20,7 @@ import { getService, localDate, money, questionVisible, scopeChange, type Job } 
 import { api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 import { useI18n } from "../../lib/i18n";
+import { ProChecklist } from "../../components/Checklist";
 
 type CrewPick = { ready: string | null; current: string | null; askedForYou?: boolean; requested?: { id: string; name: string } | null; options: { id: string; name: string; why: string | null }[] };
 type Materials = { allowed: boolean; reason: string | null; autoApproveUpTo: number; shopping: boolean; expenses: { id: string; amount: number; description: string; status: string; notes: string | null }[] };
@@ -142,6 +144,7 @@ export default function ProJob() {
           <Text style={[s.p, { fontSize: 13 }]}>{t("The customer sees the first name of who’s coming.")}</Text>
         </Card>
       )}
+      {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) ? <ProChecklist jobId={job.id} es={locale === "es"} /> : null}
       {job.status === "assigned" && job.scheduled_date === localDate() && !job.en_route_at && <Button title={`🚗 ${t("On my way")}`} kind="ghost" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "on_my_way" }); }} busy={busy} style={{ marginBottom: 8 }} />}
       {job.status === "assigned" && job.en_route_at ? <Text style={[s.p, { marginBottom: 8 }]}>🚗 {t("The customer can see your ETA while the app is open.")}</Text> : null}
       {job.status === "assigned" && <Button title={t("I've arrived — start job")} onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "start" }); }} busy={busy} />}
