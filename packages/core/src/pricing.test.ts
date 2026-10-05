@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-05_0130 UTC — job-posting letter (business sales engine).
  * UPDATED : 2026-10-05_0148 UTC — Email Center (merge tags, rendering, law / spam checks).
  * UPDATED : 2026-10-05_0221 UTC — job checklists.
+ * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
  */
 
 import { test } from "node:test";
@@ -1090,4 +1091,36 @@ test("job checklists: every service has one, standard vs deep vs move-out differ
   const w = buildWorkOrder({ ref: "HND-1", service_slug: "house-cleaning", answers: { level: "deep" }, notes: null, scheduled_date: "2026-10-10", time_window: "morning", address: "1 A", city: "Detroit", state: "MI", zip: "48226", contact_name: "C", contact_phone: "1", company_name: null, contractor_payout: 100 } as never, { reveal: false });
   assert.match(workOrderText(w), /DEEP CLEAN CHECKLIST/);
   assert.match(workOrderText(buildWorkOrder({ ...w, ref: "HND-1", service_slug: "house-cleaning", answers: { level: "deep" }, scheduled_date: null, time_window: "morning", city: "Detroit", state: "MI", zip: "48226", contractor_payout: 100 } as never, { reveal: false, locale: "es" }), "es"), /LISTA DE LIMPIEZA PROFUNDA/);
+});
+
+test("pro interview: plans per trade, scoring rules, no protected topics, approval checklist", async () => {
+  const { QUESTIONS, interviewPlan, scoreInterview, approvalChecklist, COMPETENCIES, tradeGroups } = await import("./interview.ts");
+  const { TRADES } = await import("./services.ts");
+  assert.equal(new Set(QUESTIONS.map((q) => q.id)).size, QUESTIONS.length, "unique question ids");
+  for (const q of QUESTIONS) assert.ok(q.es.length > 10 && q.lookFor.length > 10, `${q.id}: Spanish and look-for`);
+  // no question touches a protected topic
+  const banned = /\b(age|old are you|born|citizen|immigra|religio|church|married|pregnan|children|kids|disab|health|medical|medication|arrest|convict|criminal|nationality|accent|credit|union)\b/i;
+  for (const q of QUESTIONS) assert.doesNotMatch(q.en, banned, `${q.id} asks about a protected topic`);
+  for (const t of TRADES) {
+    const plan = interviewPlan([t.id]);
+    assert.ok(tradeGroups([t.id]).length === 1, `${t.id} has a trade group`);
+    assert.ok(plan.length >= 15 && plan.length <= 22, `${t.id}: plan size ${plan.length}`);
+    for (const c of Object.keys(COMPETENCIES)) assert.ok(plan.some((q) => q.competency === c), `${t.id}: plan covers ${c}`);
+    assert.equal(plan[plan.length - 1].id, "questions");
+  }
+  assert.ok(interviewPlan(["cleaning", "lawn", "plumbing", "pet_care"]).filter((q) => q.group).length <= 6, "trade questions capped");
+  const all = (n: number) => Object.keys(COMPETENCIES).map((c) => ({ competency: c as never, score: n }));
+  assert.equal(scoreInterview(all(4)).result, "advance");
+  assert.equal(scoreInterview(all(4), ["Won't carry required insurance"]).result, "not_now");
+  assert.equal(scoreInterview(all(3)).result, "follow_up", "3.0 average is a follow-up, not an advance");
+  assert.equal(scoreInterview(all(2)).result, "not_now");
+  assert.equal(scoreInterview([...all(5).slice(1), { competency: "skill" as never, score: 1 }]).result, "follow_up", "one very low score → follow up even with a high average");
+  assert.equal(scoreInterview(all(5).slice(0, 4)).result, "follow_up", "missing competencies → follow up");
+  const c0 = approvalChecklist({ applied_at: "2026-10-01T00:00:00Z" });
+  assert.equal(c0.next?.key, "screen");
+  const c1 = approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed", result: "advance" }, onboarding: [{ key: "w9", label: "W-9 on file", done: false }] });
+  assert.equal(c1.next?.key, "decision", "after the interview a person decides");
+  assert.equal(c1.next?.who, "staff");
+  const c2 = approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed" }, invited_at: "2026-10-02", onboarding: [{ key: "w9", label: "W-9 on file", done: true }, { key: "background", label: "Background check cleared", done: false }] });
+  assert.equal(c2.next?.key, "setup:background");
 });

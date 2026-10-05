@@ -11,6 +11,8 @@
  *             orderBackgroundCheck() — Checkr invitation (CHECKR_API_KEY), else an ops task
  *             maybeActivate()        — all steps done + documents verified + background clear → live
  *             recruitingSweep()      — daily: setup reminders, stuck applicants, drop-offs
+ * UPDATED : 2026-10-05_0246 UTC — screening interview: unless the screen says decline, the applicant gets the AI interview
+ *           link first (Hub → Recruiting settings); a person decides after it (lib/interviews.ts).
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
@@ -112,6 +114,11 @@ export async function onApplication(appId: string) {
     await logRecruiting("screened", { applicationId: appId }, `AI ${screen.recommendation} · score ${screen.score}`, "ai");
   }
   const settings = await getRecruitingSettings();
+  if (settings.interviewRequired && screen && screen.recommendation !== "decline") {
+    const r = await (await import("./interviews")).startInterview(appId, "ai", "auto").catch((e) => ({ ok: false, error: String(e) }));
+    if (r.ok) return;
+    await logRecruiting("interview_not_sent", { applicationId: appId }, r.error ?? null);
+  }
   const d = autoInviteDecision(settings, screen);
   if (d.invite) {
     await inviteApplicant(appId, "auto-invite", d.why);

@@ -7,13 +7,16 @@
  *             applied → screened → invited → onboarding → verifying → background → active
  *           (or rejected / dropped). Who gets invited automatically, when to follow up,
  *           and when someone is stuck.
+ * UPDATED : 2026-10-05_0246 UTC — screening interview stages (interview / interviewed) and interview settings.
  */
 
-export type PipelineStage = "applied" | "screened" | "invited" | "onboarding" | "verifying" | "background" | "active" | "rejected" | "dropped";
+export type PipelineStage = "applied" | "screened" | "interview" | "interviewed" | "invited" | "onboarding" | "verifying" | "background" | "active" | "rejected" | "dropped";
 
 export const STAGE_LABEL: Record<PipelineStage, string> = {
   applied: "Applied",
   screened: "Screened — needs a decision",
+  interview: "Interview link sent / in progress",
+  interviewed: "Interviewed — needs a decision",
   invited: "Invited — hasn't started setup",
   onboarding: "Doing setup",
   verifying: "Documents being verified",
@@ -24,12 +27,16 @@ export const STAGE_LABEL: Record<PipelineStage, string> = {
 };
 
 /** Funnel order for the Hub. */
-export const PIPELINE: PipelineStage[] = ["applied", "screened", "invited", "onboarding", "verifying", "background", "active"];
+export const PIPELINE: PipelineStage[] = ["applied", "screened", "interview", "interviewed", "invited", "onboarding", "verifying", "background", "active"];
 
 export interface RecruitingSettings {
   /** Invite strong applicants automatically (AI screen ≥ minScore and not "decline"). */
   autoInvite: boolean;
   minScore: number;
+  /** Send every applicant who isn't a clear decline the screening interview before any invite. */
+  interviewRequired: boolean;
+  /** After an interview the AI scores as "advance", invite without waiting for staff (off: a person always decides). */
+  autoInviteAfterInterview: boolean;
   /** Activate a pro as soon as every step is done, documents verified and background clear. */
   autoActivate: boolean;
   /** Days after the invite to send setup reminders. */
@@ -43,6 +50,8 @@ export interface RecruitingSettings {
 export const RECRUITING_DEFAULTS: RecruitingSettings = {
   autoInvite: true,
   minScore: 70,
+  interviewRequired: true,
+  autoInviteAfterInterview: false,
   autoActivate: true,
   reminderDays: [1, 3, 7, 14],
   dropAfterDays: 30,
@@ -74,7 +83,7 @@ export function pipelineStage(o: {
   if (o.appStage === "rejected" || o.appStage === "withdrawn") return "rejected";
   if (o.contractorStatus === "approved") return "active";
   if (o.droppedAt) return "dropped";
-  if (!o.contractorStatus) return o.appStage === "screened" ? "screened" : "applied";
+  if (!o.contractorStatus) return o.appStage === "interviewing" ? "interview" : o.appStage === "interviewed" ? "interviewed" : o.appStage === "screened" ? "screened" : "applied";
   const steps = o.steps ?? [];
   if (!steps.some((x) => x.done)) return "invited";
   const left = steps.filter((x) => !x.done && x.key !== "background");

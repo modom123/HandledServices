@@ -4,7 +4,8 @@
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : Staff actions on the recruiting pipeline and its automation settings.
  *             POST { action: "nudge" | "revive" | "note" | "background_clear" | "order_background", contractor_id?, application_id?, note? }
- *             PUT  { autoInvite, minScore, autoActivate, reminderDays, dropAfterDays, decisionHours }  (admin)
+ *             PUT  { autoInvite, minScore, interviewRequired, autoInviteAfterInterview, autoActivate, reminderDays, dropAfterDays, decisionHours }  (admin)
+ * UPDATED : 2026-10-05_0246 UTC — screening interview settings.
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
 }
 
 const Settings = z.object({
+  interviewRequired: z.boolean().default(true), autoInviteAfterInterview: z.boolean().default(false),
   autoInvite: z.boolean(), minScore: z.number().int().min(0).max(100), autoActivate: z.boolean(),
   reminderDays: z.array(z.number().int().min(1).max(90)).min(1).max(8), dropAfterDays: z.number().int().min(7).max(180), decisionHours: z.number().int().min(1).max(240),
 });

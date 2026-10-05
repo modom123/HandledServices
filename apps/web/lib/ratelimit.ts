@@ -5,6 +5,7 @@
  * PURPOSE : Abuse limits for public endpoints that cost money (AI) or storage (uploads), counted
  *           per visitor IP in Postgres (hit_rate_limit), so limits hold across serverless instances.
  *           Fails open if the database is unreachable — a broken limiter must not block customers.
+ * UPDATED : 2026-10-05_0246 UTC — interview: candidate messages to the AI interviewer.
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -14,6 +15,7 @@ import { supabaseConfigured } from "./supabase/env";
 export const LIMITS = {
   ai_quote: [30, 3600],
   concierge: [60, 3600],
+  interview: [80, 3600],
   upload: [60, 3600],
   booking: [20, 3600],
   form: [10, 3600],
