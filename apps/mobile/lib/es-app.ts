@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (raise your offer / pros' counters on the job screen).
  * UPDATED : 2026-10-04_2204 UTC — favorites and "Book again with …".
  * UPDATED : 2026-10-05_0434 UTC — sign-in "Who are you?".
+ * UPDATED : 2026-10-05_0449 UTC — Snap & post a job.
  * PURPOSE : Spanish for the customer screens of the app (home, booking, my bookings, job,
  *           account, sign-in, chat). Shared words live in @handled/core i18n.ts.
  */
@@ -150,6 +151,8 @@ export const ES_APP: Record<string, string> = {
   "Favorites see your next booking for that kind of work first for a few hours; if they can't, another vetted pro takes it. Not guaranteed.": "Sus favoritos ven primero su próxima reserva de ese tipo de trabajo por unas horas; si no pueden, otro profesional verificado lo toma. No está garantizado.",
   "Your pro gets the first look for a few hours; if they can't, another vetted pro takes it.": "Su profesional lo ve primero por unas horas; si no puede, otro profesional verificado lo toma.",
   "Any pro is fine": "Cualquier profesional",
+  "Snap a photo, post a job": "Tome una foto, publique su trabajo",
+  "Snap a job": "Publicar con foto",
   "Sign in or create your account — we'll email you a code.": "Inicie sesión o cree su cuenta: le enviaremos un código por correo.",
   "Who are you?": "¿Quién es usted?",
   "I book services": "Reservo servicios",

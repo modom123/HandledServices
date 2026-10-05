@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (local market factor from /api/market, "Name your price" → customer_offer).
  * UPDATED : 2026-10-04_2204 UTC — "Book again with …" (?pro=&crew=): the pro gets the first look (checked on the server).
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
+ * UPDATED : 2026-10-05_0449 UTC — Snap & post a job: photos, job details, notes and timeframe arrive filled in.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -24,20 +25,21 @@ const FREQ_TEXT: Record<Frequency, string> = { once: "One time", weekly: "Weekly
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 export default function Book() {
-  const { slug, pro, crew } = useLocalSearchParams<{ slug: string; pro?: string; crew?: string }>();
+  const { slug, pro, crew, shots: snapShots, notes: snapNotes, when: snapWhen, answers: snapAnswers } = useLocalSearchParams<{ slug: string; pro?: string; crew?: string; shots?: string; notes?: string; when?: string; answers?: string }>();
+  const parse = <T,>(v: string | undefined, fb: T): T => { try { return v ? (JSON.parse(v) as T) : fb; } catch { return fb; } };
   const [ask, setAsk] = useState(Boolean(pro));
   const svc = getService(slug)!;
-  const [answers, setAnswers] = useState<Answers>(defaultAnswers(svc));
+  const [answers, setAnswers] = useState<Answers>({ ...defaultAnswers(svc), ...parse<Answers>(snapAnswers, {}) });
   const { t, locale, svc: svcText } = useI18n();
   const es = locale === "es";
   const [frequency, setFrequency] = useState<Frequency>("once");
-  const [urgency, setUrgency] = useState<Urgency | null>(null);
+  const [urgency, setUrgency] = useState<Urgency | null>(URGENCY.some((u) => u.id === snapWhen) ? (snapWhen as Urgency) : null);
   const [budget, setBudget] = useState("");
   const [promo, setPromo] = useState("");
   const [date, setDate] = useState(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
   const [win, setWin] = useState<TimeWindow>("morning");
-  const [notes, setNotes] = useState("");
-  const [shots, setShots] = useState<Shot[]>([]);
+  const [notes, setNotes] = useState(snapNotes ?? "");
+  const [shots, setShots] = useState<Shot[]>(parse<Shot[]>(snapShots, []).filter((x) => typeof x?.path === "string" && x.path.startsWith("booking/")).slice(0, 8));
   const photos = shots.map((x) => x.path);
   const [f, setF] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "" });
   const [busy, setBusy] = useState(false);

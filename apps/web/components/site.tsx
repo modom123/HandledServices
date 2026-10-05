@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1329 UTC — footer: Handled Plus, gift cards, reviews; English / Spanish.
  * PURPOSE : Public website header and footer.
  * UPDATED : 2026-10-05_0434 UTC — one account button (Sign in → My account / Pro portal / Hub, with Sign out), visible on phones.
+ * UPDATED : 2026-10-05_0448 UTC — 📸 Snap & post a job button in the header (phones too).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -37,6 +38,7 @@ export async function SiteHeader() {
         <div className="flex items-center gap-2">
           <AccountButton es={l === "es"} />
           <LangSwitch locale={l} />
+          <Link href="/snap" title={l === "es" ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job"} className="grid h-10 w-10 place-items-center rounded-full border border-line bg-white text-lg hover:border-brand" aria-label={l === "es" ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job"}>📸</Link>
           <Link href="/book" className="btn-primary">{t("Book now")}</Link>
         </div>
       </div>

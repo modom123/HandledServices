@@ -14,6 +14,7 @@
  *           reads notes + photos and tightens the price before booking.
  * UPDATED : 2026-10-04_1934 UTC — business account bookings (?property=): address and company from the property; billed-on-account confirmation.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-10-05_0447 UTC — photos and notes carried in from Snap & post a job.
  */
 "use client";
 
@@ -58,7 +59,7 @@ export interface BusinessBooking { propertyId: string; propertyName: string; com
 /** "Book again with …" (?pro=&crew=): checked server-side against the customer's favorites and past pros. */
 export interface PreferredPro { proId: string; crewId: string | null; label: string; crewName: string | null }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "" }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -72,8 +73,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     return { ...defaultAnswers(svc), ...Object.fromEntries(Object.entries(prefill).filter(([k]) => known.has(k))) };
   });
   const [frequency, setFrequency] = useState<Frequency>(() => (svc?.frequencies.includes(initialFrequency as Frequency) ? (initialFrequency as Frequency) : "once"));
-  const [notes, setNotes] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [notes, setNotes] = useState(initialNotes);
+  const [photos, setPhotos] = useState<string[]>(initialPhotos);
   const [date, setDate] = useState(defaultDate());
   const [win, setWin] = useState<TimeWindow>("morning");
   const [form, setForm] = useState(business

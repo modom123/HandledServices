@@ -6,6 +6,7 @@
  * PURPOSE : Home — services, concierge, my jobs; switches to pro mode for subcontractors.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-05_0419 UTC — lists show "Instant upfront price" (priceHint), no dollar figures.
+ * UPDATED : 2026-10-05_0449 UTC — 📸 Snap a photo, post a job.
  */
 import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
@@ -34,7 +35,8 @@ export default function Home() {
       </View>
       <Text style={s.h1}>{t("What can we take off your plate?")}</Text>
       <Text style={[s.p, { marginTop: 6 }]}>{locale === "es" ? t("BRAND_PITCH") : BRAND.pitch}</Text>
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
+      <Button title={`📸 ${t("Snap a photo, post a job")}`} onPress={() => router.push("/snap")} style={{ marginTop: 16 }} />
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
         <Button title={`💬 ${t("Ask for a price")}`} kind="dark" onPress={() => router.push("/chat")} style={{ flex: 1 }} />
         {me ? <Button title={t("My bookings")} kind="ghost" onPress={() => router.push("/jobs")} style={{ flex: 1 }} /> : <Button title={t("Sign in")} kind="ghost" onPress={() => router.push("/login")} style={{ flex: 1 }} />}
       </View>

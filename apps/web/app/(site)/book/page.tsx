@@ -7,6 +7,7 @@
  *           seasonal emails; utm_* params are tracking only, never answers.
  * UPDATED : 2026-10-04_1934 UTC — ?property=<id>: book for a business account's property.
  * UPDATED : 2026-10-04_2204 UTC — ?pro=<id>&crew=<id>: "Book again with …" (only a favorite or past pro of the signed-in customer).
+ * UPDATED : 2026-10-05_0447 UTC — ?photos=&notes= from Snap & post a job (photos limited to our upload folder).
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";
@@ -54,7 +55,9 @@ async function businessBooking(propertyId: string) {
 export const metadata = { title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { service, when, budget, promo, frequency, property, pro, crew, ...rest } = await searchParams;
+  const { service, when, budget, promo, frequency, property, pro, crew, photos, notes, src: _src, ...rest } = await searchParams;
+  // from "Snap & post a job": the uploaded photos and the note come along
+  const initialPhotos = (photos ?? "").split(",").filter((p) => /^booking\/[\w\-./]+$/.test(p) && !p.includes("..")).slice(0, 8);
   const business = property ? await businessBooking(property) : undefined;
   const preferred = pro ? await preferredPro(pro, crew) : undefined;
   const locale = await getLocale();
@@ -63,7 +66,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   return (
     <div className="wrap py-12">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t(locale, "Get your price & book")}</h1>
-      <BookingWizard business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} />
+      <BookingWizard business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={notes?.slice(0, 1500)} />
     </div>
   );
 }

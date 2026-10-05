@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-02_1329 UTC — English / Spanish.
  * PURPOSE : Home page (the first page after the splash).
  * UPDATED : 2026-10-05_0419 UTC — category cards say "Instant upfront price" instead of "from $X".
+ * UPDATED : 2026-10-05_0448 UTC — hero: "Snap a photo, post a job" next to Get my price.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -58,6 +59,7 @@ export default async function Home() {
           <p className="mt-5 max-w-lg text-lg text-ink-soft">{BRAND.pitch}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
+            <Link href="/snap" className="btn-ghost px-6 py-3 text-base">📸 {l === "es" ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job"}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {l === "es" ? "servicios" : "services"}</Link>
           </div>
         </div>

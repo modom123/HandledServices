@@ -9,6 +9,7 @@
  *           screen when a notification is tapped (offer → offer screen, job → job screen).
  * UPDATED : 2026-10-03_1337 UTC — My crew and Fast track screens.
  * UPDATED : 2026-10-05_0418 UTC — Rewards screen.
+ * UPDATED : 2026-10-05_0449 UTC — Snap screen.
  */
 import { useEffect } from "react";
 import { Stack, router } from "expo-router";
@@ -48,6 +49,7 @@ function AppStack() {
       <Stack.Screen name="index" options={{ title: "Handled" }} />
       <Stack.Screen name="book/[slug]" options={{ title: t("Book") }} />
       <Stack.Screen name="chat" options={{ title: t("Concierge") }} />
+      <Stack.Screen name="snap" options={{ title: t("Snap a job") }} />
       <Stack.Screen name="login" options={{ title: t("Sign in") }} />
       <Stack.Screen name="jobs" options={{ title: t("My bookings") }} />
       <Stack.Screen name="job/[id]" options={{ title: t("Booking") }} />
