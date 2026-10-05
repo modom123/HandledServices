@@ -5,6 +5,7 @@
  * PURPOSE : One government contract opportunity: the fit (reasons and red flags), key facts and contacts, the AI bid
  *           brief, the full notice text, pipeline status and notes, and the pros who could fill it (ask them, record
  *           their answers). Links to the notice on SAM.gov for attachments and submitting.
+ * UPDATED : 2026-10-05_1954 UTC — Start a bid (bid engine workspace).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,6 +14,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { matchingPros, noticeTypeLabel, type GovSummary } from "@/lib/gov";
 import { aiEnabled } from "@/lib/ai/client";
 import { GovPros, GovReadButtons, GovStatus } from "@/components/GovAdmin";
+import { StartBidButton } from "@/components/BidWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +24,7 @@ export default async function GovNotice({ params }: { params: Promise<{ id: stri
   if (!o) notFound();
   const fit = (o.fit ?? { reasons: [], flags: [], services: [] }) as GovFit;
   const ai = o.ai_summary as GovSummary | null;
-  const pros = await matchingPros(id);
+  const [pros, { data: bid }] = await Promise.all([matchingPros(id), adminClient().from("bids").select("id").eq("notice_id", id).not("status", "in", "(no_bid,cancelled)").maybeSingle()]);
   const contacts = (o.contacts ?? []) as { name: string | null; email: string | null; phone: string | null; type: string | null }[];
   const fmt = (d: string | null) => (d ? new Date(d).toLocaleString("en-US", { timeZone: "America/Detroit", dateStyle: "medium", timeStyle: "short" }) : "—");
   const fact = (label: string, value: React.ReactNode) => <div><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</div><div className="text-sm">{value || "—"}</div></div>;
@@ -34,7 +36,7 @@ export default async function GovNotice({ params }: { params: Promise<{ id: stri
         <div className="text-xs text-ink-soft">{noticeTypeLabel(o.ptype, o.notice_type)}{o.solicitation_number ? ` · ${o.solicitation_number}` : ""}</div>
         <h1 className="text-2xl font-bold">{o.title}</h1>
         <div className="text-sm text-ink-soft">{o.agency ?? "—"}{o.office ? ` / ${o.office}` : ""}</div>
-        <a href={samLink} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-semibold text-brand underline">Open on SAM.gov (attachments, Q&A, how to respond) ↗</a>
+        <div className="mt-2 flex flex-wrap items-center gap-3"><StartBidButton noticeId={o.notice_id} bidId={bid?.id ?? null} /><a href={samLink} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand underline">Open on SAM.gov (attachments, Q&A, how to respond) ↗</a></div>
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="card space-y-3 lg:col-span-2">

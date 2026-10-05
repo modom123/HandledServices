@@ -1202,3 +1202,35 @@ test("gov contracts: SAM.gov records parse, NAICS map to our services, fit score
   assert.deepEqual([q.get("postedFrom"), q.get("postedTo"), q.get("ncode"), q.get("state"), q.get("ptype")], ["09/28/2026", "10/05/2026", "561720", "MI", "o,k"]);
   assert.ok(!qs[0].includes("api_key"));
 });
+
+test("bid engine: price from pro cost up, margin on price, gate blocks until everything is true", async () => {
+  const { priceLine, priceBid, goDecision, bestQuotes, submitGate, REVIEW_CHECKS, standardRequirements, GO_NO_GO } = await import("./bid-engine.ts");
+  // $30 pro cost: overheads 20% + financing 12%×45/365 = 1.48% → 36.44 loaded → /0.85 = 42.88 → $43
+  const l = priceLine({ id: "a", item: "Mow", unit: "visit", qty: 15, years: 2, pro_unit_cost: 30 });
+  assert.equal(l.loaded, 36.44); assert.equal(l.unitPrice, 43); assert.equal(l.yearPrice, 645); assert.equal(l.totalPrice, 1290);
+  assert.ok(l.marginPct >= 15);
+  assert.ok(priceLine({ id: "b", item: "x", unit: "u", qty: 1, years: 1, pro_unit_cost: 30 }, { marginPct: 5 }).flags.some((f) => f.includes("floor")));
+  assert.ok(priceLine({ id: "c", item: "x", unit: "u", qty: 1, years: 1, pro_unit_cost: 30, benchmark: 35 }).flags.some((f) => f.includes("above the last award")));
+  const bid = priceBid([l, { id: "d", item: "Snow", unit: "event", qty: 6, years: 2, pro_unit_cost: null }]);
+  assert.ok(bid.warnings.some((w) => w.includes("without a pro price")));
+  assert.equal(bid.totals.totalPrice, 1290);
+  assert.equal(goDecision({ eligible: "yes", staffed: "yes", insured: "yes", profitable: "yes", time: "yes" }).decision, "go");
+  assert.equal(goDecision({ eligible: "no", staffed: "yes" }).decision, "no_go");
+  assert.equal(goDecision({ eligible: "yes" }).decision, "undecided");
+  const q = bestQuotes([{ id: "a" }], [{ contractor_id: "p1", status: "committed", prices: { a: 32 } }, { contractor_id: "p2", status: "committed", prices: { a: 29 } }, { contractor_id: "p3", status: "declined", prices: { a: 10 } }]);
+  assert.equal(q.a.best?.contractor_id, "p2"); assert.equal(q.a.count, 2); assert.ok(q.a.backup);
+  const allYes = Object.fromEntries(GO_NO_GO.map((g) => [g.id, "yes" as const]));
+  const review = Object.fromEntries(REVIEW_CHECKS.map((c) => [c.id, true]));
+  const now = new Date("2026-10-05T12:00:00Z");
+  const base = { go: allYes, requirements: [{ required: true, done: true }], lines: [l], review, reviewer: "b@x.com", owner: "a@x.com", confirmationUploaded: true, dueAt: "2026-10-20T18:00:00Z", now };
+  assert.ok(submitGate(base).canMarkSubmitted);
+  assert.ok(!submitGate({ ...base, confirmationUploaded: false }).canMarkSubmitted);
+  assert.ok(submitGate({ ...base, confirmationUploaded: false }).ready);
+  assert.ok(submitGate({ ...base, requirements: [{ required: true, done: false }] }).missing.some((m) => m.includes("compliance")));
+  assert.ok(submitGate({ ...base, review: {} }).missing.some((m) => m.includes("Review")));
+  assert.ok(submitGate({ ...base, go: { ...allYes, eligible: "no" } }).missing.some((m) => m.includes("no-go")));
+  assert.ok(submitGate({ ...base, dueAt: "2026-10-01T00:00:00Z" }).missing.some((m) => m.includes("passed")));
+  assert.ok(submitGate({ ...base, reviewer: "a@x.com" }).warnings.some((w) => w.includes("second person")));
+  assert.ok(standardRequirements("city").some((r) => r.text.includes("tax clearance")));
+  assert.ok(standardRequirements("sam").some((r) => r.text.includes("SAM.gov")));
+});

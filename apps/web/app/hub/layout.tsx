@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-05_0434 UTC — Team (who has Hub access) in the nav; clearer "staff only" message.
  * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
  * UPDATED : 2026-10-05_1441 UTC — 🏛️ Gov contracts (SAM.gov).
+ * UPDATED : 2026-10-05_1954 UTC — 📝 Bids (bid engine).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -40,6 +41,7 @@ const NAV = [
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/biz-leads", "🤝", "Business leads"],
   ["/hub/gov", "🏛️", "Gov contracts"],
+  ["/hub/bids", "📝", "Bids"],
   ["/hub/email", "✉️", "Email Center"],
   ["/hub/finance", "💵", "Finance"],
   ["/hub/growth", "📈", "Growth"],
