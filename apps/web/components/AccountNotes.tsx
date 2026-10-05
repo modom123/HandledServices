@@ -2,6 +2,7 @@
  * FILE    : apps/web/components/AccountNotes.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-05_2141 UTC
+ * UPDATED : 2026-10-05_2146 UTC — AddNote takes customerEmail for customer histories; timeline icons for bookings and reviews.
  * PURPOSE : Account notes UI: AddNote (client — log a note, call, email, meeting or text; append-only) and Timeline
  *           (the full history, newest first: people's notes plus automated lead events).
  */
@@ -14,8 +15,9 @@ export type TimelineEntry = { at: string; kind: string; label: string; body: str
 
 const KINDS: [string, string][] = [["note", "Note"], ["call", "Call"], ["email", "Email"], ["meeting", "Meeting"], ["text", "Text"]];
 const ICON: Record<string, string> = { note: "📝", call: "📞", email: "✉️", meeting: "🤝", text: "💬", status: "🔖" };
+const EVENT_ICON: Record<string, string> = { booked: "🗓️", completed: "✅", review: "⭐" };
 
-export function AddNote({ subjectType, subjectId }: { subjectType: "biz_lead" | "business_account" | "talent_client"; subjectId: string }) {
+export function AddNote({ subjectType, subjectId, customerEmail }: { subjectType: "biz_lead" | "business_account" | "talent_client" | "customer"; subjectId?: string; customerEmail?: string }) {
   const router = useRouter();
   const [kind, setKind] = useState("note");
   const [body, setBody] = useState("");
@@ -28,7 +30,7 @@ export function AddNote({ subjectType, subjectId }: { subjectType: "biz_lead" | 
       <div className="flex items-center gap-2">
         <button className="btn-primary" disabled={busy || !body.trim()} onClick={async () => {
           setBusy(true); setMsg("");
-          const r = await fetch("/api/hub/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_type: subjectType, subject_id: subjectId, kind, body }) });
+          const r = await fetch("/api/hub/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject_type: subjectType, subject_id: subjectId, customer_email: customerEmail, kind, body }) });
           const j = await r.json().catch(() => ({}));
           setBusy(false);
           if (r.ok && j.ok) { setBody(""); router.refresh(); } else setMsg(String(j.error ?? "Couldn't save"));
@@ -46,7 +48,7 @@ export function Timeline({ items }: { items: TimelineEntry[] }) {
     <ol className="space-y-3 border-l border-line pl-4 text-sm">
       {items.map((it, i) => (
         <li key={i} className="relative">
-          <span className="absolute -left-[22px] top-0.5 text-xs">{it.source === "note" ? ICON[it.kind] ?? "📝" : "•"}</span>
+          <span className="absolute -left-[22px] top-0.5 text-xs">{it.source === "note" ? ICON[it.kind] ?? "📝" : EVENT_ICON[it.kind] ?? "•"}</span>
           <div className="text-xs text-ink-soft">{new Date(it.at).toLocaleString("en-US", { timeZone: "America/Detroit", dateStyle: "medium", timeStyle: "short" })} · <b className={it.source === "note" ? "text-ink" : ""}>{it.label}</b>{it.author ? ` · ${it.author}` : ""}{it.from ? ` · ${it.from}` : ""}</div>
           {it.body && <p className={`whitespace-pre-wrap ${it.source === "event" ? "text-ink-soft" : ""}`}>{it.body}</p>}
         </li>

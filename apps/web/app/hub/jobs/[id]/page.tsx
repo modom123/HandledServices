@@ -5,9 +5,11 @@
  * UPDATED : 2026-10-02_0302 UTC — shows how soon the customer needs it (deadline status) and their budget.
  * UPDATED : 2026-10-03_0124 UTC — record a pro no-show (re-dispatches; counts toward the deactivation policy).
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (what the pro checked) and staff special instructions.
+ * UPDATED : 2026-10-05_2146 UTC — link to the customer’s history & notes.
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
  */
+import Link from "next/link";
 import { NoShowButton } from "@/components/Standing";
 import { notFound } from "next/navigation";
 import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
@@ -52,7 +54,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{job.ref} · {s.icon} {s.name}</h1><div className="flex gap-2">{job.remedy && <Badge tone="brand">{job.remedy}</Badge>}{!job.paid_at && !job.remedy && job.price_final ? <Badge tone="red">unpaid</Badge> : null}{job.priority !== "normal" && <Badge tone="amber">{job.priority}</Badge>}<StatusBadge status={job.status} /></div></div>
           <a href={`/invoice/${job.id}`} target="_blank" className="text-xs font-semibold text-brand underline">Invoice & service agreement ↗</a>
           <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
-            <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div></div>
+            <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><Link href={`/hub/customers/${encodeURIComponent(String(job.contact_email).toLowerCase())}`} className="text-xs font-semibold text-brand underline">Customer history & notes →</Link><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div></div>
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>
               <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <span className="font-normal text-ink-soft">· payout {money(job.contractor_payout)} · margin {job.price_final && job.contractor_payout ? money(job.price_final - job.contractor_payout) : "—"}</span></div>
               {(job.urgency || job.needed_by) && <div className={deadlineRisk(job) === "late" ? "font-semibold text-rose-600" : deadlineRisk(job) ? "font-semibold text-amber-700" : ""}>Customer needs it: {job.urgency ? URGENCY_LABEL[job.urgency] : "—"}{job.needed_by ? ` · by ${fmtDate(job.needed_by)}` : ""}{deadlineRisk(job) === "late" ? " (past due)" : deadlineRisk(job) === "due" ? " (due now)" : ""}</div>}

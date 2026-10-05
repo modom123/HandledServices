@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-05_2141.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-05_2146.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-05_2141 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 42 migrations + production seed.
+-- CREATED : 2026-10-05_2146 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 43 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -2932,6 +2932,24 @@ select 'biz_lead', l.id, 'note', l.notes, 'imported', l.created_at
 from public.biz_leads l
 where l.notes is not null and length(trim(l.notes)) > 0
   and not exists (select 1 from public.account_notes n where n.subject_type = 'biz_lead' and n.subject_id = l.id);
+
+
+-- >>> migration 20261005214500_customer_notes.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261005214500_customer_notes.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-05_2146 UTC
+-- PURPOSE : Customer notes — the same permanent, append-only history now covers homeowner / walk-in customers.
+--           A customer is keyed by their email: subject_id = md5(lower(trim(email)))::uuid, so every booking
+--           under that email shares one history (the app computes the same id).
+-- ============================================================================
+alter table public.account_notes drop constraint if exists account_notes_subject_type_check;
+alter table public.account_notes add constraint account_notes_subject_type_check
+  check (subject_type in ('biz_lead','business_account','talent_client','customer'));
+
+create or replace function public.customer_subject_id(email text) returns uuid language sql immutable as $$
+  select md5(lower(trim(email)))::uuid
+$$;
 
 
 -- >>> seed.sql

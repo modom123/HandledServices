@@ -2,17 +2,25 @@
  * FILE    : apps/web/lib/notes.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-05_2141 UTC
- * PURPOSE : Account notes — the running conversation history for a business lead, business account or Talent client.
+ * UPDATED : 2026-10-05_2146 UTC — customers too: keyed by email (customerSubjectId), timeline adds their bookings and reviews.
+ * PURPOSE : Account notes — the running conversation history for a business lead, business account, Talent client or customer.
  *             addNote  — append a note / call / email / meeting / text (never edits or deletes; the database refuses)
  *             timeline — everything that happened, newest first: notes written by people, plus the lead's automated
  *                        events (found, emailed, clicked, replied, status changes). A business account's timeline also
  *                        carries the history of the lead it came from, so the whole relationship reads in one place.
  */
 import "server-only";
+import { createHash } from "node:crypto";
 import { adminClient } from "./supabase/server";
 
 const db = () => adminClient();
-export type NoteSubject = "biz_lead" | "business_account" | "talent_client";
+export type NoteSubject = "biz_lead" | "business_account" | "talent_client" | "customer";
+
+/** A customer's history key — md5 of the lowercased email as a uuid; matches public.customer_subject_id() in SQL. */
+export function customerSubjectId(email: string) {
+  const h = createHash("md5").update(email.trim().toLowerCase()).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
 export type NoteKind = "note" | "call" | "email" | "meeting" | "text" | "status";
 export const NOTE_KIND_LABEL: Record<string, string> = { note: "Note", call: "Call", email: "Email", meeting: "Meeting", text: "Text", status: "Status" };
 
@@ -39,8 +47,26 @@ async function leadItems(leadId: string, from?: string): Promise<TimelineItem[]>
   ];
 }
 
-/** Everything that happened with this lead / account, newest first. */
-export async function timeline(subject: NoteSubject, subjectId: string): Promise<TimelineItem[]> {
+/** A customer's bookings, completions and reviews, by email. */
+async function customerItems(email: string): Promise<TimelineItem[]> {
+  const { data: jobs } = await db().from("jobs").select("id, ref, service_slug, status, price_final, estimate_low, notes, created_at, completed_at").ilike("contact_email", email.trim().replace(/[\\%_]/g, (c) => `\\${c}`)).order("created_at", { ascending: false }).limit(500);
+  const list = jobs ?? [];
+  const items: TimelineItem[] = [];
+  for (const j of list) {
+    const price = Number(j.price_final ?? j.estimate_low ?? 0);
+    items.push({ at: j.created_at, kind: "booked", label: `Booked ${j.ref}`, body: `${j.service_slug.replace(/-/g, " ")}${price ? ` · $${price.toLocaleString("en-US")}` : ""} · now ${String(j.status).replace(/_/g, " ")}${j.notes ? `\n“${j.notes}”` : ""}`, author: null, source: "event" });
+    if (j.completed_at) items.push({ at: j.completed_at, kind: "completed", label: `Completed ${j.ref}`, body: null, author: null, source: "event" });
+  }
+  if (list.length) {
+    const ref = new Map(list.map((j) => [j.id, j.ref]));
+    const { data: reviews } = await db().from("reviews").select("job_id, rating, comment, created_at").in("job_id", list.map((j) => j.id).slice(0, 200));
+    for (const r of reviews ?? []) items.push({ at: r.created_at, kind: "review", label: `Review ${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)} · ${ref.get(r.job_id) ?? ""}`, body: r.comment, author: null, source: "event" });
+  }
+  return items;
+}
+
+/** Everything that happened with this lead / account / customer, newest first. For a customer pass their email. */
+export async function timeline(subject: NoteSubject, subjectId: string, customerEmail?: string): Promise<TimelineItem[]> {
   let items: TimelineItem[] = [];
   if (subject === "biz_lead") items = await leadItems(subjectId);
   else {
@@ -50,6 +76,7 @@ export async function timeline(subject: NoteSubject, subjectId: string): Promise
       const { data: a } = await db().from("business_accounts").select("source_lead_id").eq("id", subjectId).maybeSingle();
       if (a?.source_lead_id) items.push(...(await leadItems(a.source_lead_id, "as a lead")));
     }
+    if (subject === "customer" && customerEmail) items.push(...(await customerItems(customerEmail)));
   }
   return items.sort((x, y) => y.at.localeCompare(x.at));
 }
