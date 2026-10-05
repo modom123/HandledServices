@@ -5,6 +5,7 @@
  * PURPOSE : Hub → Business leads controls: engine settings (on/off, volume, segments, pilot offer),
  *           run now, and lead outcomes from calls.
  * UPDATED : 2026-10-05_0130 UTC — "Add a business from a job posting" (job-posting letter by email, or print it).
+ * UPDATED : 2026-10-05_2134 UTC — partner status options (no automated email).
  */
 "use client";
 
@@ -83,11 +84,13 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
   );
 }
 
-export function BizLeadStatus({ id }: { id: string }) {
+export function BizLeadStatus({ id, partner = false }: { id: string; partner?: boolean }) {
   const router = useRouter();
   return (
     <select className="input w-40 text-xs" defaultValue="" onChange={async (e) => { if (!e.target.value) return; await post({ action: "status", id, status: e.target.value }); router.refresh(); }}>
-      <option value="">Mark…</option><option value="replied">Talking / interested</option><option value="queued">Email them</option><option value="call">Call list</option><option value="not_interested">Not interested</option><option value="do_not_contact">Do not contact</option>
+      {partner
+        ? <><option value="">Mark…</option><option value="replied">Talking / interested</option><option value="call">To contact</option><option value="not_interested">Not interested</option><option value="do_not_contact">Do not contact</option></>
+        : <><option value="">Mark…</option><option value="replied">Talking / interested</option><option value="queued">Email them</option><option value="call">Call list</option><option value="not_interested">Not interested</option><option value="do_not_contact">Do not contact</option></>}
     </select>
   );
 }

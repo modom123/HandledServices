@@ -6,9 +6,10 @@
  *           stagers, self-storage, stores). Settings and pilot offer, the funnel, warm replies to answer,
  *           the call list (phone-only leads — call by hand, never automated texts) and the top leads.
  * UPDATED : 2026-10-05_0130 UTC — job-posting leads: add a business that posted a job for work we do; open its letter.
+ * UPDATED : 2026-10-05_2134 UTC — Teaming partners (public bids) section; partners kept out of the funnel, call list and stats.
  */
 import Link from "next/link";
-import { BIZ_SEGMENTS, type BizSegment } from "@handled/core";
+import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { getBizLeadSettings } from "@/lib/biz-leads";
 import { instantlyBizReady } from "@/lib/instantly";
@@ -16,12 +17,15 @@ import { Stat } from "@/components/ui";
 import { BizLeadSettingsForm, BizLeadStatus, JobPostLeadForm } from "@/components/BizLeadAdmin";
 
 export const dynamic = "force-dynamic";
-type Lead = { id: string; business_name: string; segment: BizSegment; city: string | null; email: string | null; phone: string | null; website: string | null; rating: number | null; review_count: number | null; score: number; status: string; account_id: string | null; created_at: string; job_title: string | null; posting_source: string | null; posting_url: string | null };
+type Lead = { id: string; business_name: string; segment: BizSegment; city: string | null; email: string | null; phone: string | null; website: string | null; rating: number | null; review_count: number | null; score: number; status: string; account_id: string | null; created_at: string; job_title: string | null; posting_source: string | null; posting_url: string | null; notes: string | null };
 
 export default async function BizLeads() {
   const db = adminClient();
   const [s, { data }] = await Promise.all([getBizLeadSettings(), db.from("biz_leads").select("*").order("score", { ascending: false }).limit(2000)]);
-  const leads = (data ?? []) as Lead[];
+  const everyone = (data ?? []) as Lead[];
+  // teaming partners are tracked here but kept out of the sales funnel, call list and stats
+  const partners = everyone.filter((l) => (l.segment as string) === BIZ_PARTNER_SEGMENT);
+  const leads = everyone.filter((l) => (l.segment as string) !== BIZ_PARTNER_SEGMENT);
   const n = (st: string | string[]) => leads.filter((l) => (Array.isArray(st) ? st : [st]).includes(l.status)).length;
   const Row = ({ l }: { l: Lead }) => (
     <tr className="border-t border-line">
@@ -51,6 +55,21 @@ export default async function BizLeads() {
         <Stat label="Replied" value={n("replied")} hint="answer today" />
         <Stat label="Accounts" value={n("converted")} hint="set up from the email" />
       </div>
+      {partners.length > 0 && (
+        <section>
+          <h2 className="mb-1 text-lg font-bold">Teaming partners (public bids)</h2>
+          <p className="mb-2 text-sm text-ink-soft">Firms we're approaching to bid City and public contracts together. Contact them by hand from your own mailbox. They never get the automated sales emails or Email Center blasts. Update the status as they reply.</p>
+          <div className="card overflow-x-auto p-0"><table className="w-full text-sm"><thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Firm</th><th className="p-3">Why them</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead>
+            <tbody>{partners.map((l) => (
+              <tr key={l.id} className="border-t border-line align-top">
+                <td className="p-3"><div className="font-semibold">{l.business_name}</div><div className="text-xs text-ink-soft">{BIZ_PARTNER_LABEL}{l.city ? ` · ${l.city}` : ""}</div>{l.website && <a href={l.website} target="_blank" className="text-xs underline">website</a>}{l.email && <div className="text-xs">{l.email}</div>}{l.phone && <div className="text-xs">{l.phone}</div>}</td>
+                <td className="p-3 text-xs whitespace-pre-wrap">{l.notes ?? ""}</td>
+                <td className="p-3 text-xs">{l.status === "call" ? "to contact" : l.status.replace("_", " ")}</td>
+                <td className="p-3"><BizLeadStatus id={l.id} partner /></td>
+              </tr>
+            ))}</tbody></table></div>
+        </section>
+      )}
       <div className="card"><BizLeadSettingsForm s={s} /></div>
       <section className="card">
         <h2 className="text-lg font-bold">Add a business from a job posting</h2>

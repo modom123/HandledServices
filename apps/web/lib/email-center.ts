@@ -11,6 +11,7 @@
  *                                  Spanish copy for Spanish-speaking customers when the campaign has one
  *             clickUrl / recordClick — signed click-tracking links (no open pixels)
  *           Every email: why they get it, the business postal address, one-click unsubscribe (CAN-SPAM).
+ * UPDATED : 2026-10-05_2134 UTC — business-lead audience never includes teaming partners.
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -84,7 +85,7 @@ async function rawAudience(audience: EmailAudience, customList?: string | null):
     const rows = await all<{ email: string; business_accounts: { company: string | null; contact_name: string | null } | null }>((a, b) => db().from("business_members").select("email, business_accounts(company, contact_name)").range(a, b));
     for (const r of rows) add(r.email, null, { company: r.business_accounts?.company ?? "" });
   } else if (audience === "biz_leads") {
-    const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; city: string | null }>((a, b) => db().from("biz_leads").select("email, contact_name, business_name, city").in("status", ["new", "clicked"]).not("email", "is", null).range(a, b));
+    const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; city: string | null }>((a, b) => db().from("biz_leads").select("email, contact_name, business_name, city").in("status", ["new", "clicked"]).neq("segment", "partner").not("email", "is", null).range(a, b));
     for (const r of rows) add(r.email, r.contact_name, { company: r.business_name, city: r.city ?? "" });
   } else if (audience === "pros") {
     const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; profiles: { locale: string | null } | null }>((a, b) => db().from("contractors").select("email, contact_name, business_name, profiles(locale)").eq("status", "approved").range(a, b));

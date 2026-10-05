@@ -15,10 +15,18 @@
  *           service instead of hiring for it": cost comparison, upfront prices, vetted pros, guarantee, pilot offer.
  *           bizLeadEmail uses it when the lead has a job title; bizCoverLetter is the same letter for sending by hand.
  *           Leads are added by hand in the Hub (job sites don't allow scraping). New segment: offices & facilities.
+ * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner'): tracked as leads, never sent the sales sequence or blasts.
  */
 import { BRAND } from "./brand.ts";
 
 export type BizSegment = "property_manager" | "real_estate" | "stager" | "storage" | "retail" | "facilities";
+
+/**
+ * Teaming partners (firms we bid public contracts with) live in biz_leads too, so they're tracked in one place,
+ * but they are never sold to: no discovery, no email sequence, no Email Center blasts. Outreach is by hand.
+ */
+export const BIZ_PARTNER_SEGMENT = "partner";
+export const BIZ_PARTNER_LABEL = "Teaming partner (public bids)";
 
 export const BIZ_SEGMENTS: Record<BizSegment, { label: string; search: string; services: string[]; hook: string; pilotJob: string }> = {
   property_manager: { label: "Property managers", search: "property management company", services: ["unit-turnover", "junk-removal", "house-cleaning", "handyman", "lawn-care", "snow-removal"],

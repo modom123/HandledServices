@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-05_2043.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-05_2134.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-05_2043 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 40 migrations + production seed.
+-- CREATED : 2026-10-05_2134 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 41 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -2880,6 +2880,20 @@ create or replace function public.bid_submission_frozen() returns trigger langua
 begin raise exception 'Submission records are permanent — submit a new version instead'; end $$;
 drop trigger if exists bid_submission_frozen on public.bid_submissions;
 create trigger bid_submission_frozen before update on public.bid_submissions for each row execute function public.bid_submission_frozen();
+
+
+-- >>> migration 20261005213400_biz_lead_partners.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261005213400_biz_lead_partners.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-05_2134 UTC
+-- PURPOSE : Business leads can be teaming partners (segment 'partner'): firms we bid public contracts with.
+--           Tracked in Hub → Business leads, never discovered, emailed by the sales sequence or included in
+--           Email Center blasts (enforced in lib/biz-leads.ts and lib/email-center.ts).
+-- ============================================================================
+alter table public.biz_leads drop constraint if exists biz_leads_segment_check;
+alter table public.biz_leads add constraint biz_leads_segment_check
+  check (segment in ('property_manager','real_estate','stager','storage','retail','facilities','partner'));
 
 
 -- >>> seed.sql

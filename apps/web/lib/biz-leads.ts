@@ -15,6 +15,7 @@
  *           LinkedIn and phone stay manual (call list in the Hub). Google content is purged after 30 days.
  * UPDATED : 2026-10-05_0130 UTC — job-posting track: addJobPostLead (staff add a business that posted a job for a cleaner,
  *           handyman, maintenance tech…; emailed right away even with discovery off) and the job-posting letter.
+ * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner') are never enriched, queued or sent the sequence.
  */
 import "server-only";
 import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, bizLeadEmail, bizLeadScore, extractEmails, type BizSegment } from "@handled/core";
@@ -87,7 +88,7 @@ async function robotsOk(origin: string) {
 }
 
 export async function enrichBizLeads(limit = 30) {
-  const { data } = await db().from("biz_leads").select("id, website, phone, rating, review_count").eq("status", "new").is("email", null).not("website", "is", null).limit(limit);
+  const { data } = await db().from("biz_leads").select("id, website, phone, rating, review_count").eq("status", "new").is("email", null).not("website", "is", null).neq("segment", "partner").limit(limit);
   let found = 0;
   for (const l of (data ?? []) as { id: string; website: string; phone: string | null; rating: number | null; review_count: number | null }[]) {
     let email: string | null = null;
@@ -111,7 +112,7 @@ const toHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").rep
 
 export async function sendBizLeadEmails(s: BizLeadSettings) {
   if (!instantlyBizReady()) return { sent: 0, skipped: 0 };
-  const { data } = await db().from("biz_leads").select("*").eq("status", "queued").not("email", "is", null).order("score", { ascending: false }).limit(s.emails_per_day);
+  const { data } = await db().from("biz_leads").select("*").eq("status", "queued").not("email", "is", null).neq("segment", "partner").order("score", { ascending: false }).limit(s.emails_per_day);
   return sendTo((data ?? []) as LeadRow[]);
 }
 
@@ -214,7 +215,10 @@ export async function leadConverted(token: string, accountId: string) {
 }
 
 export async function setBizLeadStatus(id: string, status: "call" | "not_interested" | "do_not_contact" | "replied" | "queued", note: string | null, actor: string) {
-  await db().from("biz_leads").update({ status, notes: note }).eq("id", id);
+  // teaming partners are contacted by hand, never queued for the sales sequence
+  if (status === "queued") { const { data: l } = await db().from("biz_leads").select("segment").eq("id", id).single(); if (l?.segment === "partner") status = "call"; }
+  // keep existing notes unless a new note was written (changing status alone never erases them)
+  await db().from("biz_leads").update({ status, ...(note ? { notes: note } : {}) }).eq("id", id);
   if (status === "not_interested" || status === "do_not_contact") {
     const { data } = await db().from("biz_leads").select("email").eq("id", id).single();
     if (data?.email) await blockInInstantly(data.email);
