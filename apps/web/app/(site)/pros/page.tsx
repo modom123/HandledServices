@@ -11,11 +11,12 @@
  * UPDATED : 2026-10-03_1311 UTC — fast track to Pro+ and crew accounts on the recruiting page.
  * UPDATED : 2026-10-03_1413 UTC — earnings card clearly labeled as estimates (badge, "Est." headers, plain-language disclaimer).
  * PURPOSE : Subcontractor recruiting page + application.
+ * UPDATED : 2026-10-05_0418 UTC — Handled Pro Rewards section (points on every job, tenure multipliers, catalog highlights).
  */
 import { ApplyForm } from "@/components/forms";
 import { getPolicy } from "@/lib/pro-benefits";
 import { getLocale } from "@/lib/locale";
-import { BRAND, COVERAGES, FAST_TRACK, PRO_PROMISES, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
+import { BRAND, CATALOG_SEED, COVERAGES, FAST_TRACK, PRO_PROMISES, REWARD_DEFAULTS, TENURE_TIERS, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
 
 export const metadata = { title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
 
@@ -112,6 +113,17 @@ export default async function ProsPage() {
           )}
         </section>
       )}
+
+      <section className="rounded-3xl bg-brand-tint p-6 sm:p-8">
+        <h2 className="text-2xl font-bold">🎁 {es ? "Recompensas Handled Pro" : "Handled Pro Rewards"}</h2>
+        <p className="mt-2 max-w-3xl text-ink-soft">{es ? "Cada trabajo le da puntos según lo que genera para Handled: más por un gran trabajo, y más cada año que se queda. Cámbielos por artículos, herramientas, electrónicos y viajes." : "Every job earns points based on the business you bring in: more for great work, and more every year you stay. Redeem them for gear, tools, electronics and trips."}</p>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="card"><div className="font-semibold">{es ? "Gane en cada trabajo" : "Earn on every job"}</div><p className="mt-1 text-sm text-ink-soft">{es ? `${REWARD_DEFAULTS.earnRate} puntos por cada $1 que Handled gana en su trabajo, ×${REWARD_DEFAULTS.qualityMultiplier} cuando pasa la revisión a la primera con ${REWARD_DEFAULTS.minRatingForQuality}★+. Bonos por metas: 10, 50, 100 trabajos, aniversarios y reseñas de cinco estrellas.` : `${REWARD_DEFAULTS.earnRate} points for every $1 Handled earns on your job, ×${REWARD_DEFAULTS.qualityMultiplier} when it passes review the first time with a ${REWARD_DEFAULTS.minRatingForQuality}★+ rating. Milestone bonuses at 10, 50, 100 jobs, anniversaries and five-star reviews.`}</p></div>
+          <div className="card"><div className="font-semibold">{es ? "Quedarse paga más" : "Staying pays more"}</div><ul className="mt-1 space-y-0.5 text-sm text-ink-soft">{TENURE_TIERS.map((x) => <li key={x.months}>×{x.multiplier} · {es ? x.es : x.en}</li>)}</ul></div>
+          <div className="card"><div className="font-semibold">{es ? "Lo que puede canjear" : "What you can redeem"}</div><ul className="mt-1 space-y-0.5 text-sm text-ink-soft">{CATALOG_SEED.filter((c) => ["hoodie", "tools-100", "drill-kit", "tv-55", "weekend-trip", "trip-for-two"].includes(c.slug)).map((c) => <li key={c.slug}>{es ? c.name_es : c.name} · {c.points.toLocaleString("en-US")} pts</li>)}</ul></div>
+        </div>
+        <p className="mt-4 text-xs text-ink-soft">{es ? "Los puntos nuevos se liberan a los 90 días. Rechazar ofertas nunca le cuesta puntos. Los puntos no tienen valor en efectivo; los premios cuentan como ingreso (aparecen en su 1099). Sujeto a los Términos de Recompensas." : "New points unlock after 90 days. Passing on offers never costs points. Points have no cash value; rewards count as income (shown on your 1099). Subject to the Rewards Terms."}</p>
+      </section>
 
       <section>
         <h2 className="text-2xl font-bold">{t("Grow with us: Pro, Pro+ and Elite")}</h2>

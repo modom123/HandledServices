@@ -9,9 +9,10 @@
  * UPDATED : 2026-10-02_0244 UTC — moved to /home; the splash page at / introduces the company first.
  * UPDATED : 2026-10-02_1329 UTC — English / Spanish.
  * PURPOSE : Home page (the first page after the splash).
+ * UPDATED : 2026-10-05_0419 UTC — category cards say "Instant upfront price" instead of "from $X".
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, categoryText, money, serviceText, t as tr } from "@handled/core";
+import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 
 const STEPS = [
@@ -43,7 +44,7 @@ export default async function Home() {
   const t = (s: string) => tr(l, s);
   const cats = CATEGORIES.map((c) => {
     const list = SERVICES.filter((s) => s.category === c.id);
-    return { ...c, list, from: Math.min(...list.map((s) => s.minimum)) };
+    return { ...c, list };
   }).filter((c) => c.list.length);
   return (
     <>
@@ -95,7 +96,7 @@ export default async function Home() {
                 ))}
               </ul>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : `${t("from")} ${money(c.from)}`}</span>
+                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
                 <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.list.length} →</Link>
               </div>
             </div>

@@ -25,6 +25,7 @@
  *           judged by results. "[Confirm with counsel.]" marks real legal judgment calls.
  *           TEMPLATES — not legal advice; have counsel review before use.
  * UPDATED : 2026-10-03_1311 UTC — tiers: the proven-skill fast track to Pro+ (portfolio + reviewed paid trial job).
+ * UPDATED : 2026-10-05_0418 UTC — PRO_REWARDS_TERMS (Handled Pro Rewards: points, not pay or equity; 1099; expiry; changes).
  */
 import {
   AGREEMENT_VERSION,
@@ -852,6 +853,34 @@ export const PRO_CREW_ADDENDUM: Contract = {
   ],
 };
 
+export const PRO_REWARDS_TERMS: Contract = {
+  key: "pro-rewards-terms",
+  title: "Rewards Terms (Handled Pro Rewards)",
+  version: POLICY_VERSION,
+  audience: "pro",
+  appliesTo: `Every pro who completes jobs through ${N}; an addendum to the Independent Contractor Agreement.`,
+  summary: [
+    `A free thank-you on top of your job pay: points on every completed job, based on what Handled earns from it.`,
+    `More for great work (×1.25) and more the longer you stay (up to ×1.5), plus milestone bonuses.`,
+    `Points never depend on accepting or passing on offers.`,
+    `New points are pending 90 days; refunded jobs don't earn points.`,
+    `Redeem for catalog rewards only — no cash value. Rewards are income and appear on your 1099.`,
+    `Points expire after 12 months with no completed job; forfeited only if you're deactivated for cause.`,
+  ],
+  sections: [
+    { h: `1. What the program is`, p: `Handled Pro Rewards is a loyalty program for independent pros who complete jobs through ${N}. It is a thank-you on top of your job pay, not pay for any job, not a wage, not ownership or a share of the company, and not an investment. Joining is automatic and free; you don't have to do anything to take part, and you can ignore it.` },
+    { h: `2. Earning points`, p: `You earn points on each completed job based on the amount ${N} keeps from that job after your pay (our take), currently 10 points per $1. A job that passes review the first time, with no redo or refund and a rating of 4.8★ or higher (or no rating), earns 1.25×. Your time with us earns more: 1.1× after 6 months, 1.25× after 1 year and 1.5× after 2 years, counted from your first completed job. Milestones (for example 10, 50 and 100 completed jobs, anniversaries and five-star reviews) add bonus points.
+
+Points never depend on accepting, declining or ignoring offers, your schedule, or how many hours you work. Tips, reimbursements and show-up pay don't earn points.` },
+    { h: `3. Pending and available points`, p: `New job points are pending for 90 days. When they become available, the final multipliers are applied: a job that was refunded earns no points, and a job that needed a redo doesn't get the quality bonus. Pending amounts shown before then are estimates.` },
+    { h: `4. Redeeming`, p: `Available points can be redeemed only for the rewards in the catalog in the app and pro portal (for example merchandise, gift cards, tools, electronics and trips). Points have no cash value, can't be exchanged for cash, sold, transferred or combined with another pro's points, and aren't property. Your account must be active to redeem. We order and ship rewards to the address you give; delivery times vary. If a reward is unavailable we may offer a similar one or return your points.` },
+    { h: `5. Taxes`, p: `Rewards are income. We report the fair market value of rewards delivered to you on your Form 1099 for that year, together with your job pay, using the W-9 you gave us. You are responsible for any taxes. Talk to a tax professional if you have questions.` },
+    { h: `6. Expiry and forfeiture`, p: `Points expire if you complete no job for 12 months in a row. If your account is deactivated for cause under the Deactivation Policy (after any appeal), your pending and available points are forfeited. Ending the relationship for any other reason doesn't forfeit available points: you have 90 days to redeem them.` },
+    { h: `7. Changes`, p: `We may change the earn rate, multipliers, milestones, catalog and point prices, or end the program, with at least 30 days' notice in the app or by email. Changes never take away points you have already earned: if we end the program, you get at least 90 days to redeem available points (and pending points as they become available).` },
+    { h: `8. Other terms`, p: `We may correct mistakes in your balance and void points earned through fraud or abuse. Where this addendum and the Independent Contractor Agreement differ about rewards, this addendum controls. Void where prohibited by law.` },
+  ],
+};
+
 // ─── 7. Everything a pro signs ─────────────────────────────────────────────────
 
-export const PRO_CONTRACTS: Contract[] = [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...PRO_ADDENDA, PRO_CREW_ADDENDUM];
+export const PRO_CONTRACTS: Contract[] = [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...PRO_ADDENDA, PRO_CREW_ADDENDUM, PRO_REWARDS_TERMS];

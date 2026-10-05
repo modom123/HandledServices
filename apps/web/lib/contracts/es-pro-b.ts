@@ -9,6 +9,7 @@
  *           constants so both languages always match. The English text controls.
  *           TEMPLATES — not legal advice; have counsel review before use.
  * UPDATED : 2026-10-03_1311 UTC — Anexo de Equipo de Trabajo (pro-crew-addendum).
+ * UPDATED : 2026-10-05_0418 UTC — Términos de Recompensas (pro-rewards-terms).
  */
 import { BRAND, COVERAGES, LICENSED_TRADES, LOCATION_FRESH_MIN, ON_CALL_MAX_HOURS, PRO_POLICY_DEFAULTS, TRADES, money, t } from "@handled/core";
 import { DEACTIVATION_RULES } from "./pro";
@@ -571,6 +572,30 @@ export const PRO_ES_B: Record<string, ContractTranslation> = {
         h: "6. Responsabilidad",
         p: `Usted es responsable del trabajo, la conducta, la seguridad y el cumplimiento del Código de Conducta por parte de su equipo, igual que si usted mismo hiciera el trabajo. Los reembolsos por mano de obra y los daños causados por su equipo se manejan según el proceso de reembolsos y deducciones del contrato. Los reclamos de su equipo contra usted o contra nosotros (incluidos los reclamos de salarios o de clasificación) están cubiertos por la sección de indemnización del contrato. Las calificaciones y la situación de la cuenta se aplican a su empresa en conjunto.`,
       },
+    ],
+  },
+  "pro-rewards-terms": {
+    title: "Términos de Recompensas (Recompensas Handled Pro)",
+    appliesTo: `Todo profesional que completa trabajos a través de ${N}; anexo del Contrato de Contratista Independiente.`,
+    summary: [
+      `Un agradecimiento gratuito además del pago de sus trabajos: puntos en cada trabajo completado, según lo que Handled gana en él.`,
+      `Más por un gran trabajo (×1.25) y más mientras más tiempo se queda (hasta ×1.5), además de bonos por metas.`,
+      `Los puntos nunca dependen de aceptar o rechazar ofertas.`,
+      `Los puntos nuevos quedan pendientes 90 días; los trabajos reembolsados no ganan puntos.`,
+      `Solo se canjean por premios del catálogo, sin valor en efectivo. Los premios son ingreso y aparecen en su 1099.`,
+      `Los puntos vencen tras 12 meses sin un trabajo completado; solo se pierden si su cuenta se desactiva por causa.`,
+    ],
+    sections: [
+      { h: `1. Qué es el programa`, p: `Recompensas Handled Pro es un programa de lealtad para profesionales independientes que completan trabajos a través de ${N}. Es un agradecimiento además del pago de sus trabajos: no es pago por ningún trabajo, no es un salario, no es propiedad ni una participación en la empresa, ni una inversión. La inscripción es automática y gratuita; no tiene que hacer nada para participar y puede ignorarlo.` },
+      { h: `2. Cómo se ganan puntos`, p: `Gana puntos en cada trabajo completado según la cantidad que ${N} conserva de ese trabajo después de su pago (nuestra parte), actualmente 10 puntos por cada $1. Un trabajo que pasa la revisión a la primera, sin repetición ni reembolso y con una calificación de 4.8★ o más (o sin calificación), gana 1.25×. Su tiempo con nosotros gana más: 1.1× después de 6 meses, 1.25× después de 1 año y 1.5× después de 2 años, contados desde su primer trabajo completado. Las metas (por ejemplo 10, 50 y 100 trabajos completados, aniversarios y reseñas de cinco estrellas) dan puntos extra.
+
+Los puntos nunca dependen de aceptar, rechazar o ignorar ofertas, de su horario ni de cuántas horas trabaja. Las propinas, reembolsos y pagos por presentarse no ganan puntos.` },
+      { h: `3. Puntos pendientes y disponibles`, p: `Los puntos nuevos de trabajos quedan pendientes 90 días. Cuando pasan a disponibles se aplican los multiplicadores finales: un trabajo reembolsado no gana puntos y un trabajo que necesitó repetición no recibe el bono de calidad. Los montos pendientes que se muestran antes son estimados.` },
+      { h: `4. Canje`, p: `Los puntos disponibles solo se pueden canjear por los premios del catálogo en la app y el portal de profesionales (por ejemplo artículos, tarjetas de regalo, herramientas, electrónicos y viajes). Los puntos no tienen valor en efectivo, no se pueden cambiar por dinero, vender, transferir ni combinar con los de otro profesional, y no son propiedad. Su cuenta debe estar activa para canjear. Pedimos y enviamos los premios a la dirección que nos dé; los tiempos de entrega varían. Si un premio no está disponible, podemos ofrecerle uno similar o devolverle sus puntos.` },
+      { h: `5. Impuestos`, p: `Los premios son ingreso. Reportamos el valor justo de mercado de los premios que se le entregan en su Formulario 1099 de ese año, junto con el pago de sus trabajos, usando el W-9 que nos dio. Usted es responsable de los impuestos. Consulte a un profesional de impuestos si tiene preguntas.` },
+      { h: `6. Vencimiento y pérdida`, p: `Los puntos vencen si no completa ningún trabajo durante 12 meses seguidos. Si su cuenta se desactiva por causa según la Política de Desactivación (después de cualquier apelación), pierde sus puntos pendientes y disponibles. Terminar la relación por cualquier otro motivo no le hace perder los puntos disponibles: tiene 90 días para canjearlos.` },
+      { h: `7. Cambios`, p: `Podemos cambiar la tasa de puntos, los multiplicadores, las metas, el catálogo y los precios en puntos, o terminar el programa, con al menos 30 días de aviso en la app o por correo. Los cambios nunca le quitan puntos que ya ganó: si terminamos el programa, tendrá al menos 90 días para canjear sus puntos disponibles (y los pendientes cuando pasen a disponibles).` },
+      { h: `8. Otros términos`, p: `Podemos corregir errores en su saldo y anular puntos obtenidos mediante fraude o abuso. Cuando este anexo y el Contrato de Contratista Independiente difieran sobre las recompensas, prevalece este anexo. Nulo donde la ley lo prohíba.` },
     ],
   },
 };

@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies in the pro portal).
  * UPDATED : 2026-10-03_1337 UTC — My crew, and the fast track to Pro+ for pros still at the Pro tier.
  * UPDATED : 2026-10-04_2204 UTC — Jobs near you (open job board): take a job nobody took yet → the usual offer screen.
+ * UPDATED : 2026-10-05_0418 UTC — Rewards button (Handled Pro Rewards).
  * PURPOSE : Pro mode — live job offers (accept/pass) and today's schedule.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -75,6 +76,7 @@ export default function ProHome() {
         <Button title={`👷 ${t("My crew")}`} kind="ghost" onPress={() => router.push("/pro/crew")} style={{ flex: 1 }} />
         <Button title={t("My contracts")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pro/contracts`)} style={{ flex: 1 }} />
       </View>
+      <Button title={`🎁 ${t("Rewards")}`} kind="ghost" onPress={() => router.push("/pro/rewards")} style={{ marginTop: 8 }} />
       {fast && fast.tier === "pro" && fast.status !== "approved" && (
         <Pressable onPress={() => router.push("/pro/fast-track")}>
           <Card style={{ marginTop: 10, borderColor: C.brand, backgroundColor: C.tint }}>

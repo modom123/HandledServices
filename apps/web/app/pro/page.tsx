@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_0124 UTC — standing card (warning / pause / deactivation) with the appeal form.
  * PURPOSE : Pro home — open offers, jobs near you, upcoming jobs, earnings.
  * UPDATED : 2026-10-03_1311 UTC — fast-track link on the tier card; approved fast-track pros skip the probation size limit.
+ * UPDATED : 2026-10-05_0418 UTC — Pro Rewards card (available / pending points).
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  */
 import Link from "next/link";
@@ -22,6 +23,7 @@ import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
 import { boardFor } from "@/lib/board";
 import { ClaimButton } from "@/components/JobBoard";
+import { balanceOf } from "@/lib/rewards";
 
 /** whyNot() reason in Spanish (fixed reasons from the catalog; the ones with numbers by pattern). */
 function whyNotText(l: string, no: string): string {
@@ -80,6 +82,7 @@ export default async function ProHome() {
   ]);
   const policy = await getPolicy();
   const board = me?.status === "approved" ? await boardFor(v.contractorId!, es ? "es" : "en") : [];
+  const pts = await balanceOf(v.contractorId!).catch(() => ({ available: 0, pending: 0, lifetime: 0 }));
   const list = (jobs ?? []) as Job[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
   const month = new Date().toISOString().slice(0, 7);
@@ -111,6 +114,10 @@ export default async function ProHome() {
       {me?.status === "approved" && (
         <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate() && ["assigned", "in_progress"].includes(j.status))} />
       )}
+      <Link href="/pro/rewards" className="card flex flex-wrap items-center justify-between gap-2 border-brand/40 hover:border-brand">
+        <div><div className="font-semibold">🎁 {es ? "Recompensas Handled Pro" : "Handled Pro Rewards"}</div><div className="text-sm text-ink-soft">{es ? `${pts.available.toLocaleString("en-US")} puntos disponibles · ${pts.pending.toLocaleString("en-US")} pendientes` : `${pts.available.toLocaleString("en-US")} points available · ${pts.pending.toLocaleString("en-US")} pending`}</div></div>
+        <span className="text-sm font-semibold text-brand">{es ? "Ver catálogo →" : "See the catalog →"}</span>
+      </Link>
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label={t("Earned this month")} value={money(earned)} />
         <Stat label={t("Rating")} value={`${me?.rating ?? "—"} ★`} />

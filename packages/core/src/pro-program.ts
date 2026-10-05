@@ -12,6 +12,7 @@
  *           performance (jobs, rating, on-time) unlock a bigger payout share and
  *           first pick of offers. Every boost is clamped so our take never drops below
  *           TAKE_MIN (15%), so better pay for the best pros can never make a job lose money.
+ * UPDATED : 2026-10-05_0418 UTC — promise: Handled Pro Rewards.
  */
 import { TAKE_MIN, estimate, money, splitJob } from "./pricing.ts";
 import { defaultAnswers, getService } from "./services.ts";
@@ -99,6 +100,7 @@ export const PRO_PROMISES = [
   { t: "Paid every week", b: "Payouts are approved as soon as the job passes photo review and are sent automatically every Monday to your bank through Stripe, with a clear statement for every job." },
   { t: "We run the office", b: "Marketing, quoting, scheduling, reminders, payments, reviews and customer support are all handled by our team and AI. You just do the work." },
   { t: "Recurring customers stay with you", b: "When a customer signs up for a recurring plan, every visit is offered to you first, a full day before anyone else sees it. That builds a steady route instead of one-off jobs." },
+  { t: "Rewards that grow the longer you stay", b: "Every job earns Handled Pro Rewards points — more for great work and more every year you're with us. Redeem them for gear, tools, electronics and trips. Passing on jobs never costs you points." },
   { t: "You stay independent", b: "Accept the jobs you want, set your service area, work days and daily job limit (we never offer past it), and keep your own business and other clients." },
 ];
 

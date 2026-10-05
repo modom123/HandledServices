@@ -13,6 +13,7 @@
  * PURPOSE : Vercel cron (daily, see vercel.json) — expire stale offers and re-dispatch, flag jobs
  *           at risk, nudge QA backlog, collect balances, recruiting follow-ups, pro pay.
  * UPDATED : 2026-10-04_1934 UTC — business invoices on the 1st; invoice reminders and terms holds daily.
+ * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: release pending points, milestones, inactivity expiry.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -74,6 +75,7 @@ export async function GET(req: Request) {
   // business accounts on terms: invoices on the 1st (last month's jobs); reminders and holds daily
   const invoices = new Date().getUTCDate() === 1 ? await runInvoices().catch((e) => { console.error("[invoices]", e); return 0; }) : null;
   const billing = await invoiceSweep().catch((e) => { console.error("[invoice sweep]", e); return null; });
+  const rewards = await (await import("@/lib/rewards")).releaseRewards().catch((e) => { console.error("[rewards]", e); return null; });
 
-  return Response.json({ invoices, billing, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ invoices, billing, rewards, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

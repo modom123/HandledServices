@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-05_0148 UTC — Email Center (merge tags, rendering, law / spam checks).
  * UPDATED : 2026-10-05_0221 UTC — job checklists.
  * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
+ * UPDATED : 2026-10-05_0418 UTC — pro rewards.
  */
 
 import { test } from "node:test";
@@ -1123,4 +1124,30 @@ test("pro interview: plans per trade, scoring rules, no protected topics, approv
   assert.equal(c1.next?.who, "staff");
   const c2 = approvalChecklist({ applied_at: "x", ai_screen: { score: 80 }, interview: { status: "completed" }, invited_at: "2026-10-02", onboarding: [{ key: "w9", label: "W-9 on file", done: true }, { key: "background", label: "Background check cleared", done: false }] });
   assert.equal(c2.next?.key, "setup:background");
+});
+
+test("pro rewards: formula, multipliers, milestones, catalog, cost stays near 10% of our take", async () => {
+  const { pointsForJob, tenureTier, takeOf, milestonesReached, CATALOG_SEED, REWARD_DEFAULTS, pointsToDollars, monthsBetween, REWARD_RULES_EN, REWARD_RULES_ES } = await import("./rewards.ts");
+  assert.equal(takeOf({ price_final: 200, contractor_payout: 150 }), 50);
+  assert.equal(takeOf({ price_final: 100, contractor_payout: 120 }), 0, "never negative");
+  const base = { take: 50, monthsActive: 0, qaPassedFirstTime: false, redo: false, refunded: false };
+  assert.equal(pointsForJob(base).points, 500, "10 points per $1 of take");
+  assert.equal(pointsForJob({ ...base, qaPassedFirstTime: true, rating: 5 }).points, 625, "quality ×1.25");
+  assert.equal(pointsForJob({ ...base, qaPassedFirstTime: true, rating: 4.5 }).points, 500, "low rating: no quality bonus");
+  assert.equal(pointsForJob({ ...base, qaPassedFirstTime: true, redo: true }).points, 500, "redo: no quality bonus");
+  assert.equal(pointsForJob({ ...base, refunded: true }).points, 0, "refunded: nothing");
+  assert.equal(pointsForJob({ ...base, monthsActive: 30, qaPassedFirstTime: true }).points, 938, "2 years ×1.5 and quality");
+  assert.deepEqual([0, 5, 6, 11, 12, 23, 24, 60].map((m) => tenureTier(m).multiplier), [1, 1, 1.1, 1.1, 1.25, 1.25, 1.5, 1.5]);
+  assert.equal(monthsBetween("2025-10-05", new Date("2026-10-05T12:00:00")), 12);
+  // base cost = 10 points × $0.01 = 10% of take; max = 18.75%
+  assert.equal(pointsToDollars(pointsForJob(base).points), 5);
+  assert.ok(pointsToDollars(pointsForJob({ ...base, monthsActive: 30, qaPassedFirstTime: true }).points) / 50 <= 0.19);
+  assert.deepEqual(milestonesReached({ jobsCompleted: 55, monthsActive: 13, fiveStarReviews: 30 }, ["jobs_10"]).map((m) => m.key), ["jobs_50", "year_1", "five_star_25"]);
+  for (const c of CATALOG_SEED) {
+    assert.ok(c.name_es && c.description_es, `${c.slug} Spanish`);
+    const value = c.points * REWARD_DEFAULTS.pointValue;
+    assert.ok(c.cost_usd <= value * 1.05, `${c.slug}: costs more than its points are worth`);
+  }
+  assert.equal(REWARD_RULES_EN().length, REWARD_RULES_ES().length);
+  for (const r of REWARD_RULES_EN()) assert.doesNotMatch(r, /\b(share|equity|stock|wage|salary|employee)\b/i, "points are not equity or pay");
 });

@@ -4,6 +4,7 @@
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : "<Service> in <City>" landing pages for search (every service × every city in
  *           SEO_CITIES), built on demand and cached for a day.
+ * UPDATED : 2026-10-05_0419 UTC — search description: exact price in a minute (no "from $X").
  */
 import { notFound } from "next/navigation";
 import { BRAND, SEO_CITY_BY_SLUG, getService } from "@handled/core";
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!s || !c) return {};
   return {
     title: `${s.name} in ${c.name}, ${c.state}`,
-    description: `${s.tagline} Vetted, insured ${s.name.toLowerCase()} pros in ${c.name}. Upfront price online, from $${s.minimum}. ${BRAND.promise}`,
+    description: `${s.tagline} Vetted, insured ${s.name.toLowerCase()} pros in ${c.name}. Your exact price online in about a minute. ${BRAND.promise}`,
     alternates: { canonical: `/services/${s.slug}/in/${c.slug}` },
   };
 }

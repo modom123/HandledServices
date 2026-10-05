@@ -16,6 +16,7 @@
  *           customer, the subcontractor payout and the platform margin. The AI quote
  *           (apps/web/lib/ai/quote.ts) may adjust inside guardrails but never below the
  *           service minimum or outside ±40% of this baseline.
+ * UPDATED : 2026-10-05_0419 UTC — lists show "Instant upfront price" instead of a dollar figure (every job is priced on its own details).
  */
 
 import { defaultAnswers, getService, type Answers, type LineItem } from "./services.ts";
@@ -308,7 +309,8 @@ export function typicalPrice(slug: string): number | null {
 export function priceHint(slug: string, locale: string = "en"): string {
   const es = locale === "es";
   if (slug === "event-package") return es ? "Según su presupuesto" : "By budget";
-  const p = typicalPrice(slug);
-  if (p === null) return es ? "Cotización gratis en sitio" : "Free on-site quote";
-  return es ? `normalmente ${money(p)}` : `typically ${money(p)}`;
+  if (typicalPrice(slug) === null) return es ? "Cotización gratis en sitio" : "Free on-site quote";
+  // every job is priced on its own details: lists promise an instant upfront price instead of a number that
+  // can look high next to a different kind of service (e.g. an airport transfer vs. a rideshare)
+  return es ? "Precio al instante" : "Instant upfront price";
 }

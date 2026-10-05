@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-05_0148 UTC — company mailbox (Hostinger SMTP/IMAP) and migration 31 (Email Center).
  * UPDATED : 2026-10-05_0221 UTC — migration 32 (job checklists).
  * UPDATED : 2026-10-05_0246 UTC — migration 33 (pro screening interviews).
+ * UPDATED : 2026-10-05_0418 UTC — migration 34 (pro rewards).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -115,6 +116,7 @@ export async function readiness(): Promise<Check[]> {
     ["31 Email Center", () => db.from("email_campaigns").select("id").limit(1)],
     ["32 job checklists", () => db.from("job_checklist_checks").select("id").limit(1)],
     ["33 pro screening interviews", () => db.from("pro_interviews").select("id").limit(1)],
+    ["34 pro rewards", () => db.from("reward_ledger").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

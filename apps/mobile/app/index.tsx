@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish, with an EN | ES switch.
  * PURPOSE : Home — services, concierge, my jobs; switches to pro mode for subcontractors.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-10-05_0419 UTC — lists show "Instant upfront price" (priceHint), no dollar figures.
  */
 import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";

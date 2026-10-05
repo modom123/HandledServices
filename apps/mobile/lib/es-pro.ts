@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_1337 UTC — My crew, fast track to Pro+, and hand-back-a-job strings.
  * UPDATED : 2026-10-04_2204 UTC — Jobs near you (open job board) and customer requests.
+ * UPDATED : 2026-10-05_0418 UTC — Rewards.
  * PURPOSE : Spanish for the pro screens of the app (offers, jobs, calendar, earnings).
  */
 export const ES_PRO: Record<string, string> = {
@@ -268,6 +269,7 @@ export const ES_PRO: Record<string, string> = {
   "Paid jobs nobody has taken yet that fit your trades, area and schedule. First to take it gets it. Taking them is always up to you.": "Trabajos pagados que nadie ha tomado y que encajan con sus oficios, zona y horario. El primero en tomarlo se lo lleva. Tomarlos es opcional.",
   "No open jobs near you right now.": "No hay trabajos abiertos cerca de usted en este momento.",
   "Take it": "Tomarlo",
+  "Rewards": "Recompensas",
   "Couldn't take it": "No se pudo tomar",
   "Priority": "Prioridad",
   "This customer asked for you.": "Este cliente lo pidió a usted.",

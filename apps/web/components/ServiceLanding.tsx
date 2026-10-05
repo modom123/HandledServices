@@ -3,12 +3,13 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : One service landing page, used for /services/<slug> and the city pages
- *           /services/<slug>/in/<city>: what's included, typical price, the questions we ask,
+ *           /services/<slug>/in/<city>: what's included, how pricing works, the questions we ask,
  *           real customer reviews, nearby cities, and search-engine markup (Service + rating).
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-10-05_0419 UTC — no dollar figures on service pages: "exact and upfront, in about a minute" (every job is priced on its details).
  */
 import Link from "next/link";
-import { BRAND, SEO_CITIES, defaultAnswers, estimate, getService, money, moneyRange, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
+import { BRAND, SEO_CITIES, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
 import type { PublicReview } from "@/lib/reviews";
 import { siteUrl } from "@/lib/notify";
 
@@ -16,13 +17,11 @@ const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math
 
 export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service; city?: SeoCity; reviews: { count: number; average: number | null; list: PublicReview[] }; locale?: Locale }) {
   const txt = serviceText(locale, s.slug, s);
-  const typical = estimate({ slug: s.slug, answers: defaultAnswers(s) });
   const where = city ? ` in ${city.name}, ${city.state}` : "";
   const ld = {
     "@context": "https://schema.org", "@type": "Service", name: `${s.name}${where}`, description: s.description, serviceType: s.name,
     provider: { "@type": "LocalBusiness", name: BRAND.name, telephone: BRAND.supportPhone, url: siteUrl(), ...(city ? { address: { "@type": "PostalAddress", addressLocality: city.name, addressRegion: city.state, postalCode: city.zip, addressCountry: "US" } } : {}) },
     areaServed: city ? { "@type": "City", name: `${city.name}, ${city.state}` } : SEO_CITIES.map((c) => `${c.name}, ${c.state}`),
-    offers: { "@type": "Offer", priceCurrency: "USD", price: String(s.minimum), description: `From ${money(s.minimum)}` },
     ...(reviews.count >= 3 && reviews.average ? { aggregateRating: { "@type": "AggregateRating", ratingValue: reviews.average, reviewCount: reviews.count, bestRating: 5 } } : {}),
   };
   return (
@@ -59,11 +58,11 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         </div>
       </div>
       <aside className="card h-fit md:sticky md:top-24">
-        <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Typical price{where}</div>
-        <div className="mt-1 text-3xl font-bold">{moneyRange(typical.low, typical.high)}</div>
-        <div className="mt-1 text-sm text-ink-soft">For a typical job. Yours is priced on your details in about a minute{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}.</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Your price{where}</div>
+        <div className="mt-1 text-2xl font-bold">Exact and upfront, in about a minute</div>
+        <div className="mt-1 text-sm text-ink-soft">Answer a few questions about your job and see the full price before you book — no callbacks, no surprise fees{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}.</div>
         {(s.slug === "junk-removal" || s.slug === "large-item-removal") && (
-          <Link href="/services/junk-container" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🗑️ <b>Rather load it yourself over a week?</b> We drop off a container and pick it up — from {money(getService("junk-container")?.minimum ?? 349)}.</Link>
+          <Link href="/services/junk-container" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🗑️ <b>Rather load it yourself over a week?</b> We drop off a container and pick it up.</Link>
         )}
         {s.slug === "junk-container" && (
           <Link href="/services/junk-removal" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🚛 <b>Want us to do the lifting?</b> Book full-service Junk Removal instead.</Link>

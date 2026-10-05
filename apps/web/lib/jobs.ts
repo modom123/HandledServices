@@ -28,6 +28,7 @@
  *           customer's favorites and past pros); a customer's favorite pro gets a short first look (never forced),
  *           then everyone. Lapsed board claims ("Jobs near you") aren't counted as price signals.
  * UPDATED : 2026-10-05_0221 UTC — the job checklist is frozen on the job when a pro accepts.
+ * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  */
 import "server-only";
 import { z } from "zod";
@@ -722,6 +723,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
       text: `${summary ?? "Su trabajo está terminado."}\n\nCalifique a su profesional (toma 10 segundos): ${siteUrl()}/account${BRAND.googleReviewUrl ? `\n\n¿Compartiría su experiencia en Google también? Así es como los vecinos encuentran buenos profesionales: ${BRAND.googleReviewUrl}` : ""}\n\n¿No quedó bien? Responda dentro de ${BRAND.guaranteeDays} días y lo solucionamos.`,
     },
   });
+  if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }

@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-03_1247 UTC — new "What pros make" card strings; comparison and tier lines updated for counters.
  * UPDATED : 2026-10-03_1413 UTC — earnings card labeled as estimates.
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
+ * UPDATED : 2026-10-05_0418 UTC — Pro Rewards promise.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -376,6 +377,8 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Recurring customers stay with you": "Los clientes recurrentes se quedan con usted",
   "When a customer signs up for a recurring plan, every visit is offered to you first, a full day before anyone else sees it. That builds a steady route instead of one-off jobs.": "Cuando un cliente contrata un plan recurrente, cada visita se le ofrece primero a usted, un día completo antes de que alguien más la vea. Así arma una ruta estable en lugar de trabajos sueltos.",
   "You stay independent": "Usted sigue siendo independiente",
+  "Rewards that grow the longer you stay": "Recompensas que crecen mientras más tiempo se queda",
+  "Every job earns Handled Pro Rewards points — more for great work and more every year you're with us. Redeem them for gear, tools, electronics and trips. Passing on jobs never costs you points.": "Cada trabajo gana puntos de Recompensas Handled Pro: más por un gran trabajo y más cada año que está con nosotros. Cámbielos por artículos, herramientas, electrónicos y viajes. Rechazar trabajos nunca le cuesta puntos.",
   "Accept the jobs you want, set your service area, work days and daily job limit (we never offer past it), and keep your own business and other clients.": "Acepte los trabajos que quiera, fije su zona de servicio, sus días de trabajo y su límite diario de trabajos (nunca le ofrecemos más), y conserve su propio negocio y sus otros clientes.",
 
   // application form

@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-01_2047 UTC — push notifications: register on sign-in, open the right
  *           screen when a notification is tapped (offer → offer screen, job → job screen).
  * UPDATED : 2026-10-03_1337 UTC — My crew and Fast track screens.
+ * UPDATED : 2026-10-05_0418 UTC — Rewards screen.
  */
 import { useEffect } from "react";
 import { Stack, router } from "expo-router";
@@ -57,6 +58,7 @@ function AppStack() {
       <Stack.Screen name="pro/schedule" options={{ title: t("My calendar") }} />
       <Stack.Screen name="pro/crew" options={{ title: t("My crew") }} />
       <Stack.Screen name="pro/fast-track" options={{ title: t("Fast track") }} />
+      <Stack.Screen name="pro/rewards" options={{ title: t("Rewards") }} />
       <Stack.Screen name="account" options={{ title: t("Account") }} />
     </Stack>
   );
