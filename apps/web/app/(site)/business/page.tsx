@@ -9,24 +9,28 @@
  * UPDATED : 2026-10-04_1934 UTC — ?lead= from the business sales email (pilot offer applied on sign-up).
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-05_2034 UTC — Handled Talent (recruiting) call-out.
- * UPDATED : 2026-10-06_0802 UTC — tightened: hero leads with commercial cleaning in Metro Detroit (marketing focus), sticky
+ * UPDATED : 2026-10-06_0802 UTC — tightened: hero leads with commercial cleaning (marketing focus; national copy since 0841), sticky
  *           jump bar (Who we serve · Services · How it works · Get a proposal), each service group shows its top 3 with
  *           "All N services" folding out (was 54 rows), compact steps, Talent call-out moved to the end.
+ * UPDATED : 2026-10-06_0841 UTC — Request a proposal is a 3-step form (company → scope of work → timing) with a review
+ *           screen (ProposalForm); "How it works" and the form share one 4-step process (RFP_NEXT_STEPS); beside the
+ *           form, "Have these handy" so the scope is right the first time.
  */
 import Link from "next/link";
-import { BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
-import { BusinessForm } from "@/components/forms";
+import { BUSINESS_GROUPS, INDUSTRIES, RFP_NEXT_STEPS, businessServices, priceHint } from "@handled/core";
+import { ProposalForm } from "@/components/ProposalForm";
 
 export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, one prepaid monthly invoice." };
 
 const PROOF = ["One vendor, every site", "Prepaid monthly invoice", "Photo proof on every visit", "Backup crews built in"];
 const JUMP: [string, string][] = [["industries", "Who we serve"], ["services", "Services"], ["how", "How it works"], ["quote", "Get a proposal"]];
 
-const STEPS = [
-  { n: "1", t: "Free walkthrough", b: "Tell us your sites and needs, or we walk them with you. We map every recurring task and one-off project." },
-  { n: "2", t: "One plan, one price per site", b: "A clear proposal by location and service — no hourly surprises. Approve it once." },
-  { n: "3", t: "We run the schedule", b: "Vetted, insured crews show up on schedule. Every visit is time-stamped with photos." },
-  { n: "4", t: "One monthly invoice", b: "Prepaid by card or ACH, with PO numbers and cost centers per location." },
+const HANDY = [
+  "Site address(es) and roughly how big each one is",
+  "Which services, how often, and anything specific (floors, restrooms, areas)",
+  "When crews can be on site (hours, alarm, keys, loading dock)",
+  "What your current vendor does and costs — and what isn’t working",
+  "Insurance or vendor onboarding requirements (COI, W-9, badges)",
 ];
 
 const FEATURES = [
@@ -48,7 +52,7 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-mint">Handled for Business</p>
             <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Commercial cleaning and facilities, one vendor.</h1>
-            <p className="mt-4 max-w-xl text-lg text-white/80">Offices, property managers, clinics, retail and restaurants across Metro Detroit use one account for janitorial, move-out and turnover cleans — plus grounds, repairs, courier, transportation and events.</p>
+            <p className="mt-4 max-w-xl text-lg text-white/80">Offices, property managers, clinics, retail and restaurants use one account for janitorial, move-out and turnover cleans — plus grounds, repairs, courier, transportation and events.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <a href="#quote" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-mint">Request a proposal</a>
               <a href="#services" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See business services</a>
@@ -117,11 +121,12 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
 
       {/* how it works */}
       <section id="how" className="wrap scroll-mt-32 py-10 sm:py-14">
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How a business account works</h2>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
+        <p className="mt-2 text-ink-soft">From your request to your first visit, usually within a week.</p>
         <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s) => (
-            <li key={s.n} className="card flex gap-3 py-4 lg:block">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{s.n}</div>
+          {RFP_NEXT_STEPS.map((s, i) => (
+            <li key={s.t} className="card flex gap-3 py-4 lg:block">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</div>
               <div><div className="font-semibold lg:mt-3">{s.t}</div><p className="mt-1 text-sm text-ink-soft">{s.b}</p></div>
             </li>
           ))}
@@ -132,14 +137,20 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
       <section id="quote" className="scroll-mt-32 border-t border-line bg-paper-deep py-10 sm:py-14">
         <div className="wrap grid gap-10 lg:grid-cols-[1fr_1.15fr]">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Built for facilities teams</h2>
-            <div className="mt-5 space-y-2 sm:space-y-4">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Request a proposal</h2>
+            <p className="mt-2 text-ink-soft">Three short steps. We call you within one business day to confirm the scope, then walk the site and send one fixed price per site.</p>
+            <div className="mt-5 rounded-2xl border border-line bg-white p-4">
+              <div className="font-semibold">Have these handy (nice to have, not required)</div>
+              <ul className="mt-2 space-y-1.5 text-sm text-ink-soft">{HANDY.map((h) => <li key={h} className="flex gap-2"><span className="text-brand">•</span>{h}</li>)}</ul>
+            </div>
+            <div className="mt-6 font-semibold">Built for facilities teams</div>
+            <div className="mt-3 space-y-2">
               {FEATURES.map(([t, b]) => (
                 <div key={t} className="flex gap-3"><span className="mt-0.5 text-brand">✓</span><div><div className="font-semibold">{t}</div><p className="hidden text-sm text-ink-soft sm:block">{b}</p></div></div>
               ))}
             </div>
           </div>
-          <BusinessForm key={industry ?? ""} industry={industry ?? ""} lead={lead && /^[a-z0-9]{8,40}$/.test(lead) ? lead : null} />
+          <ProposalForm key={industry ?? ""} industry={industry ?? ""} lead={lead && /^[a-z0-9]{8,40}$/.test(lead) ? lead : null} />
         </div>
       </section>
 

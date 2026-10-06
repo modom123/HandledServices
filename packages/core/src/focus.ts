@@ -2,7 +2,8 @@
  * FILE    : packages/core/src/focus.ts
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-06_0606 UTC
- * PURPOSE : Where sales and marketing push first: cleaning, in Detroit and the surrounding cities.
+ * PURPOSE : Where sales and marketing push first: cleaning, in Detroit and the surrounding cities. The brand and website
+ *           are national (any city can book or join the waitlist); this is only where outbound effort starts.
  *           Every channel reads this one place: the home page hero, the business sales engine (segments
  *           and cities it searches), the pro lead engine (which trades it recruits when staff haven't
  *           picked), the Email Center cleaning templates and the sitemap. Every other service stays

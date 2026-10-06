@@ -10,12 +10,12 @@
  * UPDATED : 2026-10-03_0209 UTC — carries ?lead= from the pro lead invitation.
  * PURPOSE : Pro application form and commercial account form.
  * UPDATED : 2026-10-04_1934 UTC — BusinessForm passes the sales-engine lead token (pilot offer, credit).
- * UPDATED : 2026-10-06_0802 UTC — BusinessForm: service groups fold up (cleaning open; groups with picks stay open) instead of 54 chips.
+ * UPDATED : 2026-10-06_0841 UTC — BusinessForm moved to ProposalForm.tsx (3-step Request for Proposal with scope of work).
  */
 "use client";
 
 import { useState } from "react";
-import { BUSINESS_GROUPS, COVERAGES, INDUSTRIES, URGENCY, SERVICE_BY_SLUG, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
+import { COVERAGES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
 
 function useSubmit(url: string) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -122,84 +122,6 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
       )}
       {state === "error" && <p className="text-sm text-rose-700">{t(error)}</p>}
       <button className="btn-primary w-full" disabled={state === "busy" || !trades.length}>{state === "busy" ? t("Sending…") : trades.length ? (es ? "Enviar solicitud" : "Apply") : t("Pick at least one trade to apply")}</button>
-    </form>
-  );
-}
-
-export function BusinessForm({ industry: startIndustry = "", lead = null }: { industry?: string; lead?: string | null }) {
-  // service groups fold up (12 groups, 54 services); cleaning starts open, any group with a pick stays open
-  const [openGroups, setOpenGroups] = useState<string[]>(["janitorial"]);
-  const { state, error, submit } = useSubmit("/api/business");
-  const [industry, setIndustry] = useState(startIndustry);
-  const [services, setServices] = useState<string[]>(INDUSTRIES.find((i) => i.id === startIndustry)?.slugs ?? []);
-  function pickIndustry(id: string) {
-    setIndustry(id);
-    const preset = INDUSTRIES.find((i) => i.id === id)?.slugs ?? [];
-    setServices((cur) => [...new Set([...cur, ...preset])]);
-  }
-  if (state === "done") return <div className="card text-center"><div className="text-3xl">🤝</div><h2 className="mt-2 text-xl font-bold">Thanks — we’ll be in touch today</h2><p className="mt-2 text-sm text-ink-soft">An account manager will send a site-by-site proposal within one business day.</p></div>;
-  const industryName = INDUSTRIES.find((i) => i.id === industry)?.name;
-  return (
-    <form className="card space-y-5" onSubmit={(e) => {
-      e.preventDefault();
-      const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
-      const extra = [industryName && `Industry: ${industryName}`, f.city && `City/ZIP: ${f.city}`, f.cadence && `How often: ${f.cadence}`].filter(Boolean).join(" · ");
-      submit({ company: f.company, contact_name: f.contact_name, email: f.email, phone: f.phone, locations: f.locations, services_needed: services, monthly_budget: f.monthly_budget ? Number(f.monthly_budget) : null, start_by: f.start_by || null, notes: [extra, f.notes].filter(Boolean).join("\n"), lead });
-    }}>
-      <div>
-        <h2 className="text-xl font-bold">Request a proposal</h2>
-        <p className="mt-1 text-sm text-ink-soft">Free walkthrough, one price per site, one monthly invoice. Reply within one business day.</p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className="label">Company</label><input name="company" required className="input" /></div>
-        <div><label className="label">Your name</label><input name="contact_name" required className="input" /></div>
-        <div><label className="label">Work email</label><input name="email" type="email" required className="input" /></div>
-        <div><label className="label">Phone</label><input name="phone" type="tel" className="input" /></div>
-        <div><label className="label">City or ZIP</label><input name="city" className="input" /></div>
-        <div><label className="label">Locations</label><input name="locations" type="number" min={1} defaultValue={1} className="input" /></div>
-      </div>
-      <div>
-        <label className="label">Your industry</label>
-        <select className="input" value={industry} onChange={(e) => pickIndustry(e.target.value)}>
-          <option value="">Choose one (we’ll suggest services)</option>
-          {INDUSTRIES.map((i) => <option key={i.id} value={i.id}>{i.icon} {i.name}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="label">Services needed {services.length > 0 && <span className="normal-case text-brand">· {services.length} selected</span>}</label>
-        <div className="divide-y divide-line rounded-xl border border-line bg-white">
-          {BUSINESS_GROUPS.map((g) => {
-            const picked = g.slugs.filter((x) => services.includes(x)).length;
-            const isOpen = openGroups.includes(g.id) || picked > 0;
-            return (
-              <div key={g.id} className="px-3">
-                <button type="button" aria-expanded={isOpen} onClick={() => setOpenGroups(isOpen ? openGroups.filter((x) => x !== g.id) : [...openGroups, g.id])} className="flex w-full items-center justify-between py-2.5 text-left text-sm font-semibold">
-                  <span>{g.icon} {g.title}{picked > 0 && <span className="ml-1 text-brand">· {picked}</span>}</span><span aria-hidden className={`text-xs transition ${isOpen ? "rotate-180" : ""}`}>▾</span>
-                </button>
-                {isOpen && <div className="pb-3"><Chips options={g.slugs.filter((x) => SERVICE_BY_SLUG[x]).map((x) => ({ id: x, label: SERVICE_BY_SLUG[x].name }))} value={services} onChange={setServices} /></div>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="label">How often</label>
-          <select name="cadence" className="input" defaultValue="Recurring + one-off">
-            {["Daily / nightly", "Weekly", "Monthly", "Seasonal", "One-time project", "Recurring + one-off"].map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">Start</label>
-          <select name="start_by" className="input" defaultValue="two_weeks">
-            {URGENCY.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-          </select>
-        </div>
-        <div><label className="label">Monthly budget ($, optional)</label><input name="monthly_budget" type="number" min={0} step={50} className="input" placeholder="e.g. 2500" /></div>
-      </div>
-      <div><label className="label">Anything else</label><textarea name="notes" className="input min-h-24" placeholder="Square footage, hours you’re open, current vendor pain points…" /></div>
-      {state === "error" && <p className="text-sm text-rose-700">{error}</p>}
-      <button className="btn-primary w-full sm:w-auto" disabled={state === "busy"}>{state === "busy" ? "Sending…" : "Request my proposal"}</button>
     </form>
   );
 }
