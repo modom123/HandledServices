@@ -5,12 +5,14 @@
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Pro earnings in the app — approved balance, instant pay (cash out now via Stripe,
  *           for the fee set in Hub → Pro Program), and this year's payouts.
+ * UPDATED : 2026-10-06_0645 UTC — payout setup opens in an in-app sheet and refreshes when it closes.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, AppState, Linking, RefreshControl, ScrollView, Text, View } from "react-native";
 import { money } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, s } from "../../components/ui";
+import { openInApp } from "../../lib/browser";
 import { useI18n } from "../../lib/i18n";
 
 type Instant = { balance: number; fee: number; minAmount: number; feePct: number; allowed: boolean; reason: string | null; ready: boolean };
@@ -46,7 +48,7 @@ export default function Earnings() {
     setBusy(true);
     const r = await api<{ url?: string; error?: string }>("/api/pro/payouts/instant", { method: "POST", body: JSON.stringify({ setup: true }) });
     setBusy(false);
-    if (r.data.url) Linking.openURL(r.data.url); else Alert.alert(t("Payout setup"), r.data.error ?? t("Not available yet"));
+    if (r.data.url) { await openInApp(r.data.url); load(); } else Alert.alert(t("Payout setup"), t(r.data.error ?? "Not available yet"));
   }
   function cashOut() {
     if (!info) return;
