@@ -1,7 +1,7 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_PART_3_of_5_2026-10-06_2045.sql
+-- FILE    : supabase/setup/HANDLED_SETUP_PART_3_of_5_2026-10-06_2142.sql
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_2045 UTC
+-- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : NEW Supabase project setup, part 3 of 5 (run IN ORDER, one at a time). Migrations 20261002223400_waitlist_google_reviews.sql .. 20261004220400_board_favorites.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
 --           Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success" before the next part.

@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-06_0645 UTC — pay, tip and raise-your-offer open Stripe in an in-app sheet and refresh when it closes.
  * UPDATED : 2026-10-06_0708 UTC — Pay now opens Apple Pay / Google Pay / card in the app (Stripe PaymentSheet).
  * UPDATED : 2026-10-06_0708 UTC — live map of the pro on the way (🚗 → 🏠), refreshing every 15 s.
+ * UPDATED : 2026-10-06_2120 UTC — "Confirming your backup pro" while a handed-back job is being re-covered.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
@@ -144,6 +145,13 @@ export default function Booking() {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}><Status status={job.status} /><Text style={s.p}>{job.ref}</Text></View>
       <Text style={[s.p, { marginTop: 6 }]}>{job.scheduled_date ?? t("Date TBD")} · {t(TIME_WINDOW_LABEL[job.time_window])}</Text>
       <Text style={s.p}>{job.address}, {job.city}</Text>
+
+      {!job.contractor_id && Number((job as Job & { handoffs?: number }).handoffs ?? 0) > 0 && ["dispatched", "scheduled"].includes(job.status) ? (
+        <Card style={{ marginTop: 14, borderColor: C.amber, borderWidth: 2 }}>
+          <Text style={[s.b, { color: C.amber }]}>🛟 {es ? "Confirmando su profesional de respaldo" : "Confirming your backup pro"}</Text>
+          <Text style={s.p}>{es ? "Su profesional tuvo que retirarse. Cada reserva tiene respaldos y estamos confirmando el suyo — misma hora, no tiene que hacer nada. Le avisaremos su nombre." : "Your pro had to step away. Every booking has backups and we're confirming yours — same time, nothing for you to do. We'll tell you their name."}</Text>
+        </Card>
+      ) : null}
 
       {pro ? (
         <Card style={{ marginTop: 14, backgroundColor: C.tint, borderColor: C.brand }}>

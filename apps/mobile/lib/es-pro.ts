@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-04_2204 UTC — Jobs near you (open job board) and customer requests.
  * UPDATED : 2026-10-05_0418 UTC — Rewards.
  * UPDATED : 2026-10-06_1950 UTC — standby requests and the cancel tiers.
+ * UPDATED : 2026-10-06_2120 UTC — your cancellations card.
  * PURPOSE : Spanish for the pro screens of the app (offers, jobs, calendar, earnings).
  */
 export const ES_PRO: Record<string, string> = {
@@ -282,4 +283,12 @@ export const ES_PRO: Record<string, string> = {
   "You're on standby": "Está de respaldo",
   "Can't anymore": "Ya no puedo",
   "24h+ out: free · 6–24h: short notice, no penalty · under 6h: late cancel. Never a charge to your pay.": "Con 24 h+: gratis · 6–24 h: poca anticipación, sin penalidad · menos de 6 h: cancelación tardía. Nunca hay cargo a su pago.",
+  "Your cancellations": "Sus cancelaciones",
+  "days": "días",
+  "late": "tardías",
+  "no-shows": "inasistencias",
+  "short notice": "con poca anticipación",
+  "free": "gratis",
+  "excused": "excusadas",
+  "Only late cancels (3) and no-shows (2) in 90 days lead to a written warning. Hand jobs back early so your backup can take them.": "Solo las cancelaciones tardías (3) y las inasistencias (2) en 90 días llevan a una advertencia por escrito. Devuelva los trabajos con tiempo para que su respaldo los tome.",
 };

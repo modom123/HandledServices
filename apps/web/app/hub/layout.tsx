@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (Handled Talent recruiting agency).
  * UPDATED : 2026-10-06_0324 UTC — 🏦 Factoring (invoice factoring partners for net-30+ clients).
  * UPDATED : 2026-10-06_0752 UTC — 🤖 AI agents (mission, daily growth plan, agent health, assign tasks).
+ * UPDATED : 2026-10-06_2120 UTC — 🛟 Cancellations & coverage.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -37,6 +38,7 @@ const NAV = [
   ["/hub/checklists", "✅", "Checklists"],
   ["/hub/network", "💎", "Pro Network"],
   ["/hub/roster", "📍", "Live roster"],
+  ["/hub/coverage", "🛟", "Cancellations & coverage"],
   ["/hub/pros", "🧰", "Hiring & pros"],
   ["/hub/recruiting", "🧲", "Recruiting"],
   ["/hub/leads", "🎯", "Pro leads"],

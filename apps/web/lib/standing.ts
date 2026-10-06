@@ -54,6 +54,7 @@ export async function proReleaseJob(jobId: string, contractorId: string, reason:
   await db().from("job_offers").update({ status: "declined" }).eq("job_id", jobId).eq("contractor_id", contractorId);
   if (tier === "late") await recordStanding(contractorId, "late_cancel", { jobId, note: reason, actor: "pro" });
   if (tier === "short_notice") await recordStanding(contractorId, "short_notice_cancel", { jobId, note: reason, actor: "pro" });
+  if (tier === "free") await recordStanding(contractorId, "free_cancel", { jobId, note: reason, actor: "pro" }); // tracked, never counted
   const label = tier === "late" ? ` (under ${CANCEL_POLICY.lateHours}h — late cancel)` : tier === "short_notice" ? ` (${CANCEL_POLICY.lateHours}–${CANCEL_POLICY.freeHours}h — short notice, no penalty)` : "";
   await addEvent(jobId, "pro_released", `Pro handed the job back${label}: ${reason}`, "pro", false);
   await addEvent(jobId, "reassigning", "We're confirming your backup pro — same time, nothing changes for you.", "system", true, "Estamos confirmando a su profesional de respaldo — misma hora, no cambia nada para usted.");
