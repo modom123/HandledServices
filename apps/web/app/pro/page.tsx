@@ -53,7 +53,7 @@ function benefitBodyEs(key: string, p: ProPolicy): string | null {
   switch (key) {
     case "payProtection": return "Si hizo bien el trabajo y aun así el cliente recibe un reembolso, sale de nuestra parte, no de su pago.";
     case "showUpPay": return `¿El cliente cancela tarde o no puede entrar? Recibe hasta ${money(p.showUpPay.amount)} por el viaje.`;
-    case "instantPay": return `Cobre los pagos aprobados cuando quiera en su tarjeta de débito (cargo de ${(p.instantPay.feePct * 100).toFixed(1)}%), o espere el pago semanal gratuito.`;
+    case "instantPay": return `Cobre los pagos aprobados cuando quiera en su tarjeta de débito (cargo de ${+(p.instantPay.feePct * 100).toFixed(2)}%), o espere el pago semanal gratuito.`;
     case "insurance": return `Cotizaciones rápidas con nuestros socios de seguros y un subsidio de seguro de ${money(p.insurance.stipend)} después de su trabajo número ${p.insurance.afterJobs}.`;
     case "materials": return "Las piezas, materiales y compras de mandados no incluidos en el precio se reembolsan al costo con recibo.";
     case "guarantee": return `En temporada alta, los mejores profesionales que se mantienen disponibles tienen garantizados ${money(p.guarantee.weeklyMinimum)} por semana.`;

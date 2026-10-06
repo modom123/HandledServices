@@ -44,7 +44,7 @@ const rule = (r: Partial<QualifyRule> = {}): QualifyRule => ({ enabled: true, mi
 export const PRO_POLICY_DEFAULTS: ProPolicy = {
   payProtection: rule(),
   showUpPay: { ...rule(), amount: 35 },
-  instantPay: { ...rule({ minJobs: 5 }), feePct: 0.015, minFee: 0.5, minAmount: 25 },
+  instantPay: { ...rule({ minJobs: 5 }), feePct: 0.0175, minFee: 0.5, minAmount: 25 },
   insurance: {
     ...rule({ minJobs: 10, minRating: 4.6 }), stipend: 150, afterJobs: 10,
     partners: [{ name: "Your insurance partner (set in Hub → Pro Program)", url: "", phone: "", covers: "General liability, commercial auto, bonds, workers' comp", code: "" }],
@@ -126,7 +126,7 @@ export function benefitLines(p: ProPolicy) {
   return [
     { key: "payProtection" as const, title: "Pay protection", body: "If you did the job right and the customer still gets a refund, it comes out of our share, not your payout.", rule: p.payProtection },
     { key: "showUpPay" as const, title: "Show-up pay", body: `Customer cancels late or you can't get in? You get up to ${money(p.showUpPay.amount)} for the trip.`, rule: p.showUpPay },
-    { key: "instantPay" as const, title: "Instant pay", body: `Cash out approved payouts any time to your debit card (fee ${(p.instantPay.feePct * 100).toFixed(1)}%), or wait for the free weekly run.`, rule: p.instantPay },
+    { key: "instantPay" as const, title: "Instant pay", body: `Cash out approved payouts any time to your debit card (fee ${+(p.instantPay.feePct * 100).toFixed(2)}%), or wait for the free weekly run.`, rule: p.instantPay },
     { key: "insurance" as const, title: "Insurance help", body: `Fast quotes through our insurance partners, and a ${money(p.insurance.stipend)} insurance stipend after your ${p.insurance.afterJobs}th job.`, rule: p.insurance },
     { key: "materials" as const, title: "Materials reimbursed", body: "Parts, materials and errand shopping not included in the price are reimbursed at cost with a receipt.", rule: p.materials },
     { key: "guarantee" as const, title: "Guaranteed weekly minimum", body: `In peak season, top pros who stay available are guaranteed ${money(p.guarantee.weeklyMinimum)} a week.`, rule: p.guarantee },

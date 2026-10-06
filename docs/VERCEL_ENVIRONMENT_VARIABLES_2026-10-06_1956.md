@@ -3,6 +3,7 @@
   PROJECT : Handled (myhumanai)
   CREATED : 2026-10-06_1956 UTC
   UPDATED : 2026-10-06_2010 UTC — GOOGLE_MAPS_API_KEY (exact job-to-pro distances).
+  UPDATED : 2026-10-06_2230 UTC — XERO_CLIENT_ID / XERO_CLIENT_SECRET (Xero accounting).
   PURPOSE : Every environment variable the website reads, grouped by what it turns on, with where to get each value.
             Vercel → your project → Settings → Environment Variables → add each one for Production (and Preview).
             Secrets are never written in this file — type them straight into Vercel.
@@ -46,6 +47,8 @@ GitHub (for the 10-minute cron): repo → Settings → Secrets and variables →
 |---|---|---|
 | `STRIPE_SECRET_KEY` 🔒 | `sk_live_…` | Stripe → Developers → API keys |
 | `STRIPE_PUBLISHABLE_KEY` 🌐 | `pk_live_…` | same page (Apple Pay / Google Pay in the app) |
+| `XERO_CLIENT_ID` | from your Xero app | developer.xero.com → My Apps → New app (Web app), redirect `https://YOUR-DOMAIN/api/xero/callback` |
+| `XERO_CLIENT_SECRET` 🔒 | from your Xero app | same page (Xero accounting — Hub → Accounting) |
 | `STRIPE_WEBHOOK_SECRET` 🔒 | `whsec_…` | Stripe → Developers → Webhooks → endpoint `https://YOUR-DOMAIN/api/stripe/webhook` (include `checkout.session.completed`, `payment_intent.succeeded`, subscription events) |
 | `STRIPE_TAX` | `on` or empty | Only if Stripe Tax is set up |
 

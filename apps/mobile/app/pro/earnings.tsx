@@ -76,7 +76,7 @@ export default function Earnings() {
           : !info.allowed ? <Text style={s.p}>⚡ {t("Instant pay")}: {info.reason ? t(info.reason) : ""}. {t("Approved payouts go out free on the weekly run.")}</Text>
           : !info.ready ? (
             <>
-              <Text style={s.p}>⚡ {t("Instant pay")}: {t("connect your bank or debit card through Stripe once, then cash out any time for")} {(info.feePct * 100).toFixed(1)}%.</Text>
+              <Text style={s.p}>⚡ {t("Instant pay")}: {t("connect your bank or debit card through Stripe once, then cash out any time for")} {+(info.feePct * 100).toFixed(2)}%.</Text>
               <Button title={t("Set up instant pay")} busy={busy} onPress={setup} style={{ marginTop: 10 }} />
             </>
           ) : (

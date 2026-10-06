@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-06_0324 UTC — 🏦 Factoring (invoice factoring partners for net-30+ clients).
  * UPDATED : 2026-10-06_0752 UTC — 🤖 AI agents (mission, daily growth plan, agent health, assign tasks).
  * UPDATED : 2026-10-06_2120 UTC — 🛟 Cancellations & coverage.
+ * UPDATED : 2026-10-06_2230 UTC — 📒 Accounting (Xero + Stripe).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -50,6 +51,7 @@ const NAV = [
   ["/hub/talent", "🤝", "Talent (recruiting)"],
   ["/hub/email", "✉️", "Email Center"],
   ["/hub/finance", "💵", "Finance"],
+  ["/hub/accounting", "📒", "Accounting (Xero)"],
   ["/hub/factoring", "🏦", "Factoring"],
   ["/hub/growth", "📈", "Growth"],
   ["/hub/cities", "🏙️", "City scorecard"],

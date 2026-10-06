@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-03_0210 UTC — lead engine keys; migrations 24–25 (market pricing, pro lead engine).
  * UPDATED : 2026-10-03_0324 UTC — lead engine sends through Instantly.
  * UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch runs on GitHub Actions; check passes with DISPATCH_CRON=github or VERCEL_PLAN=pro.
+ * UPDATED : 2026-10-06_2230 UTC — Accounting (Xero): app keys, connection, checking account mapped; migration 52 (Xero accounting).
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
@@ -31,6 +32,7 @@ import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 import { getStripe } from "./stripe";
+import { getConnection, xeroConfigured } from "./xero";
 
 export type Check = { group: string; label: string; status: "ok" | "warn" | "fail"; detail: string; fix?: string };
 
@@ -67,6 +69,14 @@ export async function readiness(): Promise<Check[]> {
   add("Mobile app", "Push notifications", has("EXPO_ACCESS_TOKEN") ? true : "warn", has("EXPO_ACCESS_TOKEN") ? "Expo access token set" : "works without it; add EXPO_ACCESS_TOKEN for signed push requests", "expo.dev → Account → Access tokens → create → add EXPO_ACCESS_TOKEN in Vercel");
   add("IEBC workforce", "IEBC API key", has("IEBC_API_KEY") ? true : "warn", has("IEBC_API_KEY") ? "set" : "missing — IEBC agents can't connect", "Add IEBC_API_KEY (openssl rand -hex 32) and paste the same key in IEBC MasterHub → Handled Ops");
   add("IEBC workforce", "Allowed origin", has("IEBC_ALLOWED_ORIGIN") ? true : "warn", process.env.IEBC_ALLOWED_ORIGIN ?? "* (any website may call with the key)", "Set IEBC_ALLOWED_ORIGIN to the MasterHub's web address");
+
+  // ── Accounting (Xero is the books; Stripe activity is pushed daily)
+  const xeroConn = supabaseConfigured && has("SUPABASE_SERVICE_ROLE_KEY") ? await getConnection().catch(() => null) : null;
+  add("Accounting (Xero)", "Xero app keys", xeroConfigured() ? true : "warn", xeroConfigured() ? "set" : "missing — nothing reaches your books automatically", `developer.xero.com → My Apps → New app (Web app), redirect URI ${site || "https://your-domain"}/api/xero/callback; set XERO_CLIENT_ID and XERO_CLIENT_SECRET`);
+  if (xeroConfigured()) {
+    add("Accounting (Xero)", "Xero connected", xeroConn?.tenant_id ? true : "warn", xeroConn?.tenant_id ? `${xeroConn.tenant_name}` : "not connected", "Hub → Accounting (Xero) → Connect Xero (admin)");
+    if (xeroConn?.tenant_id) add("Accounting (Xero)", "Checking account mapped", xeroConn.settings.accounts?.checking_bank ? true : "warn", xeroConn.settings.accounts?.checking_bank ? `code ${xeroConn.settings.accounts.checking_bank}` : "missing — Stripe payouts to the bank can't be recorded", "Hub → Accounting (Xero) → Account mapping → Business checking: enter the code of your bank account in Xero, then Create missing accounts");
+  }
 
   // ── Stripe
   const stripe = getStripe();
@@ -127,6 +137,7 @@ export async function readiness(): Promise<Check[]> {
     ["33 pro screening interviews", () => db.from("pro_interviews").select("id").limit(1)],
     ["34 pro rewards", () => db.from("reward_ledger").select("id").limit(1)],
     ["45 in-app payments (Apple Pay / Google Pay)", () => db.from("payments").select("stripe_payment_intent_id").limit(1)],
+    ["52 Xero accounting", () => db.from("xero_sync_log").select("id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

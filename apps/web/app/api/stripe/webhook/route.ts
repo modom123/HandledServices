@@ -14,6 +14,8 @@
  * UPDATED : 2026-10-05_2034 UTC — Handled Talent invoices (placements, retainer payments) → paid, recruiter share released.
  * UPDATED : 2026-10-06_0708 UTC — payment_intent.succeeded from the app's payment sheet (metadata source=app) settles the payment
  *           the same way as Checkout (shared settle()). Add this event to the Stripe webhook.
+ * UPDATED : 2026-10-06_2230 UTC — Xero: a paid Checkout records its payment intent and the sales tax Stripe Tax added
+ *           (payments.stripe_payment_intent_id, tax_amount), so the daily Xero sync books tax as a liability, not revenue.
  */
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
@@ -52,6 +54,8 @@ export async function POST(req: Request) {
     const pi = session.payment_intent ? await s.paymentIntents.retrieve(String(session.payment_intent)) : null;
     // sales tax (Stripe Tax) is collected on top and remitted — it never counts toward the job
     const amount = (session.amount_subtotal ?? session.amount_total ?? 0) / 100;
+    // for the Xero sync: which payment intent paid it, and how much of it was sales tax (separate update — older databases may lack tax_amount)
+    await db.from("payments").update({ stripe_payment_intent_id: pi?.id ?? null, tax_amount: (session.total_details?.amount_tax ?? 0) / 100 }).eq("id", row.id);
     await settle(row, amount, pi);
   }
   // in-app payment sheet (Apple Pay / Google Pay / card): settled exactly like a Checkout payment

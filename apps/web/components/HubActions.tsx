@@ -441,7 +441,7 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
       <div className="card"><div className="text-lg font-bold">1 · Pay protection — always on</div><p className="text-sm text-ink-soft">A refund that isn’t the pro’s fault comes out of our take first. Only what our take can’t cover touches the payout, so the job never goes below $0. It can’t be switched off: the pro agreement promises it to every pro. When a pro may be at fault, the refund still goes out right away, and the pro’s share is only a <b>proposed deduction</b> — they get written notice and 3 business days to respond, then a person decides in Finance.</p></div>
       {section("showUpPay", "2 · Show-up pay", "Late cancellation (inside 24h) or lockout: the pro gets this much from the $49 fee. It’s automatically reduced if card costs would make the cancelled job lose money.", num("showUpPay", "amount", "Show-up pay ($, max 49)"))}
       {section("instantPay", "3 · Instant pay", "Pros cash out approved payouts any time via Stripe Connect. The fee covers Stripe’s instant-payout cost.", <>
-        {num("instantPay", "feePct", "Fee (0.015 = 1.5%)", 0.001)}{num("instantPay", "minFee", "Minimum fee ($)", 0.25)}{num("instantPay", "minAmount", "Minimum cash-out ($)")}
+        {num("instantPay", "feePct", "Fee (0.0175 = 1.75%)", 0.001)}{num("instantPay", "minFee", "Minimum fee ($)", 0.25)}{num("instantPay", "minAmount", "Minimum cash-out ($)")}
       </>)}
       {section("insurance", "4 · Insurance help", "Partner brokers shown to every applicant and pro. Qualifying pros get a one-time stipend (paid automatically by the daily sweep).", <>
         {num("insurance", "stipend", "Stipend ($)")}{num("insurance", "afterJobs", "After this many jobs")}

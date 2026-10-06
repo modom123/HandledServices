@@ -15,7 +15,7 @@
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
-export const AGREEMENT_VERSION = "2026-10-v6"; // v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
+export const AGREEMENT_VERSION = "2026-10-v7"; // v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
 export const SERVICE_AGREEMENT_VERSION = "2026-10-v7"; // v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */

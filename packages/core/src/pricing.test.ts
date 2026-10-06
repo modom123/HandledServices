@@ -322,7 +322,7 @@ test("pro policy: who qualifies, and every benefit keeps the job at or above $0"
   assert.equal(showUpPay(P, 200), 35);
   // 3. instant fee
   assert.equal(instantPayFee(P, 10), 0.5);
-  assert.equal(instantPayFee(P, 400), 6);
+  assert.equal(instantPayFee(P, 400), 7); // 1.75%
   // 5. materials
   assert.equal(materialsDecision(P, 60, 300), "auto");
   assert.equal(materialsDecision(P, 120, 300), "review");
