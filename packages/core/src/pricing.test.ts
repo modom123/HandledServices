@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
+ * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
  */
 
 import { test } from "node:test";
@@ -73,12 +74,33 @@ test("dispatch filters ineligible pros and ranks the rest", () => {
   assert.deepEqual(ranked.map((r) => r.contractor.id), ["a", "b"]);
 });
 
-test("every service keeps our take between 15% and 35%", async () => {
-  const { TAKE_MIN, TAKE_MAX } = await import("./pricing.ts");
+test("every service keeps our take between 15% and 35% on its typical job (real sliding share)", async () => {
+  const { TAKE_MIN, TAKE_MAX, typicalProShare } = await import("./pricing.ts");
   for (const svc of SERVICES) {
-    const take = 1 - svc.payoutShare;
-    assert.ok(take >= TAKE_MIN && take <= TAKE_MAX, `${svc.slug} take ${take}`);
+    const take = 1 - typicalProShare(svc.slug);
+    assert.ok(take >= TAKE_MIN - 1e-9 && take <= TAKE_MAX + 1e-9, `${svc.slug} take ${take}`);
   }
+});
+
+test("estimate().payoutShare is the real share of the price, not a fixed number", async () => {
+  const { estimate, splitJob } = await import("./pricing.ts");
+  for (const svc of SERVICES) {
+    const e = estimate({ slug: svc.slug, answers: defaultAnswers(svc) });
+    assert.equal(e.payout, splitJob(e.point, svc.slug).payout);
+    assert.ok(Math.abs(e.payoutShare - e.payout / e.point) < 0.001, `${svc.slug} share ${e.payoutShare}`);
+  }
+});
+
+test("the sliding scale: pros keep more on small jobs, our cut never passes 35%", async () => {
+  const { slidingScale, TAKE_MAX } = await import("./pricing.ts");
+  const rows = slidingScale();
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i].payout >= rows[i - 1].payout, "payout rises with price");
+    assert.ok(rows[i].commission >= rows[i - 1].commission, "commission slides up with price");
+  }
+  for (const r of rows) assert.ok(r.takeRate <= TAKE_MAX + 1e-9, `take ${r.takeRate} @${r.price}`);
+  assert.equal(rows.find((r) => r.price === 64)!.payout, 51);
+  assert.equal(rows.find((r) => r.price === 1004)!.payout, 680);
 });
 
 test("splitJob never pays out more than the band allows, at any price", async () => {

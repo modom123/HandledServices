@@ -6,8 +6,10 @@
  *           pros actually do with offers (accept / decline / counter / nobody), how customers price
  *           (offers vs. suggestion), the learned factor (or a manual override), and what we and the
  *           pro make at the typical price (sliding commission + booking fee).
+ * UPDATED : 2026-10-06_0740 UTC — "Pro pay, sliding scale" table: at each job size, what the pro is paid, what we keep and
+ *           each as a % of the price (slidingScale, the same math that pays pros); Pro share column per service.
  */
-import { BOOKING_FEE, COMMISSION, MARKET_BOUNDS, SERVICES, commissionRate, defaultAnswers, estimate, money, splitJob } from "@handled/core";
+import { BOOKING_FEE, COMMISSION, MARKET_BOUNDS, SERVICES, TAKE_MAX, commissionRate, defaultAnswers, estimate, money, slidingScale, splitJob } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { FactorOverride, RelearnButton } from "@/components/MarketAdmin";
@@ -48,6 +50,29 @@ export default async function MarketPricing() {
         <Stat label="Our cut" value={`${pct(COMMISSION.minRate)} → ${pct(COMMISSION.maxRate)}`} hint={`$${COMMISSION.from} → $${COMMISSION.to}+ jobs, plus ${money(BOOKING_FEE)} booking fee`} />
       </div>
       <div className="card overflow-x-auto p-0">
+        <div className="p-4 pb-2">
+          <h2 className="font-bold">Pro pay, sliding scale</h2>
+          <p className="text-sm text-ink-soft">The real split on every job (customer price includes the {money(BOOKING_FEE)} booking fee). Small jobs: the pro keeps ~80%; $600+ jobs: ~68%. Our share never passes {pct(TAKE_MAX)}. Pro+ / Elite pros earn up to 3–5 points more.</p>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
+            <tr><th className="p-3">Customer pays</th><th className="p-3 text-right">Pro earns</th><th className="p-3 text-right">Pro share</th><th className="p-3 text-right">We keep</th><th className="p-3 text-right">Our share</th><th className="p-3 text-right">Commission</th></tr>
+          </thead>
+          <tbody>
+            {slidingScale().map((r) => (
+              <tr key={r.price} className="border-t border-line">
+                <td className="p-3">{money(r.price)}</td>
+                <td className="p-3 text-right font-semibold">{money(r.payout)}</td>
+                <td className="p-3 text-right">{pct(r.proShare)}</td>
+                <td className="p-3 text-right">{money(r.take)}</td>
+                <td className="p-3 text-right">{pct(r.takeRate)}</td>
+                <td className="p-3 text-right text-ink-soft">{pct(r.commission)}{r.fee ? ` + ${money(r.fee)}` : ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="card overflow-x-auto p-0">
         <table className="w-full text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
             <tr><th className="p-3">Service</th><th className="p-3 text-right">Typical price</th><th className="p-3 text-right">Pro earns</th><th className="p-3 text-right">We keep</th><th className="p-3 text-right">Outcomes</th><th className="p-3 text-right">Accept · counter</th><th className="p-3 text-right">Customers offer</th><th className="p-3">Factor</th><th className="p-3">Override</th></tr>
@@ -66,7 +91,7 @@ export default async function MarketPricing() {
                 <tr key={s.slug} className="border-t border-line">
                   <td className="p-3">{s.icon} {s.name}</td>
                   <td className="p-3 text-right">{money(e.point)}</td>
-                  <td className="p-3 text-right">{money(sp.payout)}</td>
+                  <td className="p-3 text-right">{money(sp.payout)} <span className="text-xs text-ink-soft">({pct(sp.payout / e.point)})</span></td>
                   <td className="p-3 text-right">{money(sp.take)} <span className="text-xs text-ink-soft">({pct(commissionRate(e.point - sp.fee, s.slug))} + fee)</span></td>
                   <td className="p-3 text-right">{rows.length || "—"}</td>
                   <td className="p-3 text-right">{rows.length ? `${pct(a / rows.length)} · ${pct(c / rows.length)}` : "—"}</td>
