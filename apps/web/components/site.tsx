@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-05_0434 UTC — one account button (Sign in → My account / Pro portal / Hub, with Sign out), visible on phones.
  * UPDATED : 2026-10-05_0448 UTC — 📸 Snap & post a job button in the header (phones too).
  * UPDATED : 2026-10-05_2034 UTC — footer link to Handled Talent (recruiting).
+ * UPDATED : 2026-10-06_0623 UTC — header menu (Services, Events, For Business, Become a Pro) easier to read: semibold, dark ink, 15px.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -30,11 +31,11 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
       <div className="wrap flex h-16 items-center justify-between gap-4">
         <Logo />
-        <nav className="hidden items-center gap-6 text-sm font-medium text-ink-soft md:flex">
-          <Link href="/services" className="hover:text-ink">{t("Services")}</Link>
-          <Link href="/events" className="hover:text-ink">{t("Events")}</Link>
-          <Link href="/business" className="hover:text-ink">{t("For Business")}</Link>
-          <Link href="/pros" className="hover:text-ink">{t("Become a Pro")}</Link>
+        <nav className="hidden items-center gap-6 text-[15px] font-semibold text-ink md:flex">
+          <Link href="/services" className="hover:text-brand">{t("Services")}</Link>
+          <Link href="/events" className="hover:text-brand">{t("Events")}</Link>
+          <Link href="/business" className="hover:text-brand">{t("For Business")}</Link>
+          <Link href="/pros" className="hover:text-brand">{t("Become a Pro")}</Link>
         </nav>
         <div className="flex items-center gap-2">
           <AccountButton es={l === "es"} />
