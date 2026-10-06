@@ -7,6 +7,7 @@
  *           a pro, or the Handled team. Customers and businesses choose for themselves; pros must be approved (new ones
  *           are sent to apply) and team access is added by an admin (Hub → Team) — the choice only picks where you land,
  *           it never grants access. The last choice is remembered on this device. English / Spanish.
+ * UPDATED : 2026-10-06_2100 UTC — sign-in never crashes on a Supabase failure; common errors explained in plain words.
  */
 "use client";
 
@@ -16,6 +17,19 @@ import { browserClient } from "@/lib/supabase/browser";
 type Who = "customer" | "business" | "pro" | "team";
 const DEST: Record<Who, string> = { customer: "/account", business: "/account/business", pro: "/pro", team: "/hub" };
 const KEY = "handled_who";
+
+/** Supabase's sign-in errors in plain words, with the fix (the raw message stays at the end for support). */
+function friendly(raw: string, es: boolean): string {
+  const m = raw.toLowerCase();
+  const say = (en: string, sp: string) => `${es ? sp : en} (${raw})`;
+  if (m.includes("rate limit")) return say("Too many sign-in emails right now. Wait a few minutes and try again.", "Demasiados correos de acceso. Espere unos minutos e intente de nuevo.");
+  if (m.includes("not authorized") || m.includes("error sending")) return say("We couldn't send the sign-in email. Please try again shortly — our team has been notified.", "No pudimos enviar el correo de acceso. Intente de nuevo en un momento.");
+  if (m.includes("invalid api key") || m.includes("invalid jwt") || m.includes("no api key")) return say("Sign-in is temporarily unavailable (server settings). Please try again later.", "El acceso no está disponible por ahora (configuración). Intente más tarde.");
+  if (m.includes("signups not allowed") || m.includes("signup is disabled")) return say("New accounts are turned off right now.", "Las cuentas nuevas están desactivadas por ahora.");
+  if (m.includes("expired") || (m.includes("invalid") && m.includes("otp")) || m.includes("token has expired")) return say("That code expired or is wrong — ask for a new one.", "Ese código venció o es incorrecto: pida uno nuevo.");
+  if (m.includes("fetch") || m.includes("network")) return say("No connection to the sign-in service. Check your internet and try again.", "Sin conexión con el servicio de acceso. Revise su internet e intente de nuevo.");
+  return raw;
+}
 
 export function LoginForm({ next, initialEmail = "", expired = false, es = false }: { next: string; initialEmail?: string; expired?: boolean; es?: boolean }) {
   const explicit = next !== "/auth/home";
@@ -30,16 +44,20 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();
     try { if (who) localStorage.setItem(KEY, who); } catch { /* private mode */ }
-    const { error } = await browserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
-    if (error) return setMsg(error.message);
+    try {
+      const { error } = await browserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
+      if (error) return setMsg(friendly(error.message, es));
+    } catch (err) { return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
     setSent(true);
     setMsg("");
   }
 
   async function verify(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await browserClient().auth.verifyOtp({ email, token: code, type: "email" });
-    if (error) return setMsg(error.message);
+    try {
+      const { error } = await browserClient().auth.verifyOtp({ email, token: code, type: "email" });
+      if (error) return setMsg(friendly(error.message, es));
+    } catch (err) { return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
     window.location.href = `/auth/callback?next=${encodeURIComponent(dest)}`;
   }
 
