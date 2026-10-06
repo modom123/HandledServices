@@ -1,11 +1,10 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_PART_4_of_5_2026-10-06_1916.sql
+-- FILE    : supabase/setup/HANDLED_SETUP_PART_4_of_5_2026-10-06_2045.sql
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_1916 UTC
--- PURPOSE : NEW Supabase project setup, part 4 of 5 (run the parts IN ORDER, one at a time).
---           Migrations 20261005012800_biz_job_posts.sql .. 20261005203400_handled_talent.sql.
---           Plain-ASCII copy of HANDLED_SETUP (same SQL; accented text uses U&'' escapes) so copy/paste
---           can't corrupt it. Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success".
+-- CREATED : 2026-10-06_2045 UTC
+-- PURPOSE : NEW Supabase project setup, part 4 of 5 (run IN ORDER, one at a time). Migrations 20261005012800_biz_job_posts.sql .. 20261005203400_handled_talent.sql.
+--           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
+--           Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success" before the next part.
 -- ============================================================================
 -- >>> migration 20261005012800_biz_job_posts.sql
 -- ============================================================================

@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_ASCII_2026-10-06_1916.sql   (plain-ASCII copy of HANDLED_SETUP_2026-10-06_1900.sql)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_2043.sql   (generated - do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_1900 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 48 migrations + production seed.
+-- CREATED : 2026-10-06_2043 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 50 migrations + production seed.
 --           Supabase -> SQL Editor -> New query -> paste this whole file -> Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -3087,6 +3087,65 @@ create policy staff_all on public.agent_tasks for all to authenticated using (pu
 alter table public.business_accounts
   add column if not exists rfp_scope jsonb,
   add column if not exists preferred_contact text check (preferred_contact is null or preferred_contact in ('call','email','text'));
+
+
+-- >>> migration 20261006195000_job_coverage.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006195000_job_coverage.sql
+-- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- CREATED : 2026-10-06_1950 UTC
+-- PURPOSE : Every job gets done (packages/core/src/coverage.ts).
+--             * job_backups - backup #1, #2, #3 lined up behind the pro on every accepted job. Status:
+--                 asked (we asked) -> standby (they confirmed they can cover) -> called (the pro dropped; their turn)
+--                 -> promoted (they took the job) - declined / passed (said no) - released (job done or cancelled)
+--             * job_offers.kind adds 'backup' (the call that goes to a backup when the pro drops)
+--             * pro_standing_events.kind adds 'short_notice_cancel' (6-24h: logged, no penalty) and 'excused_cancel'
+--             * jobs.handoffs - how many times the job changed pros (shown to staff)
+-- ============================================================================
+create table if not exists public.job_backups (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  contractor_id uuid not null references public.contractors(id) on delete cascade,
+  rank int not null check (rank between 1 and 3),
+  status text not null default 'asked' check (status in ('asked','standby','called','declined','passed','promoted','released')),
+  asked_at timestamptz not null default now(),
+  responded_at timestamptz,
+  called_at timestamptz,
+  unique (job_id, contractor_id)
+);
+create index if not exists job_backups_job_idx on public.job_backups (job_id, rank);
+create index if not exists job_backups_pro_idx on public.job_backups (contractor_id, status);
+
+alter table public.job_backups enable row level security;
+drop policy if exists "pro reads own backups" on public.job_backups;
+create policy "pro reads own backups" on public.job_backups for select to authenticated using (contractor_id = public.my_contractor_id());
+drop policy if exists staff_all on public.job_backups;
+create policy staff_all on public.job_backups for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
+alter table public.job_offers drop constraint if exists job_offers_kind_check;
+alter table public.job_offers add constraint job_offers_kind_check
+  check (kind in ('job','recurring','redo','account','favorite','board','backup'));
+
+alter table public.pro_standing_events drop constraint if exists pro_standing_events_kind_check;
+alter table public.pro_standing_events add constraint pro_standing_events_kind_check
+  check (kind in ('late_cancel','short_notice_cancel','excused_cancel','no_show','warning','suspension','deactivation','appeal','appeal_upheld','reinstated','note'));
+
+alter table public.jobs add column if not exists handoffs int not null default 0;
+
+
+-- >>> migration 20261006201000_pro_business_address.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006201000_pro_business_address.sql
+-- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- CREATED : 2026-10-06_2010 UTC
+-- PURPOSE : A pro's place of business (street, city, state, ZIP). Dispatch measures driving distance from it
+--           (geocoded street address; ZIP centre when the lookup isn't available - base_located says which).
+-- ============================================================================
+alter table public.contractors
+  add column if not exists base_address text,
+  add column if not exists base_city text,
+  add column if not exists base_state text check (base_state is null or base_state ~ '^[A-Z]{2}$'),
+  add column if not exists base_located text check (base_located is null or base_located in ('address','zip'));
 
 
 -- >>> seed.sql
