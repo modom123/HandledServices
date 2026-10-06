@@ -7,6 +7,7 @@
             bottom; Hub → Go-live setup turns each item green as you finish it.
   UPDATED : 2026-10-04_1934 UTC — 51 services (small moves, large-item delivery, staging moves, unit turnover added).
   UPDATED : 2026-10-06_0505 UTC — 53 services (event security, security guards & patrol added).
+  UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch cron moved to GitHub Actions (works on Vercel Hobby).
 -->
 
 # Handled — Go-Live Checklist
@@ -167,7 +168,7 @@ node scripts/smoke-test.mjs https://YOUR-DOMAIN     # every line should say PASS
 |---|---|
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` (or `TWILIO_FROM`) | Text messages to customers and pros (register A2P 10DLC in Twilio first) |
 | `STRIPE_TAX=on` | Sales tax on service charges (after adding tax registrations in Stripe) |
-| `VERCEL_PLAN=pro` | Clears the readiness warning once the team is on Vercel Pro (needed for the 10-minute dispatch cron) |
+| `DISPATCH_CRON=github` | Clears the readiness warning once the GitHub Action runs the 10-minute dispatch cron: in GitHub → Settings → Secrets and variables → Actions, add secret `CRON_SECRET` (same value as Vercel) and variable `HANDLED_URL` (e.g. `https://handledsvc.com`). On Vercel Pro you can set `VERCEL_PLAN=pro` instead. |
 | Stripe webhook events | Add `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` |
 | Stripe → Settings → Billing → Customer portal | Turn on, so Handled Plus members can manage or cancel |
 | App build: `EXPO_PUBLIC_API_URL` | Also fills the app's privacy policy and terms links |
