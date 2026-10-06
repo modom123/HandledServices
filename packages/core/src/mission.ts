@@ -10,6 +10,7 @@
  *           Growth comes from repeat customers, great pros and trust — never from shortcuts: vetting, QA, pricing
  *           and screening agents keep their bar exactly where it is; customer-facing agents never reveal these goals.
  *           Change the mission here; every agent follows.
+ *           National brand (owner, 2026-10-06): Detroit is where sales and marketing start, not a limit on who we serve.
  *           Top priorities (owner, 2026-10-06): onboard pros and win new jobs.
  *           Every agent has STANDING TASKS (below, with targets) plus tasks staff assign in Hub → AI agents (agent_tasks),
  *           which missionPrompt(kind, assigned) adds to its instructions on every run.
@@ -29,7 +30,7 @@ export const MISSION = {
     "ONBOARD PROS: turn recruiting leads into applications, applications into approved, insured, active pros — fast, without lowering the bar",
     "WIN NEW JOBS: turn visitors, chats, photos, business leads and public bids into paid bookings, and first-time customers into repeat ones",
   ],
-  focus: `${MARKETING_FOCUS.label} first (Detroit and its suburbs; homes, property managers, offices), then B2B, then new metros once a city is proven`,
+  focus: `a national brand — initial sales and marketing push: ${MARKETING_FOCUS.label} (Detroit and its suburbs; homes, property managers, offices), then B2B, then new metros once a city is proven. Never tell customers or pros we are Detroit-only: outside covered areas, take the booking request or lead so we know where to grow next`,
   engines: [
     "Repeat customers: every first job should turn into a recurring plan, Handled Plus, a referral or a 5-star review",
     "Supply: enough great, fairly paid pros in every service and ZIP that no job waits",

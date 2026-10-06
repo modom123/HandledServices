@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_0758.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_1900.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_0758 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 47 migrations + production seed.
+-- CREATED : 2026-10-06_1900 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 48 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -3072,6 +3072,21 @@ create index if not exists agent_tasks_open on public.agent_tasks (agent) where 
 alter table public.agent_tasks enable row level security;
 drop policy if exists staff_all on public.agent_tasks;
 create policy staff_all on public.agent_tasks for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
+
+-- >>> migration 20261006084100_business_rfp_scope.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006084100_business_rfp_scope.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-06_0841 UTC
+-- PURPOSE : The business Request for Proposal keeps its scope of work as structured data (packages/core/src/rfp.ts):
+--           square footage, site, each service with how often and specifics, working hours, current vendor, term,
+--           decision process (and bid due date), walkthrough times, preferred contact. The Hub shows it with a
+--           follow-up checklist of what's still missing.
+-- ============================================================================
+alter table public.business_accounts
+  add column if not exists rfp_scope jsonb,
+  add column if not exists preferred_contact text check (preferred_contact is null or preferred_contact in ('call','email','text'));
 
 
 -- >>> seed.sql

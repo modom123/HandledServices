@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/hub/business/[id]/page.tsx
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
+ * UPDATED : 2026-10-06_0841 UTC — scope of work from the Request for Proposal, and what to ask on the follow-up call.
  * PURPOSE : Handled Hub → one business account: billing (prepay, or invoicing on terms approved case by case
  *           with a reason and credit limit; hold), open balance and invoices, priority dispatch, pilot offer,
  *           properties, members, dedicated pros and recent jobs.
@@ -9,7 +10,7 @@
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BUSINESS_TERMS, getService, money } from "@handled/core";
+import { BUSINESS_TERMS, getService, money, rfpFollowUp, rfpSummary, URGENCY, type RfpScope } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { openBalance, type BusinessAccount, type Property } from "@/lib/business";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
@@ -24,7 +25,7 @@ export default async function HubBusinessAccount({ params }: { params: Promise<{
   const db = adminClient();
   const { data } = await db.from("business_accounts").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
-  const a = data as BusinessAccount & { locations: number; services_needed: string[]; notes: string | null; monthly_budget?: number | null };
+  const a = data as BusinessAccount & { locations: number; services_needed: string[]; notes: string | null; monthly_budget?: number | null; start_by?: string | null; rfp_scope?: RfpScope | null; preferred_contact?: string | null };
   const [{ data: props }, { data: members }, { data: ded }, { data: pros }, { data: jobs }, { data: invoices }, balance] = await Promise.all([
     db.from("business_properties").select("*").eq("account_id", id).order("created_at"),
     db.from("business_members").select("id, email, role, profile_id").eq("account_id", id),
@@ -51,6 +52,20 @@ export default async function HubBusinessAccount({ params }: { params: Promise<{
         </div>
         <div className="flex items-center gap-2"><StatusSelect id={id} status={a.status} /><Toggle id={id} action="priority" on={a.priority} labels={["Turn on priority dispatch", "Priority dispatch: on"]} /></div>
       </div>
+
+      {a.rfp_scope && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="card text-sm">
+            <div className="font-semibold">📋 Scope of work (from their request)</div>
+            <ul className="mt-2 space-y-1">{rfpSummary(a.rfp_scope, { locations: a.locations, industry: a.industry, startBy: URGENCY.find((u) => u.id === a.start_by)?.label ?? a.start_by, budget: a.monthly_budget ?? null }).map((l) => <li key={l}>{l}</li>)}</ul>
+          </div>
+          <div className="card border-amber-300 bg-amber-50 text-sm">
+            <div className="font-semibold">📞 Ask on the follow-up call</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5">{rfpFollowUp(a.rfp_scope, { locations: a.locations, budget: a.monthly_budget ?? null, phone: a.phone }).map((q) => <li key={q}>{q}</li>)}</ul>
+            <p className="mt-2 text-xs text-ink-soft">Then: walkthrough → written proposal per site → set status to “proposal”.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Lifetime (completed)" value={money(lifetime)} hint={`${jobRows.filter((j) => j.status === "completed").length} jobs (recent 50)`} />

@@ -14,6 +14,9 @@
  * UPDATED : 2026-10-06_0606 UTC — cleaning push (MARKETING_FOCUS): the hero leads with home & office cleaning in Metro
  *           Detroit (standard, deep, move-out, recurring, carpets, windows), then a "cleaners in your city" row
  *           linking each city's house-cleaning page. Every other category stays below.
+ * UPDATED : 2026-10-06_0841 UTC — national brand: the hero no longer says the site is Detroit-only ("Home & office cleaning.
+ *           Handled."); the badge says we're launching in Metro Detroit and expanding nationwide; the city row reads
+ *           "Cleaners in your city" with a link for cities we don't cover yet. Sales and marketing still start in Detroit.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SEO_CITIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -66,9 +69,9 @@ export default async function Home() {
       {/* hero — cleaning first (MARKETING_FOCUS) */}
       <section className="wrap grid items-center gap-10 pb-12 pt-12 md:grid-cols-[1.05fr_1fr] md:pt-16">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● {t("Now booking cleaners across Metro Detroit")}</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● {t("Launching in Metro Detroit · expanding nationwide")}</span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-            {t("Home & office cleaning in Metro Detroit.")} <span className="text-brand">{t("Handled.")}</span>
+            {t("Home & office cleaning, done right.")} <span className="text-brand">{t("Handled.")}</span>
           </h1>
           <p className="mt-5 max-w-lg text-lg text-ink-soft">{t("Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.")}</p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -97,11 +100,12 @@ export default async function Home() {
 
       {/* cleaners in your city — each links to that city's house-cleaning page */}
       <section className="wrap pt-14">
-        <h2 className="text-2xl font-bold tracking-tight">{t("Cleaners across Detroit and the surrounding cities")}</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t("Cleaners in your city")}</h2>
         <p className="mt-2 text-sm text-ink-soft">{t("Pick your city to see house cleaning near you.")}</p>
         <div className="mt-5 flex flex-wrap gap-2 text-sm">
           {SEO_CITIES.map((c) => <Link key={c.slug} href={`/services/house-cleaning/in/${c.slug}`} className="rounded-full border border-line bg-white px-3 py-1 hover:border-brand hover:text-brand">{c.name}</Link>)}
         </div>
+        <p className="mt-3 text-sm text-ink-soft">{t("Don’t see your city? We’re adding new cities all the time.")} <Link href="/book?service=house-cleaning" className="font-semibold text-brand underline">{t("Check your ZIP")}</Link></p>
       </section>
 
       {/* browse by category */}

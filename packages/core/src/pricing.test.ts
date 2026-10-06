@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
  * UPDATED : 2026-10-06_0752 UTC — every AI agent has a mission role, the two priorities and standing tasks.
+ * UPDATED : 2026-10-06_0841 UTC — Request for Proposal scope summary and follow-up questions.
  */
 
 import { test } from "node:test";
@@ -1366,4 +1367,18 @@ test("every AI agent runs with the $100M mission, the two priorities and its tas
     if (a.external) assert.match(p, /never mention revenue targets/);
     if (a.gate) assert.match(p, /gatekeeper/);
   }
+});
+
+test("Request for Proposal: summary lists every service with its frequency; follow-up asks for what's missing", async () => {
+  const { rfpSummary, rfpFollowUp, RFP_NEXT_STEPS } = await import("./rfp.ts");
+  const scope = { sqft: "not_sure" as const, site: "Detroit", services: [{ slug: "house-cleaning", frequency: "nightly" as const, note: "3 floors, 6 restrooms" }, { slug: "window-cleaning", frequency: "monthly" as const }],
+    hours: ["after_hours" as const], vendor: "replacing" as const, pain: "missed visits", term: "twelve_months" as const, decision: "formal_bid" as const, bidDue: "2026-11-01", walkthrough: [], contact: "call" as const };
+  const lines = rfpSummary(scope, { locations: 3, startBy: "Within 2 weeks", budget: 4000 });
+  assert.ok(lines.some((l) => l.includes("Nightly") && l.includes("3 floors")));
+  assert.ok(lines.some((l) => l.includes("Monthly")));
+  assert.ok(lines.some((l) => l.includes("due 2026-11-01")));
+  const ask = rfpFollowUp(scope, { locations: 3, budget: null, phone: null });
+  for (const want of ["square footage", "all 3 locations", "Window Cleaning", "current vendor", "Budget", "due 2026-11-01", "phone number"]) assert.ok(ask.some((q) => q.toLowerCase().includes(want.toLowerCase())), `missing follow-up: ${want}`);
+  assert.ok(!ask.some((q) => q.startsWith("House & Office Cleaning")), "a service with specifics needs no follow-up");
+  assert.equal(RFP_NEXT_STEPS.length, 4);
 });

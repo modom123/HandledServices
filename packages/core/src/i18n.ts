@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0606 UTC — Spanish for the cleaning-first home page.
  * UPDATED : 2026-10-06_0637 UTC — Spanish names for the six new services.
  * UPDATED : 2026-10-06_0748 UTC — "Pro Rewards & tiers" (footer link).
+ * UPDATED : 2026-10-06_0841 UTC — national home-page copy (launching in Metro Detroit, expanding nationwide).
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -38,8 +39,8 @@ const ES: Record<string, string> = {
   "Your home & business to-do list.": "Su lista de pendientes del hogar y el negocio.",
   "Handled.": "Resuelta.",
   // home — cleaning push
-  "Now booking cleaners across Metro Detroit": "Ya reservamos limpieza en todo Metro Detroit",
-  "Home & office cleaning in Metro Detroit.": "Limpieza de casas y oficinas en Metro Detroit.",
+  "Launching in Metro Detroit · expanding nationwide": "Comenzamos en Metro Detroit · creciendo en todo el país",
+  "Home & office cleaning, done right.": "Limpieza de casas y oficinas, bien hecha.",
   "Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.": "Limpieza estándar, profunda y de mudanza, alfombras y ventanas, por personal local asegurado y con verificación de antecedentes. Precio por adelantado en 60 segundos, fotos al terminar cada limpieza y una nueva limpieza gratis si algo faltó.",
   "Book a cleaning": "Reservar una limpieza", "Office & property cleaning": "Limpieza de oficinas y propiedades",
   "Standard clean": "Limpieza estándar", "Kitchen, baths, dusting, floors": "Cocina, baños, polvo y pisos",
@@ -48,7 +49,7 @@ const ES: Record<string, string> = {
   "Recurring plan": "Plan recurrente",
   "Carpet cleaning": "Limpieza de alfombras", "Rooms, stairs, rugs, upholstery": "Habitaciones, escaleras, tapetes y tapicería",
   "Window cleaning": "Limpieza de ventanas", "Inside, outside, screens & tracks": "Por dentro, por fuera, mosquiteros y rieles",
-  "Cleaners across Detroit and the surrounding cities": "Limpieza en Detroit y las ciudades vecinas",
+  "Cleaners in your city": "Limpieza en su ciudad", "Don’t see your city? We’re adding new cities all the time.": "¿No ve su ciudad? Agregamos ciudades nuevas todo el tiempo.", "Check your ZIP": "Revise su código postal",
   "Pick your city to see house cleaning near you.": "Elija su ciudad para ver la limpieza de casas cerca de usted.",
   "Everything else, handled too": "Todo lo demás, también resuelto",
   "Enter": "Entrar a", "Get my price": "Ver mi precio", "services · one account": "servicios · una sola cuenta",
