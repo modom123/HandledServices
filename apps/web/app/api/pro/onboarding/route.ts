@@ -6,6 +6,8 @@
  * UPDATED : 2026-10-01_2109 UTC — specialties and trade-specific coverage steps.
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * UPDATED : 2026-10-03_0041 UTC — signing records the full contract set (frozen copies) for the pro's My contracts.
+ * UPDATED : 2026-10-06_2010 UTC — area step takes the pro's place of business (street, city, state, ZIP); distance is
+ *           measured from that address (geocoded), ZIP centroid if the lookup fails.
  * PURPOSE : Pro self-onboarding (web portal + mobile). Multipart form with `step`:
  *             w9         legal_name, entity_type, tin_last4, address_line, city, state, zip, file
  *             coi        expires_on, file          (staff verifies → insured_until)
@@ -26,7 +28,7 @@ import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
-import { zipCentroid } from "@/lib/geo";
+import { geocodeAddress } from "@/lib/geo";
 import { afterOnboardingStep, docName, logRecruiting } from "@/lib/recruiting";
 import { signedDocUrl } from "@/lib/photos";
 import { aiCheckDocument } from "@/lib/ai/doccheck";
@@ -44,7 +46,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
   z.object({ step: z.literal("specialties") }),
-  z.object({ step: z.literal("area"), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
+  z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
 ]);
@@ -73,17 +75,18 @@ export async function POST(req: Request) {
     const windows = form.getAll("windows").map(String).filter((w) => ["morning", "midday", "afternoon"].includes(w));
     if (!days.length || !windows.length) return deny(400, "Pick at least one day and one time of day");
     const timeOff = (b.time_off ?? "").split(/[,\s]+/).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 120);
-    const loc = await zipCentroid(b.base_zip);
+    const loc = await geocodeAddress({ address: b.base_address, city: b.base_city, state: b.base_state, zip: b.base_zip });
     // location lookup down → never leave a pro matching jobs everywhere: fall back to their ZIP area
     const { data: cur } = await db.from("contractors").select("service_zips").eq("id", id).single();
     const zips = !loc && !(cur?.service_zips ?? []).length ? [b.base_zip, `${b.base_zip.slice(0, 3)}*`] : undefined;
     await db.from("contractors").update({
       ...(zips ? { service_zips: zips } : {}),
+      base_address: b.base_address, base_city: b.base_city, base_state: b.base_state.toUpperCase(), base_located: loc ? (loc.exact ? "address" : "zip") : null,
       base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi,
       ...(b.daily_capacity ? { daily_capacity: b.daily_capacity } : {}),
       availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
     }).eq("id", id);
-    return done({ located: Boolean(loc) });
+    return done({ located: Boolean(loc), exact: Boolean(loc?.exact) });
   }
   if (b.step === "specialties") {
     const { data: pro } = await db.from("contractors").select("trades").eq("id", id).single();

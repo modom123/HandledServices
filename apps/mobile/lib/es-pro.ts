@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-03_1337 UTC — My crew, fast track to Pro+, and hand-back-a-job strings.
  * UPDATED : 2026-10-04_2204 UTC — Jobs near you (open job board) and customer requests.
  * UPDATED : 2026-10-05_0418 UTC — Rewards.
+ * UPDATED : 2026-10-06_1950 UTC — standby requests and the cancel tiers.
  * PURPOSE : Spanish for the pro screens of the app (offers, jobs, calendar, earnings).
  */
 export const ES_PRO: Record<string, string> = {
@@ -274,4 +275,11 @@ export const ES_PRO: Record<string, string> = {
   "Priority": "Prioridad",
   "This customer asked for you.": "Este cliente lo pidió a usted.",
   "The job goes back out right away. Inside 24 hours of the arrival window it counts as a late cancel.": "El trabajo se vuelve a ofrecer de inmediato. Dentro de las 24 horas antes del horario de llegada cuenta como cancelación tardía.",
+  "Standby requests": "Solicitudes de respaldo",
+  "Another pro has these jobs. If they can't make it, you get the first call. Passing is free; you're paid only if you're called and do the job.": "Otro profesional tiene estos trabajos. Si no puede ir, usted recibe la primera llamada. Pasar es gratis; solo se le paga si lo llamamos y hace el trabajo.",
+  "Backup": "Respaldo",
+  "Yes, I can cover": "Sí, puedo cubrir",
+  "You're on standby": "Está de respaldo",
+  "Can't anymore": "Ya no puedo",
+  "24h+ out: free · 6–24h: short notice, no penalty · under 6h: late cancel. Never a charge to your pay.": "Con 24 h+: gratis · 6–24 h: poca anticipación, sin penalidad · menos de 6 h: cancelación tardía. Nunca hay cargo a su pago.",
 };

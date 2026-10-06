@@ -9,6 +9,10 @@
  * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
  *           needed-by date) and their budget.
  * UPDATED : 2026-10-02_2239 UTC — completion email invites a Google review (when NEXT_PUBLIC_GOOGLE_REVIEW_URL is set).
+ * UPDATED : 2026-10-06_2010 UTC — job location from the exact street address (geocodeAddress), ZIP centroid as fallback.
+ * UPDATED : 2026-10-06_1950 UTC — coverage: accepted jobs line up backups #1–#3; a backup who takes the job is promoted
+ *           (customer gets "your new pro is confirmed"); passed / lapsed backup calls go to the next backup; done jobs
+ *           free their backups.
  * UPDATED : 2026-10-03_0041 UTC — each booking records the contracts accepted (frozen copy) for My contracts.
  * UPDATED : 2026-10-03_0148 UTC — market pricing: name-your-price at booking, raises / accepted counters
  *           (offer_raise payments), price signals on every offer outcome.
@@ -39,7 +43,7 @@ import { isPhotoPath, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LAB
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
-import { zipCentroid } from "./geo";
+import { geocodeAddress } from "./geo";
 import { aiRankCandidates } from "./ai/dispatch";
 import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
@@ -144,7 +148,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market });
   const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
-  const loc = await zipCentroid(input.zip);
+  const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
   let instructions: string | null = null;
   if (svc.slug === "junk-container" && input.scheduled_date) {
@@ -398,7 +402,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
 
   // where: job location for distance to each pro's base (ZIP centroid, cached)
   if (job.lat == null) {
-    const loc = await zipCentroid(job.zip);
+    const g = await geocodeAddress({ address: job.address, city: job.city, state: job.state, zip: job.zip });
+    const loc = g ? { lat: g.lat, lng: g.lng } : null;
     if (loc) { job.lat = loc.lat; job.lng = loc.lng; await db().from("jobs").update(loc).eq("id", job.id); }
   }
   // quality: first-time QA pass rate and redo rate from each pro's scorecard
@@ -522,13 +527,16 @@ async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: s
  */
 export async function redispatchExpired() {
   const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id, contractor_id, kind");
+  // a backup who didn't answer their call in time: call the next backup (not the whole market)
+  const backupLapsed = (expired ?? []).filter((o: { kind: string }) => o.kind === "backup") as { job_id: string; contractor_id: string }[];
+  for (const o of backupLapsed) await (await import("./coverage")).backupPassed(o.job_id, o.contractor_id).catch((e) => console.error("[backups]", e));
   // nobody took it at this price → a market signal (per job, not per pro); a lapsed board claim isn't one
   const { recordSignal } = await import("./market");
-  for (const jobId of new Set((expired ?? []).filter((o: { kind: string }) => o.kind !== "board").map((o: { job_id: string }) => o.job_id))) {
+  for (const jobId of new Set((expired ?? []).filter((o: { kind: string }) => o.kind !== "board" && o.kind !== "backup").map((o: { job_id: string }) => o.job_id))) {
     const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price, contractor_id").eq("id", jobId).single();
     if (sj && !sj.contractor_id) await recordSignal(sj as Job, "expired");
   }
-  const jobIds = [...new Set((expired ?? []).filter((o: { kind: string }) => o.kind !== "board").map((o: { job_id: string }) => o.job_id))];
+  const jobIds = [...new Set((expired ?? []).filter((o: { kind: string }) => o.kind !== "board" && o.kind !== "backup").map((o: { job_id: string }) => o.job_id))];
   let redispatched = 0;
   for (const jobId of jobIds) {
     const { data: job } = await db().from("jobs").select("id, contractor_id, status").eq("id", jobId).single();
@@ -568,6 +576,11 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     if (sj) await (await import("./market")).recordSignal(sj as Job, "accepted", contractorId); }
   await db().from("job_offers").update({ status: "taken" }).eq("job_id", offer.job_id).eq("status", "offered");
   await (await import("./checklists")).freezeChecklist(won as Job).catch((e) => console.error("[checklist]", e));
+  // coverage: a backup who took it is promoted; either way, line up backups #1–#3 behind whoever has it now
+  { const cov = await import("./coverage");
+    if (offer.kind === "backup") await cov.backupPromoted(offer.job_id, contractorId).catch((e) => console.error("[backups]", e));
+    else await cov.lineUpBackups(offer.job_id).catch((e) => console.error("[backups]", e)); }
+  const changed = Number((won as Job & { handoffs?: number }).handoffs ?? 0) > 0;
   const { data: pro } = await db().from("contractors").select("business_name, contact_name, email, profile_id, rating").eq("id", contractorId).single();
   const job = won as Job;
   const svc = getService(job.service_slug);
@@ -579,11 +592,11 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   await addEvent(job.id, "terms", `Pro accepted work order v${WORK_ORDER_VERSION}`, "pro", false);
   // customer: your job is covered
   await notify(job.customer_id, {
-    title: "Your job is covered ✓",
-    body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) will handle your ${svc?.name} — ${when}.`,
+    title: changed ? "Your new pro is confirmed ✓" : "Your job is covered ✓",
+    body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) will handle your ${svc?.name} — ${when}${changed ? " (same time)" : ""}.`,
     data: { type: "job", jobId: job.id },
-    sms: { to: job.contact_phone, body: `${BRAND.name}: you're covered ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) will do your ${svc?.name} — ${when}. ${siteUrl()}/account/jobs/${job.id}` },
-    email: { to: job.contact_email, subject: `Your job is covered — ${job.ref}`, text: `Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
+    sms: { to: job.contact_phone, body: `${BRAND.name}: ${changed ? "your new pro is confirmed" : "you're covered"} ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) will do your ${svc?.name} — ${when}. ${siteUrl()}/account/jobs/${job.id}` },
+    email: { to: job.contact_email, subject: changed ? `Your new pro is confirmed — ${job.ref}` : `Your job is covered — ${job.ref}`, text: `${changed ? "You're all set again — same time as before. " : ""}Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
     locale: job.locale,
     es: {
       title: "Su trabajo está cubierto ✓",
@@ -620,6 +633,7 @@ export async function declineOffer(offerId: string, contractorId: string) {
     .maybeSingle();
   if (!offer) return { ok: false };
   if (offer.kind === "board") return { ok: true }; // passing on a board claim: the job just stays on the board
+  if (offer.kind === "backup") { await (await import("./coverage")).backupPassed(offer.job_id, contractorId); return { ok: true }; }
   { const { data: sj } = await db().from("jobs").select("id, service_slug, zip, price_final, discount, member_benefit, suggested_price").eq("id", offer.job_id).single();
     if (sj) await (await import("./market")).recordSignal(sj as Job, "declined", contractorId); }
   const { count } = await db().from("job_offers").select("id", { count: "exact", head: true }).eq("job_id", offer.job_id).eq("status", "offered");
@@ -698,6 +712,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
     .from("jobs")
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", jobId).eq("status", "qa_review").select("*").maybeSingle();
+  if (data) await (await import("./coverage")).releaseBackups(jobId).catch(() => null);
   const job = data as Job | null;
   if (!job) return;
   // Paid upfront: the customer's money is already collected, so the pro's payout is approved now.

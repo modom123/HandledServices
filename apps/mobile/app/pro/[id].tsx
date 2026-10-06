@@ -6,6 +6,8 @@
  * UPDATED : 2026-10-02_1329 UTC — On my way button (customer gets a live ETA link).
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
+ * UPDATED : 2026-10-06_1950 UTC — hand-back shows what this cancel means now (24h+ free · 6–24h short notice · under 6h late);
+ *           backups are called right away.
  * UPDATED : 2026-10-03_1337 UTC — crew accounts: pick who's doing the job.
  * UPDATED : 2026-10-04_2204 UTC — the customer's crew member request (★ on that person; the owner decides) and "asked for you".
  * UPDATED : 2026-10-05_0221 UTC — the job checklist: tap items as they're done, hold for N/A with the reason.
@@ -17,7 +19,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { getService, localDate, money, questionVisible, scopeChange, type Job } from "@handled/core";
+import { cancelNotice, cancelTier, getService, hoursUntilWindow, localDate, money, questionVisible, scopeChange, type Job } from "@handled/core";
+
+/** What handing this job back means right now (falls back to device time if time-zone data is missing). */
+function cancelNoticeFor(job: Job, locale: string) {
+  let hours: number;
+  try { hours = hoursUntilWindow(job); } catch { hours = job.scheduled_date ? (new Date(`${job.scheduled_date}T08:00:00`).getTime() - Date.now()) / 3600000 : Infinity; }
+  return cancelNotice(cancelTier(hours), locale === "es" ? "es" : "en");
+}
 import { api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 import { useI18n } from "../../lib/i18n";
@@ -224,7 +233,8 @@ export default function ProJob() {
       {job.status === "assigned" && (release === null
         ? <Button title={t("Can't make it? Hand this job back")} kind="ghost" onPress={() => setRelease("")} style={{ marginTop: 12 }} />
         : <Card style={{ marginTop: 12 }}>
-            <Text style={s.p}>{t("The job goes back out right away. Inside 24 hours of the arrival window it counts as a late cancel.")}</Text>
+            <Text style={s.p}>{cancelNoticeFor(job, locale)}</Text>
+            <Text style={[s.p, { fontSize: 14, marginTop: 4 }]}>{t("24h+ out: free · 6–24h: short notice, no penalty · under 6h: late cancel. Never a charge to your pay.")}</Text>
             <TextInput style={[s.input, { marginTop: 8 }]} placeholder={t("Reason (only we see it)")} value={release} onChangeText={setRelease} />
             <Button title={t("Hand it back")} kind="ghost" disabled={release.trim().length < 3} busy={busy} onPress={() => post({ action: "release", reason: release })} style={{ marginTop: 8 }} />
           </Card>)}

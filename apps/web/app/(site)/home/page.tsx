@@ -14,12 +14,13 @@
  * UPDATED : 2026-10-06_0606 UTC — cleaning push (MARKETING_FOCUS): the hero leads with home & office cleaning in Metro
  *           Detroit (standard, deep, move-out, recurring, carpets, windows), then a "cleaners in your city" row
  *           linking each city's house-cleaning page. Every other category stays below.
+ * UPDATED : 2026-10-06_2010 UTC — removed the list of Michigan cities (customers give their address when booking).
  * UPDATED : 2026-10-06_0841 UTC — national brand: the hero no longer says the site is Detroit-only ("Home & office cleaning.
  *           Handled."); the badge says we're launching in Metro Detroit and expanding nationwide; the city row reads
  *           "Cleaners in your city" with a link for cities we don't cover yet. Sales and marketing still start in Detroit.
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SEO_CITIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
+import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 
 const STEPS = [
@@ -96,16 +97,6 @@ export default async function Home() {
         <div className="wrap grid grid-cols-2 gap-3 py-5 text-sm font-medium md:grid-cols-4">
           {TRUST.map((t) => <div key={t} className="flex items-center gap-2"><span className="text-brand">✓</span>{t}</div>)}
         </div>
-      </section>
-
-      {/* cleaners in your city — each links to that city's house-cleaning page */}
-      <section className="wrap pt-14">
-        <h2 className="text-2xl font-bold tracking-tight">{t("Cleaners in your city")}</h2>
-        <p className="mt-2 text-sm text-ink-soft">{t("Pick your city to see house cleaning near you.")}</p>
-        <div className="mt-5 flex flex-wrap gap-2 text-sm">
-          {SEO_CITIES.map((c) => <Link key={c.slug} href={`/services/house-cleaning/in/${c.slug}`} className="rounded-full border border-line bg-white px-3 py-1 hover:border-brand hover:text-brand">{c.name}</Link>)}
-        </div>
-        <p className="mt-3 text-sm text-ink-soft">{t("Don’t see your city? We’re adding new cities all the time.")} <Link href="/book?service=house-cleaning" className="font-semibold text-brand underline">{t("Check your ZIP")}</Link></p>
       </section>
 
       {/* browse by category */}

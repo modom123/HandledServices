@@ -6,10 +6,11 @@
  *           /services/<slug>/in/<city>: what's included, how pricing works, the questions we ask,
  *           real customer reviews, nearby cities, and search-engine markup (Service + rating).
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-10-06_2010 UTC — no list of Michigan cities; a national service area (city pages still work for Google).
  * UPDATED : 2026-10-05_0419 UTC — no dollar figures on service pages: "exact and upfront, in about a minute" (every job is priced on its details).
  */
 import Link from "next/link";
-import { BRAND, SEO_CITIES, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
+import { BRAND, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
 import type { PublicReview } from "@/lib/reviews";
 import { siteUrl } from "@/lib/notify";
 
@@ -21,7 +22,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
   const ld = {
     "@context": "https://schema.org", "@type": "Service", name: `${s.name}${where}`, description: s.description, serviceType: s.name,
     provider: { "@type": "LocalBusiness", name: BRAND.name, telephone: BRAND.supportPhone, url: siteUrl(), ...(city ? { address: { "@type": "PostalAddress", addressLocality: city.name, addressRegion: city.state, postalCode: city.zip, addressCountry: "US" } } : {}) },
-    areaServed: city ? { "@type": "City", name: `${city.name}, ${city.state}` } : SEO_CITIES.map((c) => `${c.name}, ${c.state}`),
+    areaServed: city ? { "@type": "City", name: `${city.name}, ${city.state}` } : { "@type": "Country", name: "United States" },
     ...(reviews.count >= 3 && reviews.average ? { aggregateRating: { "@type": "AggregateRating", ratingValue: reviews.average, reviewCount: reviews.count, bestRating: 5 } } : {}),
   };
   return (
@@ -52,10 +53,6 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
             <Link href="/reviews" className="mt-3 inline-block text-sm font-semibold text-brand">All reviews →</Link>
           </>
         )}
-        <h2 className="mt-10 font-bold">{s.name} near you</h2>
-        <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          {SEO_CITIES.filter((c) => c.slug !== city?.slug).map((c) => <Link key={c.slug} href={`/services/${s.slug}/in/${c.slug}`} className="rounded-full border border-line bg-white px-3 py-1 hover:border-brand">{c.name}</Link>)}
-        </div>
       </div>
       <aside className="card h-fit md:sticky md:top-24">
         <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Your price{where}</div>

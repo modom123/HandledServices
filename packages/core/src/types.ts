@@ -189,6 +189,10 @@ export interface Contractor {
   /** Coverage key → verified expiry date (YYYY-MM-DD), or "exempt" (workers' comp, no employees). */
   coverage?: Record<string, string> | null;
   // where and when the pro works (dispatch + booking calendar)
+  /** Place of business (dispatch measures distance from here). */
+  base_address?: string | null;
+  base_city?: string | null;
+  base_state?: string | null;
   base_zip?: string | null;
   base_lat?: number | null;
   base_lng?: number | null;
