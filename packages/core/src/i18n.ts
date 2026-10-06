@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-05_1433 UTC — Spanish for the Security category and Security Guards & Patrol.
  * UPDATED : 2026-10-06_0526 UTC — Spanish for Dead Animal Removal.
  * UPDATED : 2026-10-06_0606 UTC — Spanish for the cleaning-first home page.
+ * UPDATED : 2026-10-06_0637 UTC — Spanish names for the six new services.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -335,6 +336,12 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "dog-walking": ["Paseo de perros", "El mismo paseador en cada paseo, con fotos y GPS."],
   "dog-sitting": ["Cuidado de perros y mascotas", "Visitas, cuidado de día o estadías nocturnas en su casa."],
   "pet-waste-removal": ["Limpieza de desechos de perro", "Un patio limpio cada semana. Portón cerrado, garantizado."],
+  "small-engine-repair": ["Reparación de motores pequeños", "Cortadoras, quitanieves, generadores y más, reparados en su casa o en el taller."],
+  "dock-door-service": ["Servicio de puertas de muelle y seccionales", "Inspecciones, mantenimiento y reparaciones de puertas de muelle, niveladores y puertas seccionales."],
+  "fire-extinguisher-inspection": ["Inspección y servicio de extintores", "Inspecciones anuales, etiquetas, recargas y extintores nuevos, en el lugar."],
+  "foundation-repair": ["Reparación de cimientos", "Grietas, paredes combadas y hundimientos, reparados por un contratista con licencia."],
+  "waste-oil-collection": ["Recolección de aceite usado", "Aceite de motor usado, filtros y anticongelante recogidos por un transportista con licencia."],
+  "urgent-ride": ["Viaje urgente (no médico)", "¿Varado o necesita ir ya? Un conductor con licencia en camino. ¿Emergencia médica? Llame al 911."],
   "dead-animal-removal": ["Retiro de animales muertos", "Se retira hoy: embolsado, retirado y desechado correctamente. Tratamiento de olores disponible."],
   "junk-removal": ["Retiro de basura", "Precio según la cantidad; nosotros cargamos todo. Donamos y reciclamos primero."],
   "large-item-removal": ["Retiro de objetos grandes", "Precio según cuántos y cuánto pesan: de sofás a pianos."],

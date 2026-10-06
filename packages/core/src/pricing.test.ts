@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
  * UPDATED : 2026-10-06_0526 UTC — dead animal removal: size, location, extra animals, add-ons, wildlife trade.
  * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
+ * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  */
 
@@ -131,7 +132,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "medical_courier", "painting", "plumbing", "remodel", "security", "transportation"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "fire_safety", "food_truck", "foundation", "hvac", "medical_courier", "painting", "plumbing", "remodel", "security", "transportation", "waste_oil"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
@@ -1287,4 +1288,21 @@ test("dead animal removal: priced by size and location, extra animals at 35%, ad
   assert.deepEqual(under.items.map((i) => i.amount), [299, 90]);
   const sv = getService("dead-animal-removal")!;
   assert.ok(sv.category === "removal" && sv.trades.includes("wildlife") && !sv.licensed && sv.frequencies.join() === "once");
+});
+
+test("new services: small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride", () => {
+  const p = (slug: string, a: Answers) => getService(slug)!.price(a).items.map((i) => i.amount);
+  assert.deepEqual(p("small-engine-repair", { equipment: "riding", service: "repair", machines: 1, pickup: true }), [159 + 50, 89]);
+  assert.deepEqual(p("dock-door-service", { service: "inspection", kind: "dock", doors: 4 }), [95, 4 * 75]);
+  assert.deepEqual(p("dock-door-service", { service: "repair", kind: "overhead", doors: 2, after_hours: true }), [95, 2 * 145, 150]);
+  assert.deepEqual(p("fire-extinguisher-inspection", { units: 10, recharge: 2, hydro: 0, new_units: 1 }), [59, 120, 70, 79]);
+  assert.deepEqual(p("foundation-repair", { cracks: 1, walls: 1, piers: 0, drain_ft: 0 }), [550, 4000]);
+  assert.deepEqual(p("waste-oil-collection", { gallons: 255, container: "drums", filter_drums: 1, antifreeze: 0 }), [95, 70, 95]);
+  assert.deepEqual(p("urgent-ride", { vehicle: "sedan", miles: 10, passengers: 1, wait_return: true }), [35, 55, 30]);
+  // urgent rides are already priced on demand: no within-48h surcharge on top
+  assert.ok(!estimate({ slug: "urgent-ride", answers: { miles: 10 }, rush: true }).items.some((i) => /48h/.test(i.label)));
+  assert.ok(estimate({ slug: "small-engine-repair", answers: {}, rush: true }).items.some((i) => /48h/.test(i.label)));
+  assert.ok(getService("foundation-repair")!.siteVisit && getService("foundation-repair")!.licensed);
+  assert.ok(["fire-extinguisher-inspection", "waste-oil-collection", "urgent-ride"].every((x) => getService(x)!.licensed));
+  assert.match(getService("urgent-ride")!.description, /call 911/i);
 });

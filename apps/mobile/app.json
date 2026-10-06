@@ -3,7 +3,7 @@
     "name": "Handled",
     "slug": "handled",
     "scheme": "handled",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
@@ -51,7 +51,7 @@
       "eas": {
         "projectId": "run `eas init` to fill this in"
       },
-      "updatedAt": "2026-10-02_1405 UTC — v0.3.0: English / Spanish everywhere (switch on Home and Account), reschedule in the app, Account screen, tips, live ETA"
+      "updatedAt": "2026-10-06_0645 UTC — v0.4.0: tab bar (Home, Bookings, Pro, Account), search, cleaning-first home, sticky price & Pay bar, remembered details, in-app payment, offline-safe networking, crash screen, faster sign-in"
     },
     "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices — and run your jobs if you're a Handled pro."
   }

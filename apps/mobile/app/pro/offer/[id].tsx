@@ -7,6 +7,7 @@
  * PURPOSE : Uber-style incoming job: big payout, countdown, the work order (area only until
  *           accepted), job terms, "I agree" and one-tap Accept / Pass. First to accept wins.
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (special instructions first) on the work order.
+ * UPDATED : 2026-10-06_0645 UTC — a failed load shows the reason with Try again and Back (it used to sit on "Loading offer…" forever).
  */
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -14,7 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { money, type WorkOrder } from "@handled/core";
 import { api } from "../../../lib/supabase";
 import { ChecklistList } from "../../../components/Checklist";
-import { Button, C, Card, s } from "../../../components/ui";
+import { Button, C, Card, ErrorState, Loading, s } from "../../../components/ui";
 import { useI18n } from "../../../lib/i18n";
 
 type OfferResp = { offer: { id: string; status: string; payout: number; expires_at: string; job_id: string }; workOrder: WorkOrder; error?: string };
@@ -32,9 +33,12 @@ export default function OfferScreen() {
   const [want, setWant] = useState("");
   const [why, setWhy] = useState("");
   const [countered, setCountered] = useState<number | null>(null);
-  useEffect(() => { api<OfferResp>(`/api/pro/offers/${id}`).then((r) => { if (!r.ok) return Alert.alert(t("Offer unavailable"), r.data.error ?? ""); setData(r.data); setWant(String(Math.round(Number(r.data.offer.payout) * 1.15) || "")); }); }, [id]);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const loadOffer = () => { setLoadErr(null); api<OfferResp>(`/api/pro/offers/${id}`).then((r) => { if (!r.ok || !r.data?.offer) return setLoadErr(r.data.error ?? "This offer is no longer available."); setData(r.data); setWant(String(Math.round(Number(r.data.offer.payout) * 1.15) || "")); }); };
+  useEffect(loadOffer, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
-  if (!data) return <View style={[s.screen, s.pad]}><Text style={s.p}>{t("Loading offer…")}</Text></View>;
+  if (!data && loadErr) return <View style={[s.screen, s.pad]}><ErrorState message={loadErr} onRetry={loadOffer} /><Button title={t("Back")} kind="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace("/work"))} /></View>;
+  if (!data) return <Loading label={t("Loading offer…")} />;
   const { offer, workOrder: w } = data;
   const secs = Math.max(0, Math.floor((new Date(offer.expires_at).getTime() - now) / 1000));
   const live = offer.status === "offered" && secs > 0;

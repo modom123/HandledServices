@@ -17,6 +17,7 @@
  *           (apps/web/lib/ai/quote.ts) may adjust inside guardrails but never below the
  *           service minimum or outside ±40% of this baseline.
  * UPDATED : 2026-10-05_0419 UTC — lists show "Instant upfront price" instead of a dollar figure (every job is priced on its own details).
+ * UPDATED : 2026-10-06_0637 UTC — no rush surcharge on on-demand services (urgent rides are already priced for it).
  */
 
 import { defaultAnswers, getService, type Answers, type LineItem } from "./services.ts";
@@ -153,7 +154,7 @@ export function estimate(input: EstimateInput): Estimate {
     lines.push({ label: `${freq} plan discount`, amount: -d });
     point -= d;
   }
-  if (input.rush && !service.siteVisit) {
+  if (input.rush && !service.siteVisit && !service.onDemand) {
     const r = Math.round(point * RUSH_SURCHARGE);
     lines.push({ label: "Within-48h priority", amount: r });
     point += r;
