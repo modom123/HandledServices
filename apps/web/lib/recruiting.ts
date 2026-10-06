@@ -46,12 +46,8 @@ export async function logRecruiting(kind: string, ids: { applicationId?: string 
  * page when the auth admin API isn't available.
  */
 export async function signInUrl(email: string, next = "/pro/onboarding"): Promise<string> {
-  try {
-    const { data, error } = await db().auth.admin.generateLink({ type: "magiclink", email });
-    const hash = data?.properties?.hashed_token;
-    if (!error && hash) return `${siteUrl()}/auth/callback?token_hash=${encodeURIComponent(hash)}&type=magiclink&next=${encodeURIComponent(next)}`;
-  } catch { /* fall through */ }
-  return `${siteUrl()}/login?next=${encodeURIComponent(next)}&email=${encodeURIComponent(email)}`;
+  // works in any browser, creates the account if it's new, and survives email link scanners (lib/signin)
+  return (await import("./signin")).signInLink(email, next);
 }
 
 // ─── Spanish for pros and applicants ─────────────────────────────────────────

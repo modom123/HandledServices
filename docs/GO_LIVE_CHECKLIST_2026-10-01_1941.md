@@ -6,6 +6,9 @@
             Handled Hub, the IEBC MasterHub connection and the mobile apps. Work top to
             bottom; Hub → Go-live setup turns each item green as you finish it.
   UPDATED : 2026-10-04_1934 UTC — 51 services (small moves, large-item delivery, staging moves, unit turnover added).
+  UPDATED : 2026-10-06_2315 UTC — sign-in: Handled sends the code email itself (needs the service_role key + Resend or the
+            company mailbox); redirect URLs add /auth/confirm; both Supabase templates (Magic Link AND Confirm signup) carry
+            the code for the fallback path.
   UPDATED : 2026-10-06_0505 UTC — 53 services (event security, security guards & patrol added).
   UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch cron moved to GitHub Actions (works on Vercel Hobby).
   UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
@@ -43,9 +46,13 @@
 3. **Do NOT run** `supabase/demo_data.sql` on this project; it's fake people for testing only.
 4. **Authentication → URL Configuration**
    - Site URL: `https://YOUR-DOMAIN`
-   - Redirect URLs: `https://YOUR-DOMAIN/auth/callback` and `handled://`
-5. **Authentication → Emails → Templates → Magic Link**: add the 6-digit code so the mobile app can sign in:
-   `<p>Your Handled sign-in code: <b>{{ .Token }}</b></p><p>Or click: <a href="{{ .ConfirmationURL }}">Sign in</a></p>`
+   - Redirect URLs: `https://YOUR-DOMAIN/auth/callback`, `https://YOUR-DOMAIN/auth/confirm` and `handled://`
+5. **Sign-in emails.** Handled sends the sign-in email itself (code + a link that works on any phone or browser) as soon as
+   `SUPABASE_SERVICE_ROLE_KEY` and an email sender (`RESEND_API_KEY`, or `SMTP_USER` + `SMTP_PASSWORD`) are set in Vercel.
+   Supabase's own email is only the backup. For that backup, put the code in **both** templates under
+   **Authentication → Emails → Templates**: **Magic Link** (returning users) **and Confirm signup** (first-time users):
+   `<p>Your Handled sign-in code: <b>{{ .Token }}</b></p><p>Or open: <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Sign in</a></p>`
+   (for Confirm signup use `type=email` too). Leave **Email OTP length** at 6.
 6. **Authentication → Emails → SMTP Settings**: turn on custom SMTP with your Resend SMTP details (step 4). Supabase's built-in sender only allows a few emails per hour.
 7. **Project Settings → API**: copy the **Project URL**, the **anon/publishable key** and the **service_role key** for step 2.
 

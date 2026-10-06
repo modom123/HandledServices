@@ -10,6 +10,8 @@
  *           (iOS one-time code / Android SMS-OTP hint) and signs in the moment 6 digits are entered, a resend timer,
  *           "Use a different email", the keyboard never covers the button, and pros land on the Pro tab.
  * UPDATED : 2026-10-06_0708 UTC — haptics on sign-in success / failure.
+ * UPDATED : 2026-10-06_2310 UTC — the code email comes from Handled (POST /api/auth/email-code: always has the code, its link works
+ *           on any device); Supabase's own email is only the fallback. Code length comes from the server (6–10 digits).
  */
 import { useEffect, useRef, useState } from "react";
 import { Alert, Linking, Pressable, Text, TextInput, View } from "react-native";
@@ -33,6 +35,7 @@ export default function Login() {
   const [who, setWho] = useState<"customer" | "pro">("customer");
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(0);
+  const [len, setLen] = useState(6); // digits in the code (the server says; Supabase projects send 6–10)
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const codeRef = useRef<TextInput>(null);
   useEffect(() => { if (!wait) return; const iv = setTimeout(() => setWait((w) => Math.max(0, w - 1)), 1000); return () => clearTimeout(iv); }, [wait]);
@@ -41,7 +44,15 @@ export default function Login() {
     if (!emailOk(email)) return setEmailErr(t("Enter a valid email"));
     setEmailErr(null);
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase() }).catch((e) => ({ error: e as Error }));
+    const addr = email.trim().toLowerCase();
+    // Handled emails the code (and a link that works on any device); Supabase's own email is the fallback
+    const viaHandled = await fetch(`${API_URL}/api/auth/email-code`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: addr, next: who === "pro" ? "/pro" : "/account" }) })
+      .then(async (r) => ({ status: r.status, body: (await r.json().catch(() => ({}))) as { ok?: boolean; codeLength?: number; fallback?: boolean; error?: string } }))
+      .catch(() => null);
+    if (viaHandled?.status === 429) { setBusy(false); return Alert.alert(t("Couldn't send the code"), t(friendly("too many"))); }
+    let error: Error | null = null;
+    if (viaHandled?.body.ok) setLen(Number(viaHandled.body.codeLength) || 6);
+    else ({ error } = await supabase.auth.signInWithOtp({ email: addr }).catch((e) => ({ error: e as Error })));
     setBusy(false);
     if (error) return Alert.alert(t("Couldn't send the code"), t(friendly(error.message)));
     setSent(true);
@@ -51,7 +62,7 @@ export default function Login() {
   }
 
   async function verify(token = code) {
-    if (token.length !== 6 || busy) return;
+    if (token.length < len || busy) return;
     setBusy(true);
     const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: "email" }).catch((e) => ({ error: e as Error }));
     if (error) { haptic("error"); setBusy(false); setCode(""); return Alert.alert(t("Couldn't sign in"), t(friendly(error.message))); }
@@ -86,21 +97,21 @@ export default function Login() {
         </>
       ) : (
         <>
-          <Text style={[s.p, { color: C.ink }]}>{t("We sent a 6-digit code to")} <Text style={{ fontWeight: "800" }}>{email.trim()}</Text></Text>
+          <Text style={[s.p, { color: C.ink }]}>{t("We sent a sign-in code to")} <Text style={{ fontWeight: "800" }}>{email.trim()}</Text></Text>
           <TextInput
             ref={codeRef}
             value={code}
-            onChangeText={(v) => { const d = v.replace(/\D/g, "").slice(0, 6); setCode(d); if (d.length === 6) verify(d); }}
+            onChangeText={(v) => { const d = v.replace(/\D/g, "").slice(0, len); setCode(d); if (d.length === len) verify(d); }}
             keyboardType="number-pad"
             textContentType="oneTimeCode"
             autoComplete="one-time-code"
-            maxLength={6}
-            accessibilityLabel={t("6-digit code")}
+            maxLength={len}
+            accessibilityLabel={t("Sign-in code")}
             placeholder="••••••"
             placeholderTextColor={C.line}
             style={[s.input, { fontSize: 30, letterSpacing: 12, textAlign: "center", marginTop: 14, fontWeight: "800" }]}
           />
-          <Button title={t("Verify")} onPress={() => verify()} busy={busy} disabled={code.length !== 6} style={{ marginTop: 12 }} />
+          <Button title={t("Verify")} onPress={() => verify()} busy={busy} disabled={code.length !== len} style={{ marginTop: 12 }} />
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 16 }}>
             <Pressable onPress={() => { setSent(false); setCode(""); }} hitSlop={10} accessibilityRole="button"><Text style={{ color: C.brand, fontWeight: "700" }}>{t("Use a different email")}</Text></Pressable>
             <Pressable onPress={wait ? undefined : send} disabled={Boolean(wait) || busy} hitSlop={10} accessibilityRole="button"><Text style={{ color: wait ? C.soft : C.brand, fontWeight: "700" }}>{wait ? `${t("Resend in")} ${wait}s` : t("Resend code")}</Text></Pressable>

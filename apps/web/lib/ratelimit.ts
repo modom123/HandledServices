@@ -7,6 +7,7 @@
  *           Fails open if the database is unreachable — a broken limiter must not block customers.
  * UPDATED : 2026-10-05_0246 UTC — interview: candidate messages to the AI interviewer.
  * UPDATED : 2026-10-06_0708 UTC — pay: in-app payment sheets (Apple Pay / Google Pay).
+ * UPDATED : 2026-10-06_2300 UTC — signin: sign-in code emails.
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -23,6 +24,7 @@ export const LIMITS = {
   tip: [20, 3600],
   pay: [30, 3600],
   error_report: [30, 600],
+  signin: [10, 3600],        // sign-in emails per IP (and per email address)
 } as const satisfies Record<string, readonly [number, number]>;
 
 export function clientIp(req: Request): string {

@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-03_0210 UTC — lead engine keys; migrations 24–25 (market pricing, pro lead engine).
  * UPDATED : 2026-10-03_0324 UTC — lead engine sends through Instantly.
  * UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch runs on GitHub Actions; check passes with DISPATCH_CRON=github or VERCEL_PLAN=pro.
+ * UPDATED : 2026-10-06_2315 UTC — Sign-in emails check (Handled sends its own code email when it can).
  * UPDATED : 2026-10-06_2230 UTC — Accounting (Xero): app keys, connection, checking account mapped; migration 52 (Xero accounting).
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
@@ -60,6 +61,8 @@ export async function readiness(): Promise<Check[]> {
   add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : has("SMTP_USER") && has("SMTP_PASSWORD") ? "not set — booking emails go from the company mailbox instead" : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend (or connect the company mailbox below)");
   add("Access", "Owner admin (OWNER_EMAILS)", has("OWNER_EMAILS") ? true : "warn", has("OWNER_EMAILS") ? "set" : "not set — make yourself admin by adding your email", "In Vercel set OWNER_EMAILS=you@handledsvc.com (comma-separated for more), sign in once and you're an admin; add other staff in Hub → Team");
   add("Email", "Company mailbox (Email Center)", has("SMTP_USER") && has("SMTP_PASSWORD") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("SMTP_USER") || !has("SMTP_PASSWORD") ? "not connected — no marketing email or inbox" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required on marketing email)" : `connected: ${process.env.SMTP_USER}`, "In Vercel set SMTP_USER=info@handledsvc.com and SMTP_PASSWORD (the Hostinger mailbox password), then Hub → Email Center → Check mailbox & domain (SPF, DKIM, DMARC)");
+  const signinMail = has("SUPABASE_SERVICE_ROLE_KEY") && (has("RESEND_API_KEY") || (has("SMTP_USER") && has("SMTP_PASSWORD")));
+  add("Email", "Sign-in emails", signinMail ? true : "warn", signinMail ? "Handled sends the code + a link that works on any device" : "falling back to Supabase's email — links only work in the same browser, and the code shows only if the templates include it", "Set SUPABASE_SERVICE_ROLE_KEY and RESEND_API_KEY (or SMTP_USER + SMTP_PASSWORD) in Vercel; add https://YOUR-DOMAIN/auth/confirm to Supabase → Authentication → URL Configuration → Redirect URLs");
   add("Email", "Ops inbox", has("OPS_EMAIL") ? true : "warn", process.env.OPS_EMAIL ?? "missing", "Add OPS_EMAIL — receives critical alerts, new pro applications and the daily brief");
   add("Text messages", "Twilio SMS", has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && (has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM")) ? true : "warn",
     has("TWILIO_ACCOUNT_SID") ? "set" : "missing — customers and pros get push + email only", "Twilio → buy a number, register A2P 10DLC for business texting, then set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM)");

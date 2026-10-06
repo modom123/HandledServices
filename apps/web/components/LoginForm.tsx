@@ -8,6 +8,10 @@
  *           are sent to apply) and team access is added by an admin (Hub → Team) — the choice only picks where you land,
  *           it never grants access. The last choice is remembered on this device. English / Spanish.
  * UPDATED : 2026-10-06_2100 UTC — sign-in never crashes on a Supabase failure; common errors explained in plain words.
+ * UPDATED : 2026-10-06_2305 UTC — Handled sends the sign-in email itself (/api/auth/email-code → lib/signin): it always has the code,
+ *           and its link works in any browser or phone. Supabase's own email is only the fallback. The code box takes 6–10
+ *           digits (whatever the project sends), ignores spaces and dashes, fills from the keyboard's one-time-code
+ *           suggestion; "Send a new code" (after 30s) and "Use a different email".
  */
 "use client";
 
@@ -37,27 +41,42 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [wait, setWait] = useState(0);
+  const [len, setLen] = useState(6); // digits in the code (the server says; Supabase projects send 6–10)
+  useEffect(() => { if (!wait) return; const t = setTimeout(() => setWait((w) => Math.max(0, w - 1)), 1000); return () => clearTimeout(t); }, [wait]);
   const [msg, setMsg] = useState(expired ? (es ? "Ese enlace venció o ya se usó: escriba su correo para recibir un código nuevo." : "That sign-in link expired or was already used — enter your email for a fresh code.") : "");
   useEffect(() => { try { const w = localStorage.getItem(KEY) as Who | null; if (w && w in DEST && !explicit) setWho(w); } catch { /* private mode */ } }, [explicit]);
   const dest = explicit ? next : who ? DEST[who] : "/auth/home";
 
-  async function sendLink(e: React.FormEvent) {
-    e.preventDefault();
+  async function sendLink(e?: React.FormEvent) {
+    e?.preventDefault();
     try { if (who) localStorage.setItem(KEY, who); } catch { /* private mode */ }
+    setBusy(true); setMsg("");
     try {
-      const { error } = await browserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
-      if (error) return setMsg(friendly(error.message, es));
-    } catch (err) { return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
+      // Handled's own email: code + a link that works on any device
+      const r = await fetch("/api/auth/email-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, next: dest, lang: es ? "es" : "en" }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 429 || r.status === 400) { setBusy(false); return setMsg(String(j.error ?? (es ? "Intente de nuevo." : "Try again."))); }
+      if (r.ok && j.codeLength) setLen(Number(j.codeLength));
+      if (!r.ok || j.fallback) {
+        const { error } = await browserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
+        if (error) { setBusy(false); return setMsg(friendly(error.message, es)); }
+      }
+    } catch (err) { setBusy(false); return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
+    setBusy(false);
     setSent(true);
-    setMsg("");
+    setCode("");
+    setWait(30);
   }
 
   async function verify(e: React.FormEvent) {
     e.preventDefault();
+    setBusy(true); setMsg("");
     try {
-      const { error } = await browserClient().auth.verifyOtp({ email, token: code, type: "email" });
-      if (error) return setMsg(friendly(error.message, es));
-    } catch (err) { return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
+      const { error } = await browserClient().auth.verifyOtp({ email: email.trim().toLowerCase(), token: code, type: "email" });
+      if (error) { setBusy(false); return setMsg(friendly(error.message, es)); }
+    } catch (err) { setBusy(false); return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
     window.location.href = `/auth/callback?next=${encodeURIComponent(dest)}`;
   }
 
@@ -71,7 +90,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
   return (
     <div className="card mx-auto max-w-md">
       <h1 className="text-xl font-bold">{es ? "Inicie sesión o cree su cuenta" : "Sign in or create your account"}</h1>
-      <p className="mt-1 text-sm text-ink-soft">{es ? "Sin contraseña: le enviamos un enlace o un código a su correo." : "No password — we email you a link or a code."}</p>
+      <p className="mt-1 text-sm text-ink-soft">{es ? "Sin contraseña: le enviamos un código (y un enlace) a su correo." : "No password — we email you a code (and a one-tap link)."}</p>
       {!explicit && !sent && (
         <div className="mt-5">
           <div className="mb-2 text-sm font-semibold">{es ? "¿Quién es usted?" : "Who are you?"}</div>
@@ -90,14 +109,20 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
       {!sent ? (
         <form onSubmit={sendLink} className="mt-5 space-y-3">
           <input className="input" type="email" required placeholder={es ? "su@correo.com" : "you@email.com"} value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="btn-primary w-full" disabled={!explicit && !who}>{es ? "Enviarme el enlace" : "Email me a sign-in link"}</button>
+          <button className="btn-primary w-full" disabled={busy || (!explicit && !who)}>{busy ? (es ? "Enviando…" : "Sending…") : es ? "Enviarme un código" : "Email me a sign-in code"}</button>
           {!explicit && !who && <p className="text-center text-xs text-ink-soft">{es ? "Elija una opción arriba." : "Pick one above."}</p>}
         </form>
       ) : (
         <form onSubmit={verify} className="mt-5 space-y-3">
-          <p className="text-sm">{es ? <>Revise <b>{email}</b>. Haga clic en el enlace o escriba el código de 6 dígitos:</> : <>Check <b>{email}</b>. Click the link, or enter the 6-digit code:</>}</p>
-          <input className="input tracking-[0.4em]" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value)} />
-          <button className="btn-primary w-full" disabled={code.length < 6}>{es ? "Verificar" : "Verify"}</button>
+          <p className="text-sm">{es ? <>Enviamos un código a <b>{email}</b>. Escríbalo aquí, o toque el enlace del correo (funciona en cualquier teléfono o navegador).</> : <>We sent a code to <b>{email}</b>. Type it here, or tap the link in the email (it works on any phone or browser).</>}</p>
+          <input className="input text-center text-lg tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder={"•".repeat(len)} maxLength={12}
+            value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))} />
+          <button className="btn-primary w-full" disabled={busy || code.length < Math.min(len, 6)}>{busy ? (es ? "Verificando…" : "Checking…") : es ? "Entrar" : "Sign in"}</button>
+          <p className="text-xs text-ink-soft">{es ? "¿No llegó? Revise spam o promociones. Viene de " : "Not there? Check spam or promotions. It comes from "}<b>info@handledsvc.com</b>.</p>
+          <div className="flex flex-wrap justify-between gap-2 text-sm">
+            <button type="button" className="text-brand underline disabled:text-ink-soft disabled:no-underline" disabled={busy || wait > 0} onClick={() => sendLink()}>{wait > 0 ? (es ? `Enviar otro código (${wait}s)` : `Send a new code (${wait}s)`) : es ? "Enviar otro código" : "Send a new code"}</button>
+            <button type="button" className="text-brand underline" onClick={() => { setSent(false); setCode(""); setMsg(""); }}>{es ? "Usar otro correo" : "Use a different email"}</button>
+          </div>
         </form>
       )}
       {msg && <p className="mt-3 text-sm text-rose-700">{msg}</p>}
