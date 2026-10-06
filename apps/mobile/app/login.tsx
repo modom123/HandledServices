@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-06_0645 UTC — effortless sign-in: email checked before sending, spinners while it works, the code autofills
  *           (iOS one-time code / Android SMS-OTP hint) and signs in the moment 6 digits are entered, a resend timer,
  *           "Use a different email", the keyboard never covers the button, and pros land on the Pro tab.
+ * UPDATED : 2026-10-06_0708 UTC — haptics on sign-in success / failure.
  */
 import { useEffect, useRef, useState } from "react";
 import { Alert, Linking, Pressable, Text, TextInput, View } from "react-native";
@@ -17,6 +18,7 @@ import { API_URL, api, supabase } from "../lib/supabase";
 import { Button, C, Chip, Field, Form, s } from "../components/ui";
 import { useI18n } from "../lib/i18n";
 import { useSession } from "../lib/session";
+import { haptic } from "../lib/haptics";
 
 const RESEND_SECONDS = 30;
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
@@ -52,7 +54,8 @@ export default function Login() {
     if (token.length !== 6 || busy) return;
     setBusy(true);
     const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: "email" }).catch((e) => ({ error: e as Error }));
-    if (error) { setBusy(false); setCode(""); return Alert.alert(t("Couldn't sign in"), t(friendly(error.message))); }
+    if (error) { haptic("error"); setBusy(false); setCode(""); return Alert.alert(t("Couldn't sign in"), t(friendly(error.message))); }
+    haptic("success");
     await session.refresh();
     const r = await api<{ user: { contractorId: string | null } | null }>("/api/me");
     setBusy(false);

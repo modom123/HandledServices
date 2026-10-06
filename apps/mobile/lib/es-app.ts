@@ -9,6 +9,7 @@
  * PURPOSE : Spanish for the customer screens of the app (home, booking, my bookings, job,
  *           account, sign-in, chat). Shared words live in @handled/core i18n.ts.
  * UPDATED : 2026-10-06_0645 UTC — tab bar, new Home, Bookings, sign-in, booking checks, offline and crash messages.
+ * UPDATED : 2026-10-06_0708 UTC — in-app payment (Apple Pay / Google Pay) and live map strings.
  */
 export const ES_APP: Record<string, string> = {
   "What can we take off your plate?": "¿Qué pendiente le quitamos de encima?",
@@ -224,4 +225,15 @@ export const ES_APP: Record<string, string> = {
   "This offer is no longer available.": "Esta oferta ya no está disponible.",
   "That code didn't work. Check it, or send a new one.": "Ese código no funcionó. Revíselo o envíe uno nuevo.",
   "Too many tries. Wait a minute, then send a new code.": "Demasiados intentos. Espere un minuto y envíe un código nuevo.",
+  "You're booked. We're matching your pro now and will notify you when they're confirmed.": "Su reserva está hecha. Estamos asignando a su profesional y le avisaremos cuando esté confirmado.",
+  "Your booking is saved": "Su reserva quedó guardada",
+  "Payment didn't go through": "El pago no se completó",
+  "It's confirmed once it's paid. Pay now, or anytime from Bookings.": "Se confirma cuando se paga. Pague ahora o cuando quiera desde Reservas.",
+  "Later": "Después",
+  "Pay now": "Pagar ahora",
+  "Thank you! Your receipt is on its way by email.": "¡Gracias! Le enviamos el recibo por correo.",
+  "Your place": "Su domicilio",
+  "Couldn't start the payment. Please try again.": "No se pudo iniciar el pago. Intente de nuevo.",
+  "Sign in to pay for this booking": "Inicie sesión para pagar esta reserva",
+  "Nothing to pay now": "No hay nada que pagar ahora",
 };

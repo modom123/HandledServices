@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_0641.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_0740.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_0641 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 43 migrations + production seed.
+-- CREATED : 2026-10-06_0740 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 46 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -2952,75 +2952,168 @@ create or replace function public.customer_subject_id(email text) returns uuid l
 $$;
 
 
+-- >>> migration 20261006032400_factoring_partners.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006032400_factoring_partners.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-06_0324 UTC
+-- PURPOSE : Invoice factoring partners (packages/core/src/factoring.ts, Hub → Factoring): the companies we're asking
+--           to fund net-30+ business, city and government invoices so weekly pro payouts stay on time. One row per
+--           partner with the outreach status and the quote (advance rate, fee, recourse, minimums, term, fees).
+--           Seeded with the five partners from docs/FACTORING_COMPARISON_2026-10-06_0320.xlsx (web search, verify on
+--           the call). Staff only. No contract or bank details are stored here.
+-- ============================================================================
+create table if not exists public.factoring_partners (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  website text,
+  fit text,
+  sort int not null default 100,
+  status text not null default 'to_contact'
+    check (status in ('to_contact','emailed','call_scheduled','quote_received','applied','active','passed')),
+  gov_scope text,                                   -- which receivables they fund: federal / state / city
+  advance_rate numeric check (advance_rate is null or (advance_rate > 0 and advance_rate <= 1)),
+  fee_pct numeric check (fee_pct is null or (fee_pct >= 0 and fee_pct < 1)),
+  fee_period_days int check (fee_period_days is null or fee_period_days between 1 and 90),
+  days_to_fund int check (days_to_fund is null or days_to_fund between 0 and 60),
+  recourse text check (recourse is null or recourse in ('recourse','non_recourse')),
+  monthly_minimum numeric check (monthly_minimum is null or monthly_minimum >= 0),
+  term text,                                        -- contract length / auto-renew / early-exit fee
+  spot_factoring boolean,
+  other_fees text,
+  contact_name text,
+  contact_email text,
+  contact_phone text,
+  contacted_at date,
+  notes text,
+  updated_by text,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+alter table public.factoring_partners enable row level security;
+create policy staff_all on public.factoring_partners for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
+insert into public.factoring_partners (slug, name, website, fit, sort) values
+  ('advance-partners', 'Advance Partners', 'https://www.advancepartners.com/payroll-funding/government-staffing/',
+   'Payroll funding for staffing on government contracts, including municipal; back office for payroll and billing. Best fit for the weekly pro payout run.', 10),
+  ('1st-commercial-credit', '1st Commercial Credit', 'https://www.1stcommercialcredit.com/financial-services/government-receivables',
+   'Dedicated government-receivables program plus staffing and payroll funding; works with small businesses.', 20),
+  ('porter-capital', 'Porter Capital', 'https://portercap.com/government-invoice-factoring',
+   'Long-time government contractor factoring; covers service and staffing businesses.', 30),
+  ('ecapital', 'eCapital', 'https://ecapital.com/blog/using-government-contractor-financing-to-bridge-cash-flow-gaps',
+   'Large lender with government contractor financing; can grow into an asset-based credit line for bigger contracts.', 40),
+  ('8a-factoring', '8A Factoring', 'https://www.8afactoring.com',
+   'Government invoices for small and 8(a) / minority-owned businesses; fits set-aside and MBE/DBE work.', 50)
+on conflict (slug) do nothing;
+
+
+-- >>> migration 20261006070800_app_payments.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006070800_app_payments.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-06_0708 UTC
+-- PURPOSE : In-app payments (Apple Pay, Google Pay, card via Stripe PaymentSheet): a payment row
+--           remembers its PaymentIntent, so the webhook can settle it and support can look it up.
+-- ============================================================================
+alter table public.payments add column if not exists stripe_payment_intent_id text;
+create index if not exists payments_stripe_payment_intent_idx on public.payments (stripe_payment_intent_id) where stripe_payment_intent_id is not null;
+
+
+-- >>> migration 20261006072600_lock_down_rpc.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006072600_lock_down_rpc.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-06_0726 UTC
+-- PURPOSE : Security (defense in depth): functions that run with elevated rights (security definer) are
+--           not callable from the app unless they're meant to be. Supabase exposes the public schema as
+--           RPC, so an un-revoked function can be called with the public (anon) key.
+--             • recompute_contractor_rating(cid) — was callable by anyone (it only recomputes from existing
+--               reviews, so harmless, but it isn't the app's business). Now server-only.
+--             • draw_promo_balance(code, amount) — already revoked in launch_growth; re-asserted here and
+--               granted explicitly to the server (service_role) so it can't be lost by accident.
+--           Helpers that only answer about the caller (is_staff, app_role, my_contractor_id) and the
+--           customer's own-job lookups (job_pro, job_crew) stay callable by signed-in users.
+--           New functions in this schema are no longer executable by anonymous users by default.
+-- ============================================================================
+revoke all on function public.draw_promo_balance(text, numeric) from public, anon, authenticated;
+grant execute on function public.draw_promo_balance(text, numeric) to service_role;
+
+revoke all on function public.recompute_contractor_rating(uuid) from public, anon, authenticated;
+grant execute on function public.recompute_contractor_rating(uuid) to service_role;
+
+alter default privileges in schema public revoke execute on functions from public, anon;
+
+
 -- >>> seed.sql
 -- ============================================================================
 -- FILE    : supabase/seed.sql   (generated by scripts/gen-seed.ts — do not hand edit)
 -- PROJECT : Handled — AI-run home & business services
--- CREATED : 2026-10-06_0641 UTC
+-- CREATED : 2026-10-06_0740 UTC
 -- PURPOSE : PRODUCTION seed — service catalog + launch market. Safe to re-run.
 -- ============================================================================
 
 insert into public.services (slug, name, category, minimum, payout_share, site_visit, sort) values
-  ('house-cleaning', 'House & Office Cleaning', 'cleaning', 120, 0.65, false, 0),
-  ('window-cleaning', 'Window Cleaning', 'cleaning', 149, 0.65, false, 1),
-  ('carpet-cleaning', 'Carpet & Upholstery Cleaning', 'cleaning', 129, 0.65, false, 2),
-  ('organizing', 'Organizing & Decluttering', 'cleaning', 199, 0.65, false, 3),
-  ('gutter-cleaning', 'Gutter Cleaning', 'cleaning', 149, 0.65, false, 4),
-  ('power-washing', 'Power Washing', 'cleaning', 149, 0.7, false, 5),
-  ('mobile-car-detailing', 'Mobile Car Detailing', 'cleaning', 79, 0.7, false, 6),
-  ('lawn-care', 'Lawn Care', 'outdoor', 55, 0.7, false, 7),
-  ('tree-removal', 'Tree Removal & Trimming', 'outdoor', 250, 0.75, true, 8),
-  ('leaf-removal', 'Leaf Removal', 'outdoor', 125, 0.7, false, 9),
-  ('snow-removal', 'Snow Removal', 'outdoor', 40, 0.7, false, 10),
-  ('dog-walking', 'Dog Walking', 'pets', 22, 0.7, false, 11),
-  ('dog-sitting', 'Dog Sitting & Pet Watching', 'pets', 28, 0.7, false, 12),
-  ('pet-waste-removal', 'Dog Poop Removal', 'pets', 20, 0.7, false, 13),
-  ('junk-removal', 'Junk Removal', 'removal', 129, 0.65, false, 14),
-  ('large-item-removal', 'Large Item Removal', 'removal', 99, 0.65, false, 15),
-  ('junk-container', 'Junk Container (Drop-off & Pickup)', 'removal', 349, 0.75, false, 16),
-  ('dead-animal-removal', 'Dead Animal Removal', 'removal', 129, 0.68, false, 17),
-  ('waste-oil-collection', 'Used Oil Collection', 'removal', 95, 0.72, false, 18),
-  ('small-moves', 'Small Moves & Moving Help', 'removal', 199, 0.7, false, 19),
-  ('retail-delivery', 'Same-Day Large Item Delivery', 'removal', 89, 0.7, false, 20),
-  ('staging-transport', 'Home Staging Furniture Moves', 'removal', 249, 0.7, false, 21),
+  ('house-cleaning', 'House & Office Cleaning', 'cleaning', 120, 0.787, false, 0),
+  ('window-cleaning', 'Window Cleaning', 'cleaning', 149, 0.763, false, 1),
+  ('carpet-cleaning', 'Carpet & Upholstery Cleaning', 'cleaning', 129, 0.795, false, 2),
+  ('organizing', 'Organizing & Decluttering', 'cleaning', 199, 0.765, false, 3),
+  ('gutter-cleaning', 'Gutter Cleaning', 'cleaning', 149, 0.792, false, 4),
+  ('power-washing', 'Power Washing', 'cleaning', 149, 0.789, false, 5),
+  ('mobile-car-detailing', 'Mobile Car Detailing', 'cleaning', 79, 0.788, false, 6),
+  ('lawn-care', 'Lawn Care', 'outdoor', 55, 0.797, false, 7),
+  ('tree-removal', 'Tree Removal & Trimming', 'outdoor', 250, 0.677, true, 8),
+  ('leaf-removal', 'Leaf Removal', 'outdoor', 125, 0.768, false, 9),
+  ('snow-removal', 'Snow Removal', 'outdoor', 40, 0.797, false, 10),
+  ('dog-walking', 'Dog Walking', 'pets', 22, 0.799, false, 11),
+  ('dog-sitting', 'Dog Sitting & Pet Watching', 'pets', 28, 0.797, false, 12),
+  ('pet-waste-removal', 'Dog Poop Removal', 'pets', 20, 0.724, false, 13),
+  ('junk-removal', 'Junk Removal', 'removal', 129, 0.772, false, 14),
+  ('large-item-removal', 'Large Item Removal', 'removal', 99, 0.796, false, 15),
+  ('junk-container', 'Junk Container (Drop-off & Pickup)', 'removal', 349, 0.727, false, 16),
+  ('dead-animal-removal', 'Dead Animal Removal', 'removal', 129, 0.798, false, 17),
+  ('waste-oil-collection', 'Used Oil Collection', 'removal', 95, 0.798, false, 18),
+  ('small-moves', 'Small Moves & Moving Help', 'removal', 199, 0.675, false, 19),
+  ('retail-delivery', 'Same-Day Large Item Delivery', 'removal', 89, 0.796, false, 20),
+  ('staging-transport', 'Home Staging Furniture Moves', 'removal', 249, 0.677, false, 21),
   ('unit-turnover', 'Rental Unit Turnover', 'repair_remodel', 299, 0.7, false, 22),
-  ('handyman', 'Handyman', 'repair_remodel', 99, 0.7, false, 23),
-  ('plumbing', 'Plumbing Repairs', 'repair_remodel', 149, 0.7, false, 24),
-  ('water-heater', 'Water Heater Replace & Repair', 'repair_remodel', 175, 0.75, false, 25),
-  ('hvac-install', 'HVAC Installation', 'repair_remodel', 3500, 0.8, true, 26),
-  ('lighting-install', 'Lighting & Ceiling Fan Install', 'repair_remodel', 149, 0.7, false, 27),
-  ('camera-install', 'Security Camera Install', 'repair_remodel', 149, 0.7, false, 28),
-  ('garbage-disposal', 'Garbage Disposal Repair & Replace', 'repair_remodel', 149, 0.7, false, 29),
-  ('small-engine-repair', 'Small Engine Repair', 'repair_remodel', 69, 0.7, false, 30),
-  ('dock-door-service', 'Loading Dock & Overhead Door Service', 'repair_remodel', 195, 0.72, false, 31),
-  ('fire-extinguisher-inspection', 'Fire Extinguisher Inspection & Service', 'repair_remodel', 79, 0.72, false, 32),
-  ('interior-painting', 'Interior Painting', 'repair_remodel', 349, 0.7, false, 33),
-  ('exterior-painting', 'Exterior Painting', 'repair_remodel', 1200, 0.7, false, 34),
-  ('foundation-repair', 'Foundation Repair', 'repair_remodel', 550, 0.8, true, 35),
-  ('bathroom-remodel', 'Bathroom Remodel', 'repair_remodel', 3500, 0.85, true, 36),
-  ('kitchen-remodel', 'Kitchen Remodel', 'repair_remodel', 12000, 0.85, true, 37),
-  ('home-remodel', 'Whole-Home Remodel', 'repair_remodel', 25000, 0.85, true, 38),
-  ('errands', 'Errands & Pickups', 'errands', 39, 0.75, false, 39),
-  ('courier', 'Same-Day Courier', 'errands', 25, 0.7, false, 40),
-  ('medical-delivery', 'Medical Deliveries', 'errands', 29, 0.75, false, 41),
-  ('personal-assistant', 'Personal Assistant for the Day', 'errands', 120, 0.75, false, 42),
-  ('private-driver', 'Private Driver / Black Car', 'transport', 170, 0.8, false, 43),
-  ('urgent-ride', 'Urgent Ride (Non-Medical)', 'transport', 45, 0.8, false, 44),
-  ('airport-transfer', 'Airport Transfer', 'transport', 95, 0.8, false, 45),
-  ('limousine', 'Limousine', 'transport', 405, 0.8, false, 46),
-  ('party-bus', 'Party Bus', 'transport', 900, 0.8, false, 47),
-  ('charter-bus', 'Tour & Charter Bus', 'transport', 1100, 0.8, false, 48),
-  ('game-day-rides', 'Game Day & Concert Rides', 'transport', 440, 0.8, false, 49),
-  ('event-shuttle', 'Corporate & Event Shuttle', 'transport', 450, 0.8, false, 50),
-  ('event-package', 'Plan My Event (by Budget)', 'events', 1000, 0.82, true, 51),
-  ('event-planning', 'Event Planning & Coordination', 'events', 650, 0.75, true, 52),
-  ('catering', 'Catering', 'events', 600, 0.8, false, 53),
-  ('food-truck', 'Food Truck Booking', 'events', 1200, 0.8, false, 54),
-  ('dj-music', 'DJ & Live Music', 'events', 450, 0.8, false, 55),
-  ('event-security', 'Event Security', 'events', 220, 0.78, false, 56),
-  ('security-guard', 'Security Guards & Patrol', 'security', 160, 0.78, false, 57),
-  ('event-rentals', 'Seating & Party Rentals', 'events', 250, 0.75, false, 58),
-  ('event-venue', 'Event Space Rental & Coordination', 'events', 800, 0.85, true, 59)
+  ('handyman', 'Handyman', 'repair_remodel', 99, 0.789, false, 23),
+  ('plumbing', 'Plumbing Repairs', 'repair_remodel', 149, 0.788, false, 24),
+  ('water-heater', 'Water Heater Replace & Repair', 'repair_remodel', 175, 0.847, false, 25),
+  ('hvac-install', 'HVAC Installation', 'repair_remodel', 3500, 0.68, true, 26),
+  ('lighting-install', 'Lighting & Ceiling Fan Install', 'repair_remodel', 149, 0.777, false, 27),
+  ('camera-install', 'Security Camera Install', 'repair_remodel', 149, 0.749, false, 28),
+  ('garbage-disposal', 'Garbage Disposal Repair & Replace', 'repair_remodel', 149, 0.747, false, 29),
+  ('small-engine-repair', 'Small Engine Repair', 'repair_remodel', 69, 0.795, false, 30),
+  ('dock-door-service', 'Loading Dock & Overhead Door Service', 'repair_remodel', 195, 0.771, false, 31),
+  ('fire-extinguisher-inspection', 'Fire Extinguisher Inspection & Service', 'repair_remodel', 79, 0.8, false, 32),
+  ('interior-painting', 'Interior Painting', 'repair_remodel', 349, 0.676, false, 33),
+  ('exterior-painting', 'Exterior Painting', 'repair_remodel', 1200, 0.679, false, 34),
+  ('foundation-repair', 'Foundation Repair', 'repair_remodel', 550, 0.678, true, 35),
+  ('bathroom-remodel', 'Bathroom Remodel', 'repair_remodel', 3500, 0.68, true, 36),
+  ('kitchen-remodel', 'Kitchen Remodel', 'repair_remodel', 12000, 0.68, true, 37),
+  ('home-remodel', 'Whole-Home Remodel', 'repair_remodel', 25000, 0.68, true, 38),
+  ('errands', 'Errands & Pickups', 'errands', 39, 0.789, false, 39),
+  ('courier', 'Same-Day Courier', 'errands', 25, 0.744, false, 40),
+  ('medical-delivery', 'Medical Deliveries', 'errands', 29, 0.727, false, 41),
+  ('personal-assistant', 'Personal Assistant for the Day', 'errands', 120, 0.793, false, 42),
+  ('private-driver', 'Private Driver / Black Car', 'transport', 170, 0.776, false, 43),
+  ('urgent-ride', 'Urgent Ride (Non-Medical)', 'transport', 45, 0.791, false, 44),
+  ('airport-transfer', 'Airport Transfer', 'transport', 95, 0.798, false, 45),
+  ('limousine', 'Limousine', 'transport', 405, 0.693, false, 46),
+  ('party-bus', 'Party Bus', 'transport', 900, 0.677, false, 47),
+  ('charter-bus', 'Tour & Charter Bus', 'transport', 1100, 0.678, false, 48),
+  ('game-day-rides', 'Game Day & Concert Rides', 'transport', 440, 0.677, false, 49),
+  ('event-shuttle', 'Corporate & Event Shuttle', 'transport', 450, 0.675, false, 50),
+  ('event-package', 'Plan My Event (by Budget)', 'events', 1000, 0.679, true, 51),
+  ('event-planning', 'Event Planning & Coordination', 'events', 650, 0.679, true, 52),
+  ('catering', 'Catering', 'events', 600, 0.678, false, 53),
+  ('food-truck', 'Food Truck Booking', 'events', 1200, 0.678, false, 54),
+  ('dj-music', 'DJ & Live Music', 'events', 450, 0.676, false, 55),
+  ('event-security', 'Event Security', 'events', 220, 0.736, false, 56),
+  ('security-guard', 'Security Guards & Patrol', 'security', 160, 0.767, false, 57),
+  ('event-rentals', 'Seating & Party Rentals', 'events', 250, 0.711, false, 58),
+  ('event-venue', 'Event Space Rental & Coordination', 'events', 800, 0.678, true, 59)
 on conflict (slug) do update set name = excluded.name, category = excluded.category, minimum = excluded.minimum,
   payout_share = excluded.payout_share, site_visit = excluded.site_visit, sort = excluded.sort;
 

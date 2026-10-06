@@ -5,15 +5,17 @@
  * PURPOSE : "Snap & post a job" (web + app): POST { photos[] (uploaded via /api/uploads), note?, locale } → the service
  *           the photos show and its job details, filled in (lib/ai/identify.ts). No login needed; rate limited.
  *           Without the AI configured, it answers { service_slug: null } and the customer picks the service.
+ * UPDATED : 2026-10-06_0726 UTC — security: photo paths checked with isPhotoPath.
  */
 import { z } from "zod";
 import { aiIdentifyJob } from "@/lib/ai/identify";
 import { aiEnabled } from "@/lib/ai/client";
 import { signedUrls } from "@/lib/photos";
 import { rateLimit } from "@/lib/ratelimit";
+import { isPhotoPath } from "@handled/core";
 
 const Body = z.object({
-  photos: z.array(z.string().startsWith("booking/")).max(8).default([]),
+  photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   note: z.string().max(500).nullable().optional(),
   locale: z.enum(["en", "es"]).default("en"),
 });

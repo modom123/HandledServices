@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_1255 UTC — Mondays: pricing-accuracy alert for services that are clearly mispriced.
  * UPDATED : 2026-10-03_1513 UTC — Mondays: city scorecard digest (each city's stage and next gates).
  * PURPOSE : Vercel cron 12:00 UTC — AI morning brief to the ops dashboard + email.
+ * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  */
 import { buildDailyBrief } from "@/lib/ai/brief";
 import { sendDayBeforeReminders } from "@/lib/jobs";
@@ -19,11 +20,12 @@ import { loadCityScorecard } from "@/lib/city-scorecard";
 import { adminClient } from "@/lib/supabase/server";
 import { opsEmail, sendEmail } from "@/lib/notify";
 import { BRAND, CITY_STAGE_LABEL } from "@handled/core";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 export const maxDuration = 120;
 
 export async function GET(req: Request) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(req)) return new Response("Unauthorized", { status: 401 });
   const reminders = await sendDayBeforeReminders().catch((e) => { console.error("[reminders]", e); return 0; });
   const seasonal = await sendSeasonalReminders().catch((e) => { console.error("[seasonal]", e); return 0; }); // once a day
   const standing = await standingSweep().catch((e) => { console.error("[standing]", e); return null; }); // warnings, reviews, yearly re-checks

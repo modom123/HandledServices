@@ -14,6 +14,8 @@
  * UPDATED : 2026-10-06_0645 UTC — a booking that can't load (deleted, or no connection) says so with Try again, instead of
  *           "Loading…" forever.
  * UPDATED : 2026-10-06_0645 UTC — pay, tip and raise-your-offer open Stripe in an in-app sheet and refresh when it closes.
+ * UPDATED : 2026-10-06_0708 UTC — Pay now opens Apple Pay / Google Pay / card in the app (Stripe PaymentSheet).
+ * UPDATED : 2026-10-06_0708 UTC — live map of the pro on the way (🚗 → 🏠), refreshing every 15 s.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
@@ -26,6 +28,9 @@ import type { Shot } from "../../lib/photos";
 import { useI18n } from "../../lib/i18n";
 import { Calendar } from "../../components/BookingPickers";
 import { openInApp } from "../../lib/browser";
+import { payForJob } from "../../lib/pay";
+import { LiveMap } from "../../components/LiveMap";
+import { haptic } from "../../lib/haptics";
 import { ChecklistList } from "../../components/Checklist";
 import type { ChecklistCheck, ChecklistExtra, JobChecklist } from "@handled/core";
 
@@ -115,9 +120,13 @@ export default function Booking() {
     load();
   }
   async function pay() {
-    const r = await api<{ url?: string; error?: string }>(`/api/account/jobs/${id}/pay`, { method: "POST" });
-    if (r.data.url) { await openInApp(r.data.url); load(); } else Alert.alert(t("Payment"), t(r.data.error ?? "Couldn't start payment"));
+    if (!job) return;
+    const r = await payForJob({ jobId: job.id, email: job.contact_email, locale });
+    if (r.status === "paid") { haptic("success"); Alert.alert(`${t("Paid")} ✓`, t("Thank you! Your receipt is on its way by email.")); }
+    else if (r.status === "error") { haptic("error"); Alert.alert(t("Payment didn't go through"), t(r.message ?? "Couldn't start payment")); }
+    load();
   }
+
   async function rate() {
     const { error } = await supabase.from("reviews").insert({ job_id: id, rating: stars });
     if (error) return Alert.alert(t("Couldn't save"), error.message);
@@ -224,9 +233,9 @@ export default function Booking() {
   );
 }
 
-type Track = { tracking: boolean; arrived?: boolean; name?: string | null; eta?: number | null; miles?: number; updatedMinAgo?: number };
+type Track = { tracking: boolean; arrived?: boolean; name?: string | null; eta?: number | null; miles?: number; updatedMinAgo?: number; pro?: { lat: number; lng: number }; home?: { lat: number; lng: number } };
 
-/** "Your pro is ~12 min away" — refreshes every 30 seconds while they're on the way. */
+/** "Your pro is ~12 min away" with a live map — refreshes every 15 seconds while they're on the way. */
 function TrackCard({ jobId }: { jobId: string }) {
   const { t, locale } = useI18n();
   const es = locale === "es";
@@ -235,7 +244,7 @@ function TrackCard({ jobId }: { jobId: string }) {
     let live = true;
     const load = () => api<Track>(`/api/account/jobs/${jobId}/track`).then((r) => { if (live && r.ok) setT(r.data); });
     load();
-    const id = setInterval(load, 30000);
+    const id = setInterval(load, 15000);
     return () => { live = false; clearInterval(id); };
   }, [jobId]);
   if (!tr?.tracking) return null;
@@ -243,7 +252,8 @@ function TrackCard({ jobId }: { jobId: string }) {
   return (
     <Card style={{ marginTop: 14, borderColor: C.brand }}>
       <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>{tr.arrived ? `✅ ${t("Your pro has arrived")}` : es ? `🚗 ${who} va en camino${tr.eta ? ` — ~${tr.eta} min` : ""}` : `🚗 ${who} is on the way${tr.eta ? ` — ~${tr.eta} min` : ""}`}</Text>
-      {!tr.arrived && tr.miles != null ? <Text style={s.p}>{es ? `a ${tr.miles} millas · actualizado ${tr.updatedMinAgo ? `hace ${tr.updatedMinAgo} min` : "ahora"}` : `${tr.miles} miles away · updated ${tr.updatedMinAgo ? `${tr.updatedMinAgo} min ago` : "just now"}`}</Text> : null}
+      {!tr.arrived && tr.pro && tr.home ? <LiveMap pro={{ latitude: tr.pro.lat, longitude: tr.pro.lng }} home={{ latitude: tr.home.lat, longitude: tr.home.lng }} proLabel={who} homeLabel={t("Your place")} /> : null}
+      {!tr.arrived && tr.miles != null ? <Text style={[s.p, { marginTop: 6 }]}>{es ? `a ${tr.miles} millas · actualizado ${tr.updatedMinAgo ? `hace ${tr.updatedMinAgo} min` : "ahora"}` : `${tr.miles} miles away · updated ${tr.updatedMinAgo ? `${tr.updatedMinAgo} min ago` : "just now"}`}</Text> : null}
     </Card>
   );
 }

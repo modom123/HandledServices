@@ -10,8 +10,9 @@
  * UPDATED : 2026-10-04_2204 UTC — the customer's crew member request (★ on that person; the owner decides) and "asked for you".
  * UPDATED : 2026-10-05_0221 UTC — the job checklist: tap items as they're done, hold for N/A with the reason.
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
+ * UPDATED : 2026-10-06_0708 UTC — after "On my way" the pro's location streams (~15 s, app open) for the customer's live map.
  */
-import { shareLocationOnce } from "../../lib/location";
+import { shareLocationOnce, useLiveRouteSharing } from "../../lib/location";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -51,6 +52,8 @@ export default function ProJob() {
     if (c.ok && (c.data.options?.length || c.data.askedForYou)) setCrew(c.data); else setCrew(null);
   }, [id]);
   useEffect(() => { load(); }, [load]);
+  // on the way: the customer's live map follows the pro until they arrive
+  useLiveRouteSharing(Boolean(job && job.status === "assigned" && job.en_route_at && job.scheduled_date === localDate()));
   if (!job) return null;
   const svc = getService(job.service_slug)!;
 

@@ -10,6 +10,8 @@
   UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch cron moved to GitHub Actions (works on Vercel Hobby).
   UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
   UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
+  UPDATED : 2026-10-06_0708 UTC — mobile app v0.5.0 setup: Apple Pay / Google Pay (Stripe publishable key, webhook event, Apple merchant ID) and the Android Maps key.
+  UPDATED : 2026-10-06_0726 UTC — security review: see docs/SECURITY_REVIEW_2026-10-06_0726.md (CRON_SECRET 32+ chars, lockdown migration, 2FA everywhere).
 -->
 
 # Handled — Go-Live Checklist
@@ -176,3 +178,26 @@ node scripts/smoke-test.mjs https://YOUR-DOMAIN     # every line should say PASS
 | App build: `EXPO_PUBLIC_API_URL` | Also fills the app's privacy policy and terms links |
 
 Then work through **Hub → Go-live setup → Business & legal** (see docs/BUSINESS_LEGAL_CHECKLIST_2026-10-02_1346.md).
+
+
+## Added 2026-10-06_0708 UTC — mobile app v0.5.0 (Apple Pay, Google Pay, live map)
+
+These need a **new app build** (EAS build), not an over-the-air update, because they add native code.
+
+| Where | What to do | Turns on |
+|---|---|---|
+| Vercel → Environment Variables | `STRIPE_PUBLISHABLE_KEY` = Stripe → Developers → API keys → publishable key (starts with `pk_`) | The in-app payment sheet. Without it the app opens Stripe Checkout instead. |
+| Stripe → Developers → Webhooks → your endpoint | Add the event `payment_intent.succeeded` | Bookings paid in the app are marked paid and dispatched |
+| Supabase SQL editor | Run `supabase/migrations/20261006070800_app_payments.sql` (or the new HANDLED_SETUP file on a new project) | Records each in-app payment |
+| Apple Developer → Identifiers → Merchant IDs | Create `merchant.com.handled.app`; then in Stripe → Settings → Payment methods → Apple Pay, add an iOS certificate for it and upload it to Apple | Apple Pay in the app |
+| Stripe → Settings → Payment methods | Turn on Apple Pay and Google Pay | The wallet buttons in the sheet |
+| Google Cloud → APIs → Maps SDK for Android | Create an API key restricted to the Android app (`com.handled.app`), and add it to the EAS build as `GOOGLE_MAPS_ANDROID_API_KEY` | The live "pro on the way" map on Android (iPhone uses Apple Maps, no key) |
+
+Sales tax: with `STRIPE_TAX=on`, the app uses Stripe Checkout (inside the app) so tax is calculated automatically.
+
+
+## Added 2026-10-06_0726 UTC — security (see docs/SECURITY_REVIEW_2026-10-06_0726.md)
+- `CRON_SECRET` must be at least 16 characters (use `openssl rand -hex 32`); scheduled jobs now refuse to run otherwise.
+- Set `INVOICE_SIGNING_SECRET` (32+ random characters).
+- Run `supabase/migrations/20261006072600_lock_down_rpc.sql`.
+- Turn on two-factor authentication on Stripe, Supabase, Vercel, GitHub, Expo, Apple, Google Play and the domain registrar.

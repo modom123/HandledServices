@@ -13,6 +13,8 @@
  *           the keyboard never covers a field; name, email, phone and address are remembered from the last booking
  *           (and the signed-in email fills in); the button names the next missing step and missing fields turn red;
  *           Stripe Checkout opens in an in-app sheet; a link to an unknown service shows a friendly message.
+ * UPDATED : 2026-10-06_0708 UTC — Pay & book opens Apple Pay / Google Pay / card right in the app (Stripe PaymentSheet); closing it
+ *           keeps the booking with Pay now / Later; Checkout is the fallback.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -20,7 +22,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
-import { openInApp } from "../../lib/browser";
+import { payForJob } from "../../lib/pay";
+import { haptic } from "../../lib/haptics";
 import { loadProfile, saveProfile } from "../../lib/profile";
 import { useSession } from "../../lib/session";
 import { Calendar, NumberBox } from "../../components/BookingPickers";
@@ -140,19 +143,31 @@ function BookService({ slug: _slug }: { slug: string }) {
     ]);
   }
 
+  /** Apple Pay / Google Pay / card in the app; closing the sheet keeps the booking (pay now or later). */
+  async function payBooking(id: string, ref: string, checkout: string | null) {
+    const done = () => router.replace(me ? { pathname: "/job/[id]", params: { id } } : "/");
+    const res = await payForJob({ jobId: id, email: f.contact_email.trim(), locale, fallbackUrl: checkout });
+    if (res.status === "paid") {
+      haptic("success");
+      return Alert.alert(`${t("Paid")} ✓ — ${ref}`, t("You're booked. We're matching your pro now and will notify you when they're confirmed."), [{ text: "OK", onPress: done }]);
+    }
+    if (res.status === "checkout") return router.replace(me ? "/jobs" : "/");
+    Alert.alert(res.status === "canceled" ? t("Your booking is saved") : t("Payment didn't go through"), `${res.message ? `${t(res.message)}\n\n` : ""}${t("It's confirmed once it's paid. Pay now, or anytime from Bookings.")}`, [
+      { text: t("Later"), style: "cancel", onPress: () => router.replace(me ? "/jobs" : "/") },
+      { text: t("Pay now"), onPress: () => payBooking(id, ref, checkout) },
+    ]);
+  }
+
   async function book(quoteToken: string | null) {
     setBusy(true);
-    const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
+    const r = await api<{ id: string; ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
       body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
     });
     setBusy(false);
-    if (!r.ok) return Alert.alert(t("Couldn't book"), t(r.data.error ?? "Please check the form"));
+    if (!r.ok) { haptic("error"); return Alert.alert(t("Couldn't book"), t(r.data.error ?? "Please check the form")); }
     saveProfile({ contact_name: f.contact_name.trim(), contact_email: f.contact_email.trim(), contact_phone: f.contact_phone.trim(), address: f.address.trim(), city: f.city.trim(), state: f.state.trim() || "MI", zip: f.zip });
-    if (r.data.checkout) {
-      await openInApp(r.data.checkout); // pay upfront in Stripe Checkout (in-app sheet); the pro is dispatched once paid
-      return router.replace("/jobs");
-    }
+    if (r.data.checkout) return payBooking(r.data.id, r.data.ref, r.data.checkout); // paid upfront; the pro is dispatched once paid
     Alert.alert(`${t("Booked")} — ${r.data.ref}`, r.data.status === "site_visit" ? t("A pro will visit to confirm your firm price.") : t("A coordinator will contact you to take payment — your pro is confirmed once it's paid."), [{ text: "OK", onPress: () => router.replace("/") }]);
   }
 
@@ -174,9 +189,11 @@ function BookService({ slug: _slug }: { slug: string }) {
   const payTitle = busy ? t("Checking your price…") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : (es ? `Pagar ${money(listTotal)} y reservar` : `Pay ${money(listTotal)} & book`);
   function submit() {
     if (problems.length) {
+      haptic("warning");
       setTried(true);
       return Alert.alert(t("Almost there"), problems.map((x) => `• ${x.msg}`).join("\n"));
     }
+    haptic("tap");
     checkAndBook();
   }
 

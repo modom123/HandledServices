@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-05_1441 UTC — 🏛️ Gov contracts (SAM.gov).
  * UPDATED : 2026-10-05_1954 UTC — 📝 Bids (bid engine).
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (Handled Talent recruiting agency).
+ * UPDATED : 2026-10-06_0324 UTC — 🏦 Factoring (invoice factoring partners for net-30+ clients).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -46,6 +47,7 @@ const NAV = [
   ["/hub/talent", "🤝", "Talent (recruiting)"],
   ["/hub/email", "✉️", "Email Center"],
   ["/hub/finance", "💵", "Finance"],
+  ["/hub/factoring", "🏦", "Factoring"],
   ["/hub/growth", "📈", "Growth"],
   ["/hub/cities", "🏙️", "City scorecard"],
   ["/hub/market", "⚖️", "Market pricing"],

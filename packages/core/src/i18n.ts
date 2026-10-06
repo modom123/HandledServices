@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-06_0526 UTC — Spanish for Dead Animal Removal.
  * UPDATED : 2026-10-06_0606 UTC — Spanish for the cleaning-first home page.
  * UPDATED : 2026-10-06_0637 UTC — Spanish names for the six new services.
+ * UPDATED : 2026-10-06_0748 UTC — "Pro Rewards & tiers" (footer link).
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -31,7 +32,7 @@ const ES: Record<string, string> = {
   // header / footer / common
   "Services": "Servicios", "Events": "Eventos", "For Business": "Empresas", "Become a Pro": "Trabaje con nosotros", "My Bookings": "Mis reservas",
   "Sign in": "Iniciar sesión", "Book now": "Reservar", "Company": "Empresa", "Parties & events": "Fiestas y eventos", "Commercial accounts": "Cuentas comerciales",
-  "Join as a pro": "Únase como profesional", "Customer reviews": "Opiniones de clientes", "Gift cards": "Tarjetas de regalo",
+  "Join as a pro": "Únase como profesional", "Pro Rewards & tiers": "Recompensas y niveles Pro", "Customer reviews": "Opiniones de clientes", "Gift cards": "Tarjetas de regalo",
   // splash / home
   "AI-run operations · real local pros": "Operación con IA · profesionales locales reales",
   "Your home & business to-do list.": "Su lista de pendientes del hogar y el negocio.",

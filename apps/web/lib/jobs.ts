@@ -29,11 +29,11 @@
  *           then everyone. Lapsed board claims ("Jobs near you") aren't counted as price signals.
  * UPDATED : 2026-10-05_0221 UTC — the job checklist is frozen on the job when a pro accepts.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
+ * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
  */
 import "server-only";
 import { z } from "zod";
-import {
-  BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
 } from "@handled/core";
@@ -68,7 +68,7 @@ export const BookingSchema = z.object({
   state: z.string().min(2).max(2),
   zip: z.string().regex(/^\d{5}$/),
   notes: z.string().max(2000).nullable().optional(),
-  photos: z.array(z.string()).max(8).default([]),
+  photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   source: z.enum(["web", "mobile", "business", "phone", "ai_chat"]).default("web"),
   accept_terms: z.literal(true, { message: "Please accept the Service Agreement" }),
   payment_plan: z.enum(["full", "deposit"]).default("full"),

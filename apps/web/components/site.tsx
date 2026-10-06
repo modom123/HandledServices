@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_1329 UTC — footer: Handled Plus, gift cards, reviews; English / Spanish.
+ * UPDATED : 2026-10-06_0748 UTC — footer: Pro Rewards & tiers (/pros#rewards).
  * PURPOSE : Public website header and footer.
  * UPDATED : 2026-10-05_0434 UTC — one account button (Sign in → My account / Pro portal / Hub, with Sign out), visible on phones.
  * UPDATED : 2026-10-05_0448 UTC — 📸 Snap & post a job button in the header (phones too).
@@ -77,6 +78,7 @@ export async function SiteFooter() {
             <li><Link href="/gift-cards" className="hover:text-ink">🎁 {t("Gift cards")}</Link></li>
             <li><Link href="/reviews" className="hover:text-ink">{t("Customer reviews")}</Link></li>
             <li><Link href="/pros" className="hover:text-ink">{t("Join as a pro")}</Link></li>
+            <li><Link href="/pros#rewards" className="hover:text-ink">🏆 {t("Pro Rewards & tiers")}</Link></li>
             <li><Link href="/hub" className="hover:text-ink">Handled Hub</Link></li>
             <li>{BRAND.supportPhone}</li>
             <li>{BRAND.supportEmail}</li>

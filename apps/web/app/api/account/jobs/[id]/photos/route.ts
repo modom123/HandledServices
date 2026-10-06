@@ -6,12 +6,14 @@
  * PURPOSE : Customer adds photos to a booking after booking (web or app): more angles, a
  *           close-up, the thing the pro should know about. Uploaded first via /api/uploads;
  *           this attaches them (up to 12) and lets the pro know.
+ * UPDATED : 2026-10-06_0726 UTC — security: photo paths checked with isPhotoPath (no "..").
  */
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent, getJob } from "@/lib/jobs";
 import { notify } from "@/lib/push";
+import { isPhotoPath } from "@handled/core";
 
 const MAX = 12;
 
@@ -21,7 +23,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).maybeSingle(); // RLS: own jobs only
   if (!mine) return deny(404, "Not found");
-  const b = z.object({ paths: z.array(z.string().regex(/^(booking|pro)\/[\w./-]+$/)).min(1).max(MAX) }).safeParse(await req.json().catch(() => null));
+  const b = z.object({ paths: z.array(z.string().refine(isPhotoPath, "Bad photo")).min(1).max(MAX) }).safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Upload the photos first");
   const job = await getJob(id);
   if (!job || ["completed", "cancelled"].includes(job.status)) return deny(409, "This booking is closed");

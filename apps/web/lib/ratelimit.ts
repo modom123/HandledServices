@@ -6,6 +6,7 @@
  *           per visitor IP in Postgres (hit_rate_limit), so limits hold across serverless instances.
  *           Fails open if the database is unreachable — a broken limiter must not block customers.
  * UPDATED : 2026-10-05_0246 UTC — interview: candidate messages to the AI interviewer.
+ * UPDATED : 2026-10-06_0708 UTC — pay: in-app payment sheets (Apple Pay / Google Pay).
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -20,6 +21,7 @@ export const LIMITS = {
   booking: [20, 3600],
   form: [10, 3600],
   tip: [20, 3600],
+  pay: [30, 3600],
   error_report: [30, 600],
 } as const satisfies Record<string, readonly [number, number]>;
 
