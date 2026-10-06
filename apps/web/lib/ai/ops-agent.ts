@@ -6,15 +6,21 @@
  *           ("what's unassigned for tomorrow?", "re-dispatch H-1042", "who are our best
  *           gutter pros?") and Claude answers from live Supabase data, taking a small
  *           set of reversible actions. Staff-only (checked in the route).
+ * UPDATED : 2026-10-06_0752 UTC — runs with the $100M mission and its tasks; new tools: growth_status (plan pace plus the
+ *           onboarding and new-jobs funnels), list_agent_tasks, assign_agent_task and close_agent_task, so staff can
+ *           say "have the concierge push move-out cleans this week" and it's assigned.
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { BRAND, JOB_STATUSES } from "@handled/core";
+import { AGENTS, BRAND, JOB_STATUSES } from "@handled/core";
 import { FALLBACK, MODEL, aiEnabled, anthropic, logRun } from "./client";
 import { adminClient } from "../supabase/server";
 import { addEvent, dispatchJob, raiseAlert, setStatus } from "../jobs";
+import { assignTask, closeTask, openAgentTasks, systemFor, taskLine } from "./agent-tasks";
+import { loadFunnels } from "./growth-planner";
+import { loadCityScorecard } from "../city-scorecard";
 
 const db = () => adminClient();
 const JOB_COLS = "id, ref, status, service_slug, contact_name, city, zip, scheduled_date, time_window, estimate_low, estimate_high, price_final, contractor_id, priority, customer_type, created_at";
@@ -112,6 +118,38 @@ function tools(actor: string) {
       },
     }),
     betaZodTool({
+      name: "growth_status",
+      description: "Where we stand on the $100M plan: plan year, revenue (our take) run-rate vs target, plus the two priority funnels — onboarding pros and winning new jobs.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const [score, funnels] = await Promise.all([loadCityScorecard().catch(() => null), loadFunnels().catch(() => null)]);
+        const p = score?.pace;
+        return JSON.stringify({ pace: p ? { year: p.year, phase: p.plan.phase, target: p.plan.revenue, take_run_rate: Math.round(p.takeRunRate), pace_pct: Math.round(p.takePace * 100) } : "no data yet", funnels });
+      },
+    }),
+    betaZodTool({
+      name: "list_agent_tasks",
+      description: "Open tasks assigned to the AI agents (by staff or the Growth planner).",
+      inputSchema: z.object({}),
+      run: async () => JSON.stringify((await openAgentTasks(true)).map((t) => ({ id: t.id, agent: t.agent, task: taskLine(t), by: t.created_by }))),
+    }),
+    betaZodTool({
+      name: "assign_agent_task",
+      description: `Assign a task to an AI agent when the staff member asks. agent is one of: ${AGENTS.map((a) => `${a.kind} (${a.name})`).join(", ")}, or "all". The agent sees it on every run until it's closed.`,
+      inputSchema: z.object({ agent: z.string(), title: z.string().min(3).max(300), target: z.string().max(200).optional(), due_date: z.string().optional().describe("YYYY-MM-DD") }),
+      run: async (t) => {
+        if (t.agent !== "all" && !AGENTS.some((a) => a.kind === t.agent)) return `Unknown agent ${t.agent}`;
+        const row = await assignTask({ agent: t.agent, title: t.title, target: t.target ?? null, due_date: t.due_date && /^\d{4}-\d{2}-\d{2}$/.test(t.due_date) ? t.due_date : null }, actor);
+        return `Assigned (id ${row.id})`;
+      },
+    }),
+    betaZodTool({
+      name: "close_agent_task",
+      description: "Mark an agent task done or cancelled (by id from list_agent_tasks) when the staff member asks.",
+      inputSchema: z.object({ id: z.string().uuid(), status: z.enum(["done", "cancelled"]), note: z.string().max(300).optional() }),
+      run: async ({ id, status, note }) => { await closeTask(id, status, note ?? null, actor); return `Task ${status}`; },
+    }),
+    betaZodTool({
       name: "create_alert",
       description: "Pin a follow-up or warning to the ops dashboard.",
       inputSchema: z.object({ title: z.string(), body: z.string(), severity: z.enum(["info", "warn", "critical"]) }),
@@ -133,11 +171,11 @@ export async function opsAssistant(history: { role: "user" | "assistant"; conten
     ...FALLBACK,
     betas: [...FALLBACK.betas],
     output_config: { effort: "medium" },
-    system:
+    system: await systemFor("ops_assistant",
       `You are the operations co-pilot for ${BRAND.name}, a home & business services company that delivers every job through vetted subcontractors. ` +
       `You help dispatchers and the owner run the day from live data. Look things up with tools before answering; never guess numbers. ` +
       `You may re-dispatch, change a status or create an alert when the staff member asks — confirm what you changed. ` +
-      `Keep answers tight: short bullets, job refs, dollar figures.`,
+      `You may assign or close AI agent tasks when asked. Keep answers tight: short bullets, job refs, dollar figures.`),
     tools: tools(actor),
     max_iterations: 10,
     // today's date goes in the final user turn so the system prompt stays cacheable

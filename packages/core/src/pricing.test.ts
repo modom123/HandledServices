@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
+ * UPDATED : 2026-10-06_0752 UTC — every AI agent has a mission role, the two priorities and standing tasks.
  */
 
 import { test } from "node:test";
@@ -1345,4 +1346,24 @@ test("security: sign-in redirects stay on our site; outside fetches skip interna
   assert.ok(isPhotoPath("booking/2026-10-06/1759734000000-a1b2c3d4.jpeg"));
   assert.ok(isPhotoPath("pro/0b8f3c1e-1234-4abc-9def-001122334455/1759734000000-a1b2c3d4.png"));
   for (const bad of ["booking/../pro-docs/w9.pdf", "pro-docs/x/1759734000000-a1b2c3d4.pdf", "booking/2026-10-06/x.jpeg", "/booking/2026-10-06/1759734000000-a1b2c3d4.jpeg", "booking/2026-10-06/1759734000000-a1b2c3d4.svg"]) assert.equal(isPhotoPath(bad), false, bad);
+});
+
+test("every AI agent runs with the $100M mission, the two priorities and its tasks", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { AGENTS, MISSION, missionPrompt } = await import("./mission.ts");
+  const dir = new URL("../../../apps/web/lib/ai/", import.meta.url);
+  const used = new Set<string>();
+  // AI calls only (structured / logRun) — not ops_alerts rows, which also have a kind
+  for (const f of readdirSync(dir)) for (const line of readFileSync(new URL(f, dir), "utf8").split("\n")) if (!line.includes("ops_alerts")) for (const m of line.matchAll(/kind: "([a-z_]+)"/g)) used.add(m[1]);
+  for (const f of ["../gov.ts", "../bids.ts"]) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/kind: "((?:gov|bid)_[a-z_]+)"/g)) used.add(m[1]);
+  for (const k of used) assert.ok(AGENTS.some((a) => a.kind === k), `agent ${k} has no role in mission.ts`);
+  for (const a of AGENTS) {
+    const p = missionPrompt(a.kind, ["Get 10 bookings"]);
+    assert.match(p, /\$100M/);
+    assert.ok(p.includes(MISSION.priorities[0]) && p.includes(MISSION.priorities[1]), `${a.kind} missing priorities`);
+    assert.ok(a.tasks.length >= 1 && p.includes(a.tasks[0]), `${a.kind} missing standing tasks`);
+    assert.match(p, /Get 10 bookings/);
+    if (a.external) assert.match(p, /never mention revenue targets/);
+    if (a.gate) assert.match(p, /gatekeeper/);
+  }
 });

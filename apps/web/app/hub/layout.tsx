@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-05_1954 UTC — 📝 Bids (bid engine).
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (Handled Talent recruiting agency).
  * UPDATED : 2026-10-06_0324 UTC — 🏦 Factoring (invoice factoring partners for net-30+ clients).
+ * UPDATED : 2026-10-06_0752 UTC — 🤖 AI agents (mission, daily growth plan, agent health, assign tasks).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -56,6 +57,7 @@ const NAV = [
   ["/hub/pro-program", "🏅", "Pro Program"],
   ["/hub/rewards", "🎁", "Pro Rewards"],
   ["/hub/workforce", "🏢", "IEBC Workforce"],
+  ["/hub/agents", "🤖", "AI agents"],
   ["/hub/assistant", "✨", "AI assistant"],
   ["/hub/contracts", "📜", "Contract library"],
   ["/hub/team", "👥", "Team"],
