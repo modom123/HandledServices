@@ -15,6 +15,7 @@
  *           be marked N/A with a reason (e.g. "no oven in unit"); the job can't be submitted while one is open.
  *           Services without their own template get one built from what the service includes.
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol checklist (post, patrol, fire watch).
+ * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal checklist.
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -333,6 +334,20 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
       i("ceilings", "Ceilings painted", "Techos pintados", { when: { q: "ceilings", in: [true] }, required: true }),
       i("trim", "Trim and doors painted", "Molduras y puertas pintadas", { when: { q: "trim", in: [true] }, required: true }),
       i("reset", "Plates reinstalled; furniture back; touch-up paint left labeled for the customer", "Tapas reinstaladas; muebles en su lugar; pintura para retoques etiquetada para el cliente", { required: true }),
+    ] }],
+  }),
+
+  "dead-animal-removal": tpl({
+    service: "dead-animal-removal", version: 1, title: { en: "Dead animal removal checklist", es: "Lista de retiro de animales muertos" },
+    sections: [{ id: "removal", en: "Removal", es: "Retiro", items: [
+      i("ppe", "Gloves, respirator and protective clothing on before handling", "Guantes, respirador y ropa protectora puestos antes de manipular", { required: true }),
+      i("before", "Photo of the animal where it was found", "Foto del animal donde se encontró", { required: true, photo: true }),
+      i("bagged", "Every animal sealed in double bags and removed", "Cada animal sellado en doble bolsa y retirado", { required: true }),
+      i("access", "Crawlspace, deck or attic access closed back up as found", "Acceso al entrepiso, terraza o ático cerrado como estaba", { when: { q: "where", in: ["under", "attic"] }, required: true }),
+      i("sanitize", "Area sanitized and deodorized", "Área desinfectada y desodorizada", { when: { q: "sanitize", in: [true] }, required: true }),
+      i("pet", "Pet delivered to the vet or crematory; name and receipt noted", "Mascota entregada al veterinario o crematorio; nombre y recibo anotados", { when: { q: "pet", in: [true] }, required: true }),
+      i("after", "After photo of the cleared area", "Foto del área despejada", { required: true, photo: true }),
+      i("disposal", "Disposed of the same day at an approved site (landfill, rendering or crematory)", "Desechado el mismo día en un sitio aprobado (relleno sanitario, planta de procesamiento o crematorio)", { when: { q: "pet", in: [false] }, required: true }),
     ] }],
   }),
 

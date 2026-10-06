@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards promise.
  * UPDATED : 2026-10-05_0439 UTC — security trade label.
+ * UPDATED : 2026-10-06_0526 UTC — wildlife trade.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -29,6 +30,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Medical courier (prescriptions, specimens, supplies)": "Mensajería médica (recetas, muestras, insumos)",
   "Mobile car detailing": "Detallado de autos a domicilio",
   "Junk hauling, moving & delivery": "Retiro de basura, mudanzas y entregas",
+  "Wildlife control & dead animal removal": "Control de fauna y retiro de animales muertos",
   "Roll-off container / dumpster": "Contenedor de basura (roll-off)",
   "Handyman": "Mantenimiento general",
   "Remodeling / general contractor": "Remodelación / contratista general",

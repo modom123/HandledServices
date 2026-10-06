@@ -7,6 +7,7 @@
             with tick boxes. This is a checklist of questions for professionals, not legal advice.
   UPDATED : 2026-10-04_1934 UTC — 51 services (small moves, large-item delivery, staging moves, unit turnover added).
   UPDATED : 2026-10-06_0505 UTC — 53 services (event security, security guards & patrol added).
+  UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
 -->
 
 # Business & legal launch checklist
@@ -18,7 +19,7 @@ real customers' money.
 ## How to work through it fastest
 
 1. **One commercial insurance broker** who already insures marketplaces or gig platforms can quote
-   every policy in the insurance section at once. Bring: the service list (53 services), expected
+   every policy in the insurance section at once. Bring: the service list (54 services), expected
    jobs per month, that pros are 1099 subcontractors carrying their own insurance (our onboarding
    verifies it), and that we arrange rides and deliveries in vehicles we don't own.
 2. **One business attorney** for the legal review section, with referrals for the specialists

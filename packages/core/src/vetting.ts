@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — security trade (licensed agency, $2M GL, workers' comp).
  * UPDATED : 2026-10-05_1433 UTC — security trade: patrol, standing posts and fire watch (security-guard).
+ * UPDATED : 2026-10-06_0526 UTC — wildlife trade: dead animal removal (dead-animal-removal).
  */
 import { BRAND } from "./brand.ts";
 
@@ -215,6 +216,14 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     specialties: [{ id: "junk", label: "Junk & clean-outs", slug: "junk-removal" }, { id: "large_item", label: "Large single items", slug: "large-item-removal" }, { id: "appliances", label: "Appliances" }, { id: "construction_debris", label: "Construction debris" }, { id: "estate", label: "Estate clean-outs" }],
     license: null, preferred: [], glMin: GL1, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
     skillsCheck: "Truck/trailer capacity, disposal and recycling sites used, photos of recent jobs, 2 references.",
+  },
+  wildlife: {
+    does: "Dead animal removal from yards, under decks, crawlspaces, attics and walls, with sanitizing, odor treatment and same-day disposal at an approved site.",
+    specialties: [{ id: "dead_animal", label: "Dead animal removal", slug: "dead-animal-removal" }, { id: "crawl_attic", label: "Crawlspaces, attics & walls" }, { id: "odor", label: "Sanitizing & odor treatment" }, { id: "large_animal", label: "Deer & large animals" }],
+    license: null,
+    preferred: ["Michigan DNR nuisance animal control permit (needed for live trapping, which Handled doesn't book)", "NWCOA membership or wildlife control certification"],
+    glMin: GL1, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Protective gear and bagging routine (gloves, respirator, sealed double bags), where carcasses are disposed of, crawlspace and attic experience, 2 references.",
   },
   handyman: {
     does: "Repairs, mounting, assembly, drywall, doors, fixtures and small projects.",

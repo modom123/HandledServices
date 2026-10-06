@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — Event Security.
  * UPDATED : 2026-10-05_1433 UTC — Spanish for the Security category and Security Guards & Patrol.
+ * UPDATED : 2026-10-06_0526 UTC — Spanish for Dead Animal Removal.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -296,7 +297,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   cleaning: { name: "Limpieza y organización", short: "Limpieza", blurb: "Casas, oficinas, ventanas, alfombras, canaletas, lavado a presión, lavado de autos a domicilio y organización." },
   outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte de césped, limpieza de hojas, remoción de nieve y árboles." },
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
-  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, o un contenedor por una semana." },
+  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
   repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
   errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
@@ -319,6 +320,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "dog-walking": ["Paseo de perros", "El mismo paseador en cada paseo, con fotos y GPS."],
   "dog-sitting": ["Cuidado de perros y mascotas", "Visitas, cuidado de día o estadías nocturnas en su casa."],
   "pet-waste-removal": ["Limpieza de desechos de perro", "Un patio limpio cada semana. Portón cerrado, garantizado."],
+  "dead-animal-removal": ["Retiro de animales muertos", "Se retira hoy: embolsado, retirado y desechado correctamente. Tratamiento de olores disponible."],
   "junk-removal": ["Retiro de basura", "Precio según la cantidad; nosotros cargamos todo. Donamos y reciclamos primero."],
   "large-item-removal": ["Retiro de objetos grandes", "Precio según cuántos y cuánto pesan: de sofás a pianos."],
   "small-moves": ["Mudanzas pequeñas y ayuda para mudarse", "Mudanceros por hora, con o sin camión: departamentos, casas pequeñas o un solo cuarto."],

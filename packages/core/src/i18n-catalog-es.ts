@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — Event Security.
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol; alcohol question on Plan My Event.
+ * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",
@@ -738,4 +739,24 @@ export const ES_CATALOG: Record<string, string> = {
   "Days or nights covered": "Días o noches cubiertos",
   "Per booking. Choose weekly or monthly to keep the same coverage going.": "Por reserva. Elija semanal o mensual para mantener la misma cobertura.",
   "Unarmed (most sites)": "Sin armas (la mayoría de los lugares)",
+  "Protective gear & sealed double bags": "Equipo de protección y doble bolsa sellada",
+  "Disposal at an approved site the same day": "Desecho el mismo día en un sitio aprobado",
+  "Sanitizing & odor treatment available": "Desinfección y tratamiento de olores disponibles",
+  "Where it is and how to get there (gate, crawlspace hatch, attic ladder), what kind of animal if you know, and how long it's been there": "Dónde está y cómo llegar (portón, acceso al entrepiso, escalera del ático), qué animal es si lo sabe y cuánto tiempo lleva ahí",
+  "Size of the animal": "Tamaño del animal",
+  "Small — under 5 lb (squirrel, bird, rat, chipmunk)": "Pequeño — menos de 5 lb (ardilla, pájaro, rata, ardilla listada)",
+  "Medium — 5 to 40 lb (raccoon, opossum, skunk, cat, small dog)": "Mediano — de 5 a 40 lb (mapache, zarigüeya, zorrillo, gato, perro pequeño)",
+  "Large — 40 to 100 lb (large dog, coyote, fawn)": "Grande — de 40 a 100 lb (perro grande, coyote, cervatillo)",
+  "Very large — over 100 lb (deer)": "Muy grande — más de 100 lb (venado)",
+  "Where is it": "Dónde está",
+  "Not sure? Pick your best guess and describe the smell or spot in the notes — we confirm before the pro goes in.": "¿No está seguro? Elija lo más probable y describa el olor o el lugar en las notas; lo confirmamos antes de que entre el profesional.",
+  "In the open (yard, driveway, curb, garage or basement floor)": "A la vista (patio, entrada, acera, piso del garaje o del sótano)",
+  "Under a deck, porch or shed, or in a crawlspace": "Debajo de una terraza, porche o cobertizo, o en el entrepiso",
+  "In the attic, a wall or the ceiling": "En el ático, una pared o el techo",
+  "Number of animals": "Número de animales",
+  "In the same place. Several spots? Note them and we'll price each one.": "En el mismo lugar. ¿Varios lugares? Anótelos y cotizamos cada uno.",
+  "Sanitize & deodorize the area": "Desinfectar y desodorizar el área",
+  "Enzyme cleaner and odor treatment where the animal was. Recommended if it's been there more than a day or two.": "Limpiador enzimático y tratamiento de olores donde estaba el animal. Recomendado si lleva ahí más de uno o dos días.",
+  "It's a pet — take them to my vet or a pet crematory": "Es una mascota: llévenla a mi veterinario o a un crematorio de mascotas",
+  "Handled with care. Cremation is billed by the crematory.": "Con todo cuidado. El crematorio factura la cremación.",
 };

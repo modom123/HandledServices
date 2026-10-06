@@ -26,6 +26,8 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery pickup & delivery replaced by Same-Day Courier (documents, packages, parts; business routes).
  * UPDATED : 2026-10-05_0438 UTC — Event Security (licensed Michigan security agencies; unarmed by default, armed on request) and the security trade.
  * UPDATED : 2026-10-05_1433 UTC — Security category: Security Guards & Patrol (standing post, mobile patrol, fire watch; once, weekly or monthly). Plan My Event asks about alcohol and budgets licensed guards.
+ * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal (removal category; new wildlife trade): priced by animal size, where it is
+ *           (open ground, under a deck or crawlspace, attic or wall) and how many, with sanitizing and pet aftercare.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -101,7 +103,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing, mobile car detailing — plus decluttering." },
   { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture — or a container for the week." },
+  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
@@ -942,6 +944,60 @@ export const SERVICES: Service[] = [
   },
 
   // ───────────────────────────── REPAIR & REMODEL ─────────────────────────────
+  {
+    slug: "dead-animal-removal",
+    name: "Dead Animal Removal",
+    category: "removal",
+    icon: "🧤",
+    tagline: "Gone today: bagged, removed and disposed of properly. Odor treatment available.",
+    description: "Removal of dead animals from yards, driveways, garages, under decks and porches, crawlspaces, attics and walls: squirrels, birds, rodents, raccoons, opossums, skunks, cats and dogs, deer and more. Sealed in double bags, disposed of at an approved site the same day, and the spot sanitized on request. Lost a pet? We can take them to your vet or a pet crematory instead. We don't handle live or trapped animals.",
+    includes: ["Protective gear & sealed double bags", "Disposal at an approved site the same day", "Before & after photos", "Sanitizing & odor treatment available"],
+    questions: [
+      {
+        id: "size", label: "Size of the animal", type: "select", default: "medium",
+        options: [
+          { value: "small", label: "Small — under 5 lb (squirrel, bird, rat, chipmunk)" },
+          { value: "medium", label: "Medium — 5 to 40 lb (raccoon, opossum, skunk, cat, small dog)" },
+          { value: "large", label: "Large — 40 to 100 lb (large dog, coyote, fawn)" },
+          { value: "xl", label: "Very large — over 100 lb (deer)" },
+        ],
+      },
+      {
+        id: "where", label: "Where is it", type: "select", default: "open",
+        help: "Not sure? Pick your best guess and describe the smell or spot in the notes — we confirm before the pro goes in.",
+        options: [
+          { value: "open", label: "In the open (yard, driveway, curb, garage or basement floor)" },
+          { value: "under", label: "Under a deck, porch or shed, or in a crawlspace" },
+          { value: "attic", label: "In the attic, a wall or the ceiling" },
+        ],
+      },
+      { id: "count", label: "Number of animals", type: "number", min: 1, max: 10, default: 1, help: "In the same place. Several spots? Note them and we'll price each one." },
+      { id: "sanitize", label: "Sanitize & deodorize the area", type: "toggle", default: false, help: "Enzyme cleaner and odor treatment where the animal was. Recommended if it's been there more than a day or two." },
+      { id: "pet", label: "It's a pet — take them to my vet or a pet crematory", type: "toggle", default: false, help: "Handled with care. Cremation is billed by the crematory." },
+    ],
+    minimum: 129,
+    spread: [0.95, 1.2],
+    payoutShare: 0.68,
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["wildlife"],
+    notesHint: "Where it is and how to get there (gate, crawlspace hatch, attic ladder), what kind of animal if you know, and how long it's been there",
+    price: (a) => {
+      const size = s(a, "size", "medium");
+      const where = s(a, "where", "open");
+      const count = n(a, "count", 1);
+      const base = { small: 129, medium: 159, large: 219, xl: 299 }[size] ?? 159;
+      const label = { small: "small", medium: "medium", large: "large", xl: "very large" }[size] ?? "medium";
+      const items: LineItem[] = [{ label: `Removal & disposal — ${label} animal`, amount: base }];
+      if (count > 1) items.push({ label: `${count - 1} more animal${count > 2 ? "s" : ""} × $${Math.round(base * 0.35)}`, amount: (count - 1) * Math.round(base * 0.35) });
+      if (where === "under") items.push({ label: "Crawlspace / under-deck access", amount: 90 });
+      if (where === "attic") items.push({ label: "Attic / wall access (locating by odor; small access cut if needed)", amount: 175 });
+      if (b(a, "sanitize")) items.push({ label: "Sanitize & deodorize", amount: 49 });
+      if (b(a, "pet")) items.push({ label: "Pet aftercare — taken to your vet or a pet crematory", amount: 45 });
+      const hours = ({ open: 0.75, under: 1.5, attic: 2.5 }[where] ?? 0.75) + (count - 1) * 0.25 + (b(a, "sanitize") ? 0.5 : 0) + (b(a, "pet") ? 0.75 : 0);
+      return { items, base: sum(items), hours };
+    },
+  },
   {
     slug: "small-moves",
     name: "Small Moves & Moving Help",
@@ -2410,6 +2466,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "medical_courier", label: "Medical courier (prescriptions, specimens, supplies)" },
   { id: "auto_detailing", label: "Mobile car detailing" },
   { id: "hauling", label: "Junk hauling, moving & delivery" },
+  { id: "wildlife", label: "Wildlife control & dead animal removal" },
   { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },
   { id: "remodel", label: "Remodeling / general contractor" },
