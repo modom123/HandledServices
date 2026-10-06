@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Ops dashboard — KPIs, AI morning brief, live alerts, today's schedule.
  * UPDATED : 2026-10-04_1934 UTC — AI-driven target follows the growth plan year (80% → 95%).
+ * UPDATED : 2026-10-06_0324 UTC — Factoring partners strip (outreach status and quotes in).
  */
 import Link from "next/link";
 import { getService, money, type Job } from "@handled/core";
@@ -29,11 +30,15 @@ export default async function HubHome() {
     v.db.from("reviews").select("rating").gte("created_at", monthStart),
     v.db.from("contractor_applications").select("id", { count: "exact", head: true }).eq("status", "new"),
   ]);
-  const [auto, { count: iebcPending }, AI_DRIVEN_TARGET] = await Promise.all([
+  const [auto, { count: iebcPending }, AI_DRIVEN_TARGET, { data: factors }] = await Promise.all([
     aiDrivenRate(v.db, monthStart),
     v.db.from("agent_actions").select("id", { count: "exact", head: true }).eq("status", "pending_approval"),
     aiDrivenTargetNow(v.db),
+    v.db.from("factoring_partners").select("status, advance_rate, fee_pct"),
   ]);
+  const F = factors ?? [];
+  const factorQuotes = F.filter((f) => f.advance_rate != null && f.fee_pct != null).length;
+  const factorActive = F.filter((f) => f.status === "active").length;
   const revenue = (month ?? []).reduce((t, j) => t + Number(j.price_final ?? 0), 0);
   const margin = revenue - (month ?? []).reduce((t, j) => t + Number(j.contractor_payout ?? 0), 0);
   const unassigned = (open ?? []).filter((j) => !j.contractor_id && ["scheduled", "dispatched"].includes(j.status)).length;
@@ -60,6 +65,13 @@ export default async function HubHome() {
         <Stat label="Needs a pro" value={<span className={unassigned ? "text-rose-600" : ""}>{unassigned}</span>} hint={`${qa} awaiting QA`} />
         <Stat label="Avg rating (month)" value={`${avg} ★`} hint={`${apps ?? 0} new pro applications`} />
       </div>
+
+      {F.length > 0 && (
+        <Link href="/hub/factoring" className="card flex flex-wrap items-center justify-between gap-3 p-4 hover:border-brand">
+          <span className="text-sm font-semibold">🏦 Factoring partners <span className="font-normal text-ink-soft">· covers weekly pro payouts while net-30+ clients pay</span></span>
+          <span className="text-xs text-ink-soft">{F.filter((f) => f.status !== "to_contact").length} of {F.length} contacted · {factorQuotes} quotes in · {factorActive ? `${factorActive} active` : "none active yet"} →</span>
+        </Link>
+      )}
 
       {brief && (
         <div className="card border-brand/40 bg-brand-tint">
