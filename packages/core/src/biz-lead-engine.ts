@@ -16,6 +16,7 @@
  *           bizLeadEmail uses it when the lead has a job title; bizCoverLetter is the same letter for sending by hand.
  *           Leads are added by hand in the Hub (job sites don't allow scraping). New segment: offices & facilities.
  * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner'): tracked as leads, never sent the sales sequence or blasts.
+ * UPDATED : 2026-10-06_0606 UTC — cleaning push: property managers and offices lead with cleaning (move-out cleans, recurring office cleaning).
  */
 import { BRAND } from "./brand.ts";
 
@@ -29,8 +30,8 @@ export const BIZ_PARTNER_SEGMENT = "partner";
 export const BIZ_PARTNER_LABEL = "Teaming partner (public bids)";
 
 export const BIZ_SEGMENTS: Record<BizSegment, { label: string; search: string; services: string[]; hook: string; pilotJob: string }> = {
-  property_manager: { label: "Property managers", search: "property management company", services: ["unit-turnover", "junk-removal", "house-cleaning", "handyman", "lawn-care", "snow-removal"],
-    hook: "rent-ready unit turnovers in one booking: cleanout, deep clean, touch-ups and a punch list, with before-and-after photos of every room", pilotJob: "your next unit turnover" },
+  property_manager: { label: "Property managers", search: "property management company", services: ["house-cleaning", "unit-turnover", "carpet-cleaning", "window-cleaning", "junk-removal", "handyman"],
+    hook: "move-out deep cleans and rent-ready turnovers booked in a minute: the clean, carpets and windows, plus touch-ups and haul-away when a unit needs them, with before-and-after photos of every room", pilotJob: "your next move-out clean" },
   real_estate: { label: "Real estate brokerages", search: "real estate agency", services: ["house-cleaning", "junk-removal", "power-washing", "handyman", "staging-transport"],
     hook: "listing prep and move-out deep cleans booked in a minute, with photos your clients can see", pilotJob: "your next listing prep or move-out clean" },
   stager: { label: "Home stagers", search: "home staging company", services: ["staging-transport", "house-cleaning", "junk-removal"],
@@ -39,8 +40,8 @@ export const BIZ_SEGMENTS: Record<BizSegment, { label: string; search: string; s
     hook: "abandoned-unit cleanouts and haul-away on call, plus moving help you can offer your tenants", pilotJob: "your next unit cleanout" },
   retail: { label: "Furniture & appliance stores", search: "furniture store", services: ["retail-delivery", "large-item-removal", "junk-removal"],
     hook: "same-day large-item delivery for your customers by a 2-person crew, with haul-away of the old piece and photo proof", pilotJob: "your next customer deliveries" },
-  facilities: { label: "Offices, hotels & facilities", search: "office building management", services: ["house-cleaning", "window-cleaning", "carpet-cleaning", "handyman", "junk-removal", "power-washing", "lawn-care", "snow-removal"],
-    hook: "cleaning, repairs, haul-away and grounds work booked in a minute, with photos of every job and one place to see it all", pilotJob: "your next cleaning or repair" },
+  facilities: { label: "Offices, hotels & facilities", search: "office building management", services: ["house-cleaning", "window-cleaning", "carpet-cleaning", "power-washing", "handyman", "junk-removal"],
+    hook: "office and common-area cleaning on your schedule (nightly, weekly or monthly), plus carpets and windows, by the same vetted crew each visit, with photos of every clean", pilotJob: "your first office cleaning" },
 };
 
 /** What a job posting's title tells us they need (job-posting track). */

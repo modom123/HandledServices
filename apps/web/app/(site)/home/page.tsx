@@ -11,9 +11,12 @@
  * PURPOSE : Home page (the first page after the splash).
  * UPDATED : 2026-10-05_0419 UTC — category cards say "Instant upfront price" instead of "from $X".
  * UPDATED : 2026-10-05_0448 UTC — hero: "Snap a photo, post a job" next to Get my price.
+ * UPDATED : 2026-10-06_0606 UTC — cleaning push (MARKETING_FOCUS): the hero leads with home & office cleaning in Metro
+ *           Detroit (standard, deep, move-out, recurring, carpets, windows), then a "cleaners in your city" row
+ *           linking each city's house-cleaning page. Every other category stays below.
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
+import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SEO_CITIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 
 const STEPS = [
@@ -30,6 +33,17 @@ const COMPARE = [
   ["One app for every home & business service", "One trade per site"],
 ];
 
+
+// Cleaning push: what the hero offers first (MARKETING_FOCUS in @handled/core).
+const PLAN_SAVE = Math.round(RECURRING_DISCOUNT.weekly * 100);
+const CLEANING = [
+  { href: "/book?service=house-cleaning&level=standard", icon: "🧽", title: "Standard clean", body: "Kitchen, baths, dusting, floors" },
+  { href: "/book?service=house-cleaning&level=deep", icon: "✨", title: "Deep clean", body: "Baseboards, buildup, every corner" },
+  { href: "/book?service=house-cleaning&level=move", icon: "📦", title: "Move-in / move-out", body: "Empty home, deposit-ready" },
+  { href: "/book?service=house-cleaning&frequency=biweekly", icon: "🔁", title: "Recurring plan", body: `Same cleaner, save up to ${PLAN_SAVE}%` },
+  { href: "/book?service=carpet-cleaning", icon: "🧼", title: "Carpet cleaning", body: "Rooms, stairs, rugs, upholstery" },
+  { href: "/book?service=window-cleaning", icon: "🪟", title: "Window cleaning", body: "Inside, outside, screens & tracks" },
+];
 
 const TRUST = ["Insured & background-checked pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
 
@@ -49,26 +63,26 @@ export default async function Home() {
   }).filter((c) => c.list.length);
   return (
     <>
-      {/* hero */}
+      {/* hero — cleaning first (MARKETING_FOCUS) */}
       <section className="wrap grid items-center gap-10 pb-12 pt-12 md:grid-cols-[1.05fr_1fr] md:pt-16">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● {t("AI-run operations · real local pros")}</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● {t("Now booking cleaners across Metro Detroit")}</span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-            {t("Your home & business to-do list.")} <span className="text-brand">{t("Handled.")}</span>
+            {t("Home & office cleaning in Metro Detroit.")} <span className="text-brand">{t("Handled.")}</span>
           </h1>
-          <p className="mt-5 max-w-lg text-lg text-ink-soft">{BRAND.pitch}</p>
+          <p className="mt-5 max-w-lg text-lg text-ink-soft">{t("Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.")}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
-            <Link href="/snap" className="btn-ghost px-6 py-3 text-base">📸 {l === "es" ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job"}</Link>
+            <Link href="/book?service=house-cleaning" className="btn-primary px-6 py-3 text-base">{t("Book a cleaning")}</Link>
+            <Link href="/business" className="btn-ghost px-6 py-3 text-base">🏢 {t("Office & property cleaning")}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {l === "es" ? "servicios" : "services"}</Link>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-2 sm:gap-3">
-          {cats.map((c) => (
-            <Link key={c.id} href={`/services?cat=${c.id}`} className="card flex flex-col items-center px-1 py-3 text-center transition hover:border-brand hover:bg-brand-tint sm:p-4">
+        <div className="grid grid-cols-2 gap-3">
+          {CLEANING.map((c) => (
+            <Link key={c.href} href={c.href} className="card flex flex-col p-4 transition hover:border-brand hover:bg-brand-tint">
               <span className="text-2xl sm:text-3xl">{c.icon}</span>
-              <span className="mt-1.5 text-xs font-semibold leading-tight sm:text-sm">{categoryText(l, c.id, c).short}</span>
-              <span className="mt-1 hidden text-xs text-ink-soft sm:block">{c.list.length} {l === "es" ? "servicios" : "services"}</span>
+              <span className="mt-2 text-sm font-semibold leading-tight sm:text-base">{t(c.title)}</span>
+              <span className="mt-1 text-xs text-ink-soft">{l === "es" && c.title === "Recurring plan" ? `Misma persona, ahorre hasta ${PLAN_SAVE}%` : t(c.body)}</span>
             </Link>
           ))}
         </div>
@@ -81,10 +95,19 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* cleaners in your city — each links to that city's house-cleaning page */}
+      <section className="wrap pt-14">
+        <h2 className="text-2xl font-bold tracking-tight">{t("Cleaners across Detroit and the surrounding cities")}</h2>
+        <p className="mt-2 text-sm text-ink-soft">{t("Pick your city to see house cleaning near you.")}</p>
+        <div className="mt-5 flex flex-wrap gap-2 text-sm">
+          {SEO_CITIES.map((c) => <Link key={c.slug} href={`/services/house-cleaning/in/${c.slug}`} className="rounded-full border border-line bg-white px-3 py-1 hover:border-brand hover:text-brand">{c.name}</Link>)}
+        </div>
+      </section>
+
       {/* browse by category */}
       <section className="wrap py-14">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-3xl font-bold tracking-tight">{t("Browse by category")}</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{t("Everything else, handled too")}</h2>
           <Link href="/services" className="text-sm font-semibold text-brand">All {SERVICES.length} services →</Link>
         </div>
         {/* phones: swipe sideways; tablets and up: grid */}

@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-05_0438 UTC — Event Security.
  * UPDATED : 2026-10-05_1433 UTC — Spanish for the Security category and Security Guards & Patrol.
  * UPDATED : 2026-10-06_0526 UTC — Spanish for Dead Animal Removal.
+ * UPDATED : 2026-10-06_0606 UTC — Spanish for the cleaning-first home page.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -34,6 +35,20 @@ const ES: Record<string, string> = {
   "AI-run operations · real local pros": "Operación con IA · profesionales locales reales",
   "Your home & business to-do list.": "Su lista de pendientes del hogar y el negocio.",
   "Handled.": "Resuelta.",
+  // home — cleaning push
+  "Now booking cleaners across Metro Detroit": "Ya reservamos limpieza en todo Metro Detroit",
+  "Home & office cleaning in Metro Detroit.": "Limpieza de casas y oficinas en Metro Detroit.",
+  "Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.": "Limpieza estándar, profunda y de mudanza, alfombras y ventanas, por personal local asegurado y con verificación de antecedentes. Precio por adelantado en 60 segundos, fotos al terminar cada limpieza y una nueva limpieza gratis si algo faltó.",
+  "Book a cleaning": "Reservar una limpieza", "Office & property cleaning": "Limpieza de oficinas y propiedades",
+  "Standard clean": "Limpieza estándar", "Kitchen, baths, dusting, floors": "Cocina, baños, polvo y pisos",
+  "Deep clean": "Limpieza profunda", "Baseboards, buildup, every corner": "Zócalos, suciedad acumulada, cada rincón",
+  "Move-in / move-out": "Mudanza (entrada / salida)", "Empty home, deposit-ready": "Casa vacía, lista para el depósito",
+  "Recurring plan": "Plan recurrente",
+  "Carpet cleaning": "Limpieza de alfombras", "Rooms, stairs, rugs, upholstery": "Habitaciones, escaleras, tapetes y tapicería",
+  "Window cleaning": "Limpieza de ventanas", "Inside, outside, screens & tracks": "Por dentro, por fuera, mosquiteros y rieles",
+  "Cleaners across Detroit and the surrounding cities": "Limpieza en Detroit y las ciudades vecinas",
+  "Pick your city to see house cleaning near you.": "Elija su ciudad para ver la limpieza de casas cerca de usted.",
+  "Everything else, handled too": "Todo lo demás, también resuelto",
   "Enter": "Entrar a", "Get my price": "Ver mi precio", "services · one account": "servicios · una sola cuenta",
   "Vetted, insured pros": "Profesionales verificados y asegurados", "Background-checked, licensed where required, and rated on every job.": "Con verificación de antecedentes, licencia cuando se requiere y calificados en cada trabajo.",
   "Upfront, all-in price": "Precio total por adelantado", "Your real price in about a minute. No callbacks, no surprise invoices.": "Su precio real en un minuto. Sin esperas ni facturas sorpresa.",

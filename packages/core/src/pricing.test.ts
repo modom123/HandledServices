@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-05_0418 UTC — pro rewards.
  * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
  * UPDATED : 2026-10-06_0526 UTC — dead animal removal: size, location, extra animals, add-ons, wildlife trade.
+ * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  */
 
@@ -1026,7 +1027,7 @@ test("job-posting letter: names their posting, keeps to what we promise, unsubsc
   assert.equal(jobPostNeed("Housekeeper").work, "cleaning");
   const letter = bizCoverLetter({ ...ctx, step: 0, senderName: "Jordan Smith", phone: "(313) 555-0100" });
   assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call me at \(313\) 555-0100/);
-  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /unit turnover/i, "no job title → the segment sequence");
+  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /move-out clean/i, "no job title → the segment sequence");
 });
 
 test("email center: merge tags, HTML with button and footer, law and spam checks, pasted lists", async () => {
