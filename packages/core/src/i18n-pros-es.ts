@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-05_0439 UTC — security trade label.
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade.
  * UPDATED : 2026-10-06_0637 UTC — new trades.
+ * UPDATED : 2026-10-06_2010 UTC — pro place of business (address fields).
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -471,6 +472,10 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Save work area & hours": "Guardar zona y horario",
   "We only offer you jobs within your driving distance, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.": "Solo le ofrecemos trabajos dentro de la distancia que maneja, en los días y horarios en que trabaja. Fije su límite diario y sus días libres para no recibir ofertas que no puede tomar.",
   "Start from ZIP (home or shop)": "Código postal de salida (casa o taller)",
+  "City": "Ciudad",
+  "Place of business — street address": "Lugar de negocio — dirección",
+  "State (2 letters)": "Estado (2 letras)",
+  "We only offer you jobs within your driving distance of your place of business, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.": "Solo le ofrecemos trabajos dentro de su distancia de manejo desde su lugar de negocio, en los días y horarios en que trabaja. Fije su límite diario y sus días libres para no recibir ofertas que no puede tomar.",
   "How far you’ll drive (miles)": "Distancia que maneja (millas)",
   "Most jobs you want in one day": "Máximo de trabajos por día",
   "Days you work": "Días que trabaja",

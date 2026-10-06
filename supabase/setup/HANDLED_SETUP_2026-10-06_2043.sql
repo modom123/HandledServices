@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_1957.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_2043.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_1957 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 49 migrations + production seed.
+-- CREATED : 2026-10-06_2043 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 50 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -3131,6 +3131,21 @@ alter table public.pro_standing_events add constraint pro_standing_events_kind_c
   check (kind in ('late_cancel','short_notice_cancel','excused_cancel','no_show','warning','suspension','deactivation','appeal','appeal_upheld','reinstated','note'));
 
 alter table public.jobs add column if not exists handoffs int not null default 0;
+
+
+-- >>> migration 20261006201000_pro_business_address.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006201000_pro_business_address.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-06_2010 UTC
+-- PURPOSE : A pro's place of business (street, city, state, ZIP). Dispatch measures driving distance from it
+--           (geocoded street address; ZIP centre when the lookup isn't available — base_located says which).
+-- ============================================================================
+alter table public.contractors
+  add column if not exists base_address text,
+  add column if not exists base_city text,
+  add column if not exists base_state text check (base_state is null or base_state ~ '^[A-Z]{2}$'),
+  add column if not exists base_located text check (base_located is null or base_located in ('address','zip'));
 
 
 -- >>> seed.sql

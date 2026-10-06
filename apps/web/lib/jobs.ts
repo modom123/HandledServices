@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_0301 UTC — bookings record how soon the customer needs it (urgency → priority,
  *           needed-by date) and their budget.
  * UPDATED : 2026-10-02_2239 UTC — completion email invites a Google review (when NEXT_PUBLIC_GOOGLE_REVIEW_URL is set).
+ * UPDATED : 2026-10-06_2010 UTC — job location from the exact street address (geocodeAddress), ZIP centroid as fallback.
  * UPDATED : 2026-10-06_1950 UTC — coverage: accepted jobs line up backups #1–#3; a backup who takes the job is promoted
  *           (customer gets "your new pro is confirmed"); passed / lapsed backup calls go to the next backup; done jobs
  *           free their backups.
@@ -42,7 +43,7 @@ import { isPhotoPath, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LAB
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
-import { zipCentroid } from "./geo";
+import { geocodeAddress } from "./geo";
 import { aiRankCandidates } from "./ai/dispatch";
 import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
@@ -147,7 +148,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market });
   const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
-  const loc = await zipCentroid(input.zip);
+  const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
   let instructions: string | null = null;
   if (svc.slug === "junk-container" && input.scheduled_date) {
@@ -401,7 +402,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
 
   // where: job location for distance to each pro's base (ZIP centroid, cached)
   if (job.lat == null) {
-    const loc = await zipCentroid(job.zip);
+    const g = await geocodeAddress({ address: job.address, city: job.city, state: job.state, zip: job.zip });
+    const loc = g ? { lat: g.lat, lng: g.lng } : null;
     if (loc) { job.lat = loc.lat; job.lng = loc.lng; await db().from("jobs").update(loc).eq("id", job.id); }
   }
   // quality: first-time QA pass rate and redo rate from each pro's scorecard

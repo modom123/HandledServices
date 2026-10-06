@@ -2,6 +2,7 @@
   FILE    : docs/VERCEL_ENVIRONMENT_VARIABLES_2026-10-06_1956.md
   PROJECT : Handled (myhumanai)
   CREATED : 2026-10-06_1956 UTC
+  UPDATED : 2026-10-06_2010 UTC — GOOGLE_MAPS_API_KEY (exact job-to-pro distances).
   PURPOSE : Every environment variable the website reads, grouped by what it turns on, with where to get each value.
             Vercel → your project → Settings → Environment Variables → add each one for Production (and Preview).
             Secrets are never written in this file — type them straight into Vercel.
@@ -66,6 +67,7 @@ GitHub (for the 10-minute cron): repo → Settings → Secrets and variables →
 
 | Name | Where |
 |---|---|
+| `GOOGLE_MAPS_API_KEY` 🔒 | Google Cloud → enable **Geocoding API** → API key. Exact distance from the customer's address to each pro's place of business (without it: ZIP centres) |
 | `GOOGLE_PLACES_API_KEY` 🔒 | Google Cloud → APIs → Places API (pro + business lead finders) |
 | `INSTANTLY_API_KEY` 🔒, `INSTANTLY_CAMPAIGN_ID`, `INSTANTLY_BIZ_CAMPAIGN_ID`, `INSTANTLY_WEBHOOK_SECRET` 🔒 | instantly.ai (outreach from a separate domain) |
 | `BUSINESS_POSTAL_ADDRESS` | your mailing address (required in marketing emails) |
