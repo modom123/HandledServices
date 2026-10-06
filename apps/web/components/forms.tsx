@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-03_0209 UTC — carries ?lead= from the pro lead invitation.
  * PURPOSE : Pro application form and commercial account form.
  * UPDATED : 2026-10-04_1934 UTC — BusinessForm passes the sales-engine lead token (pilot offer, credit).
+ * UPDATED : 2026-10-06_0802 UTC — BusinessForm: service groups fold up (cleaning open; groups with picks stay open) instead of 54 chips.
  */
 "use client";
 
@@ -126,6 +127,8 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
 }
 
 export function BusinessForm({ industry: startIndustry = "", lead = null }: { industry?: string; lead?: string | null }) {
+  // service groups fold up (12 groups, 54 services); cleaning starts open, any group with a pick stays open
+  const [openGroups, setOpenGroups] = useState<string[]>(["janitorial"]);
   const { state, error, submit } = useSubmit("/api/business");
   const [industry, setIndustry] = useState(startIndustry);
   const [services, setServices] = useState<string[]>(INDUSTRIES.find((i) => i.id === startIndustry)?.slugs ?? []);
@@ -164,13 +167,19 @@ export function BusinessForm({ industry: startIndustry = "", lead = null }: { in
       </div>
       <div>
         <label className="label">Services needed {services.length > 0 && <span className="normal-case text-brand">· {services.length} selected</span>}</label>
-        <div className="space-y-3">
-          {BUSINESS_GROUPS.map((g) => (
-            <div key={g.id}>
-              <div className="mb-1.5 text-sm font-semibold">{g.icon} {g.title}</div>
-              <Chips options={g.slugs.filter((s) => SERVICE_BY_SLUG[s]).map((s) => ({ id: s, label: SERVICE_BY_SLUG[s].name }))} value={services} onChange={setServices} />
-            </div>
-          ))}
+        <div className="divide-y divide-line rounded-xl border border-line bg-white">
+          {BUSINESS_GROUPS.map((g) => {
+            const picked = g.slugs.filter((x) => services.includes(x)).length;
+            const isOpen = openGroups.includes(g.id) || picked > 0;
+            return (
+              <div key={g.id} className="px-3">
+                <button type="button" aria-expanded={isOpen} onClick={() => setOpenGroups(isOpen ? openGroups.filter((x) => x !== g.id) : [...openGroups, g.id])} className="flex w-full items-center justify-between py-2.5 text-left text-sm font-semibold">
+                  <span>{g.icon} {g.title}{picked > 0 && <span className="ml-1 text-brand">· {picked}</span>}</span><span aria-hidden className={`text-xs transition ${isOpen ? "rotate-180" : ""}`}>▾</span>
+                </button>
+                {isOpen && <div className="pb-3"><Chips options={g.slugs.filter((x) => SERVICE_BY_SLUG[x]).map((x) => ({ id: x, label: SERVICE_BY_SLUG[x].name }))} value={services} onChange={setServices} /></div>}
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
