@@ -5,6 +5,7 @@
   PURPOSE : What to check on a real iPhone and a real Android phone before each app release (v0.4.0+).
             The app builds and is type-checked and screen-tested automatically; these are the things only a
             real phone can prove: the keyboard, code autofill, push taps, the payment sheet, a lost signal.
+  UPDATED : 2026-10-06_0708 UTC — v0.5.0: Apple Pay / Google Pay, live map, haptics, icon and splash.
 -->
 
 # Handled App: Real-Phone Test (10 minutes per phone)
@@ -25,6 +26,13 @@ Test on one iPhone and one Android phone, on a production build (TestFlight / in
 9. Sign in as an approved pro with "I'm a pro": the **Pro** tab appears and opens on the Pro tab.
 10. Go **on call 2h**. Send yourself an offer from the Hub: the phone rings (Android "offers" channel), **tapping the notification with the app closed opens the offer** (cold start), the countdown ticks, Accept works.
 11. Tools grid opens Earnings, Calendar, Crew, Rewards, Setup & documents, Contracts. Payout setup opens in the in-app sheet.
+
+## v0.5.0 additions
+17. **Icon and splash.** The home-screen icon is the green check; opening the app shows the deep-green splash with the Handled check and wordmark.
+18. **Apple Pay / Google Pay.** Book with Stripe test keys: after Pay & book a payment sheet slides up with Apple Pay (iPhone with a card in Wallet) or Google Pay, and card entry. Pay → "Paid ✓", the booking shows paid within seconds. Close the sheet instead → "Your booking is saved" with Pay now / Later.
+19. **Pay now** on an unpaid booking opens the same sheet.
+20. **Live map.** As a pro, tap "On my way" on today's job and drive (or walk) a block. As the customer, the booking shows a map with 🚗 and 🏠 that moves every ~15 s, plus the ETA. It disappears when the pro taps "I've arrived".
+21. **Haptics.** Picking an option ticks; Pay & book taps; payment success, accepting an offer and signing in buzz; errors buzz differently.
 
 ## Bad conditions (the part that makes it world-class)
 12. **Airplane mode**, then pull to refresh on Bookings and Pro: a plain "No connection… Try again" appears, never a blank or frozen screen. Turn the signal back on and tap Try again.

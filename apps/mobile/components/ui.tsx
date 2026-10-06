@@ -6,12 +6,14 @@
  *           the field you're typing in), StickyBar (price + main button always in reach), Loading,
  *           ErrorState (plain message + Try again), Empty, SearchBox; buttons and chips announce
  *           themselves to screen readers, have 44 pt+ touch targets and a pressed state.
+ * UPDATED : 2026-10-06_0708 UTC — chips give a light haptic tick when picked.
  */
 import type { ReactNode } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewProps, type TextInputProps, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JOB_STATUS_LABEL, type JobStatus } from "@handled/core";
 import { useI18n } from "../lib/i18n";
+import { haptic } from "../lib/haptics";
 
 export const C = { ink: "#0b1b2b", soft: "#4b5a6a", brand: "#0e7c66", deep: "#0a4a3e", tint: "#e6f4f0", paper: "#f0ead6", line: "#d9d0b8", white: "#fff", red: "#be123c", amber: "#b45309" };
 
@@ -47,7 +49,7 @@ export function Field({ label, error, ...props }: TextInputProps & { label: stri
 
 export function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} hitSlop={4} style={({ pressed }) => [s.chip, on && { backgroundColor: C.tint, borderColor: C.brand }, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={() => { haptic("select"); onPress(); }} accessibilityRole="button" accessibilityState={{ selected: on }} hitSlop={4} style={({ pressed }) => [s.chip, on && { backgroundColor: C.tint, borderColor: C.brand }, pressed && { opacity: 0.8 }]}>
       <Text style={{ color: on ? C.brand : C.ink, fontWeight: on ? "700" : "500", fontSize: 16 }}>{label}</Text>
     </Pressable>
   );

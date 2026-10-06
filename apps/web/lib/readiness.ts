@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-05_0418 UTC — migration 34 (pro rewards).
  * UPDATED : 2026-10-05_0434 UTC — OWNER_EMAILS check (first admin).
  * UPDATED : 2026-10-05_1441 UTC — SAM_API_KEY (government contracts).
+ * UPDATED : 2026-10-06_0708 UTC — migration 44 (in-app payments) and the Stripe publishable key for Apple Pay / Google Pay in the app.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -61,6 +62,7 @@ export async function readiness(): Promise<Check[]> {
     has("TWILIO_ACCOUNT_SID") ? "set" : "missing — customers and pros get push + email only", "Twilio → buy a number, register A2P 10DLC for business texting, then set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM)");
   const dispatchCron = process.env.DISPATCH_CRON === "github" ? "GitHub Actions" : process.env.VERCEL_PLAN === "pro" ? "Vercel Pro" : "";
   add("Website & Vercel", "10-minute dispatch cron", dispatchCron ? true : "warn", dispatchCron || "not confirmed — without it, unanswered offers wait for the daily sweep", "In GitHub → Settings → Secrets and variables → Actions, add secret CRON_SECRET (same as Vercel) and variable HANDLED_URL, then set DISPATCH_CRON=github in Vercel");
+  add("Mobile app", "Apple Pay / Google Pay in the app", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? true : "warn", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? "publishable key set" : "missing — the app falls back to the Stripe Checkout page", "Stripe → Developers → API keys → copy the publishable key into STRIPE_PUBLISHABLE_KEY; add the payment_intent.succeeded event to the webhook")
   add("Mobile app", "Push notifications", has("EXPO_ACCESS_TOKEN") ? true : "warn", has("EXPO_ACCESS_TOKEN") ? "Expo access token set" : "works without it; add EXPO_ACCESS_TOKEN for signed push requests", "expo.dev → Account → Access tokens → create → add EXPO_ACCESS_TOKEN in Vercel");
   add("IEBC workforce", "IEBC API key", has("IEBC_API_KEY") ? true : "warn", has("IEBC_API_KEY") ? "set" : "missing — IEBC agents can't connect", "Add IEBC_API_KEY (openssl rand -hex 32) and paste the same key in IEBC MasterHub → Handled Ops");
   add("IEBC workforce", "Allowed origin", has("IEBC_ALLOWED_ORIGIN") ? true : "warn", process.env.IEBC_ALLOWED_ORIGIN ?? "* (any website may call with the key)", "Set IEBC_ALLOWED_ORIGIN to the MasterHub's web address");
@@ -123,6 +125,7 @@ export async function readiness(): Promise<Check[]> {
     ["32 job checklists", () => db.from("job_checklist_checks").select("id").limit(1)],
     ["33 pro screening interviews", () => db.from("pro_interviews").select("id").limit(1)],
     ["34 pro rewards", () => db.from("reward_ledger").select("id").limit(1)],
+    ["44 in-app payments (Apple Pay / Google Pay)", () => db.from("payments").select("stripe_payment_intent_id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

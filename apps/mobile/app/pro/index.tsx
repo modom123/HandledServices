@@ -14,6 +14,7 @@
  *           large and a live countdown, jobs near you, today's schedule; tools (earnings, calendar, crew, rewards,
  *           setup, contracts) move to a grid at the bottom. A dropped connection shows Try again instead of
  *           an empty screen. Also shown as the Pro tab.
+ * UPDATED : 2026-10-06_0708 UTC — haptics when going on / off call.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -23,6 +24,7 @@ import { API_URL, api, supabase } from "../../lib/supabase";
 import { useLocationSharing } from "../../lib/location";
 import { useI18n } from "../../lib/i18n";
 import { Button, C, Card, ErrorState, Status, s } from "../../components/ui";
+import { haptic } from "../../lib/haptics";
 
 type BoardCard = { job_id: string; service: string; icon: string; city: string; zip: string; when: string; payLabel: string; miles: number | null; scope: string[]; priority: boolean; offerId: string | null };
 type Offer = { id: string; payout: number; expires_at: string; jobs: Pick<Job, "ref" | "service_slug" | "city" | "zip" | "scheduled_date" | "time_window" | "notes"> | null };
@@ -51,7 +53,8 @@ export default function ProHome() {
   useLocationSharing(onCall.on || activeToday);
   async function toggleOnCall(hours = 4) {
     const r = await api<{ onCall: boolean; until: string | null; error?: string }>("/api/pro/status", { method: "POST", body: JSON.stringify({ on_call: !onCall.on, hours }) });
-    if (!r.ok) return Alert.alert(t("Couldn't update"), r.data.error ?? t("Try again"));
+    if (!r.ok) { haptic("error"); return Alert.alert(t("Couldn't update"), r.data.error ?? t("Try again")); }
+    haptic(r.data.onCall ? "success" : "tap");
     setOnCall({ on: r.data.onCall, until: r.data.until });
   }
   const load = useCallback(async () => {

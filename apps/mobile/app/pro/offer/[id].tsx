@@ -8,6 +8,7 @@
  *           accepted), job terms, "I agree" and one-tap Accept / Pass. First to accept wins.
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (special instructions first) on the work order.
  * UPDATED : 2026-10-06_0645 UTC — a failed load shows the reason with Try again and Back (it used to sit on "Loading offer…" forever).
+ * UPDATED : 2026-10-06_0708 UTC — haptics on accept / not available.
  */
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -17,6 +18,7 @@ import { api } from "../../../lib/supabase";
 import { ChecklistList } from "../../../components/Checklist";
 import { Button, C, Card, ErrorState, Loading, s } from "../../../components/ui";
 import { useI18n } from "../../../lib/i18n";
+import { haptic } from "../../../lib/haptics";
 
 type OfferResp = { offer: { id: string; status: string; payout: number; expires_at: string; job_id: string }; workOrder: WorkOrder; error?: string };
 
@@ -47,8 +49,8 @@ export default function OfferScreen() {
     setBusy(true);
     const r = await api<{ ok: boolean; error?: string }>(`/api/pro/offers/${id}`, { method: "POST", body: JSON.stringify(action === "accept" ? { action, accept_terms: true } : { action }) });
     setBusy(false);
-    if (!r.ok) return Alert.alert(t("Not available"), r.data.error ?? t("Another pro may have taken it."));
-    if (action === "accept") { router.replace({ pathname: "/pro/[id]", params: { id: offer.job_id } }); Alert.alert(`${t("It's yours")} ✓`, t("The full address and customer details are now unlocked.")); }
+    if (!r.ok) { haptic("error"); return Alert.alert(t("Not available"), r.data.error ?? t("Another pro may have taken it.")); }
+    if (action === "accept") { haptic("success"); router.replace({ pathname: "/pro/[id]", params: { id: offer.job_id } }); Alert.alert(`${t("It's yours")} ✓`, t("The full address and customer details are now unlocked.")); }
     else router.back();
   }
 
