@@ -7,6 +7,8 @@
  *           (others are just hidden) so search engines still see all links. The category is
  *           kept in the URL (?cat=transport) so it can be linked and shared.
  * UPDATED : 2026-10-05_1433 UTC — Security category links to Event Security.
+ * UPDATED : 2026-10-06_0625 UTC — easier to read: category list, card titles and descriptions one size up on the site's
+ *           scale (base / lg), bold or semibold, in dark ink instead of light grey; counts in a pill.
  */
 "use client";
 
@@ -42,11 +44,11 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
                 type="button"
                 onClick={() => pick(c.id)}
                 aria-current={cat === c.id ? "true" : undefined}
-                className={`flex w-full items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-left text-sm transition-colors lg:whitespace-normal ${cat === c.id ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white hover:border-brand lg:border-transparent lg:bg-transparent lg:hover:border-line lg:hover:bg-white"}`}
+                className={`flex w-full items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-left text-base font-semibold transition-colors lg:whitespace-normal ${cat === c.id ? "border-brand bg-brand-tint text-brand-dark" : "border-line bg-white text-ink hover:border-brand lg:border-transparent lg:bg-transparent lg:hover:border-line lg:hover:bg-white"}`}
               >
                 <span className="text-lg">{c.icon}</span>
                 <span className="flex-1">{c.name}</span>
-                <span className="text-xs text-ink-soft">{c.services.length}</span>
+                <span className="rounded-full bg-paper-deep px-2 py-0.5 text-sm font-semibold text-ink">{c.services.length}</span>
               </button>
             </li>
           ))}
@@ -58,7 +60,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h2 id={`cat-${c.id}`} className="text-2xl font-bold">{c.icon} {c.name}</h2>
-                <p className="mt-1 text-sm text-ink-soft">{c.blurb}</p>
+                <p className="mt-1 text-base text-ink/90">{c.blurb}</p>
               </div>
               {c.id === "events" && <Link href="/events" className="text-sm font-semibold text-brand">Plan an event by budget →</Link>}
               {c.id === "security" && <Link href="/services/event-security" className="text-sm font-semibold text-brand">Security for an event →</Link>}
@@ -67,9 +69,9 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
               {c.services.map((s) => (
                 <Link key={s.slug} href={`/services/${s.slug}`} className="card flex flex-col transition hover:border-brand">
                   <div className="text-3xl">{s.icon}</div>
-                  <div className="mt-3 font-semibold">{s.name}</div>
-                  <p className="mt-1 flex-1 text-sm text-ink-soft">{s.tagline}</p>
-                  <div className="mt-3 text-sm font-semibold text-brand">{s.from}{s.siteVisit ? " · free site visit" : ""}</div>
+                  <div className="mt-3 text-lg font-bold leading-snug text-ink">{s.name}</div>
+                  <p className="mt-1.5 flex-1 text-base leading-relaxed text-ink/90">{s.tagline}</p>
+                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit ? " · free site visit" : ""}</div>
                 </Link>
               ))}
             </div>
