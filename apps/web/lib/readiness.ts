@@ -23,7 +23,7 @@
  * UPDATED : 2026-10-05_0418 UTC — migration 34 (pro rewards).
  * UPDATED : 2026-10-05_0434 UTC — OWNER_EMAILS check (first admin).
  * UPDATED : 2026-10-05_1441 UTC — SAM_API_KEY (government contracts).
- * UPDATED : 2026-10-06_0708 UTC — migration 44 (in-app payments) and the Stripe publishable key for Apple Pay / Google Pay in the app.
+ * UPDATED : 2026-10-06_0708 UTC — migration 45 (in-app payments) and the Stripe publishable key for Apple Pay / Google Pay in the app.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -125,7 +125,7 @@ export async function readiness(): Promise<Check[]> {
     ["32 job checklists", () => db.from("job_checklist_checks").select("id").limit(1)],
     ["33 pro screening interviews", () => db.from("pro_interviews").select("id").limit(1)],
     ["34 pro rewards", () => db.from("reward_ledger").select("id").limit(1)],
-    ["44 in-app payments (Apple Pay / Google Pay)", () => db.from("payments").select("stripe_payment_intent_id").limit(1)],
+    ["45 in-app payments (Apple Pay / Google Pay)", () => db.from("payments").select("stripe_payment_intent_id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

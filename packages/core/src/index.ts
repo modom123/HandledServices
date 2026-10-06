@@ -47,3 +47,4 @@ export * from "./rewards.ts";
 export * from "./gov-contracts.ts";
 export * from "./bid-engine.ts";
 export * from "./talent.ts";
+export * from "./factoring.ts";
