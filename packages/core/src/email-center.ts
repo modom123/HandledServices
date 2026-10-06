@@ -5,7 +5,7 @@
  * PURPOSE : Email Center (Hub → Email) rules, shared and pure:
  *             EMAIL_AUDIENCES  — who a campaign can go to (customers, repeat / lapsed customers, business
  *                                accounts, business leads, pros, a pasted list with consent)
- *             EMAIL_TEMPLATES  — starter campaigns (seasonal, win-back, new service, business, referral)
+ *             EMAIL_TEMPLATES  — starter campaigns (seasonal, win-back, new service, business, cleaning, referral)
  *             mergeTags        — {{first_name}}, {{company}}, {{city}}, {{book_url}} … with fallbacks
  *             renderEmailHtml  — the simple writing format → branded HTML (paragraphs, **bold**, links,
  *                                [Button](url)), with the plain-text version for every email
@@ -14,6 +14,8 @@
  *             EMAIL_LIMITS     — sending pace that protects the mailbox (Hostinger caps daily sends)
  *           Every marketing email carries the business postal address and a one-click unsubscribe
  *           (CAN-SPAM); unsubscribed addresses are never emailed again. No texts (TCPA).
+ * UPDATED : 2026-10-06_0606 UTC — cleaning push: "House cleaning in Metro Detroit" (customers, English & Spanish) and
+ *           "Office & turnover cleaning" (business leads) templates.
  */
 import { BRAND } from "./brand.ts";
 
@@ -107,6 +109,52 @@ A quick reminder of what your {{company|business}} account does:
 [Open my business account]({{site_url}}/account/business)
 
 Questions? Reply here and a person answers.
+The {{brand}} team`,
+  },
+  {
+    key: "cleaning", name: "House cleaning in Metro Detroit (homeowners)", audience: "customers",
+    subject: "A clean home, without the hassle", preheader: "Standard, deep or move-out cleaning, priced in a minute.",
+    body: `Hi {{first_name|there}},
+
+We now have background-checked, insured cleaners across Detroit and the surrounding cities, including {{city|your neighborhood}}.
+
+• **Standard, deep or move-in/move-out** cleaning, plus carpets and windows
+• An upfront price in about a minute: no walk-through, no callbacks
+• The same cleaner each visit on a weekly, every-other-week or monthly plan, and you save up to 20%
+• A photo check-out after every clean, and a free redo within {{guarantee_days}} days if anything's missed
+
+[Book a cleaning]({{site_url}}/book?service=house-cleaning)
+
+The {{brand}} team`,
+    subject_es: "Una casa limpia, sin complicaciones",
+    body_es: `Hola {{first_name|}}:
+
+Ya tenemos personal de limpieza verificado y asegurado en Detroit y las ciudades vecinas, incluida {{city|su zona}}.
+
+• Limpieza **estándar, profunda o de mudanza**, además de alfombras y ventanas
+• Un precio por adelantado en un minuto: sin visitas ni llamadas
+• La misma persona en cada visita con un plan semanal, quincenal o mensual, y ahorra hasta un 20%
+• Fotos al terminar cada limpieza y una nueva limpieza gratis dentro de {{guarantee_days}} días si algo faltó
+
+[Reservar una limpieza]({{site_url}}/book?service=house-cleaning)
+
+El equipo de {{brand}}`,
+  },
+  {
+    key: "cleaning_business", name: "Office & turnover cleaning (business leads)", audience: "biz_leads",
+    subject: "Cleaning for {{company|your properties}}, booked in a minute", preheader: "Office, common-area and move-out cleaning across Metro Detroit.",
+    body: `Hi {{first_name|there}},
+
+{{brand}} handles cleaning for offices and rental properties across Detroit and the surrounding cities:
+
+• **Recurring office and common-area cleaning**: nightly, weekly or monthly, by the same vetted crew
+• **Move-out and turnover deep cleans**, with carpets and windows when a unit needs them
+• An upfront price in about a minute, before-and-after photos of every clean, and one account for all your locations
+• Every cleaner is ID- and background-checked and insured. If a clean isn't right, we redo it free within {{guarantee_days}} days
+
+[Set up a business account]({{site_url}}/business)
+
+Would a quick call this week help? Just reply to this email.
 The {{brand}} team`,
   },
   {

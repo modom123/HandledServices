@@ -17,10 +17,12 @@
  *           conversion when they apply.
  * UPDATED : 2026-10-03_0324 UTC — sending moved from a Resend outreach account to Instantly.ai.
  * UPDATED : 2026-10-03_1413 UTC — pay example uses the service's own commission (equipment cap); worded as an estimate in the email.
+ * UPDATED : 2026-10-06_0606 UTC — cleaning push: rotates through Detroit and the 38 surrounding cities, and recruits cleaners
+ *           (MARKETING_FOCUS.trades) when staff haven't picked trades. Supply gaps are still searched for every trade.
  */
 import "server-only";
 import {
-  BRAND, LEAD_SEQUENCE, SERVICES, TRADES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, serviceGaps, splitJob, type Contractor,
+  BRAND, FOCUS_CITIES, LEAD_SEQUENCE, MARKETING_FOCUS, SERVICES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, serviceGaps, splitJob, type Contractor,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
@@ -29,7 +31,7 @@ import { raiseAlert } from "./jobs";
 import { addLeadToCampaign, blockInInstantly, instantlyReady } from "./instantly";
 
 const db = () => adminClient();
-const METRO = ["Detroit", "Dearborn", "Southfield", "Royal Oak", "Warren", "Livonia", "Troy", "Sterling Heights", "Farmington Hills", "Westland"];
+const METRO = FOCUS_CITIES;
 const LICENSED = new Set(["plumbing", "electrical", "hvac", "remodel"]);
 
 export interface LeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; min_rating: number; min_reviews: number; trades: string[] }
@@ -63,8 +65,8 @@ async function targets(s: LeadSettings): Promise<{ trade: string; city: string; 
   const seen = new Set<string>();
   const add = (trade: string, city: string, inGap: boolean) => { const k = `${trade}|${city}`; if (!seen.has(k) && TRADE_SEARCH[trade]) { seen.add(k); out.push({ trade, city, inGap }); } };
   for (const g of gaps) for (const t of getService(g.slug)?.trades ?? []) if (!s.trades.length || s.trades.includes(t)) add(t, cityOf.get(g.zip) ?? "Detroit", true);
-  // rotate through the metro for the trades staff asked for (or all trades before launch)
-  const want = s.trades.length ? s.trades : TRADES.map((t) => t.id);
+  // rotate through the metro for the trades staff asked for (or the marketing focus: cleaners)
+  const want = s.trades.length ? s.trades : MARKETING_FOCUS.trades;
   const day = Math.floor(Date.now() / 86400000);
   for (let i = 0; out.length < s.discover_per_day * 3 && i < want.length * METRO.length; i++) add(want[(day + i) % want.length], METRO[(day + Math.floor(i / want.length)) % METRO.length], false);
   return out;
