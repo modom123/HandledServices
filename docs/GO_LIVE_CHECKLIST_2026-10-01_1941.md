@@ -6,6 +6,9 @@
             Handled Hub, the IEBC MasterHub connection and the mobile apps. Work top to
             bottom; Hub → Go-live setup turns each item green as you finish it.
   UPDATED : 2026-10-04_1934 UTC — 51 services (small moves, large-item delivery, staging moves, unit turnover added).
+  UPDATED : 2026-10-06_0505 UTC — 53 services (event security, security guards & patrol added).
+  UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch cron moved to GitHub Actions (works on Vercel Hobby).
+  UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
 -->
 
 # Handled — Go-Live Checklist
@@ -33,7 +36,7 @@
 ## 1. Supabase (database) — 15 minutes
 
 1. supabase.com → **New project** → region **US East** → save the database password somewhere safe.
-2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 51 services and your launch market. Run it once, on a new project.)
+2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 54 services and your launch market. Run it once, on a new project.)
 3. **Do NOT run** `supabase/demo_data.sql` on this project; it's fake people for testing only.
 4. **Authentication → URL Configuration**
    - Site URL: `https://YOUR-DOMAIN`
@@ -166,7 +169,7 @@ node scripts/smoke-test.mjs https://YOUR-DOMAIN     # every line should say PASS
 |---|---|
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID` (or `TWILIO_FROM`) | Text messages to customers and pros (register A2P 10DLC in Twilio first) |
 | `STRIPE_TAX=on` | Sales tax on service charges (after adding tax registrations in Stripe) |
-| `VERCEL_PLAN=pro` | Clears the readiness warning once the team is on Vercel Pro (needed for the 10-minute dispatch cron) |
+| `DISPATCH_CRON=github` | Clears the readiness warning once the GitHub Action runs the 10-minute dispatch cron: in GitHub → Settings → Secrets and variables → Actions, add secret `CRON_SECRET` (same value as Vercel) and variable `HANDLED_URL` (e.g. `https://handledsvc.com`). On Vercel Pro you can set `VERCEL_PLAN=pro` instead. |
 | Stripe webhook events | Add `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` |
 | Stripe → Settings → Billing → Customer portal | Turn on, so Handled Plus members can manage or cancel |
 | App build: `EXPO_PUBLIC_API_URL` | Also fills the app's privacy policy and terms links |

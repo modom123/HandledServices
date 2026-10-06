@@ -15,6 +15,7 @@
  *           set, supervision, uniforms or training we require.
  * UPDATED : 2026-10-05_0432 UTC — approval checklist: "Pro account created" (signed in with the application email) after the invite.
  * UPDATED : 2026-10-05_0441 UTC — security trade group (agency license, de-escalation).
+ * UPDATED : 2026-10-06_0526 UTC — wildlife trade interviews with the outdoor group.
  */
 import { BRAND } from "./brand.ts";
 
@@ -33,7 +34,7 @@ export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "paintin
 
 const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
-  gutters: "outdoor", lawn: "outdoor", tree: "outdoor", snow: "outdoor", pet_waste: "outdoor", pressure_washing: "outdoor",
+  gutters: "outdoor", lawn: "outdoor", tree: "outdoor", snow: "outdoor", pet_waste: "outdoor", wildlife: "outdoor", pressure_washing: "outdoor",
   hauling: "moving", dumpster: "moving",
   handyman: "repair", remodel: "repair", low_voltage: "repair",
   painting: "painting",

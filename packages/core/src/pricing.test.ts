@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
  * UPDATED : 2026-10-05_0418 UTC — pro rewards.
  * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
+ * UPDATED : 2026-10-06_0526 UTC — dead animal removal: size, location, extra animals, add-ons, wildlife trade.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  */
 
@@ -1274,4 +1275,15 @@ test("bid archive: comparing two submitted versions", async () => {
   assert.deepEqual(c.changed, [{ item: "Mow", unit: "visit", from: 45, to: 43, qtyFrom: 10, qtyTo: 10 }]);
   assert.deepEqual(c.added, ["Debris"]); assert.deepEqual(c.removed, ["Trees"]);
   assert.equal(c.diff, -400); assert.equal(c.pct, -8);
+});
+
+test("dead animal removal: priced by size and location, extra animals at 35%, add-ons, wildlife trade", () => {
+  const open = getService("dead-animal-removal")!.price({ size: "small", where: "open", count: 1 });
+  assert.deepEqual(open.items.map((i) => i.amount), [129]);
+  const attic = getService("dead-animal-removal")!.price({ size: "medium", where: "attic", count: 3, sanitize: true, pet: true });
+  assert.deepEqual(attic.items.map((i) => i.amount), [159, 2 * Math.round(159 * 0.35), 175, 49, 45]);
+  const under = getService("dead-animal-removal")!.price({ size: "xl", where: "under", count: 1 });
+  assert.deepEqual(under.items.map((i) => i.amount), [299, 90]);
+  const sv = getService("dead-animal-removal")!;
+  assert.ok(sv.category === "removal" && sv.trades.includes("wildlife") && !sv.licensed && sv.frequencies.join() === "once");
 });

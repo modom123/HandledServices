@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-04_1934 UTC — Spanish for small moves, large-item delivery, staging moves and unit turnover.
  * UPDATED : 2026-10-05_0441 UTC — Event Security lines.
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol lines; event-budget security line.
+ * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal lines.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
@@ -337,4 +338,14 @@ export const ES_LINES: Record<string, string> = {
   "{#} more stop × {#}": "{#} parada más × {#}",
   "Signature on delivery": "Firma en la entrega",
   "Return trip": "Viaje de regreso",
+  "Removal & disposal — small animal": "Retiro y desecho — animal pequeño",
+  "Removal & disposal — medium animal": "Retiro y desecho — animal mediano",
+  "Removal & disposal — large animal": "Retiro y desecho — animal grande",
+  "Removal & disposal — very large animal": "Retiro y desecho — animal muy grande",
+  "{#} more animal × {#}": "{#} animal más × {#}",
+  "{#} more animals × {#}": "{#} animales más × {#}",
+  "Crawlspace / under-deck access": "Acceso al entrepiso / debajo de la terraza",
+  "Attic / wall access (locating by odor; small access cut if needed)": "Acceso al ático / pared (ubicación por el olor; pequeño corte de acceso si hace falta)",
+  "Sanitize & deodorize": "Desinfección y desodorización",
+  "Pet aftercare — taken to your vet or a pet crematory": "Cuidado de la mascota — llevada a su veterinario o a un crematorio de mascotas",
 };

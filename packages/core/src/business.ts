@@ -8,6 +8,7 @@
  *           usually books. Used by the For Business page and its proposal form.
  * UPDATED : 2026-10-04_1934 UTC — unit turnovers, moves and large-item delivery groups; real estate and self-storage industries.
  * UPDATED : 2026-10-05_1433 UTC — Security guards & patrol group; guards for retail, property managers, warehouses; event security for venues.
+ * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal under clean-outs and for property managers.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -19,7 +20,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "maintenance", title: "Repairs & maintenance", icon: "🔧", blurb: "Work orders handled by licensed trades, with photos on every ticket.", slugs: ["handyman", "plumbing", "lighting-install", "camera-install", "water-heater", "hvac-install"] },
   { id: "buildout", title: "Painting & build-outs", icon: "🎨", blurb: "Tenant turnovers, refreshes and remodels, scheduled around your hours.", slugs: ["interior-painting", "exterior-painting", "bathroom-remodel", "kitchen-remodel"] },
   { id: "turnovers", title: "Unit turnovers & make-readies", icon: "🔑", blurb: "Cleanout, deep clean, touch-ups and punch list between tenants — rent-ready in one booking, photos of every room.", slugs: ["unit-turnover", "house-cleaning", "interior-painting", "carpet-cleaning"] },
-  { id: "cleanouts", title: "Clean-outs, moves & hauling", icon: "🚛", blurb: "Office and small moves, abandoned items and furniture removal — or a container for the week.", slugs: ["junk-removal", "small-moves", "large-item-removal", "junk-container"] },
+  { id: "cleanouts", title: "Clean-outs, moves & hauling", icon: "🚛", blurb: "Office and small moves, abandoned items and furniture removal — or a container for the week.", slugs: ["junk-removal", "small-moves", "large-item-removal", "junk-container", "dead-animal-removal"] },
   { id: "delivery", title: "Large-item delivery & staging", icon: "🚚", blurb: "Same-day delivery for your store's customers, and staging furniture moved in and out of listings.", slugs: ["retail-delivery", "staging-transport"] },
   { id: "courier", title: "Courier & delivery", icon: "📦", blurb: "Medical courier for clinics and labs, plus same-day runs and supply pickups.", slugs: ["courier", "medical-delivery", "errands"] },
   { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
@@ -36,7 +37,7 @@ export const INDUSTRIES: Industry[] = [
   { id: "real_estate", name: "Real estate agents & stagers", icon: "🏡", slugs: ["staging-transport", "house-cleaning", "junk-removal", "power-washing", "handyman"] },
   { id: "storage", name: "Self-storage facilities", icon: "🔐", slugs: ["junk-removal", "junk-container", "small-moves", "power-washing", "snow-removal"] },
   { id: "restaurants", name: "Restaurants", icon: "🍽️", slugs: ["power-washing", "plumbing", "garbage-disposal", "gutter-cleaning", "junk-removal"] },
-  { id: "property", name: "Property managers & HOAs", icon: "🏘️", slugs: ["unit-turnover", "lawn-care", "snow-removal", "junk-removal", "handyman", "security-guard"] },
+  { id: "property", name: "Property managers & HOAs", icon: "🏘️", slugs: ["unit-turnover", "lawn-care", "snow-removal", "junk-removal", "handyman", "security-guard", "dead-animal-removal"] },
   { id: "medical", name: "Clinics, labs & pharmacies", icon: "🩺", slugs: ["medical-delivery", "house-cleaning", "window-cleaning", "handyman"] },
   { id: "hospitality", name: "Hotels & venues", icon: "🏨", slugs: ["event-shuttle", "carpet-cleaning", "power-washing", "event-rentals", "airport-transfer", "event-security"] },
   { id: "warehouse", name: "Warehouses & light industrial", icon: "🏭", slugs: ["junk-container", "large-item-removal", "snow-removal", "lighting-install", "security-guard"] },

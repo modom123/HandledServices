@@ -3,9 +3,10 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Every 10 minutes: offers nobody answered expire and the job goes to the next pros,
- *           so same-day and ASAP work never waits for the daily sweep. Needs Vercel Pro (Hobby
- *           allows daily crons only — and doesn't allow commercial use).
+ *           so same-day and ASAP work never waits for the daily sweep.
  * UPDATED : 2026-10-05_0148 UTC — also sends the next small batch of Email Center campaigns (within the daily cap).
+ * UPDATED : 2026-10-06_0523 UTC — scheduled by GitHub Actions (.github/workflows/dispatch-cron_*.yml), not
+ *           Vercel: Hobby only allows daily crons. Same CRON_SECRET bearer check.
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { runEmailCenter } from "@/lib/email-center";
