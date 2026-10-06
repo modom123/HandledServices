@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
  * UPDATED : 2026-10-06_0752 UTC — every AI agent has a mission role, the two priorities and standing tasks.
  * UPDATED : 2026-10-06_0841 UTC — Request for Proposal scope summary and follow-up questions.
+ * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
  */
 
 import { test } from "node:test";
@@ -1381,4 +1382,30 @@ test("Request for Proposal: summary lists every service with its frequency; foll
   for (const want of ["square footage", "all 3 locations", "Window Cleaning", "current vendor", "Budget", "due 2026-11-01", "phone number"]) assert.ok(ask.some((q) => q.toLowerCase().includes(want.toLowerCase())), `missing follow-up: ${want}`);
   assert.ok(!ask.some((q) => q.startsWith("House & Office Cleaning")), "a service with specifics needs no follow-up");
   assert.equal(RFP_NEXT_STEPS.length, 4);
+});
+
+test("coverage: cancel tiers, time zones and backup order", async () => {
+  const { cancelTier, hoursUntilWindow, zonedInstant, nextBackup, openBackupRanks, backupAnswerMinutes } = await import("./coverage.ts");
+  assert.equal(cancelTier(30), "free");
+  assert.equal(cancelTier(24), "free");
+  assert.equal(cancelTier(12), "short_notice");
+  assert.equal(cancelTier(6), "short_notice");
+  assert.equal(cancelTier(5.9), "late");
+  assert.equal(cancelTier(-1), "late");
+  // 8am in Detroit is 12:00 UTC in summer (EDT) and 13:00 UTC in winter (EST)
+  assert.equal(zonedInstant("2026-07-10", 8).toISOString(), "2026-07-10T12:00:00.000Z");
+  assert.equal(zonedInstant("2026-12-10", 8).toISOString(), "2026-12-10T13:00:00.000Z");
+  // a morning job is 6h away at 06:00 UTC (2am Detroit) in July
+  assert.equal(Math.round(hoursUntilWindow({ scheduled_date: "2026-07-10", time_window: "morning" }, new Date("2026-07-10T06:00:00Z"))), 6);
+  assert.equal(hoursUntilWindow({ scheduled_date: null }), Infinity);
+  const rows = [
+    { contractor_id: "a", rank: 1, status: "asked" as const },
+    { contractor_id: "b", rank: 2, status: "standby" as const },
+    { contractor_id: "c", rank: 3, status: "standby" as const },
+  ];
+  assert.equal(nextBackup(rows)?.contractor_id, "b", "confirmed standbys go first");
+  assert.equal(nextBackup(rows, ["b", "c"])?.contractor_id, "a", "then backups who were asked");
+  assert.equal(nextBackup(rows, ["a", "b", "c"]), null);
+  assert.deepEqual(openBackupRanks([{ contractor_id: "x", rank: 2, status: "standby" }, { contractor_id: "y", rank: 1, status: "declined" }]), [1, 3]);
+  assert.ok(backupAnswerMinutes(2) < backupAnswerMinutes(12) && backupAnswerMinutes(12) < backupAnswerMinutes(48));
 });

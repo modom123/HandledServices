@@ -15,6 +15,7 @@
  *           setup, contracts) move to a grid at the bottom. A dropped connection shows Try again instead of
  *           an empty screen. Also shown as the Pro tab.
  * UPDATED : 2026-10-06_0708 UTC — haptics when going on / off call.
+ * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -27,6 +28,7 @@ import { Button, C, Card, ErrorState, Status, s } from "../../components/ui";
 import { haptic } from "../../lib/haptics";
 
 type BoardCard = { job_id: string; service: string; icon: string; city: string; zip: string; when: string; payLabel: string; miles: number | null; scope: string[]; priority: boolean; offerId: string | null };
+type Standby = { id: string; rank: number; status: "asked" | "standby"; service_slug: string; city: string; zip: string; scheduled_date: string; time_window: Job["time_window"]; pay: number };
 type Offer = { id: string; payout: number; expires_at: string; jobs: Pick<Job, "ref" | "service_slug" | "city" | "zip" | "scheduled_date" | "time_window" | "notes"> | null };
 
 export default function ProHome() {
@@ -35,6 +37,13 @@ export default function ProHome() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [board, setBoard] = useState<BoardCard[]>([]);
+  const [standby, setStandby] = useState<Standby[]>([]);
+  async function answer(b: Standby, yes: boolean) {
+    haptic(yes ? "success" : "tap");
+    const r = await api<{ ok: boolean; error?: string }>("/api/pro/backups", { method: "POST", body: JSON.stringify({ id: b.id, answer: yes ? "yes" : "no" }) });
+    if (!r.ok) Alert.alert(t("Couldn't update"), r.data.error ?? t("Try again"));
+    load();
+  }
   const [claiming, setClaiming] = useState<string | null>(null);
   async function claim(b: BoardCard) {
     if (b.offerId) return router.push({ pathname: "/pro/offer/[id]", params: { id: b.offerId } });
@@ -61,6 +70,7 @@ export default function ProHome() {
     setLoading(true);
     api<{ status: string; tier: string }>("/api/pro/fast-track").then((r) => { if (r.ok) setFast(r.data); });
     api<{ jobs: BoardCard[] }>(`/api/pro/board?locale=${locale}`).then((r) => setBoard(r.ok ? r.data.jobs ?? [] : []));
+    api<{ standby: Standby[] }>("/api/pro/backups").then((r) => setStandby(r.ok ? r.data.standby ?? [] : []));
     api<{ onCall: boolean; onCallUntil: string | null }>("/api/pro/schedule?days=7").then((r) => { if (r.ok) setOnCall({ on: r.data.onCall, until: r.data.onCallUntil }); });
     const [o, j] = await Promise.all([
       supabase.from("job_offers").select("id, payout, expires_at, jobs(ref, service_slug, city, zip, scheduled_date, time_window, notes)").eq("status", "offered"),
@@ -121,6 +131,27 @@ export default function ProHome() {
               <Button title={`${t("View & accept")} →`} onPress={() => router.push({ pathname: "/pro/offer/[id]", params: { id: o.id } })} style={{ marginTop: 10 }} />
             </Card>
           </Pressable>
+        );
+      })}
+
+      {standby.length > 0 && <Text style={s.h2}>{t("Standby requests")}</Text>}
+      {standby.length > 0 && <Text style={[s.p, { fontSize: 14, marginBottom: 8 }]}>{t("Another pro has these jobs. If they can't make it, you get the first call. Passing is free; you're paid only if you're called and do the job.")}</Text>}
+      {standby.map((b) => {
+        const sv = getService(b.service_slug);
+        return (
+          <Card key={b.id}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
+              <Text style={[s.b, { flex: 1 }]}>{t("Backup")} #{b.rank} · {sv?.icon} {sv ? svc(sv).name : ""}</Text>
+              <Text style={{ fontSize: 20, fontWeight: "800", color: C.deep }}>{money(b.pay)}</Text>
+            </View>
+            <Text style={s.p}>{b.city} {b.zip} · {b.scheduled_date} · {t(TIME_WINDOW_LABEL[b.time_window])}</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+              {b.status === "asked"
+                ? <Button title={t("Yes, I can cover")} onPress={() => answer(b, true)} style={{ flex: 1 }} />
+                : <Text style={[s.status, { alignSelf: "center" }]}>✓ {t("You're on standby")}</Text>}
+              <Button title={b.status === "asked" ? t("Pass") : t("Can't anymore")} kind="ghost" onPress={() => answer(b, false)} style={{ flex: 1 }} />
+            </View>
+          </Card>
         );
       })}
 

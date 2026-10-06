@@ -3,8 +3,9 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-03_0122 UTC
  * PURPOSE : Pro standing, exactly as the Pro Deactivation Policy describes:
- *             proReleaseJob    — a pro can hand back an accepted job; inside 24h of the window
- *                                it's recorded as a late cancel. The job goes straight back out.
+ *             proReleaseJob    — a pro can hand back an accepted job: 24h+ free, 6–24h short notice (logged, no
+ *                                penalty), under 6h a late cancel. Backups #1–#3 are called right away (coverage.ts).
+ *             excuseCancel     — staff excuse an emergency cancel so it doesn't count
  *             markNoShow       — staff record a no-show (a person decides — never automatic)
  *             standingSweep    — daily: objective thresholds → a written WARNING with reasons and
  *                                30 days to improve; still over after that → a person reviews.
@@ -13,18 +14,19 @@
  *                                reinstate, decide an appeal — always with a written reason
  *             appealStanding   — the pro appeals within 14 days; a person decides within 7
  *           Money earned is always paid, whatever the standing.
+ * UPDATED : 2026-10-06_1950 UTC — cancel tiers (CANCEL_POLICY, time-zone correct), backups called on release / no-show,
+ *           customer told of the change, excuseCancel.
  */
 import "server-only";
-import { BRAND, DEACTIVATION_RULES as R, standingIssues, type Job } from "@handled/core";
+import { BRAND, CANCEL_POLICY, DEACTIVATION_RULES as R, cancelTier, hoursUntilWindow, standingIssues } from "@handled/core";
 import { adminClient } from "./supabase/server";
-import { addEvent, dispatchJob, getJob, raiseAlert } from "./jobs";
+import { addEvent, getJob, raiseAlert } from "./jobs";
 import { notify } from "./push";
 import { siteUrl } from "./notify";
 import { orderBackgroundCheck } from "./recruiting";
 
 const db = () => adminClient();
 const day = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
-const WINDOW_START: Record<string, number> = { morning: 8, midday: 11, afternoon: 14, flexible: 8 };
 
 export async function recordStanding(contractorId: string, kind: string, o: { jobId?: string | null; note?: string | null; actor?: string } = {}) {
   await db().from("pro_standing_events").insert({ contractor_id: contractorId, kind, job_id: o.jobId ?? null, note: o.note ?? null, actor: o.actor ?? "system" });
@@ -39,26 +41,31 @@ async function tellPro(contractorId: string, en: { title: string; body: string; 
   });
 }
 
-/** Hours until the start of the job's arrival window (local time is close enough for the 24h rule). */
-function hoursUntil(job: Pick<Job, "scheduled_date" | "time_window">) {
-  if (!job.scheduled_date) return Infinity;
-  const start = new Date(`${job.scheduled_date}T${String(WINDOW_START[job.time_window] ?? 8).padStart(2, "0")}:00:00`);
-  return (start.getTime() - Date.now()) / 3600000;
-}
-
-/** The pro can't do a job they accepted: it goes back out right away. Inside 24h it counts as a late cancel. */
+/**
+ * The pro can't do a job they accepted: backups are called right away and the customer is told.
+ * 24h+ before the window: free · 6–24h: short notice (logged, no penalty) · under 6h: late cancel (counts toward a warning).
+ */
 export async function proReleaseJob(jobId: string, contractorId: string, reason: string) {
   const job = await getJob(jobId);
   if (!job || job.contractor_id !== contractorId || !["assigned", "scheduled"].includes(job.status)) return { ok: false, error: "You can only hand back an upcoming job that's yours" };
-  const late = hoursUntil(job) < R.lateCancelHours;
+  const hours = hoursUntilWindow(job);
+  const tier = cancelTier(hours);
   await db().from("jobs").update({ contractor_id: null, status: "dispatched" }).eq("id", jobId);
   await db().from("job_offers").update({ status: "declined" }).eq("job_id", jobId).eq("contractor_id", contractorId);
-  if (late) await recordStanding(contractorId, "late_cancel", { jobId, note: reason, actor: "pro" });
-  await addEvent(jobId, "pro_released", `Pro handed the job back${late ? " (inside 24h — late cancel)" : ""}: ${reason}`, "pro", false);
-  await addEvent(jobId, "reassigning", "We're confirming a new pro for your booking — same time, nothing changes for you.", "system", true, "Estamos confirmando un nuevo profesional para su reserva — misma hora, no cambia nada para usted.");
-  await dispatchJob(jobId, { exclude: [contractorId] }).catch((e) => console.error("[release]", e));
-  if (late) await raiseAlert("pro_late_cancel", "warn", `${job.ref}: pro cancelled inside 24h`, `${reason}. Re-dispatched; watch it until a new pro accepts.`, jobId);
-  return { ok: true, late };
+  if (tier === "late") await recordStanding(contractorId, "late_cancel", { jobId, note: reason, actor: "pro" });
+  if (tier === "short_notice") await recordStanding(contractorId, "short_notice_cancel", { jobId, note: reason, actor: "pro" });
+  const label = tier === "late" ? ` (under ${CANCEL_POLICY.lateHours}h — late cancel)` : tier === "short_notice" ? ` (${CANCEL_POLICY.lateHours}–${CANCEL_POLICY.freeHours}h — short notice, no penalty)` : "";
+  await addEvent(jobId, "pro_released", `Pro handed the job back${label}: ${reason}`, "pro", false);
+  await addEvent(jobId, "reassigning", "We're confirming your backup pro — same time, nothing changes for you.", "system", true, "Estamos confirmando a su profesional de respaldo — misma hora, no cambia nada para usted.");
+  await (await import("./coverage")).handOff(jobId, contractorId, "released").catch((e) => console.error("[release]", e));
+  if (tier !== "free") await raiseAlert("pro_late_cancel", tier === "late" ? "warn" : "info", `${job.ref}: pro handed back ${Math.max(0, Math.round(hours))}h before the window`, `${reason}. Backups are being called; watch it until one accepts.`, jobId);
+  return { ok: true, tier, late: tier === "late" };
+}
+
+/** Staff excuse a late or short-notice cancel (an emergency): it no longer counts. */
+export async function excuseCancel(eventId: string, actor: string, note: string) {
+  const { data } = await db().from("pro_standing_events").update({ kind: "excused_cancel", note: `${note} (excused by ${actor})` }).eq("id", eventId).in("kind", ["late_cancel", "short_notice_cancel"]).select("contractor_id").maybeSingle();
+  return { ok: Boolean(data) };
 }
 
 /** Staff record a no-show after checking with the customer. */
@@ -69,7 +76,7 @@ export async function markNoShow(jobId: string, actor: string, note: string) {
   await recordStanding(pro, "no_show", { jobId, note, actor });
   await db().from("jobs").update({ contractor_id: null, status: "dispatched" }).eq("id", jobId);
   await addEvent(jobId, "no_show", `Pro no-show recorded: ${note}`, actor, false);
-  await dispatchJob(jobId, { exclude: [pro] }).catch((e) => console.error("[no-show]", e));
+  await (await import("./coverage")).handOff(jobId, pro, "no_show").catch((e) => console.error("[no-show]", e));
   await tellPro(pro,
     { title: `No-show recorded for ${job.ref}`, body: "Tell us if this is wrong.", email: `We recorded a no-show for ${job.ref}: ${note}\n\nIf this is wrong (for example, the customer wasn't there), reply to this email and we'll correct it.` },
     { title: `Se registró una ausencia en ${job.ref}`, body: "Avísenos si es un error.", email: `Registramos una ausencia (no se presentó) en ${job.ref}: ${note}\n\nSi es un error (por ejemplo, el cliente no estaba), responda a este correo y lo corregimos.` });

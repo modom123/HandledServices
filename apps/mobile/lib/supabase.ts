@@ -9,14 +9,17 @@
  *           returns ok:false with a plain-language data.error the screens already show.
  * UPDATED : 2026-10-06_0726 UTC — security: the session is kept in the iOS Keychain / Android Keystore (secure-storage.ts),
  *           not plain AsyncStorage; existing sessions move over without signing anyone out.
+ * UPDATED : 2026-10-06_1955 UTC — the production Supabase URL and publishable key are built in (@handled/core SUPABASE_PUBLIC).
  */
 import "react-native-url-polyfill/auto";
 import { secureStorage } from "./secure-storage";
 import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_PUBLIC } from "@handled/core";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+// the production project's public URL and publishable key are built in; EXPO_PUBLIC_ variables still win
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || SUPABASE_PUBLIC.url;
+const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_PUBLIC.publishableKey;
 
 /** False when the build is missing EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY. */
 export const configured = Boolean(SUPABASE_URL && SUPABASE_KEY);
