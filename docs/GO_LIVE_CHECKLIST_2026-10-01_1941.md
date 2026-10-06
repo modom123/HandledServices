@@ -9,6 +9,7 @@
   UPDATED : 2026-10-06_0505 UTC — 53 services (event security, security guards & patrol added).
   UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch cron moved to GitHub Actions (works on Vercel Hobby).
   UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
+  UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
 -->
 
 # Handled — Go-Live Checklist
@@ -36,7 +37,7 @@
 ## 1. Supabase (database) — 15 minutes
 
 1. supabase.com → **New project** → region **US East** → save the database password somewhere safe.
-2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 54 services and your launch market. Run it once, on a new project.)
+2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 60 services and your launch market. Run it once, on a new project.)
 3. **Do NOT run** `supabase/demo_data.sql` on this project; it's fake people for testing only.
 4. **Authentication → URL Configuration**
    - Site URL: `https://YOUR-DOMAIN`

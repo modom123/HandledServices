@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-03_1413 UTC — the pay example in the invitation is labeled an estimate.
  * UPDATED : 2026-10-05_0438 UTC — security trade.
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade (dead animal removal).
+ * UPDATED : 2026-10-06_0637 UTC — trades: small engine, dock & door, fire extinguisher, foundation, used oil.
  */
 import { BRAND } from "./brand.ts";
 
@@ -19,7 +20,8 @@ export const TRADE_SEARCH: Record<string, string> = {
   cleaning: "house cleaning service", windows: "window cleaning service", carpet: "carpet cleaning", organizing: "professional organizer",
   gutters: "gutter cleaning", lawn: "lawn care service", tree: "tree service", snow: "snow removal service", pet_waste: "pet waste removal",
   pet_care: "dog walker", pressure_washing: "pressure washing service", errands: "courier service", medical_courier: "medical courier",
-  auto_detailing: "mobile car detailing", hauling: "junk removal", wildlife: "wildlife removal", dumpster: "dumpster rental", handyman: "handyman",
+  auto_detailing: "mobile car detailing", hauling: "junk removal", wildlife: "wildlife removal", waste_oil: "used oil recycling service", dumpster: "dumpster rental", handyman: "handyman",
+  small_engine: "small engine repair", dock_door: "commercial overhead door repair", fire_safety: "fire extinguisher service", foundation: "foundation repair contractor",
   remodel: "remodeling contractor", painting: "house painter", plumbing: "plumber", electrical: "electrician", hvac: "HVAC contractor",
   low_voltage: "security camera installer", transportation: "limousine service", event_planner: "event planner", catering: "caterer",
   food_truck: "food truck", dj_music: "DJ service", rentals: "party rental", venue: "event venue",
@@ -32,7 +34,8 @@ export const TRADE_WORD: Record<string, string> = {
   cleaning: "house cleaning", windows: "window cleaning", carpet: "carpet cleaning", organizing: "organizing", gutters: "gutter cleaning",
   lawn: "lawn care", tree: "tree work", snow: "snow removal", pet_waste: "pet waste removal", pet_care: "dog walking and pet sitting",
   pressure_washing: "power washing", errands: "courier and errands", medical_courier: "medical courier", auto_detailing: "car detailing",
-  hauling: "junk removal", wildlife: "dead animal removal", dumpster: "container rental", handyman: "handyman", remodel: "remodeling", painting: "painting",
+  hauling: "junk removal", wildlife: "dead animal removal", waste_oil: "used oil pickup", dumpster: "container rental", handyman: "handyman",
+  small_engine: "small engine repair", dock_door: "dock and door service", fire_safety: "fire extinguisher service", foundation: "foundation repair", remodel: "remodeling", painting: "painting",
   plumbing: "plumbing", electrical: "electrical", hvac: "HVAC", low_voltage: "camera and low-voltage", transportation: "transportation",
   event_planner: "event planning", catering: "catering", food_truck: "food truck", dj_music: "DJ and music", rentals: "event rentals", venue: "event venue",
   security: "event security",

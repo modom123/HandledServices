@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-05_0432 UTC — approval checklist: "Pro account created" (signed in with the application email) after the invite.
  * UPDATED : 2026-10-05_0441 UTC — security trade group (agency license, de-escalation).
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade interviews with the outdoor group.
+ * UPDATED : 2026-10-06_0637 UTC — new trades join their interview groups (repair; used oil with moving).
  */
 import { BRAND } from "./brand.ts";
 
@@ -35,8 +36,8 @@ export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "paintin
 const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
   gutters: "outdoor", lawn: "outdoor", tree: "outdoor", snow: "outdoor", pet_waste: "outdoor", wildlife: "outdoor", pressure_washing: "outdoor",
-  hauling: "moving", dumpster: "moving",
-  handyman: "repair", remodel: "repair", low_voltage: "repair",
+  hauling: "moving", dumpster: "moving", waste_oil: "moving",
+  handyman: "repair", remodel: "repair", low_voltage: "repair", small_engine: "repair", dock_door: "repair", foundation: "repair", fire_safety: "repair",
   painting: "painting",
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",
