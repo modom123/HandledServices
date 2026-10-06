@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0244 UTC — pitch mentions car detailing and grocery & medical deliveries.
  * UPDATED : 2026-10-02_0301 UTC — booking horizon 45 days.
  * UPDATED : 2026-10-02_2229 UTC — googleReviewUrl (NEXT_PUBLIC_ / EXPO_PUBLIC_GOOGLE_REVIEW_URL).
+ * UPDATED : 2026-10-06_2105 UTC — real company contact: info@handledsvc.com · (313) 639-9373 (env vars still override).
  * PURPOSE : Single place to rename/rebrand the company. "Handled" is a working name —
  *           run a trademark search before launch and change it here.
  */
@@ -12,8 +13,8 @@
 // Contact details come from env so going live needs no code change:
 //   web: NEXT_PUBLIC_SUPPORT_EMAIL / NEXT_PUBLIC_SUPPORT_PHONE · mobile: EXPO_PUBLIC_SUPPORT_EMAIL / EXPO_PUBLIC_SUPPORT_PHONE
 // (each referenced literally so Next.js and Expo can inline them at build time)
-let supportEmail = "support@handled.example";
-let supportPhone = "(555) 010-2026";
+let supportEmail = "info@handledsvc.com";
+let supportPhone = "(313) 639-9373";
 // Google Business Profile → "Ask for reviews" link (https://g.page/r/…/review). Empty = not asked.
 let googleReviewUrl = "";
 try {
