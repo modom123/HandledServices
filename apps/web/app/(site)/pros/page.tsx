@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-03_1413 UTC — earnings card clearly labeled as estimates (badge, "Est." headers, plain-language disclaimer).
  * PURPOSE : Subcontractor recruiting page + application.
  * UPDATED : 2026-10-05_0418 UTC — Handled Pro Rewards section (points on every job, tenure multipliers, catalog highlights).
+ * UPDATED : 2026-10-06_0748 UTC — #rewards anchor (footer link "Pro Rewards & tiers").
  */
 import { ApplyForm } from "@/components/forms";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -114,7 +115,7 @@ export default async function ProsPage() {
         </section>
       )}
 
-      <section className="rounded-3xl bg-brand-tint p-6 sm:p-8">
+      <section id="rewards" className="scroll-mt-20 rounded-3xl bg-brand-tint p-6 sm:p-8">
         <h2 className="text-2xl font-bold">🎁 {es ? "Recompensas Handled Pro" : "Handled Pro Rewards"}</h2>
         <p className="mt-2 max-w-3xl text-ink-soft">{es ? "Cada trabajo le da puntos según lo que genera para Handled: más por un gran trabajo, y más cada año que se queda. Cámbielos por artículos, herramientas, electrónicos y viajes." : "Every job earns points based on the business you bring in: more for great work, and more every year you stay. Redeem them for gear, tools, electronics and trips."}</p>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
