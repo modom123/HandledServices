@@ -26,6 +26,7 @@ export * from "./timing.ts";
 export * from "./growth.ts";
 export * from "./seo.ts";
 export * from "./focus.ts";
+export * from "./security.ts";
 export * from "./i18n.ts";
 export * from "./launch-checklist.ts";
 export * from "./gaps.ts";

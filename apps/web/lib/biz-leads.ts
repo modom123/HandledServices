@@ -17,6 +17,7 @@
  *           handyman, maintenance tech…; emailed right away even with discovery off) and the job-posting letter.
  * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner') are never enriched, queued or sent the sequence.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: searches Detroit and the 38 surrounding cities (FOCUS_CITIES); default segments are the cleaning buyers (offices, property managers, real estate).
+ * UPDATED : 2026-10-06_0726 UTC — security: business websites are read through safeFetch() (no internal / metadata addresses, redirects checked).
  */
 import "server-only";
 import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, FOCUS_CITIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, type BizSegment } from "@handled/core";
@@ -25,6 +26,7 @@ import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
 import { addLeadToCampaign, blockInInstantly, instantlyBizReady } from "./instantly";
+import { safeFetch } from "./safe-fetch";
 
 const db = () => adminClient();
 const METRO = FOCUS_CITIES;
@@ -72,12 +74,12 @@ export async function discoverBizLeads(s: BizLeadSettings) {
 
 const UA = `${BRAND.name}Bot/1.0 (+${siteUrl()}/business)`;
 async function page(url: string): Promise<string> {
-  const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(6000) }).catch(() => null);
+  const r = await safeFetch(url, { headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(6000) }).catch(() => null);
   if (!r?.ok || !(r.headers.get("content-type") ?? "").includes("html")) return "";
   return (await r.text()).slice(0, 400000);
 }
 async function robotsOk(origin: string) {
-  const r = await fetch(`${origin}/robots.txt`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(4000) }).catch(() => null);
+  const r = await safeFetch(`${origin}/robots.txt`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(4000) }).catch(() => null);
   if (!r?.ok) return true;
   let applies = false;
   for (const line of (await r.text()).split(/\r?\n/)) {

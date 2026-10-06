@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
+ * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  */
 
 import { test } from "node:test";
@@ -1305,4 +1306,21 @@ test("new services: small engine, dock & door, fire extinguisher, foundation, us
   assert.ok(getService("foundation-repair")!.siteVisit && getService("foundation-repair")!.licensed);
   assert.ok(["fire-extinguisher-inspection", "waste-oil-collection", "urgent-ride"].every((x) => getService(x)!.licensed));
   assert.match(getService("urgent-ride")!.description, /call 911/i);
+});
+
+test("security: sign-in redirects stay on our site; outside fetches skip internal addresses; photo paths are ours", async () => {
+  const { safeNext, safeExternalUrl, isPhotoPath } = await import("./security.ts");
+  const o = "https://handledsvc.com";
+  // after sign-in: only our own pages
+  for (const ok of ["/account", "/hub?tab=jobs#x", "/pro/jobs/123"]) assert.equal(safeNext(ok, o), ok);
+  for (const bad of ["//evil.com", "/\\evil.com", "/\\/evil.com", "https://evil.com", "javascript:alert(1)", "/\tevil", "", null]) assert.equal(safeNext(bad as string, o), "/auth/home", String(bad));
+  // lead engines read business websites: never internal addresses
+  for (const ok of ["https://acmecleaning.com/contact", "http://www.joes-lawn.net"]) assert.ok(safeExternalUrl(ok), ok);
+  for (const bad of ["http://localhost:3000", "http://127.0.0.1", "http://10.0.0.5", "http://192.168.1.1", "http://172.16.0.1", "http://169.254.169.254/latest/meta-data",
+    "http://100.64.0.1", "http://[::1]/", "http://2130706433/", "http://0x7f000001/", "ftp://example.com", "file:///etc/passwd", "http://user:pw@example.com",
+    "http://metadata.google.internal", "http://example.com:6379", "http://intranet/"]) assert.equal(safeExternalUrl(bad), null, bad);
+  // booking photos: exactly what /api/uploads creates
+  assert.ok(isPhotoPath("booking/2026-10-06/1759734000000-a1b2c3d4.jpeg"));
+  assert.ok(isPhotoPath("pro/0b8f3c1e-1234-4abc-9def-001122334455/1759734000000-a1b2c3d4.png"));
+  for (const bad of ["booking/../pro-docs/w9.pdf", "pro-docs/x/1759734000000-a1b2c3d4.pdf", "booking/2026-10-06/x.jpeg", "/booking/2026-10-06/1759734000000-a1b2c3d4.jpeg", "booking/2026-10-06/1759734000000-a1b2c3d4.svg"]) assert.equal(isPhotoPath(bad), false, bad);
 });

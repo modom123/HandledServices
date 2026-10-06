@@ -4,12 +4,19 @@
  * CREATED : 2026-10-01_2030 UTC
  * PURPOSE : Signed, login-free links to a job's Invoice & Service Agreement.
  * UPDATED : 2026-10-03_0027 UTC — signed one-click unsubscribe tokens for reminder emails.
+ * UPDATED : 2026-10-06_0726 UTC — security: no guessable signing key in production (fails loudly instead of signing with a default).
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { siteUrl } from "./notify";
 
-const secret = () => process.env.INVOICE_SIGNING_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dev-only-secret";
+/** Key for signed quotes, invoice links and unsubscribe links. Never a guessable default in production. */
+const secret = () => {
+  const k = process.env.INVOICE_SIGNING_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (k) return k;
+  if (process.env.NODE_ENV === "production") throw new Error("INVOICE_SIGNING_SECRET (or SUPABASE_SERVICE_ROLE_KEY) must be set");
+  return "dev-only-secret";
+};
 
 export const invoiceToken = (jobId: string) => createHmac("sha256", secret()).update(`invoice:${jobId}`).digest("base64url").slice(0, 32);
 

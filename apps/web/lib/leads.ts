@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-03_1413 UTC — pay example uses the service's own commission (equipment cap); worded as an estimate in the email.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: rotates through Detroit and the 38 surrounding cities, and recruits cleaners
  *           (MARKETING_FOCUS.trades) when staff haven't picked trades. Supply gaps are still searched for every trade.
+ * UPDATED : 2026-10-06_0726 UTC — security: business websites are read through safeFetch() (no internal / metadata addresses, redirects checked).
  */
 import "server-only";
 import {
@@ -29,6 +30,7 @@ import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
 import { addLeadToCampaign, blockInInstantly, instantlyReady } from "./instantly";
+import { safeFetch } from "./safe-fetch";
 
 const db = () => adminClient();
 const METRO = FOCUS_CITIES;
@@ -108,7 +110,7 @@ export async function discoverLeads(s: LeadSettings): Promise<{ searches: number
 
 const UA = `${BRAND.name}Bot/1.0 (+${siteUrl()}/pros)`;
 async function allowedByRobots(origin: string): Promise<boolean> {
-  const r = await fetch(`${origin}/robots.txt`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(4000) }).catch(() => null);
+  const r = await safeFetch(`${origin}/robots.txt`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(4000) }).catch(() => null);
   if (!r?.ok) return true;
   const txt = await r.text();
   let applies = false;
@@ -121,7 +123,7 @@ async function allowedByRobots(origin: string): Promise<boolean> {
 }
 
 async function page(url: string): Promise<string> {
-  const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(6000) }).catch(() => null);
+  const r = await safeFetch(url, { headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(6000) }).catch(() => null);
   if (!r?.ok || !(r.headers.get("content-type") ?? "").includes("html")) return "";
   return (await r.text()).slice(0, 400000);
 }

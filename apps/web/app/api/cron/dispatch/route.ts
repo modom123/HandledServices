@@ -7,14 +7,16 @@
  * UPDATED : 2026-10-05_0148 UTC — also sends the next small batch of Email Center campaigns (within the daily cap).
  * UPDATED : 2026-10-06_0523 UTC — scheduled by GitHub Actions (.github/workflows/dispatch-cron_*.yml), not
  *           Vercel: Hobby only allows daily crons. Same CRON_SECRET bearer check.
+ * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { runEmailCenter } from "@/lib/email-center";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 export const maxDuration = 120;
 
 export async function GET(req: Request) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(req)) return new Response("Unauthorized", { status: 401 });
   const dispatch = await redispatchExpired();
   const email = await runEmailCenter().catch((e) => { console.error("[email center]", e); return null; });
   return Response.json({ ...dispatch, email });

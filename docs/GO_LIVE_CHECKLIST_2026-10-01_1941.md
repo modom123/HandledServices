@@ -11,6 +11,7 @@
   UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
   UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
   UPDATED : 2026-10-06_0708 UTC — mobile app v0.5.0 setup: Apple Pay / Google Pay (Stripe publishable key, webhook event, Apple merchant ID) and the Android Maps key.
+  UPDATED : 2026-10-06_0726 UTC — security review: see docs/SECURITY_REVIEW_2026-10-06_0726.md (CRON_SECRET 32+ chars, lockdown migration, 2FA everywhere).
 -->
 
 # Handled — Go-Live Checklist
@@ -193,3 +194,10 @@ These need a **new app build** (EAS build), not an over-the-air update, because 
 | Google Cloud → APIs → Maps SDK for Android | Create an API key restricted to the Android app (`com.handled.app`), and add it to the EAS build as `GOOGLE_MAPS_ANDROID_API_KEY` | The live "pro on the way" map on Android (iPhone uses Apple Maps, no key) |
 
 Sales tax: with `STRIPE_TAX=on`, the app uses Stripe Checkout (inside the app) so tax is calculated automatically.
+
+
+## Added 2026-10-06_0726 UTC — security (see docs/SECURITY_REVIEW_2026-10-06_0726.md)
+- `CRON_SECRET` must be at least 16 characters (use `openssl rand -hex 32`); scheduled jobs now refuse to run otherwise.
+- Set `INVOICE_SIGNING_SECRET` (32+ random characters).
+- Run `supabase/migrations/20261006072600_lock_down_rpc.sql`.
+- Turn on two-factor authentication on Stripe, Supabase, Vercel, GitHub, Expo, Apple, Google Play and the domain registrar.

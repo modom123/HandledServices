@@ -7,9 +7,11 @@
  *           placeholder client (configured = false, the app shows a setup screen instead of crashing at
  *           launch); api() never throws, times out after 20 s, and on no signal / timeout / server error
  *           returns ok:false with a plain-language data.error the screens already show.
+ * UPDATED : 2026-10-06_0726 UTC — security: the session is kept in the iOS Keychain / Android Keystore (secure-storage.ts),
+ *           not plain AsyncStorage; existing sessions move over without signing anyone out.
  */
 import "react-native-url-polyfill/auto";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from "./secure-storage";
 import { createClient } from "@supabase/supabase-js";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -21,7 +23,7 @@ export const configured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
 // createClient throws on an empty URL, which would crash the app before anything renders.
 export const supabase = createClient(SUPABASE_URL || "https://not-configured.invalid", SUPABASE_KEY || "not-configured", {
-  auth: { storage: AsyncStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  auth: { storage: secureStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 });
 
 export const NETWORK_ERROR = "No connection. Check your signal or Wi-Fi and try again.";

@@ -26,7 +26,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
   };
   return (
     <div className="wrap grid gap-10 py-14 md:grid-cols-[1.4fr_1fr]">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
       <div>
         <div className="text-5xl">{s.icon}</div>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{txt.name}{locale === "es" && city ? ` en ${city.name}, ${city.state}` : where}</h1>
