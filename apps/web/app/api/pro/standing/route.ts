@@ -4,10 +4,18 @@
  * CREATED : 2026-10-03_0123 UTC
  * PURPOSE : A pro appeals a warning, suspension or deactivation (Pro Deactivation Policy).
  *           POST { appeal }. A person decides within 7 days.
+ * UPDATED : 2026-10-06_2120 UTC — GET: the pro's own cancellation record (last 90 days) for the app.
  */
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
 import { appealStanding } from "@/lib/standing";
+import { cancelRecord } from "@/lib/coverage";
+
+export async function GET(req: Request) {
+  const v = await getViewer(req);
+  if (!v?.contractorId) return deny(401, "Pro account required");
+  return Response.json({ ok: true, record: await cancelRecord(v.contractorId) });
+}
 
 export async function POST(req: Request) {
   const v = await getViewer(req);

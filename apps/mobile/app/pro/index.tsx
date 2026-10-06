@@ -15,6 +15,7 @@
  *           setup, contracts) move to a grid at the bottom. A dropped connection shows Try again instead of
  *           an empty screen. Also shown as the Pro tab.
  * UPDATED : 2026-10-06_0708 UTC — haptics when going on / off call.
+ * UPDATED : 2026-10-06_2120 UTC — Your cancellations card (last 90 days: late, no-shows, short notice, free, excused).
  * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  */
 import { useCallback, useEffect, useState } from "react";
@@ -38,6 +39,7 @@ export default function ProHome() {
   const [loading, setLoading] = useState(false);
   const [board, setBoard] = useState<BoardCard[]>([]);
   const [standby, setStandby] = useState<Standby[]>([]);
+  const [record, setRecord] = useState<{ days: number; free: number; shortNotice: number; late: number; excused: number; noShows: number } | null>(null);
   async function answer(b: Standby, yes: boolean) {
     haptic(yes ? "success" : "tap");
     const r = await api<{ ok: boolean; error?: string }>("/api/pro/backups", { method: "POST", body: JSON.stringify({ id: b.id, answer: yes ? "yes" : "no" }) });
@@ -71,6 +73,7 @@ export default function ProHome() {
     api<{ status: string; tier: string }>("/api/pro/fast-track").then((r) => { if (r.ok) setFast(r.data); });
     api<{ jobs: BoardCard[] }>(`/api/pro/board?locale=${locale}`).then((r) => setBoard(r.ok ? r.data.jobs ?? [] : []));
     api<{ standby: Standby[] }>("/api/pro/backups").then((r) => setStandby(r.ok ? r.data.standby ?? [] : []));
+    api<{ record: NonNullable<typeof record> }>("/api/pro/standing").then((r) => { if (r.ok) setRecord(r.data.record); });
     api<{ onCall: boolean; onCallUntil: string | null }>("/api/pro/schedule?days=7").then((r) => { if (r.ok) setOnCall({ on: r.data.onCall, until: r.data.onCallUntil }); });
     const [o, j] = await Promise.all([
       supabase.from("job_offers").select("id, payout, expires_at, jobs(ref, service_slug, city, zip, scheduled_date, time_window, notes)").eq("status", "offered"),
@@ -154,6 +157,14 @@ export default function ProHome() {
           </Card>
         );
       })}
+
+      {record && (record.late + record.noShows + record.shortNotice + record.free + record.excused) > 0 ? (
+        <Card style={{ marginTop: 16, borderColor: record.late >= 2 || record.noShows >= 1 ? C.amber : C.line }}>
+          <Text style={s.b}>🛟 {t("Your cancellations")} ({record.days} {t("days")})</Text>
+          <Text style={s.p}>{record.late} {t("late")} · {record.noShows} {t("no-shows")} · {record.shortNotice} {t("short notice")} · {record.free} {t("free")}{record.excused ? ` · ${record.excused} ${t("excused")}` : ""}</Text>
+          <Text style={[s.p, { fontSize: 14 }]}>{t("Only late cancels (3) and no-shows (2) in 90 days lead to a written warning. Hand jobs back early so your backup can take them.")}</Text>
+        </Card>
+      ) : null}
 
       <Text style={s.h2}>{t("Jobs near you")}</Text>
       <Text style={[s.p, { fontSize: 14, marginBottom: 8 }]}>{t("Paid jobs nobody has taken yet that fit your trades, area and schedule. First to take it gets it. Taking them is always up to you.")}</Text>

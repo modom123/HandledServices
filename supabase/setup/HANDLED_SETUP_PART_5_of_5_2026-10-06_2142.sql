@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_PART_5_of_5_2026-10-06_2045.sql
+-- FILE    : supabase/setup/HANDLED_SETUP_PART_5_of_5_2026-10-06_2142.sql
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_2045 UTC
--- PURPOSE : NEW Supabase project setup, part 5 of 5 (run IN ORDER, one at a time). Migrations 20261005203900_bid_archive.sql .. 20261006201000_pro_business_address.sql.
+-- CREATED : 2026-10-06_2142 UTC
+-- PURPOSE : NEW Supabase project setup, part 5 of 5 (run IN ORDER, one at a time). Migrations 20261005203900_bid_archive.sql .. 20261006212000_cancellation_tracking.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
 --           Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success" before the next part.
 --           LAST PART. When it succeeds: sign in once on the website, then run (with your email):
@@ -321,6 +321,21 @@ alter table public.contractors
   add column if not exists base_city text,
   add column if not exists base_state text check (base_state is null or base_state ~ '^[A-Z]{2}$'),
   add column if not exists base_located text check (base_located is null or base_located in ('address','zip'));
+
+
+-- >>> migration 20261006212000_cancellation_tracking.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006212000_cancellation_tracking.sql
+-- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- CREATED : 2026-10-06_2120 UTC
+-- PURPOSE : Track every cancellation, not just the ones that count against a pro:
+--             pro_standing_events.kind adds 'free_cancel' (handed back 24h+ ahead - recorded, never counted).
+--           Hub -> Cancellations & coverage and the pro's own record read these.
+-- ============================================================================
+alter table public.pro_standing_events drop constraint if exists pro_standing_events_kind_check;
+alter table public.pro_standing_events add constraint pro_standing_events_kind_check
+  check (kind in ('late_cancel','short_notice_cancel','free_cancel','excused_cancel','no_show','warning','suspension','deactivation','appeal','appeal_upheld','reinstated','note'));
+create index if not exists pro_standing_kind_idx on public.pro_standing_events (kind, created_at desc);
 
 
 -- >>> seed.sql

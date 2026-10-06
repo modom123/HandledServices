@@ -1,7 +1,7 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_PART_1_of_5_2026-10-06_2045.sql
+-- FILE    : supabase/setup/HANDLED_SETUP_PART_1_of_5_2026-10-06_2142.sql
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-06_2045 UTC
+-- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : NEW Supabase project setup, part 1 of 5 (run IN ORDER, one at a time). Migrations 20261001172300_init.sql .. 20261001200000_contractor_workforce.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
 --           Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success" before the next part.
