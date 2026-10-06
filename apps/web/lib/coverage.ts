@@ -212,3 +212,60 @@ export async function standbyFor(contractorId: string) {
     return [{ id: r.id, rank: r.rank, status: r.status, ref: j.ref, service_slug: j.service_slug, city: j.city, zip: j.zip, scheduled_date: j.scheduled_date, time_window: j.time_window, pay: me ? tierPayout(j.price_final, j.contractor_payout, proTier(me as Contractor)) : Number(j.contractor_payout ?? 0) }];
   }).sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
 }
+
+export type CancelKind = "free_cancel" | "short_notice_cancel" | "late_cancel" | "excused_cancel" | "no_show";
+const CANCEL_KINDS: CancelKind[] = ["free_cancel", "short_notice_cancel", "late_cancel", "excused_cancel", "no_show"];
+
+/** A pro's own cancellation record over the last `days` (what counts toward a warning, and what doesn't). */
+export async function cancelRecord(contractorId: string, days = 90) {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const { data } = await db().from("pro_standing_events").select("kind").eq("contractor_id", contractorId).in("kind", CANCEL_KINDS).gte("created_at", since);
+  const n = (k: CancelKind) => ((data ?? []) as { kind: string }[]).filter((e) => e.kind === k).length;
+  return { days, free: n("free_cancel"), shortNotice: n("short_notice_cancel"), late: n("late_cancel"), excused: n("excused_cancel"), noShows: n("no_show") };
+}
+
+/** Hub → Cancellations & coverage: what happened, what's being covered right now, and who cancels most. */
+export async function coverageReport(days = 30) {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const today = new Date().toISOString().slice(0, 10);
+  const in3 = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  const [{ data: ev }, { data: cust }, { data: live }, { data: handed }] = await Promise.all([
+    db().from("pro_standing_events").select("id, kind, note, actor, created_at, contractor_id, job_id, contractors(business_name), jobs(ref, scheduled_date, time_window, status, contractor_id)").in("kind", CANCEL_KINDS).gte("created_at", since).order("created_at", { ascending: false }).limit(500),
+    db().from("jobs").select("id, ref, cancel_reason, cancelled_at, service_slug").not("cancelled_at", "is", null).gte("cancelled_at", since).limit(2000),
+    db().from("jobs").select("id, ref, service_slug, city, zip, scheduled_date, time_window, status, contractor_id, handoffs").gte("scheduled_date", today).lte("scheduled_date", in3).in("status", ["dispatched", "scheduled", "assigned"]).order("scheduled_date").limit(300),
+    db().from("jobs").select("id, contractor_id, status").gt("handoffs", 0).gte("created_at", since).limit(2000),
+  ]);
+  const events = (ev ?? []) as unknown as { id: string; kind: CancelKind; note: string | null; actor: string | null; created_at: string; contractor_id: string; job_id: string | null; contractors: { business_name: string } | null; jobs: { ref: string; scheduled_date: string | null; time_window: string; status: string; contractor_id: string | null } | null }[];
+  const liveJobs = (live ?? []) as (Pick<Job, "id" | "ref" | "service_slug" | "city" | "zip" | "scheduled_date" | "time_window" | "status" | "contractor_id"> & { handoffs: number })[];
+  const ids = liveJobs.map((j) => j.id);
+  const { data: bk } = ids.length ? await db().from("job_backups").select("job_id, rank, status, contractors(business_name)").in("job_id", ids) : { data: [] };
+  const backups = new Map<string, { rank: number; status: string; name: string }[]>();
+  for (const b of (bk ?? []) as unknown as { job_id: string; rank: number; status: string; contractors: { business_name: string } | null }[])
+    backups.set(b.job_id, [...(backups.get(b.job_id) ?? []), { rank: b.rank, status: b.status, name: b.contractors?.business_name ?? "—" }].sort((x, y) => x.rank - y.rank));
+  const rows = liveJobs.map((j) => {
+    const list = backups.get(j.id) ?? [];
+    const ready = list.filter((b) => ["asked", "standby"].includes(b.status)).length;
+    const hours = hoursUntilWindow(j);
+    const state = !j.contractor_id ? (hours < 6 ? "uncovered_urgent" : "uncovered") : j.handoffs > 0 ? "recovered" : ready < BACKUPS.count ? "thin_backups" : "covered";
+    return { ...j, hours: Math.round(hours), backups: list, ready, state };
+  });
+  const count = (k: CancelKind) => events.filter((e) => e.kind === k).length;
+  const recovered = ((handed ?? []) as { contractor_id: string | null; status: string }[]);
+  const byPro = new Map<string, { name: string; free: number; short: number; late: number; noShow: number }>();
+  for (const e of events) {
+    const r = byPro.get(e.contractor_id) ?? { name: e.contractors?.business_name ?? "—", free: 0, short: 0, late: 0, noShow: 0 };
+    if (e.kind === "free_cancel") r.free++; else if (e.kind === "short_notice_cancel") r.short++; else if (e.kind === "late_cancel") r.late++; else if (e.kind === "no_show") r.noShow++;
+    byPro.set(e.contractor_id, r);
+  }
+  const custList = (cust ?? []) as { cancel_reason: string | null }[];
+  return {
+    days,
+    totals: { free: count("free_cancel"), shortNotice: count("short_notice_cancel"), late: count("late_cancel"), excused: count("excused_cancel"), noShows: count("no_show"),
+      customer: custList.filter((c) => c.cancel_reason === "customer" || c.cancel_reason === "late").length, otherCancelled: custList.filter((c) => !["customer", "late"].includes(c.cancel_reason ?? "")).length,
+      handedOff: recovered.length, recovered: recovered.filter((j) => j.contractor_id && j.status !== "cancelled").length },
+    live: rows.filter((r) => r.state !== "covered"),
+    coveredCount: rows.filter((r) => r.state === "covered").length,
+    events,
+    pros: [...byPro.entries()].map(([id, r]) => ({ id, ...r })).sort((a, b) => b.late * 3 + b.noShow * 4 + b.short - (a.late * 3 + a.noShow * 4 + a.short)).slice(0, 15),
+  };
+}

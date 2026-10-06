@@ -6,10 +6,13 @@
  * UPDATED : 2026-10-03_0124 UTC — record a pro no-show (re-dispatches; counts toward the deactivation policy).
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (what the pro checked) and staff special instructions.
  * UPDATED : 2026-10-05_2146 UTC — link to the customer’s history & notes.
+ * UPDATED : 2026-10-06_2120 UTC — Backups & cancellations panel: backup #1–#3 status, every hand-back / no-show, call the
+ *           next backup or offer to everyone.
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
  */
 import Link from "next/link";
+import { CoverActions } from "@/components/Coverage";
 import { NoShowButton } from "@/components/Standing";
 import { notFound } from "next/navigation";
 import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
@@ -42,6 +45,8 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
     signedUrls(job.completion_photos ?? []),
     v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
   ]);
+  const { data: backupRows } = await v.db.from("job_backups").select("rank, status, asked_at, called_at, contractors(id, business_name)").eq("job_id", id).order("rank");
+  const { data: cancels } = await v.db.from("pro_standing_events").select("kind, note, created_at, contractors(business_name)").eq("job_id", id).in("kind", ["free_cancel", "short_notice_cancel", "late_cancel", "excused_cancel", "no_show"]).order("created_at");
   const quote = job.ai_quote as AnyRec | null;
   const qa = job.ai_qa as AnyRec | null;
   const dispatch = job.ai_dispatch as AnyRec | null;
@@ -89,6 +94,23 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
             ))}
             {!(offers ?? []).length && <tr><td className="py-2 text-ink-soft">No offers yet.</td></tr>}
           </tbody></table>
+        </div>
+
+        <div className="card text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="font-semibold">🛟 Backups & cancellations{(job as Job & { handoffs?: number }).handoffs ? ` · ${(job as Job & { handoffs?: number }).handoffs} hand-off(s)` : ""}</div>
+            {["dispatched", "scheduled", "assigned"].includes(job.status) && <CoverActions jobId={job.id} open={!job.contractor_id} />}
+          </div>
+          {(backupRows ?? []).length ? (
+            <ul className="mt-2 space-y-1">{((backupRows ?? []) as unknown as { rank: number; status: string; called_at: string | null; contractors: { id: string; business_name: string } | null }[]).map((b) => (
+              <li key={b.rank}>#{b.rank} <Link href={`/hub/pros/${b.contractors?.id}`} className="underline">{b.contractors?.business_name ?? "—"}</Link> — {({ asked: "asked", standby: "✓ standing by", called: "📞 called", passed: "passed", declined: "declined", promoted: "★ took the job", released: "released" } as Record<string, string>)[b.status] ?? b.status}{b.called_at ? <span className="text-xs text-ink-soft"> · called {b.called_at.slice(11, 16)}</span> : null}</li>
+            ))}</ul>
+          ) : <p className="mt-2 text-ink-soft">No backups yet — they're asked when a pro accepts.</p>}
+          {(cancels ?? []).length > 0 && (
+            <ul className="mt-3 space-y-1 border-t border-line pt-2 text-xs">{((cancels ?? []) as unknown as { kind: string; note: string | null; created_at: string; contractors: { business_name: string } | null }[]).map((c, i) => (
+              <li key={i}><b>{({ free_cancel: "Free hand-back", short_notice_cancel: "Short-notice hand-back", late_cancel: "Late cancel", excused_cancel: "Excused cancel", no_show: "No-show" } as Record<string, string>)[c.kind]}</b> · {c.contractors?.business_name ?? "—"} · {c.created_at.slice(0, 16).replace("T", " ")}{c.note ? ` — “${c.note}”` : ""}</li>
+            ))}</ul>
+          )}
         </div>
       </div>
 

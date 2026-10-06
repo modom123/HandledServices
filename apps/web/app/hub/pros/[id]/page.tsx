@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-03_0124 UTC — standing panel: events, warn / suspend / deactivate / reinstate / appeal.
  * UPDATED : 2026-10-03_1311 UTC — crew panel (background checks per crew member) and fast-track review.
  * UPDATED : 2026-10-04_1934 UTC — mark a pro's photo ID verified after a video call.
+ * UPDATED : 2026-10-06_2120 UTC — cancellation record (late, no-shows, short notice, free, excused) on the profile.
  * UPDATED : 2026-10-06_0748 UTC — Progress & rewards panel: tier, what's left for the next tier (jobs / rating / on-time
  *           bars), Pro Rewards points (available, pending, lifetime, ≈ $), tenure multiplier, milestones, orders.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
@@ -211,6 +212,7 @@ async function FastTrackPanel({ pro }: { pro: FastTrackPro }) {
 /** Where the pro stands in the Pro Program (tier) and Pro Rewards (points) — the same numbers the pro sees. */
 async function ProgressPanel({ pro }: { pro: Contractor }) {
   const r = await rewardsFor(pro.id).catch(() => null);
+  const cx = await (await import("@/lib/coverage")).cancelRecord(pro.id).catch(() => null);
   const tier = proTier(pro), { next, todo } = nextTierProgress(pro);
   const bar = (label: string, now: number, goal: number, show: string) => {
     const pctDone = goal > 0 ? Math.min(100, Math.round((now / goal) * 100)) : 100;
@@ -236,6 +238,10 @@ async function ProgressPanel({ pro }: { pro: Contractor }) {
           </div>
         ) : <p className="mt-2 text-xs text-ink-soft">Top tier ({PRO_TIERS[PRO_TIERS.length - 1].name}) — keeps it while rating and on-time hold.</p>}
       </div>
+      {cx && <div className="card text-sm lg:col-span-2">
+        <div className="font-semibold">🛟 Cancellations (last {cx.days} days)</div>
+        <p className="mt-1 text-xs"><b className={cx.late >= 3 ? "text-rose-700" : ""}>{cx.late} late</b> · <b className={cx.noShows >= 2 ? "text-rose-700" : ""}>{cx.noShows} no-show(s)</b> · {cx.shortNotice} short notice · {cx.free} free · {cx.excused} excused <span className="text-ink-soft">— only late cancels (3) and no-shows (2) count toward a written warning. <Link href="/hub/coverage" className="underline">All cancellations →</Link></span></p>
+      </div>}
       <div className="card text-sm">
         <div className="flex items-center justify-between"><div className="font-semibold">🎁 Pro Rewards</div><Link href="/hub/rewards" className="text-xs underline">Rewards hub →</Link></div>
         {r ? (
