@@ -4,6 +4,7 @@
  * CREATED : 2026-10-03_0123 UTC
  * PURPOSE : Pro standing UI (Pro Deactivation Policy): the pro's appeal form and "hand back this
  *           job" button; staff's standing actions and "record no-show".
+ * UPDATED : 2026-10-06_1950 UTC — hand-back shows exactly what this cancel means now (free / short notice / late).
  */
 "use client";
 
@@ -29,7 +30,7 @@ export function AppealForm({ es = false }: { es?: boolean }) {
   );
 }
 
-export function ReleaseJob({ jobId, es = false }: { jobId: string; es?: boolean }) {
+export function ReleaseJob({ jobId, es = false, notice }: { jobId: string; es?: boolean; notice?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -37,7 +38,8 @@ export function ReleaseJob({ jobId, es = false }: { jobId: string; es?: boolean 
   if (!open) return <button className="text-sm text-ink-soft underline" onClick={() => setOpen(true)}>{es ? "¿No puede hacerlo? Devolver este trabajo" : "Can’t make it? Hand this job back"}</button>;
   return (
     <div className="card space-y-2 text-sm">
-      <p className="text-ink-soft">{es ? "El trabajo vuelve a ofrecerse de inmediato. Si faltan menos de 24 horas, cuenta como cancelación tardía." : "The job goes back out right away. Inside 24 hours of the arrival window it counts as a late cancel."}</p>
+      <p className="text-ink-soft">{notice ?? (es ? "Llamamos a su respaldo de inmediato." : "We call your backup right away.")}</p>
+      <p className="text-xs text-ink-soft">{es ? "Gratis con 24 h+ · 6–24 h: poca anticipación, sin penalidad · menos de 6 h: cancelación tardía. Nunca hay cargo a su pago." : "24h+ out: free · 6–24h: short notice, no penalty · under 6h: late cancel. Never a charge to your pay."}</p>
       <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={es ? "Motivo (lo vemos solo nosotros)" : "Reason (only we see it)"} />
       <button className="btn-ghost w-full" disabled={reason.trim().length < 3} onClick={async () => { const r = await post(`/api/pro/jobs/${jobId}`, { action: "release", reason }); if (r.ok) router.push("/pro"); else setMsg(r.error ?? "Try again"); }}>{es ? "Devolver el trabajo" : "Hand it back"}</button>
       {msg && <p className="text-rose-700">{msg}</p>}

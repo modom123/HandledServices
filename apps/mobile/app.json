@@ -3,7 +3,7 @@
     "name": "Handled",
     "slug": "handled",
     "scheme": "handled",
-    "version": "0.3.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
@@ -19,7 +19,11 @@
         "CAMERA",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0e7c66"
+      }
     },
     "plugins": [
       "expo-router",
@@ -33,13 +37,30 @@
       [
         "expo-notifications",
         {
-          "color": "#0e7c66"
+          "color": "#0e7c66",
+          "icon": "./assets/notification-icon.png"
         }
       ],
       [
         "expo-location",
         {
           "locationWhenInUsePermission": "Pros: Handled uses your location only while you're on call or on a job today, to send you nearby work and tell customers you're on the way."
+        }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.handled.app",
+          "enableGooglePay": true
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#0a4a3e"
         }
       ]
     ],
@@ -51,8 +72,12 @@
       "eas": {
         "projectId": "run `eas init` to fill this in"
       },
-      "updatedAt": "2026-10-02_1405 UTC — v0.3.0: English / Spanish everywhere (switch on Home and Account), reschedule in the app, Account screen, tips, live ETA"
+      "updatedAt": "2026-10-06_0708 UTC — v0.5.0: Apple Pay / Google Pay in the app (Stripe PaymentSheet), live map of the pro on the way, haptics, app icon and splash screen"
     },
-    "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices — and run your jobs if you're a Handled pro."
+    "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices — and run your jobs if you're a Handled pro.",
+    "icon": "./assets/icon.png",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

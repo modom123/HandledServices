@@ -17,6 +17,11 @@
  *           (apps/web/lib/ai/quote.ts) may adjust inside guardrails but never below the
  *           service minimum or outside ±40% of this baseline.
  * UPDATED : 2026-10-05_0419 UTC — lists show "Instant upfront price" instead of a dollar figure (every job is priced on its own details).
+ * UPDATED : 2026-10-06_0637 UTC — no rush surcharge on on-demand services (urgent rides are already priced for it).
+ * UPDATED : 2026-10-06_0740 UTC — the real sliding rate everywhere: Estimate.payoutShare is now the pro's actual share of
+ *           this price (from splitJob), not a fixed per-service number; proShare(), typicalProShare() and slidingScale()
+ *           give the hub, the catalog sync and the seed the same numbers pros are actually paid. splitJob rounds to
+ *           the cent before rounding down (a $1,004 job paid $679 instead of $680 from float noise).
  */
 
 import { defaultAnswers, getService, type Answers, type LineItem } from "./services.ts";
@@ -79,10 +84,28 @@ export interface JobSplit {
 export function splitJob(price: number, slug?: string): JobSplit {
   const fee = bookingFeeOf(price);
   const service = Math.max(0, price - fee);
-  const payout = price > 0 ? Math.floor(service * (1 - commissionRate(service, slug))) : 0;
+  // round to the cent before rounding down, so float noise (1000 × 0.68 = 679.999…) never shaves a dollar off the pro
+  const payout = price > 0 ? Math.floor(Math.round(service * (1 - commissionRate(service, slug)) * 100) / 100) : 0;
   const take = Math.round((price - payout) * 100) / 100;
   const cardFee = price > 0 ? Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100 : 0;
   return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };
+}
+
+/** The pro's real share of a price (payout ÷ price, 0–1, three decimals) — slides with job size. */
+export function proShare(price: number, slug?: string): number {
+  return price > 0 ? Math.round((splitJob(price, slug).payout / price) * 1000) / 1000 : 0;
+}
+
+/**
+ * The sliding scale at a set of customer prices (booking fee included): what the pro is paid, what we keep, and
+ * each as a share of the price. Same numbers splitJob() pays out — for the hub, pro onboarding and docs.
+ */
+export const SCALE_PRICES = [25, 64, 104, 154, 204, 304, 404, 504, 604, 1004, 2504] as const;
+export function slidingScale(prices: readonly number[] = SCALE_PRICES, slug?: string) {
+  return prices.map((price) => {
+    const sp = splitJob(price, slug);
+    return { price, payout: sp.payout, take: sp.take, proShare: proShare(price, slug), takeRate: Math.round(sp.takeRate * 1000) / 1000, commission: commissionRate(price - sp.fee, slug), fee: sp.fee };
+  });
 }
 
 /** The lowest customer price (whole dollars, booking fee included) that pays the pro at least `payout` — for counters. */
@@ -123,6 +146,7 @@ export interface Estimate {
   discount: number;
   payout: number;
   margin: number;
+  /** The pro's real share of this price (payout ÷ price, sliding with job size). */
   payoutShare: number;
   /** Booking fee included in point/low/high. */
   fee: number;
@@ -153,7 +177,7 @@ export function estimate(input: EstimateInput): Estimate {
     lines.push({ label: `${freq} plan discount`, amount: -d });
     point -= d;
   }
-  if (input.rush && !service.siteVisit) {
+  if (input.rush && !service.siteVisit && !service.onDemand) {
     const r = Math.round(point * RUSH_SURCHARGE);
     lines.push({ label: "Within-48h priority", amount: r });
     point += r;
@@ -182,7 +206,7 @@ export function estimate(input: EstimateInput): Estimate {
     discount,
     payout,
     margin: total - payout,
-    payoutShare: service.payoutShare,
+    payoutShare: total > 0 ? Math.round((payout / total) * 1000) / 1000 : 0,
     fee,
     market,
   };
@@ -304,6 +328,16 @@ export function typicalPrice(slug: string): number | null {
   const s = getService(slug);
   if (!s || s.siteVisit) return null;
   return Math.round(estimate({ slug, answers: defaultAnswers(s) }).point / 5) * 5;
+}
+
+/**
+ * The pro's real share on this service's typical job (default answers; site-visit services use their calculator
+ * baseline). Stored on the services table for reporting — never used to pay anyone (splitJob does that).
+ */
+export function typicalProShare(slug: string): number {
+  const s = getService(slug);
+  if (!s) return 0;
+  return estimate({ slug, answers: defaultAnswers(s) }).payoutShare;
 }
 
 export function priceHint(slug: string, locale: string = "en"): string {

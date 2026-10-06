@@ -26,6 +26,14 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery pickup & delivery replaced by Same-Day Courier (documents, packages, parts; business routes).
  * UPDATED : 2026-10-05_0438 UTC — Event Security (licensed Michigan security agencies; unarmed by default, armed on request) and the security trade.
  * UPDATED : 2026-10-05_1433 UTC — Security category: Security Guards & Patrol (standing post, mobile patrol, fire watch; once, weekly or monthly). Plan My Event asks about alcohol and budgets licensed guards.
+ * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal (removal category; new wildlife trade): priced by animal size, where it is
+ *           (open ground, under a deck or crawlspace, attic or wall) and how many, with sanitizing and pet aftercare.
+ * UPDATED : 2026-10-06_0637 UTC — six new services (60 total): Small Engine Repair, Loading Dock & Overhead Door Service,
+ *           Fire Extinguisher Inspection & Service, Foundation Repair, Used Oil Collection and Urgent Ride (Non-Medical,
+ *           "call 911" for medical emergencies; onDemand, so no rush surcharge). New trades: small_engine, dock_door,
+ *           fire_safety, foundation, waste_oil.
+ * UPDATED : 2026-10-06_0740 UTC — removed the fixed per-service payoutShare (it said 65–70% while real pay slides with
+ *           job size). What a pro earns now comes from one place only: splitJob() / proShare() in pricing.ts.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -75,8 +83,6 @@ export interface Service {
   minimum: number;
   /** Spread applied around the point estimate: [low multiplier, high multiplier]. */
   spread: [number, number];
-  /** Share of the final price paid to the subcontractor (0–1). */
-  payoutShare: number;
   /**
    * Equipment-heavy jobs (the pro buys a unit that is most of the price): cap on our commission so a
    * competitive price still leaves the pro a fair labor margin. Defaults to the sliding rate.
@@ -94,6 +100,8 @@ export interface Service {
   notesHint?: string;
   /** Work that legally needs a licensed tradesperson — dispatch only to pros with a license on file. */
   licensed?: boolean;
+  /** Already priced as on-demand (urgent rides): no within-48h rush surcharge on top. */
+  onDemand?: boolean;
   price: (a: Answers) => PriceResult;
 }
 
@@ -101,7 +109,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing, mobile car detailing — plus decluttering." },
   { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture — or a container for the week." },
+  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
   { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
@@ -175,7 +183,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 120,
     spread: [0.95, 1.1],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["cleaning"],
@@ -226,7 +233,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.12],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once", "quarterly"],
     trades: ["windows"],
@@ -257,7 +263,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 129,
     spread: [0.95, 1.1],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once", "quarterly"],
     trades: ["carpet"],
@@ -316,7 +321,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 199,
     spread: [0.9, 1.2],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once", "monthly", "quarterly"],
     trades: ["organizing"],
@@ -347,7 +351,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.12],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once", "quarterly"],
     trades: ["gutters"],
@@ -386,7 +389,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.15],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "quarterly"],
     trades: ["pressure_washing"],
@@ -423,7 +425,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 79,
     spread: [1, 1],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "biweekly", "monthly"],
     trades: ["auto_detailing"],
@@ -471,7 +472,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 55,
     spread: [0.95, 1.1],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly"],
     trades: ["lawn"],
@@ -525,7 +525,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 250,
     spread: [0.8, 1.35],
-    payoutShare: 0.75,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["tree"],
@@ -578,7 +577,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 125,
     spread: [0.95, 1.15],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly"],
     trades: ["lawn"],
@@ -630,7 +628,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 40,
     spread: [1, 1.1],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["snow", "lawn"],
@@ -676,7 +673,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 22,
     spread: [1, 1],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly"],
     trades: ["pet_care"],
@@ -717,7 +713,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 28,
     spread: [1, 1],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["pet_care"],
@@ -759,7 +754,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 20,
     spread: [1, 1.05],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly"],
     trades: ["pet_waste"],
@@ -814,7 +808,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 129,
     spread: [0.9, 1.15],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["hauling"],
@@ -853,7 +846,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 99,
     spread: [0.95, 1.15],
-    payoutShare: 0.65,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["hauling"],
@@ -919,7 +911,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 349,
     spread: [1, 1.1],
-    payoutShare: 0.75,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["dumpster"],
@@ -943,6 +934,100 @@ export const SERVICES: Service[] = [
 
   // ───────────────────────────── REPAIR & REMODEL ─────────────────────────────
   {
+    slug: "dead-animal-removal",
+    name: "Dead Animal Removal",
+    category: "removal",
+    icon: "🧤",
+    tagline: "Gone today: bagged, removed and disposed of properly. Odor treatment available.",
+    description: "Removal of dead animals from yards, driveways, garages, under decks and porches, crawlspaces, attics and walls: squirrels, birds, rodents, raccoons, opossums, skunks, cats and dogs, deer and more. Sealed in double bags, disposed of at an approved site the same day, and the spot sanitized on request. Lost a pet? We can take them to your vet or a pet crematory instead. We don't handle live or trapped animals.",
+    includes: ["Protective gear & sealed double bags", "Disposal at an approved site the same day", "Before & after photos", "Sanitizing & odor treatment available"],
+    questions: [
+      {
+        id: "size", label: "Size of the animal", type: "select", default: "medium",
+        options: [
+          { value: "small", label: "Small — under 5 lb (squirrel, bird, rat, chipmunk)" },
+          { value: "medium", label: "Medium — 5 to 40 lb (raccoon, opossum, skunk, cat, small dog)" },
+          { value: "large", label: "Large — 40 to 100 lb (large dog, coyote, fawn)" },
+          { value: "xl", label: "Very large — over 100 lb (deer)" },
+        ],
+      },
+      {
+        id: "where", label: "Where is it", type: "select", default: "open",
+        help: "Not sure? Pick your best guess and describe the smell or spot in the notes — we confirm before the pro goes in.",
+        options: [
+          { value: "open", label: "In the open (yard, driveway, curb, garage or basement floor)" },
+          { value: "under", label: "Under a deck, porch or shed, or in a crawlspace" },
+          { value: "attic", label: "In the attic, a wall or the ceiling" },
+        ],
+      },
+      { id: "count", label: "Number of animals", type: "number", min: 1, max: 10, default: 1, help: "In the same place. Several spots? Note them and we'll price each one." },
+      { id: "sanitize", label: "Sanitize & deodorize the area", type: "toggle", default: false, help: "Enzyme cleaner and odor treatment where the animal was. Recommended if it's been there more than a day or two." },
+      { id: "pet", label: "It's a pet — take them to my vet or a pet crematory", type: "toggle", default: false, help: "Handled with care. Cremation is billed by the crematory." },
+    ],
+    minimum: 129,
+    spread: [0.95, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["wildlife"],
+    notesHint: "Where it is and how to get there (gate, crawlspace hatch, attic ladder), what kind of animal if you know, and how long it's been there",
+    price: (a) => {
+      const size = s(a, "size", "medium");
+      const where = s(a, "where", "open");
+      const count = n(a, "count", 1);
+      const base = { small: 129, medium: 159, large: 219, xl: 299 }[size] ?? 159;
+      const label = { small: "small", medium: "medium", large: "large", xl: "very large" }[size] ?? "medium";
+      const items: LineItem[] = [{ label: `Removal & disposal — ${label} animal`, amount: base }];
+      if (count > 1) items.push({ label: `${count - 1} more animal${count > 2 ? "s" : ""} × $${Math.round(base * 0.35)}`, amount: (count - 1) * Math.round(base * 0.35) });
+      if (where === "under") items.push({ label: "Crawlspace / under-deck access", amount: 90 });
+      if (where === "attic") items.push({ label: "Attic / wall access (locating by odor; small access cut if needed)", amount: 175 });
+      if (b(a, "sanitize")) items.push({ label: "Sanitize & deodorize", amount: 49 });
+      if (b(a, "pet")) items.push({ label: "Pet aftercare — taken to your vet or a pet crematory", amount: 45 });
+      const hours = ({ open: 0.75, under: 1.5, attic: 2.5 }[where] ?? 0.75) + (count - 1) * 0.25 + (b(a, "sanitize") ? 0.5 : 0) + (b(a, "pet") ? 0.75 : 0);
+      return { items, base: sum(items), hours };
+    },
+  },
+  {
+    slug: "waste-oil-collection",
+    name: "Used Oil Collection",
+    category: "removal",
+    icon: "🛢️",
+    tagline: "Used motor oil, filters and antifreeze picked up by a licensed hauler.",
+    description: "Pickup of used motor and hydraulic oil, used oil filters and antifreeze from shops, fleets, farms and businesses, by a licensed used-oil transporter. You get the shipping papers for your records, and it all goes to a permitted recycler. Under 5 gallons from home? Most auto parts stores take it free.",
+    includes: ["Licensed used-oil transporter", "Shipping papers for your records", "Recycled at a permitted facility", "Drums of filters and antifreeze too"],
+    questions: [
+      { id: "gallons", label: "Gallons of used oil", type: "number", min: 5, max: 3000, default: 55, unit: "gal", help: "A drum holds 55 gallons." },
+      {
+        id: "container", label: "Stored in", type: "select", default: "drums",
+        options: [
+          { value: "drums", label: "55-gallon drums" },
+          { value: "tank", label: "A bulk tank" },
+          { value: "jugs", label: "Jugs or small containers" },
+        ],
+      },
+      { id: "filter_drums", label: "Drums of used oil filters", type: "number", min: 0, max: 20, default: 0 },
+      { id: "antifreeze", label: "Gallons of used antifreeze", type: "number", min: 0, max: 1000, default: 0, unit: "gal" },
+      { id: "mixed", label: "Oil may be mixed with water, gas or solvents", type: "toggle", default: false, help: "We test it first. Mixed oil may need special disposal, priced before pickup." },
+    ],
+    minimum: 95,
+    spread: [0.95, 1.25],
+    siteVisit: false,
+    frequencies: ["once", "biweekly", "monthly"],
+    trades: ["waste_oil"],
+    licensed: true,
+    notesHint: "Business name, where the oil is (drums, tank, jugs), about how many gallons, pickup hours and which door or dock",
+    price: (a) => {
+      const g = n(a, "gallons", 55);
+      const items: LineItem[] = [{ label: "Pickup (first 55 gallons)", amount: 95 }];
+      if (g > 55) items.push({ label: `${g - 55} more gallons × $0.35`, amount: Math.round((g - 55) * 0.35) });
+      if (s(a, "container", "drums") === "jugs") items.push({ label: "Pumping from small containers", amount: 25 });
+      const f = n(a, "filter_drums"), af = n(a, "antifreeze");
+      if (f) items.push({ label: `Used oil filters — ${f} drum${f > 1 ? "s" : ""} × $95`, amount: f * 95 });
+      if (af) items.push({ label: `Used antifreeze — ${af} gal × $1.25`, amount: Math.round(af * 1.25) });
+      if (b(a, "mixed")) items.push({ label: "Contamination test", amount: 75 });
+      return { items, base: sum(items), hours: 0.75 + g / 400 };
+    },
+  },
+  {
     slug: "small-moves",
     name: "Small Moves & Moving Help",
     category: "removal",
@@ -964,7 +1049,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 199,
     spread: [0.95, 1.25],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["hauling"],
@@ -1006,7 +1090,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 89,
     spread: [0.95, 1.15],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly"],
     trades: ["hauling"],
@@ -1045,7 +1128,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 249,
     spread: [0.95, 1.2],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["hauling"],
@@ -1086,7 +1168,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 299,
     spread: [0.95, 1.2],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["handyman"],
@@ -1121,7 +1202,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 99,
     spread: [0.9, 1.25],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "monthly"],
     trades: ["handyman"],
@@ -1161,7 +1241,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.2],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["plumbing"],
@@ -1224,7 +1303,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 175,
     spread: [0.95, 1.15],
-    payoutShare: 0.75,
     maxCommission: 0.15,
     siteVisit: false,
     frequencies: ["once"],
@@ -1285,7 +1363,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 3500,
     spread: [0.85, 1.3],
-    payoutShare: 0.8,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["hvac"],
@@ -1318,7 +1395,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.15],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["electrical"],
@@ -1351,7 +1427,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.2],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["low_voltage", "handyman"],
@@ -1390,7 +1465,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 149,
     spread: [0.95, 1.1],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["handyman", "plumbing"],
@@ -1398,6 +1472,133 @@ export const SERVICES: Service[] = [
       const amt = { repair: 149, replace_half: 359, replace_34: 469, install_own: 199, new: 549 }[s(a, "job", "replace_half")] ?? 359;
       const items: LineItem[] = [{ label: "Garbage disposal", amount: amt }];
       return { items, base: amt, hours: 1.5 };
+    },
+  },
+  {
+    slug: "small-engine-repair",
+    name: "Small Engine Repair",
+    category: "repair_remodel",
+    icon: "⚙️",
+    tagline: "Mowers, snow blowers, generators and more, fixed at your place or ours.",
+    description: "Tune-ups and repairs for lawn mowers, riding mowers, snow blowers, generators, chainsaws, trimmers and leaf blowers. A mobile tech comes to you, or we pick it up and bring it back. Parts at cost with the receipt.",
+    includes: ["Mobile service or pickup & drop-off", "Oil, plug, filter & carburetor cleaning on tune-ups", "Parts at cost + receipt", "Tested before we hand it back"],
+    questions: [
+      {
+        id: "equipment", label: "Equipment", type: "select", default: "push",
+        options: [
+          { value: "push", label: "Push mower" },
+          { value: "handheld", label: "Trimmer, leaf blower or chainsaw" },
+          { value: "snowblower", label: "Snow blower" },
+          { value: "generator", label: "Portable generator" },
+          { value: "riding", label: "Riding mower / lawn tractor" },
+        ],
+      },
+      {
+        id: "service", label: "What it needs", type: "select", default: "tuneup",
+        options: [
+          { value: "tuneup", label: "Seasonal tune-up (runs, but due for service)" },
+          { value: "repair", label: "Repair (won't start, runs rough, leaking, smoking)" },
+        ],
+      },
+      { id: "machines", label: "Number of machines", type: "number", min: 1, max: 10, default: 1, help: "Same type. Different kinds? Note them and we'll price each one." },
+      { id: "pickup", label: "Pick it up and bring it back", type: "toggle", default: false, help: "Otherwise the tech works on it at your place." },
+    ],
+    minimum: 69,
+    spread: [0.95, 1.3],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["small_engine"],
+    notesHint: "Make and model, what it's doing (won't start, smoking, leaking), when it last ran, where it's kept",
+    price: (a) => {
+      const eq = s(a, "equipment", "push");
+      const tune = { push: 79, handheld: 69, snowblower: 119, generator: 129, riding: 159 }[eq] ?? 79;
+      const label = { push: "push mower", handheld: "handheld tool", snowblower: "snow blower", generator: "generator", riding: "riding mower" }[eq] ?? "machine";
+      const repair = s(a, "service", "tuneup") === "repair";
+      const each = repair ? tune + 50 : tune;
+      const k = n(a, "machines", 1);
+      const items: LineItem[] = [{ label: `${repair ? "Diagnose & repair labor" : "Tune-up"} — ${label}`, amount: each }];
+      if (k > 1) items.push({ label: `${k - 1} more × $${Math.round(each * 0.85)}`, amount: (k - 1) * Math.round(each * 0.85) });
+      if (b(a, "pickup")) items.push({ label: eq === "riding" ? "Pickup & return (trailer)" : "Pickup & return", amount: eq === "riding" ? 89 : 45 });
+      return { items, base: sum(items), hours: k * (eq === "riding" ? 1.5 : 1) * (repair ? 1.5 : 1) };
+    },
+  },
+  {
+    slug: "dock-door-service",
+    name: "Loading Dock & Overhead Door Service",
+    category: "repair_remodel",
+    icon: "🚪",
+    tagline: "Inspections, maintenance and repairs for dock doors, levelers and overhead doors.",
+    description: "Annual safety inspections with a written report, preventive maintenance and repairs for commercial overhead doors, rolling steel and high-speed doors, dock levelers, seals and restraints. Parts are quoted and approved before any repair.",
+    includes: ["Commercial door technician", "Written report with photos for every door", "Springs, cables, rollers, seals & levelers checked", "Parts quoted before any repair"],
+    questions: [
+      {
+        id: "service", label: "Service", type: "select", default: "inspection",
+        options: [
+          { value: "inspection", label: "Safety inspection & written report" },
+          { value: "pm", label: "Inspection + preventive maintenance (lube, adjust, tighten)" },
+          { value: "repair", label: "Repair (stuck, off track, broken spring, damaged panel)" },
+        ],
+      },
+      {
+        id: "kind", label: "Mostly", type: "select", default: "overhead",
+        options: [
+          { value: "overhead", label: "Sectional overhead doors" },
+          { value: "rolling", label: "Rolling steel or high-speed doors" },
+          { value: "dock", label: "Dock positions (door, leveler, seals & restraint)" },
+        ],
+      },
+      { id: "doors", label: "Number of doors or dock positions", type: "number", min: 1, max: 60, default: 4, help: "For repairs: how many need work." },
+      { id: "after_hours", label: "After hours or weekend", type: "toggle", default: false, help: "So the work doesn't slow your shipping and receiving." },
+    ],
+    minimum: 195,
+    spread: [0.9, 1.35],
+    siteVisit: false,
+    frequencies: ["once", "quarterly"],
+    trades: ["dock_door"],
+    notesHint: "Number and type of doors or docks, make if known, what's wrong, receiving hours, and the site contact",
+    price: (a) => {
+      const svc = s(a, "service", "inspection");
+      const kind = s(a, "kind", "overhead");
+      const k = n(a, "doors", 4);
+      const items: LineItem[] = [{ label: "Service call", amount: 95 }];
+      if (svc === "repair") items.push({ label: `Repair labor, first hour — ${k} door${k > 1 ? "s" : ""} × $145`, amount: k * 145 });
+      else {
+        const per = ({ overhead: 45, rolling: 60, dock: 75 }[kind] ?? 45) + (svc === "pm" ? 40 : 0);
+        items.push({ label: `${svc === "pm" ? "Inspection & maintenance" : "Inspection"} — ${k} door${k > 1 ? "s" : ""} × $${per}`, amount: k * per });
+      }
+      if (b(a, "after_hours")) items.push({ label: "After hours or weekend", amount: 150 });
+      return { items, base: sum(items), hours: 0.5 + k * (svc === "repair" ? 1 : svc === "pm" ? 0.75 : 0.4) };
+    },
+  },
+  {
+    slug: "fire-extinguisher-inspection",
+    name: "Fire Extinguisher Inspection & Service",
+    category: "repair_remodel",
+    icon: "🧯",
+    tagline: "Annual inspections, tags, recharges and new extinguishers, done on site.",
+    description: "Annual fire extinguisher inspections by a state-certified technician, with a new tag on every unit and a written report for your fire marshal or insurer. Recharges, hydrostatic tests and new extinguishers on the same visit.",
+    includes: ["State-certified technician", "New inspection tag on every extinguisher", "Written report for the fire marshal or insurer", "Recharges and replacements on the same visit"],
+    questions: [
+      { id: "units", label: "Extinguishers to inspect", type: "number", min: 1, max: 300, default: 6 },
+      { id: "recharge", label: "Need recharging (used or low pressure)", type: "number", min: 0, max: 100, default: 0 },
+      { id: "hydro", label: "Due for a hydrostatic test", type: "number", min: 0, max: 100, default: 0, help: "Every 5 or 12 years depending on type; the date is on the label. Not sure? The tech checks." },
+      { id: "new_units", label: "New extinguishers to buy and mount (5 lb ABC)", type: "number", min: 0, max: 50, default: 0 },
+    ],
+    minimum: 79,
+    spread: [0.95, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["fire_safety"],
+    licensed: true,
+    notesHint: "How many extinguishers and where, types if you know (ABC, CO2, kitchen K-class), the date on the last tag, any that were used",
+    price: (a) => {
+      const k = n(a, "units", 6);
+      const items: LineItem[] = [{ label: "Service call", amount: 59 }, { label: `Annual inspection & tag — ${k} × $12`, amount: k * 12 }];
+      const r = n(a, "recharge"), h = n(a, "hydro"), nu = n(a, "new_units");
+      if (r) items.push({ label: `Recharge — ${r} × $35`, amount: r * 35 });
+      if (h) items.push({ label: `Hydrostatic test — ${h} × $45`, amount: h * 45 });
+      if (nu) items.push({ label: `New 5 lb ABC extinguisher, mounted — ${nu} × $79`, amount: nu * 79 });
+      return { items, base: sum(items), hours: 0.5 + k * 0.1 + (r + h) * 0.25 + nu * 0.2 };
     },
   },
   {
@@ -1420,7 +1621,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 349,
     spread: [0.95, 1.15],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["painting"],
@@ -1459,7 +1659,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 1200,
     spread: [0.95, 1.2],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["painting"],
@@ -1477,6 +1676,38 @@ export const SERVICES: Service[] = [
       if (b(a, "deck")) { items.push({ label: "Deck / porch stain or paint", amount: 650 }); base += 650; }
       if (s(a, "building", "house") === "commercial") { const x = Math.round(base * 0.12); items.push({ label: "Commercial staging, lifts & scheduling", amount: x }); base += x; }
       return { items, base, hours: Math.max(8, (sqft / 120) * height * (b(a, "trim_only") ? 0.4 : 1)) };
+    },
+  },
+  {
+    slug: "foundation-repair",
+    name: "Foundation Repair",
+    category: "repair_remodel",
+    icon: "🧱",
+    tagline: "Cracks, bowing walls and settling, fixed by a licensed contractor.",
+    description: "Foundation crack injection, bowing-wall bracing, piers for settling, and interior drain tile with a sump for wet basements. A licensed contractor inspects first and gives a firm written price before any work.",
+    includes: ["Free site visit and written estimate", "Licensed contractor, permits where required", "Contractor's written warranty", "Before & after photos"],
+    questions: [
+      { id: "cracks", label: "Cracks to seal (injection)", type: "number", min: 0, max: 20, default: 2, help: "Leaking or wider than a credit card. Hairline cracks usually don't need repair." },
+      { id: "walls", label: "Bowing or leaning walls to brace", type: "number", min: 0, max: 4, default: 0 },
+      { id: "piers", label: "Piers for settling (sloping floors, stair-step cracks)", type: "number", min: 0, max: 30, default: 0, help: "Your best guess. The site visit confirms how many." },
+      { id: "drain_ft", label: "Feet of interior drain tile & sump (wet basement)", type: "number", min: 0, max: 400, default: 0, unit: "ft" },
+    ],
+    minimum: 550,
+    spread: [0.85, 1.3],
+    siteVisit: true,
+    frequencies: ["once"],
+    trades: ["foundation"],
+    licensed: true,
+    notesHint: "What you're seeing (cracks, water, bowing, sloping floors), where, for how long, and the basement type (poured, block, crawlspace)",
+    price: (a) => {
+      const c = n(a, "cracks", 2), w = n(a, "walls"), p = n(a, "piers"), d = n(a, "drain_ft");
+      const items: LineItem[] = [];
+      if (c) items.push({ label: `Crack injection — ${c} × $550`, amount: c * 550 });
+      if (w) items.push({ label: `Wall bracing — ${w} wall${w > 1 ? "s" : ""} × $4,000`, amount: w * 4000 });
+      if (p) items.push({ label: `Piers — ${p} × $1,500`, amount: p * 1500 });
+      if (d) items.push({ label: `Interior drain tile — ${d} ft × $65, plus sump`, amount: d * 65 + 1200 });
+      if (!items.length) items.push({ label: "Foundation inspection & repair", amount: 550 });
+      return { items, base: sum(items), hours: Math.max(4, c * 3 + w * 8 + p * 3 + d / 15) };
     },
   },
   {
@@ -1505,7 +1736,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 3500,
     spread: [0.8, 1.3],
-    payoutShare: 0.85,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["remodel"],
@@ -1544,7 +1774,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 12000,
     spread: [0.8, 1.3],
-    payoutShare: 0.85,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["remodel"],
@@ -1581,7 +1810,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 25000,
     spread: [0.8, 1.35],
-    payoutShare: 0.85,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["remodel"],
@@ -1610,7 +1838,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 39,
     spread: [1, 1],
-    payoutShare: 0.75,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly"],
     trades: ["errands"],
@@ -1646,7 +1873,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 25,
     spread: [0.95, 1.15],
-    payoutShare: 0.7,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["errands"],
@@ -1681,7 +1907,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 29,
     spread: [1, 1],
-    payoutShare: 0.75,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["medical_courier"],
@@ -1715,7 +1940,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 120,
     spread: [1, 1],
-    payoutShare: 0.75,
     siteVisit: false,
     frequencies: ["once", "weekly", "biweekly", "monthly"],
     trades: ["errands"],
@@ -1748,7 +1972,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 170,
     spread: [1, 1.1],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once", "weekly"],
     trades: ["transportation"],
@@ -1763,6 +1986,42 @@ export const SERVICES: Service[] = [
       if (b(a, "meet_greet")) items.push({ label: "Meet & greet", amount: 25 });
       const base = sum(items);
       return { items, base, hours: h };
+    },
+  },
+  {
+    slug: "urgent-ride",
+    name: "Urgent Ride (Non-Medical)",
+    category: "transport",
+    icon: "🚨",
+    tagline: "Stranded or need to go right now? A licensed driver on the way. Medical emergency? Call 911.",
+    description: "A ride as soon as possible when it can't wait but isn't a medical emergency: your car broke down, you're stranded, you'll miss your shift, a family emergency, or getting home safely late at night. A licensed, insured driver comes as fast as one is available. For a medical emergency, call 911. We don't provide medical transport or medical care.",
+    includes: ["Licensed, insured driver", "Fastest available pickup", "Live driver tracking", "Up to 6 passengers"],
+    questions: [
+      { id: "vehicle", label: "Vehicle", type: "select", default: "sedan", options: [{ value: "sedan", label: "Sedan (up to 3 passengers)" }, { value: "suv", label: "SUV (up to 6)" }] },
+      { id: "miles", label: "About how far", type: "number", min: 1, max: 150, default: 10, unit: "miles" },
+      { id: "passengers", label: "Passengers", type: "number", min: 1, max: 6, default: 1 },
+      { id: "wait_return", label: "Driver waits and brings you back (up to 1 hour)", type: "toggle", default: false },
+    ],
+    minimum: 45,
+    spread: [1, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["transportation"],
+    licensed: true,
+    onDemand: true,
+    notesHint: "Where you are now (address or landmark), where you're going, a phone number the driver can call, anything they should know. Medical emergency? Call 911.",
+    price: (a) => {
+      const { veh, upgraded } = fitVehicle(s(a, "vehicle", "sedan"), n(a, "passengers", 1), [["sedan", 3], ["suv", 6]]);
+      const perMile = veh === "suv" ? 3.5 : 2.75;
+      const miles = n(a, "miles", 10);
+      const back = b(a, "wait_return");
+      const legs = back ? 2 : 1;
+      const items: LineItem[] = [
+        { label: "Urgent dispatch", amount: 35 },
+        { label: `${veh === "suv" ? "SUV" : "Sedan"}${upgraded ? " (sized up to seat everyone)" : ""} · ${miles * legs} miles × $${perMile.toFixed(2)}`, amount: Math.round(miles * legs * perMile) },
+      ];
+      if (back) items.push({ label: "Wait & return (up to 1 hour)", amount: 30 });
+      return { items, base: sum(items), hours: 0.5 + (miles * legs) / 25 + (back ? 1 : 0) };
     },
   },
   {
@@ -1781,7 +2040,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 95,
     spread: [1, 1.1],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["transportation"],
@@ -1815,7 +2073,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 405,
     spread: [1, 1.1],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["transportation"],
@@ -1848,7 +2105,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 900,
     spread: [1, 1.1],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["transportation"],
@@ -1882,7 +2138,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 1100,
     spread: [1, 1.15],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["transportation"],
@@ -1917,7 +2172,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 440,
     spread: [1, 1.1],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["transportation"],
@@ -1957,7 +2211,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 450,
     spread: [1, 1.1],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once", "weekly"],
     trades: ["transportation"],
@@ -2003,7 +2256,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 1000,
     spread: [1, 1],
-    payoutShare: 0.82,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["event_planner"],
@@ -2039,7 +2291,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 650,
     spread: [0.9, 1.25],
-    payoutShare: 0.75,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["event_planner"],
@@ -2083,7 +2334,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 600,
     spread: [0.95, 1.15],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["catering"],
@@ -2127,7 +2377,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 1200,
     spread: [0.95, 1.15],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["food_truck"],
@@ -2169,7 +2418,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 450,
     spread: [0.95, 1.15],
-    payoutShare: 0.8,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["dj_music"],
@@ -2211,7 +2459,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 220,
     spread: [0.95, 1.12],
-    payoutShare: 0.78,
     siteVisit: false,
     licensed: true,
     frequencies: ["once"],
@@ -2269,7 +2516,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 160,
     spread: [0.95, 1.1],
-    payoutShare: 0.78,
     siteVisit: false,
     licensed: true,
     frequencies: ["once", "weekly", "monthly"],
@@ -2320,7 +2566,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 250,
     spread: [0.95, 1.12],
-    payoutShare: 0.75,
     siteVisit: false,
     frequencies: ["once"],
     trades: ["rentals"],
@@ -2365,7 +2610,6 @@ export const SERVICES: Service[] = [
     ],
     minimum: 800,
     spread: [0.8, 1.35],
-    payoutShare: 0.85,
     siteVisit: true,
     frequencies: ["once"],
     trades: ["venue"],
@@ -2410,8 +2654,14 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "medical_courier", label: "Medical courier (prescriptions, specimens, supplies)" },
   { id: "auto_detailing", label: "Mobile car detailing" },
   { id: "hauling", label: "Junk hauling, moving & delivery" },
+  { id: "wildlife", label: "Wildlife control & dead animal removal" },
+  { id: "waste_oil", label: "Used oil transporter (licensed)" },
   { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },
+  { id: "small_engine", label: "Small engine repair" },
+  { id: "dock_door", label: "Commercial & dock door service" },
+  { id: "fire_safety", label: "Fire extinguisher service (state-certified)" },
+  { id: "foundation", label: "Foundation repair (licensed)" },
   { id: "remodel", label: "Remodeling / general contractor" },
   { id: "painting", label: "Painting (interior & exterior)" },
   { id: "plumbing", label: "Plumbing (licensed)" },

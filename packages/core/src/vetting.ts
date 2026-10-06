@@ -14,6 +14,8 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — security trade (licensed agency, $2M GL, workers' comp).
  * UPDATED : 2026-10-05_1433 UTC — security trade: patrol, standing posts and fire watch (security-guard).
+ * UPDATED : 2026-10-06_0526 UTC — wildlife trade: dead animal removal (dead-animal-removal).
+ * UPDATED : 2026-10-06_0637 UTC — new trades: small engine, dock & door, fire extinguisher (state license), foundation (builder license), used oil (EPA ID, EGLE registration).
  */
 import { BRAND } from "./brand.ts";
 
@@ -215,6 +217,47 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     specialties: [{ id: "junk", label: "Junk & clean-outs", slug: "junk-removal" }, { id: "large_item", label: "Large single items", slug: "large-item-removal" }, { id: "appliances", label: "Appliances" }, { id: "construction_debris", label: "Construction debris" }, { id: "estate", label: "Estate clean-outs" }],
     license: null, preferred: [], glMin: GL1, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
     skillsCheck: "Truck/trailer capacity, disposal and recycling sites used, photos of recent jobs, 2 references.",
+  },
+  waste_oil: {
+    does: "Pickup of used motor and hydraulic oil, used oil filters and antifreeze from shops, fleets and businesses, delivered to a permitted recycler.",
+    specialties: [{ id: "used_oil", label: "Used oil pickup", slug: "waste-oil-collection" }, { id: "filters", label: "Used oil filters" }, { id: "antifreeze", label: "Antifreeze" }],
+    license: "EPA identification number as a used-oil transporter, Michigan EGLE registration to haul liquid industrial by-products, and the DOT requirements for the truck",
+    preferred: ["Spill kit and response plan on every truck"], glMin: GL2, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "EPA ID and EGLE registration lookup, where the oil is taken, sample shipping papers, pollution liability coverage, 2 references.",
+  },
+  wildlife: {
+    does: "Dead animal removal from yards, under decks, crawlspaces, attics and walls, with sanitizing, odor treatment and same-day disposal at an approved site.",
+    specialties: [{ id: "dead_animal", label: "Dead animal removal", slug: "dead-animal-removal" }, { id: "crawl_attic", label: "Crawlspaces, attics & walls" }, { id: "odor", label: "Sanitizing & odor treatment" }, { id: "large_animal", label: "Deer & large animals" }],
+    license: null,
+    preferred: ["Michigan DNR nuisance animal control permit (needed for live trapping, which Handled doesn't book)", "NWCOA membership or wildlife control certification"],
+    glMin: GL1, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Protective gear and bagging routine (gloves, respirator, sealed double bags), where carcasses are disposed of, crawlspace and attic experience, 2 references.",
+  },
+  small_engine: {
+    does: "Tune-ups and repairs for mowers, riding mowers, snow blowers, generators and handheld power equipment, mobile or with pickup.",
+    specialties: [{ id: "mowers", label: "Lawn mowers & tractors", slug: "small-engine-repair" }, { id: "snowblowers", label: "Snow blowers" }, { id: "generators", label: "Generators" }, { id: "handheld", label: "Chainsaws, trimmers & blowers" }],
+    license: null, preferred: ["Manufacturer service training (Briggs & Stratton, Honda, Kohler, Toro or similar)"], glMin: GL1, requires: [], conditional: [{ key: "auto", when: "you pick up and return equipment" }, { key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Tools and diagnostic gear, photos of recent repairs, how parts are sourced, 2 references.",
+  },
+  dock_door: {
+    does: "Inspection, preventive maintenance and repair of commercial overhead, rolling steel and high-speed doors, dock levelers, seals and restraints.",
+    specialties: [{ id: "overhead", label: "Sectional overhead doors", slug: "dock-door-service" }, { id: "rolling", label: "Rolling steel & high-speed doors" }, { id: "levelers", label: "Dock levelers & restraints" }, { id: "springs", label: "Springs & cables" }],
+    license: null, preferred: ["IDEA door dealer or DASMA training", "Manufacturer certification (Rite-Hite, Overhead Door, Wayne Dalton or similar)"], glMin: GL2, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Spring and cable safety procedure, lift or ladder safety, sample inspection report, 3 commercial references.",
+  },
+  fire_safety: {
+    does: "Annual fire extinguisher inspections and tagging, recharges, hydrostatic tests and new extinguisher sales and mounting.",
+    specialties: [{ id: "extinguishers", label: "Fire extinguisher inspection", slug: "fire-extinguisher-inspection" }, { id: "hydro", label: "Hydrostatic testing" }, { id: "kitchen", label: "Kitchen (K-class) extinguishers" }],
+    license: "Michigan Bureau of Fire Services fire extinguisher firm license, with each technician certified by the state",
+    preferred: ["NAFED certification"], glMin: GL2, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "State license and technician certification lookup, sample tag and report, NFPA 10 procedure, 2 commercial references.",
+  },
+  foundation: {
+    does: "Foundation crack injection, wall bracing, piers for settling, and interior drain tile and sumps for wet basements.",
+    specialties: [{ id: "cracks", label: "Crack injection", slug: "foundation-repair" }, { id: "bracing", label: "Wall bracing & anchors" }, { id: "piers", label: "Piers & underpinning" }, { id: "waterproofing", label: "Interior drain tile & sumps" }],
+    license: "Michigan residential builder license (LARA); local permits for structural work",
+    preferred: ["Manufacturer-certified installer for the pier or bracing system used"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
+    skillsCheck: "LARA license lookup, a sample written estimate and warranty, photos of recent jobs, 3 homeowner references.",
   },
   handyman: {
     does: "Repairs, mounting, assembly, drywall, doors, fixtures and small projects.",

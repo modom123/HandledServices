@@ -10,7 +10,7 @@ import Link from "next/link";
 import { BRAND, FAIR_HIRING_RULES, TALENT_TERMS as T } from "@handled/core";
 import { TalentRequestForm } from "@/components/TalentUI";
 
-export const metadata = { title: "Handled Talent — recruiting for your company", description: `Contingency and retained search in Metro Detroit and beyond: ${T.contingencyPct}% only if you hire, ${T.guaranteeDays}-day guarantee, candidates never pay.` };
+export const metadata = { title: "Handled Talent — recruiting for your company", description: `Contingency and retained search nationwide: ${T.contingencyPct}% only if you hire, ${T.guaranteeDays}-day guarantee, candidates never pay.` };
 
 const STEPS = [
   ["Intake call (30 minutes)", "What great looks like, must-haves, the salary range, your interview process and timing. We tell you honestly how the market looks for the role."],

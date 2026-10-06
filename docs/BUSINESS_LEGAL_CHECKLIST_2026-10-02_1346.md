@@ -6,6 +6,10 @@
             transportation authority and company setup. The same list is in Hub → Go-live setup
             with tick boxes. This is a checklist of questions for professionals, not legal advice.
   UPDATED : 2026-10-04_1934 UTC — 51 services (small moves, large-item delivery, staging moves, unit turnover added).
+  UPDATED : 2026-10-06_0505 UTC — 53 services (event security, security guards & patrol added).
+  UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
+  UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
+            Insurance: contingent pollution liability (used oil). Transportation: urgent-ride wording review.
 -->
 
 # Business & legal launch checklist
@@ -17,7 +21,7 @@ real customers' money.
 ## How to work through it fastest
 
 1. **One commercial insurance broker** who already insures marketplaces or gig platforms can quote
-   every policy in the insurance section at once. Bring: the service list (51 services), expected
+   every policy in the insurance section at once. Bring: the service list (60 services), expected
    jobs per month, that pros are 1099 subcontractors carrying their own insurance (our onboarding
    verifies it), and that we arrange rides and deliveries in vehicles we don't own.
 2. **One business attorney** for the legal review section, with referrals for the specialists
@@ -45,6 +49,7 @@ real customers' money.
 | **Before launch** | Hired & non-owned auto (HNOA) | Rides, deliveries, errands and courier runs happen in vehicles we don't own. | Same broker |
 | **Before launch** | Professional / tech errors & omissions | Our AI sets prices and dispatches work — a mistake there is a professional-liability claim. | Same broker |
 | **Before launch** | Cyber liability | We hold addresses, door codes, photos of homes, medical-delivery details and payment data. | Same broker |
+| **Before the first used-oil pickup** | Contingent pollution liability | Used Oil Collection moves oil, filters and antifreeze; a spill is an environmental claim general liability excludes. Haulers must carry their own pollution coverage too. | Same broker |
 | Soon after | Third-party crime / fidelity bond | Covers theft by a pro inside a customer's home or business — customers ask for it. | Same broker |
 | Soon after | Occupational accident cover for pros (optional benefit) | Independent pros have no workers' comp; an accident on our job is a reputational and legal risk. | Broker — occupational accident programs for 1099 workers |
 | Soon after | Umbrella policy and workers' comp for our own W-2 staff | Large claims, and any employees we hire (ops, support). | Same broker |
@@ -72,6 +77,7 @@ real customers' money.
 | | Item | Why | Who to ask |
 |---|---|---|---|
 | **Before launch** | Confirm whether Handled needs its own authority to arrange rides | We only book licensed operators (MDOT; FMCSA for interstate). Confirm that arranging and collecting payment for rides doesn't require Handled itself to hold broker or carrier authority. | Transportation attorney |
+| **Before launch** | Urgent Ride (Non-Medical) wording and limits | The service tells customers to call 911 for medical emergencies and that we don't provide medical transport. Have counsel confirm the wording, and that drivers are told never to transport someone in medical distress. | Transportation attorney |
 
 ## Business setup
 

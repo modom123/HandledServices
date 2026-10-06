@@ -7,10 +7,12 @@
  * PURPOSE : Magic-link landing. Exchanges the code for a session, then routes the
  *           user to the right home: ops hub (staff), pro portal (pros) or account.
  * UPDATED : 2026-10-05_0434 UTC — OWNER_EMAILS: listed emails become admins when they sign in (bootstraps the first admin; the rest via Hub → Team).
+ * UPDATED : 2026-10-06_0726 UTC — security: ?next= goes through safeNext() (no open redirect via "/\\evil.com" and similar).
  */
 import { NextResponse } from "next/server";
 import { serverClient } from "@/lib/supabase/server";
 import { getViewer, isStaff } from "@/lib/auth";
+import { safeNext } from "@/lib/safe-redirect";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -20,7 +22,7 @@ export async function GET(req: Request) {
   if (code) await (await serverClient()).auth.exchangeCodeForSession(code);
   else if (tokenHash) {
     const { error } = await (await serverClient()).auth.verifyOtp({ token_hash: tokenHash, type: (url.searchParams.get("type") ?? "magiclink") as "magiclink" | "email" });
-    if (error) return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(next)}&expired=1`, url.origin));
+    if (error) return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(safeNext(next, url.origin))}&expired=1`, url.origin));
   }
   // owners (OWNER_EMAILS in Vercel) are admins from their first sign-in — no database step to get started
   const owners = (process.env.OWNER_EMAILS ?? "").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -31,7 +33,7 @@ export async function GET(req: Request) {
       await adminClient().from("profiles").update({ role: "admin" }).eq("id", me.userId);
     }
   }
-  let dest = next.startsWith("/") && !next.startsWith("//") ? next : "/auth/home";
+  let dest = safeNext(next, url.origin);
   if (dest === "/auth/home") {
     const v = await getViewer();
     dest = isStaff(v) ? "/hub" : v?.contractorId ? "/pro" : "/account";

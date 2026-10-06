@@ -93,6 +93,7 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
   if (!job) return { ok: false, error: "Job not found" };
   if (["completed", "cancelled", "qa_review"].includes(job.status)) return { ok: false, error: `Job is ${job.status}` };
   if (job.status === "in_progress" && reason !== "lockout") return { ok: false, error: "Work has started — use a refund instead" };
+  await (await import("./coverage")).releaseBackups(jobId).catch(() => null);
   const why: CancelReason = reason === "customer" && isLate(job) ? "late" : reason;
   const paid = r2(Number(job.amount_paid ?? 0) - Number(job.amount_refunded ?? 0));
   const fee = ["late", "lockout"].includes(why) ? Math.min(LATE_CANCEL_FEE, Math.max(0, paid)) : 0;

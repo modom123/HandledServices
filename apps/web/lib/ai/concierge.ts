@@ -6,6 +6,7 @@
  * PURPOSE : Customer-facing AI concierge (website + mobile chat). Answers questions,
  *           recommends the right service, gives instant estimates from the real pricing
  *           engine and captures leads. It never promises a price outside the engine.
+ * UPDATED : 2026-10-06_0752 UTC — runs with the shared mission, standing and assigned tasks (kept internal: never told to customers).
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -13,6 +14,7 @@ import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { BRAND, SERVICES, estimate, getService, moneyRange } from "@handled/core";
 import { FALLBACK, MODEL, aiEnabled, anthropic, logRun } from "./client";
+import { systemFor } from "./agent-tasks";
 import { adminClient } from "../supabase/server";
 
 const catalog = SERVICES.map((s) => `- ${s.slug}: ${s.name} — ${s.tagline} (from $${s.minimum}${s.siteVisit ? ", firm price after site visit" : ""})`).join("\n");
@@ -84,7 +86,7 @@ export async function conciergeReply(history: ChatTurn[]): Promise<string> {
       ...FALLBACK,
       betas: [...FALLBACK.betas],
       output_config: { effort: "low" },
-      system: SYSTEM,
+      system: await systemFor("concierge", SYSTEM),
       tools,
       max_iterations: 6,
       messages,

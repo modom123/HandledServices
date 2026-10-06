@@ -14,6 +14,11 @@
  * UPDATED : 2026-10-04_1950 UTC — grocery delivery replaced by Same-Day Courier.
  * UPDATED : 2026-10-05_0438 UTC — Event Security.
  * UPDATED : 2026-10-05_1433 UTC — Spanish for the Security category and Security Guards & Patrol.
+ * UPDATED : 2026-10-06_0526 UTC — Spanish for Dead Animal Removal.
+ * UPDATED : 2026-10-06_0606 UTC — Spanish for the cleaning-first home page.
+ * UPDATED : 2026-10-06_0637 UTC — Spanish names for the six new services.
+ * UPDATED : 2026-10-06_0748 UTC — "Pro Rewards & tiers" (footer link).
+ * UPDATED : 2026-10-06_0841 UTC — national home-page copy (launching in Metro Detroit, expanding nationwide).
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -28,11 +33,25 @@ const ES: Record<string, string> = {
   // header / footer / common
   "Services": "Servicios", "Events": "Eventos", "For Business": "Empresas", "Become a Pro": "Trabaje con nosotros", "My Bookings": "Mis reservas",
   "Sign in": "Iniciar sesión", "Book now": "Reservar", "Company": "Empresa", "Parties & events": "Fiestas y eventos", "Commercial accounts": "Cuentas comerciales",
-  "Join as a pro": "Únase como profesional", "Customer reviews": "Opiniones de clientes", "Gift cards": "Tarjetas de regalo",
+  "Join as a pro": "Únase como profesional", "Pro Rewards & tiers": "Recompensas y niveles Pro", "Customer reviews": "Opiniones de clientes", "Gift cards": "Tarjetas de regalo",
   // splash / home
   "AI-run operations · real local pros": "Operación con IA · profesionales locales reales",
   "Your home & business to-do list.": "Su lista de pendientes del hogar y el negocio.",
   "Handled.": "Resuelta.",
+  // home — cleaning push
+  "Launching in Metro Detroit · expanding nationwide": "Comenzamos en Metro Detroit · creciendo en todo el país",
+  "Home & office cleaning, done right.": "Limpieza de casas y oficinas, bien hecha.",
+  "Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.": "Limpieza estándar, profunda y de mudanza, alfombras y ventanas, por personal local asegurado y con verificación de antecedentes. Precio por adelantado en 60 segundos, fotos al terminar cada limpieza y una nueva limpieza gratis si algo faltó.",
+  "Book a cleaning": "Reservar una limpieza", "Office & property cleaning": "Limpieza de oficinas y propiedades",
+  "Standard clean": "Limpieza estándar", "Kitchen, baths, dusting, floors": "Cocina, baños, polvo y pisos",
+  "Deep clean": "Limpieza profunda", "Baseboards, buildup, every corner": "Zócalos, suciedad acumulada, cada rincón",
+  "Move-in / move-out": "Mudanza (entrada / salida)", "Empty home, deposit-ready": "Casa vacía, lista para el depósito",
+  "Recurring plan": "Plan recurrente",
+  "Carpet cleaning": "Limpieza de alfombras", "Rooms, stairs, rugs, upholstery": "Habitaciones, escaleras, tapetes y tapicería",
+  "Window cleaning": "Limpieza de ventanas", "Inside, outside, screens & tracks": "Por dentro, por fuera, mosquiteros y rieles",
+  "Cleaners in your city": "Limpieza en su ciudad", "Don’t see your city? We’re adding new cities all the time.": "¿No ve su ciudad? Agregamos ciudades nuevas todo el tiempo.", "Check your ZIP": "Revise su código postal",
+  "Pick your city to see house cleaning near you.": "Elija su ciudad para ver la limpieza de casas cerca de usted.",
+  "Everything else, handled too": "Todo lo demás, también resuelto",
   "Enter": "Entrar a", "Get my price": "Ver mi precio", "services · one account": "servicios · una sola cuenta",
   "Vetted, insured pros": "Profesionales verificados y asegurados", "Background-checked, licensed where required, and rated on every job.": "Con verificación de antecedentes, licencia cuando se requiere y calificados en cada trabajo.",
   "Upfront, all-in price": "Precio total por adelantado", "Your real price in about a minute. No callbacks, no surprise invoices.": "Su precio real en un minuto. Sin esperas ni facturas sorpresa.",
@@ -296,7 +315,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   cleaning: { name: "Limpieza y organización", short: "Limpieza", blurb: "Casas, oficinas, ventanas, alfombras, canaletas, lavado a presión, lavado de autos a domicilio y organización." },
   outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte de césped, limpieza de hojas, remoción de nieve y árboles." },
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
-  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, o un contenedor por una semana." },
+  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
   repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
   errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
@@ -319,6 +338,13 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "dog-walking": ["Paseo de perros", "El mismo paseador en cada paseo, con fotos y GPS."],
   "dog-sitting": ["Cuidado de perros y mascotas", "Visitas, cuidado de día o estadías nocturnas en su casa."],
   "pet-waste-removal": ["Limpieza de desechos de perro", "Un patio limpio cada semana. Portón cerrado, garantizado."],
+  "small-engine-repair": ["Reparación de motores pequeños", "Cortadoras, quitanieves, generadores y más, reparados en su casa o en el taller."],
+  "dock-door-service": ["Servicio de puertas de muelle y seccionales", "Inspecciones, mantenimiento y reparaciones de puertas de muelle, niveladores y puertas seccionales."],
+  "fire-extinguisher-inspection": ["Inspección y servicio de extintores", "Inspecciones anuales, etiquetas, recargas y extintores nuevos, en el lugar."],
+  "foundation-repair": ["Reparación de cimientos", "Grietas, paredes combadas y hundimientos, reparados por un contratista con licencia."],
+  "waste-oil-collection": ["Recolección de aceite usado", "Aceite de motor usado, filtros y anticongelante recogidos por un transportista con licencia."],
+  "urgent-ride": ["Viaje urgente (no médico)", "¿Varado o necesita ir ya? Un conductor con licencia en camino. ¿Emergencia médica? Llame al 911."],
+  "dead-animal-removal": ["Retiro de animales muertos", "Se retira hoy: embolsado, retirado y desechado correctamente. Tratamiento de olores disponible."],
   "junk-removal": ["Retiro de basura", "Precio según la cantidad; nosotros cargamos todo. Donamos y reciclamos primero."],
   "large-item-removal": ["Retiro de objetos grandes", "Precio según cuántos y cuánto pesan: de sofás a pianos."],
   "small-moves": ["Mudanzas pequeñas y ayuda para mudarse", "Mudanceros por hora, con o sin camión: departamentos, casas pequeñas o un solo cuarto."],

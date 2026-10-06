@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# FILE    : .github/workflows/dispatch-cron_2026-10-06_0523.yml
+# PROJECT : Handled (myhumanai) — AI-run home & business services
+# CREATED : 2026-10-06_0523 UTC
+# PURPOSE : Calls /api/cron/dispatch every 10 minutes (expired job offers go to the next
+#           pros; the next Email Center batch goes out). This runs on GitHub Actions
+#           because Vercel Hobby only allows crons that run once a day.
+# SETUP   : GitHub → repo Settings → Secrets and variables → Actions
+#             Secret   CRON_SECRET  = the same value as CRON_SECRET in Vercel
+#             Variable HANDLED_URL  = the live site, e.g. https://handledsvc.com
+#           Until both are set, each run skips with a notice instead of failing.
+# NOTE    : GitHub runs schedules from the default branch only, and may start a run a
+#           few minutes late when GitHub is busy.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Dispatch cron
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: dispatch-cron
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/cron/dispatch
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          HANDLED_URL: ${{ vars.HANDLED_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$HANDLED_URL" ]; then
+            echo "::notice::Skipped: set the CRON_SECRET secret and HANDLED_URL variable to turn on dispatch."
+            exit 0
+          fi
+          curl -fsS --max-time 150 --retry 2 --retry-delay 10 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${HANDLED_URL%/}/api/cron/dispatch"
+          echo

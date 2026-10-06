@@ -6,13 +6,14 @@
  * UPDATED : 2026-10-02_1329 UTC — "On my way" (texts the customer a live tracking link).
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — hand back an upcoming job (late cancel inside 24h).
+ * UPDATED : 2026-10-06_1950 UTC — hand-back notice from the cancel tiers (24h free · 6–24h short notice · under 6h late).
  * UPDATED : 2026-10-03_1311 UTC — crew accounts: pick who's doing the job.
  * UPDATED : 2026-10-05_0221 UTC — the job checklist: check items off (or N/A with the reason) as the work gets done.
  * UPDATED : 2026-10-04_2204 UTC — "The customer asked for …" (crew member request) and "the customer favorited you".
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, buildWorkOrder, getService, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, buildWorkOrder, getService, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
 import { WorkOrderView } from "@/components/WorkOrderView";
@@ -97,7 +98,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.status === "qa_review" && <div className="card text-sm">{t("Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.")}</div>}
         {(job.status === "assigned" || job.status === "in_progress") && !job.remedy && <ScopeChange locale={l} jobId={job.id} slug={job.service_slug} booked={job.answers as Record<string, string | number | boolean>} frequency={job.frequency} />}
         {(job.status === "assigned" || job.status === "in_progress") && <LockoutReport locale={l} jobId={job.id} />}
-        {job.status === "assigned" && <ReleaseJob jobId={job.id} es={l === "es"} />}
+        {job.status === "assigned" && <ReleaseJob jobId={job.id} es={l === "es"} notice={cancelNotice(cancelTier(hoursUntilWindow(job)), l === "es" ? "es" : "en")} />}
         {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) && <MaterialsForm locale={l} jobId={job.id} allowed={!noMaterials} reason={noMaterials} />}
         {(expenses ?? []).length > 0 && (
           <div className="card text-sm"><div className="font-semibold">{t("Materials")}</div>

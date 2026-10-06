@@ -6,12 +6,15 @@
  *           helper and the ai_runs audit log. Every AI feature degrades gracefully —
  *           if ANTHROPIC_API_KEY is missing or a call fails, callers get `null` and use
  *           the deterministic engine in @handled/core instead.
+ * UPDATED : 2026-10-06_0752 UTC — every structured agent runs with the shared $100M mission, its standing tasks and the
+ *           tasks the team assigned it (systemFor in agent-tasks.ts), ahead of its own instructions.
  */
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { adminClient } from "../supabase/server";
+import { systemFor } from "./agent-tasks";
 
 export const MODEL = "claude-opus-5-5";
 
@@ -73,7 +76,7 @@ export async function structured<S extends z.ZodType>(opts: {
       max_tokens: opts.maxTokens ?? 16000,
       ...FALLBACK,
       betas: [...FALLBACK.betas],
-      system: opts.system,
+      system: await systemFor(opts.kind, opts.system),
       output_config: { effort: opts.effort ?? "low", format: betaZodOutputFormat(opts.schema) },
       messages: [{ role: "user", content: opts.content }],
     });

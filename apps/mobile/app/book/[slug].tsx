@@ -9,13 +9,23 @@
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  * UPDATED : 2026-10-05_0449 UTC — Snap & post a job: photos, job details, notes and timeframe arrive filled in.
  * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (opens Event Security prefilled).
+ * UPDATED : 2026-10-06_0645 UTC — built to finish on a phone: the price and the Pay & book button stay pinned at the bottom;
+ *           the keyboard never covers a field; name, email, phone and address are remembered from the last booking
+ *           (and the signed-in email fills in); the button names the next missing step and missing fields turn red;
+ *           Stripe Checkout opens in an in-app sheet; a link to an unknown service shows a friendly message.
+ * UPDATED : 2026-10-06_0708 UTC — Pay & book opens Apple Pay / Google Pay / card right in the app (Stripe PaymentSheet); closing it
+ *           keeps the booking with Pay now / Later; Checkout is the fallback.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
-import { Button, C, Card, Chip, Field, s } from "../../components/ui";
+import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
+import { payForJob } from "../../lib/pay";
+import { haptic } from "../../lib/haptics";
+import { loadProfile, saveProfile } from "../../lib/profile";
+import { useSession } from "../../lib/session";
 import { Calendar, NumberBox } from "../../components/BookingPickers";
 import { useI18n } from "../../lib/i18n";
 import { PhotoStrip } from "../../components/PhotoStrip";
@@ -26,6 +36,19 @@ const FREQ_TEXT: Record<Frequency, string> = { once: "One time", weekly: "Weekly
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 export default function Book() {
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const known = getService(slug);
+  if (!known) return <MissingService />;
+  return <BookService slug={slug} />;
+}
+
+/** A link to a service that no longer exists. */
+function MissingService() {
+  const { t } = useI18n();
+  return <View style={[s.screen, s.pad]}><ErrorState icon="🔍" message={t("This service isn't available anymore.")} /><Button title={t("See all services")} onPress={() => router.replace("/")} /></View>;
+}
+
+function BookService({ slug: _slug }: { slug: string }) {
   const { slug, pro, crew, shots: snapShots, notes: snapNotes, when: snapWhen, answers: snapAnswers } = useLocalSearchParams<{ slug: string; pro?: string; crew?: string; shots?: string; notes?: string; when?: string; answers?: string }>();
   const parse = <T,>(v: string | undefined, fb: T): T => { try { return v ? (JSON.parse(v) as T) : fb; } catch { return fb; } };
   const [ask, setAsk] = useState(Boolean(pro));
@@ -45,6 +68,23 @@ export default function Book() {
   const [f, setF] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "" });
   const [busy, setBusy] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [tried, setTried] = useState(false);
+  const { me } = useSession();
+  // remembered from the last booking on this phone; the signed-in email fills in when there's none
+  useEffect(() => {
+    let live = true;
+    loadProfile().then((p) => {
+      if (!live) return;
+      setF((cur) => {
+        const next = { ...cur };
+        (Object.keys(next) as (keyof typeof next)[]).forEach((k) => { const v = p[k]; if (!next[k] && typeof v === "string" && v) next[k] = v; });
+        if (!next.contact_email && me?.email) next.contact_email = me.email;
+        if (!next.state) next.state = "MI";
+        return next;
+      });
+    });
+    return () => { live = false; };
+  }, [me?.email]);
   const [plan, setPlan] = useState<"full" | "deposit">("full");
   // what pros in this area actually accept (learned) — the same factor the server prices with
   const [market, setMarket] = useState(1);
@@ -83,6 +123,7 @@ export default function Book() {
       body: JSON.stringify({ service_slug: svc.slug, answers, frequency, scheduled_date: date, notes, photos, ai: true, locale, ...(zipOk ? { zip: f.zip } : {}) }),
     });
     setBusy(false);
+    if (q.offline) return Alert.alert(t("No connection"), t(q.data.error ?? "Check your signal or Wi-Fi and try again."));
     const ai = q.data.ai;
     const token = q.data.quote_token ?? null;
     if (!ai || (ai.action !== "site_visit" && ai.final_price === est.point && !ai.changes?.length)) return book(token);
@@ -102,23 +143,72 @@ export default function Book() {
     ]);
   }
 
+  /** Apple Pay / Google Pay / card in the app; closing the sheet keeps the booking (pay now or later). */
+  async function payBooking(id: string, ref: string, checkout: string | null) {
+    const done = () => router.replace(me ? { pathname: "/job/[id]", params: { id } } : "/");
+    const res = await payForJob({ jobId: id, email: f.contact_email.trim(), locale, fallbackUrl: checkout });
+    if (res.status === "paid") {
+      haptic("success");
+      return Alert.alert(`${t("Paid")} ✓ — ${ref}`, t("You're booked. We're matching your pro now and will notify you when they're confirmed."), [{ text: "OK", onPress: done }]);
+    }
+    if (res.status === "checkout") return router.replace(me ? "/jobs" : "/");
+    Alert.alert(res.status === "canceled" ? t("Your booking is saved") : t("Payment didn't go through"), `${res.message ? `${t(res.message)}\n\n` : ""}${t("It's confirmed once it's paid. Pay now, or anytime from Bookings.")}`, [
+      { text: t("Later"), style: "cancel", onPress: () => router.replace(me ? "/jobs" : "/") },
+      { text: t("Pay now"), onPress: () => payBooking(id, ref, checkout) },
+    ]);
+  }
+
   async function book(quoteToken: string | null) {
     setBusy(true);
-    const r = await api<{ ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
+    const r = await api<{ id: string; ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
       body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
     });
     setBusy(false);
-    if (!r.ok) return Alert.alert(t("Couldn't book"), r.data.error ?? t("Please check the form"));
-    if (r.data.checkout) {
-      await Linking.openURL(r.data.checkout); // pay upfront in Stripe Checkout; the pro is dispatched once paid
-      return router.replace("/jobs");
-    }
+    if (!r.ok) { haptic("error"); return Alert.alert(t("Couldn't book"), t(r.data.error ?? "Please check the form")); }
+    saveProfile({ contact_name: f.contact_name.trim(), contact_email: f.contact_email.trim(), contact_phone: f.contact_phone.trim(), address: f.address.trim(), city: f.city.trim(), state: f.state.trim() || "MI", zip: f.zip });
+    if (r.data.checkout) return payBooking(r.data.id, r.data.ref, r.data.checkout); // paid upfront; the pro is dispatched once paid
     Alert.alert(`${t("Booked")} — ${r.data.ref}`, r.data.status === "site_visit" ? t("A pro will visit to confirm your firm price.") : t("A coordinator will contact you to take payment — your pro is confirmed once it's paid."), [{ text: "OK", onPress: () => router.replace("/") }]);
   }
 
+  // what still stands between the customer and booking, in the order they'll meet it on the screen
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.contact_email.trim());
+  const phoneOk = f.contact_phone.replace(/\D/g, "").length >= 10;
+  const problems: { key: string; msg: string }[] = [];
+  if (!svc.leadDays && !urgency) problems.push({ key: "when", msg: t("Choose when you need it done") });
+  if (photosMissing) problems.push({ key: "photos", msg: es ? `Agregue ${rule.min - photos.length} foto(s) más` : `Add ${rule.min - photos.length} more photo(s)` });
+  if (!zipOk) problems.push({ key: "zip", msg: t("Enter the 5-digit ZIP code") });
+  if (f.address.trim().length < 4) problems.push({ key: "address", msg: t("Add the street address") });
+  if (f.city.trim().length < 2) problems.push({ key: "city", msg: t("Add the city") });
+  if (f.contact_name.trim().length < 2) problems.push({ key: "contact_name", msg: t("Add your name") });
+  if (!emailOk) problems.push({ key: "contact_email", msg: t("Enter a valid email") });
+  if (!phoneOk) problems.push({ key: "contact_phone", msg: t("Enter a 10-digit mobile number") });
+  if (!siteVisit && offerChk && !offerChk.ok) problems.push({ key: "offer", msg: t("Adjust your price offer") });
+  if (!agreed) problems.push({ key: "agree", msg: t("Agree to the Service Agreement") });
+  const errFor = (k: string) => (tried ? problems.find((x) => x.key === k)?.msg ?? null : null);
+  const payTitle = busy ? t("Checking your price…") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : (es ? `Pagar ${money(listTotal)} y reservar` : `Pay ${money(listTotal)} & book`);
+  function submit() {
+    if (problems.length) {
+      haptic("warning");
+      setTried(true);
+      return Alert.alert(t("Almost there"), problems.map((x) => `• ${x.msg}`).join("\n"));
+    }
+    haptic("tap");
+    checkAndBook();
+  }
+
   return (
-    <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
+    <Form footer={
+      <StickyBar>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ minWidth: 92 }}>
+            <Text style={[s.label, { marginBottom: 0 }]}>{t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }} accessibilityLiveRegion="polite">{siteVisit ? moneyRange(est.low, est.high) : money(useDeposit ? dp.amount : listTotal)}</Text>
+          </View>
+          <Button title={problems.length ? problems[0].msg : payTitle} busy={busy} onPress={submit} kind={problems.length ? "dark" : "primary"} style={{ flex: 1 }} />
+        </View>
+      </StickyBar>
+    }>
       <Text style={s.h1}>{svc.icon} {svcText(svc).name}</Text>
       {ask ? (
         <Pressable onPress={() => setAsk(false)} style={{ backgroundColor: C.tint, borderRadius: 12, padding: 10, marginBottom: 8 }}>
@@ -147,12 +237,12 @@ export default function Book() {
             </View>
             <Text style={[s.p, { fontSize: 14 }]}>{es ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
-              <Button title="−5%" kind="ghost" style={{ paddingHorizontal: 12, paddingVertical: 8 }} onPress={() => setOffer(String(Math.max(offerCheck(1, suggested).min, Math.round(listTotal * 0.95))))} />
-              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Button title="−5%" kind="ghost" style={{ paddingHorizontal: 12, paddingVertical: 8, minHeight: 44, flexShrink: 0 }} onPress={() => setOffer(String(Math.max(offerCheck(1, suggested).min, Math.round(listTotal * 0.95))))} />
+              <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Text style={s.p}>$</Text>
-                <TextInput value={offer || String(suggested)} onChangeText={(v) => setOffer(v.replace(/[^\d]/g, ""))} keyboardType="number-pad" accessibilityLabel={t("Your price")} style={[s.input, { flex: 1, paddingVertical: 8, textAlign: "right" }]} />
+                <TextInput value={offer || String(suggested)} onChangeText={(v) => setOffer(v.replace(/[^\d]/g, ""))} keyboardType="number-pad" accessibilityLabel={t("Your price")} style={[s.input, { flex: 1, minWidth: 0, width: "100%", paddingVertical: 8, textAlign: "right", fontWeight: "700" }]} />
               </View>
-              <Button title="+5%" kind="ghost" style={{ paddingHorizontal: 12, paddingVertical: 8 }} onPress={() => setOffer(String(Math.round(listTotal * 1.05)))} />
+              <Button title="+5%" kind="ghost" style={{ paddingHorizontal: 12, paddingVertical: 8, minHeight: 44, flexShrink: 0 }} onPress={() => setOffer(String(Math.round(listTotal * 1.05)))} />
             </View>
             {offerChk && !offerChk.ok ? <Text style={[s.p, { fontSize: 14, color: C.red }]}>{offerChk.level === "too_low" ? (es ? `Las ofertas empiezan en ${money(offerChk.min)} para este trabajo.` : `Offers start at ${money(offerChk.min)} for this job.`) : (es ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</Text> : null}
             {offerChk?.ok && offerChk.level === "low" ? <Text style={[s.p, { fontSize: 14, color: "#b45309" }]}>{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</Text> : null}
@@ -195,7 +285,7 @@ export default function Book() {
       <PhotoStrip shots={shots} onChange={setShots} />
       {photos.length > 0 || rule.need !== "none" ? <Text style={[s.p, { marginTop: 4 }]}>{t("Our AI checks your photos so the price fits the job — no surprises on the day.")}</Text> : null}
       <Text style={s.h2}>{t("When & where")}</Text>
-      <Field label={t("Service ZIP code")} value={f.zip} onChangeText={set("zip")} keyboardType="number-pad" maxLength={5} />
+      <Field label={t("Service ZIP code")} value={f.zip} onChangeText={(v) => set("zip")(v.replace(/\D/g, ""))} keyboardType="number-pad" maxLength={5} textContentType="postalCode" autoComplete="postal-code" error={errFor("zip")} />
       {svc.leadDays ? (
         <>
           <Field label={es ? `Fecha del evento (AAAA-MM-DD) — al menos ${svc.leadDays} días antes` : `Event date (YYYY-MM-DD) — at least ${svc.leadDays} days out`} value={date} onChangeText={(t) => { setDate(t); setWin("flexible"); }} placeholder="2026-12-12" />
@@ -209,15 +299,15 @@ export default function Book() {
           {urgency && <Calendar key={urgency} service={svc.slug} zip={f.zip} date={date} win={win} today={urgency === "asap"} until={neededBy(urgency)} earliest={urgency === "asap"} onChange={(d, w) => { setDate(d); setWin(w); }} />}
         </>
       )}
-      <Field label={t("Street address")} value={f.address} onChangeText={set("address")} />
-      <Field label={t("City")} value={f.city} onChangeText={set("city")} />
+      <Field label={t("Street address")} value={f.address} onChangeText={set("address")} textContentType="fullStreetAddress" autoComplete="street-address" error={errFor("address")} />
+      <Field label={t("City")} value={f.city} onChangeText={set("city")} textContentType="addressCity" error={errFor("city")} />
       <View style={{ width: 80 }}><Field label={t("State")} value={f.state} onChangeText={set("state")} maxLength={2} autoCapitalize="characters" /></View>
       <Field label={t("Promo, gift card or referral code (optional)")} value={promo} onChangeText={(v) => setPromo(v.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} autoCapitalize="characters" />
       <Text style={[s.p, { fontSize: 14, marginTop: -6, marginBottom: 6 }]}>{t("Savings and Plus member pricing are applied at checkout.")}</Text>
       <Text style={s.h2}>{t("Contact")}</Text>
-      <Field label={t("Full name")} value={f.contact_name} onChangeText={set("contact_name")} />
-      <Field label={t("Email")} value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" />
-      <Field label={t("Mobile")} value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" />
+      <Field label={t("Full name")} value={f.contact_name} onChangeText={set("contact_name")} textContentType="name" autoComplete="name" error={errFor("contact_name")} />
+      <Field label={t("Email")} value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" error={errFor("contact_email")} />
+      <Field label={t("Mobile")} value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" error={errFor("contact_phone")} />
       {dp.allowed && !siteVisit ? (
         <>
           <Text style={s.h2}>{t("How would you like to pay?")}</Text>
@@ -232,7 +322,6 @@ export default function Book() {
         <Chip label={agreed ? `✓ ${t("I agree")}` : t("I agree")} on={agreed} onPress={() => setAgreed(!agreed)} />
         <Text style={[s.p, { flex: 1 }]} onPress={() => Linking.openURL(`${API_URL}/terms/service-agreement`)}>{t("to the")} <Text style={{ color: C.brand, fontWeight: "700" }}>{t("Service Agreement")}</Text>{t(": pay upfront, free redo or refund if it's not right.")}</Text>
       </View>
-      <Button disabled={!agreed || Boolean(photosMissing) || Boolean(!siteVisit && offerChk && !offerChk.ok) || (!svc.leadDays && !urgency)} title={!svc.leadDays && !urgency ? t("Choose when you need it done") : photosMissing ? (es ? `Agregue ${rule.min - photos.length} foto(s) más para reservar` : `Add ${rule.min - photos.length} more photo(s) to book`) : busy ? t("Checking your price…") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : (es ? `Pagar ${money(listTotal)} y reservar` : `Pay ${money(listTotal)} & book`)} busy={busy} onPress={checkAndBook} style={{ marginTop: 8 }} />
-    </ScrollView>
+    </Form>
   );
 }

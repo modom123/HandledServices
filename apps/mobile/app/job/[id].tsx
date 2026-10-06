@@ -11,17 +11,26 @@
  *           pay now, invoice & agreement, and rating when done. Opened from notifications.
  * UPDATED : 2026-10-04_2204 UTC — ★ favorite the pro (and the crew member who came) and "Book again with …".
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (what's included / progress) and special requests.
+ * UPDATED : 2026-10-06_0645 UTC — a booking that can't load (deleted, or no connection) says so with Try again, instead of
+ *           "Loading…" forever.
+ * UPDATED : 2026-10-06_0645 UTC — pay, tip and raise-your-offer open Stripe in an in-app sheet and refresh when it closes.
+ * UPDATED : 2026-10-06_0708 UTC — Pay now opens Apple Pay / Google Pay / card in the app (Stripe PaymentSheet).
+ * UPDATED : 2026-10-06_0708 UTC — live map of the pro on the way (🚗 → 🏠), refreshing every 15 s.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { BRAND, TIME_WINDOW_LABEL, TIP_PRESETS, getService, money, moneyRange, type Job, type TimeWindow } from "@handled/core";
-import { API_URL, api, supabase } from "../../lib/supabase";
-import { Button, C, Card, Status, s } from "../../components/ui";
+import { API_URL, NETWORK_ERROR, api, supabase } from "../../lib/supabase";
+import { Button, C, Card, ErrorState, Loading, Status, s } from "../../components/ui";
 import { PhotoStrip } from "../../components/PhotoStrip";
 import type { Shot } from "../../lib/photos";
 import { useI18n } from "../../lib/i18n";
 import { Calendar } from "../../components/BookingPickers";
+import { openInApp } from "../../lib/browser";
+import { payForJob } from "../../lib/pay";
+import { LiveMap } from "../../components/LiveMap";
+import { haptic } from "../../lib/haptics";
 import { ChecklistList } from "../../components/Checklist";
 import type { ChecklistCheck, ChecklistExtra, JobChecklist } from "@handled/core";
 
@@ -66,10 +75,11 @@ export default function Booking() {
   const [shots, setShots] = useState<Shot[]>([]);
   const [rated, setRated] = useState(false);
   const [stars, setStars] = useState(5);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
   const { t, locale, svc: svcText } = useI18n();
   const es = locale === "es";
   const load = useCallback(async () => {
-    const [{ data: j }, { data: p }, { data: ev }, { data: rv }] = await Promise.all([
+    const [{ data: j, error: jerr }, { data: p }, { data: ev }, { data: rv }] = await Promise.all([
       supabase.from("jobs").select("*").eq("id", id).single(),
       supabase.rpc("job_pro", { p_job: id }),
       supabase.from("job_events").select("id, message, message_es, created_at").eq("job_id", id).order("created_at", { ascending: false }),
@@ -83,6 +93,8 @@ export default function Booking() {
       setCrew(((c ?? []) as Crew[])[0] ?? null);
       setFavs(((f ?? []) as { crew_member_id: string | null }[]).map((x) => x.crew_member_id));
     }
+    if (!j) { setLoadErr(jerr && !/0 rows|no rows/i.test(jerr.message) ? NETWORK_ERROR : "We couldn't find this booking."); return; }
+    setLoadErr(null);
     setJob(j as Job); setPro(((p ?? []) as Pro[])[0] ?? null); setEvents((ev ?? []) as Ev[]); setRated(Boolean(rv));
   }, [id]);
   useEffect(() => {
@@ -93,7 +105,8 @@ export default function Booking() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [id, load]);
-  if (!job) return <View style={[s.screen, s.pad]}><Text style={s.p}>{t("Loading…")}</Text></View>;
+  if (!job && loadErr) return <View style={[s.screen, s.pad]}><ErrorState message={loadErr} onRetry={load} /><Button title={t("My bookings")} kind="ghost" onPress={() => router.replace("/jobs")} /></View>;
+  if (!job) return <Loading label={t("Loading…")} />;
   const svc = getService(job.service_slug);
   const unpaid = !job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled";
   const depositDue = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0 && job.deposit_amount;
@@ -107,9 +120,13 @@ export default function Booking() {
     load();
   }
   async function pay() {
-    const r = await api<{ url?: string; error?: string }>(`/api/account/jobs/${id}/pay`, { method: "POST" });
-    if (r.data.url) Linking.openURL(r.data.url); else Alert.alert(t("Payment"), r.data.error ?? t("Couldn't start payment"));
+    if (!job) return;
+    const r = await payForJob({ jobId: job.id, email: job.contact_email, locale });
+    if (r.status === "paid") { haptic("success"); Alert.alert(`${t("Paid")} ✓`, t("Thank you! Your receipt is on its way by email.")); }
+    else if (r.status === "error") { haptic("error"); Alert.alert(t("Payment didn't go through"), t(r.message ?? "Couldn't start payment")); }
+    load();
   }
+
   async function rate() {
     const { error } = await supabase.from("reviews").insert({ job_id: id, rating: stars });
     if (error) return Alert.alert(t("Couldn't save"), error.message);
@@ -190,7 +207,7 @@ export default function Booking() {
           <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
             {TIP_PRESETS.map((amt) => <Button key={amt} title={money(amt)} kind="ghost" style={{ flex: 1 }} onPress={async () => {
               const r = await api<{ url?: string; error?: string }>(`/api/account/jobs/${job.id}/tip`, { method: "POST", body: JSON.stringify({ amount: amt }) });
-              if (r.data.url) return Linking.openURL(r.data.url);
+              if (r.data.url) { await openInApp(r.data.url); return load(); }
               if (!r.ok) return Alert.alert(t("Couldn't tip"), r.data.error ?? t("Try again"));
               Alert.alert(t("Thank you!"), es ? `${money(amt)} va en camino a su profesional.` : `${money(amt)} is on its way to your pro.`); load();
             }} />)}
@@ -216,9 +233,9 @@ export default function Booking() {
   );
 }
 
-type Track = { tracking: boolean; arrived?: boolean; name?: string | null; eta?: number | null; miles?: number; updatedMinAgo?: number };
+type Track = { tracking: boolean; arrived?: boolean; name?: string | null; eta?: number | null; miles?: number; updatedMinAgo?: number; pro?: { lat: number; lng: number }; home?: { lat: number; lng: number } };
 
-/** "Your pro is ~12 min away" — refreshes every 30 seconds while they're on the way. */
+/** "Your pro is ~12 min away" with a live map — refreshes every 15 seconds while they're on the way. */
 function TrackCard({ jobId }: { jobId: string }) {
   const { t, locale } = useI18n();
   const es = locale === "es";
@@ -227,7 +244,7 @@ function TrackCard({ jobId }: { jobId: string }) {
     let live = true;
     const load = () => api<Track>(`/api/account/jobs/${jobId}/track`).then((r) => { if (live && r.ok) setT(r.data); });
     load();
-    const id = setInterval(load, 30000);
+    const id = setInterval(load, 15000);
     return () => { live = false; clearInterval(id); };
   }, [jobId]);
   if (!tr?.tracking) return null;
@@ -235,7 +252,8 @@ function TrackCard({ jobId }: { jobId: string }) {
   return (
     <Card style={{ marginTop: 14, borderColor: C.brand }}>
       <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>{tr.arrived ? `✅ ${t("Your pro has arrived")}` : es ? `🚗 ${who} va en camino${tr.eta ? ` — ~${tr.eta} min` : ""}` : `🚗 ${who} is on the way${tr.eta ? ` — ~${tr.eta} min` : ""}`}</Text>
-      {!tr.arrived && tr.miles != null ? <Text style={s.p}>{es ? `a ${tr.miles} millas · actualizado ${tr.updatedMinAgo ? `hace ${tr.updatedMinAgo} min` : "ahora"}` : `${tr.miles} miles away · updated ${tr.updatedMinAgo ? `${tr.updatedMinAgo} min ago` : "just now"}`}</Text> : null}
+      {!tr.arrived && tr.pro && tr.home ? <LiveMap pro={{ latitude: tr.pro.lat, longitude: tr.pro.lng }} home={{ latitude: tr.home.lat, longitude: tr.home.lng }} proLabel={who} homeLabel={t("Your place")} /> : null}
+      {!tr.arrived && tr.miles != null ? <Text style={[s.p, { marginTop: 6 }]}>{es ? `a ${tr.miles} millas · actualizado ${tr.updatedMinAgo ? `hace ${tr.updatedMinAgo} min` : "ahora"}` : `${tr.miles} miles away · updated ${tr.updatedMinAgo ? `${tr.updatedMinAgo} min ago` : "just now"}`}</Text> : null}
     </Card>
   );
 }
@@ -287,7 +305,7 @@ function RaiseCard({ job, onDone }: { job: Job; onDone: () => void }) {
     setBusy(true);
     const r = await api<{ ok?: boolean; url?: string; charged?: number; error?: string }>(`/api/account/jobs/${job.id}/raise`, { method: "POST", body: JSON.stringify(body) });
     setBusy(false);
-    if (r.data.url) { await Linking.openURL(r.data.url); return onDone(); }
+    if (r.data.url) { await openInApp(r.data.url); return onDone(); }
     if (!r.ok || r.data.ok === false) return Alert.alert(t("Couldn't raise your offer"), t(r.data.error ?? "Try again"));
     Alert.alert(t("Offer raised ✓"), es ? `Su oferta ahora es ${money(want)}. La enviamos de nuevo a los profesionales.` : `Your offer is now ${money(want)}. We've sent it back out to pros.`);
     onDone();

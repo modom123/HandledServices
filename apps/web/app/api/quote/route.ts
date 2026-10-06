@@ -7,10 +7,11 @@
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * UPDATED : 2026-10-03_0149 UTC — suggested price includes the learned local market factor (?zip).
  * PURPOSE : Instant quote. Deterministic estimate always; AI price check when there are notes or photos.
+ * UPDATED : 2026-10-06_0726 UTC — security: photo paths checked with isPhotoPath.
  */
 import { z } from "zod";
 import { getMarketFactor } from "@/lib/market";
-import { getService, isRush, photoProblem, sizeNeedsSiteVisit } from "@handled/core";
+import { isPhotoPath, getService, isRush, photoProblem, sizeNeedsSiteVisit } from "@handled/core";
 import { quoteToken } from "@/lib/invoice";
 import { aiQuote } from "@/lib/ai/quote";
 import { signedUrls } from "@/lib/photos";
@@ -22,7 +23,7 @@ const Body = z.object({
   frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).default("once"),
   scheduled_date: z.string().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
-  photos: z.array(z.string().startsWith("booking/")).max(8).default([]),
+  photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   ai: z.boolean().default(false),
   locale: z.enum(["en", "es"]).optional(),
   zip: z.string().regex(/^\d{5}$/).optional(),

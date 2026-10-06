@@ -5,13 +5,15 @@
  * PURPOSE : Builds ONE file that sets up a brand-new Supabase project from the SQL editor:
  *           every migration in order + the production seed. (CLI users run `supabase db push`
  *           instead.) Run: node --experimental-strip-types scripts/build-setup-sql.ts
+ * UPDATED : 2026-10-06_1956 UTC — only replaces older full setup files; keeps the ASCII copy and the split parts.
  */
 import { readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 
 const root = new URL("../supabase/", import.meta.url);
 const stamp = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "");
 const migrations = readdirSync(new URL("migrations/", root)).filter((f) => f.endsWith(".sql")).sort();
-for (const old of readdirSync(new URL("setup/", root))) if (old.startsWith("HANDLED_SETUP_")) rmSync(new URL(`setup/${old}`, root));
+// replace only older full setup files (HANDLED_SETUP_YYYY-…); the ASCII copy and the split parts are kept
+for (const old of readdirSync(new URL("setup/", root))) if (/^HANDLED_SETUP_\d{4}-/.test(old)) rmSync(new URL(`setup/${old}`, root));
 
 const parts = [
   `-- ============================================================================

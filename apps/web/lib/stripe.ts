@@ -12,6 +12,9 @@
  *           payments (deposit + balance), Stripe Connect for pro instant pay.
  * UPDATED : 2026-10-02_1329 UTC — sales tax: with STRIPE_TAX=on, Checkout adds tax automatically for
  *           services (tax code "General – Services"); tips and gift cards are never taxed.
+ * UPDATED : 2026-10-06_0708 UTC — createPaymentSheet(): the app pays in place with Apple Pay, Google Pay or a card
+ *           (Stripe PaymentSheet). Same amounts and saved card as Checkout; with STRIPE_TAX=on it hands back the
+ *           Checkout link instead, because automatic sales tax runs in Checkout.
  * PURPOSE : Stripe payments.
  */
 import "server-only";
@@ -102,6 +105,56 @@ export async function paymentCheckoutUrl(job: Job): Promise<string | null> {
     customerEmail: job.contact_email, customerName: job.contact_name,
   });
   return r?.url ?? null;
+}
+
+/** Publishable key the app needs to show the payment sheet (never a secret). */
+export const stripePublishableKey = () => process.env.STRIPE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+
+export type PaymentSheet =
+  | { mode: "sheet"; clientSecret: string; publishableKey: string; amount: number; kind: ChargeKind; merchantName: string }
+  | { mode: "checkout"; url: string; amount: number }
+  | { mode: "none" };
+
+/**
+ * Pay in the app (Apple Pay / Google Pay / card) for what's owed on a job now: the deposit, the
+ * balance or the full price, exactly as paymentCheckoutUrl() would charge. The card is saved to the
+ * job's Stripe customer for later visits. The webhook (payment_intent.succeeded, source=app) marks it
+ * paid the same way Checkout does. Falls back to Checkout when sales tax is on or there's no
+ * publishable key.
+ */
+export async function createPaymentSheet(job: Job): Promise<PaymentSheet> {
+  const s = getStripe();
+  if (!s) return { mode: "none" };
+  const deposit = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0;
+  const amount = amountDue(job, deposit ? "deposit" : "full");
+  if (!amount) return { mode: "none" };
+  if (process.env.STRIPE_TAX === "on" || !stripePublishableKey()) {
+    const url = await paymentCheckoutUrl(job);
+    return url ? { mode: "checkout", url, amount } : { mode: "none" };
+  }
+  const kind: ChargeKind = deposit ? "deposit" : Number(job.amount_paid ?? 0) > 0 ? "balance" : "upfront";
+  const svc = getService(job.service_slug);
+  const name = `${svc?.name ?? "Service"}${kind === "deposit" ? " — deposit" : kind === "balance" ? " — balance" : ""} — ${job.ref}`;
+  const db = adminClient();
+  let customer = job.stripe_customer_id ?? null;
+  if (!customer) {
+    customer = (await s.customers.create({ email: job.contact_email, name: job.contact_name ?? undefined, phone: job.contact_phone ?? undefined, metadata: { job_id: job.id } })).id;
+    await db.from("jobs").update({ stripe_customer_id: customer }).eq("id", job.id);
+  }
+  const { data: pay } = await db.from("payments").insert({
+    job_id: job.id, kind, amount, status: "pending", description: name, customer_name: job.contact_name ?? null, customer_email: job.contact_email,
+  }).select("id").single();
+  const pi = await s.paymentIntents.create({
+    amount: cents(amount),
+    currency: "usd",
+    customer,
+    setup_future_usage: "off_session", // balances, recurring visits and add-ons can be charged later
+    automatic_payment_methods: { enabled: true },
+    description: `${BRAND.name} ${job.ref} — ${name}`,
+    metadata: { payment_id: pay!.id, kind, job_id: job.id, source: "app" },
+  });
+  await db.from("payments").update({ stripe_payment_intent_id: pi.id }).eq("id", pay!.id);
+  return { mode: "sheet", clientSecret: pi.client_secret!, publishableKey: stripePublishableKey(), amount, kind, merchantName: BRAND.name };
 }
 
 /** Charge the saved card (recurring visits, balances). Returns the amount charged or 0. */

@@ -5,6 +5,7 @@
  * PURPOSE : Push notifications: permission, Android channels ("offers" rings loud for new
  *           work, "updates" for job progress), and registering this phone's Expo push token
  *           with the Handled API for the signed-in user.
+ * UPDATED : 2026-10-06_0645 UTC — "Pro home" notifications open the Pro tab (/work).
  */
 import { Platform } from "react-native";
 import * as Device from "expo-device";
@@ -47,6 +48,6 @@ export function routeFor(data: Record<string, unknown> | undefined): string | nu
   if (data.type === "job_pro" && data.jobId) return `/pro/${data.jobId}`;
   if (data.type === "job" && data.jobId) return `/job/${data.jobId}`;
   if (data.type === "earnings") return "/pro/earnings";
-  if (data.type === "onboarding" || data.type === "pro_home") return "/pro";
+  if (data.type === "onboarding" || data.type === "pro_home") return "/work";
   return null;
 }

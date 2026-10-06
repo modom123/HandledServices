@@ -10,15 +10,26 @@
  *             supabase/demo_data.sql  — optional demo pros/jobs for a staging project. NEVER
  *                                       run it on the live database.
  *           Run: node --experimental-strip-types scripts/gen-seed.ts
+ * UPDATED : 2026-10-06_0740 UTC — real sliding pro share: services.payout_share = typical-job share (typicalProShare);
+ *           demo payouts use the same split as splitJob (booking fee + sliding commission + per-service cap).
  */
 
-import { SERVICES, defaultAnswers, estimate } from "../packages/core/src/index.ts";
+import { BOOKING_FEE, COMMISSION, SERVICES, TAKE_MAX, TAKE_MIN, defaultAnswers, estimate, typicalProShare } from "../packages/core/src/index.ts";
 
 const q = (v: unknown) => (v === null || v === undefined ? "null" : `'${String(v).replace(/'/g, "''")}'`);
 const arr = (a: string[]) => `array[${a.map(q).join(",")}]::text[]`;
 const stamp = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "");
 
 import { writeFileSync } from "node:fs";
+
+/** SQL twin of splitJob() for demo rows: booking fee is ours, commission slides 15% → 32% (capped per service). */
+const caps = SERVICES.filter((s) => s.maxCommission).map((s) => `when ${q(s.slug)} then ${s.maxCommission}`).join(" ");
+const payoutSql = (p: string, slug: string) => {
+  const svc = `(${p} - case when ${p} >= 20 then ${BOOKING_FEE} else 0 end)`;
+  const slide = `${COMMISSION.minRate} + ${COMMISSION.maxRate - COMMISSION.minRate} * least(1, greatest(0, (${svc} - ${COMMISSION.from}) / ${COMMISSION.to - COMMISSION.from}.0))`;
+  const cap = caps ? `case ${slug} ${caps} else ${TAKE_MAX} end` : `${TAKE_MAX}`;
+  return `floor(round(${svc} * (1 - least(${cap}, ${TAKE_MAX}, greatest(${TAKE_MIN}, ${slide}))), 2))`;
+};
 
 const out: string[] = [];
 out.push(`-- ============================================================================
@@ -31,7 +42,7 @@ out.push(`-- ===================================================================
 
 out.push("insert into public.services (slug, name, category, minimum, payout_share, site_visit, sort) values");
 out.push(
-  SERVICES.map((s, i) => `  (${q(s.slug)}, ${q(s.name)}, ${q(s.category)}, ${s.minimum}, ${s.payoutShare}, ${s.siteVisit}, ${i})`).join(",\n") +
+  SERVICES.map((s, i) => `  (${q(s.slug)}, ${q(s.name)}, ${q(s.category)}, ${s.minimum}, ${Math.min(0.85, Math.max(0.65, typicalProShare(s.slug)))}, ${s.siteVisit}, ${i})`).join(",\n") +
     "\non conflict (slug) do update set name = excluded.name, category = excluded.category, minimum = excluded.minimum,\n  payout_share = excluded.payout_share, site_visit = excluded.site_visit, sort = excluded.sort;\n",
 );
 
@@ -90,10 +101,10 @@ out.push(
     .join(",\n") + ";\n",
 );
 out.push(`-- assign the demo 'assigned' + 'completed' jobs to a matching pro
-update public.jobs j set contractor_id = c.id, contractor_payout = floor(j.estimate_low * s.payout_share)
+update public.jobs j set contractor_id = c.id, contractor_payout = ${payoutSql("j.estimate_low", "j.service_slug")}
 from public.contractors c, public.services s
 where s.slug = j.service_slug and j.status in ('assigned','completed') and j.service_slug = 'pet-waste-removal' and c.email = 'lena@scooptroop.example';
-update public.jobs j set contractor_id = c.id, contractor_payout = floor(j.estimate_low * s.payout_share), price_final = j.estimate_low, completed_at = now()
+update public.jobs j set contractor_id = c.id, contractor_payout = ${payoutSql("j.estimate_low", "j.service_slug")}, price_final = j.estimate_low, completed_at = now()
 from public.contractors c, public.services s
 where s.slug = j.service_slug and j.status = 'completed' and c.email = 'marcus@greenline.example';
 `);
@@ -102,7 +113,7 @@ out.push(`-- every non-site-visit job has a firm price; every job past booking h
 update public.jobs set price_final = estimate_low where price_final is null and status not in ('site_visit','quoted');
 update public.jobs set price_final = coalesce(price_final, estimate_low), paid_at = now(), amount_paid = coalesce(price_final, estimate_low)
 where status in ('scheduled','dispatched','assigned','in_progress','qa_review','completed');
-update public.jobs j set contractor_payout = floor(j.price_final * s.payout_share) from public.services s
+update public.jobs j set contractor_payout = ${payoutSql("j.price_final", "j.service_slug")} from public.services s
 where s.slug = j.service_slug and j.paid_at is not null and j.contractor_payout is null;
 `);
 out.push(`insert into public.contractor_applications (business_name, contact_name, email, phone, trades, zips, years_experience, crew_size, insured, message) values

@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0124 UTC — standing card (warning / pause / deactivation) with the appeal form.
  * PURPOSE : Pro home — open offers, jobs near you, upcoming jobs, earnings.
+ * UPDATED : 2026-10-06_1950 UTC — Standby requests (backup #1–#3): confirm you can cover, or pass.
  * UPDATED : 2026-10-03_1311 UTC — fast-track link on the tier card; approved fast-track pros skip the probation size limit.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards card (available / pending points).
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
@@ -15,6 +16,8 @@ import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
 import { PROBATION, PRO_REFERRAL, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
+import { standbyFor } from "@/lib/coverage";
+import { StandbyAnswer } from "@/components/Standby";
 import { getPolicy } from "@/lib/pro-benefits";
 import { OnCallToggle } from "@/components/Roster";
 import { localDate, onCall, serviceText, t as tr, type ProPolicy } from "@handled/core";
@@ -80,6 +83,7 @@ export default async function ProHome() {
     v.db.from("payouts").select("amount, status, created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
+  const standby = await standbyFor(v.contractorId!).catch(() => []);
   const policy = await getPolicy();
   const board = me?.status === "approved" ? await boardFor(v.contractorId!, es ? "es" : "en") : [];
   const pts = await balanceOf(v.contractorId!).catch(() => ({ available: 0, pending: 0, lifetime: 0 }));
@@ -176,6 +180,26 @@ export default async function ProHome() {
           })}
         </div>
       </section>
+      {standby.length > 0 && (
+        <section id="standby" className="scroll-mt-24">
+          <h2 className="font-bold">{es ? "Solicitudes de respaldo" : "Standby requests"}</h2>
+          <p className="mb-3 text-sm text-ink-soft">{es
+            ? "Otro profesional tiene estos trabajos. Si no puede ir, usted recibe la primera llamada. Pasar no cuesta nada; solo se le paga si lo llamamos y hace el trabajo."
+            : "Another pro has these jobs. If they can't make it, you get the first call. Passing costs nothing; you're paid only if you're called and do the job."}</p>
+          <div className="space-y-3">
+            {standby.map((b) => {
+              const s = getService(b.service_slug);
+              return (
+                <div key={b.id} className="card flex flex-wrap items-center justify-between gap-4">
+                  <div><div className="font-semibold">{es ? `Respaldo n.º ${b.rank}` : `Backup #${b.rank}`} · {s?.icon} {svcName(b.service_slug)} · <span className="text-brand">{money(b.pay)}</span></div>
+                    <div className="text-sm text-ink-soft">{b.city} {b.zip} · {fmtDate(b.scheduled_date)} · {t(TIME_WINDOW_LABEL[b.time_window])}</div></div>
+                  <StandbyAnswer id={b.id} status={b.status} es={es} />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
       {me?.status === "approved" && (
         <section>
           <h2 className="font-bold">{es ? "Trabajos cerca de usted" : "Jobs near you"}</h2>

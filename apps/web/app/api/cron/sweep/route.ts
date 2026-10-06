@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-04_1934 UTC — business invoices on the 1st; invoice reminders and terms holds daily.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: release pending points, milestones, inactivity expiry.
  * UPDATED : 2026-10-05_2034 UTC — Handled Talent: invoice hires on their start date and retainer payments when due.
+ * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -25,11 +26,12 @@ import { notifyWaitlist } from "@/lib/waitlist";
 import { sendBookingFollowups, sendQuoteFollowups } from "@/lib/reminders";
 import { nudgeLowOffers } from "@/lib/market";
 import { invoiceSweep, runInvoices } from "@/lib/business";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 export const maxDuration = 300;
 
 export async function GET(req: Request) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(req)) return new Response("Unauthorized", { status: 401 });
   const db = adminClient();
   const now = new Date().toISOString();
 

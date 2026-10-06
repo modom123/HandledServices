@@ -6,6 +6,8 @@
  * UPDATED : 2026-10-03_0124 UTC — standing panel: events, warn / suspend / deactivate / reinstate / appeal.
  * UPDATED : 2026-10-03_1311 UTC — crew panel (background checks per crew member) and fast-track review.
  * UPDATED : 2026-10-04_1934 UTC — mark a pro's photo ID verified after a video call.
+ * UPDATED : 2026-10-06_0748 UTC — Progress & rewards panel: tier, what's left for the next tier (jobs / rating / on-time
+ *           bars), Pro Rewards points (available, pending, lifetime, ≈ $), tenure multiplier, milestones, orders.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  */
@@ -22,6 +24,8 @@ import { MarkIdVerified } from "@/components/VerifyId";
 import { FastTrackReview } from "@/components/FastTrack";
 import { crewReady, FAST_TRACK, type CrewMember } from "@handled/core";
 import { listCrew } from "@/lib/crew";
+import { rewardsFor } from "@/lib/rewards";
+import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -68,6 +72,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         </div>
         <Badge tone={pro.status === "approved" ? "green" : pro.status === "suspended" ? "red" : "amber"}>{pro.status}</Badge>
       </div>
+      <ProgressPanel pro={pro} />
       <StandingPanel pro={pro as unknown as StandingPro} />
       <FastTrackPanel pro={pro as unknown as FastTrackPro} />
       <CrewPanel pro={pro} />
@@ -199,6 +204,52 @@ async function FastTrackPanel({ pro }: { pro: FastTrackPro }) {
       {pro.fast_track_note && <p className="mt-2 text-xs text-ink-soft">Note: {pro.fast_track_note}</p>}
       <div className="mt-3"><FastTrackReview contractorId={pro.id} status={st} trialDone={trial?.status === "completed"} /></div>
       <p className="mt-2 text-xs text-ink-soft">How it works: look at the portfolio → start the trial (their next completed job is the trial; probation still applies) → look at the trial photos, call the customer ({FAST_TRACK.trialMinRating}★+ to pass) → approve. Approved pros start at Pro+ and skip the probation job-size limit; the floor holds for {FAST_TRACK.graceJobs} jobs, then only while rating and on-time stay at Pro+ level.</p>
+    </div>
+  );
+}
+
+/** Where the pro stands in the Pro Program (tier) and Pro Rewards (points) — the same numbers the pro sees. */
+async function ProgressPanel({ pro }: { pro: Contractor }) {
+  const r = await rewardsFor(pro.id).catch(() => null);
+  const tier = proTier(pro), { next, todo } = nextTierProgress(pro);
+  const bar = (label: string, now: number, goal: number, show: string) => {
+    const pctDone = goal > 0 ? Math.min(100, Math.round((now / goal) * 100)) : 100;
+    return (
+      <div key={label}>
+        <div className="flex justify-between text-xs"><span>{label}</span><span className="text-ink-soft">{show}</span></div>
+        <div className="mt-1 h-2 rounded-full bg-paper"><div className={`h-2 rounded-full ${pctDone >= 100 ? "bg-brand" : "bg-amber-500"}`} style={{ width: `${pctDone}%` }} /></div>
+      </div>
+    );
+  };
+  const done = r?.milestones.filter((m) => m.done) ?? [];
+  const upcoming = r?.milestones.filter((m) => !m.done).slice(0, 3) ?? [];
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="card text-sm">
+        <div className="flex items-center justify-between"><div className="font-semibold">Pro Program tier</div><Badge tone="green">{tier.badge} {tier.name}{tier.payoutBoost ? ` · +${Math.round(tier.payoutBoost * 100)}% pay` : ""}</Badge></div>
+        {next ? (
+          <div className="mt-3 space-y-2">
+            <div className="text-xs text-ink-soft">Next: <b>{next.badge} {next.name}</b> (+{Math.round(next.payoutBoost * 100)}% pay) — {todo.length ? `needs ${todo.join(", ")}` : "qualifies on the next refresh"}</div>
+            {bar("Completed jobs", pro.jobs_completed, next.min.jobs, `${pro.jobs_completed} / ${next.min.jobs}`)}
+            {bar("Rating", Number(pro.rating), next.min.rating, `${Number(pro.rating).toFixed(2)} / ${next.min.rating}★`)}
+            {bar("On time", Number(pro.on_time_rate), next.min.onTime, `${Math.round(Number(pro.on_time_rate) * 100)}% / ${Math.round(next.min.onTime * 100)}%`)}
+          </div>
+        ) : <p className="mt-2 text-xs text-ink-soft">Top tier ({PRO_TIERS[PRO_TIERS.length - 1].name}) — keeps it while rating and on-time hold.</p>}
+      </div>
+      <div className="card text-sm">
+        <div className="flex items-center justify-between"><div className="font-semibold">🎁 Pro Rewards</div><Link href="/hub/rewards" className="text-xs underline">Rewards hub →</Link></div>
+        {r ? (
+          <>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div><div className="text-lg font-bold">{r.balance.available.toLocaleString("en-US")}</div><div className="text-xs text-ink-soft">available (≈ {money(pointsToDollars(r.balance.available, r.settings))})</div></div>
+              <div><div className="text-lg font-bold">{r.balance.pending.toLocaleString("en-US")}</div><div className="text-xs text-ink-soft">pending ({r.settings.pendingDays} days)</div></div>
+              <div><div className="text-lg font-bold">{r.balance.lifetime.toLocaleString("en-US")}</div><div className="text-xs text-ink-soft">lifetime</div></div>
+            </div>
+            <p className="mt-3 text-xs text-ink-soft">Tenure: {r.monthsActive} months active · ×{r.tier.multiplier} points{r.orders.length ? ` · ${r.orders.length} reward order(s), latest ${r.orders[0].item_name} (${r.orders[0].status})` : " · no reward orders yet"}</p>
+            <p className="mt-1 text-xs text-ink-soft">Milestones: {done.length ? done.map((m) => `✓ ${m.en}`).join(" · ") : "none yet"}{upcoming.length ? ` — next: ${upcoming.map((m) => `${m.en} (+${m.points.toLocaleString("en-US")})`).join(" · ")}` : ""}</p>
+          </>
+        ) : <p className="mt-2 text-xs text-ink-soft">Rewards data isn’t available (run the rewards migration in Hub → Setup).</p>}
+      </div>
     </div>
   );
 }

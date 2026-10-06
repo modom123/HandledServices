@@ -13,7 +13,15 @@
  * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
  * UPDATED : 2026-10-05_0418 UTC — pro rewards.
  * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
+ * UPDATED : 2026-10-06_0526 UTC — dead animal removal: size, location, extra animals, add-ons, wildlife trade.
+ * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
+ * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
+ * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
+ * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
+ * UPDATED : 2026-10-06_0752 UTC — every AI agent has a mission role, the two priorities and standing tasks.
+ * UPDATED : 2026-10-06_0841 UTC — Request for Proposal scope summary and follow-up questions.
+ * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
  */
 
 import { test } from "node:test";
@@ -69,12 +77,33 @@ test("dispatch filters ineligible pros and ranks the rest", () => {
   assert.deepEqual(ranked.map((r) => r.contractor.id), ["a", "b"]);
 });
 
-test("every service keeps our take between 15% and 35%", async () => {
-  const { TAKE_MIN, TAKE_MAX } = await import("./pricing.ts");
+test("every service keeps our take between 15% and 35% on its typical job (real sliding share)", async () => {
+  const { TAKE_MIN, TAKE_MAX, typicalProShare } = await import("./pricing.ts");
   for (const svc of SERVICES) {
-    const take = 1 - svc.payoutShare;
-    assert.ok(take >= TAKE_MIN && take <= TAKE_MAX, `${svc.slug} take ${take}`);
+    const take = 1 - typicalProShare(svc.slug);
+    assert.ok(take >= TAKE_MIN - 1e-9 && take <= TAKE_MAX + 1e-9, `${svc.slug} take ${take}`);
   }
+});
+
+test("estimate().payoutShare is the real share of the price, not a fixed number", async () => {
+  const { estimate, splitJob } = await import("./pricing.ts");
+  for (const svc of SERVICES) {
+    const e = estimate({ slug: svc.slug, answers: defaultAnswers(svc) });
+    assert.equal(e.payout, splitJob(e.point, svc.slug).payout);
+    assert.ok(Math.abs(e.payoutShare - e.payout / e.point) < 0.001, `${svc.slug} share ${e.payoutShare}`);
+  }
+});
+
+test("the sliding scale: pros keep more on small jobs, our cut never passes 35%", async () => {
+  const { slidingScale, TAKE_MAX } = await import("./pricing.ts");
+  const rows = slidingScale();
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i].payout >= rows[i - 1].payout, "payout rises with price");
+    assert.ok(rows[i].commission >= rows[i - 1].commission, "commission slides up with price");
+  }
+  for (const r of rows) assert.ok(r.takeRate <= TAKE_MAX + 1e-9, `take ${r.takeRate} @${r.price}`);
+  assert.equal(rows.find((r) => r.price === 64)!.payout, 51);
+  assert.equal(rows.find((r) => r.price === 1004)!.payout, 680);
 });
 
 test("splitJob never pays out more than the band allows, at any price", async () => {
@@ -129,12 +158,13 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "food_truck", "hvac", "medical_courier", "painting", "plumbing", "remodel", "security", "transportation"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "fire_safety", "food_truck", "foundation", "hvac", "medical_courier", "painting", "plumbing", "remodel", "security", "transportation", "waste_oil"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", id_verified_at: "2026-10-01" };
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01" };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
+  assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
@@ -1025,7 +1055,7 @@ test("job-posting letter: names their posting, keeps to what we promise, unsubsc
   assert.equal(jobPostNeed("Housekeeper").work, "cleaning");
   const letter = bizCoverLetter({ ...ctx, step: 0, senderName: "Jordan Smith", phone: "(313) 555-0100" });
   assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call me at \(313\) 555-0100/);
-  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /unit turnover/i, "no job title → the segment sequence");
+  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /move-out clean/i, "no job title → the segment sequence");
 });
 
 test("email center: merge tags, HTML with button and footer, law and spam checks, pasted lists", async () => {
@@ -1274,4 +1304,109 @@ test("bid archive: comparing two submitted versions", async () => {
   assert.deepEqual(c.changed, [{ item: "Mow", unit: "visit", from: 45, to: 43, qtyFrom: 10, qtyTo: 10 }]);
   assert.deepEqual(c.added, ["Debris"]); assert.deepEqual(c.removed, ["Trees"]);
   assert.equal(c.diff, -400); assert.equal(c.pct, -8);
+});
+
+test("dead animal removal: priced by size and location, extra animals at 35%, add-ons, wildlife trade", () => {
+  const open = getService("dead-animal-removal")!.price({ size: "small", where: "open", count: 1 });
+  assert.deepEqual(open.items.map((i) => i.amount), [129]);
+  const attic = getService("dead-animal-removal")!.price({ size: "medium", where: "attic", count: 3, sanitize: true, pet: true });
+  assert.deepEqual(attic.items.map((i) => i.amount), [159, 2 * Math.round(159 * 0.35), 175, 49, 45]);
+  const under = getService("dead-animal-removal")!.price({ size: "xl", where: "under", count: 1 });
+  assert.deepEqual(under.items.map((i) => i.amount), [299, 90]);
+  const sv = getService("dead-animal-removal")!;
+  assert.ok(sv.category === "removal" && sv.trades.includes("wildlife") && !sv.licensed && sv.frequencies.join() === "once");
+});
+
+test("new services: small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride", () => {
+  const p = (slug: string, a: Answers) => getService(slug)!.price(a).items.map((i) => i.amount);
+  assert.deepEqual(p("small-engine-repair", { equipment: "riding", service: "repair", machines: 1, pickup: true }), [159 + 50, 89]);
+  assert.deepEqual(p("dock-door-service", { service: "inspection", kind: "dock", doors: 4 }), [95, 4 * 75]);
+  assert.deepEqual(p("dock-door-service", { service: "repair", kind: "overhead", doors: 2, after_hours: true }), [95, 2 * 145, 150]);
+  assert.deepEqual(p("fire-extinguisher-inspection", { units: 10, recharge: 2, hydro: 0, new_units: 1 }), [59, 120, 70, 79]);
+  assert.deepEqual(p("foundation-repair", { cracks: 1, walls: 1, piers: 0, drain_ft: 0 }), [550, 4000]);
+  assert.deepEqual(p("waste-oil-collection", { gallons: 255, container: "drums", filter_drums: 1, antifreeze: 0 }), [95, 70, 95]);
+  assert.deepEqual(p("urgent-ride", { vehicle: "sedan", miles: 10, passengers: 1, wait_return: true }), [35, 55, 30]);
+  // urgent rides are already priced on demand: no within-48h surcharge on top
+  assert.ok(!estimate({ slug: "urgent-ride", answers: { miles: 10 }, rush: true }).items.some((i) => /48h/.test(i.label)));
+  assert.ok(estimate({ slug: "small-engine-repair", answers: {}, rush: true }).items.some((i) => /48h/.test(i.label)));
+  assert.ok(getService("foundation-repair")!.siteVisit && getService("foundation-repair")!.licensed);
+  assert.ok(["fire-extinguisher-inspection", "waste-oil-collection", "urgent-ride"].every((x) => getService(x)!.licensed));
+  assert.match(getService("urgent-ride")!.description, /call 911/i);
+});
+
+test("security: sign-in redirects stay on our site; outside fetches skip internal addresses; photo paths are ours", async () => {
+  const { safeNext, safeExternalUrl, isPhotoPath } = await import("./security.ts");
+  const o = "https://handledsvc.com";
+  // after sign-in: only our own pages
+  for (const ok of ["/account", "/hub?tab=jobs#x", "/pro/jobs/123"]) assert.equal(safeNext(ok, o), ok);
+  for (const bad of ["//evil.com", "/\\evil.com", "/\\/evil.com", "https://evil.com", "javascript:alert(1)", "/\tevil", "", null]) assert.equal(safeNext(bad as string, o), "/auth/home", String(bad));
+  // lead engines read business websites: never internal addresses
+  for (const ok of ["https://acmecleaning.com/contact", "http://www.joes-lawn.net"]) assert.ok(safeExternalUrl(ok), ok);
+  for (const bad of ["http://localhost:3000", "http://127.0.0.1", "http://10.0.0.5", "http://192.168.1.1", "http://172.16.0.1", "http://169.254.169.254/latest/meta-data",
+    "http://100.64.0.1", "http://[::1]/", "http://2130706433/", "http://0x7f000001/", "ftp://example.com", "file:///etc/passwd", "http://user:pw@example.com",
+    "http://metadata.google.internal", "http://example.com:6379", "http://intranet/"]) assert.equal(safeExternalUrl(bad), null, bad);
+  // booking photos: exactly what /api/uploads creates
+  assert.ok(isPhotoPath("booking/2026-10-06/1759734000000-a1b2c3d4.jpeg"));
+  assert.ok(isPhotoPath("pro/0b8f3c1e-1234-4abc-9def-001122334455/1759734000000-a1b2c3d4.png"));
+  for (const bad of ["booking/../pro-docs/w9.pdf", "pro-docs/x/1759734000000-a1b2c3d4.pdf", "booking/2026-10-06/x.jpeg", "/booking/2026-10-06/1759734000000-a1b2c3d4.jpeg", "booking/2026-10-06/1759734000000-a1b2c3d4.svg"]) assert.equal(isPhotoPath(bad), false, bad);
+});
+
+test("every AI agent runs with the $100M mission, the two priorities and its tasks", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { AGENTS, MISSION, missionPrompt } = await import("./mission.ts");
+  const dir = new URL("../../../apps/web/lib/ai/", import.meta.url);
+  const used = new Set<string>();
+  // AI calls only (structured / logRun) — not ops_alerts rows, which also have a kind
+  for (const f of readdirSync(dir)) for (const line of readFileSync(new URL(f, dir), "utf8").split("\n")) if (!line.includes("ops_alerts")) for (const m of line.matchAll(/kind: "([a-z_]+)"/g)) used.add(m[1]);
+  for (const f of ["../gov.ts", "../bids.ts"]) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/kind: "((?:gov|bid)_[a-z_]+)"/g)) used.add(m[1]);
+  for (const k of used) assert.ok(AGENTS.some((a) => a.kind === k), `agent ${k} has no role in mission.ts`);
+  for (const a of AGENTS) {
+    const p = missionPrompt(a.kind, ["Get 10 bookings"]);
+    assert.match(p, /\$100M/);
+    assert.ok(p.includes(MISSION.priorities[0]) && p.includes(MISSION.priorities[1]), `${a.kind} missing priorities`);
+    assert.ok(a.tasks.length >= 1 && p.includes(a.tasks[0]), `${a.kind} missing standing tasks`);
+    assert.match(p, /Get 10 bookings/);
+    if (a.external) assert.match(p, /never mention revenue targets/);
+    if (a.gate) assert.match(p, /gatekeeper/);
+  }
+});
+
+test("Request for Proposal: summary lists every service with its frequency; follow-up asks for what's missing", async () => {
+  const { rfpSummary, rfpFollowUp, RFP_NEXT_STEPS } = await import("./rfp.ts");
+  const scope = { sqft: "not_sure" as const, site: "Detroit", services: [{ slug: "house-cleaning", frequency: "nightly" as const, note: "3 floors, 6 restrooms" }, { slug: "window-cleaning", frequency: "monthly" as const }],
+    hours: ["after_hours" as const], vendor: "replacing" as const, pain: "missed visits", term: "twelve_months" as const, decision: "formal_bid" as const, bidDue: "2026-11-01", walkthrough: [], contact: "call" as const };
+  const lines = rfpSummary(scope, { locations: 3, startBy: "Within 2 weeks", budget: 4000 });
+  assert.ok(lines.some((l) => l.includes("Nightly") && l.includes("3 floors")));
+  assert.ok(lines.some((l) => l.includes("Monthly")));
+  assert.ok(lines.some((l) => l.includes("due 2026-11-01")));
+  const ask = rfpFollowUp(scope, { locations: 3, budget: null, phone: null });
+  for (const want of ["square footage", "all 3 locations", "Window Cleaning", "current vendor", "Budget", "due 2026-11-01", "phone number"]) assert.ok(ask.some((q) => q.toLowerCase().includes(want.toLowerCase())), `missing follow-up: ${want}`);
+  assert.ok(!ask.some((q) => q.startsWith("House & Office Cleaning")), "a service with specifics needs no follow-up");
+  assert.equal(RFP_NEXT_STEPS.length, 4);
+});
+
+test("coverage: cancel tiers, time zones and backup order", async () => {
+  const { cancelTier, hoursUntilWindow, zonedInstant, nextBackup, openBackupRanks, backupAnswerMinutes } = await import("./coverage.ts");
+  assert.equal(cancelTier(30), "free");
+  assert.equal(cancelTier(24), "free");
+  assert.equal(cancelTier(12), "short_notice");
+  assert.equal(cancelTier(6), "short_notice");
+  assert.equal(cancelTier(5.9), "late");
+  assert.equal(cancelTier(-1), "late");
+  // 8am in Detroit is 12:00 UTC in summer (EDT) and 13:00 UTC in winter (EST)
+  assert.equal(zonedInstant("2026-07-10", 8).toISOString(), "2026-07-10T12:00:00.000Z");
+  assert.equal(zonedInstant("2026-12-10", 8).toISOString(), "2026-12-10T13:00:00.000Z");
+  // a morning job is 6h away at 06:00 UTC (2am Detroit) in July
+  assert.equal(Math.round(hoursUntilWindow({ scheduled_date: "2026-07-10", time_window: "morning" }, new Date("2026-07-10T06:00:00Z"))), 6);
+  assert.equal(hoursUntilWindow({ scheduled_date: null }), Infinity);
+  const rows = [
+    { contractor_id: "a", rank: 1, status: "asked" as const },
+    { contractor_id: "b", rank: 2, status: "standby" as const },
+    { contractor_id: "c", rank: 3, status: "standby" as const },
+  ];
+  assert.equal(nextBackup(rows)?.contractor_id, "b", "confirmed standbys go first");
+  assert.equal(nextBackup(rows, ["b", "c"])?.contractor_id, "a", "then backups who were asked");
+  assert.equal(nextBackup(rows, ["a", "b", "c"]), null);
+  assert.deepEqual(openBackupRanks([{ contractor_id: "x", rank: 2, status: "standby" }, { contractor_id: "y", rank: 1, status: "declined" }]), [1, 3]);
+  assert.ok(backupAnswerMinutes(2) < backupAnswerMinutes(12) && backupAnswerMinutes(12) < backupAnswerMinutes(48));
 });

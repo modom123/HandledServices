@@ -10,9 +10,11 @@
  *             chargebackFromWork           — only "not received / unacceptable" chargebacks can be
  *                                            about the pro's work; the rest release the payout
  *             DEACTIVATION_RULES / standingIssues — objective thresholds for a written warning
+ *           UPDATED 2026-10-06_1950 UTC — late cancel = under 6h (CANCEL_POLICY); 6–24h is short notice, no penalty.
  *                                            (never an automatic deactivation)
  */
 import { STATS_WINDOW_DAYS } from "./pro-stats.ts";
+import { CANCEL_POLICY } from "./coverage.ts";
 
 export const DEDUCTION_RULES = {
   /** Business days a pro has to respond before a person decides. */
@@ -25,8 +27,10 @@ export const DEACTIVATION_RULES = {
   /** Average rating below this over the last `ratedJobs` rated jobs → written warning, then review. */
   minRating: 4.3,
   ratedJobs: 20,
-  /** A pro cancellation inside this many hours of the arrival window is a "late cancel". */
-  lateCancelHours: 24,
+  /** A pro cancellation inside this many hours of the arrival window is a "late cancel" (6–24h is short notice: no penalty). */
+  lateCancelHours: CANCEL_POLICY.lateHours,
+  /** Cancelling at least this many hours ahead is free. */
+  freeCancelHours: CANCEL_POLICY.freeHours,
   /** Late cancels or no-shows counted over this window. */
   windowDays: STATS_WINDOW_DAYS,
   lateCancels: 3,

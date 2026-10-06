@@ -8,8 +8,12 @@
  * UPDATED : 2026-10-03_1255 UTC — Mondays: pricing-accuracy alert for services that are clearly mispriced.
  * UPDATED : 2026-10-03_1513 UTC — Mondays: city scorecard digest (each city's stage and next gates).
  * PURPOSE : Vercel cron 12:00 UTC — AI morning brief to the ops dashboard + email.
+ * UPDATED : 2026-10-06_0752 UTC — Growth planner runs first every day (pace vs the $100M plan, bottleneck, today's agent
+ *           tasks), then the brief reports the plan and progress on every open agent task.
+ * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  */
 import { buildDailyBrief } from "@/lib/ai/brief";
+import { runGrowthPlanner } from "@/lib/ai/growth-planner";
 import { sendDayBeforeReminders } from "@/lib/jobs";
 import { sendSeasonalReminders } from "@/lib/reminders";
 import { standingSweep } from "@/lib/standing";
@@ -19,11 +23,12 @@ import { loadCityScorecard } from "@/lib/city-scorecard";
 import { adminClient } from "@/lib/supabase/server";
 import { opsEmail, sendEmail } from "@/lib/notify";
 import { BRAND, CITY_STAGE_LABEL } from "@handled/core";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 export const maxDuration = 120;
 
 export async function GET(req: Request) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(req)) return new Response("Unauthorized", { status: 401 });
   const reminders = await sendDayBeforeReminders().catch((e) => { console.error("[reminders]", e); return 0; });
   const seasonal = await sendSeasonalReminders().catch((e) => { console.error("[seasonal]", e); return 0; }); // once a day
   const standing = await standingSweep().catch((e) => { console.error("[standing]", e); return null; }); // warnings, reviews, yearly re-checks
@@ -31,12 +36,13 @@ export async function GET(req: Request) {
   const monday = new Date().getUTCDay() === 1;
   const pricing = monday ? await pricingAlert().catch((e) => { console.error("[pricing-accuracy]", e); return null; }) : null; // weekly
   const cities = monday ? await cityDigest().catch((e) => { console.error("[city-scorecard]", e); return null; }) : null; // weekly
-  const brief = await buildDailyBrief();
-  if (!brief) return Response.json({ ok: false, reason: "AI unavailable", reminders, seasonal, standing, market, pricing, cities });
-  const body = [`Yesterday:\n- ${brief.yesterday.join("\n- ")}`, `Today:\n- ${brief.today.join("\n- ")}`, `Risks:\n- ${brief.risks.join("\n- ")}`, `Actions:\n1. ${brief.actions.join("\n1. ")}`].join("\n\n");
+  const growth = await runGrowthPlanner().catch((e) => { console.error("[growth-planner]", e); return null; }); // today's plan toward $100M
+  const brief = await buildDailyBrief(growth?.body ?? null);
+  if (!brief) return Response.json({ ok: false, reason: "AI unavailable", reminders, seasonal, standing, market, pricing, cities, growth: growth && { assigned: growth.assigned, closed: growth.closed } });
+  const body = [growth ? `Growth plan:\n${growth.body}` : "", `Onboarding pros: ${brief.onboarding}`, `New jobs: ${brief.new_jobs}`, `Goal pace: ${brief.pace}`, `Agent tasks:\n- ${brief.agent_tasks.join("\n- ") || "none open"}`, `Yesterday:\n- ${brief.yesterday.join("\n- ")}`, `Today:\n- ${brief.today.join("\n- ")}`, `Risks:\n- ${brief.risks.join("\n- ")}`, `Actions:\n1. ${brief.actions.join("\n1. ")}`].filter(Boolean).join("\n\n");
   await adminClient().from("ops_alerts").insert({ kind: "daily_brief", severity: "info", title: brief.headline, body });
   if (opsEmail()) await sendEmail(opsEmail(), `${BRAND.name} brief: ${brief.headline}`, body);
-  return Response.json({ ok: true, brief, reminders, seasonal, standing, market, pricing, cities });
+  return Response.json({ ok: true, brief, reminders, seasonal, standing, market, pricing, cities, growth: growth && { assigned: growth.assigned, closed: growth.closed } });
 }
 
 /** Weekly: services the pricing-accuracy report says are off, with at least medium confidence. */

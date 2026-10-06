@@ -104,9 +104,12 @@ export default async function Onboarding() {
       const wins = pro.availability?.windows ?? ["morning", "midday", "afternoon"];
       return (
         <StepForm step="area" cta={t("Save work area & hours")} locale={l}>
-          <p className="text-sm text-ink-soft">{t("We only offer you jobs within your driving distance, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.")}</p>
+          <p className="text-sm text-ink-soft">{t("We only offer you jobs within your driving distance of your place of business, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t("Start from ZIP (home or shop)")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
+            <Field label={t("Place of business — street address")} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} required />
+            <Field label={t("City")} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} required />
+            <Field label={t("State (2 letters)")} name="base_state" defaultValue={(pro as { base_state?: string | null }).base_state ?? "MI"} maxLength={2} pattern="[A-Za-z]{2}" required />
+            <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
             <Field label={t("How far you’ll drive (miles)")} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
             <Field label={t("Most jobs you want in one day")} name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
           </div>

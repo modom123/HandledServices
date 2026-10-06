@@ -5,11 +5,15 @@
  * PURPOSE : The header's one account button (replaces "My Bookings" + "Sign in"). Signed out: "Sign in". Signed in, by
  *           who the email belongs to: staff → "Hub", pro → "Pro portal", everyone else → "My account" — with a menu to
  *           the other places they can go and Sign out. Client-side (keeps pages static); visible on phones. EN / ES.
+ * UPDATED : 2026-10-06_0618 UTC — never takes the page down: without NEXT_PUBLIC_SUPABASE_URL / anon key (e.g. a Vercel
+ *           deployment missing them) or when the session check fails, it just shows "Sign in". Before, the
+ *           Supabase client threw and every public page, the home page included, showed the error screen.
  */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { browserClient } from "@/lib/supabase/browser";
+import { supabaseConfigured } from "@/lib/supabase/env";
 
 type Me = { email: string; role: string; contractorId: string | null } | null;
 
@@ -19,17 +23,24 @@ export function AccountButton({ es }: { es: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let alive = true;
-    const load = async () => {
-      const { data } = await browserClient().auth.getSession();
-      if (!data.session) { if (alive) setMe(null); return; }
-      const r = await fetch("/api/me").then((x) => (x.ok ? x.json() : { user: null })).catch(() => ({ user: null }));
-      if (alive) setMe(r.user ?? null);
-    };
-    load();
-    const { data: sub } = browserClient().auth.onAuthStateChange(() => load());
     const close = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("click", close);
-    return () => { alive = false; sub.subscription.unsubscribe(); document.removeEventListener("click", close); };
+    // Supabase not set up for this deployment: show "Sign in" instead of crashing the page.
+    if (!supabaseConfigured) { setMe(null); return () => { alive = false; document.removeEventListener("click", close); }; }
+    const load = async () => {
+      try {
+        const { data } = await browserClient().auth.getSession();
+        if (!data.session) { if (alive) setMe(null); return; }
+        const r = await fetch("/api/me").then((x) => (x.ok ? x.json() : { user: null })).catch(() => ({ user: null }));
+        if (alive) setMe(r.user ?? null);
+      } catch {
+        if (alive) setMe(null);
+      }
+    };
+    load();
+    let sub: { unsubscribe: () => void } | null = null;
+    try { sub = browserClient().auth.onAuthStateChange(() => load()).data.subscription; } catch { /* signed-out header is fine */ }
+    return () => { alive = false; sub?.unsubscribe(); document.removeEventListener("click", close); };
   }, []);
   if (me === undefined) return <span className="w-16" />;
   if (!me) return <a href="/login" className="whitespace-nowrap text-sm font-semibold text-ink hover:text-brand">{es ? "Iniciar sesión" : "Sign in"}</a>;

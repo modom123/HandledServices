@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-03_0124 UTC — migrations 21–23 (contract records, contract language, pro fairness).
  * UPDATED : 2026-10-03_0210 UTC — lead engine keys; migrations 24–25 (market pricing, pro lead engine).
  * UPDATED : 2026-10-03_0324 UTC — lead engine sends through Instantly.
+ * UPDATED : 2026-10-06_0523 UTC — 10-minute dispatch runs on GitHub Actions; check passes with DISPATCH_CRON=github or VERCEL_PLAN=pro.
  * PURPOSE : Go-live readiness checks behind Hub → Setup: environment, database migrations,
  *           catalog sync, storage, Stripe, people and demo-data leaks. Reports presence and
  *           validity only — never secret values.
@@ -22,6 +23,8 @@
  * UPDATED : 2026-10-05_0418 UTC — migration 34 (pro rewards).
  * UPDATED : 2026-10-05_0434 UTC — OWNER_EMAILS check (first admin).
  * UPDATED : 2026-10-05_1441 UTC — SAM_API_KEY (government contracts).
+ * UPDATED : 2026-10-06_0708 UTC — migration 45 (in-app payments) and the Stripe publishable key for Apple Pay / Google Pay in the app.
+ * UPDATED : 2026-10-06_0726 UTC — CRON_SECRET must be 16+ characters (scheduled jobs fail closed otherwise).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -47,7 +50,7 @@ export async function readiness(): Promise<Check[]> {
   add("Business sales", "Government contracts (SAM.gov)", has("SAM_API_KEY") ? true : "warn", has("SAM_API_KEY") ? "SAM.gov key set" : "not set — no contract search", "SAM.gov → sign in → Workspace → your profile → Public API Key → SAM_API_KEY in Vercel. Then pick the work and switch on the daily search in Hub → Gov contracts. Register Handled as an entity in SAM.gov (free) to bid and to get ~1,000 calls a day");
   add("Pro recruiting", "Lead engine: invitations (Instantly)", has("INSTANTLY_API_KEY") && has("INSTANTLY_CAMPAIGN_ID") && has("BUSINESS_POSTAL_ADDRESS") && has("INSTANTLY_WEBHOOK_SECRET") ? true : "warn", !has("INSTANTLY_API_KEY") ? "not set — no invitation emails" : !has("INSTANTLY_CAMPAIGN_ID") ? "INSTANTLY_CAMPAIGN_ID missing" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing" : !has("INSTANTLY_WEBHOOK_SECRET") ? "INSTANTLY_WEBHOOK_SECRET missing — replies/unsubscribes won't sync" : "set", `Instantly: connect warmed-up inboxes on a separate domain, create the campaign (steps {{subject_1}}/{{body_1}} … see docs/LEAD_ENGINE_SETUP_*), API key (v2) → INSTANTLY_API_KEY, campaign id → INSTANTLY_CAMPAIGN_ID, webhook ${site || "https://your-domain"}/api/webhooks/instantly?secret=… → INSTANTLY_WEBHOOK_SECRET; plus BUSINESS_POSTAL_ADDRESS (CAN-SPAM)`);
   add("Business sales", "Sales engine: business emails (Instantly)", has("INSTANTLY_API_KEY") && has("INSTANTLY_BIZ_CAMPAIGN_ID") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("INSTANTLY_BIZ_CAMPAIGN_ID") ? "INSTANTLY_BIZ_CAMPAIGN_ID not set — no business sales emails" : "set", "Create a second Instantly campaign (steps {{subject_1}}/{{body_1}} … 3) → INSTANTLY_BIZ_CAMPAIGN_ID; turn it on in Hub → Business leads");
-  add("Website & Vercel", "Cron secret", has("CRON_SECRET"), has("CRON_SECRET") ? "set" : "missing — daily brief & sweep will 401", "Add CRON_SECRET (any long random string) in Vercel");
+  add("Website & Vercel", "Cron secret", (process.env.CRON_SECRET ?? "").length >= 16, (process.env.CRON_SECRET ?? "").length >= 16 ? "set" : has("CRON_SECRET") ? "too short — scheduled jobs refuse to run (use 32+ random characters)" : "missing — scheduled jobs (dispatch, sweep, brief) won't run", "Add CRON_SECRET (openssl rand -hex 32) in Vercel and the same value as the GitHub Actions secret");
   add("Website & Vercel", "Invoice link signing", has("INVOICE_SIGNING_SECRET") ? true : "warn", has("INVOICE_SIGNING_SECRET") ? "set" : "falling back to the service role key", "Add INVOICE_SIGNING_SECRET (long random string)");
   add("Supabase", "Project URL & public key", supabaseConfigured, supabaseConfigured ? "set" : "missing", "Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from Supabase → Project Settings → API");
   add("Supabase", "Service role key", has("SUPABASE_SERVICE_ROLE_KEY"), has("SUPABASE_SERVICE_ROLE_KEY") ? "set" : "missing", "Add SUPABASE_SERVICE_ROLE_KEY (server only) from Supabase → Project Settings → API");
@@ -58,7 +61,9 @@ export async function readiness(): Promise<Check[]> {
   add("Email", "Ops inbox", has("OPS_EMAIL") ? true : "warn", process.env.OPS_EMAIL ?? "missing", "Add OPS_EMAIL — receives critical alerts, new pro applications and the daily brief");
   add("Text messages", "Twilio SMS", has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && (has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM")) ? true : "warn",
     has("TWILIO_ACCOUNT_SID") ? "set" : "missing — customers and pros get push + email only", "Twilio → buy a number, register A2P 10DLC for business texting, then set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM)");
-  add("Website & Vercel", "Vercel plan (10-minute dispatch)", process.env.VERCEL_PLAN === "pro" ? true : "warn", process.env.VERCEL_PLAN === "pro" ? "Pro" : "confirm you're on Vercel Pro — Hobby runs crons once a day and doesn't allow commercial use", "Upgrade the Vercel team to Pro, then set VERCEL_PLAN=pro to clear this check");
+  const dispatchCron = process.env.DISPATCH_CRON === "github" ? "GitHub Actions" : process.env.VERCEL_PLAN === "pro" ? "Vercel Pro" : "";
+  add("Website & Vercel", "10-minute dispatch cron", dispatchCron ? true : "warn", dispatchCron || "not confirmed — without it, unanswered offers wait for the daily sweep", "In GitHub → Settings → Secrets and variables → Actions, add secret CRON_SECRET (same as Vercel) and variable HANDLED_URL, then set DISPATCH_CRON=github in Vercel");
+  add("Mobile app", "Apple Pay / Google Pay in the app", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? true : "warn", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? "publishable key set" : "missing — the app falls back to the Stripe Checkout page", "Stripe → Developers → API keys → copy the publishable key into STRIPE_PUBLISHABLE_KEY; add the payment_intent.succeeded event to the webhook")
   add("Mobile app", "Push notifications", has("EXPO_ACCESS_TOKEN") ? true : "warn", has("EXPO_ACCESS_TOKEN") ? "Expo access token set" : "works without it; add EXPO_ACCESS_TOKEN for signed push requests", "expo.dev → Account → Access tokens → create → add EXPO_ACCESS_TOKEN in Vercel");
   add("IEBC workforce", "IEBC API key", has("IEBC_API_KEY") ? true : "warn", has("IEBC_API_KEY") ? "set" : "missing — IEBC agents can't connect", "Add IEBC_API_KEY (openssl rand -hex 32) and paste the same key in IEBC MasterHub → Handled Ops");
   add("IEBC workforce", "Allowed origin", has("IEBC_ALLOWED_ORIGIN") ? true : "warn", process.env.IEBC_ALLOWED_ORIGIN ?? "* (any website may call with the key)", "Set IEBC_ALLOWED_ORIGIN to the MasterHub's web address");
@@ -121,6 +126,7 @@ export async function readiness(): Promise<Check[]> {
     ["32 job checklists", () => db.from("job_checklist_checks").select("id").limit(1)],
     ["33 pro screening interviews", () => db.from("pro_interviews").select("id").limit(1)],
     ["34 pro rewards", () => db.from("reward_ledger").select("id").limit(1)],
+    ["45 in-app payments (Apple Pay / Google Pay)", () => db.from("payments").select("stripe_payment_intent_id").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();
