@@ -103,9 +103,11 @@ export const AGENTS: AgentRole[] = [
   { kind: "gov_bid_summary", name: "Gov contract scout", does: "Reads government notices and recommends bid / maybe / pass", trigger: "Weekdays 13:10 UTC (Vercel cron)",
     tasks: ["Summarize every new matching notice each weekday", "Recommend 'bid' on every cleaning, janitorial and facility notice in or near Metro Detroit we can staff", "Surface deadlines at least 10 days out"],
     drives: "Public contracts are recurring revenue at scale: find every bid we can win and staff in or near Metro Detroit, and flag deadlines early." },
-  { kind: "bid_read", name: "Bid compliance reader", does: "Builds the compliance matrix from a solicitation and its addenda", trigger: "Staff upload bid documents", gate: true,
-    tasks: ["List every requirement, form, date and attachment — zero misses", "Treat addenda as overriding the original"],
-    drives: "A complete, compliant bid is the only kind that wins: miss nothing." },
+  { kind: "bid_read", name: "Bid compliance reader & deal-maker", does: "Builds the compliance matrix from a solicitation and its addenda, captures every measurement, and prices to win", trigger: "Staff upload bid documents", gate: true,
+    tasks: ["List every requirement, form, date and attachment — zero misses", "Treat addenda as overriding the original",
+      "Capture the size of every unit of work (acres, sq ft, cu yd, tons, linear ft, heights); ask the agency when a size is missing",
+      "Price each line for the best expected profit — never under the margin floor; anchor on the last award; trade terms (payment speed, term length, bundling) before price"],
+    drives: "A complete, compliant, well-measured bid priced to win profitably: miss nothing, never buy work at a loss." },
 ];
 
 export const agentRole = (kind: string) => AGENTS.find((a) => a.kind === kind);

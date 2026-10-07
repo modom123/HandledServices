@@ -15,7 +15,16 @@
  *           Pure functions: the Hub (Hub → Bids) and tests use the same math, so the number on screen is the number
  *           we bid. Pros are independent businesses: their prices are their own quotes, never set by us.
  * UPDATED : 2026-10-05_2043 UTC — archive: solicitation types, resubmission reasons, compareSubmissions.
+ * UPDATED : 2026-10-07_0250 UTC — measurements and deal-making:
+ *             catalogCost      — a line with a real measurement (12 acres, 40 cu yd, 600 lb, 8,000 sq ft) and one of our
+ *                                services gets an estimated pro cost from our own pricing engine until a pro quotes
+ *             dealStrategy     — walk-away (margin floor), target, and the recommended price that maximizes expected
+ *                                profit = P(win) × profit, using the last award as the market anchor; bigger contracts
+ *                                earn a slightly thinner target (volume), never below the floor
+ *             negotiate        — an agency counter or BAFO: accept, counter (with what to trade instead of price), or walk
  */
+import { estimate, splitJob } from "./pricing.ts";
+import { getService } from "./services.ts";
 
 export type BidSource = "sam" | "city" | "county" | "state" | "school" | "private" | "other";
 export const BID_SOURCES: Record<BidSource, string> = {
@@ -151,11 +160,130 @@ export interface CostLine {
   materials_unit?: number | null;
   /** What this unit went for last time (award notice, bid tab), if known. */
   benchmark?: number | null;
+  /** Our catalog service for this line (lets the engine estimate cost from a measurement). */
+  slug?: string | null;
+  /** The size of ONE unit of work: e.g. a mowing visit of 12 acres, a clean-out of 40 cu yd. */
+  measure_size?: number | null;
+  measure_unit?: string | null;
 }
 
 export interface PricedLine extends CostLine {
   direct: number; loaded: number; unitPrice: number; unitProfit: number; marginPct: number;
   yearPrice: number; totalPrice: number; totalCost: number; totalProfit: number; flags: string[];
+  /** where the pro cost came from */
+  costSource: "pro_quote" | "catalog_estimate" | "none";
+  /** the deal-maker's advice for this line (when there's a cost) */
+  deal: DealStrategy | null;
+}
+
+// ─── Measurements → cost ─────────────────────────────────────────────────────
+
+/** Units a solicitation uses, converted to the units our catalog asks in. */
+const UNIT_ALIASES: Record<string, { to: string; factor: number }> = {
+  "sq ft": { to: "sq ft", factor: 1 }, sqft: { to: "sq ft", factor: 1 }, sf: { to: "sq ft", factor: 1 }, "square feet": { to: "sq ft", factor: 1 },
+  "sq yd": { to: "sq ft", factor: 9 }, acre: { to: "sq ft", factor: 43560 }, acres: { to: "sq ft", factor: 43560 }, ac: { to: "sq ft", factor: 43560 },
+  ft: { to: "ft", factor: 1 }, lf: { to: "ft", factor: 1 }, "linear ft": { to: "ft", factor: 1 }, feet: { to: "ft", factor: 1 },
+  lb: { to: "lb", factor: 1 }, lbs: { to: "lb", factor: 1 }, pounds: { to: "lb", factor: 1 }, ton: { to: "lb", factor: 2000 }, tons: { to: "lb", factor: 2000 },
+  "cu yd": { to: "cu yd", factor: 1 }, cy: { to: "cu yd", factor: 1 }, "cubic yards": { to: "cu yd", factor: 1 }, in: { to: "in", factor: 1 },
+};
+export const MEASURE_UNITS = ["sq ft", "acre", "sq yd", "ft", "lb", "ton", "cu yd", "in"] as const;
+
+/**
+ * Estimated cost of one unit of work from our own pricing engine: put the measurement into the service's matching
+ * question (acres → sq ft, tons → lb), price it, and take the pro's share. null when the service has no such question.
+ */
+export function catalogCost(slug: string | null | undefined, size: number | null | undefined, unit: string | null | undefined): { retail: number; proCost: number; question: string } | null {
+  const svc = slug ? getService(slug) : null;
+  const conv = unit ? UNIT_ALIASES[unit.trim().toLowerCase()] : undefined;
+  if (!svc || !conv || !(Number(size) > 0)) return null;
+  const q = svc.questions.find((x) => x.type === "number" && (x.unit ?? "").toLowerCase() === conv.to);
+  if (!q || q.type !== "number") return null;
+  const value = Math.round(Number(size) * conv.factor);
+  const retail = estimate({ slug: svc.slug, answers: { [q.id]: value } }).point;
+  return { retail, proCost: splitJob(retail, svc.slug).payout, question: q.label };
+}
+
+// ─── Deal-making ─────────────────────────────────────────────────────────────
+
+export interface DealStrategy {
+  floorPrice: number;        // walk-away: the margin floor
+  targetPrice: number;       // our target margin (thinner for big contracts)
+  recommended: number;       // maximizes P(win) × profit
+  winProb: number;           // 0–1 at the recommended price
+  expectedProfit: number;    // per unit, P(win) × profit
+  marginPct: number;         // at the recommended price
+  notes: string[];
+}
+
+/** Chance of winning at a price: 50% at the market anchor (last award), steeper when we know the market. */
+export function winProbability(price: number, anchor: number, known: boolean): number {
+  if (!(anchor > 0)) return 0.5;
+  const k = known ? 14 : 8;
+  return 1 / (1 + Math.exp(k * (price / anchor - 1)));
+}
+
+/** Margin points we can give back on bigger contracts (steady volume, lower sales cost per dollar). */
+export function volumeDiscountPts(annualValue: number): number {
+  return annualValue >= 250000 ? 3 : annualValue >= 100000 ? 2 : annualValue >= 50000 ? 1 : 0;
+}
+
+/**
+ * The deal-maker: never below the floor, never leave money on the table. Searches prices from the floor up and picks
+ * the one with the best expected profit; explains the call in plain words.
+ */
+export function dealStrategy(o: { loaded: number; benchmark?: number | null; targetMarginPct?: number; annualValue?: number; roundTo?: number }): DealStrategy | null {
+  const loaded = Number(o.loaded) || 0;
+  if (!(loaded > 0)) return null;
+  const round = (n: number) => { const r = o.roundTo && o.roundTo > 0 ? o.roundTo : 1; return Math.ceil(n / r - 1e-9) * r; };
+  const vol = volumeDiscountPts(o.annualValue ?? 0);
+  const target = Math.max(MIN_MARGIN_PCT + 2, (o.targetMarginPct ?? DEFAULT_ASSUMPTIONS.marginPct) - vol);
+  const floorPrice = round(loaded / (1 - MIN_MARGIN_PCT / 100));
+  const targetPrice = round(loaded / (1 - target / 100));
+  const known = Number(o.benchmark) > 0;
+  const anchor = known ? Number(o.benchmark) : targetPrice;
+  let best = { p: floorPrice, ev: -Infinity, win: 0 };
+  const top = Math.max(targetPrice, anchor) * 1.3;
+  for (let p = floorPrice; p <= top; p += Math.max(0.01, floorPrice * 0.005)) {
+    const win = winProbability(p, anchor, known);
+    const ev = win * (p - loaded);
+    if (ev > best.ev) best = { p, ev, win };
+  }
+  const recommended = Math.max(floorPrice, round(best.p));
+  const win = winProbability(recommended, anchor, known);
+  const notes: string[] = [];
+  if (vol) notes.push(`Big contract (~$${Math.round((o.annualValue ?? 0) / 1000)}k/yr): target margin trimmed ${vol} pts to ${target}% for steady volume.`);
+  if (known && loaded > anchor) notes.push(`Our cost is above the last award ($${anchor}). Get a cheaper pro or a scope clarification before bidding — or pass.`);
+  else if (known && recommended < targetPrice) notes.push(`The market (last award $${anchor}) is below our target; bidding $${recommended} keeps a real chance to win with ${Math.round(((recommended - loaded) / recommended) * 100)}% margin.`);
+  else if (known && recommended > targetPrice) notes.push(`Last award was $${anchor}: there's room above our target, so the recommendation captures it.`);
+  if (!known) notes.push("No award history for this item — add the last award price (bid tabs, award notices) to sharpen the price.");
+  if (win < 0.25) notes.push("Low chance to win at any price that clears our floor; consider no-bid or teaming.");
+  return { floorPrice, targetPrice, recommended, winProb: Math.round(win * 100) / 100, expectedProfit: Math.round(win * (recommended - loaded) * 100) / 100, marginPct: Math.round(((recommended - loaded) / recommended) * 1000) / 10, notes };
+}
+
+/**
+ * An agency counter-offer or best-and-final request. Accept when it's close to our price; counter between the floor and
+ * our price (meeting partway, plus what we can trade instead of price); walk away below the floor unless a concession
+ * (faster payment, longer term, more scope) brings our cost down enough.
+ */
+export function negotiate(o: { loaded: number; ourPrice: number; counter: number; paymentDays?: number; costOfMoneyPct?: number }) {
+  const floor = o.loaded / (1 - MIN_MARGIN_PCT / 100);
+  const r2n = (n: number) => Math.round(n * 100) / 100;
+  // what paying us in 15 days instead of the usual terms would save us, per unit
+  const days = o.paymentDays ?? DEFAULT_ASSUMPTIONS.paymentDays, rate = (o.costOfMoneyPct ?? DEFAULT_ASSUMPTIONS.costOfMoneyPct) / 100;
+  const fasterPaySaving = r2n(o.loaded * rate * Math.max(0, days - 15) / 365);
+  const concessions = [
+    fasterPaySaving > 0 ? `Net-15 payment instead of net-${days} (saves us ~$${fasterPaySaving}/unit)` : null,
+    "A longer base term or guaranteed option years",
+    "Bundling more locations or services (better routing, lower cost per visit)",
+    "Fewer visits in the off-season, or a narrower scope on low-value items",
+  ].filter(Boolean) as string[];
+  if (o.counter >= o.ourPrice * 0.98) return { action: "accept" as const, price: r2n(o.counter), message: "Within 2% of our price — accept and lock it in.", concessions: [] };
+  if (o.counter >= floor) {
+    const price = r2n(Math.max(floor, (o.ourPrice + o.counter) / 2));
+    return { action: "counter" as const, price, message: `Meet them partway at $${price} (our floor is $${r2n(floor)}). Offer a concession instead of more price.`, concessions };
+  }
+  if (o.counter + fasterPaySaving >= floor) return { action: "counter" as const, price: r2n(o.counter + 0.01 > floor ? o.counter : floor), message: `Their number works only with net-15 payment — accept on that condition.`, concessions: concessions.slice(0, 1) };
+  return { action: "walk" as const, price: r2n(floor), message: `$${o.counter} is under our floor ($${r2n(floor)}) — decline politely, or reduce scope to make it work.`, concessions };
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -173,8 +301,13 @@ export function withDefaults(a?: Partial<BidAssumptions> | null): BidAssumptions
 export function priceLine(line: CostLine, assumptions?: Partial<BidAssumptions> | null): PricedLine {
   const a = withDefaults(assumptions);
   const flags: string[] = [];
-  const direct = Math.max(0, Number(line.pro_unit_cost) || 0) + Math.max(0, Number(line.materials_unit) || 0);
-  if (!(Number(line.pro_unit_cost) > 0)) flags.push("No pro price yet");
+  // a pro's quote wins; otherwise a measured line is costed from our own pricing engine (clearly flagged)
+  const est = Number(line.pro_unit_cost) > 0 ? null : catalogCost(line.slug, line.measure_size, line.measure_unit);
+  const proCost = Number(line.pro_unit_cost) > 0 ? Number(line.pro_unit_cost) : est?.proCost ?? 0;
+  const costSource: PricedLine["costSource"] = Number(line.pro_unit_cost) > 0 ? "pro_quote" : est ? "catalog_estimate" : "none";
+  const direct = Math.max(0, proCost) + Math.max(0, Number(line.materials_unit) || 0);
+  if (costSource === "none") flags.push("No pro price yet");
+  if (costSource === "catalog_estimate") flags.push(`Estimated pro cost $${est!.proCost} from our pricing engine (${line.measure_size} ${line.measure_unit}) — get a pro quote before submitting`);
   const overhead = pct(a.supervisionPct) + pct(a.insurancePct) + pct(a.adminPct) + pct(a.contingencyPct) + pct(a.bondPct);
   const financing = pct(a.costOfMoneyPct) * (Math.max(0, a.paymentDays) / 365);
   const loaded = direct * (1 + overhead + financing);
@@ -189,9 +322,12 @@ export function priceLine(line: CostLine, assumptions?: Partial<BidAssumptions> 
     if (unitPrice > line.benchmark * 1.15) flags.push(`${Math.round((unitPrice / line.benchmark - 1) * 100)}% above the last award ($${line.benchmark}) — may lose on price`);
     else if (loaded > line.benchmark) flags.push(`Our cost is above the last award ($${line.benchmark}) — the winner may be cutting corners or we need a cheaper pro`);
   }
+  const deal = direct > 0 ? dealStrategy({ loaded, benchmark: line.benchmark, targetMarginPct: a.marginPct, annualValue: unitPrice * qty, roundTo: a.roundTo }) : null;
+  if (deal && Math.abs(deal.recommended - unitPrice) / unitPrice > 0.03) flags.push(`Deal-maker suggests $${deal.recommended}/unit (${Math.round(deal.winProb * 100)}% est. win chance, ${deal.marginPct}% margin)`);
   return {
     ...line, direct: r2(direct), loaded: r2(loaded), unitPrice, unitProfit, marginPct,
     yearPrice: r2(unitPrice * qty), totalPrice: r2(unitPrice * qty * years), totalCost: r2(loaded * qty * years), totalProfit: r2((unitPrice - loaded) * qty * years), flags,
+    costSource, deal,
   };
 }
 
@@ -204,7 +340,9 @@ export function priceBid(lines: CostLine[], assumptions?: Partial<BidAssumptions
   const totalProfit = r2(totalPrice - totalCost);
   const warnings: string[] = [];
   if (!lines.length) warnings.push("No price lines yet — add them from the agency's price form");
-  const missing = priced.filter((l) => l.flags.includes("No pro price yet")).length;
+  const missing = priced.filter((l) => l.costSource === "none").length;
+  const estimated = priced.filter((l) => l.costSource === "catalog_estimate").length;
+  if (estimated) warnings.push(`${estimated} line${estimated > 1 ? "s" : ""} priced from our pricing engine estimate — confirm with a pro quote before submitting`);
   if (missing) warnings.push(`${missing} line${missing > 1 ? "s" : ""} without a pro price`);
   if (a.marginPct < MIN_MARGIN_PCT) warnings.push(`Target margin ${a.marginPct}% is under the ${MIN_MARGIN_PCT}% floor`);
   // money out before money in: one payment cycle of pro pay we carry

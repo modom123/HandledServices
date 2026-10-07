@@ -1470,3 +1470,28 @@ test("measurements pick the calibrated size band and are required", async () => 
   assert.equal(applyMeasurements(animal.questions, { weight_lb: 3 }).size, "small");
   assert.equal(applyMeasurements(animal.questions, { weight_lb: 150 }).size, "xl");
 });
+
+test("bid engine: measured lines, deal-maker, negotiation", async () => {
+  const { catalogCost, dealStrategy, negotiate, priceLine, winProbability, MIN_MARGIN_PCT } = await import("./bid-engine.ts");
+  // 2 acres of mowing → priced like a lawn of 87,120 sq ft (scaled above the top band)
+  const two = catalogCost("lawn-care", 2, "acres")!, one = catalogCost("lawn-care", 1, "acre")!;
+  assert.ok(two && one && two.retail > one.retail && two.proCost < two.retail, "acres convert and scale");
+  assert.equal(catalogCost("lawn-care", 2, "gallons"), null);
+  assert.equal(catalogCost(null, 2, "acres"), null);
+  const line = priceLine({ id: "a", item: "Mow park, 2 acres", unit: "visit", qty: 30, years: 1, pro_unit_cost: null, slug: "lawn-care", measure_size: 2, measure_unit: "acres" });
+  assert.equal(line.costSource, "catalog_estimate");
+  assert.ok(line.unitPrice > 0 && line.deal, "estimated lines are priced and get a deal");
+  // deal-maker never goes below the floor
+  const d = dealStrategy({ loaded: 100, benchmark: 90 })!;
+  assert.ok(d.recommended >= d.floorPrice && Math.abs(d.floorPrice - 100 / (1 - MIN_MARGIN_PCT / 100)) < 1.01);
+  assert.ok(d.notes.some((n) => /above the last award/.test(n)), "warns when cost beats the market");
+  const rich = dealStrategy({ loaded: 100, benchmark: 160 })!;
+  assert.ok(rich.recommended > rich.targetPrice, "captures room above target when the market pays more");
+  const big = dealStrategy({ loaded: 100, annualValue: 300000 })!, small = dealStrategy({ loaded: 100, annualValue: 10000 })!;
+  assert.ok(big.targetPrice < small.targetPrice, "big contracts get a thinner target");
+  assert.ok(winProbability(90, 100, true) > winProbability(110, 100, true));
+  // negotiation
+  assert.equal(negotiate({ loaded: 100, ourPrice: 120, counter: 119 }).action, "accept");
+  assert.equal(negotiate({ loaded: 100, ourPrice: 120, counter: 112 }).action, "counter");
+  assert.equal(negotiate({ loaded: 100, ourPrice: 120, counter: 80 }).action, "walk");
+});

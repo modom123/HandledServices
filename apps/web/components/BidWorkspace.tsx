@@ -8,13 +8,15 @@
  *           submit (gate enforced on the server too), the result, and price benchmarks.
  * UPDATED : 2026-10-05_2043 UTC — archive: document versions (upload a new version, earlier ones kept), submission history with
  *           "view exactly what was sent", revise & resubmit, start a new bid from this one; solicitation type.
+ * UPDATED : 2026-10-07_0305 UTC — pricing: size of one unit + our service per line (cost estimate from our pricing engine),
+ *           deal-maker price and floor per line, and a counter-offer / BAFO tool (negotiate).
  */
 "use client";
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BID_SOURCES, DEFAULT_ASSUMPTIONS, GO_NO_GO, MIN_MARGIN_PCT, REQ_KIND_LABEL, RESUBMIT_REASONS, REVIEW_CHECKS, SOLICITATION_TYPES, priceBid,
+  BID_SOURCES, DEFAULT_ASSUMPTIONS, GO_NO_GO, MEASURE_UNITS, MIN_MARGIN_PCT, REQ_KIND_LABEL, RESUBMIT_REASONS, REVIEW_CHECKS, SERVICES, SOLICITATION_TYPES, negotiate, priceBid,
   type BidAssumptions, type GoAnswer, type ReqKind, type ResubmitReason,
 } from "@handled/core";
 import { browserClient } from "@/lib/supabase/browser";
@@ -110,7 +112,7 @@ export interface WsBid {
   solicitation_type: string; revision: number; reopened_at: string | null; reopen_reason: string | null; reopen_note: string | null; previous_bid_id: string | null;
 }
 export interface WsReq { id: string; kind: ReqKind; text: string; source_ref: string | null; response_ref: string | null; required: boolean; done: boolean; done_by: string | null; origin: string }
-export interface WsLine { id: string; item: string; unit: string; qty: number; years: number; pro_unit_cost: number | null; materials_unit: number; benchmark: number | null; slug: string | null }
+export interface WsLine { id: string; item: string; unit: string; qty: number; years: number; pro_unit_cost: number | null; materials_unit: number; benchmark: number | null; slug: string | null; measure_size?: number | null; measure_unit?: string | null }
 export interface WsQuote { id: string; contractor_id: string; status: "asked" | "committed" | "declined"; prices: Record<string, number>; capacity: string | null; small_business: boolean | null; note: string | null; answered_at: string | null; contractor: { business_name: string; email: string | null; phone: string | null } | null }
 export interface WsDoc { id: string; kind: string; name: string; size: number | null; ai_read_at: string | null; created_at: string; version: number; superseded_at: string | null; superseded_by: string | null; note: string | null }
 export interface WsGate { ready: boolean; canMarkSubmitted: boolean; missing: string[]; warnings: string[] }
@@ -320,8 +322,8 @@ const ASSUMPTION_FIELDS: [keyof BidAssumptions, string, string][] = [
   ["costOfMoneyPct", "Cost of money %/yr", "line of credit"], ["marginPct", "Margin % of price", `floor ${MIN_MARGIN_PCT}%`], ["roundTo", "Round up to $", "1 = whole dollars"],
 ];
 
-type EditLine = { id?: string; key: string; item: string; unit: string; qty: string; years: string; pro_unit_cost: string; materials_unit: string; benchmark: string; slug: string | null };
-const toEdit = (l: WsLine): EditLine => ({ id: l.id, key: l.id, item: l.item, unit: l.unit, qty: String(l.qty ?? 0), years: String(l.years ?? 1), pro_unit_cost: l.pro_unit_cost === null ? "" : String(l.pro_unit_cost), materials_unit: String(l.materials_unit ?? 0), benchmark: l.benchmark === null ? "" : String(l.benchmark), slug: l.slug });
+type EditLine = { id?: string; key: string; item: string; unit: string; qty: string; years: string; pro_unit_cost: string; materials_unit: string; benchmark: string; slug: string | null; measure_size: string; measure_unit: string };
+const toEdit = (l: WsLine): EditLine => ({ id: l.id, key: l.id, item: l.item, unit: l.unit, qty: String(l.qty ?? 0), years: String(l.years ?? 1), pro_unit_cost: l.pro_unit_cost === null ? "" : String(l.pro_unit_cost), materials_unit: String(l.materials_unit ?? 0), benchmark: l.benchmark === null ? "" : String(l.benchmark), slug: l.slug, measure_size: l.measure_size == null ? "" : String(l.measure_size), measure_unit: l.measure_unit ?? "" });
 const num = (s: string) => (s.trim() === "" ? null : Number(s));
 
 export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best: Record<string, { best: { price: number } | null; count: number; backup: boolean }> }) {
@@ -330,8 +332,9 @@ export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best
   const [removed, setRemoved] = useState<string[]>([]);
   const [a, setA] = useState<BidAssumptions>({ ...DEFAULT_ASSUMPTIONS, ...b.assumptions });
   const [override, setOverride] = useState(b.margin_override);
-  const priced = useMemo(() => priceBid(rows.map((r) => ({ id: r.key, item: r.item, unit: r.unit, qty: Number(r.qty) || 0, years: Number(r.years) || 0, pro_unit_cost: num(r.pro_unit_cost), materials_unit: Number(r.materials_unit) || 0, benchmark: num(r.benchmark) })), a), [rows, a]);
-  const set = (i: number, k: keyof EditLine, v: string) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: k === "item" || k === "unit" ? v : v.replace(/[^\d.]/g, "") } : r)));
+  const priced = useMemo(() => priceBid(rows.map((r) => ({ id: r.key, item: r.item, unit: r.unit, qty: Number(r.qty) || 0, years: Number(r.years) || 0, pro_unit_cost: num(r.pro_unit_cost), materials_unit: Number(r.materials_unit) || 0, benchmark: num(r.benchmark), slug: r.slug, measure_size: num(r.measure_size), measure_unit: r.measure_unit || null })), a), [rows, a]);
+  const set = (i: number, k: keyof EditLine, v: string) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: k === "item" || k === "unit" || k === "measure_unit" || k === "slug" ? (k === "slug" ? v || null : v) : v.replace(/[^\d.]/g, "") } : r)));
+  const [neg, setNeg] = useState<{ line: number; counter: string }>({ line: 0, counter: "" });
   const term = b.term_years ? String(b.term_years) : "1";
   return (
     <div className="space-y-4 text-sm">
@@ -351,7 +354,14 @@ export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best
               const q = r.id ? best[r.id] : undefined;
               return (
                 <tr key={r.key} className="border-t border-line align-top">
-                  <td className="p-1"><input className="input py-1 text-xs" value={r.item} onChange={(e) => set(i, "item", e.target.value)} />{p.flags.length > 0 && <div className="mt-1 text-amber-800">{p.flags.map((f) => <div key={f}>⚠ {f}</div>)}</div>}</td>
+                  <td className="p-1"><input className="input py-1 text-xs" value={r.item} onChange={(e) => set(i, "item", e.target.value)} />
+                    <div className="mt-1 flex flex-wrap items-center gap-1 text-ink-soft">
+                      <span>Size of 1 unit</span>
+                      <input className="input w-20 py-0.5 text-xs" inputMode="decimal" value={r.measure_size} onChange={(e) => set(i, "measure_size", e.target.value)} placeholder="e.g. 12" />
+                      <select className="input w-20 py-0.5 text-xs" value={r.measure_unit} onChange={(e) => set(i, "measure_unit", e.target.value)}><option value="">unit</option>{MEASURE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select>
+                      <select className="input w-36 py-0.5 text-xs" value={r.slug ?? ""} onChange={(e) => set(i, "slug", e.target.value)}><option value="">our service…</option>{SERVICES.map((x) => <option key={x.slug} value={x.slug}>{x.name}</option>)}</select>
+                      {p.costSource === "catalog_estimate" && <span className="text-brand">est. pro cost {usd(p.direct)}</span>}
+                    </div>{p.flags.length > 0 && <div className="mt-1 text-amber-800">{p.flags.map((f) => <div key={f}>⚠ {f}</div>)}</div>}</td>
                   <td className="p-1"><input className="input w-20 py-1 text-xs" value={r.unit} onChange={(e) => set(i, "unit", e.target.value)} /></td>
                   <td className="p-1"><input className="input w-20 py-1 text-xs" inputMode="decimal" value={r.qty} onChange={(e) => set(i, "qty", e.target.value)} /></td>
                   <td className="p-1"><input className="input w-14 py-1 text-xs" inputMode="decimal" value={r.years} onChange={(e) => set(i, "years", e.target.value)} /></td>
@@ -359,7 +369,8 @@ export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best
                     {q && q.count > 0 && <div className="mt-1 text-ink-soft">{q.count} pro{q.count > 1 ? "s" : ""} · best {usd(q.best!.price)}{!q.backup && <span className="text-amber-800"> · no backup</span>}</div>}</td>
                   <td className="p-1"><input className="input w-16 py-1 text-xs" inputMode="decimal" value={r.materials_unit} onChange={(e) => set(i, "materials_unit", e.target.value)} /></td>
                   <td className="p-1"><input className="input w-20 py-1 text-xs" inputMode="decimal" value={r.benchmark} onChange={(e) => set(i, "benchmark", e.target.value)} placeholder="$" /></td>
-                  <td className="p-2 text-right font-semibold">{p.unitPrice ? usd(p.unitPrice) : "—"}</td>
+                  <td className="p-2 text-right font-semibold">{p.unitPrice ? usd(p.unitPrice) : "—"}
+                    {p.deal && <div className="mt-1 whitespace-nowrap font-normal text-ink-soft" title={p.deal.notes.join(" ")}>🤝 {usd(p.deal.recommended)} · {Math.round(p.deal.winProb * 100)}% win<br />floor {usd(p.deal.floorPrice)}</div>}</td>
                   <td className={`p-2 text-right ${p.unitPrice && p.marginPct < MIN_MARGIN_PCT ? "text-rose-700" : ""}`}>{p.unitPrice ? `${p.marginPct}%` : "—"}</td>
                   <td className="p-2 text-right">{p.totalPrice ? usd(p.totalPrice) : "—"}</td>
                   <td className="p-1"><button className="text-ink-soft underline" onClick={() => { if (r.id) setRemoved([...removed, r.id]); setRows(rows.filter((_, j) => j !== i)); }}>✕</button></td>
@@ -373,12 +384,34 @@ export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best
         </table>
       </div>
       {priced.warnings.length > 0 && <ul className="text-amber-800">{priced.warnings.map((w) => <li key={w}>⚠ {w}</li>)}</ul>}
+      {priced.lines.some((l) => l.deal) && (() => {
+        const L = priced.lines[neg.line] ?? priced.lines[0];
+        const c = Number(neg.counter);
+        const r = L && L.loaded > 0 && c > 0 ? negotiate({ loaded: L.loaded, ourPrice: L.unitPrice, counter: c, paymentDays: a.paymentDays, costOfMoneyPct: a.costOfMoneyPct }) : null;
+        return (
+          <div className="rounded-xl border border-line bg-paper p-3">
+            <div className="font-semibold">🤝 Deal-maker</div>
+            <p className="text-xs text-ink-soft">Each line shows the price with the best expected profit (chance to win × profit) and the walk-away floor ({MIN_MARGIN_PCT}% margin). Add last award prices to sharpen it. When the agency counters or asks for a best-and-final offer, enter their number:</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select className="input w-64 py-1 text-xs" value={neg.line} onChange={(e) => setNeg({ ...neg, line: Number(e.target.value) })}>{priced.lines.map((l, i) => <option key={l.id} value={i}>{l.item || `Line ${i + 1}`} — ours {usd(l.unitPrice)}</option>)}</select>
+              <span className="text-xs">Their counter $</span><input className="input w-24 py-1 text-xs" inputMode="decimal" value={neg.counter} onChange={(e) => setNeg({ ...neg, counter: e.target.value.replace(/[^\d.]/g, "") })} />
+            </div>
+            {r && (
+              <div className={`mt-2 rounded-lg p-2 text-xs ${r.action === "accept" ? "bg-emerald-50 text-emerald-900" : r.action === "counter" ? "bg-amber-50 text-amber-900" : "bg-rose-50 text-rose-900"}`}>
+                <b>{r.action === "accept" ? "Accept" : r.action === "counter" ? `Counter at ${usd(r.price)}` : "Walk away"}</b> — {r.message}
+                {r.concessions.length > 0 && <ul className="mt-1 list-disc pl-4">{r.concessions.map((x) => <li key={x}>{x}</li>)}</ul>}
+              </div>
+            )}
+            {L?.deal?.notes.length ? <ul className="mt-2 list-disc pl-4 text-xs text-ink-soft">{L.deal.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
+          </div>
+        );
+      })()}
       <div className="flex flex-wrap items-center gap-2">
-        <button className="btn-ghost" onClick={() => setRows([...rows, { key: `new-${Date.now()}`, item: "", unit: "each", qty: "0", years: term, pro_unit_cost: "", materials_unit: "0", benchmark: "", slug: null }])}>+ Add line</button>
+        <button className="btn-ghost" onClick={() => setRows([...rows, { key: `new-${Date.now()}`, item: "", unit: "each", qty: "0", years: term, pro_unit_cost: "", materials_unit: "0", benchmark: "", slug: null, measure_size: "", measure_unit: "" }])}>+ Add line</button>
         <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} /> Owner override: allow a line under the {MIN_MARGIN_PCT}% margin floor</label>
         <button className="btn-primary" disabled={Boolean(busy) || rows.some((r) => !r.item.trim() || !r.unit.trim())} onClick={() => act("save", {
           action: "lines", bid_id: b.id, removed, margin_override: override, assumptions: a,
-          lines: rows.map((r) => ({ id: r.id, item: r.item.trim(), unit: r.unit.trim(), qty: Number(r.qty) || 0, years: Number(r.years) || 0, pro_unit_cost: num(r.pro_unit_cost), materials_unit: Number(r.materials_unit) || 0, benchmark: num(r.benchmark), slug: r.slug })),
+          lines: rows.map((r) => ({ id: r.id, item: r.item.trim(), unit: r.unit.trim(), qty: Number(r.qty) || 0, years: Number(r.years) || 0, pro_unit_cost: num(r.pro_unit_cost), materials_unit: Number(r.materials_unit) || 0, benchmark: num(r.benchmark), slug: r.slug, measure_size: num(r.measure_size), measure_unit: r.measure_unit || null })),
         }, () => { setRemoved([]); return "Saved. (Saving pricing clears the review sign-off — review again before submitting.)"; })}>Save pricing</button>
         {msg && <span className="text-ink-soft">{msg}</span>}
       </div>
