@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-05_0418 UTC — Rewards in the header.
  * PURPOSE : Pro portal shell. Pros mostly use the mobile app; this is the web twin.
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (recruiters: Handled Talent searches).
+ * UPDATED : 2026-10-07_0205 UTC — menu as dropdowns (Work · Money · Account, same component as the website); ☰ on phones.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -18,6 +19,7 @@ import { NotConfigured } from "@/components/ui";
 import { getViewer } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { LangSwitch } from "@/components/LangSwitch";
+import { DesktopNav, MobileNav, type NavGroup } from "@/components/SiteNav";
 import { getLocale } from "@/lib/locale";
 import { t as tr } from "@handled/core";
 
@@ -33,9 +35,38 @@ export default async function ProLayout({ children }: { children: React.ReactNod
     return (
       <div className="wrap py-20"><div className="card max-w-lg"><h1 className="text-xl font-bold">{l === "es" ? `No hay cuenta de profesional para ${v.email}` : `No pro account for ${v.email}`}</h1><p className="mt-2 text-sm text-ink-soft">{t("Sign in with the email on your approved application, or")} <Link href="/pros" className="text-brand underline">{t("apply to become a pro")}</Link>.</p></div></div>
     );
+  const es = l === "es";
+  // the pro portal's menus (same dropdowns as the website; ☰ on phones)
+  const groups: NavGroup[] = [
+    { id: "work", label: es ? "Trabajo" : "Work", items: [
+      { href: "/pro", label: t("Jobs"), icon: "🧰", hint: es ? "Ofertas y trabajos de hoy" : "Offers and today's jobs" },
+      { href: "/pro/schedule", label: t("Calendar"), icon: "📅" },
+      { href: "/pro/checklists", label: es ? "Listas" : "Checklists", icon: "✅" },
+      { href: "/pro/crew", label: es ? "Mi equipo" : "My crew", icon: "👥" },
+    ] },
+    { id: "money", label: es ? "Dinero" : "Money", items: [
+      { href: "/pro/earnings", label: t("Earnings"), icon: "💵", hint: es ? "Pagos, pago instantáneo, 1099" : "Payouts, instant pay, 1099" },
+      { href: "/pro/rewards", label: es ? "Recompensas" : "Rewards", icon: "🎁" },
+    ] },
+    { id: "account", label: es ? "Cuenta" : "Account", items: [
+      { href: "/pro/onboarding", label: t("Setup & documents"), icon: "📋" },
+      { href: "/pro/contracts", label: t("My contracts"), icon: "📜" },
+      { href: "/pro/talent", label: es ? "Talento" : "Talent", icon: "🤝" },
+    ] },
+  ];
   return (
     <>
-      <header className="border-b border-line bg-paper-deep"><div className="wrap flex h-14 items-center justify-between"><Logo /><div className="flex items-center gap-4 text-sm"><Link href="/pro" className="font-semibold">{t("Jobs")}</Link><Link href="/pro/schedule">{t("Calendar")}</Link><Link href="/pro/earnings">{t("Earnings")}</Link><Link href="/pro/onboarding">{t("Setup & documents")}</Link><Link href="/pro/crew">{l === "es" ? "Mi equipo" : "My crew"}</Link><Link href="/pro/rewards">{l === "es" ? "🎁 Recompensas" : "🎁 Rewards"}</Link><Link href="/pro/talent">{l === "es" ? "🤝 Talento" : "🤝 Talent"}</Link><Link href="/pro/checklists">{l === "es" ? "Listas" : "Checklists"}</Link><Link href="/pro/contracts">{t("My contracts")}</Link><LangSwitch locale={l} /><form action="/auth/signout" method="post"><button className="text-ink-soft">{t("Sign out")}</button></form></div></div></header>
+      <header className="sticky top-0 z-30 border-b border-line bg-paper-deep/95 backdrop-blur">
+        <div className="wrap flex h-16 items-center justify-between gap-3">
+          <Logo />
+          <DesktopNav groups={groups} />
+          <div className="flex items-center gap-2 text-sm">
+            <span className="hidden sm:inline-flex"><LangSwitch locale={l} /></span>
+            <form action="/auth/signout" method="post" className="hidden md:block"><button className="text-ink-soft hover:text-ink">{t("Sign out")}</button></form>
+            <MobileNav groups={groups} lang={<LangSwitch locale={l} />} cta={{ href: "/pro", label: t("Jobs") }} />
+          </div>
+        </div>
+      </header>
       <main className="wrap py-8">{children}</main>
     </>
   );

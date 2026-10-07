@@ -7,7 +7,8 @@
  *             greengold  — green, white and gold
  *             modern     — green, white and gold with the modern layout (line icons, display type, soft shadows)
  *           Which one a visitor sees: a ?theme= link they arrived from (remembered 90 days — use a different link in each
- *           market's ads, flyers and QR codes), else the default chosen in Hub → Website look, else SITE_THEME, else greengold.
+ *           market's ads, flyers and QR codes), else the default chosen in Hub → Website look, else SITE_THEME, else classic
+ *           (the Original look — the owner's choice for launch, 2026-10-07).
  *           Colors are CSS variables per theme (globals.css, [data-theme] on <html>).
  */
 import "server-only";
@@ -25,7 +26,7 @@ export type Theme = keyof typeof THEMES;
 export const THEME_COOKIE = "site_theme";
 export const isTheme = (v: unknown): v is Theme => typeof v === "string" && v in THEMES;
 
-/** The default look set in the Hub (falls back to SITE_THEME, then greengold). Cached per request. */
+/** The default look set in the Hub (falls back to SITE_THEME, then the Original look). Cached per request. */
 export const defaultTheme = cache(async (): Promise<Theme> => {
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
@@ -34,7 +35,7 @@ export const defaultTheme = cache(async (): Promise<Theme> => {
       if (isTheme(v)) return v;
     } catch { /* table not created yet */ }
   }
-  return isTheme(process.env.SITE_THEME) ? process.env.SITE_THEME : "greengold";
+  return isTheme(process.env.SITE_THEME) ? process.env.SITE_THEME : "classic";
 });
 
 /** The look for this visitor: their ?theme= link (cookie) or the default. */

@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-06_2120 UTC — 🛟 Cancellations & coverage.
  * UPDATED : 2026-10-06_2230 UTC — 📒 Accounting (Xero + Stripe).
  * UPDATED : 2026-10-07_0145 UTC — 💸 Referral partners.
+ * UPDATED : 2026-10-07_0200 UTC — menu grouped into dropdown sections (components/HubNav), phones get a ☰ Menu.
  * UPDATED : 2026-10-07_0320 UTC — 🎨 Website & promotions (website look, grand opening promotion).
  */
 import Link from "next/link";
@@ -32,45 +33,60 @@ import { BRAND } from "@handled/core";
 import { getViewer, isStaff } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { NotConfigured } from "@/components/ui";
+import { HubNav, type HubGroup } from "@/components/HubNav";
 
 export const metadata = { title: "Handled Hub" };
 
-const NAV = [
-  ["/hub", "📊", "Dashboard"],
-  ["/hub/jobs", "🗂️", "Jobs board"],
-  ["/hub/checklists", "✅", "Checklists"],
-  ["/hub/network", "💎", "Pro Network"],
-  ["/hub/roster", "📍", "Live roster"],
-  ["/hub/coverage", "🛟", "Cancellations & coverage"],
-  ["/hub/pros", "🧰", "Hiring & pros"],
-  ["/hub/recruiting", "🧲", "Recruiting"],
-  ["/hub/leads", "🎯", "Pro leads"],
-  ["/hub/gaps", "🕳️", "Supply gaps"],
-  ["/hub/customers", "👥", "Customers & B2B"],
-  ["/hub/biz-leads", "🤝", "Business leads"],
-  ["/hub/partners", "💸", "Referral partners"],
-  ["/hub/gov", "🏛️", "Gov contracts"],
-  ["/hub/bids", "📝", "Bids"],
-  ["/hub/talent", "🤝", "Talent (recruiting)"],
-  ["/hub/email", "✉️", "Email Center"],
-  ["/hub/finance", "💵", "Finance"],
-  ["/hub/accounting", "📒", "Accounting (Xero)"],
-  ["/hub/factoring", "🏦", "Factoring"],
-  ["/hub/growth", "📈", "Growth"],
-  ["/hub/site", "🎨", "Website & promotions"],
-  ["/hub/cities", "🏙️", "City scorecard"],
-  ["/hub/market", "⚖️", "Market pricing"],
-  ["/hub/pricing-accuracy", "📐", "Pricing accuracy"],
-  ["/hub/charges", "💳", "Quick Charge"],
-  ["/hub/pro-program", "🏅", "Pro Program"],
-  ["/hub/rewards", "🎁", "Pro Rewards"],
-  ["/hub/workforce", "🏢", "IEBC Workforce"],
-  ["/hub/agents", "🤖", "AI agents"],
-  ["/hub/assistant", "✨", "AI assistant"],
-  ["/hub/contracts", "📜", "Contract library"],
-  ["/hub/team", "👥", "Team"],
-  ["/hub/setup", "🚀", "Go-live setup"],
-] as const;
+const NAV: HubGroup[] = [
+  { id: "ops", label: "Operations", links: [
+    ["/hub", "📊", "Dashboard"],
+    ["/hub/jobs", "🗂️", "Jobs board"],
+    ["/hub/roster", "📍", "Live roster"],
+    ["/hub/coverage", "🛟", "Cancellations & coverage"],
+    ["/hub/checklists", "✅", "Checklists"],
+    ["/hub/gaps", "🕳️", "Supply gaps"],
+  ] },
+  { id: "pros", label: "Pros", links: [
+    ["/hub/network", "💎", "Pro Network"],
+    ["/hub/pros", "🧰", "Hiring & pros"],
+    ["/hub/recruiting", "🧲", "Recruiting"],
+    ["/hub/leads", "🎯", "Pro leads"],
+    ["/hub/pro-program", "🏅", "Pro Program"],
+    ["/hub/rewards", "🎁", "Pro Rewards"],
+  ] },
+  { id: "sales", label: "Customers & sales", links: [
+    ["/hub/customers", "👥", "Customers & B2B"],
+    ["/hub/biz-leads", "🤝", "Business leads"],
+    ["/hub/partners", "💸", "Referral partners"],
+    ["/hub/gov", "🏛️", "Gov contracts"],
+    ["/hub/bids", "📝", "Bids"],
+    ["/hub/talent", "🤝", "Talent (recruiting)"],
+    ["/hub/email", "✉️", "Email Center"],
+  ] },
+  { id: "money", label: "Money", links: [
+    ["/hub/finance", "💵", "Finance"],
+    ["/hub/accounting", "📒", "Accounting (Xero)"],
+    ["/hub/charges", "💳", "Quick Charge"],
+    ["/hub/factoring", "🏦", "Factoring"],
+  ] },
+  { id: "growth", label: "Growth & pricing", links: [
+    ["/hub/growth", "📈", "Growth"],
+    ["/hub/site", "🎨", "Website & promotions"],
+    ["/hub/cities", "🏙️", "City scorecard"],
+    ["/hub/market", "⚖️", "Market pricing"],
+    ["/hub/pricing-accuracy", "📐", "Pricing accuracy"],
+  ] },
+  { id: "ai", label: "AI & IEBC", links: [
+    ["/hub/agents", "🤖", "AI agents"],
+    ["/hub/assistant", "✨", "AI assistant"],
+    ["/hub/workforce", "🏢", "IEBC Workforce"],
+  ] },
+  { id: "settings", label: "Settings", links: [
+    ["/hub/team", "👥", "Team"],
+    ["/hub/contracts", "📜", "Contract library"],
+    ["/hub/setup", "🚀", "Go-live setup"],
+  ] },
+];
 
 export const dynamic = "force-dynamic";
 
@@ -84,11 +100,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
         <Link href="/home" className="flex items-center gap-2 px-2 font-extrabold"><span className="grid h-7 w-7 place-items-center rounded-md bg-brand">✓</span>{BRAND.name} <span className="text-xs font-normal text-white/50">Hub</span></Link>
-        <nav className="mt-6 flex gap-1 overflow-x-auto md:flex-col">
-          {NAV.map(([href, icon, label]) => (
-            <Link key={href} href={href} className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white">{icon} {label}</Link>
-          ))}
-        </nav>
+        <HubNav groups={NAV} />
         <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
       </aside>
       <main className="min-w-0 bg-paper p-4 md:p-8">{children}</main>

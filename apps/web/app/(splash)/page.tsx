@@ -6,11 +6,11 @@
  * PURPOSE : Splash page at / — introduces the company before the home page (/home):
  *           the original message ("Your home & business to-do list. Handled."), who we are,
  *           every category at a glance, and three reasons to trust us. One click to enter.
+ * UPDATED : 2026-10-07_0215 UTC — own top bar removed; the site header (dropdown menus, language, sign in) is above it.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
-import { LangSwitch } from "@/components/LangSwitch";
 import { ThemedIcon } from "@/components/Glyph";
 
 export const metadata = { title: { absolute: `${BRAND.name} — ${BRAND.tagline}` }, description: BRAND.pitch };
@@ -31,13 +31,7 @@ export default async function Splash() {
       {/* soft light behind the headline */}
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_30rem_at_50%_-10%,rgba(159,230,204,0.22),transparent_70%)]" />
 
-      <header className="wrap relative flex h-20 items-center justify-between">
-        <div className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-white text-brand-deep">✓</span>
-          {BRAND.name}
-        </div>
-        <div className="flex items-center gap-4"><LangSwitch locale={l} light /><Link href="/login" className="text-sm font-medium text-white/75 hover:text-white">{t("Sign in")}</Link></div>
-      </header>
+      {/* the site header with the dropdown menus sits above (splash layout) */}
 
       <section className="wrap relative flex flex-1 flex-col items-center justify-center py-12 text-center splash-in">
         <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-gold-light ring-1 ring-white/15">● {t("AI-run operations · real local pros")}</span>
