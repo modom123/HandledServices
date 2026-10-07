@@ -13,7 +13,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const v = await getViewer(req);
   if (!v) return deny(401, "Sign in first");
   const { id } = await ctx.params;
-  const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).maybeSingle(); // RLS: own jobs only
+  const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).eq("customer_id", v.userId).maybeSingle(); // the customer only: RLS also lets an offered or assigned pro read the job
   if (!mine) return deny(404, "Not found");
   const job = await getJob(id);
   if (!job || job.remedy) return deny(409, "This booking can't be cancelled online — message us");

@@ -13,7 +13,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!v) return deny(401, "Sign in first");
   const { id } = await ctx.params;
   // RLS: the customer can only read their own jobs
-  const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).maybeSingle();
+  const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).eq("customer_id", v.userId).maybeSingle();
   if (!mine) return deny(404, "Not found");
   const job = await getJob(id);
   if (!job || job.paid_at || !job.price_final) return deny(409, "Nothing to pay");

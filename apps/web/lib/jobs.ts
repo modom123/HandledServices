@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
  * UPDATED : 2026-10-07_0110 UTC — Referral Partner Program: bookings credited to the customer's partner; commission accrued on completion.
+ * UPDATED : 2026-10-07_1545 UTC — markPaid: a dispatch error no longer throws back into the Stripe webhook (alert instead).
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
  */
 import "server-only";
@@ -354,7 +355,9 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
     await (await import("./market")).afterRaisePaid(paid as Job & { pending_counter_offer?: string | null });
     return paid;
   }
-  if (firstPayment && !paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true") await dispatchJob(jobId);
+  // a dispatch hiccup must not undo the payment (the webhook already counted it); the dispatch cron picks the job up again
+  if (firstPayment && !paid.contractor_id && (process.env.AUTO_DISPATCH ?? "true") === "true")
+    await dispatchJob(jobId).catch((e) => raiseAlert("dispatch", "warn", "Paid job not dispatched yet", `${paid.ref}: ${e instanceof Error ? e.message : String(e)} — the dispatch cron will retry.`, jobId));
   return paid;
 }
 

@@ -11,7 +11,7 @@ import { trackPro } from "@/lib/visit";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer(req);
   if (!v) return deny(401, "Sign in first");
-  const { data } = await v.db.from("jobs").select("*").eq("id", (await params).id).maybeSingle(); // RLS: only their own job
+  const { data } = await v.db.from("jobs").select("*").eq("id", (await params).id).eq("customer_id", v.userId).maybeSingle(); // the customer only (RLS also lets the pro read it)
   if (!data) return deny(404, "Not found");
   return Response.json(await trackPro(data as Job), { headers: { "Cache-Control": "no-store" } });
 }

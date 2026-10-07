@@ -12,7 +12,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const v = await getViewer(req);
   if (!v) return deny(401, "Sign in first");
   const { id } = await ctx.params;
-  const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).maybeSingle(); // RLS: own jobs only
+  const { data: mine } = await v.db.from("jobs").select("id").eq("id", id).eq("customer_id", v.userId).maybeSingle(); // the customer only: RLS also lets an offered or assigned pro read the job
   if (!mine) return deny(404, "Not found");
   const { data } = await adminClient().from("job_offers").select("id, counter_price, counter_note, contractors(contact_name, rating, jobs_completed)").eq("job_id", id).eq("status", "countered").order("counter_price");
   const counters = ((data ?? []) as unknown as { id: string; counter_price: number; counter_note: string | null; contractors: { contact_name: string; rating: number; jobs_completed: number } | null }[])

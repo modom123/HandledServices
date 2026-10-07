@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-06_0708 UTC — payment_intent.succeeded from the app's payment sheet (metadata source=app) settles the payment
  *           the same way as Checkout (shared settle()). Add this event to the Stripe webhook.
  * UPDATED : 2026-10-06_2230 UTC — Xero: a paid Checkout records its payment intent and the sales tax Stripe Tax added
+ * UPDATED : 2026-10-07_1545 UTC — a failure while applying a payment raises a critical Hub alert instead of being lost (the row is already paid, so Stripe retries were skipped as duplicates).
  *           (payments.stripe_payment_intent_id, tax_amount), so the daily Xero sync books tax as a liability, not revenue.
  */
 import type Stripe from "stripe";
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
     const amount = (session.amount_subtotal ?? session.amount_total ?? 0) / 100;
     // for the Xero sync: which payment intent paid it, and how much of it was sales tax (separate update — older databases may lack tax_amount)
     await db.from("payments").update({ stripe_payment_intent_id: pi?.id ?? null, tax_amount: (session.total_details?.amount_tax ?? 0) / 100 }).eq("id", row.id);
-    await settle(row, amount, pi);
+    await safeSettle(row, amount, pi);
   }
   // in-app payment sheet (Apple Pay / Google Pay / card): settled exactly like a Checkout payment
   if (event.type === "payment_intent.succeeded") {
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
     if (!paymentId) return Response.json({ received: true });
     const { data: row } = await adminClient().from("payments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", paymentId).eq("status", "pending").select("*").maybeSingle();
     if (!row) return Response.json({ received: true, duplicate: true });
-    await settle(row, (pi.amount_received || pi.amount) / 100, pi);
+    await safeSettle(row, (pi.amount_received || pi.amount) / 100, pi);
   }
   if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed" || event.type === "charge.dispute.updated") {
     await handleDispute(event.data.object as Stripe.Dispute, event.type);
@@ -87,6 +88,19 @@ export async function POST(req: Request) {
     if (session.metadata?.job_id) await raiseAlert("payment", "warn", "Bank payment failed", `Checkout ${session.id} — the customer's bank transfer didn't go through.`, session.metadata.job_id);
   }
   return Response.json({ received: true });
+}
+
+/**
+ * The payment row is already marked paid (that's what stops duplicate deliveries), so a failure here would otherwise be
+ * silent: Stripe's retry sees "duplicate". Instead ops gets a critical alert to finish it by hand.
+ */
+async function safeSettle(row: Record<string, any>, amount: number, pi: Stripe.PaymentIntent | null) { // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    await settle(row, amount, pi);
+  } catch (e) {
+    console.error("[stripe webhook] settle failed", e);
+    await raiseAlert("payment", "critical", "Payment received but not applied", `Payment ${row.id} (${row.kind ?? "job"}, $${amount}) was charged but applying it failed: ${e instanceof Error ? e.message : String(e)}. Check the job / gift card / tip and finish it by hand.`, row.job_id ?? null).catch(() => {});
+  }
 }
 
 /** Apply a paid payment: tip, gift card, materials, talent or business invoice, or the job itself. */
