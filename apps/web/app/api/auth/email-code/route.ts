@@ -22,5 +22,5 @@ export async function POST(req: Request) {
   if (limited) return limited;
   const es = (b.data.lang ?? (await getLocale())) === "es";
   const r = await sendSignInEmail(email, b.data.next || "/auth/home", es, new URL(req.url).origin);
-  return Response.json(r.status === "sent" ? { ok: true, codeLength: r.codeLength ?? 6 } : { fallback: true });
+  return Response.json(r.status === "sent" ? { ok: true, codeLength: r.codeLength ?? 6 } : { fallback: true, reason: r.reason ?? null });
 }
