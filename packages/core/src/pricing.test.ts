@@ -1550,3 +1550,24 @@ test("Washington runs on Pacific time", async () => {
   const det = hoursUntilWindow({ scheduled_date: "2026-10-10", time_window: "morning", zip: "48201" }, now);
   assert.equal(Math.round(sea - det), 3);
 });
+
+test("job-posting discovery: parse Adzuna and screen buyers", async () => {
+  const { parseAdzuna, screenJobPosting } = await import("./biz-lead-engine.ts");
+  const c = parseAdzuna({ results: [
+    { id: 42, title: "<strong>Janitor</strong> - Night Shift", company: { display_name: "Riverside Apartments LLC" }, location: { area: ["US", "Michigan", "Wayne County", "Detroit"], display_name: "Detroit, Wayne County" }, redirect_url: "https://www.adzuna.com/x", created: "2026-10-05T00:00:00Z", salary_min: 33280, salary_max: 37440, description: "Apartment community seeks porter" },
+    { id: 43, title: "Housekeeper", company: { display_name: "Sparkle Cleaning Services" }, location: { area: ["US", "Washington", "King County", "Seattle"] } },
+    { id: 44, title: "Software Engineer", company: { display_name: "Acme Corp" }, location: { area: ["US", "Washington"] } },
+    { title: "no id" },
+  ] });
+  assert.equal(c.length, 3);
+  assert.equal(c[0].title, "Janitor - Night Shift");
+  assert.equal(c[0].state, "MI");
+  assert.equal(c[0].city, "Detroit");
+  assert.equal(c[0].pay, "$16–18/hr");
+  const keep = screenJobPosting(c[0]);
+  assert.ok(keep.keep && keep.segment === "property_manager");
+  assert.equal(screenJobPosting(c[1]).keep, false, "cleaning companies are competitors, not buyers");
+  assert.equal(screenJobPosting(c[2]).keep, false, "not work we do");
+  assert.equal(screenJobPosting({ title: "Custodian", company: "Confidential", description: "" }).keep, false);
+  assert.equal(screenJobPosting({ title: "Custodian", company: "Express Employment Professionals", description: "" }).keep, false, "agencies");
+});

@@ -17,6 +17,8 @@
  *           Leads are added by hand in the Hub (job sites don't allow scraping). New segment: offices & facilities.
  * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner'): tracked as leads, never sent the sales sequence or blasts.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: property managers and offices lead with cleaning (move-out cleans, recurring office cleaning).
+ * UPDATED : 2026-10-07_2030 UTC — job-posting discovery: JOB_POST_AREAS (Michigan + Washington), JOB_POST_QUERIES, parseAdzuna, screenJobPosting
+ *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
  */
 import { BRAND } from "./brand.ts";
 
@@ -162,4 +164,64 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
   }
   const m = bodies[Math.min(c.step, bodies.length - 1)];
   return { subject: m.subject, text: m.text + foot };
+}
+
+// ─── Job-posting discovery (licensed job-search API: Adzuna) ────────────────
+// Job sites like Indeed don't allow scraping. Adzuna is a job search engine with a public API that aggregates
+// postings from many boards; we search it daily for businesses hiring for work we do, in the states we serve.
+
+/** Where we look (the states we serve: Michigan and Washington). */
+export const JOB_POST_AREAS: { where: string; state: "MI" | "WA" }[] = [
+  { where: "Detroit, MI", state: "MI" }, { where: "Ann Arbor, MI", state: "MI" }, { where: "Troy, MI", state: "MI" }, { where: "Grand Rapids, MI", state: "MI" },
+  { where: "Lansing, MI", state: "MI" }, { where: "Flint, MI", state: "MI" }, { where: "Kalamazoo, MI", state: "MI" }, { where: "Saginaw, MI", state: "MI" },
+  { where: "Seattle, WA", state: "WA" }, { where: "Bellevue, WA", state: "WA" }, { where: "Tacoma, WA", state: "WA" }, { where: "Everett, WA", state: "WA" },
+  { where: "Spokane, WA", state: "WA" }, { where: "Olympia, WA", state: "WA" }, { where: "Vancouver, WA", state: "WA" }, { where: "Kent, WA", state: "WA" },
+];
+/** What we search for (job titles of work we can do as a service). */
+export const JOB_POST_QUERIES = ["cleaner", "janitor", "custodian", "housekeeper", "porter", "maintenance technician", "groundskeeper"] as const;
+
+/** A job-search result, normalized. */
+export interface JobPostCandidate { externalId: string; title: string; company: string; city: string | null; state: string | null; url: string | null; postedAt: string | null; pay: string | null; description: string }
+
+const WORK = /clean|janitor|custodian|housekeep|porter|maid|landscap|grounds|lawn|maintenance tech|handyman|mover|moving/i;
+// businesses that sell the same work (competitors) or place workers (agencies): not buyers
+const NOT_BUYERS = /clean|janitor|maid|custodial services|housekeeping services|staffing|recruit|personnel|temps?\b|employment|workforce|talent|labor ready|manpower|kelly services|adecco|randstad|aramark|abm\b|sodexo|iss facility|healthcare services group|merry maids|molly maid|jan-?pro|coverall|servpro|servicemaster/i;
+const UNNAMED = /^(confidential|company|employer|private|n\/?a|unknown|hiring|anonymous)\b/i;
+
+/** Keep a posting only when a business (not a cleaning company or agency) is hiring for work we do. Picks the segment. */
+export function screenJobPosting(p: Pick<JobPostCandidate, "title" | "company" | "description">): { keep: boolean; why: string; segment: BizSegment } {
+  const company = p.company.trim();
+  const text = `${company} ${p.description}`.toLowerCase();
+  const segment: BizSegment = /propert|apartment|residential|communities|homes\b|living|realty management|hoa|condo/i.test(text) ? "property_manager"
+    : /real estate|realty|realtor|brokerage/i.test(text) ? "real_estate"
+    : /storage/i.test(text) ? "storage"
+    : /furniture|appliance|mattress/i.test(text) ? "retail"
+    : "facilities";
+  if (!company || company.length < 3 || UNNAMED.test(company)) return { keep: false, why: "no company name", segment };
+  if (!WORK.test(p.title)) return { keep: false, why: "not work we do", segment };
+  if (NOT_BUYERS.test(company)) return { keep: false, why: "cleaning company or staffing agency", segment };
+  return { keep: true, why: "business hiring for work we do", segment };
+}
+
+/** Adzuna search response → candidates (https://developer.adzuna.com/docs/search). */
+export function parseAdzuna(json: unknown): JobPostCandidate[] {
+  const results = (json as { results?: unknown[] } | null)?.results ?? [];
+  const out: JobPostCandidate[] = [];
+  for (const r of results as Record<string, unknown>[]) {
+    const id = r.id != null ? String(r.id) : "";
+    const title = typeof r.title === "string" ? r.title.replace(/<[^>]+>/g, "").trim() : "";
+    const company = ((r.company as { display_name?: string } | undefined)?.display_name ?? "").trim();
+    if (!id || !title) continue;
+    const area = ((r.location as { area?: string[] } | undefined)?.area ?? []) as string[];
+    const display = (r.location as { display_name?: string } | undefined)?.display_name ?? "";
+    const stateName = area[1] ?? "";
+    const state = /michigan/i.test(stateName) ? "MI" : /washington/i.test(stateName) ? "WA" : (display.match(/,\s*([A-Z]{2})\b/)?.[1] ?? null);
+    const city = area[area.length - 1] ?? (display.split(",")[0]?.trim() || null);
+    const min = Number(r.salary_min), max = Number(r.salary_max);
+    const hourly = (v: number) => (v > 1000 ? v / 2080 : v); // annual figures → per hour
+    const pay = Number.isFinite(min) && min > 0 ? `$${Math.round(hourly(min))}${Number.isFinite(max) && max > min ? `–${Math.round(hourly(max))}` : ""}/hr` : null;
+    out.push({ externalId: id, title: title.slice(0, 120), company: company.slice(0, 160), city, state, url: typeof r.redirect_url === "string" ? r.redirect_url : null,
+      postedAt: typeof r.created === "string" ? r.created : null, pay, description: typeof r.description === "string" ? r.description.replace(/<[^>]+>/g, " ").slice(0, 1000) : "" });
+  }
+  return out;
 }

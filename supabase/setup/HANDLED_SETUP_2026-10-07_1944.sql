@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-07_1826.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-07_1944.sql   (generated — do not hand edit)
 -- PROJECT : Handled (HandledServices)
--- CREATED : 2026-10-07_1826 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 59 migrations + production seed.
+-- CREATED : 2026-10-07_1944 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 60 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -3515,6 +3515,28 @@ update public.markets set price_multiplier = 1.25
  where state = 'WA' and name in ('Seattle & Eastside', 'Everett & North Sound', 'Tacoma & South Sound');
 update public.markets set price_multiplier = 1.20
  where state = 'WA' and name not in ('Seattle & Eastside', 'Everett & North Sound', 'Tacoma & South Sound');
+
+
+-- >>> migration 20261007080000_job_post_discovery.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261007080000_job_post_discovery.sql
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
+-- CREATED : 2026-10-07_2030 UTC
+-- PURPOSE : Automatic job-posting leads: businesses in Michigan and Washington hiring for work we do (cleaner, janitor,
+--           porter, maintenance…) found daily through a licensed job-search API (Adzuna), then emailed the
+--           "book it as a service instead of hiring" sequence.
+--             • biz_leads.source adds 'job_board'; new columns state, posting_pay, posted_at
+--             • biz_lead_settings.job_posts_per_day — searches per weekday (0 = off)
+--           Safe to run twice.
+-- ============================================================================
+alter table public.biz_leads drop constraint if exists biz_leads_source_check;
+alter table public.biz_leads add constraint biz_leads_source_check check (source in ('google_places','csv','manual','job_board'));
+alter table public.biz_leads
+  add column if not exists state text,
+  add column if not exists posting_pay text check (posting_pay is null or length(posting_pay) <= 40),
+  add column if not exists posted_at timestamptz;
+create index if not exists biz_leads_company_idx on public.biz_leads (lower(business_name));
+alter table public.biz_lead_settings add column if not exists job_posts_per_day int not null default 6 check (job_posts_per_day between 0 and 40);
 
 
 -- >>> seed.sql

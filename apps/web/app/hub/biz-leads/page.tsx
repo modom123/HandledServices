@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-05_0130 UTC — job-posting leads: add a business that posted a job for work we do; open its letter.
  * UPDATED : 2026-10-05_2134 UTC — Teaming partners (public bids) section; partners kept out of the funnel, call list and stats.
  * UPDATED : 2026-10-05_2141 UTC — every lead opens its own page with the full note history; latest note shown in the lists.
+ * UPDATED : 2026-10-07_2030 UTC — job-posting leads show the posted pay and state.
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
@@ -19,7 +20,7 @@ import { Stat } from "@/components/ui";
 import { BizLeadSettingsForm, BizLeadStatus, JobPostLeadForm } from "@/components/BizLeadAdmin";
 
 export const dynamic = "force-dynamic";
-type Lead = { id: string; business_name: string; segment: BizSegment; city: string | null; email: string | null; phone: string | null; website: string | null; rating: number | null; review_count: number | null; score: number; status: string; account_id: string | null; created_at: string; job_title: string | null; posting_source: string | null; posting_url: string | null; notes: string | null };
+type Lead = { id: string; business_name: string; segment: BizSegment; city: string | null; email: string | null; phone: string | null; website: string | null; rating: number | null; review_count: number | null; score: number; status: string; account_id: string | null; created_at: string; job_title: string | null; posting_source: string | null; posting_url: string | null; notes: string | null; posting_pay?: string | null; state?: string | null };
 
 export default async function BizLeads() {
   const db = adminClient();
@@ -34,7 +35,7 @@ export default async function BizLeads() {
   const Row = ({ l }: { l: Lead }) => (
     <tr className="border-t border-line">
       <td className="p-3"><Link href={`/hub/biz-leads/${l.id}`} className="font-semibold text-brand hover:underline">{l.business_name}</Link><div className="text-xs text-ink-soft">{BIZ_SEGMENTS[l.segment]?.label} · {l.city ?? "—"}{l.rating ? ` · ${l.rating}★ (${l.review_count})` : ""}</div>{lastNote(l.id)}
-        {l.job_title && <div className="text-xs">📋 Posted: {l.posting_url ? <a href={l.posting_url} target="_blank" className="underline">{l.job_title}</a> : l.job_title}{l.posting_source ? ` (${l.posting_source})` : ""} · <Link href={`/hub/biz-leads/${l.id}/letter`} className="font-semibold text-brand underline">letter</Link></div>}</td>
+        {l.job_title && <div className="text-xs">📋 Posted: {l.posting_url ? <a href={l.posting_url} target="_blank" className="underline">{l.job_title}</a> : l.job_title}{l.posting_pay ? ` · pays ${l.posting_pay}` : ""}{l.posting_source ? ` (${l.posting_source})` : ""}{l.state ? ` · ${l.state}` : ""} · <Link href={`/hub/biz-leads/${l.id}/letter`} className="font-semibold text-brand underline">letter</Link></div>}</td>
       <td className="p-3 text-xs">{l.email ?? "—"}<div>{l.phone ?? ""}</div>{l.website && <a href={l.website} target="_blank" className="underline">site</a>}</td>
       <td className="p-3 text-xs">{l.score}</td>
       <td className="p-3 text-xs">{l.status}{l.account_id && <> · <Link className="underline" href={`/hub/business/${l.account_id}`}>account</Link></>}</td>

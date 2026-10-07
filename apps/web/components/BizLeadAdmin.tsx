@@ -6,6 +6,7 @@
  *           run now, and lead outcomes from calls.
  * UPDATED : 2026-10-05_0130 UTC — "Add a business from a job posting" (job-posting letter by email, or print it).
  * UPDATED : 2026-10-05_2134 UTC — partner status options (no automated email).
+ * UPDATED : 2026-10-07_2030 UTC — job-posting searches/day setting and "Find job postings now" (Adzuna, Michigan + Washington).
  */
 "use client";
 
@@ -60,7 +61,7 @@ export function JobPostLeadForm({ sendingReady }: { sendingReady: boolean }) {
   );
 }
 
-export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number } }) {
+export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number } }) {
   const router = useRouter();
   const [f, setF] = useState(s);
   const [msg, setMsg] = useState("");
@@ -69,6 +70,7 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
       <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={f.enabled} onChange={(e) => setF({ ...f, enabled: e.target.checked })} /> Engine on (weekdays, with the pro lead engine)</label>
       <div className="flex flex-wrap gap-4">
         <label className="flex items-center gap-1">Searches/day <input className="input w-16" inputMode="numeric" value={f.discover_per_day} onChange={(e) => setF({ ...f, discover_per_day: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></label>
+        <label className="flex items-center gap-1" title="Job-board searches each weekday (Michigan + Washington, via Adzuna)">Job-posting searches/day <input className="input w-16" inputMode="numeric" value={f.job_posts_per_day ?? 6} onChange={(e) => setF({ ...f, job_posts_per_day: Math.min(40, Number(e.target.value.replace(/\D/g, "")) || 0) })} /></label>
         <label className="flex items-center gap-1">New sequences/day <input className="input w-16" inputMode="numeric" value={f.emails_per_day} onChange={(e) => setF({ ...f, emails_per_day: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></label>
         <label className="flex items-center gap-1">Pilot <input className="input w-14" inputMode="numeric" value={f.pilot_pct} onChange={(e) => setF({ ...f, pilot_pct: Math.min(BUSINESS_TERMS.maxPilotPct, Number(e.target.value.replace(/\D/g, "")) || 0) })} />% off the first <input className="input w-12" inputMode="numeric" value={f.pilot_jobs} onChange={(e) => setF({ ...f, pilot_jobs: Math.min(BUSINESS_TERMS.maxPilotJobs, Number(e.target.value.replace(/\D/g, "")) || 0) })} /> jobs</label>
       </div>
@@ -78,6 +80,7 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
       <div className="flex gap-2">
         <button className="btn-primary" onClick={async () => { const e = await post({ action: "settings", ...f }); setMsg(e ?? "Saved"); router.refresh(); }}>Save</button>
         <button className="btn-ghost" onClick={async () => { setMsg("Running…"); const e = await post({ action: "run" }); setMsg(e ?? "Done"); router.refresh(); }}>Run now</button>
+        <button className="btn-ghost" onClick={async () => { setMsg("Searching job boards…"); const e = await post({ action: "job_posts" }); setMsg(e ?? "Done — new job-posting leads are in the list"); router.refresh(); }}>Find job postings now</button>
         {msg && <span className="self-center text-ink-soft">{msg}</span>}
       </div>
     </div>

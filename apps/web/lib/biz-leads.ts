@@ -18,9 +18,12 @@
  * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner') are never enriched, queued or sent the sequence.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: searches Detroit and the 38 surrounding cities (FOCUS_CITIES); default segments are the cleaning buyers (offices, property managers, real estate).
  * UPDATED : 2026-10-06_0726 UTC — security: business websites are read through safeFetch() (no internal / metadata addresses, redirects checked).
+ * UPDATED : 2026-10-07_2030 UTC — Places discovery covers Washington cities too (state saved on the lead).
+ * UPDATED : 2026-10-07_2030 UTC — discoverJobPostings: weekday job-posting leads in Michigan and Washington from Adzuna's job-search API
+ *           (never scraped from job sites), Places adds website and phone, then the usual enrich → job-posting sequence.
  */
 import "server-only";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, FOCUS_CITIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
@@ -29,12 +32,14 @@ import { addLeadToCampaign, blockInInstantly, instantlyBizReady } from "./instan
 import { safeFetch } from "./safe-fetch";
 
 const db = () => adminClient();
-const METRO = FOCUS_CITIES;
+// Michigan (Detroit metro focus) + Washington (Puget Sound and Spokane) — the states we serve
+const WA_CITIES = ["Seattle", "Bellevue", "Redmond", "Kirkland", "Renton", "Kent", "Tacoma", "Federal Way", "Everett", "Lynnwood", "Olympia", "Vancouver", "Spokane"];
+const METRO = [...FOCUS_CITIES.map((c) => ({ city: c, state: "MI" })), ...WA_CITIES.map((c) => ({ city: c, state: "WA" }))];
 
-export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number }
+export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number }
 export async function getBizLeadSettings(): Promise<BizLeadSettings> {
   const { data } = await db().from("biz_lead_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, ...(data ?? {}) } as BizLeadSettings;
+  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, ...(data ?? {}) } as BizLeadSettings;
 }
 
 async function event(leadId: string, kind: string, note?: string | null, actor = "engine") {
@@ -45,13 +50,13 @@ export async function discoverBizLeads(s: BizLeadSettings) {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key || !s.segments.length) return { searches: 0, added: 0 };
   const day = Math.floor(Date.now() / 86400000);
-  const list = Array.from({ length: s.discover_per_day }, (_, i) => ({ segment: s.segments[(day + i) % s.segments.length], city: METRO[(day * 3 + i) % METRO.length] }));
+  const list = Array.from({ length: s.discover_per_day }, (_, i) => ({ segment: s.segments[(day + i) % s.segments.length], ...METRO[(day * 3 + i) % METRO.length] }));
   let added = 0;
   for (const t of list) {
     const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.addressComponents" },
-      body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} in ${t.city}, MI`, maxResultCount: 20 }),
+      body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} in ${t.city}, ${t.state}`, maxResultCount: 20 }),
       signal: AbortSignal.timeout(10000),
     }).catch(() => null);
     if (!r?.ok) continue;
@@ -61,15 +66,82 @@ export async function discoverBizLeads(s: BizLeadSettings) {
       const comp = (type: string) => p.addressComponents?.find((c) => c.types.includes(type))?.longText ?? null;
       const row = {
         source: "google_places", external_id: p.id, business_name: p.displayName?.text ?? "Business", segment: t.segment,
-        city: comp("locality") ?? t.city, zip: comp("postal_code"), phone: p.nationalPhoneNumber ?? null, website: p.websiteUri ?? null,
+        city: comp("locality") ?? t.city, state: t.state, zip: comp("postal_code"), phone: p.nationalPhoneNumber ?? null, website: p.websiteUri ?? null,
         rating: p.rating ?? null, review_count: p.userRatingCount ?? null, details_expire_at: new Date(Date.now() + 30 * 86400000).toISOString(),
         score: bizLeadScore({ rating: p.rating, reviewCount: p.userRatingCount, website: p.websiteUri, phone: p.nationalPhoneNumber }),
       };
       const { data: ins } = await db().from("biz_leads").upsert(row, { onConflict: "source,external_id", ignoreDuplicates: true }).select("id");
-      if (ins?.length) { added++; await event(ins[0].id, "found", `${BIZ_SEGMENTS[t.segment].search} in ${t.city}`); }
+      if (ins?.length) { added++; await event(ins[0].id, "found", `${BIZ_SEGMENTS[t.segment].search} in ${t.city}, ${t.state}`); }
     }
   }
   return { searches: list.length, added };
+}
+
+export const jobBoardReady = () => Boolean(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
+
+/** Look a business up on Google Places for its website and phone (job postings don't include them). */
+async function placesLookup(company: string, city: string | null, state: string | null) {
+  const key = process.env.GOOGLE_PLACES_API_KEY;
+  if (!key) return null;
+  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.addressComponents" },
+    body: JSON.stringify({ textQuery: `${company} ${city ?? ""} ${state ?? ""}`.trim(), maxResultCount: 1 }),
+    signal: AbortSignal.timeout(10000),
+  }).catch(() => null);
+  if (!r?.ok) return null;
+  const p = ((await r.json()) as { places?: { nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string; addressComponents?: { longText: string; types: string[] }[] }[] }).places?.[0];
+  if (!p || (p.businessStatus && p.businessStatus !== "OPERATIONAL")) return null;
+  return { phone: p.nationalPhoneNumber ?? null, website: p.websiteUri ?? null, rating: p.rating ?? null, reviews: p.userRatingCount ?? null, zip: p.addressComponents?.find((c) => c.types.includes("postal_code"))?.longText ?? null };
+}
+
+/**
+ * Weekdays: businesses in Michigan and Washington hiring for work we do, from Adzuna's job-search API (a licensed
+ * aggregator — job sites like Indeed are never scraped). Each new company becomes a job-posting lead: Places adds its
+ * website and phone, enrichment finds the email on its site, and the "book it as a service instead of hiring"
+ * sequence goes out through Instantly. Cleaning companies, staffing agencies and unnamed employers are skipped.
+ */
+export async function discoverJobPostings(s: BizLeadSettings) {
+  const out = { searches: 0, found: 0, added: 0, skipped: 0 };
+  const id = process.env.ADZUNA_APP_ID, key = process.env.ADZUNA_APP_KEY;
+  const n = Math.max(0, Math.min(40, Number(s.job_posts_per_day ?? 6)));
+  if (!id || !key || !n) return out;
+  const day = Math.floor(Date.now() / 86400000);
+  const plan = Array.from({ length: n }, (_, i) => ({ area: JOB_POST_AREAS[(day * n + i) % JOB_POST_AREAS.length], what: JOB_POST_QUERIES[(day + i) % JOB_POST_QUERIES.length] }));
+  const seen = new Set<string>();
+  let lookups = 0;
+  for (const t of plan) {
+    const url = `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${encodeURIComponent(id)}&app_key=${encodeURIComponent(key)}&results_per_page=50&max_days_old=14&sort_by=date&distance=40`
+      + `&what=${encodeURIComponent(t.what)}&where=${encodeURIComponent(t.area.where)}&content-type=application/json`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(12000) }).catch(() => null);
+    out.searches++;
+    if (!r?.ok) continue;
+    for (const c of parseAdzuna(await r.json().catch(() => null))) {
+      out.found++;
+      const state = c.state ?? t.area.state;
+      const company = c.company.trim();
+      const k = company.toLowerCase();
+      const screen = screenJobPosting(c);
+      if (!screen.keep || !["MI", "WA"].includes(state) || seen.has(k)) { out.skipped++; continue; }
+      seen.add(k);
+      // one lead per company: skip if we already have them (any source)
+      const { data: dup } = await db().from("biz_leads").select("id").ilike("business_name", company.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle();
+      if (dup) { out.skipped++; continue; }
+      const place = lookups < 30 ? (lookups++, await placesLookup(company, c.city, state)) : null;
+      const row = {
+        source: "job_board", external_id: c.externalId, business_name: company, segment: screen.segment, city: c.city, state, zip: place?.zip ?? null,
+        phone: place?.phone ?? null, website: place?.website ?? null, rating: place?.rating ?? null, review_count: place?.reviews ?? null,
+        job_title: c.title.slice(0, 120), posting_source: "Job board (via Adzuna)", posting_url: c.url && /^https?:\/\//.test(c.url) ? c.url : null,
+        posting_pay: c.pay, posted_at: c.postedAt, details_expire_at: place ? new Date(Date.now() + 30 * 86400000).toISOString() : null,
+        score: Math.min(100, bizLeadScore({ rating: place?.rating, reviewCount: place?.reviews, website: place?.website, phone: place?.phone }) + 30),
+        // with a website, enrichment looks for the email next; otherwise it goes on the call list with the posting link
+        status: place?.website ? "new" : "call",
+      };
+      const { data: ins } = await db().from("biz_leads").upsert(row, { onConflict: "source,external_id", ignoreDuplicates: true }).select("id");
+      if (ins?.length) { out.added++; await event(ins[0].id, "found", `job posting: ${c.title}${c.pay ? ` (${c.pay})` : ""} — ${t.area.where}`); }
+    }
+  }
+  return out;
 }
 
 const UA = `${BRAND.name}Bot/1.0 (+${siteUrl()}/business)`;
@@ -239,10 +311,13 @@ export async function bizLeadEngine() {
   const s = await getBizLeadSettings();
   if (!s.enabled) return { enabled: false };
   const discovered = await discoverBizLeads(s).catch((e) => { console.error("[biz leads discover]", e); return { searches: 0, added: 0 }; });
+  const jobPosts = await discoverJobPostings(s).catch((e) => { console.error("[biz leads job posts]", e); return { searches: 0, found: 0, added: 0, skipped: 0 }; });
   const emailsFound = await enrichBizLeads().catch(() => 0);
   const sent = await sendBizLeadEmails(s).catch((e) => { console.error("[biz leads send]", e); return { sent: 0, skipped: 0 }; });
   const purged = await purgeBizLeadDetails().catch(() => 0);
   if (!process.env.GOOGLE_PLACES_API_KEY || !instantlyBizReady())
     await raiseAlert("sales", "info", "Business sales engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing. " : ""}${!instantlyBizReady() ? "INSTANTLY_BIZ_CAMPAIGN_ID (a second Instantly campaign) / INSTANTLY_API_KEY / BUSINESS_POSTAL_ADDRESS missing." : ""}`);
-  return { enabled: true, discovered, emailsFound, sent, purged };
+  if (!jobBoardReady() && (s.job_posts_per_day ?? 6) > 0)
+    await raiseAlert("sales", "info", "Job-posting leads are waiting for an Adzuna key", "Get a free key at developer.adzuna.com, then set ADZUNA_APP_ID and ADZUNA_APP_KEY in Vercel. Businesses in Michigan and Washington hiring cleaners, janitors, porters and maintenance techs become leads automatically.");
+  return { enabled: true, discovered, jobPosts, emailsFound, sent, purged };
 }
