@@ -4,6 +4,8 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-03_0306 UTC — ?lang=es / ?lang=en on any page sets the language (links in Spanish
  *           Indeed posts, emails and ads open the site in Spanish).
+ * UPDATED : 2026-10-07_0300 UTC — a sign-in that lands on the wrong page (?code= / ?token_hash= / ?error_code=) is finished
+ *           at /auth/callback or sent to sign-in with a clear message.
  * UPDATED : 2026-10-07_0240 UTC — ?theme= picks and remembers one of the three website looks (lib/theme.ts).
  * UPDATED : 2026-10-07_0110 UTC — ?partner=CODE on any public page remembers the referral partner (90 days, first click wins).
  * PURPOSE : Refreshes the Supabase auth session cookie on every request to the
@@ -16,6 +18,17 @@ import { SUPABASE_KEY, SUPABASE_URL, supabaseConfigured } from "@/lib/supabase/e
 const SIGNED_IN = /^\/(account|pro|hub|login|partner)(\/|$)/;
 
 export async function proxy(request: NextRequest) {
+  // Supabase sends sign-in links back to the Site URL when our callback isn't on its allow-list: catch the login (?code=,
+  // ?token_hash=) or its error (?error_code=otp_expired…) on any page and finish it properly instead of ignoring it
+  const sp = request.nextUrl.searchParams;
+  if (request.nextUrl.pathname !== "/auth/callback" && (sp.get("code") || sp.get("token_hash")) && !request.nextUrl.pathname.startsWith("/api")) {
+    const to = new URL("/auth/callback", request.url);
+    for (const k of ["code", "token_hash", "type", "next"]) { const v = sp.get(k); if (v) to.searchParams.set(k, v); }
+    return NextResponse.redirect(to);
+  }
+  if (sp.get("error_code") || (sp.get("error") && sp.get("error_description"))) {
+    return NextResponse.redirect(new URL(`/login?expired=1`, request.url));
+  }
   // ?lang= switches the site language (and remembers it) — this request sees it too
   const lang = request.nextUrl.searchParams.get("lang");
   const setLang = lang === "es" || lang === "en" ? lang : null;

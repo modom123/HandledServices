@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-05_0246 UTC — interview: candidate messages to the AI interviewer.
  * UPDATED : 2026-10-06_0708 UTC — pay: in-app payment sheets (Apple Pay / Google Pay).
  * UPDATED : 2026-10-06_2300 UTC — signin: sign-in code emails.
+ * UPDATED : 2026-10-07_0245 UTC — signin_ip 40/hour and signin_email 8 per 15 min (10/hour per IP and email locked people out).
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -24,7 +25,9 @@ export const LIMITS = {
   tip: [20, 3600],
   pay: [30, 3600],
   error_report: [30, 600],
-  signin: [10, 3600],        // sign-in emails per IP (and per email address)
+  signin: [10, 3600],        // (old name, unused)
+  signin_ip: [40, 3600],     // sign-in code requests per connection (an office shares one) per hour
+  signin_email: [8, 900],    // sign-in code requests per email address per 15 minutes
 } as const satisfies Record<string, readonly [number, number]>;
 
 export function clientIp(req: Request): string {

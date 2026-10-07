@@ -207,6 +207,8 @@ export const ES_APP: Record<string, string> = {
   "Couldn't sign in": "No se pudo iniciar sesión",
   "We sent a 6-digit code to": "Enviamos un código de 6 dígitos a",
   "We sent a sign-in code to": "Enviamos un código de acceso a",
+  "Check your email": "Revise su correo",
+  "We just sent you a code. Use the newest one in your email.": "Acabamos de enviarle un código. Use el más reciente de su correo.",
   "Sign-in code": "Código de acceso",
   "Use a different email": "Usar otro correo",
   "Resend in": "Reenviar en",

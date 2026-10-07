@@ -14,6 +14,8 @@
  *           Supabase's own email.
  * UPDATED : 2026-10-07_0140 UTC — every fallback says why (no key, Supabase error, Resend refusal) so the sign-in page and
  *           /api/auth/check can show it.
+ * UPDATED : 2026-10-07_0245 UTC — Supabase's one-code-per-minute rule returns "wait" (the last code still works) instead of
+ *           falling back to Supabase's own email, which then hit its hourly email limit ("too many sign-ins").
  */
 import "server-only";
 import { BRAND } from "@handled/core";
@@ -29,6 +31,7 @@ type Login = { code: string | null; hash: string };
 /** A one-time login for this email (creating the account if it's new). null if the auth admin API isn't available. */
 let lastLoginError = "";
 async function makeLogin(email: string): Promise<Login | null> {
+  lastLoginError = "";
   if (!supabaseConfigured || !process.env.SUPABASE_SERVICE_ROLE_KEY) { lastLoginError = "SUPABASE_SERVICE_ROLE_KEY is not set"; return null; }
   const db = adminClient();
   const gen = async () => {
@@ -59,11 +62,16 @@ export const confirmUrl = (hash: string, next: string, base = siteUrl()) =>
  * Email a sign-in code + link. Returns "sent" (with the code's length — Supabase projects send 6 to 10 digits), or
  * "fallback" when the caller should use Supabase's own email (no service role key, no email provider, or the send failed).
  */
-export async function sendSignInEmail(rawEmail: string, next: string, es = false, origin?: string): Promise<{ status: "sent" | "fallback"; codeLength?: number; reason?: string }> {
+export async function sendSignInEmail(rawEmail: string, next: string, es = false, origin?: string): Promise<{ status: "sent" | "fallback" | "wait"; codeLength?: number; reason?: string; wait?: number }> {
   const email = normalizeEmail(rawEmail);
   if (!emailConfigured()) return { status: "fallback", reason: "No email provider set (RESEND_API_KEY or SMTP_USER/SMTP_PASSWORD)" };
   const login = await makeLogin(email);
-  if (!login) return { status: "fallback", reason: lastLoginError || "Couldn't create the sign-in code" };
+  if (!login) {
+    // Supabase allows one new code per address every ~60 seconds: the previous code is still good — don't fall back
+    const wait = lastLoginError.match(/after (\d+) seconds?/i);
+    if (wait || /rate limit|too many/i.test(lastLoginError)) return { status: "wait", wait: wait ? Number(wait[1]) : 60, reason: lastLoginError };
+    return { status: "fallback", reason: lastLoginError || "Couldn't create the sign-in code" };
+  }
   // the configured address, unless it's localhost and the person is on the real site — then the site they're on
   const base = /localhost|127\.0\.0\.1/.test(siteUrl()) && origin && !/localhost|127\.0\.0\.1/.test(origin) ? origin : siteUrl();
   const link = confirmUrl(login.hash, next, base);

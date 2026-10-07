@@ -8,6 +8,9 @@
  *           are sent to apply) and team access is added by an admin (Hub → Team) — the choice only picks where you land,
  *           it never grants access. The last choice is remembered on this device. English / Spanish.
  * UPDATED : 2026-10-06_2100 UTC — sign-in never crashes on a Supabase failure; common errors explained in plain words.
+ * UPDATED : 2026-10-07_0250 UTC — "too many sign-ins" fixes: one new code per minute (Supabase's rule) with a 60s resend timer;
+ *           a code sent moments ago shows the code box instead of an error; a rate limit still opens the code box (the
+ *           last code works); "I already have a code"; emails trimmed/lower-cased; no double submits; clearer messages.
  * UPDATED : 2026-10-06_2305 UTC — Handled sends the sign-in email itself (/api/auth/email-code → lib/signin): it always has the code,
  *           and its link works in any browser or phone. Supabase's own email is only the fallback. The code box takes 6–10
  *           digits (whatever the project sends), ignores spaces and dashes, fills from the keyboard's one-time-code
@@ -26,7 +29,9 @@ const KEY = "handled_who";
 function friendly(raw: string, es: boolean): string {
   const m = raw.toLowerCase();
   const say = (en: string, sp: string) => `${es ? sp : en} (${raw})`;
-  if (m.includes("rate limit")) return say("Too many sign-in emails right now. Wait a few minutes and try again.", "Demasiados correos de acceso. Espere unos minutos e intente de nuevo.");
+  const secs = m.match(/after (\d+) seconds?/)?.[1];
+  if (secs) return say(`A code was just sent — use it, or ask for a new one in ${secs} seconds.`, `Acabamos de enviar un código: úselo, o pida uno nuevo en ${secs} segundos.`);
+  if (m.includes("rate limit") || m.includes("too many")) return say("The backup email sender is at its hourly limit. Our own sign-in email needs to be set up (see /auth/check) — or try again in an hour.", "El correo de respaldo llegó a su límite por hora. Hay que configurar nuestro correo de acceso (vea /auth/check), o intente en una hora.");
   if (m.includes("not authorized") || m.includes("error sending")) return say("We couldn't send the sign-in email. Please try again shortly — our team has been notified.", "No pudimos enviar el correo de acceso. Intente de nuevo en un momento.");
   if (m.includes("invalid api key") || m.includes("invalid jwt") || m.includes("no api key")) return say("Sign-in is temporarily unavailable (server settings). Please try again later.", "El acceso no está disponible por ahora (configuración). Intente más tarde.");
   if (m.includes("signups not allowed") || m.includes("signup is disabled")) return say("New accounts are turned off right now.", "Las cuentas nuevas están desactivadas por ahora.");
@@ -50,30 +55,43 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
   useEffect(() => { try { const w = localStorage.getItem(KEY) as Who | null; if (w && w in DEST && !explicit) setWho(w); } catch { /* private mode */ } }, [explicit]);
   const dest = explicit ? next : who ? DEST[who] : "/auth/home";
 
+  const RESEND = 60; // Supabase allows one new code per address per minute
+  const toCodeScreen = (waitSecs = RESEND) => { setSent(true); setCode(""); setWait(waitSecs); };
+
   async function sendLink(e?: React.FormEvent) {
     e?.preventDefault();
+    if (busy) return;
+    const addr = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(addr)) return setMsg(es ? "Escriba un correo válido." : "Enter a valid email.");
+    setEmail(addr);
     try { if (who) localStorage.setItem(KEY, who); } catch { /* private mode */ }
     setBusy(true); setMsg("");
     try {
       // Handled's own email: code + a link that works on any device
-      const r = await fetch("/api/auth/email-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, next: dest, lang: es ? "es" : "en" }) });
+      const r = await fetch("/api/auth/email-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: addr, next: dest, lang: es ? "es" : "en" }) });
       const j = await r.json().catch(() => ({}));
-      if (r.status === 429 || r.status === 400) { setBusy(false); return setMsg(String(j.error ?? (es ? "Intente de nuevo." : "Try again."))); }
+      if (r.status === 429) { setBusy(false); setMsg(String(j.error)); return toCodeScreen(0); } // they likely have a code already — let them type it
+      if (r.status === 400) { setBusy(false); return setMsg(String(j.error ?? (es ? "Intente de nuevo." : "Try again."))); }
+      if (r.ok && j.wait) { setBusy(false); setBackup(null); setMsg(es ? `Acabamos de enviarle un código: revise su correo (y spam). Puede pedir otro en ${j.wait} s.` : `We just sent you a code — check your email (and spam). You can ask for another in ${j.wait}s.`); return toCodeScreen(Number(j.wait)); }
       if (r.ok && j.codeLength) setLen(Number(j.codeLength));
       setBackup(r.ok && j.fallback ? String(j.reason ?? "unknown") : null);
       if (!r.ok || j.fallback) {
-        const { error } = await browserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
-        if (error) { setBusy(false); return setMsg(friendly(error.message, es)); }
+        const { error } = await browserClient().auth.signInWithOtp({ email: addr, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
+        if (error) {
+          setBusy(false);
+          setMsg(friendly(error.message, es));
+          if (/after \d+ seconds?/i.test(error.message)) toCodeScreen(Number(error.message.match(/after (\d+)/i)?.[1] ?? RESEND));
+          return;
+        }
       }
     } catch (err) { setBusy(false); return setMsg(friendly(err instanceof Error ? err.message : String(err), es)); }
     setBusy(false);
-    setSent(true);
-    setCode("");
-    setWait(30);
+    toCodeScreen();
   }
 
   async function verify(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true); setMsg("");
     try {
       const { error } = await browserClient().auth.verifyOtp({ email: email.trim().toLowerCase(), token: code, type: "email" });
@@ -115,6 +133,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
           <input className="input" type="email" required placeholder={es ? "su@correo.com" : "you@email.com"} value={email} onChange={(e) => setEmail(e.target.value)} />
           <button className="btn-primary w-full" disabled={busy || (!explicit && !who)}>{busy ? (es ? "Enviando…" : "Sending…") : es ? "Enviarme un código" : "Email me a sign-in code"}</button>
           {!explicit && !who && <p className="text-center text-xs text-ink-soft">{es ? "Elija una opción arriba." : "Pick one above."}</p>}
+          <button type="button" className="w-full text-center text-sm text-brand underline" onClick={() => { if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setMsg(es ? "Escriba su correo primero." : "Type your email first."); setEmail(email.trim().toLowerCase()); setMsg(""); toCodeScreen(0); }}>{es ? "Ya tengo un código" : "I already have a code"}</button>
         </form>
       ) : (
         <form onSubmit={verify} className="mt-5 space-y-3">

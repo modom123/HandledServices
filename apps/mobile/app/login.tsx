@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-06_0708 UTC — haptics on sign-in success / failure.
  * UPDATED : 2026-10-06_2310 UTC — the code email comes from Handled (POST /api/auth/email-code: always has the code, its link works
  *           on any device); Supabase's own email is only the fallback. Code length comes from the server (6–10 digits).
+ * UPDATED : 2026-10-07_0255 UTC — 60s resend; a rate limit or a code sent moments ago opens the code box instead of an error.
  */
 import { useEffect, useRef, useState } from "react";
 import { Alert, Linking, Pressable, Text, TextInput, View } from "react-native";
@@ -22,7 +23,7 @@ import { useI18n } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { haptic } from "../lib/haptics";
 
-const RESEND_SECONDS = 30;
+const RESEND_SECONDS = 60; // Supabase allows one new code per address per minute
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
 const friendly = (m: string) => (/network|fetch|failed to/i.test(m) ? "No connection. Check your signal or Wi-Fi and try again." : /expired|invalid|token/i.test(m) ? "That code didn't work. Check it, or send a new one." : /rate|too many|security purposes/i.test(m) ? "Too many tries. Wait a minute, then send a new code." : m);
 
@@ -47,9 +48,14 @@ export default function Login() {
     const addr = email.trim().toLowerCase();
     // Handled emails the code (and a link that works on any device); Supabase's own email is the fallback
     const viaHandled = await fetch(`${API_URL}/api/auth/email-code`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: addr, next: who === "pro" ? "/pro" : "/account" }) })
-      .then(async (r) => ({ status: r.status, body: (await r.json().catch(() => ({}))) as { ok?: boolean; codeLength?: number; fallback?: boolean; error?: string } }))
+      .then(async (r) => ({ status: r.status, body: (await r.json().catch(() => ({}))) as { ok?: boolean; codeLength?: number; fallback?: boolean; error?: string; wait?: number } }))
       .catch(() => null);
-    if (viaHandled?.status === 429) { setBusy(false); return Alert.alert(t("Couldn't send the code"), t(friendly("too many"))); }
+    // too many requests, or a code went out moments ago: the last code still works — open the code box
+    if (viaHandled?.status === 429 || viaHandled?.body.wait) {
+      setBusy(false); setSent(true); setCode(""); setWait(viaHandled.body.wait ?? 0);
+      setTimeout(() => codeRef.current?.focus(), 300);
+      return Alert.alert(t("Check your email"), viaHandled.body.error ?? t("We just sent you a code. Use the newest one in your email."));
+    }
     let error: Error | null = null;
     if (viaHandled?.body.ok) setLen(Number(viaHandled.body.codeLength) || 6);
     else ({ error } = await supabase.auth.signInWithOtp({ email: addr }).catch((e) => ({ error: e as Error })));
