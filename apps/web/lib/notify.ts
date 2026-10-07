@@ -10,31 +10,49 @@
  * UPDATED : 2026-10-06_2105 UTC — defaults: sender and ops alerts go to info@handledsvc.com (EMAIL_FROM / OPS_EMAIL override).
  * UPDATED : 2026-10-06_2300 UTC — sendEmail() returns whether the email was handed off (sign-in codes fall back to Supabase when it wasn't);
  *           emailConfigured().
+ * UPDATED : 2026-10-07_0140 UTC — deliverEmail(): says why a send failed (shown on sign-in); Resend refusal → company mailbox.
  * UPDATED : 2026-10-07_0010 UTC — siteUrl() never hands out a localhost link on Vercel (falls back to the production domain).
  */
 import "server-only";
 
 export async function sendEmail(to: string | string[], subject: string, text: string, opts: { headers?: Record<string, string> } = {}): Promise<boolean> {
+  return (await deliverEmail(to, subject, text, opts)).ok;
+}
+
+/** The sender address Resend uses (must be on a domain verified in Resend). */
+export const emailFrom = () => process.env.EMAIL_FROM || "Handled <info@handledsvc.com>";
+
+/**
+ * Send an email and say why it failed. Resend first; if Resend refuses (e.g. the sender's domain isn't verified) and the
+ * company mailbox is connected, the mailbox sends it instead.
+ */
+export async function deliverEmail(to: string | string[], subject: string, text: string, opts: { headers?: Record<string, string> } = {}): Promise<{ ok: boolean; via?: "resend" | "smtp"; error?: string }> {
   const key = process.env.RESEND_API_KEY;
-  if (!key && process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const smtpReady = Boolean(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+  const viaSmtp = async (): Promise<{ ok: boolean; via?: "smtp"; error?: string }> => {
     const { sendMail } = await import("./mailbox");
     const name = (process.env.EMAIL_FROM ?? "").match(/^\s*"?([^"<]+?)"?\s*</)?.[1] ?? "Handled";
-    let ok = true;
+    let error: string | undefined;
     for (const addr of Array.isArray(to) ? to : [to])
-      await sendMail({ to: addr, subject, text, fromName: name, headers: opts.headers }).catch((e) => { ok = false; console.error("[email] smtp send failed", e instanceof Error ? e.message : e); });
-    return ok;
-  }
+      await sendMail({ to: addr, subject, text, fromName: name, headers: opts.headers }).catch((e) => { error = e instanceof Error ? e.message : String(e); console.error("[email] smtp send failed", error); });
+    return error ? { ok: false, error: `mailbox: ${error}` } : { ok: true, via: "smtp" };
+  };
+  if (!key && smtpReady) return viaSmtp();
   if (!key) {
     console.info(`[email:dev] to=${to} subject="${subject}"\n${text}`);
-    return false;
+    return { ok: false, error: "no email provider (RESEND_API_KEY or SMTP_USER/SMTP_PASSWORD)" };
   }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM || "Handled <info@handledsvc.com>", to, subject, text, ...(opts.headers ? { headers: opts.headers } : {}) }),
+    body: JSON.stringify({ from: emailFrom(), to, subject, text, ...(opts.headers ? { headers: opts.headers } : {}) }),
   }).catch((e) => { console.error("[email] send failed", e instanceof Error ? e.message : e); return null; });
-  if (!res?.ok) { if (res) console.error("[email] send failed", res.status, await res.text()); return false; }
-  return true;
+  if (res?.ok) return { ok: true, via: "resend" };
+  const body = res ? await res.text().catch(() => "") : "";
+  const reason = res ? `Resend ${res.status}: ${(body.match(/"message"\s*:\s*"([^"]+)"/)?.[1] ?? body).slice(0, 200)}` : "Resend unreachable";
+  console.error("[email] send failed", reason);
+  if (smtpReady) { const r = await viaSmtp(); return r.ok ? r : { ok: false, error: `${reason}; ${r.error}` }; }
+  return { ok: false, error: reason };
 }
 
 /** Can we actually deliver email (Resend or the company mailbox)? */

@@ -43,7 +43,8 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(0);
-  const [len, setLen] = useState(6); // digits in the code (the server says; Supabase projects send 6–10)
+  const [len, setLen] = useState(6);
+  const [backup, setBackup] = useState<string | null>(null); // why our own email couldn't go out (Supabase sent a backup) // digits in the code (the server says; Supabase projects send 6–10)
   useEffect(() => { if (!wait) return; const t = setTimeout(() => setWait((w) => Math.max(0, w - 1)), 1000); return () => clearTimeout(t); }, [wait]);
   const [msg, setMsg] = useState(expired ? (es ? "Ese enlace venció o ya se usó: escriba su correo para recibir un código nuevo." : "That sign-in link expired or was already used — enter your email for a fresh code.") : "");
   useEffect(() => { try { const w = localStorage.getItem(KEY) as Who | null; if (w && w in DEST && !explicit) setWho(w); } catch { /* private mode */ } }, [explicit]);
@@ -59,6 +60,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
       const j = await r.json().catch(() => ({}));
       if (r.status === 429 || r.status === 400) { setBusy(false); return setMsg(String(j.error ?? (es ? "Intente de nuevo." : "Try again."))); }
       if (r.ok && j.codeLength) setLen(Number(j.codeLength));
+      setBackup(r.ok && j.fallback ? String(j.reason ?? "unknown") : null);
       if (!r.ok || j.fallback) {
         const { error } = await browserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` } });
         if (error) { setBusy(false); return setMsg(friendly(error.message, es)); }
@@ -120,7 +122,13 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
           <input className="input text-center text-lg tracking-[0.4em]" inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder={"•".repeat(len)} maxLength={12}
             value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))} />
           <button className="btn-primary w-full" disabled={busy || code.length < Math.min(len, 6)}>{busy ? (es ? "Verificando…" : "Checking…") : es ? "Entrar" : "Sign in"}</button>
-          <p className="text-xs text-ink-soft">{es ? "¿No llegó? Revise spam o promociones. Viene de " : "Not there? Check spam or promotions. It comes from "}<b>info@handledsvc.com</b>.</p>
+          {backup ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+              {es ? "Nuestro correo de acceso no se pudo enviar, así que enviamos uno de respaldo. Si no trae código, abra su enlace en este mismo navegador." : "Our sign-in email couldn't be sent, so a backup email went out instead. If it has no code, open its link in this same browser on this device."}
+              <div className="mt-1 font-mono text-[11px] opacity-80">{backup}</div>
+              <a href="/auth/check" className="mt-1 inline-block underline">{es ? "Ver qué falta" : "See what's not set up"}</a>
+            </div>
+          ) : <p className="text-xs text-ink-soft">{es ? "¿No llegó? Revise spam o promociones." : "Not there? Check spam or promotions."}</p>}
           <div className="flex flex-wrap justify-between gap-2 text-sm">
             <button type="button" className="text-brand underline disabled:text-ink-soft disabled:no-underline" disabled={busy || wait > 0} onClick={() => sendLink()}>{wait > 0 ? (es ? `Enviar otro código (${wait}s)` : `Send a new code (${wait}s)`) : es ? "Enviar otro código" : "Send a new code"}</button>
             <button type="button" className="text-brand underline" onClick={() => { setSent(false); setCode(""); setMsg(""); }}>{es ? "Usar otro correo" : "Use a different email"}</button>
