@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-05_0447 UTC — photos and notes carried in from Snap & post a job.
  * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (Add event security); Plan My Event passes alcohol.
+ * UPDATED : 2026-10-07_1900 UTC — quick choices Today / Next week / In 2 weeks / Within a month / Flexible, then "Pick the day and arrival time" on the calendar.
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
  * UPDATED : 2026-10-07_1830 UTC — area price level from /api/market (region), so the price shown matches what the server charges.
  */
@@ -288,6 +289,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                   </div>
                   {urgency && <p className="mt-1 text-xs text-ink-soft">{t(URGENCY.find((u) => u.id === urgency)?.hint ?? "")}{urgency !== "flexible" ? ` · ${locale === "es" ? "antes del" : "by"} ${new Date(`${neededBy(urgency)}T12:00:00`).toLocaleDateString(locale === "es" ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric" })}` : ""}</p>}
                 </div>
+                {urgency && <p className="text-sm font-semibold">{es ? "Elija el día y la hora de llegada que prefiere" : "Pick the day and arrival time you'd like"}</p>}
                 {urgency && <BookingCalendar key={urgency} service={slug} zip={form.zip} date={date} window={win} today={urgency === "asap"} until={neededBy(urgency)} earliest={urgency === "asap"} locale={locale} onChange={(d, w) => { setDate(d); setWin(w); }} />}
               </>
             )}

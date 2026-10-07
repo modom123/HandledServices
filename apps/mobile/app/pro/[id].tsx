@@ -13,13 +13,14 @@
  * UPDATED : 2026-10-05_0221 UTC — the job checklist: tap items as they're done, hold for N/A with the reason.
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  * UPDATED : 2026-10-06_0708 UTC — after "On my way" the pro's location streams (~15 s, app open) for the customer's live map.
+ * UPDATED : 2026-10-07_1900 UTC — "today" uses the job's time zone (Pacific in Washington).
  */
 import { shareLocationOnce, useLiveRouteSharing } from "../../lib/location";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { cancelNotice, cancelTier, getService, hoursUntilWindow, localDate, money, questionVisible, scopeChange, type Job } from "@handled/core";
+import { cancelNotice, cancelTier, getService, hoursUntilWindow, jobTimeZone, localDate, money, questionVisible, scopeChange, type Job } from "@handled/core";
 
 /** What handing this job back means right now (falls back to device time if time-zone data is missing). */
 function cancelNoticeFor(job: Job, locale: string) {
@@ -62,7 +63,7 @@ export default function ProJob() {
   }, [id]);
   useEffect(() => { load(); }, [load]);
   // on the way: the customer's live map follows the pro until they arrive
-  useLiveRouteSharing(Boolean(job && job.status === "assigned" && job.en_route_at && job.scheduled_date === localDate()));
+  useLiveRouteSharing(Boolean(job && job.status === "assigned" && job.en_route_at && job.scheduled_date === localDate(new Date(), jobTimeZone(job))));
   if (!job) return null;
   const svc = getService(job.service_slug)!;
 
@@ -157,7 +158,7 @@ export default function ProJob() {
         </Card>
       )}
       {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) ? <ProChecklist jobId={job.id} es={locale === "es"} /> : null}
-      {job.status === "assigned" && job.scheduled_date === localDate() && !job.en_route_at && <Button title={`🚗 ${t("On my way")}`} kind="ghost" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "on_my_way" }); }} busy={busy} style={{ marginBottom: 8 }} />}
+      {job.status === "assigned" && job.scheduled_date === localDate(new Date(), jobTimeZone(job)) && !job.en_route_at && <Button title={`🚗 ${t("On my way")}`} kind="ghost" onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "on_my_way" }); }} busy={busy} style={{ marginBottom: 8 }} />}
       {job.status === "assigned" && job.en_route_at ? <Text style={[s.p, { marginBottom: 8 }]}>🚗 {t("The customer can see your ETA while the app is open.")}</Text> : null}
       {job.status === "assigned" && <Button title={t("I've arrived — start job")} onPress={() => { shareLocationOnce().catch(() => {}); post({ action: "start" }); }} busy={busy} />}
       {(job.status === "assigned" || job.status === "in_progress") && (

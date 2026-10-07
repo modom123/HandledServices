@@ -9,10 +9,24 @@
  *             proStatus()     — On a job / On call / Booked today / Working today / Off today
  *             proCalendar()   — each day ahead: working or off (and why), jobs booked vs daily limit
  *           Times are local to our operating area (OPS_TIME_ZONE).
+ * UPDATED : 2026-10-07_1900 UTC — Washington runs on Pacific time: timeZoneForZip / jobTimeZone / proTimeZone / zoneLabel; a pro's "today" uses their own zone.
  */
 import type { Contractor, TimeWindow } from "./types.ts";
 
 export const ROSTER_TIME_ZONE = "America/Detroit";
+export const PACIFIC_TIME_ZONE = "America/Los_Angeles";
+
+/** Time zone of a ZIP we serve: Washington (980–994) is Pacific; Michigan (and anything else) is Eastern. */
+export function timeZoneForZip(zip?: string | null): string {
+  const p = zip && /^\d{3}/.test(zip) ? Number(zip.slice(0, 3)) : NaN;
+  return p >= 980 && p <= 994 ? PACIFIC_TIME_ZONE : ROSTER_TIME_ZONE;
+}
+/** A job's local time zone (from its ZIP). */
+export const jobTimeZone = (j: { zip?: string | null }) => timeZoneForZip(j.zip);
+/** A pro's local time zone (from their place of business). */
+export const proTimeZone = (c: { base_zip?: string | null }) => timeZoneForZip(c.base_zip);
+/** "ET" / "PT" for messages. */
+export const zoneLabel = (timeZone: string) => (timeZone === PACIFIC_TIME_ZONE ? "PT" : "ET");
 /** A phone location older than this isn't used or shown as live. */
 export const LOCATION_FRESH_MIN = 30;
 /** How long "On call" lasts by default, and at most. */
@@ -67,7 +81,7 @@ export function proStatus(c: Contractor, today: { status: string }[], now = new 
   if (onCall(c, now)) return "on_call";
   const live = today.filter((j) => !["cancelled", "completed"].includes(j.status));
   if (live.length) return "booked";
-  return dayOff(c, localDate(now)) ? "off" : "working";
+  return dayOff(c, localDate(now, proTimeZone(c))) ? "off" : "working";
 }
 
 export interface CalendarDay {

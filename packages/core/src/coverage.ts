@@ -15,8 +15,10 @@
  *               actually completes the job — never to one who handed it back.
  *             hoursUntilWindow — hours until the arrival window opens, in the job's local time zone
  *               (servers run in UTC; "6 hours before" must mean 6 real hours).
+ * UPDATED : 2026-10-07_1900 UTC — hoursUntilWindow uses the job's own time zone (Pacific for Washington ZIPs).
  */
 import { OPS_TIME_ZONE } from "./pro-stats.ts";
+import { timeZoneForZip } from "./roster.ts";
 
 export const CANCEL_POLICY = {
   /** At least this many hours before the arrival window: free. */
@@ -82,7 +84,7 @@ export function zonedInstant(date: string, hour: number, timeZone = OPS_TIME_ZON
 }
 
 /** Hours from `now` until the job's arrival window opens (Infinity when it has no date). */
-export function hoursUntilWindow(job: { scheduled_date?: string | null; time_window?: string | null }, now = new Date(), timeZone = OPS_TIME_ZONE): number {
+export function hoursUntilWindow(job: { scheduled_date?: string | null; time_window?: string | null; zip?: string | null }, now = new Date(), timeZone = job.zip ? timeZoneForZip(job.zip) : OPS_TIME_ZONE): number {
   if (!job.scheduled_date) return Infinity;
   const start = zonedInstant(job.scheduled_date, WINDOW_START[job.time_window ?? "morning"] ?? 8, timeZone);
   return (start.getTime() - now.getTime()) / 3600000;

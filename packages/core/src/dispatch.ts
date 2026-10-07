@@ -15,12 +15,13 @@
  *           qualified for the trade and serve the ZIP, then ranks them. The AI dispatcher
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
  *           is used as-is, so dispatch never stops.
+ * UPDATED : 2026-10-07_1900 UTC — same-day checks use the job's time zone (Pacific in Washington).
  */
 
 import { getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
 import { proTier } from "./pro-program.ts";
-import { liveLocation, localDate, onCall } from "./roster.ts";
+import { liveLocation, localDate, onCall, timeZoneForZip } from "./roster.ts";
 import { PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
 
 export interface DispatchCandidate {
@@ -69,15 +70,15 @@ export function proDistance(c: Contractor, job: Pick<DispatchJob, "lat" | "lng">
 }
 
 /** Same-day job: miles from where the pro is right now (fresh phone location), else null. */
-export function liveDistance(c: Contractor, job: Pick<DispatchJob, "lat" | "lng" | "scheduled_date">, now = new Date()): number | null {
+export function liveDistance(c: Contractor, job: Pick<DispatchJob, "lat" | "lng" | "scheduled_date"> & { zip?: string | null }, now = new Date()): number | null {
   const here = liveLocation(c, now);
-  if (!here || job.lat == null || job.lng == null || job.scheduled_date !== localDate(now)) return null;
+  if (!here || job.lat == null || job.lng == null || job.scheduled_date !== localDate(now, timeZoneForZip(job.zip))) return null;
   return milesBetween(here, { lat: job.lat, lng: job.lng });
 }
 
 /** On call for this job: switched on and the job is today. */
-export function onCallFor(c: Contractor, job: Pick<DispatchJob, "scheduled_date">, now = new Date()): boolean {
-  return onCall(c, now) && job.scheduled_date === localDate(now);
+export function onCallFor(c: Contractor, job: Pick<DispatchJob, "scheduled_date"> & { zip?: string | null }, now = new Date()): boolean {
+  return onCall(c, now) && job.scheduled_date === localDate(now, timeZoneForZip(job.zip));
 }
 
 /** Does the pro work this date (and window)? Returns the reason they don't, or null. */

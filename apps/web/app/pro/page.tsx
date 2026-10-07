@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-03_1311 UTC — fast-track link on the tier card; approved fast-track pros skip the probation size limit.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards card (available / pending points).
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
+ * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -20,7 +21,7 @@ import { standbyFor } from "@/lib/coverage";
 import { StandbyAnswer } from "@/components/Standby";
 import { getPolicy } from "@/lib/pro-benefits";
 import { OnCallToggle } from "@/components/Roster";
-import { localDate, onCall, serviceText, t as tr, type ProPolicy } from "@handled/core";
+import { jobTimeZone, localDate, onCall, serviceText, t as tr, type ProPolicy } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
@@ -116,7 +117,7 @@ export default async function ProHome() {
       )}
       <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once insurance & background check are verified") : ""}</p></div>
       {me?.status === "approved" && (
-        <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate() && ["assigned", "in_progress"].includes(j.status))} />
+        <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status))} />
       )}
       <Link href="/pro/rewards" className="card flex flex-wrap items-center justify-between gap-2 border-brand/40 hover:border-brand">
         <div><div className="font-semibold">🎁 {es ? "Recompensas Handled Pro" : "Handled Pro Rewards"}</div><div className="text-sm text-ink-soft">{es ? `${pts.available.toLocaleString("en-US")} puntos disponibles · ${pts.pending.toLocaleString("en-US")} pendientes` : `${pts.available.toLocaleString("en-US")} points available · ${pts.pending.toLocaleString("en-US")} pending`}</div></div>

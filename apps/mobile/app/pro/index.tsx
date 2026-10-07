@@ -17,11 +17,12 @@
  * UPDATED : 2026-10-06_0708 UTC — haptics when going on / off call.
  * UPDATED : 2026-10-06_2120 UTC — Your cancellations card (last 90 days: late, no-shows, short notice, free, excused).
  * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
+ * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
-import { TIME_WINDOW_LABEL, getService, localDate, money, type Job } from "@handled/core";
+import { TIME_WINDOW_LABEL, getService, jobTimeZone, localDate, money, type Job } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { useLocationSharing } from "../../lib/location";
 import { useI18n } from "../../lib/i18n";
@@ -60,7 +61,7 @@ export default function ProHome() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   const [onCall, setOnCall] = useState<{ on: boolean; until: string | null }>({ on: false, until: null });
-  const activeToday = jobs.some((j) => j.scheduled_date === localDate() && ["assigned", "in_progress"].includes(j.status));
+  const activeToday = jobs.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status));
   useLocationSharing(onCall.on || activeToday);
   async function toggleOnCall(hours = 4) {
     const r = await api<{ onCall: boolean; until: string | null; error?: string }>("/api/pro/status", { method: "POST", body: JSON.stringify({ on_call: !onCall.on, hours }) });
@@ -90,7 +91,7 @@ export default function ProHome() {
     return () => { supabase.removeChannel(ch); };
   }, [load]);
 
-  const today = localDate();
+  const today = localDate(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone); // the phone's own zone (Pacific for Washington pros)
   const left = (iso: string) => { const sec = Math.max(0, Math.floor((new Date(iso).getTime() - now) / 1000)); return { sec, label: `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` }; };
   const tools: { icon: string; label: string; go: () => void }[] = [
     { icon: "⚡", label: t("Earnings"), go: () => router.push("/pro/earnings") },

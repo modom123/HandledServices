@@ -18,12 +18,12 @@
  * UPDATED : 2026-10-03_0117 UTC — applied deductions take at most half of a payout run and never tips
  *           (the rest carries to the next run), per the pro agreement.
  * UPDATED : 2026-10-07_1610 UTC — payouts: only the transfer decides success (a failure after money moved is reported, never undone, so nothing is paid twice); runs check the Stripe balance first; per-attempt idempotency keys; the instant fee is sent back when the instant payout fails.
+ * UPDATED : 2026-10-07_1900 UTC — arrival windows (late cancellations, show-up pay) use the job's time zone.
  */
 import "server-only";
 import {
   BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, clawbackPlan, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, serviceText, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
-  type Contractor, type Job, type ProPolicy,
-} from "@handled/core";
+  type Contractor, type Job, type ProPolicy, timeZoneForZip, zonedInstant } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, getJob, raiseAlert } from "./jobs";
 import { localeOf, notify } from "./push";
@@ -65,18 +65,14 @@ export async function benefitsFor(c: Contractor, policy?: ProPolicy) {
 
 const WINDOW_START: Record<string, number> = { morning: 8, midday: 11, afternoon: 14, flexible: 8 };
 
-/** When the arrival window starts, in the market's time zone (America/Detroit). */
-export function windowStart(job: Pick<Job, "scheduled_date" | "time_window">): Date | null {
+/** When the arrival window starts, in the job's own time zone (Pacific in Washington, Eastern in Michigan). */
+export function windowStart(job: Pick<Job, "scheduled_date" | "time_window"> & { zip?: string | null }): Date | null {
   if (!job.scheduled_date) return null;
-  const noon = new Date(`${job.scheduled_date}T12:00:00Z`);
-  const off = new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", timeZoneName: "shortOffset" }).formatToParts(noon).find((x) => x.type === "timeZoneName")?.value ?? "GMT-5";
-  const hours = Number(off.replace("GMT", "") || 0);
-  const h = WINDOW_START[job.time_window] ?? 8;
-  return new Date(Date.UTC(noon.getUTCFullYear(), noon.getUTCMonth(), noon.getUTCDate(), h - hours));
+  return zonedInstant(job.scheduled_date, WINDOW_START[job.time_window] ?? 8, timeZoneForZip(job.zip));
 }
 
 /** A customer cancelling inside 24 hours of the arrival window is a late cancellation. */
-export function isLate(job: Pick<Job, "scheduled_date" | "time_window">, now = new Date()) {
+export function isLate(job: Pick<Job, "scheduled_date" | "time_window"> & { zip?: string | null }, now = new Date()) {
   const start = windowStart(job);
   return Boolean(start && start.getTime() - now.getTime() < 24 * 3600 * 1000);
 }

@@ -271,7 +271,7 @@ const ES: Record<string, string> = {
   "Timeline": "Historial",
   "hrs": "h", "sq ft": "pies²", "Yes": "Sí", "No": "No",
   "One time": "Una vez", "Weekly (save 20%)": "Semanal (ahorre 20%)", "Every 2 weeks (save 15%)": "Cada 2 semanas (ahorre 15%)", "Monthly (save 10%)": "Mensual (ahorre 10%)", "Quarterly (save 5%)": "Trimestral (ahorre 5%)", "Weekly": "Semanal", "Every 2 weeks": "Cada 2 semanas", "Monthly": "Mensual", "Quarterly": "Trimestral",
-  "As soon as possible": "Lo antes posible", "This week": "Esta semana", "Within 2 weeks": "En 2 semanas", "Within a month": "En un mes", "I'm flexible": "Tengo flexibilidad",
+  "As soon as possible": "Lo antes posible", "Today": "Hoy", "Next week": "La próxima semana", "In 2 weeks": "En 2 semanas", "This week": "Esta semana", "Within 2 weeks": "En 2 semanas", "Within a month": "En un mes", "I'm flexible": "Tengo flexibilidad",
   // waitlist & Google reviews
   "Rather wait for a confirmed pro?": "¿Prefiere esperar a un profesional confirmado?",
   "Mobile (optional, for a text)": "Celular (opcional, para un mensaje de texto)",

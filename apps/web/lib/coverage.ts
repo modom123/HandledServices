@@ -182,7 +182,7 @@ export async function releaseBackups(jobId: string) {
 export async function coverageSweep() {
   const today = new Date().toISOString().slice(0, 10);
   const in3 = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-  const { data: jobs } = await db().from("jobs").select("id, ref, status, contractor_id, scheduled_date, time_window").gte("scheduled_date", today).lte("scheduled_date", in3).in("status", ["assigned", "scheduled", "dispatched"]).limit(500);
+  const { data: jobs } = await db().from("jobs").select("id, ref, status, contractor_id, scheduled_date, time_window, zip").gte("scheduled_date", today).lte("scheduled_date", in3).in("status", ["assigned", "scheduled", "dispatched"]).limit(500);
   let filled = 0, flagged = 0;
   for (const j of (jobs ?? []) as Pick<Job, "id" | "ref" | "status" | "contractor_id" | "scheduled_date" | "time_window">[]) {
     const left = hoursUntilWindow(j);

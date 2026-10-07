@@ -10,7 +10,9 @@
  *             onTimeRate()     — jobs started before the end of the booked time window (local time).
  *             referralDue()    — the refer-a-pro bonus is owed once the new pro finishes N jobs.
  *           Too little history → the rate stays where it is (new pros aren't punished by one miss).
+ * UPDATED : 2026-10-07_1900 UTC — on-time checks use the job's own time zone.
  */
+import { timeZoneForZip } from "./roster.ts";
 import { PRO_REFERRAL } from "./pro-program.ts";
 import type { TimeWindow } from "./types.ts";
 
@@ -36,9 +38,9 @@ export function localParts(iso: string, timeZone = OPS_TIME_ZONE): { date: strin
   return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) };
 }
 
-export function startedOnTime(j: { scheduled_date: string | null; time_window: TimeWindow; started_at: string | null }): boolean | null {
+export function startedOnTime(j: { scheduled_date: string | null; time_window: TimeWindow; started_at: string | null; zip?: string | null }): boolean | null {
   if (!j.scheduled_date || !j.started_at) return null;
-  const { date, hour } = localParts(j.started_at);
+  const { date, hour } = localParts(j.started_at, j.zip ? timeZoneForZip(j.zip) : OPS_TIME_ZONE);
   if (date !== j.scheduled_date) return date < j.scheduled_date;
   return hour < WINDOW_END_HOUR[j.time_window];
 }

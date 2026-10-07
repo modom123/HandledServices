@@ -1533,3 +1533,20 @@ test("area pricing raises price, minimum and pro pay", async () => {
   assert.ok(sea.items.some((i) => i.label === "Area pricing"));
   assert.equal(estimate({ slug: "house-cleaning", answers: ans, region: 99 }).region, 2, "bounded");
 });
+
+test("Washington runs on Pacific time", async () => {
+  const { timeZoneForZip, localDate, zoneLabel } = await import("./roster.ts");
+  const { hoursUntilWindow } = await import("./coverage.ts");
+  assert.equal(timeZoneForZip("98101"), "America/Los_Angeles");
+  assert.equal(timeZoneForZip("48201"), "America/Detroit");
+  assert.equal(zoneLabel(timeZoneForZip("99201")), "PT");
+  // 9pm Pacific on Oct 7 = already Oct 8 in Detroit
+  const late = new Date("2026-10-08T04:00:00Z");
+  assert.equal(localDate(late, timeZoneForZip("98101")), "2026-10-07");
+  assert.equal(localDate(late, timeZoneForZip("48201")), "2026-10-08");
+  // an 8am Seattle window opens 3 hours after an 8am Detroit window
+  const now = new Date("2026-10-10T10:00:00Z");
+  const sea = hoursUntilWindow({ scheduled_date: "2026-10-10", time_window: "morning", zip: "98101" }, now);
+  const det = hoursUntilWindow({ scheduled_date: "2026-10-10", time_window: "morning", zip: "48201" }, now);
+  assert.equal(Math.round(sea - det), 3);
+});

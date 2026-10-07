@@ -8,8 +8,9 @@
  *           GET /api/availability?service=house-cleaning&zip=48201[&today=1]
  * UPDATED : 2026-10-04_1934 UTC — mode "closed" when the service isn't open yet in the ZIP's city (launch set).
  * UPDATED : 2026-10-02_0301 UTC — today=1: same-day slots from pros who are on call or working today.
+ * UPDATED : 2026-10-07_1900 UTC — same-day dates use the ZIP's time zone (Pacific in Washington).
  */
-import { BRAND, buildAvailability, localDate, getService, type BookedJob, type Contractor } from "@handled/core";
+import { BRAND, buildAvailability, localDate, timeZoneForZip, getService, type BookedJob, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { zipCentroid } from "@/lib/geo";
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
   let loc: { lat: number; lng: number } | null = null;
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const db = adminClient();
-    const from = includeToday ? localDate() : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const from = includeToday ? localDate(new Date(), timeZoneForZip(zip)) : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const to = new Date(Date.now() + (BRAND.bookingHorizonDays + 1) * 86400000).toISOString().slice(0, 10);
     const sameTrade = (await db.from("services").select("slug")).data?.map((r: { slug: string }) => r.slug).filter((s: string) => getService(s)?.trades.some((t) => svc.trades.includes(t))) ?? [svc.slug];
     const [{ data: pros }, { data: booked }, { data: waiting }] = await Promise.all([

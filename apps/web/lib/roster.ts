@@ -9,12 +9,12 @@
  *             setDayOff()          — block or reopen a day (not one that already has jobs)
  *             liveRoster()         — Hub: every active pro's status, location and week ahead
  *             clearStaleLocations()— sweep: forget locations older than 12 hours
+ * UPDATED : 2026-10-07_1900 UTC — a pro's "today" (location sharing, schedule, days off) uses their own time zone (Pacific in Washington).
  */
 import "server-only";
 import {
   ON_CALL_DEFAULT_HOURS, ON_CALL_MAX_HOURS, PRO_STATUS_LABEL, liveLocation, localDate, milesBetween, onCall, proCalendar, proStatus,
-  type Contractor, type TimeWindow,
-} from "@handled/core";
+  type Contractor, type TimeWindow, proTimeZone } from "@handled/core";
 import { adminClient } from "./supabase/server";
 
 const db = () => adminClient();
@@ -36,18 +36,18 @@ export async function setOnCall(contractorId: string, on: boolean, hours = ON_CA
 }
 
 export async function recordLocation(contractorId: string, lat: number, lng: number) {
-  const { data: c } = await db().from("contractors").select("on_call_until").eq("id", contractorId).single();
+  const { data: c } = await db().from("contractors").select("on_call_until, base_zip").eq("id", contractorId).single();
   if (!c) return { ok: false, error: "Pro not found" };
-  if (!onCall(c) && !(await activeJobToday(contractorId))) return { ok: false, error: "Location is only shared while you're on call or on a job today." };
+  if (!onCall(c) && !(await activeJobToday(contractorId, localDate(new Date(), proTimeZone(c))))) return { ok: false, error: "Location is only shared while you're on call or on a job today." };
   await db().from("contractors").update({ last_lat: lat, last_lng: lng, last_located_at: new Date().toISOString() }).eq("id", contractorId);
   return { ok: true };
 }
 
 export async function proSchedule(contractorId: string, days = 35) {
-  const from = localDate();
+  const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
+  const from = localDate(new Date(), proTimeZone((c ?? {}) as { base_zip?: string | null })); // the pro's own "today" (Pacific in Washington)
   const to = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-  const [{ data: c }, { data: jobs }] = await Promise.all([
-    db().from("contractors").select("*").eq("id", contractorId).single(),
+  const [{ data: jobs }] = await Promise.all([
     db().from("jobs").select("id, ref, service_slug, scheduled_date, time_window, status, city").eq("contractor_id", contractorId).gte("scheduled_date", from).lte("scheduled_date", to).neq("status", "cancelled").order("scheduled_date"),
   ]);
   if (!c) return null;
@@ -60,8 +60,9 @@ export async function proSchedule(contractorId: string, days = 35) {
 }
 
 export async function setDayOff(contractorId: string, date: string, off: boolean) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < localDate()) return { ok: false, error: "Pick today or a future date" };
-  const { data: c } = await db().from("contractors").select("time_off").eq("id", contractorId).single();
+  const { data: c } = await db().from("contractors").select("time_off, base_zip").eq("id", contractorId).single();
+  const today = localDate(new Date(), proTimeZone((c ?? {}) as { base_zip?: string | null }));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today) return { ok: false, error: "Pick today or a future date" };
   const cur = new Set<string>((c?.time_off ?? []) as string[]);
   if (off) {
     const { count } = await db().from("jobs").select("id", { count: "exact", head: true }).eq("contractor_id", contractorId).eq("scheduled_date", date).in("status", ACTIVE);
@@ -69,7 +70,6 @@ export async function setDayOff(contractorId: string, date: string, off: boolean
     cur.add(date);
   } else cur.delete(date);
   // keep the list short: drop past days
-  const today = localDate();
   const time_off = [...cur].filter((d) => d >= today).sort().slice(0, 180);
   await db().from("contractors").update({ time_off }).eq("id", contractorId);
   return { ok: true, time_off };

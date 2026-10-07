@@ -8,6 +8,7 @@
  *             urgencyPriority()      — dispatch priority (ASAP → urgent: more pros, shorter offers)
  *             budgetFit()            — their budget vs our price: fits / a little over / well over
  *             deadlineRisk()         — not done yet and the customer's date is close or passed
+ * UPDATED : 2026-10-07_1900 UTC — quick choices read Today / Next week / In 2 weeks / Within a month / I'm flexible (then pick the exact date and time on the calendar).
  */
 import { BRAND } from "./brand.ts";
 import { localDate } from "./roster.ts";
@@ -15,9 +16,9 @@ import { localDate } from "./roster.ts";
 export type Urgency = "asap" | "this_week" | "two_weeks" | "month" | "flexible";
 
 export const URGENCY: { id: Urgency; label: string; hint: string; days: number }[] = [
-  { id: "asap", label: "As soon as possible", hint: "Today if a pro is free, or tomorrow. Priority fee applies within 48 hours.", days: 1 },
-  { id: "this_week", label: "This week", hint: "Within 7 days", days: 7 },
-  { id: "two_weeks", label: "Within 2 weeks", hint: "Within 14 days", days: 14 },
+  { id: "asap", label: "Today", hint: "Today if a pro is free, or tomorrow. Priority fee applies within 48 hours.", days: 1 },
+  { id: "this_week", label: "Next week", hint: "Within 7 days", days: 7 },
+  { id: "two_weeks", label: "In 2 weeks", hint: "Within 14 days", days: 14 },
   { id: "month", label: "Within a month", hint: "Within 30 days", days: 30 },
   { id: "flexible", label: "I'm flexible", hint: "Any open date — often the best availability", days: BRAND.bookingHorizonDays },
 ];

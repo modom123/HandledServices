@@ -9,12 +9,13 @@
  *           days and windows they work, outside their time off, and within their driving radius.
  * UPDATED : 2026-10-02_0301 UTC — same day (includeToday): today counts pros who are On call or
  *           working today, and only arrival windows that haven't started yet.
+ * UPDATED : 2026-10-07_1900 UTC — the calendar's "today" and same-day cut-offs use the customer's time zone (Pacific in Washington).
  */
 import { BRAND } from "./brand.ts";
 import { eligible, offDuty } from "./dispatch.ts";
 import { isRush } from "./pricing.ts";
 import type { Contractor, TimeWindow } from "./types.ts";
-import { localDate, localHour, onCall } from "./roster.ts";
+import { localDate, localHour, onCall, timeZoneForZip } from "./roster.ts";
 
 /** Local hour each arrival window starts — same-day bookings need it at least an hour ahead. */
 const WINDOW_START: Record<string, number> = { morning: 8, midday: 11, afternoon: 14 };
@@ -55,7 +56,8 @@ export function buildAvailability(opts: {
   now?: Date;
 }): { mode: "live" | "request"; pros: number; days: DaySlots[] } {
   const now = opts.now ?? new Date();
-  const todayLocal = localDate(now);
+  const tz = timeZoneForZip(opts.zip); // Washington ZIPs: Pacific time
+  const todayLocal = localDate(now, tz);
   const start = opts.start ?? (opts.includeToday ? new Date(`${todayLocal}T12:00:00Z`) : new Date(now.getTime() + 86400000));
   const days = opts.days ?? BRAND.bookingHorizonDays;
   const pros = opts.contractors.filter((c) => eligible(c, { service_slug: opts.slug, zip: opts.zip, scheduled_date: null, lat: opts.lat, lng: opts.lng }) === null);
@@ -71,7 +73,7 @@ export function buildAvailability(opts: {
     if (!closed && pros.length) {
       const todays = opts.jobs.filter((j) => j.scheduled_date === date);
       const isToday = date === todayLocal;
-      const hourNow = isToday ? localHour(now) : 0;
+      const hourNow = isToday ? localHour(now, tz) : 0;
       for (const p of pros) {
         const callable = isToday && onCall(p, now);
         if (!callable && offDuty(p, date)) continue; // not working that day / time off (on call overrides today)

@@ -10,9 +10,10 @@
  *                               for this job, today; location rounded to ~100 m
  *             rescheduleJob() — customer moves their booking to another open day/window
  *                               (free until 24 hours before); keeps the pro if they're free
+ * UPDATED : 2026-10-07_1900 UTC — "today" and the 24-hour reschedule cut-off use the job's time zone (Pacific in Washington).
  */
 import "server-only";
-import { BRAND, TIME_WINDOW_LABEL, getService, serviceText, t, isRush, liveLocation, localDate, milesBetween, offDuty, type Contractor, type Job, type TimeWindow } from "@handled/core";
+import { BRAND, TIME_WINDOW_LABEL, getService, serviceText, t, isRush, liveLocation, localDate, milesBetween, offDuty, type Contractor, type Job, type TimeWindow, jobTimeZone, zonedInstant } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, dispatchJob, getJob, raiseAlert } from "./jobs";
 import { notify } from "./push";
@@ -34,7 +35,7 @@ export function etaMinutes(miles: number) {
 export async function onMyWay(jobId: string, contractorId: string) {
   const job = await getJob(jobId);
   if (!job || job.contractor_id !== contractorId || job.status !== "assigned") return { ok: false, error: "Not an upcoming job of yours" };
-  if (job.scheduled_date !== localDate()) return { ok: false, error: "This job isn't today" };
+  if (job.scheduled_date !== localDate(new Date(), jobTimeZone(job))) return { ok: false, error: "This job isn't today" };
   await db().from("jobs").update({ en_route_at: new Date().toISOString() }).eq("id", jobId);
   const { data: pro } = await db().from("contractors").select("business_name, contact_name").eq("id", contractorId).single();
   const link = `${siteUrl()}/account/jobs/${jobId}`;
@@ -55,7 +56,7 @@ export async function onMyWay(jobId: string, contractorId: string) {
 }
 
 export async function trackPro(job: Job) {
-  const live = ["assigned", "in_progress"].includes(job.status) && job.scheduled_date === localDate() && (job.en_route_at || job.status === "in_progress");
+  const live = ["assigned", "in_progress"].includes(job.status) && job.scheduled_date === localDate(new Date(), jobTimeZone(job)) && (job.en_route_at || job.status === "in_progress");
   if (!live || !job.contractor_id) return { tracking: false as const };
   if (job.status === "in_progress") return { tracking: true as const, arrived: true };
   const { data: c } = await db().from("contractors").select("last_lat, last_lng, last_located_at, contact_name").eq("id", job.contractor_id).single();
@@ -74,10 +75,10 @@ export async function rescheduleJob(jobId: string, customerId: string, date: str
   if (!job || job.customer_id !== customerId) return { ok: false, error: "Booking not found" };
   if (!["requested", "quoted", "scheduled", "dispatched", "assigned"].includes(job.status)) return { ok: false, error: "This booking can't be moved now — message support." };
   if (job.scheduled_date) {
-    const hoursLeft = (new Date(`${job.scheduled_date}T08:00:00`).getTime() - Date.now()) / 3600000;
+    const hoursLeft = (zonedInstant(job.scheduled_date, 8, jobTimeZone(job)).getTime() - Date.now()) / 3600000;
     if (hoursLeft < 24) return { ok: false, error: "Less than 24 hours to go — please message support to move it." };
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date <= localDate()) return { ok: false, error: "Pick a future date" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date <= localDate(new Date(), jobTimeZone(job))) return { ok: false, error: "Pick a future date" };
   if (isRush(date) && !isRush(job.scheduled_date)) return { ok: false, error: "Dates within 48 hours carry a priority fee — pick a later date, or message support." };
   // is the open slot still there? (same check as booking)
   const { GET: availability } = await import("@/app/api/availability/route");
