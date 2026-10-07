@@ -110,6 +110,26 @@ body {
 }
 [data-theme="classic"] .site-header { border-top-width: 0; }
 
+/* black, white & green: white pages, black type and large panels, green actions, bright green highlights on black */
+[data-theme="bwg"] {
+  --color-ink: #0a0a0a;
+  --color-ink-soft: #525252;
+  --color-brand: #0b7a4e;      /* white text ≈ 5.3:1 */
+  --color-brand-dark: #075c3a;
+  --color-brand-tint: #ecfdf5;
+  --color-brand-deep: #0a0a0a; /* hero panels, banners, Hub sidebar */
+  --color-gold: #16a34a;
+  --color-gold-light: #4ade80; /* highlights on black ≈ 11:1 */
+  --color-gold-dark: #15803d;
+  --color-mint: #4ade80;
+  --color-sun: #16a34a;
+  --color-page: #ffffff;
+  --color-paper: #f5f5f5;
+  --color-paper-deep: #ededed;
+  --color-line: #e5e5e5;
+}
+[data-theme="bwg"] .site-header { border-top-color: #0a0a0a; }
+
 [data-theme="modern"] :is(h1, h2, h3, .font-display) { font-family: var(--font-display); letter-spacing: -0.02em; }
 [data-theme="modern"] .card { border-color: color-mix(in srgb, var(--color-line) 80%, transparent); box-shadow: 0 1px 2px rgba(15, 31, 26, 0.04), 0 10px 30px -18px rgba(15, 31, 26, 0.18); }
 /* interactive cards rise a little on hover */

@@ -3,7 +3,7 @@
  * PROJECT : Handled (myhumanai) — AI-run home & business services
  * CREATED : 2026-10-07_0250 UTC
  * PURPOSE : Hub → Website & promotions (admins). POST JSON:
- *             { action: "theme", theme: "classic" | "greengold" | "modern" }   — the default website look
+ *             { action: "theme", theme: "classic" | "greengold" | "modern" | "bwg" } — the default website look
  *             { action: "promo", ...LaunchPromo }                              — the grand opening promotion
  */
 import { z } from "zod";
