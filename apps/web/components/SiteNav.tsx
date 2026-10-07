@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { ThemedIcon } from "./Glyph";
 
 export type NavItem = { href: string; label: string; icon?: string; hint?: string };
 export type NavGroup = { id: string; label: string; items: NavItem[]; footer?: NavItem; wide?: boolean };
@@ -58,7 +59,7 @@ export function DesktopNav({ groups }: { groups: NavGroup[] }) {
 function MenuLink({ it, strong }: { it: NavItem; strong?: boolean }) {
   return (
     <Link href={it.href} className="flex items-start gap-2 rounded-xl px-3 py-2 hover:bg-paper">
-      {it.icon && <span className="text-lg leading-6">{it.icon}</span>}
+      {it.icon && <ThemedIcon icon={it.icon} emojiClass="text-lg leading-6" />}
       <span><span className={`block leading-6 ${strong ? "text-brand" : "text-ink"}`}>{it.label}</span>{it.hint && <span className="block text-xs font-normal text-ink-soft">{it.hint}</span>}</span>
     </Link>
   );

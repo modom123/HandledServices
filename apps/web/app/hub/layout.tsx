@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-06_2120 UTC — 🛟 Cancellations & coverage.
  * UPDATED : 2026-10-06_2230 UTC — 📒 Accounting (Xero + Stripe).
  * UPDATED : 2026-10-07_0145 UTC — 💸 Referral partners.
+ * UPDATED : 2026-10-07_0320 UTC — 🎨 Website & promotions (website look, grand opening promotion).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -56,6 +57,7 @@ const NAV = [
   ["/hub/accounting", "📒", "Accounting (Xero)"],
   ["/hub/factoring", "🏦", "Factoring"],
   ["/hub/growth", "📈", "Growth"],
+  ["/hub/site", "🎨", "Website & promotions"],
   ["/hub/cities", "🏙️", "City scorecard"],
   ["/hub/market", "⚖️", "Market pricing"],
   ["/hub/pricing-accuracy", "📐", "Pricing accuracy"],

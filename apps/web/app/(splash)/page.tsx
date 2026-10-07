@@ -11,6 +11,7 @@ import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { LangSwitch } from "@/components/LangSwitch";
+import { ThemedIcon } from "@/components/Glyph";
 
 export const metadata = { title: { absolute: `${BRAND.name} — ${BRAND.tagline}` }, description: BRAND.pitch };
 
@@ -54,7 +55,7 @@ export default async function Splash() {
           <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-8">
             {CATEGORIES.map((c) => (
               <Link key={c.id} href={`/services?cat=${c.id}`} className="flex flex-col items-center rounded-xl bg-white/5 px-1 py-3 ring-1 ring-white/10 transition hover:bg-white/15">
-                <span className="text-2xl">{c.icon}</span>
+                <ThemedIcon icon={c.icon} size="md" emojiClass="text-2xl" />
                 <span className="mt-1 text-xs font-medium leading-tight text-white/85">{categoryText(l, c.id, c).short}</span>
               </Link>
             ))}

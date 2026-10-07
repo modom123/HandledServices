@@ -6,6 +6,8 @@
  *           cards and inputs stay white so they stand out; borders a touch darker.
  * UPDATED : 2026-10-02_0209 UTC — all text sizes +2px (theme text scale + body).
  * UPDATED : 2026-10-02_0244 UTC — splash page fade-in.
+ * UPDATED : 2026-10-07_0220 UTC — modern look: display font for headings, soft card shadows, lift on hover, eyebrow labels,
+ *           scroll-in reveal.
  * UPDATED : 2026-10-07_0030 UTC — green, white and gold: deeper emerald greens, white page with soft neutral sections
  *           (eggshell retired), gold accents (header rule, logo mark, highlights on deep-green panels). Gold is for
  *           accents and borders only — never body text on white (contrast).
@@ -30,11 +32,14 @@
   /* kept as aliases so older markup still renders in the new palette */
   --color-mint: #e8cc7a;
   --color-sun: #c4993a;
+  /* the page background (white; eggshell in the Original look) */
+  --color-page: #ffffff;
   /* white page; soft neutral for quiet sections, the footer and table headers */
   --color-paper: #f6f8f6;
   --color-paper-deep: #edf1ee;
   --color-line: #dfe5e1;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Plus Jakarta Sans Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   /* every text size +2px (Tailwind defaults + 0.125rem) — bigger, easier-to-read text,
      same spacing and layout */
   --text-xs: 0.875rem;
@@ -49,9 +54,10 @@
   --text-6xl: 3.875rem;
 }
 
+
 body {
   font-size: var(--text-base);
-  background: #ffffff;
+  background: var(--color-page);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
 }
@@ -63,6 +69,8 @@ body {
 @utility btn-dark { @apply btn bg-brand-deep text-white hover:bg-brand-dark; }
 @utility btn-ghost { @apply btn border border-line bg-white text-ink hover:border-ink; }
 @utility card { @apply rounded-2xl border border-line bg-white p-5; }
+/* small uppercase label above section titles */
+@utility eyebrow { @apply text-xs font-bold uppercase tracking-[0.14em] text-gold-dark; }
 @utility input { @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20; }
 @utility label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-soft; }
 @utility wrap { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
@@ -71,3 +79,43 @@ body {
 @keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .splash-in { animation: splash-in 0.7s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .splash-in { animation: none; } }
+
+/* sections fade up as they scroll into view (browsers that support scroll timelines; off for reduced motion) */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { animation: splash-in linear both; animation-timeline: view(); animation-range: entry 0% entry 35%; }
+  }
+}
+
+/* ─── Three website looks (lib/theme.ts; data-theme on <html>) ─────────────────────────────────────────────
+   greengold is the default above. classic = the original green & cream. modern = greengold colors + the modern
+   details below (display font, soft shadows, hover lift). */
+[data-theme="classic"] {
+  --color-ink: #0b1b2b;
+  --color-ink-soft: #3b4a5a;
+  --color-brand: #0e7c66;
+  --color-brand-dark: #095c4c;
+  --color-brand-tint: #e6f4f0;
+  --color-brand-deep: #0a4a3e;
+  /* the original used mint where the new looks use gold */
+  --color-gold: #0e7c66;
+  --color-gold-light: #9fe6cc;
+  --color-gold-dark: #0e7c66;
+  --color-mint: #9fe6cc;
+  --color-sun: #f5b841;
+  --color-page: #f0ead6;
+  --color-paper: #f0ead6;
+  --color-paper-deep: #e6dec6;
+  --color-line: #d9d0b8;
+}
+[data-theme="classic"] .site-header { border-top-width: 0; }
+
+[data-theme="modern"] :is(h1, h2, h3, .font-display) { font-family: var(--font-display); letter-spacing: -0.02em; }
+[data-theme="modern"] .card { border-color: color-mix(in srgb, var(--color-line) 80%, transparent); box-shadow: 0 1px 2px rgba(15, 31, 26, 0.04), 0 10px 30px -18px rgba(15, 31, 26, 0.18); }
+/* interactive cards rise a little on hover */
+.lift { transition: transform 0.2s, box-shadow 0.2s; }
+[data-theme="modern"] .lift:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(15, 31, 26, 0.05), 0 18px 40px -20px rgba(15, 31, 26, 0.3); }
+/* ThemedIcon: emoji in the first two looks, line icons in Modern */
+.ti-icon { display: none !important; }
+[data-theme="modern"] .ti-icon { display: inline-grid !important; }
+[data-theme="modern"] .ti-emoji { display: none !important; }

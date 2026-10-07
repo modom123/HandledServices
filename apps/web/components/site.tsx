@@ -76,7 +76,7 @@ export async function SiteHeader() {
   ];
   const snap = es ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job";
   return (
-    <header className="sticky top-0 z-30 border-b border-t-[3px] border-line border-t-gold bg-white/95 backdrop-blur">
+    <header className="site-header sticky top-0 z-30 border-b border-t-[3px] border-line border-t-gold bg-page/95 backdrop-blur">
       <div className="wrap flex h-16 items-center justify-between gap-2 sm:gap-4">
         <Logo />
         <DesktopNav groups={groups} />

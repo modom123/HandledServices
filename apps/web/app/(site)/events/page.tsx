@@ -8,6 +8,7 @@
  */
 import Link from "next/link";
 import { BRAND, SERVICES, defaultAnswers, estimate, money, moneyRange, priceHint } from "@handled/core";
+import { ThemedIcon } from "@/components/Glyph";
 
 export const metadata = { title: "Parties & Events", description: "Event planning, catering, food trucks, DJs, seating rentals and venues — one team, one invoice." };
 
@@ -37,7 +38,7 @@ export default function Events() {
           <div className="grid grid-cols-2 gap-3">
             {list.filter((s) => !["event-package", "event-planning"].includes(s.slug)).slice(0, 4).map((s) => (
               <Link key={s.slug} href={`/book?service=${s.slug}`} className="rounded-2xl bg-white/10 p-4 transition hover:bg-white/15">
-                <div className="text-2xl">{s.icon}</div><div className="mt-2 text-sm font-semibold">{s.name}</div><div className="text-xs text-white/60">{priceHint(s.slug)}</div>
+                <div><ThemedIcon icon={s.icon} size="md" emojiClass="text-2xl" /></div><div className="mt-2 text-sm font-semibold">{s.name}</div><div className="text-xs text-white/60">{priceHint(s.slug)}</div>
               </Link>
             ))}
           </div>
@@ -64,7 +65,7 @@ export default function Events() {
             const e = estimate({ slug: s.slug, answers: defaultAnswers(s) });
             return (
               <div key={s.slug} className="card flex flex-col">
-                <div className="text-3xl">{s.icon}</div>
+                <div><ThemedIcon icon={s.icon} size="lg" emojiClass="text-3xl" /></div>
                 <div className="mt-3 font-semibold">{s.name}</div>
                 <p className="mt-1 flex-1 text-sm text-ink-soft">{s.tagline}</p>
                 <div className="mt-3 text-sm"><span className="text-ink-soft">Typical:</span> <b>{s.siteVisit ? moneyRange(e.low, e.high) : money(e.point)}</b></div>

@@ -10,6 +10,7 @@
  *             Referrals     — ensureReferralCode(), rewardReferral() when the friend's job is done
  *             Tips          — tipJob() (saved card or Checkout) → settleTip(): 100% to the pro
  *           Discounts come out of our share (capDiscount) — the pro's pay never changes.
+ * UPDATED : 2026-10-07_0305 UTC — grand opening discount (lib/promo) in priceBenefits(); doesn't stack with promo codes.
  */
 import "server-only";
 import {
@@ -102,11 +103,17 @@ export async function priceBenefits(o: { slug: string; listPrice: number; payout
   const isGift = promo?.kind === "gift";
   const wantedMember = member ? memberSaving(o.listPrice, o.rushFee) : 0;
   const memberBenefit = capDiscount(o.listPrice, o.payout, wantedMember);
-  const promoAmount = promoCheck?.ok && !isGift ? capDiscount(o.listPrice - memberBenefit, o.payout, promoCheck.amount) : 0;
-  const price = r2(o.listPrice - memberBenefit - promoAmount);
+  let promoAmount = promoCheck?.ok && !isGift ? capDiscount(o.listPrice - memberBenefit, o.payout, promoCheck.amount) : 0;
+  // grand opening promotion: automatic; doesn't stack with a promo code — the customer gets whichever saves more
+  const { launchNow } = await import("./promo");
+  const { launchDiscount } = await import("@handled/core");
+  const launch = await launchNow();
+  let launchAmount = launch.phase === "active" ? launchDiscount({ price: o.listPrice - memberBenefit, payout: o.payout, pct: launch.pct, full: launch.full }) : 0;
+  if (launchAmount && promoAmount) { if (launchAmount >= promoAmount) promoAmount = 0; else launchAmount = 0; }
+  const price = r2(o.listPrice - memberBenefit - promoAmount - launchAmount);
   const gift = promoCheck?.ok && isGift ? Math.min(Number(promo!.balance ?? 0), price) : 0;
   return {
-    member, memberBenefit, promoCode: promoCheck?.ok ? promo!.code : null, promoAmount, promoMessage: promoCheck?.message ?? null, promoOk: promoCheck?.ok ?? null,
+    member, memberBenefit, launchAmount, launchPct: launchAmount ? launch.pct : 0, promoCode: promoCheck?.ok ? promo!.code : null, promoAmount, promoMessage: promoCheck?.message ?? null, promoOk: promoCheck?.ok ?? null,
     gift, isGift, price, dueNow: r2(price - gift),
   };
 }

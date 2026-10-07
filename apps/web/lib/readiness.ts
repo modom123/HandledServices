@@ -143,6 +143,7 @@ export async function readiness(): Promise<Check[]> {
     ["45 in-app payments (Apple Pay / Google Pay)", () => db.from("payments").select("stripe_payment_intent_id").limit(1)],
     ["52 Xero accounting", () => db.from("xero_sync_log").select("id").limit(1)],
     ["53 referral partner program", () => db.from("partner_commissions").select("id").limit(1)],
+    ["54 website looks, grand opening, discount guard fix", () => db.from("site_settings").select("key").limit(1)],
   ];
   for (const [label, run] of probes) {
     const { error } = await run();

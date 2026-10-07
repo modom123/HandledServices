@@ -176,7 +176,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   let acct: { pilot: number; onTerms: boolean; reason: string } | null = null;
   if (biz && price && listPrice && payout) {
     const { capDiscount } = await import("@handled/core");
-    const room = Math.max(0, capDiscount(listPrice, payout, Number.MAX_SAFE_INTEGER) - (ben?.promoAmount ?? 0) - (ben?.memberBenefit ?? 0));
+    const room = Math.max(0, capDiscount(listPrice, payout, Number.MAX_SAFE_INTEGER) - (ben?.promoAmount ?? 0) - (ben?.launchAmount ?? 0) - (ben?.memberBenefit ?? 0));
     const p = await (await import("./business")).accountPricing(biz.account, listPrice, payout, price);
     const pilot = Math.min(p.pilot, room);
     price = Math.max(0, price - pilot);
@@ -203,7 +203,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       estimate_high: ai?.high ?? est.high,
       price_final: price,
       contractor_payout: payout,
-      discount: (ben?.promoAmount ?? 0) + (acct?.pilot ?? 0),
+      discount: (ben?.promoAmount ?? 0) + (ben?.launchAmount ?? 0) + (acct?.pilot ?? 0),
       member_benefit: ben?.memberBenefit ?? 0,
       promo_code: ben?.promoCode && !ben.isGift && ben.promoAmount > 0 ? ben.promoCode : null,
       ai_quote: ai,

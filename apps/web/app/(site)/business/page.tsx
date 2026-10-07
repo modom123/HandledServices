@@ -19,6 +19,7 @@
 import Link from "next/link";
 import { BUSINESS_GROUPS, INDUSTRIES, RFP_NEXT_STEPS, businessServices, priceHint } from "@handled/core";
 import { ProposalForm } from "@/components/ProposalForm";
+import { ThemedIcon } from "@/components/Glyph";
 
 export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, one prepaid monthly invoice." };
 
@@ -77,7 +78,7 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {INDUSTRIES.map((i) => (
             <Link key={i.id} href={`/business?for=${i.id}#quote`} scroll={false} className={`card flex items-center gap-2 p-3 transition sm:flex-col sm:items-start sm:gap-0 sm:p-4 hover:border-brand ${industry === i.id ? "border-brand bg-brand-tint" : ""}`}>
-              <span className="text-2xl sm:text-3xl">{i.icon}</span>
+              <ThemedIcon icon={i.icon} size="md" emojiClass="text-2xl sm:text-3xl" />
               <span className="text-sm font-semibold leading-tight sm:mt-2 sm:text-base">{i.name}</span>
               <span className="mt-1 hidden text-sm text-ink-soft sm:block">{businessServices(i.slugs).slice(0, 3).map((s) => s.name).join(" · ")}</span>
             </Link>
@@ -96,14 +97,14 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
               const row = (x: (typeof list)[number]) => (
                 <li key={x.slug}>
                   <Link href={`/services/${x.slug}`} className="flex items-center justify-between gap-3 py-2 hover:text-brand">
-                    <span>{x.icon} {x.name}</span>
+                    <span className="inline-flex items-center gap-1.5"><ThemedIcon icon={x.icon} emojiClass="" />{x.name}</span>
                     <span className="shrink-0 text-xs text-ink-soft">{x.category === "events" ? "by quote" : priceHint(x.slug)}</span>
                   </Link>
                 </li>
               );
               return (
                 <div key={g.id} className="card flex flex-col py-4">
-                  <div className="flex items-center gap-2"><span className="text-2xl">{g.icon}</span><h3 className="text-lg font-bold leading-tight">{g.title}</h3></div>
+                  <div className="flex items-center gap-2"><ThemedIcon icon={g.icon} size="md" emojiClass="text-2xl" /><h3 className="text-lg font-bold leading-tight">{g.title}</h3></div>
                   <p className="mt-1 text-sm text-ink-soft">{g.blurb}</p>
                   <ul className="mt-3 divide-y divide-line border-t border-line text-sm">{list.slice(0, 3).map(row)}</ul>
                   {list.length > 3 && (
