@@ -10,6 +10,8 @@
  *           market's ads, flyers and QR codes), else the default chosen in Hub → Website look, else SITE_THEME, else classic
  *           (the Original look — the owner's choice for launch, 2026-10-07), then bwg: black, white & green (final launch
  *           choice, 2026-10-07).
+ * UPDATED : 2026-10-07_0615 UTC — default back to classic (the Original look), owner's choice "for now". The other three
+ *           looks stay available by ?theme= link and Hub → Website look.
  *           Colors are CSS variables per theme (globals.css, [data-theme] on <html>).
  */
 import "server-only";
@@ -22,13 +24,13 @@ export const THEMES = {
   classic: { name: "Original", note: "Green and cream, the first design" },
   greengold: { name: "Green, white & gold", note: "White pages, deeper greens, gold accents" },
   modern: { name: "Modern", note: "Green, white & gold with line icons, bigger type, soft shadows and a product-style hero" },
-  bwg: { name: "Black, white & green", note: "White pages, black panels and type, green buttons — the launch look" },
+  bwg: { name: "Black, white & green", note: "White pages, black panels and type, green buttons" },
 } as const;
 export type Theme = keyof typeof THEMES;
 export const THEME_COOKIE = "site_theme";
 export const isTheme = (v: unknown): v is Theme => typeof v === "string" && v in THEMES;
 
-/** The default look set in the Hub (falls back to SITE_THEME, then black, white & green). Cached per request. */
+/** The default look set in the Hub (falls back to SITE_THEME, then the Original look). Cached per request. */
 export const defaultTheme = cache(async (): Promise<Theme> => {
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
@@ -37,7 +39,7 @@ export const defaultTheme = cache(async (): Promise<Theme> => {
       if (isTheme(v)) return v;
     } catch { /* table not created yet */ }
   }
-  return isTheme(process.env.SITE_THEME) ? process.env.SITE_THEME : "bwg";
+  return isTheme(process.env.SITE_THEME) ? process.env.SITE_THEME : "classic";
 });
 
 /** The look for this visitor: their ?theme= link (cookie) or the default. */
