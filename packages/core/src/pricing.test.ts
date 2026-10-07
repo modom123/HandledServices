@@ -1484,7 +1484,7 @@ test("bid engine: measured lines, deal-maker, negotiation", async () => {
   // deal-maker never goes below the floor
   const d = dealStrategy({ loaded: 100, benchmark: 90 })!;
   assert.ok(d.recommended >= d.floorPrice && Math.abs(d.floorPrice - 100 / (1 - MIN_MARGIN_PCT / 100)) < 1.01);
-  assert.ok(d.notes.some((n) => /above the last award/.test(n)), "warns when cost beats the market");
+  assert.ok(d.notes.some((n) => /above the market/.test(n)), "warns when cost beats the market");
   const rich = dealStrategy({ loaded: 100, benchmark: 160 })!;
   assert.ok(rich.recommended > rich.targetPrice, "captures room above target when the market pays more");
   const big = dealStrategy({ loaded: 100, annualValue: 300000 })!, small = dealStrategy({ loaded: 100, annualValue: 10000 })!;
@@ -1494,4 +1494,19 @@ test("bid engine: measured lines, deal-maker, negotiation", async () => {
   assert.equal(negotiate({ loaded: 100, ourPrice: 120, counter: 119 }).action, "accept");
   assert.equal(negotiate({ loaded: 100, ourPrice: 120, counter: 112 }).action, "counter");
   assert.equal(negotiate({ loaded: 100, ourPrice: 120, counter: 80 }).action, "walk");
+});
+
+test("bid engine learns the market from paid jobs", async () => {
+  const { learnMarketRates, marketBenchmark, dealStrategy } = await import("./bid-engine.ts");
+  const rows = [10000, 12000, 20000, 15000].map((sq, i) => ({ slug: "lawn-care", price: [60, 70, 110, 90][i], answers: { yard_sqft: sq } }));
+  const r = learnMarketRates([...rows, { slug: "courier", price: 30 }]);
+  assert.ok(r["lawn-care"] && !r.courier, "needs 3+ paid jobs");
+  assert.equal(r["lawn-care"].n, 4);
+  assert.equal(r["lawn-care"].unit, "sq ft");
+  // 2 acres at the learned $/sq ft
+  const m = marketBenchmark({ slug: "lawn-care", measure_size: 2, measure_unit: "acres" }, r)!;
+  assert.ok(m > 400, "scales by measured size");
+  assert.equal(marketBenchmark({ slug: "lawn-care" }, r), r["lawn-care"].medianJob, "unsized line → median job");
+  const d = dealStrategy({ loaded: 100, market: 200 })!;
+  assert.ok(d.recommended > d.targetPrice && d.notes.some((n) => /paid jobs/.test(n)), "anchors on paid jobs when no award");
 });

@@ -23,7 +23,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import {
-  BID_SOURCES, BRAND, GO_NO_GO, REQ_KIND_LABEL, REVIEW_CHECKS, SERVICE_BY_SLUG, bestQuotes, priceBid, standardRequirements, submitGate,
+  BID_SOURCES, BRAND, GO_NO_GO, REQ_KIND_LABEL, REVIEW_CHECKS, SERVICE_BY_SLUG, bestQuotes, learnMarketRates, priceBid, standardRequirements, submitGate,
   type BidSource, type CostLine, type GoAnswer, type ProQuote, type ReqKind, type ResubmitReason, type SnapshotLine, type SolicitationType,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -70,6 +70,17 @@ export async function createBid(o: { notice_id?: string | null; title?: string; 
   return { ok: true, id: data.id };
 }
 
+/**
+ * What customers actually paid us over the last 12 months (paid, completed jobs — including jobs billed on business
+ * invoices once the invoice is paid), learned per service and per measured unit. The deal-maker uses it as the market
+ * price when there's no award history.
+ */
+export async function marketRates() {
+  const since = new Date(Date.now() - 365 * 86400000).toISOString();
+  const { data } = await db().from("jobs").select("service_slug, price_final, answers").eq("status", "completed").not("paid_at", "is", null).is("remedy", null).gte("completed_at", since).limit(10000);
+  return learnMarketRates(((data ?? []) as { service_slug: string; price_final: number; answers: Record<string, unknown> | null }[]).map((j) => ({ slug: j.service_slug, price: Number(j.price_final), answers: j.answers })));
+}
+
 export async function loadBid(id: string) {
   const [{ data: bid }, { data: reqs }, { data: lines }, { data: quotes }, { data: docs }, { data: subs }] = await Promise.all([
     db().from("bids").select("*").eq("id", id).maybeSingle(),
@@ -89,7 +100,7 @@ export async function loadBid(id: string) {
   // after a re-open, the new submission needs its own confirmation
   const confirmation = [...current].reverse().find((d) => d.kind === "confirmation" && (!b.reopened_at || d.created_at > b.reopened_at)) ?? null;
   const gate = submitGate({ go: b.go ?? {}, requirements: R, lines: L, assumptions: b.assumptions, review: b.review ?? {}, reviewer: b.reviewer, owner: b.owner, confirmationUploaded: Boolean(confirmation), dueAt: b.due_at, marginOverride: b.margin_override });
-  return { bid: b, requirements: R, lines: L, quotes: Q, documents: D, current, confirmation, submissions: (subs ?? []) as Submission[], gate, best: bestQuotes(L, Q) };
+  return { bid: b, requirements: R, lines: L, quotes: Q, documents: D, current, confirmation, submissions: (subs ?? []) as Submission[], gate, best: bestQuotes(L, Q), market: await marketRates() };
 }
 
 // ───────────────────────────── documents ─────────────────────────────

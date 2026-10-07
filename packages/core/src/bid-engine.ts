@@ -22,6 +22,9 @@
  *                                profit = P(win) × profit, using the last award as the market anchor; bigger contracts
  *                                earn a slightly thinner target (volume), never below the floor
  *             negotiate        — an agency counter or BAFO: accept, counter (with what to trade instead of price), or walk
+ *             learnMarketRates / marketBenchmark — what customers actually PAID us (paid jobs and invoices, last 12 months):
+ *                                median job price per service and median price per measured unit ($/sq ft, $/cu yd…);
+ *                                the deal-maker anchors on it when there's no award history, and blends it in when there is
  */
 import { estimate, splitJob } from "./pricing.ts";
 import { getService } from "./services.ts";
@@ -203,6 +206,44 @@ export function catalogCost(slug: string | null | undefined, size: number | null
   return { retail, proCost: splitJob(retail, svc.slug).payout, question: q.label };
 }
 
+// ─── Market learning (what customers actually paid) ──────────────────────────
+
+export type MarketRate = { slug: string; n: number; medianJob: number; perUnit: number | null; unit: string | null; nMeasured: number };
+const median = (xs: number[]) => { if (!xs.length) return 0; const a = [...xs].sort((x, y) => x - y); const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+/** Fewer paid jobs than this and a rate isn't trusted. */
+export const MARKET_MIN_JOBS = 3;
+
+/** From paid jobs (price the customer paid + their answers), learn each service's market price. */
+export function learnMarketRates(rows: { slug: string; price: number; answers?: Record<string, unknown> | null }[]): Record<string, MarketRate> {
+  const by = new Map<string, { prices: number[]; perUnit: number[]; unit: string | null }>();
+  for (const r of rows) {
+    const svc = getService(r.slug);
+    if (!svc || !(Number(r.price) > 0)) continue;
+    const e = by.get(r.slug) ?? { prices: [], perUnit: [], unit: null };
+    e.prices.push(Number(r.price));
+    // the service's main measurement (the first required one, else the first sized number question)
+    const q = svc.questions.find((x) => x.type === "number" && x.required) ?? svc.questions.find((x) => x.type === "number" && ["sq ft", "ft", "lb", "cu yd"].includes(x.unit ?? ""));
+    const size = q ? Number(r.answers?.[q.id] ?? 0) : 0;
+    if (q && q.type === "number" && size > 0) { e.perUnit.push(Number(r.price) / size); e.unit = q.unit ?? null; }
+    by.set(r.slug, e);
+  }
+  const out: Record<string, MarketRate> = {};
+  for (const [slug, e] of by) {
+    if (e.prices.length < MARKET_MIN_JOBS) continue;
+    out[slug] = { slug, n: e.prices.length, medianJob: Math.round(median(e.prices) * 100) / 100, perUnit: e.perUnit.length >= MARKET_MIN_JOBS ? Math.round(median(e.perUnit) * 10000) / 10000 : null, unit: e.perUnit.length >= MARKET_MIN_JOBS ? e.unit : null, nMeasured: e.perUnit.length };
+  }
+  return out;
+}
+
+/** What the market pays for ONE unit of this line, from our paid jobs (sized when we can), or null. */
+export function marketBenchmark(line: Pick<CostLine, "slug" | "measure_size" | "measure_unit">, rates?: Record<string, MarketRate> | null): number | null {
+  const r = line.slug && rates ? rates[line.slug] : undefined;
+  if (!r) return null;
+  const conv = line.measure_unit ? UNIT_ALIASES[line.measure_unit.trim().toLowerCase()] : undefined;
+  if (r.perUnit && r.unit && conv && conv.to === r.unit && Number(line.measure_size) > 0) return Math.round(r.perUnit * Number(line.measure_size) * conv.factor * 100) / 100;
+  return r.medianJob;
+}
+
 // ─── Deal-making ─────────────────────────────────────────────────────────────
 
 export interface DealStrategy {
@@ -231,7 +272,7 @@ export function volumeDiscountPts(annualValue: number): number {
  * The deal-maker: never below the floor, never leave money on the table. Searches prices from the floor up and picks
  * the one with the best expected profit; explains the call in plain words.
  */
-export function dealStrategy(o: { loaded: number; benchmark?: number | null; targetMarginPct?: number; annualValue?: number; roundTo?: number }): DealStrategy | null {
+export function dealStrategy(o: { loaded: number; benchmark?: number | null; market?: number | null; targetMarginPct?: number; annualValue?: number; roundTo?: number }): DealStrategy | null {
   const loaded = Number(o.loaded) || 0;
   if (!(loaded > 0)) return null;
   const round = (n: number) => { const r = o.roundTo && o.roundTo > 0 ? o.roundTo : 1; return Math.ceil(n / r - 1e-9) * r; };
@@ -239,8 +280,10 @@ export function dealStrategy(o: { loaded: number; benchmark?: number | null; tar
   const target = Math.max(MIN_MARGIN_PCT + 2, (o.targetMarginPct ?? DEFAULT_ASSUMPTIONS.marginPct) - vol);
   const floorPrice = round(loaded / (1 - MIN_MARGIN_PCT / 100));
   const targetPrice = round(loaded / (1 - target / 100));
-  const known = Number(o.benchmark) > 0;
-  const anchor = known ? Number(o.benchmark) : targetPrice;
+  // anchor: the last award; what our customers pay when there's no award; both blended (award weighs more) when we have both
+  const award = Number(o.benchmark) > 0 ? Number(o.benchmark) : 0, market = Number(o.market) > 0 ? Number(o.market) : 0;
+  const known = Boolean(award || market);
+  const anchor = award && market ? award * 0.7 + market * 0.3 : award || market || targetPrice;
   let best = { p: floorPrice, ev: -Infinity, win: 0 };
   const top = Math.max(targetPrice, anchor) * 1.3;
   for (let p = floorPrice; p <= top; p += Math.max(0.01, floorPrice * 0.005)) {
@@ -252,10 +295,12 @@ export function dealStrategy(o: { loaded: number; benchmark?: number | null; tar
   const win = winProbability(recommended, anchor, known);
   const notes: string[] = [];
   if (vol) notes.push(`Big contract (~$${Math.round((o.annualValue ?? 0) / 1000)}k/yr): target margin trimmed ${vol} pts to ${target}% for steady volume.`);
-  if (known && loaded > anchor) notes.push(`Our cost is above the last award ($${anchor}). Get a cheaper pro or a scope clarification before bidding — or pass.`);
-  else if (known && recommended < targetPrice) notes.push(`The market (last award $${anchor}) is below our target; bidding $${recommended} keeps a real chance to win with ${Math.round(((recommended - loaded) / recommended) * 100)}% margin.`);
-  else if (known && recommended > targetPrice) notes.push(`Last award was $${anchor}: there's room above our target, so the recommendation captures it.`);
-  if (!known) notes.push("No award history for this item — add the last award price (bid tabs, award notices) to sharpen the price.");
+  const src = award && market ? `last award $${award} and what our customers pay ($${market})` : award ? `the last award ($${award})` : `what our customers actually pay ($${market}, from paid jobs)`;
+  const a2 = Math.round(anchor * 100) / 100;
+  if (known && loaded > anchor) notes.push(`Our cost is above the market (${src}). Get a cheaper pro or a scope clarification before bidding — or pass.`);
+  else if (known && recommended < targetPrice) notes.push(`The market (${src}) is below our target; bidding $${recommended} keeps a real chance to win with ${Math.round(((recommended - loaded) / recommended) * 100)}% margin.`);
+  else if (known && recommended > targetPrice) notes.push(`The market (${src}, anchor $${a2}) pays more than our target, so the recommendation captures it.`);
+  if (!award) notes.push(market ? "No award history yet — anchored on our own paid jobs. Add the last award price (bid tabs, award notices) to sharpen it." : "No award history or paid-job data for this item — add the last award price (bid tabs, award notices) to sharpen the price.");
   if (win < 0.25) notes.push("Low chance to win at any price that clears our floor; consider no-bid or teaming.");
   return { floorPrice, targetPrice, recommended, winProb: Math.round(win * 100) / 100, expectedProfit: Math.round(win * (recommended - loaded) * 100) / 100, marginPct: Math.round(((recommended - loaded) / recommended) * 1000) / 10, notes };
 }
@@ -298,7 +343,7 @@ export function withDefaults(a?: Partial<BidAssumptions> | null): BidAssumptions
 }
 
 /** Unit cost → unit price. Overheads load the direct cost; financing covers the wait to be paid; margin is on the price. */
-export function priceLine(line: CostLine, assumptions?: Partial<BidAssumptions> | null): PricedLine {
+export function priceLine(line: CostLine, assumptions?: Partial<BidAssumptions> | null, market?: Record<string, MarketRate> | null): PricedLine {
   const a = withDefaults(assumptions);
   const flags: string[] = [];
   // a pro's quote wins; otherwise a measured line is costed from our own pricing engine (clearly flagged)
@@ -322,7 +367,9 @@ export function priceLine(line: CostLine, assumptions?: Partial<BidAssumptions> 
     if (unitPrice > line.benchmark * 1.15) flags.push(`${Math.round((unitPrice / line.benchmark - 1) * 100)}% above the last award ($${line.benchmark}) — may lose on price`);
     else if (loaded > line.benchmark) flags.push(`Our cost is above the last award ($${line.benchmark}) — the winner may be cutting corners or we need a cheaper pro`);
   }
-  const deal = direct > 0 ? dealStrategy({ loaded, benchmark: line.benchmark, targetMarginPct: a.marginPct, annualValue: unitPrice * qty, roundTo: a.roundTo }) : null;
+  const marketPrice = marketBenchmark(line, market);
+  const deal = direct > 0 ? dealStrategy({ loaded, benchmark: line.benchmark, market: marketPrice, targetMarginPct: a.marginPct, annualValue: unitPrice * qty, roundTo: a.roundTo }) : null;
+  if (marketPrice && unitPrice > marketPrice * 1.2) flags.push(`${Math.round((unitPrice / marketPrice - 1) * 100)}% above what our customers pay for this ($${marketPrice}) — check the scope or the pro's price`);
   if (deal && Math.abs(deal.recommended - unitPrice) / unitPrice > 0.03) flags.push(`Deal-maker suggests $${deal.recommended}/unit (${Math.round(deal.winProb * 100)}% est. win chance, ${deal.marginPct}% margin)`);
   return {
     ...line, direct: r2(direct), loaded: r2(loaded), unitPrice, unitProfit, marginPct,
@@ -331,9 +378,9 @@ export function priceLine(line: CostLine, assumptions?: Partial<BidAssumptions> 
   };
 }
 
-export function priceBid(lines: CostLine[], assumptions?: Partial<BidAssumptions> | null) {
+export function priceBid(lines: CostLine[], assumptions?: Partial<BidAssumptions> | null, market?: Record<string, MarketRate> | null) {
   const a = withDefaults(assumptions);
-  const priced = lines.map((l) => priceLine(l, a));
+  const priced = lines.map((l) => priceLine(l, a, market));
   const totalPrice = r2(priced.reduce((t, l) => t + l.totalPrice, 0));
   const totalCost = r2(priced.reduce((t, l) => t + l.totalCost, 0));
   const yearPrice = r2(priced.reduce((t, l) => t + l.yearPrice, 0));

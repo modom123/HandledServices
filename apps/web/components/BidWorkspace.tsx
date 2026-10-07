@@ -17,7 +17,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BID_SOURCES, DEFAULT_ASSUMPTIONS, GO_NO_GO, MEASURE_UNITS, MIN_MARGIN_PCT, REQ_KIND_LABEL, RESUBMIT_REASONS, REVIEW_CHECKS, SERVICES, SOLICITATION_TYPES, negotiate, priceBid,
-  type BidAssumptions, type GoAnswer, type ReqKind, type ResubmitReason,
+  type BidAssumptions, type GoAnswer, type MarketRate, type ReqKind, type ResubmitReason,
 } from "@handled/core";
 import { browserClient } from "@/lib/supabase/browser";
 
@@ -326,13 +326,13 @@ type EditLine = { id?: string; key: string; item: string; unit: string; qty: str
 const toEdit = (l: WsLine): EditLine => ({ id: l.id, key: l.id, item: l.item, unit: l.unit, qty: String(l.qty ?? 0), years: String(l.years ?? 1), pro_unit_cost: l.pro_unit_cost === null ? "" : String(l.pro_unit_cost), materials_unit: String(l.materials_unit ?? 0), benchmark: l.benchmark === null ? "" : String(l.benchmark), slug: l.slug, measure_size: l.measure_size == null ? "" : String(l.measure_size), measure_unit: l.measure_unit ?? "" });
 const num = (s: string) => (s.trim() === "" ? null : Number(s));
 
-export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best: Record<string, { best: { price: number } | null; count: number; backup: boolean }> }) {
+export function BidPricing({ b, lines, best, market }: { b: WsBid; lines: WsLine[]; best: Record<string, { best: { price: number } | null; count: number; backup: boolean }>; market?: Record<string, MarketRate> }) {
   const { busy, msg, act } = useAct();
   const [rows, setRows] = useState<EditLine[]>(lines.map(toEdit));
   const [removed, setRemoved] = useState<string[]>([]);
   const [a, setA] = useState<BidAssumptions>({ ...DEFAULT_ASSUMPTIONS, ...b.assumptions });
   const [override, setOverride] = useState(b.margin_override);
-  const priced = useMemo(() => priceBid(rows.map((r) => ({ id: r.key, item: r.item, unit: r.unit, qty: Number(r.qty) || 0, years: Number(r.years) || 0, pro_unit_cost: num(r.pro_unit_cost), materials_unit: Number(r.materials_unit) || 0, benchmark: num(r.benchmark), slug: r.slug, measure_size: num(r.measure_size), measure_unit: r.measure_unit || null })), a), [rows, a]);
+  const priced = useMemo(() => priceBid(rows.map((r) => ({ id: r.key, item: r.item, unit: r.unit, qty: Number(r.qty) || 0, years: Number(r.years) || 0, pro_unit_cost: num(r.pro_unit_cost), materials_unit: Number(r.materials_unit) || 0, benchmark: num(r.benchmark), slug: r.slug, measure_size: num(r.measure_size), measure_unit: r.measure_unit || null })), a, market), [rows, a, market]);
   const set = (i: number, k: keyof EditLine, v: string) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: k === "item" || k === "unit" || k === "measure_unit" || k === "slug" ? (k === "slug" ? v || null : v) : v.replace(/[^\d.]/g, "") } : r)));
   const [neg, setNeg] = useState<{ line: number; counter: string }>({ line: 0, counter: "" });
   const term = b.term_years ? String(b.term_years) : "1";
@@ -391,7 +391,7 @@ export function BidPricing({ b, lines, best }: { b: WsBid; lines: WsLine[]; best
         return (
           <div className="rounded-xl border border-line bg-paper p-3">
             <div className="font-semibold">🤝 Deal-maker</div>
-            <p className="text-xs text-ink-soft">Each line shows the price with the best expected profit (chance to win × profit) and the walk-away floor ({MIN_MARGIN_PCT}% margin). Add last award prices to sharpen it. When the agency counters or asks for a best-and-final offer, enter their number:</p>
+            <p className="text-xs text-ink-soft">Each line shows the price with the best expected profit (chance to win × profit) and the walk-away floor ({MIN_MARGIN_PCT}% margin), anchored on the last award and on what our customers actually paid ({Object.values(market ?? {}).reduce((t, r) => t + r.n, 0)} paid jobs in the last 12 months). Add last award prices to sharpen it. When the agency counters or asks for a best-and-final offer, enter their number:</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select className="input w-64 py-1 text-xs" value={neg.line} onChange={(e) => setNeg({ ...neg, line: Number(e.target.value) })}>{priced.lines.map((l, i) => <option key={l.id} value={i}>{l.item || `Line ${i + 1}`} — ours {usd(l.unitPrice)}</option>)}</select>
               <span className="text-xs">Their counter $</span><input className="input w-24 py-1 text-xs" inputMode="decimal" value={neg.counter} onChange={(e) => setNeg({ ...neg, counter: e.target.value.replace(/[^\d.]/g, "") })} />
