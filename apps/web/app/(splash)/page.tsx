@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-07_0215 UTC — own top bar removed; the site header (dropdown menus, language, sign in) is above it.
  * UPDATED : 2026-10-07_2045 UTC — new splash: the official logo front and center on a light page (logo teal and green),
  *           the tagline "Home & business services. Handled.", Michigan & Washington, then the categories and trust pillars.
+ * UPDATED : 2026-10-07_2115 UTC — uses the site background (light blue).
  * UPDATED : 2026-10-07_2100 UTC — simplified to the logo and the tagline (plus Enter / Get my price); categories and trust
  *           points live on the home page.
  */
@@ -23,7 +24,7 @@ export default async function Splash() {
   const es = l === "es";
   const t = (s: string) => tr(l, s);
   return (
-    <div className="relative flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden bg-white text-ink">
+    <div className="relative flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden bg-page text-ink">
       {/* soft brand-colored light behind the logo (teal + green from the logo) */}
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(42rem_26rem_at_50%_18%,rgba(15,107,102,0.10),transparent_70%),radial-gradient(30rem_20rem_at_78%_70%,rgba(74,154,70,0.10),transparent_70%)]" />
 

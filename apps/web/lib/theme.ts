@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0235 UTC
  * PURPOSE : Three website looks that can be switched per market without a redeploy:
- *             classic    — the original green & cream
+ *             classic    — the original green, now on light blue
  *             greengold  — green, white and gold
  *             modern     — green, white and gold with the modern layout (line icons, display type, soft shadows)
  *           Which one a visitor sees: a ?theme= link they arrived from (remembered 90 days — use a different link in each
@@ -21,7 +21,7 @@ import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 
 export const THEMES = {
-  classic: { name: "Original", note: "Green and cream, the first design" },
+  classic: { name: "Original", note: "Green on a light blue background, the first design" },
   greengold: { name: "Green, white & gold", note: "White pages, deeper greens, gold accents" },
   modern: { name: "Modern", note: "Green, white & gold with line icons, bigger type, soft shadows and a product-style hero" },
   bwg: { name: "Black, white & green", note: "White pages, black panels and type, green buttons" },

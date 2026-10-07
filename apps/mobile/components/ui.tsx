@@ -7,6 +7,7 @@
  *           ErrorState (plain message + Try again), Empty, SearchBox; buttons and chips announce
  *           themselves to screen readers, have 44 pt+ touch targets and a pressed state.
  * UPDATED : 2026-10-06_0708 UTC — chips give a light haptic tick when picked.
+ * UPDATED : 2026-10-07_2115 UTC — light blue background (was eggshell), matching the website.
  */
 import type { ReactNode } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewProps, type TextInputProps, type ViewStyle } from "react-native";
@@ -15,7 +16,7 @@ import { JOB_STATUS_LABEL, type JobStatus } from "@handled/core";
 import { useI18n } from "../lib/i18n";
 import { haptic } from "../lib/haptics";
 
-export const C = { ink: "#0b1b2b", soft: "#4b5a6a", brand: "#0e7c66", deep: "#0a4a3e", tint: "#e6f4f0", paper: "#f0ead6", line: "#d9d0b8", white: "#fff", red: "#be123c", amber: "#b45309" };
+export const C = { ink: "#0b1b2b", soft: "#4b5a6a", brand: "#0e7c66", deep: "#0a4a3e", tint: "#e6f4f0", paper: "#eaf4fb", line: "#c8dbe9", white: "#fff", red: "#be123c", amber: "#b45309" };
 
 export function Button({ title, onPress, kind = "primary", disabled, busy, style, label }: { title: string; onPress: () => void; kind?: "primary" | "ghost" | "dark"; disabled?: boolean; busy?: boolean; style?: ViewStyle; label?: string }) {
   const bg = kind === "primary" ? C.brand : kind === "dark" ? C.deep : C.white;

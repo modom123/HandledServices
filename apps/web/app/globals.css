@@ -13,6 +13,7 @@
  *           accents and borders only — never body text on white (contrast).
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
+ * UPDATED : 2026-10-07_2115 UTC — the Original look's background is light blue instead of eggshell.
  */
 @import "tailwindcss";
 
@@ -32,7 +33,7 @@
   /* kept as aliases so older markup still renders in the new palette */
   --color-mint: #e8cc7a;
   --color-sun: #c4993a;
-  /* the page background (white; eggshell in the Original look) */
+  /* the page background (white; light blue in the Original look) */
   --color-page: #ffffff;
   /* white page; soft neutral for quiet sections, the footer and table headers */
   --color-paper: #f6f8f6;
@@ -106,10 +107,11 @@ body {
   --color-gold-dark: #0e7c66;
   --color-mint: #9fe6cc;
   --color-sun: #f5b841;
-  --color-page: #f0ead6;
-  --color-paper: #f0ead6;
-  --color-paper-deep: #e6dec6;
-  --color-line: #d9d0b8;
+  /* light blue background (was eggshell #f0ead6), 2026-10-07 owner's choice */
+  --color-page: #eaf4fb;
+  --color-paper: #e3eff8;
+  --color-paper-deep: #d5e6f2;
+  --color-line: #c8dbe9;
 }
 [data-theme="classic"] .site-header { border-top-width: 0; }
 
