@@ -154,7 +154,7 @@ export async function readiness(): Promise<Check[]> {
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
-  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql to add the rest of Michigan and Toledo; new ZIPs are added automatically as they're booked");
+  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington). Handled serves Michigan and Washington; a missing ZIP in those states is added when it is first booked");
   for (const [label, run] of probes) {
     const { error } = await run();
     add("Supabase", `Migration ${label}`, !error, error ? error.message : "applied", "Run the matching supabase/setup/ADD_*.sql (existing project) or HANDLED_SETUP_*.sql (new project) in the SQL editor");

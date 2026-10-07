@@ -6,6 +6,8 @@
  *           once a minute per server instance. Used by availability, booking and the quote page.
  * UPDATED : 2026-10-07_1640 UTC — service areas grow with bookings: a booked ZIP outside every market is added to that state's
  *           "new areas" market (addZipToServiceArea). Outside ZIPs stay bookable when a pro covers them.
+ * UPDATED : 2026-10-07_1700 UTC — Handled serves Michigan and Washington (SERVED_STATES, by ZIP range). ZIPs in other states
+ *           are closed (waitlist); a Michigan / Washington ZIP missing from every market is still bookable and gets added.
  */
 import "server-only";
 import { marketForZip, serviceOpen, type LaunchMarket } from "@handled/core";
@@ -21,15 +23,26 @@ export async function launchMarkets(): Promise<LaunchMarket[]> {
   return cache.markets;
 }
 
+/** The states Handled serves, by 3-digit ZIP range. Add a state here (and its markets) to open it. */
+export const SERVED_STATES: { state: string; name: string; from: number; to: number }[] = [
+  { state: "MI", name: "Michigan", from: 480, to: 499 },
+  { state: "WA", name: "Washington", from: 980, to: 994 },
+];
+export const servedState = (zip: string | null | undefined) => {
+  const p = zip && /^\d{5}$/.test(zip) ? Number(zip.slice(0, 3)) : NaN;
+  return SERVED_STATES.find((s) => p >= s.from && p <= s.to) ?? null;
+};
+
 /**
- * { open, market } for a service in a ZIP. A ZIP outside every market is open: booking still requires a vetted pro who
- * covers it (no pro → waitlist, nothing charged), and the first booking adds the ZIP to a service area (addZipToServiceArea).
- * Fails open if markets can't be read.
+ * { open, market } for a service in a ZIP. Outside Michigan and Washington: closed (waitlist). Inside them but in no market
+ * yet: open — booking still needs a vetted pro who covers it (no pro → waitlist, nothing charged), and the first booking
+ * adds the ZIP to a service area (addZipToServiceArea). Fails open if markets can't be read.
  */
 export async function openFor(slug: string, zip: string | null | undefined) {
   try {
     const market = marketForZip(await launchMarkets(), zip);
-    return { open: serviceOpen(market, slug), market: market?.name ?? null };
+    if (!market) return { open: Boolean(servedState(zip)), market: null };
+    return { open: serviceOpen(market, slug), market: market.name };
   } catch {
     return { open: true, market: null };
   }
@@ -37,18 +50,18 @@ export async function openFor(slug: string, zip: string | null | undefined) {
 
 export const clearLaunchCache = () => { cache = null; };
 
-const STATE_NAME: Record<string, string> = { MI: "Michigan", OH: "Ohio", IN: "Indiana", IL: "Illinois", WI: "Wisconsin" };
-
 /**
  * A job was booked: if its ZIP isn't in any service area yet, add it — to the state's "new areas" market (created on first
  * use, no launch list, so every service is bookable there). Staff can move ZIPs into a named market in Hub → Cities.
  */
-export async function addZipToServiceArea(zip: string | null | undefined, state: string | null | undefined) {
+export async function addZipToServiceArea(zip: string | null | undefined, _state?: string | null) {
   if (!zip || !/^\d{5}$/.test(zip) || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
   clearLaunchCache();
   if (marketForZip(await launchMarkets(), zip)) return null; // already served
-  const st = (state ?? "").trim().toUpperCase().slice(0, 2) || "MI";
-  const name = `${STATE_NAME[st] ?? st} — new areas`;
+  const served = servedState(zip); // the ZIP decides the state (a typo in the address form can't open a new state)
+  if (!served) return null;
+  const st = served.state;
+  const name = `${served.name} — new areas`;
   const db = adminClient();
   const { data: m } = await db.from("markets").select("id, zip_prefixes").eq("name", name).maybeSingle();
   if (m) {

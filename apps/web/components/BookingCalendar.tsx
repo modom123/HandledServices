@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_0302 UTC — today (same-day slots from on-call pros), until (only days up to
  *           the customer's deadline), earliest (ASAP: pick the first open slot, priority or not).
  * UPDATED : 2026-10-04_1934 UTC — "coming soon" + waitlist when the service isn't open yet in the customer's city.
+ * UPDATED : 2026-10-07_1700 UTC — outside Michigan and Washington: says so, with the waitlist.
  * UPDATED : 2026-10-07_1610 UTC — no pros in the ZIP yet → waitlist only (booking would take payment with nobody to send).
  */
 "use client";
@@ -61,7 +62,9 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
 
   if (data.mode === "closed") return (
     <div className="space-y-3">
-      <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Este servicio llegará pronto${data.market ? ` a ${data.market}` : " a su zona"}. Déjenos su correo y le avisamos en cuanto abra, con un descuento de lanzamiento.` : `This service is coming soon${data.market ? ` to ${data.market}` : " to your area"}. Leave your email and we’ll tell you the day it opens, with a launch discount.`}</p>
+      <p className="rounded-xl bg-amber-50 p-3 text-sm">{data.market
+        ? (locale === "es" ? `Este servicio llegará pronto a ${data.market}. Déjenos su correo y le avisamos en cuanto abra, con un descuento de lanzamiento.` : `This service is coming soon to ${data.market}. Leave your email and we’ll tell you the day it opens, with a launch discount.`)
+        : (locale === "es" ? `Por ahora atendemos Michigan y Washington. Déjenos su correo y le avisamos cuando lleguemos a ${zip}.` : `We serve Michigan and Washington right now. Leave your email and we’ll tell you when we reach ${zip}.`)}</p>
       <WaitlistForm service={service} zip={zip} locale={locale} />
     </div>
   );

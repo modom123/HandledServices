@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-07_1631.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-07_1820.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-07_1631 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 57 migrations + production seed.
+-- CREATED : 2026-10-07_1820 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 58 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -3457,7 +3457,7 @@ revoke all on function public.redeem_loyalty(uuid, text, uuid, int, text, numeri
 -- FILE    : supabase/migrations/20261007050000_more_service_areas.sql
 -- PROJECT : Handled (myhumanai) — AI-run home & business services
 -- CREATED : 2026-10-07_1640 UTC
--- PURPOSE : Service areas beyond Metro Detroit (480–483): the rest of Michigan by region, plus Toledo, Ohio.
+-- PURPOSE : Service areas beyond Metro Detroit (480–483): the rest of Michigan by region (Handled serves Michigan and Washington).
 --           No launch list, so every service can be booked there. A booking still needs a vetted pro who covers the
 --           ZIP (no pro → waitlist, nothing charged). Booked ZIPs outside every area join "<State> — new areas"
 --           automatically (lib/launch.ts addZipToServiceArea). Safe to run twice.
@@ -3470,8 +3470,33 @@ select v.name, v.state, v.zips from (values
   ('Jackson', 'MI', array['492']),
   ('Grand Rapids & West Michigan', 'MI', array['493','494','495']),
   ('Northern Michigan', 'MI', array['496','497']),
-  ('Upper Peninsula', 'MI', array['498','499']),
-  ('Toledo', 'OH', array['434','435','436'])
+  ('Upper Peninsula', 'MI', array['498','499'])
+) as v(name, state, zips)
+where not exists (select 1 from public.markets m where m.name = v.name);
+
+
+-- >>> migration 20261007060000_washington_service_areas.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261007060000_washington_service_areas.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-07_1700 UTC
+-- PURPOSE : Washington service areas (Handled serves Michigan and Washington). No launch list → every service bookable.
+--             Seattle & Eastside        980, 981   (Seattle, Bellevue, Redmond, Kirkland, Renton, Kent, Auburn, Issaquah)
+--             Everett & North Sound     982        (Everett, Lynnwood, Marysville, Mount Vernon, Bellingham)
+--             Tacoma & South Sound      983, 984   (Tacoma, Puyallup, Lakewood, Federal Way area, Bremerton / Kitsap)
+--             Olympia & Southwest WA    985, 986   (Olympia, Lacey, Tumwater, Centralia, Vancouver WA)
+--             Central Washington        988, 989   (Wenatchee, Ellensburg, Yakima)
+--             Spokane & Eastern WA      990–994    (Spokane, Spokane Valley, Tri-Cities, Walla Walla, Pullman)
+--           A booking still needs a vetted pro who covers the ZIP (no pro → waitlist, nothing charged). Safe to run twice.
+-- ============================================================================
+insert into public.markets (name, state, zip_prefixes)
+select v.name, v.state, v.zips from (values
+  ('Seattle & Eastside', 'WA', array['980','981']),
+  ('Everett & North Sound', 'WA', array['982']),
+  ('Tacoma & South Sound', 'WA', array['983','984']),
+  ('Olympia & Southwest WA', 'WA', array['985','986']),
+  ('Central Washington', 'WA', array['988','989']),
+  ('Spokane & Eastern WA', 'WA', array['990','991','992','993','994'])
 ) as v(name, state, zips)
 where not exists (select 1 from public.markets m where m.name = v.name);
 

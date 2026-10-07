@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * UPDATED : 2026-10-04_1934 UTC — business accounts on approved terms: no checkout; the job goes on the monthly invoice.
  * UPDATED : 2026-10-07_1610 UTC — no booking (and no payment) when the ZIP is outside our markets or no vetted pro covers it yet: waitlist.
+ * UPDATED : 2026-10-07_1700 UTC — outside Michigan and Washington the message says so (waitlist).
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
  */
 import { after } from "next/server";
@@ -33,7 +34,9 @@ export async function POST(req: Request) {
   }
   // the calendar may be a few minutes old — re-check before taking payment: someone must be able to do the job, and the slot must be open
   const a = await (await availability(new Request(`http://local/api/availability?service=${parsed.data.service_slug}&zip=${parsed.data.zip}`))).json();
-  if (a.mode === "closed") return Response.json({ error: `${svcDef.name} is coming soon to your area. Join the waitlist on the booking page and we'll tell you the day it opens.`, waitlist: true }, { status: 409 });
+  if (a.mode === "closed") return Response.json({ error: a.market
+    ? `${svcDef.name} is coming soon to ${a.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
+    : `We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach ${parsed.data.zip}.`, waitlist: true }, { status: 409 });
   if (a.mode === "request" && process.env.SUPABASE_SERVICE_ROLE_KEY)
     return Response.json({ error: `We don't have a pro for ${svcDef.name} in ${parsed.data.zip} yet. Join the waitlist and we'll tell you as soon as one is available — nothing is charged.`, waitlist: true }, { status: 409 });
   if (parsed.data.scheduled_date) {

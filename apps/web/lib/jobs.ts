@@ -141,7 +141,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   }
   // constraint-driven launch: only the city's launch services can be booked (others have a waitlist)
   const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
-  if (!launch.open) throw new Error(`${svc.name} is coming soon${launch.market ? ` to ${launch.market}` : " to your area"}. Join the waitlist on the booking page and we'll tell you the day it opens.`);
+  if (!launch.open) throw new Error(launch.market
+    ? `${svc.name} is coming soon to ${launch.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
+    : "We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach your area.");
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
