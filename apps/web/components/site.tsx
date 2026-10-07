@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-07_0030 UTC — green, white and gold: white header with a gold top rule, gold-on-deep-green logo mark,
  *           gold rule above the footer.
  * UPDATED : 2026-10-07_0140 UTC — Partner Program in the For Business menu and the footer.
+ * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -129,7 +130,15 @@ export async function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-line py-4 text-center text-xs text-ink-soft">© {new Date().getFullYear()} {BRAND.legalName} · <Link href="/terms/service-agreement" className="hover:text-ink">Service Agreement</Link> · <Link href="/privacy" className="hover:text-ink">Privacy</Link></div>
+      <div className="border-t border-line py-4 text-center text-xs text-ink-soft">
+        © {new Date().getFullYear()} {BRAND.legalName}{process.env.BUSINESS_POSTAL_ADDRESS ? ` · ${process.env.BUSINESS_POSTAL_ADDRESS}` : ""}
+        <span className="mx-1">·</span><Link href="/terms/terms-of-use" className="hover:text-ink">{l === "es" ? "Términos de uso" : "Terms of Use"}</Link>
+        <span className="mx-1">·</span><Link href="/terms/service-agreement" className="hover:text-ink">{l === "es" ? "Contrato de servicio" : "Service Agreement"}</Link>
+        <span className="mx-1">·</span><Link href="/terms" className="hover:text-ink">{l === "es" ? "Todos los términos" : "All terms"}</Link>
+        <span className="mx-1">·</span><Link href="/privacy" className="hover:text-ink">{l === "es" ? "Privacidad y cookies" : "Privacy & cookies"}</Link>
+        <span className="mx-1">·</span><Link href="/accessibility" className="hover:text-ink">{l === "es" ? "Accesibilidad" : "Accessibility"}</Link>
+        <span className="mx-1">·</span><Link href="/contact" className="hover:text-ink">{l === "es" ? "Contacto" : "Contact"}</Link>
+      </div>
     </footer>
   );
 }

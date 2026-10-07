@@ -4,12 +4,14 @@
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : sitemap.xml for search engines: main pages, every service, every service × city.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: focus services (MARKETING_FOCUS) and their city pages get higher priority.
+ * UPDATED : 2026-10-07_1640 UTC — base URL from lib/site-url (Vercel production URL when NEXT_PUBLIC_SITE_URL is unset, not localhost).
  */
 import type { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/site-url";
 import { SEO_CITIES, SERVICES, isFocusService } from "@handled/core";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const base = siteUrl();
   const now = new Date();
   const pages = ["", "/home", "/services", "/book", "/business", "/events", "/pros", "/plus", "/gift-cards", "/reviews"].map((p) => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "weekly" as const, priority: p === "" || p === "/home" ? 1 : 0.8 }));
   const services = SERVICES.map((s) => ({ url: `${base}/services/${s.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: isFocusService(s.slug) ? 0.9 : 0.7 }));

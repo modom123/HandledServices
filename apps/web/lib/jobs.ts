@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
  * UPDATED : 2026-10-07_0110 UTC — Referral Partner Program: bookings credited to the customer's partner; commission accrued on completion.
+ * UPDATED : 2026-10-07_1640 UTC — onBooked adds a new ZIP to a service area (lib/launch addZipToServiceArea).
  * UPDATED : 2026-10-07_1545 UTC — markPaid: a dispatch error no longer throws back into the Stripe webhook (alert instead).
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
  */
@@ -253,6 +254,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
 export async function onBooked(job: Job, paymentUrl: string | null) {
   const svc = getService(job.service_slug)!;
+  // service areas grow with bookings: a new ZIP joins the state's "new areas" market
+  const added = await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
+  if (added) await raiseAlert("market", "info", `New service area ZIP: ${job.zip}`, `${job.ref} was booked in ${job.city ?? ""} ${job.zip}, so it was added to "${added}". Move it to a named market in Hub → Cities if you like.`, job.id).catch(() => {});
   const ai = job.ai_quote as { customer_summary?: string; risk_flags?: string[]; ops_notes?: string } | null;
   if (svc.slug === "junk-container" && job.scheduled_date)
     await addEvent(job.id, "scheduled", `Container drop-off ${job.scheduled_date}, pickup ${containerPickup(job.scheduled_date, (job.answers as Record<string, unknown>).days)}. Need it longer? Message us — extra days are $12 each.`, "system", true,

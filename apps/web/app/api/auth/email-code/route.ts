@@ -7,6 +7,7 @@
  *           (no account probing), plus codeLength (6–10, the project's setting). { fallback: true } = this server can't send it; the client asks Supabase instead.
  *           Rate-limited: 40 an hour per connection, 8 per 15 minutes per email (owners exempt). { wait: N } = a code
  *           went out less than a minute ago; the client shows the code box and a countdown instead of an error.
+ * UPDATED : 2026-10-07_1640 UTC — owner emails have their own limit (30/hour) instead of none.
  */
 import { z } from "zod";
 import { rateLimit } from "@/lib/ratelimit";
@@ -22,7 +23,9 @@ export async function POST(req: Request) {
   const es = (b.data.lang ?? (await getLocale())) === "es";
   // owners are never locked out of their own site
   const owner = (process.env.OWNER_EMAILS ?? "").toLowerCase().split(/[,\s]+/).includes(email);
-  if (!owner && ((await rateLimit(req, "signin_ip")) || (await rateLimit(req, "signin_email", `email:${email}`))))
+  // owners skip the shared limits (never locked out by an office's traffic) but have their own, so nobody can flood their inbox
+  const limited = owner ? await rateLimit(req, "signin_owner", `owner:${email}`) : (await rateLimit(req, "signin_ip")) || (await rateLimit(req, "signin_email", `email:${email}`));
+  if (limited)
     return Response.json({ error: es ? "Pidió varios códigos en pocos minutos. Use el código más reciente de su correo, o intente de nuevo en 15 minutos." : "You've asked for several codes in a few minutes. Use the newest code in your email, or try again in 15 minutes.", limited: true }, { status: 429, headers: { "Retry-After": "900" } });
   const r = await sendSignInEmail(email, b.data.next || "/auth/home", es, new URL(req.url).origin);
   if (r.status === "wait") return Response.json({ wait: r.wait ?? 60 });

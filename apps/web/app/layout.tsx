@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_1329 UTC — <html lang> follows the visitor's language (en / es).
  * UPDATED : 2026-10-07_0220 UTC — modern look: Inter (body) and Plus Jakarta Sans (headings), self-hosted.
  * UPDATED : 2026-10-07_0240 UTC — data-theme on <html> picks one of the three looks (lib/theme.ts).
+ * UPDATED : 2026-10-07_1640 UTC — metadataBase from lib/site-url (absolute URLs for social cards).
  */
 import type { Metadata } from "next";
 import { BRAND } from "@handled/core";
@@ -16,8 +17,10 @@ import { Analytics } from "@vercel/analytics/next";
 import { Attribution } from "@/components/Attribution";
 import { getLocale } from "@/lib/locale";
 import { getTheme } from "@/lib/theme";
+import { siteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()), // absolute links for social cards and canonical URLs
   title: { default: `${BRAND.name} — ${BRAND.tagline}`, template: `%s · ${BRAND.name}` },
   description: BRAND.pitch,
 };

@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-07_0010 UTC — siteUrl() never hands out a localhost link on Vercel (falls back to the production domain).
  */
 import "server-only";
+import { siteUrl } from "./site-url";
 
 export async function sendEmail(to: string | string[], subject: string, text: string, opts: { headers?: Record<string, string> } = {}): Promise<boolean> {
   return (await deliverEmail(to, subject, text, opts)).ok;
@@ -63,10 +64,4 @@ export const opsEmail = () => process.env.OPS_EMAIL || "info@handledsvc.com";
  * The public web address for links in emails. NEXT_PUBLIC_SITE_URL wins — unless it's missing or still the localhost example
  * while running on Vercel (that sent members to "localhost refused to connect"); then Vercel's own production domain is used.
  */
-export const siteUrl = () => {
-  const set = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  const local = !set || /localhost|127\.0\.0\.1/.test(set);
-  if (!local || !process.env.VERCEL) return set || "http://localhost:3000";
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-  return vercel ? `https://${vercel}` : set || "http://localhost:3000";
-};
+export { siteUrl } from "./site-url";

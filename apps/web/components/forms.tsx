@@ -11,9 +11,11 @@
  * PURPOSE : Pro application form and commercial account form.
  * UPDATED : 2026-10-04_1934 UTC — BusinessForm passes the sales-engine lead token (pilot offer, credit).
  * UPDATED : 2026-10-06_0841 UTC — BusinessForm moved to ProposalForm.tsx (3-step Request for Proposal with scope of work).
+ * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the pro application's mobile number.
  */
 "use client";
 
+import { SmsConsent } from "./SmsConsent";
 import { useState } from "react";
 import { COVERAGES, MAX_TRADES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
 
@@ -85,6 +87,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
         <div><label className="label">{t("Email")}</label><input name="email" type="email" required className="input" autoComplete="email" /></div>
         <div><label className="label">{t("Mobile")}</label><input name="phone" type="tel" required className="input" autoComplete="tel" /></div>
       </div>
+      <SmsConsent es={es} purpose="pro" />
       <div><label className="label">{t("What do you do?")} <span className="font-normal normal-case text-ink-soft">({es ? `hasta ${MAX_TRADES}` : `up to ${MAX_TRADES}`} · {trades.length}/{MAX_TRADES})</span></label><Chips options={tradeOptions} value={trades} onChange={setTrades} max={MAX_TRADES} />
         {trades.length >= MAX_TRADES && <p className="mt-1 text-xs text-ink-soft">{es ? `Máximo ${MAX_TRADES} oficios: los profesionales enfocados reciben mejores calificaciones y más trabajos. Quite uno para cambiarlo.` : `Up to ${MAX_TRADES} trades — focused pros get better ratings and more jobs. Tap one to remove it and pick another.`}</p>}</div>
       {specialtyOptions.length > 0 && <div><label className="label">{t("Your specialties (what you do best)")}</label><Chips options={specialtyOptions} value={specialties} onChange={setSpecialties} /></div>}

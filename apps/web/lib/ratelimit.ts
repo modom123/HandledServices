@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-06_0708 UTC — pay: in-app payment sheets (Apple Pay / Google Pay).
  * UPDATED : 2026-10-06_2300 UTC — signin: sign-in code emails.
  * UPDATED : 2026-10-07_0245 UTC — signin_ip 40/hour and signin_email 8 per 15 min (10/hour per IP and email locked people out).
+ * UPDATED : 2026-10-07_1640 UTC — signin_owner 30/hour for OWNER_EMAILS (they skip the shared limits but can't be flooded).
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -28,6 +29,7 @@ export const LIMITS = {
   signin: [10, 3600],        // (old name, unused)
   signin_ip: [40, 3600],     // sign-in code requests per connection (an office shares one) per hour
   signin_email: [8, 900],    // sign-in code requests per email address per 15 minutes
+  signin_owner: [30, 3600],  // owner emails: generous (never locked out by others' limits) but not unlimited — no inbox flooding
 } as const satisfies Record<string, readonly [number, number]>;
 
 export function clientIp(req: Request): string {

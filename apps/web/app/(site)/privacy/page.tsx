@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1945 UTC
  * PURPOSE : Privacy policy (required by Apple/Google app stores and SMS carriers).
  *           TEMPLATE — have counsel review before launch.
+ * UPDATED : 2026-10-07_1640 UTC — cookies and analytics section.
  */
 import { BRAND } from "@handled/core";
 
@@ -15,6 +16,7 @@ const SECTIONS: [string, string][] = [
   ["Who we share it with", "With the pro assigned to your job (only what they need to do it), and with service providers that run our business: payments (Stripe), hosting and database (Vercel, Supabase), email (Resend), and AI processing (Anthropic) for quoting, dispatch, quality checks and support. We never sell your personal information or share your number with other contractors."],
   ["Payments", "Card details are entered on Stripe's secure checkout and stored by Stripe, not by us."],
   ["Texts and email", "We send messages about your bookings. You can reply STOP to texts or unsubscribe from marketing email at any time; job-critical messages may still be sent."],
+  ["Cookies and analytics", "We use a small number of cookies and similar browser storage to keep you signed in, remember your language and the website look, and remember how you found us (for example an ad or a referral link) so we can credit referrals. We measure page visits with Vercel Analytics, which does not use cookies to follow you across other websites. We don't sell this data or use it for advertising on other sites. You can clear cookies in your browser at any time; you may need to sign in again."],
   ["Photos", "Before and after photos are used for quality control and support, stored privately, and never published without your permission."],
   ["Retention", "We keep booking and payment records as long as the law requires (typically 7 years for tax records), and other data only as long as needed for the purposes above."],
   ["Your choices", "You can access, correct or delete your information by contacting us. Some records we must keep for legal or tax reasons."],

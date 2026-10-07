@@ -29,6 +29,7 @@
  * UPDATED : 2026-10-06_0726 UTC — CRON_SECRET must be 16+ characters (scheduled jobs fail closed otherwise).
  * UPDATED : 2026-10-07_1545 UTC — webhook event list includes payment_intent.succeeded (app payments) and the Stripe Identity events.
  * UPDATED : 2026-10-07_1610 UTC — webhook list adds charge.refunded.
+ * UPDATED : 2026-10-07_1640 UTC — checks for bid measurements, Handled Points, service areas, mailing address and Google Maps.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -63,6 +64,8 @@ export async function readiness(): Promise<Check[]> {
   add("AI (Claude)", "Anthropic API key", has("ANTHROPIC_API_KEY") ? true : "warn", has("ANTHROPIC_API_KEY") ? "set" : "missing — quotes/dispatch/QA fall back to rules, chat & assistant offline", "Add ANTHROPIC_API_KEY from console.anthropic.com");
   add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : has("SMTP_USER") && has("SMTP_PASSWORD") ? "not set — booking emails go from the company mailbox instead" : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend (or connect the company mailbox below)");
   add("Access", "Owner admin (OWNER_EMAILS)", has("OWNER_EMAILS") ? true : "warn", has("OWNER_EMAILS") ? "set" : "not set — make yourself admin by adding your email", "In Vercel set OWNER_EMAILS=you@handledsvc.com (comma-separated for more), sign in once and you're an admin; add other staff in Hub → Team");
+  add("Site", "Business mailing address", has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", has("BUSINESS_POSTAL_ADDRESS") ? "shown in the footer and on /contact" : "not set — the footer and /contact show no address (also required on marketing email)", "In Vercel set BUSINESS_POSTAL_ADDRESS=\"123 Main St, Detroit, MI 48201\" (a PO box or registered-agent address is fine)");
+  add("Site", "Address lookup (Google Maps)", has("GOOGLE_MAPS_API_KEY") ? true : "warn", has("GOOGLE_MAPS_API_KEY") ? "set — pro distance uses exact addresses" : "not set — distances use ZIP centers (less precise dispatch)", "Google Cloud → enable the Geocoding API → API key → GOOGLE_MAPS_API_KEY in Vercel");
   add("Email", "Company mailbox (Email Center)", has("SMTP_USER") && has("SMTP_PASSWORD") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("SMTP_USER") || !has("SMTP_PASSWORD") ? "not connected — no marketing email or inbox" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required on marketing email)" : `connected: ${process.env.SMTP_USER}`, "In Vercel set SMTP_USER=info@handledsvc.com and SMTP_PASSWORD (the Hostinger mailbox password), then Hub → Email Center → Check mailbox & domain (SPF, DKIM, DMARC)");
   const signinMail = has("SUPABASE_SERVICE_ROLE_KEY") && (has("RESEND_API_KEY") || (has("SMTP_USER") && has("SMTP_PASSWORD")));
   add("Email", "Sign-in emails", signinMail ? true : "warn", signinMail ? "Handled sends the code + a link that works on any device" : "falling back to Supabase's email — links only work in the same browser, and the code shows only if the templates include it", "Set SUPABASE_SERVICE_ROLE_KEY and RESEND_API_KEY (or SMTP_USER + SMTP_PASSWORD) in Vercel; add https://YOUR-DOMAIN/auth/confirm to Supabase → Authentication → URL Configuration → Redirect URLs");
@@ -146,10 +149,15 @@ export async function readiness(): Promise<Check[]> {
     ["52 Xero accounting", () => db.from("xero_sync_log").select("id").limit(1)],
     ["53 referral partner program", () => db.from("partner_commissions").select("id").limit(1)],
     ["54 website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
+    ["55 bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
+    ["56 Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],
   ];
+  // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
+  const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
+  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql to add the rest of Michigan and Toledo; new ZIPs are added automatically as they're booked");
   for (const [label, run] of probes) {
     const { error } = await run();
-    add("Supabase", `Migration ${label}`, !error, error ? error.message : "applied", "Run supabase/setup/HANDLED_SETUP_*.sql (new project) or the missing file in supabase/migrations in the SQL editor");
+    add("Supabase", `Migration ${label}`, !error, error ? error.message : "applied", "Run the matching supabase/setup/ADD_*.sql (existing project) or HANDLED_SETUP_*.sql (new project) in the SQL editor");
   }
 
   // ── Catalog, storage, people

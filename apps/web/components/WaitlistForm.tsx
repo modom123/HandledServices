@@ -4,9 +4,11 @@
  * CREATED : 2026-10-02_2245 UTC
  * PURPOSE : "No pros here yet" → join the waitlist. Shown on the booking calendar when no pro
  *           covers the ZIP. We email (and text, if given) the day a pro starts covering it.
+ * UPDATED : 2026-10-07_1640 UTC — text-message consent wording once a mobile number is entered.
  */
 "use client";
 
+import { SmsConsent } from "./SmsConsent";
 import { useState } from "react";
 import { t as tr, type Locale } from "@handled/core";
 
@@ -33,6 +35,7 @@ export function WaitlistForm({ service, zip, locale = "en", source = "booking" }
         <input className="input" type="tel" placeholder={t("Mobile (optional, for a text)")} value={phone} onChange={(e) => setPhone(e.target.value)} />
         <button className="btn-ghost" disabled={state === "busy"}>{t("Notify me")}</button>
       </div>
+      {phone && <div className="mt-1"><SmsConsent es={es} purpose="waitlist" /></div>}
       {msg && <p className="mt-1 text-rose-700">{msg}</p>}
     </form>
   );

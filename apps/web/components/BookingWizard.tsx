@@ -16,9 +16,11 @@
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-05_0447 UTC — photos and notes carried in from Snap & post a job.
  * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (Add event security); Plan My Event passes alcohol.
+ * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
  */
 "use client";
 
+import { SmsConsent } from "./SmsConsent";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
@@ -310,7 +312,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <div><label className="label">{t("Email")}</label><input className="input" type="email" autoComplete="email" value={form.contact_email} onChange={set("contact_email")} /></div>
               <div><label className="label">{t("Mobile")}</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
-            <p className="text-xs text-ink-soft">{t("We text updates about this job only. We never sell your info to other contractors.")}</p>
+            <SmsConsent es={es} purpose="booking" />
             {svc && !siteVisit && est && (() => {
               const dp = depositPolicy(svc.slug, total, date);
               if (!dp.allowed) return null;
