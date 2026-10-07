@@ -78,7 +78,10 @@ body {
 /* splash page: gentle fade-up on load (off for people who prefer less motion) */
 @keyframes splash-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .splash-in { animation: splash-in 0.7s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .splash-in { animation: none; } }
+/* splash logo: settles in with a slight scale (2026-10-07_2045) */
+@keyframes splash-logo { from { opacity: 0; transform: translateY(10px) scale(0.92); } to { opacity: 1; transform: none; } }
+.splash-logo { animation: splash-logo 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .splash-in, .splash-logo { animation: none; } }
 
 /* sections fade up as they scroll into view (browsers that support scroll timelines; off for reduced motion) */
 @supports (animation-timeline: view()) {
