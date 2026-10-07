@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-04_1934 UTC — adenda de retiro: mudanzas pequeñas, entregas de objetos grandes y muebles de decoración (nueva sección "Mudanzas y entregas"); MSA: plazos aprobados en el portal de la cuenta empresarial.
  * UPDATED : 2026-10-05_0439 UTC — Seguridad para eventos en el anexo de eventos.
  * UPDATED : 2026-10-05_1433 UTC — anexo de guardias de seguridad y patrullaje.
+ * UPDATED : 2026-10-07_2000 UTC — Acuerdo de Servicios para Empresas v2 — Washington (ley y tribunales locales, impuesto sobre las ventas, libertad de trabajo de los profesionales).
  */
 import {
   BOOKING_FEE,
@@ -58,7 +59,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       "Los niveles de servicio son metas. Si no los cumplimos, repetimos el trabajo o le damos un crédito.",
       "Por favor, no contrate directamente a nuestros profesionales durante 12 meses; de lo contrario, se aplica un cargo por conversión.",
       "Cualquiera de las partes puede terminar el acuerdo con 30 días de aviso, o de inmediato por un incumplimiento grave.",
-      "Ley de Michigan. Tribunales del condado de Wayne (Wayne County). Sin arbitraje obligatorio para empresas.",
+      "Ley de Michigan y tribunales del condado de Wayne (Wayne County) — o, para servicios en Washington, la ley de Washington y los tribunales del lugar donde se prestan los servicios. Sin arbitraje obligatorio para empresas.",
     ],
     sections: numbered([
       ["Partes y estructura", p(
@@ -87,7 +88,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
           "Números de orden de compra (PO) y centros de costo: los pondremos en las facturas si nos los proporciona. La falta de un número de PO no retrasa el pago.",
           "Pago atrasado: los montos no pagados con plazo de crédito generan un cargo por mora del 1.5% mensual (o la tasa más alta que permita la ley, si es menor) desde la fecha de vencimiento. Podemos pausar el servicio después de 10 días de aviso por escrito por falta de pago, y exigir pago por adelantado a partir de entonces." + COUNSEL,
           "Disputas: infórmenos por escrito sobre una disputa de facturación dentro de los 30 días siguientes a la factura. Pague a tiempo la parte que no está en disputa. Trabajaremos de buena fe para resolver el resto.",
-          "Impuestos: los precios no incluyen impuestos. Usted paga los impuestos sobre las ventas y otros impuestos similares que correspondan, a menos que nos entregue un certificado de exención válido.",
+          "Impuestos: los precios no incluyen impuestos. Usted paga los impuestos sobre las ventas y otros impuestos similares que correspondan, a menos que nos entregue un certificado de exención válido. Washington: el servicio de limpieza (janitorial) de rutina no está sujeto al impuesto estatal sobre las ventas de Washington (nosotros pagamos el impuesto B&O); las limpiezas especiales o de una sola vez (mudanza, posconstrucción, daños por agua, vaciados) y algunos otros servicios sí pagan impuesto sobre las ventas, y lo agregamos cuando la ley lo exige.",
           "Cobranza: si debemos recurrir a una agencia de cobranza o a los tribunales para recuperar montos vencidos, usted pagará los costos razonables de cobranza y los honorarios de abogados.",
         ),
       )],
@@ -119,7 +120,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       ["No contratación de profesionales", p(
         `Durante este Acuerdo y durante 12 meses después del último servicio que un profesional le preste a través de ${BRAND.name}, usted se compromete a no emplear, contratar ni trabajar directamente con ese profesional (ni con su empresa) para el mismo tipo de servicios fuera de nuestra plataforma.`,
         "Si quiere incorporar a un profesional a su personal o trabajar con él directamente, avísenos. Puede hacerlo pagando un cargo por conversión igual al mayor de $2,500 o el 25% de lo que nos pagó por los servicios de ese profesional en los 12 meses anteriores. Este cargo es una estimación justa de nuestros costos de reclutamiento, verificación y colocación, no una penalidad." + COUNSEL,
-        "Esto no impide que un profesional responda a una oferta de empleo general que no esté dirigida a nuestros profesionales.",
+        "Esto no impide que un profesional responda a una oferta de empleo general que no esté dirigida a nuestros profesionales. Esta sección solo lo limita a usted, el cliente. Nunca limita el derecho de ningún profesional a trabajar para cualquier otra persona, incluidas otras empresas y sus propios clientes.",
       )],
       ["Niveles de servicio y soluciones", p(
         "Los niveles de servicio de un Pedido (como horarios de llegada, tiempos de respuesta, frecuencia o estándares de limpieza) son metas que nos esforzamos por cumplir.",
@@ -160,6 +161,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
       )],
       ["Ley aplicable, jurisdicción y disputas", p(
         "Este Acuerdo se rige por la ley de Michigan. Cualquier demanda debe presentarse en los tribunales estatales o federales del condado de Wayne (Wayne County), Michigan, y ambas partes aceptan la competencia de esos tribunales.",
+        "Servicios en Washington: para cualquier Orden prestada en un sitio en Washington, esa Orden se rige por la ley de Washington, y cualquier demanda sobre ella debe presentarse en los tribunales estatales o federales del condado de Washington donde se prestaron los servicios (o el condado de King), y ambas partes aceptan la competencia de esos tribunales.",
         "Antes de demandar, cada parte dará aviso por escrito a la otra y personas de alto nivel de ambas partes se reunirán (en persona o por video) dentro de 30 días para intentar resolverlo. Aun así, cualquiera de las partes puede acudir antes a los tribunales para obtener una medida urgente (como proteger información confidencial o detener el mal uso de llaves o códigos).",
         "Por qué aquí no hay arbitraje: el arbitraje individual para consumidores de nuestros Términos de Uso está pensado para clientes individuales. Para las empresas, un tribunal en nuestro condado es más sencillo, más económico para ambas partes en la mayoría de las disputas, y da a cada parte el derecho de apelar. Las partes aún pueden acordar por escrito someter una disputa específica a arbitraje o mediación.",
         "Ambas partes renuncian al derecho a un juicio con jurado para cualquier disputa bajo este Acuerdo, en la medida en que la ley lo permita." + COUNSEL,

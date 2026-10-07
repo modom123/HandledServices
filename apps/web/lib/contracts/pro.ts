@@ -29,6 +29,7 @@
  * UPDATED : 2026-10-05_0440 UTC — pro-addendum-security (licensed agencies, employees, armed rules, use of force, incidents).
  * UPDATED : 2026-10-05_1433 UTC — security addendum covers standing posts, patrols and fire watch (section 7).
  * UPDATED : 2026-10-05_2034 UTC — pro-addendum-recruiter (Handled Talent: 20% of first-year salary, consent, ownership, fair hiring).
+ * UPDATED : 2026-10-07_2000 UTC — Washington pros (RCW 49.62): customer clause limited to soliciting (accepting work a customer offers is allowed), Washington law and courts; agreement v8.
  */
 import {
   AGREEMENT_VERSION,
@@ -107,7 +108,7 @@ export const PRO_AGREEMENT: Contract = {
     `Your payout is the job price minus the customer's ${money(BOOKING_FEE)} booking fee (ours) and our commission: ${COMMISSION_TEXT}. Discounts and promotions never reduce your payout. Tips are 100% yours. You never pay lead fees or a subscription.`,
     `Fix workmanship problems within ${BRAND.guaranteeDays} days at no extra payout. A refund only comes out of your pay when your workmanship caused it — capped at that job's payout, with notice and a chance to respond.`,
     "Keep your insurance, licenses and documents current. Offers pause automatically when one expires and restart when it's renewed.",
-    "Don't take customers you met through us off the platform for 12 months. There is no non-compete.",
+    "Don't take customers you met through us off the platform for 12 months (in Washington: don't solicit them). There is no non-compete.",
     "We can stop sending offers only for the objective reasons in the Deactivation Policy, with written notice and a human appeal. Money you've earned is always paid.",
     "Disagreements go to an informal talk first, then individual arbitration — you can opt out of arbitration within 30 days of signing.",
   ],
@@ -222,7 +223,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "28. Customer relationships: non-solicitation and non-circumvention",
-      p: `We spend money to find each customer. For 12 months after you're first introduced to a customer through ${N}, you won't solicit or accept work from that customer for the same kind of services outside the platform, or encourage them to book around us. This applies only to customers you met through ${N} — never to your own existing customers or customers who find you on their own with no help from us.\n\nIf you break this rule, you agree to pay us, as a reasonable estimate of our lost fee (not a penalty), an amount equal to our share (the difference between the customer price and your payout on comparable ${N} jobs) on the diverted work for the rest of the 12 months. We'll show you how we calculated it, and you can dispute it under section 37.${COUNSEL}`,
+      p: `We spend money to find each customer. For 12 months after you're first introduced to a customer through ${N}, you won't solicit or accept work from that customer for the same kind of services outside the platform, or encourage them to book around us. This applies only to customers you met through ${N} — never to your own existing customers or customers who find you on their own with no help from us.\n\nIf you break this rule, you agree to pay us, as a reasonable estimate of our lost fee (not a penalty), an amount equal to our share (the difference between the customer price and your payout on comparable ${N} jobs) on the diverted work for the rest of the 12 months. We'll show you how we calculated it, and you can dispute it under section 37.\n\nIf you live or work in Washington: this section only stops you from soliciting a customer you met through ${N} to move work off the platform. It does not stop you from accepting work a customer offers you on their own, and the payment above applies only to work you solicited. Nothing in this agreement is a noncompetition covenant under Washington law (RCW 49.62).${COUNSEL}`,
     },
     {
       h: "29. No non-compete",
@@ -270,7 +271,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "40. Governing law, e-signature and the whole agreement",
-      p: `Michigan law governs this agreement, except where the Federal Arbitration Act or another federal law applies, and except that where you live and work in another state, that state's non-waivable worker protections apply. Courts in Wayne County, Michigan (or the federal court for the Eastern District of Michigan) hear anything that goes to court, unless you live elsewhere and the law lets you sue at home.\n\nYou agree to sign electronically. Your typed name and checkbox in the portal are your signature, and we keep a copy of exactly what you signed with the date, time and IP address. You can download it from the portal at any time.\n\nThis agreement, together with the Code of Conduct, Deactivation Policy, Background Check Notice, Location & Communications Consent, your trade addenda and each work order, is the whole agreement between us and replaces earlier versions. If any part is unenforceable, the rest still applies. Not enforcing a term once isn't a waiver. You may not transfer this agreement without our consent; we may transfer it to a company that takes over our business, with notice to you. Notices to you go to the email in your account; notices to us go to ${BRAND.supportEmail}.`,
+      p: `If you live or work in Washington, Washington law governs this agreement (apart from federal law), and anything that goes to court is heard in the Washington county where you live or work; nothing here requires you to bring or defend a claim outside Washington. Otherwise, Michigan law governs this agreement, except where the Federal Arbitration Act or another federal law applies, and except that where you live and work in another state, that state's non-waivable worker protections apply. Courts in Wayne County, Michigan (or the federal court for the Eastern District of Michigan) hear anything that goes to court, unless you live elsewhere and the law lets you sue at home.\n\nYou agree to sign electronically. Your typed name and checkbox in the portal are your signature, and we keep a copy of exactly what you signed with the date, time and IP address. You can download it from the portal at any time.\n\nThis agreement, together with the Code of Conduct, Deactivation Policy, Background Check Notice, Location & Communications Consent, your trade addenda and each work order, is the whole agreement between us and replaces earlier versions. If any part is unenforceable, the rest still applies. Not enforcing a term once isn't a waiver. You may not transfer this agreement without our consent; we may transfer it to a company that takes over our business, with notice to you. Notices to you go to the email in your account; notices to us go to ${BRAND.supportEmail}.`,
     },
   ],
 };

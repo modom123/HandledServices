@@ -16,6 +16,7 @@
  *           gold rule above the footer.
  * UPDATED : 2026-10-07_0140 UTC — Partner Program in the For Business menu and the footer.
  * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
+ * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -26,9 +27,10 @@ import { DesktopNav, MobileNav, type NavGroup } from "./SiteNav";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <Link href="/home" className={`flex items-center gap-2 font-extrabold tracking-tight ${className}`}>
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-deep text-gold-light ring-1 ring-gold/50">✓</span>
-      <span className="text-lg">{BRAND.name}</span>
+    <Link href="/home" className={`flex items-center ${className}`}>
+      {/* official logo (public/brand): the H mark with the check-arrow + HANDLED / Home & Business Services */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/handled-lockup.png" alt={`${BRAND.name} — Home & Business Services`} width={891} height={240} className="h-9 w-auto sm:h-10" />
     </Link>
   );
 }

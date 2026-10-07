@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-07_0320 UTC — 🎨 Website & promotions (website look, grand opening promotion).
  * UPDATED : 2026-10-07_0530 UTC — 🏅 Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-07_0600 UTC — "Staff only" page shows the signed-in email, its role and exactly how to become admin.
+ * UPDATED : 2026-10-07_1945 UTC — official logo (light version on the dark sidebar).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -111,7 +112,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
-        <Link href="/home" className="flex items-center gap-2 px-2 font-extrabold"><span className="grid h-7 w-7 place-items-center rounded-md bg-brand">✓</span>{BRAND.name} <span className="text-xs font-normal text-white/50">Hub</span></Link>
+        <Link href="/home" className="flex items-center gap-2 px-2">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/handled-lockup-light.png" alt={BRAND.name} width={891} height={240} className="h-8 w-auto" /> <span className="text-xs font-normal text-white/50">Hub</span></Link>
         <HubNav groups={NAV} />
         <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
       </aside>

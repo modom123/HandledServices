@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-04_1950 UTC — errands addendum: grocery delivery removed, Same-Day Courier added.
  * UPDATED : 2026-10-05_0439 UTC — events addendum covers Event Security (licensed agencies, unarmed by default, de-escalation, incident reports).
  * UPDATED : 2026-10-05_1433 UTC — addendum-security (standing posts, patrols, fire watch).
+ * UPDATED : 2026-10-07_2000 UTC — Business Services Agreement v2 — Washington: Washington law and local courts for Washington sites, Washington sales tax note (routine janitorial excluded; special clean-ups taxable), and the pro's freedom to work stated in the non-solicitation section.
  */
 import {
   AI_MAX_CUT,
@@ -489,7 +490,7 @@ export const SERVICE_AGREEMENT: Contract = {
 export const BUSINESS_MSA: Contract = {
   key: "business-services-agreement",
   title: `${BRAND.legalName} — Business Services Agreement`,
-  version: V1,
+  version: "2026-10-v2", // v2: Washington — law and courts where the services are performed, Washington sales tax, the pro's freedom to work stated
   audience: "business",
   appliesTo: "Business accounts (offices, retail, restaurants, clinics, property managers, HOAs, venues and other organizations), accepted when the account is opened or an order form is signed.",
   summary: [
@@ -500,7 +501,7 @@ export const BUSINESS_MSA: Contract = {
     "Service levels are targets. If we miss, we redo the work or credit you.",
     "Please don't hire our pros directly for 12 months, or a conversion fee applies.",
     "Either side can end the agreement with 30 days' notice, or right away for a serious breach.",
-    "Michigan law. Courts in Wayne County. No mandatory arbitration for businesses.",
+    "Michigan law and Wayne County courts — or, for services performed in Washington, Washington law and the courts where the services are performed. No mandatory arbitration for businesses.",
   ],
   sections: numbered([
     ["Parties and structure", p(
@@ -529,7 +530,7 @@ export const BUSINESS_MSA: Contract = {
         "PO numbers and cost centers: we will put them on invoices if you give them to us. A missing PO number doesn't delay payment.",
         "Late payment: unpaid amounts on net terms carry a late fee of 1.5% per month (or the highest rate the law allows, if lower) from the due date. We may pause service after 10 days' written notice of non-payment, and require prepayment after that." + COUNSEL,
         "Disputes: tell us about a billing dispute in writing within 30 days of the invoice. Pay the part not in dispute on time. We will work in good faith to resolve the rest.",
-        "Taxes: prices exclude taxes. You pay sales and similar taxes that apply, unless you give us a valid exemption certificate.",
+        "Taxes: prices exclude taxes. You pay sales and similar taxes that apply, unless you give us a valid exemption certificate. Washington: routine janitorial service is not subject to Washington retail sales tax (we pay B&O tax on it); one-time or special clean-ups (move-out, post-construction, water damage, cleanouts) and some other services are retail-taxable, and we add Washington sales tax where the law requires.",
         "Collection: if we must use collection or court to recover overdue amounts, you will pay reasonable collection costs and lawyer fees.",
       ),
     )],
@@ -561,7 +562,7 @@ export const BUSINESS_MSA: Contract = {
     ["Non-solicitation of pros", p(
       `During this Agreement and for 12 months after the last service a pro performs for you through ${BRAND.name}, you agree not to hire, contract with or directly engage that pro (or their business) for the same kind of services outside our platform.`,
       "If you want to bring a pro in-house or work with them directly, tell us. You may do so by paying a conversion fee equal to the greater of $2,500 or 25% of what you paid us for that pro's services in the prior 12 months. This fee is a fair estimate of our recruiting, vetting and placement costs, not a penalty." + COUNSEL,
-      "This doesn't stop a pro from answering a general job posting not aimed at our pros.",
+      "This doesn't stop a pro from answering a general job posting not aimed at our pros. This section limits only you, the client. It never limits any pro's right to work for anyone else, including other companies and their own customers.",
     )],
     ["Service levels and remedies", p(
       "Service levels in an Order (such as arrival windows, response times, frequency or cleaning standards) are targets we work hard to meet.",
@@ -602,6 +603,7 @@ export const BUSINESS_MSA: Contract = {
     )],
     ["Governing law, venue and disputes", p(
       "Michigan law governs this Agreement. Any lawsuit must be brought in the state or federal courts for Wayne County, Michigan, and both sides consent to those courts.",
+      "Services in Washington: for any Order performed at a site in Washington, Washington law governs that Order, and any lawsuit about it must be brought in the state or federal courts for the Washington county where the services were performed (or King County), and both sides consent to those courts.",
       "Before suing, each side will give the other written notice and senior people from both sides will meet (in person or by video) within 30 days to try to resolve it. Either side may still go to court sooner for urgent relief (like protecting confidential information or stopping misuse of keys or codes).",
       "Why no arbitration here: the individual consumer arbitration in our Terms of Use is designed for individual customers. For businesses, a court in our home county is simpler, cheaper for both sides for most disputes, and gives each side a right to appeal. The two sides may still agree in writing to arbitrate or mediate a particular dispute.",
       "Both sides waive the right to a jury trial for any dispute under this Agreement, to the extent the law allows." + COUNSEL,
