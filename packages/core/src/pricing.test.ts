@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
+ * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
  * UPDATED : 2026-10-06_0752 UTC — every AI agent has a mission role, the two priorities and standing tasks.
  * UPDATED : 2026-10-06_0841 UTC — Request for Proposal scope summary and follow-up questions.
@@ -1493,4 +1494,30 @@ test("bid engine learns the market from paid jobs", async () => {
   assert.equal(marketBenchmark({ slug: "lawn-care" }, r), r["lawn-care"].medianJob, "unsized line → median job");
   const d = dealStrategy({ loaded: 100, market: 200 })!;
   assert.ok(d.recommended > d.targetPrice && d.notes.some((n) => /paid jobs/.test(n)), "anchors on paid jobs when no award");
+});
+
+test("Handled Points: earn, tiers, balance, redeem", async () => {
+  const { loyaltyPointsForJob, loyaltyTier, loyaltyBalance, checkRedeem, redeemable, paidForPoints, loyaltyDollars } = await import("./loyalty.ts");
+  assert.equal(paidForPoints({ price_final: 250, amount_refunded: 50 }), 200);
+  assert.equal(loyaltyPointsForJob(199.99, 0).points, 199);
+  assert.equal(loyaltyTier(999).key, "member");
+  assert.equal(loyaltyTier(1000).key, "silver");
+  assert.equal(loyaltyTier(5000).key, "gold");
+  assert.equal(loyaltyTier(400).toNext, 600);
+  assert.equal(loyaltyPointsForJob(200, 3000).points, 300, "gold earns 1.5x");
+  const now = new Date("2026-10-07T00:00:00Z");
+  const b = loyaltyBalance([
+    { kind: "earn", points: 600, status: "available", created_at: "2026-09-01T00:00:00Z" },
+    { kind: "bonus", points: 100, status: "available", created_at: "2026-09-01T00:00:00Z" },
+    { kind: "earn", points: 300, status: "pending", created_at: "2026-10-01T00:00:00Z" },
+    { kind: "earn", points: 900, status: "void", created_at: "2026-10-01T00:00:00Z" },
+    { kind: "earn", points: 50, status: "available", created_at: "2024-01-01T00:00:00Z" },
+    { kind: "redeem", points: -500, status: "available", created_at: "2026-09-20T00:00:00Z" },
+  ], now);
+  assert.deepEqual(b, { available: 250, pending: 300, lifetime: 1050, earned12m: 1000, redeemed: 500 });
+  assert.equal(redeemable(1499), 1000);
+  assert.equal(loyaltyDollars(500), 5);
+  assert.ok(checkRedeem(500, 700).ok && checkRedeem(500, 700).credit === 5);
+  assert.ok(!checkRedeem(250, 700).ok, "blocks of 500");
+  assert.ok(!checkRedeem(1000, 700).ok, "not more than available");
 });

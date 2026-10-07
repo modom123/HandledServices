@@ -53,4 +53,5 @@ export * from "./mission.ts";
 export * from "./rfp.ts";
 export * from "./coverage.ts";
 export * from "./partners.ts";
+export * from "./loyalty.ts";
 export * from "./supabase-public.ts";

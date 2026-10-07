@@ -8,6 +8,7 @@
  * PURPOSE : Customer portal — all jobs, recurring plans, quick rebook.
  * UPDATED : 2026-10-04_1934 UTC — link to the business account portal for members.
  * UPDATED : 2026-10-04_2204 UTC — My favorite pros: book again with them, or remove.
+ * UPDATED : 2026-10-07_0530 UTC — Handled Points: balance, tier, credits, redeem, activity.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -19,6 +20,7 @@ import { CopyLink, DeleteAccount, LanguageToggle, PlusButton } from "@/component
 import { getViewer } from "@/lib/auth";
 import { myAccounts } from "@/lib/business";
 import { myFavorites } from "@/lib/favorites";
+import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { RemoveFavorite } from "@/components/Favorites";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
@@ -107,6 +109,7 @@ async function AccountExtras({ userId, email, locale }: { userId: string; email:
           <div className="mt-3 flex flex-wrap items-center gap-2"><CopyLink url={link} locale={locale} /><span className="break-all text-xs text-ink-soft">{link}</span></div>
         </div>
       )}
+      <LoyaltyCard account={{ profileId: userId, email }} es={es} />
       <div className="md:col-span-2"><LanguageToggle locale={locale} /></div>
       <div className="md:col-span-2"><DeleteAccount locale={locale} /></div>
     </div>

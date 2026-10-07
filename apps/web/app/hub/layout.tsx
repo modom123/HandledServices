@@ -26,6 +26,7 @@
  * UPDATED : 2026-10-07_0145 UTC — 💸 Referral partners.
  * UPDATED : 2026-10-07_0200 UTC — menu grouped into dropdown sections (components/HubNav), phones get a ☰ Menu.
  * UPDATED : 2026-10-07_0320 UTC — 🎨 Website & promotions (website look, grand opening promotion).
+ * UPDATED : 2026-10-07_0530 UTC — 🏅 Handled Points (customer and business loyalty).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -58,6 +59,7 @@ const NAV: HubGroup[] = [
     ["/hub/customers", "👥", "Customers & B2B"],
     ["/hub/biz-leads", "🤝", "Business leads"],
     ["/hub/partners", "💸", "Referral partners"],
+    ["/hub/loyalty", "🏅", "Handled Points"],
     ["/hub/gov", "🏛️", "Gov contracts"],
     ["/hub/bids", "📝", "Bids"],
     ["/hub/talent", "🤝", "Talent (recruiting)"],

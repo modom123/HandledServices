@@ -6,6 +6,7 @@
  *           billing status (prepay or invoiced on approved terms, credit limit, open balance), pilot
  *           offer, properties with one-tap booking, recent jobs, pros who worked for the account
  *           (choose dedicated pros), invoices with payment links, and the team.
+ * UPDATED : 2026-10-07_0530 UTC — Handled Points for the business account (admins redeem).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -13,6 +14,7 @@ import { getService, money, termsDecision } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { myAccounts, openBalance, type Property } from "@/lib/business";
 import { adminClient } from "@/lib/supabase/server";
+import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { Badge, Empty, StatusBadge, fmtDate } from "@/components/ui";
 import { AddProperty, BillingEmail, DedicatedToggle, InviteMember, PropertyActive, RemoveMember, RequestTerms } from "@/components/BusinessPortal";
 
@@ -66,6 +68,8 @@ export default async function BusinessAccount() {
               <div className="card"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Properties</div><div className="mt-1 text-2xl font-bold">{properties.filter((p) => p.active).length}</div></div>
               <div className="card"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Jobs</div><div className="mt-1 text-2xl font-bold">{jobRows.length}</div><div className="text-xs text-ink-soft">{jobRows.filter((j) => j.status === "completed").length} completed (recent)</div></div>
             </div>
+
+            <LoyaltyCard account={{ businessId: a.id }} canRedeem={admin} title={`${a.company} · Handled Points`} />
 
             <div className="card space-y-3">
               <div className="font-semibold">Properties</div>
