@@ -11,6 +11,8 @@
  * UPDATED : 2026-10-06_2305 UTC — POST from /auth/confirm (the "Sign in" button behind every emailed link, lib/signin). A failed
  *           code exchange or token now goes back to the sign-in page with a clear message instead of landing signed out.
  *           Visiting with a session already in place (code typed on the sign-in page) just routes to the right home.
+ * UPDATED : 2026-10-07_0600 UTC — staff who sign in from the "Customer" choice (or a remembered one) land in the Hub, not
+ *           the customer account; owner check moved to lib/auth (getViewer).
  */
 import { NextResponse } from "next/server";
 import { serverClient } from "@/lib/supabase/server";
@@ -28,16 +30,10 @@ async function finish(origin: string, nextRaw: string | null, verify: () => Prom
   }
   const v = await getViewer();
   if (!v) return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(next)}`, origin), status);
-  // owners (OWNER_EMAILS in Vercel) are admins from their first sign-in — no database step to get started
-  const owners = (process.env.OWNER_EMAILS ?? "").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
-  let role = v.role;
-  if (owners.includes(v.email.toLowerCase()) && v.role !== "admin") {
-    const { adminClient } = await import("@/lib/supabase/server");
-    await adminClient().from("profiles").update({ role: "admin" }).eq("id", v.userId);
-    role = "admin";
-  }
+  // owners (OWNER_EMAILS) are made admins inside getViewer. Staff go to the Hub unless they asked for a specific page:
+  // the sign-in page's "Customer" choice (often remembered from an earlier visit) is not a reason to leave staff in /account.
   let dest = next;
-  if (dest === "/auth/home") dest = isStaff({ ...v, role }) ? "/hub" : v.contractorId ? "/pro" : "/account";
+  if (dest === "/auth/home" || (isStaff(v) && dest === "/account")) dest = isStaff(v) ? "/hub" : v.contractorId ? "/pro" : "/account";
   return NextResponse.redirect(new URL(dest, origin), status);
 }
 

@@ -4,6 +4,9 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Resolve who is calling. Web requests use the Supabase session cookie;
  *           the mobile app sends `Authorization: Bearer <supabase access token>`.
+ * UPDATED : 2026-10-07_0600 UTC — owners (OWNER_EMAILS) are admins on every request, not only when they come through
+ *           /auth/callback — a session from before OWNER_EMAILS was set (or a code typed in the app) no longer lands in the
+ *           customer account / "Staff only".
  */
 import "server-only";
 import type { Role } from "@handled/core";
@@ -30,15 +33,25 @@ export async function getViewer(req?: Request): Promise<Viewer | null> {
     db.from("profiles").select("role, full_name").eq("id", user.id).maybeSingle(),
     db.from("contractors").select("id").eq("profile_id", user.id).maybeSingle(),
   ]);
+  let role = (profile?.role as Role) ?? "customer";
+  if (role !== "admin" && isOwnerEmail(user.email)) {
+    role = "admin";
+    const { adminClient } = await import("./supabase/server");
+    await adminClient().from("profiles").update({ role: "admin" }).eq("id", user.id).then(() => null, () => null);
+  }
   return {
     userId: user.id,
     email: user.email ?? "",
-    role: (profile?.role as Role) ?? "customer",
+    role,
     fullName: profile?.full_name ?? null,
     contractorId: contractor?.id ?? null,
     db,
   };
 }
+
+/** Emails listed in OWNER_EMAILS (Vercel) are admins from their first sign-in. */
+export const ownerEmails = () => (process.env.OWNER_EMAILS ?? "").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
+export const isOwnerEmail = (email?: string | null) => Boolean(email) && ownerEmails().includes(email!.trim().toLowerCase());
 
 export const isStaff = (v: Viewer | null) => v?.role === "admin" || v?.role === "dispatcher";
 

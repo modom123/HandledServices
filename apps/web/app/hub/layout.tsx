@@ -27,6 +27,7 @@
  * UPDATED : 2026-10-07_0200 UTC — menu grouped into dropdown sections (components/HubNav), phones get a ☰ Menu.
  * UPDATED : 2026-10-07_0320 UTC — 🎨 Website & promotions (website look, grand opening promotion).
  * UPDATED : 2026-10-07_0530 UTC — 🏅 Handled Points (customer and business loyalty).
+ * UPDATED : 2026-10-07_0600 UTC — "Staff only" page shows the signed-in email, its role and exactly how to become admin.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -97,7 +98,16 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   const v = await getViewer();
   if (!v) redirect("/login?next=/hub");
   if (!isStaff(v))
-    return <div className="wrap py-20"><div className="card max-w-lg"><h1 className="text-xl font-bold">Staff only</h1><p className="mt-2 text-sm text-ink-soft">{v.email} isn’t on the ops team. Ask an admin to add your email in Hub → Team; you'll get a sign-in link. Looking for your bookings or your pro jobs? <a className="underline" href="/account">My account</a> · <a className="underline" href="/pro">Pro portal</a></p></div></div>;
+    return (
+      <div className="wrap py-20"><div className="card max-w-lg space-y-3 text-sm">
+        <h1 className="text-xl font-bold">Staff only</h1>
+        <p className="text-ink-soft">You’re signed in as <b className="text-ink">{v.email}</b>, which isn’t on the ops team yet (role: {v.role}).</p>
+        <div><b>Owner?</b> In Vercel → Settings → Environment Variables set <code className="rounded bg-paper px-1">OWNER_EMAILS</code> to this email (comma-separate more), redeploy, then reload this page. Or in Supabase → SQL Editor run:
+          <pre className="mt-1 overflow-x-auto rounded bg-paper p-2 text-xs">{`update public.profiles set role = 'admin'\nwhere lower(email) = lower('${v.email}');`}</pre></div>
+        <p className="text-ink-soft"><b className="text-ink">Staff?</b> Ask an admin to add your email in Hub → Team.</p>
+        <p className="text-ink-soft"><form action="/auth/signout" method="post" className="inline">Signed in with the wrong email? <button className="underline">Sign out</button></form> · <a className="underline" href="/account">My account</a> · <a className="underline" href="/pro">Pro portal</a></p>
+      </div></div>
+    );
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
