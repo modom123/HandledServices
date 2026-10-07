@@ -6,6 +6,7 @@
  *           final price; nothing is dispatched until payment clears (site visits excepted).
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * UPDATED : 2026-10-04_1934 UTC — business accounts on approved terms: no checkout; the job goes on the monthly invoice.
+ * UPDATED : 2026-10-07_1610 UTC — no booking (and no payment) when the ZIP is outside our markets or no vetted pro covers it yet: waitlist.
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
  */
 import { after } from "next/server";
@@ -30,9 +31,12 @@ export async function POST(req: Request) {
     const days = (new Date(`${parsed.data.scheduled_date}T12:00:00`).getTime() - Date.now()) / 86400000;
     if (days < svcDef.leadDays - 1) return Response.json({ error: `${svcDef.name} needs at least ${svcDef.leadDays} days' notice — call us for anything sooner.` }, { status: 400 });
   }
-  // the calendar may be a few minutes old — re-check the slot before taking payment
+  // the calendar may be a few minutes old — re-check before taking payment: someone must be able to do the job, and the slot must be open
+  const a = await (await availability(new Request(`http://local/api/availability?service=${parsed.data.service_slug}&zip=${parsed.data.zip}`))).json();
+  if (a.mode === "closed") return Response.json({ error: `${svcDef.name} is coming soon to your area. Join the waitlist on the booking page and we'll tell you the day it opens.`, waitlist: true }, { status: 409 });
+  if (a.mode === "request" && process.env.SUPABASE_SERVICE_ROLE_KEY)
+    return Response.json({ error: `We don't have a pro for ${svcDef.name} in ${parsed.data.zip} yet. Join the waitlist and we'll tell you as soon as one is available — nothing is charged.`, waitlist: true }, { status: 409 });
   if (parsed.data.scheduled_date) {
-    const a = await (await availability(new Request(`http://local/api/availability?service=${parsed.data.service_slug}&zip=${parsed.data.zip}`))).json();
     const day = a.days?.find((d: { date: string }) => d.date === parsed.data.scheduled_date);
     const w = parsed.data.time_window;
     if (a.mode === "live" && day && (day.closed || day.level === "full" || (w !== "flexible" && day.windows[w] === 0)))

@@ -17,12 +17,14 @@
  * UPDATED : 2026-10-06_2230 UTC — Xero: a paid Checkout records its payment intent and the sales tax Stripe Tax added
  * UPDATED : 2026-10-07_1545 UTC — a failure while applying a payment raises a critical Hub alert instead of being lost (the row is already paid, so Stripe retries were skipped as duplicates).
  *           (payments.stripe_payment_intent_id, tax_amount), so the daily Xero sync books tax as a liability, not revenue.
+ * UPDATED : 2026-10-07_1610 UTC — paying a job twice refunds the extra automatically; charge.refunded records refunds made in the Stripe dashboard (job amount_refunded, gift cards turned off, ops told to review the pro payout).
  */
 import type Stripe from "stripe";
+import { money } from "@handled/core";
 import { getStripe } from "@/lib/stripe";
 import { settleInvoice } from "@/lib/business";
 import { adminClient } from "@/lib/supabase/server";
-import { markPaid, raiseAlert } from "@/lib/jobs";
+import { addEvent, getJob, markPaid, raiseAlert } from "@/lib/jobs";
 import { reimburse } from "@/lib/pro-benefits";
 import { opsEmail, sendEmail } from "@/lib/notify";
 import { handleDispute } from "@/lib/disputes";
@@ -71,6 +73,7 @@ export async function POST(req: Request) {
   if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed" || event.type === "charge.dispute.updated") {
     await handleDispute(event.data.object as Stripe.Dispute, event.type);
   }
+  if (event.type === "charge.refunded") await recordOutsideRefunds(event.data.object as Stripe.Charge);
   if (event.type.startsWith("customer.subscription.")) await syncSubscription(event.data.object as Stripe.Subscription);
   // pro photo ID check (Stripe Identity)
   if (event.type === "identity.verification_session.verified" || event.type === "identity.verification_session.requires_input") {
@@ -103,6 +106,75 @@ async function safeSettle(row: Record<string, any>, amount: number, pi: Stripe.P
   }
 }
 
+/**
+ * A customer who pays a job twice (an old link and a new one, or the app and a link) gets the extra back right away:
+ * the job never counts more than its price. Returns what's left to apply.
+ */
+async function refundOverpayment(row: Record<string, any>, amount: number, pi: Stripe.PaymentIntent | null): Promise<number> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!["upfront", "deposit", "balance"].includes(row.kind)) return amount; // change orders, raises and tips add to the price
+  const job = await getJob(row.job_id);
+  if (!job) return amount;
+  const price = Number(job.price_final ?? 0);
+  const excess = Math.round((Number(job.amount_paid ?? 0) + amount - price) * 100) / 100;
+  if (!(price > 0) || excess <= 0.005) return amount;
+  const back = Math.min(excess, amount);
+  const whole = back >= amount - 0.005;
+  const s = getStripe();
+  let ok = false;
+  if (s && pi) {
+    try {
+      // job_id in the metadata tells the charge.refunded handler this one is already accounted for
+      await s.refunds.create({ payment_intent: pi.id, ...(whole ? {} : { amount: Math.round(back * 100) }), metadata: { job_id: job.id, reason: "duplicate_payment", payment_id: row.id } }, { idempotencyKey: `overpay-${row.id}` });
+      ok = true;
+    } catch (e) {
+      console.error("[stripe webhook] overpayment refund failed", e);
+    }
+  }
+  if (ok && whole) await adminClient().from("payments").update({ status: "refunded" }).eq("id", row.id);
+  await addEvent(job.id, "refund", ok ? `Paid twice — ${money(back)} refunded automatically.` : `Paid ${money(back)} more than the price — refund pending.`, "system", true,
+    ok ? `Pagó dos veces: ${money(back)} reembolsados automáticamente.` : `Pagó ${money(back)} de más: reembolso pendiente.`);
+  await raiseAlert("payment", ok ? "info" : "critical", ok ? `Duplicate payment refunded — ${job.ref}` : `Refund an overpayment by hand — ${job.ref}`,
+    `${money(back)} over the ${money(price)} price (payment ${row.id}).${ok ? "" : " The automatic refund failed — refund it in Stripe."}`, job.id);
+  return Math.round((amount - back) * 100) / 100; // the job never counts more than its price (a failed refund is finished by hand)
+}
+
+/**
+ * Refunds made outside the app (Stripe dashboard): the app's own refunds carry job_id in their metadata and are already
+ * recorded. Anything else is added to the job's amount_refunded (partner commissions, points and reports follow it), a
+ * refunded gift card purchase turns the card off, and ops is asked to review the pro's payout.
+ */
+async function recordOutsideRefunds(charge: Stripe.Charge) {
+  const s = getStripe();
+  if (!s) return;
+  const db = adminClient();
+  const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id ?? null;
+  if (!pi) return;
+  const intent = await s.paymentIntents.retrieve(pi).catch(() => null);
+  const paymentId = intent?.metadata?.payment_id ?? null;
+  const jobId = intent?.metadata?.job_id ?? null;
+  const refunds = await s.refunds.list({ charge: charge.id, limit: 100 }).catch(() => null);
+  for (const r of refunds?.data ?? []) {
+    if (r.status === "failed" || r.status === "canceled" || r.metadata?.job_id || r.metadata?.recorded) continue;
+    // remember it on Stripe's side so a repeated event never counts it twice
+    const claimed = await s.refunds.update(r.id, { metadata: { recorded: "1" } }).catch(() => null);
+    if (!claimed) continue;
+    const amount = r.amount / 100;
+    if (intent?.metadata?.kind === "gift_card" && paymentId) {
+      await db.from("promo_codes").update({ active: false, note: `Turned off: purchase refunded in Stripe (${r.id})` }).eq("payment_id", paymentId);
+      await raiseAlert("payment", "warn", "Gift card purchase refunded — card turned off", `Refund ${r.id}, ${money(amount)}.`, null);
+      continue;
+    }
+    if (!jobId) { await raiseAlert("payment", "warn", `Refund made in Stripe: ${money(amount)}`, `Refund ${r.id} on ${pi} — not linked to a job. Check it in Stripe.`, null); continue; }
+    const { data: j } = await db.from("jobs").select("ref, amount_refunded, contractor_id").eq("id", jobId).maybeSingle();
+    if (!j) continue;
+    await db.from("jobs").update({ amount_refunded: Math.round((Number(j.amount_refunded ?? 0) + amount) * 100) / 100 }).eq("id", jobId);
+    await db.from("payments").insert({ job_id: jobId, kind: "refund", amount: -amount, status: "paid", stripe_session_id: r.id });
+    await addEvent(jobId, "refund", `Refund issued: ${money(amount)}.`, "stripe", true, `Reembolso emitido: ${money(amount)}.`);
+    await raiseAlert("refund", "warn", `Refund made in Stripe — ${j.ref}, ${money(amount)}`,
+      `Recorded on the job. ${j.contractor_id ? "Review the pro's payout: refunds only come out of their pay when their workmanship caused it (Hub → job → Make it right, or propose a deduction)." : ""}`, jobId);
+  }
+}
+
 /** Apply a paid payment: tip, gift card, materials, talent or business invoice, or the job itself. */
 async function settle(row: Record<string, any>, amount: number, pi: Stripe.PaymentIntent | null) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const db = adminClient();
@@ -119,6 +191,8 @@ async function settle(row: Record<string, any>, amount: number, pi: Stripe.Payme
   } else if (row.kind === "invoice" && row.business_invoice_id) {
     await settleInvoice(row.business_invoice_id, amount);
   } else if (row.job_id) {
+    amount = await refundOverpayment(row, amount, pi);
+    if (amount <= 0) return;
     await markPaid(row.job_id, { amount, via: "card", kind: row.kind, paymentIntent: pi?.id ?? null, paymentMethod: pi?.payment_method ? String(pi.payment_method) : null });
   } else if (opsEmail()) {
     await sendEmail(opsEmail(), `Paid: $${amount} — ${row.description}`, `${row.customer_name ?? ""} <${row.customer_email}> paid $${amount} for "${row.description}" (Quick Charge by ${row.created_by ?? "staff"}).`);

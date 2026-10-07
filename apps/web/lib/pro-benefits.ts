@@ -17,6 +17,7 @@
  *             payReferralBonuses() — daily: refer-a-pro bonus once the new pro hits N jobs
  * UPDATED : 2026-10-03_0117 UTC — applied deductions take at most half of a payout run and never tips
  *           (the rest carries to the next run), per the pro agreement.
+ * UPDATED : 2026-10-07_1610 UTC — payouts: only the transfer decides success (a failure after money moved is reported, never undone, so nothing is paid twice); runs check the Stripe balance first; per-attempt idempotency keys; the instant fee is sent back when the instant payout fails.
  */
 import "server-only";
 import {
@@ -27,7 +28,7 @@ import { adminClient } from "./supabase/server";
 import { addEvent, getJob, raiseAlert } from "./jobs";
 import { localeOf, notify } from "./push";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
-import { chargeSavedCard, connectReady, createCheckout, getStripe, refundAcross } from "./stripe";
+import { availableBalance as platformBalance, chargeSavedCard, connectReady, createCheckout, getStripe, refundAcross } from "./stripe";
 import { uploadDoc } from "./photos";
 
 const db = () => adminClient();
@@ -210,18 +211,35 @@ export async function cashOutNow(contractorId: string) {
     if (claimed?.length) await db().from("payouts").update({ status: "approved", paid_at: null, method: null }).in("id", claimed.map((x: { id: string }) => x.id));
     return { ok: false, error: "Your balance just changed — try again" };
   }
+  // only the transfer itself decides success: once money has moved, nothing after it may put the rows back to "approved"
+  let t: { id: string };
   try {
-    const t = await s.transfers.create({ amount: Math.round(net * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} instant pay`, metadata: { contractor_id: contractorId } }, { idempotencyKey: `instant-${contractorId}-${pos.sort().join("").slice(0, 200)}` });
-    await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", pos);
-    if (pos[0]) await db().from("payouts").update({ instant_fee: fee }).eq("id", pos[0]);
-    if (neg.length) await db().from("payouts").update({ paid_at: now, stripe_transfer_id: t.id }).in("id", neg);
-    let instant = true;
-    try { await s.payouts.create({ amount: Math.round(net * 100), currency: "usd", method: "instant" }, { stripeAccount: pro.stripe_account_id }); } catch { instant = false; }
-    return { ok: true, amount: net, fee, instant, note: instant ? "On its way to your debit card — usually within 30 minutes." : "Sent to your Stripe account; it reaches your bank on Stripe's standard schedule (add a debit card in Stripe for instant)." };
+    const funds = await platformBalance();
+    if (funds !== null && funds < net) throw new Error("Instant pay is busy right now — your money is safe and goes out with Monday's payout, or try again later");
+    t = await s.transfers.create({ amount: Math.round(net * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} instant pay`, metadata: { contractor_id: contractorId } }, { idempotencyKey: `instant-${contractorId}-${now}` });
   } catch (e) {
     await db().from("payouts").update({ status: "approved", paid_at: null, method: null }).in("id", pos);
     return { ok: false, error: e instanceof Error ? e.message : "Transfer failed" };
   }
+  let instant = true;
+  try {
+    await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", pos);
+    if (pos[0]) await db().from("payouts").update({ instant_fee: fee }).eq("id", pos[0]);
+    if (neg.length) await db().from("payouts").update({ paid_at: now, stripe_transfer_id: t.id }).in("id", neg);
+  } catch (e) {
+    await raiseAlert("payout", "warn", `Instant pay sent but not fully recorded — ${pro.business_name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+  }
+  try { await s.payouts.create({ amount: Math.round(net * 100), currency: "usd", method: "instant" }, { stripeAccount: pro.stripe_account_id }); } catch { instant = false; }
+  if (!instant && fee > 0) {
+    // the instant payout didn't happen, so the instant fee isn't owed: send it to them too
+    try {
+      await s.transfers.create({ amount: Math.round(fee * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} instant pay fee returned`, metadata: { contractor_id: contractorId, kind: "instant_fee_refund" } }, { idempotencyKey: `instant-fee-back-${t.id}` });
+      if (pos[0]) await db().from("payouts").update({ instant_fee: 0 }).eq("id", pos[0]);
+    } catch (e) {
+      await raiseAlert("payout", "warn", `Return the instant fee by hand — ${pro.business_name}`, `${money(fee)} fee kept on transfer ${t.id}, but the instant payout failed: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+    }
+  }
+  return { ok: true, amount: instant ? net : total, fee: instant ? fee : 0, instant, note: instant ? "On its way to your debit card — usually within 30 minutes." : "Sent to your Stripe account with no fee; it reaches your bank on Stripe's standard schedule (add a debit card in Stripe for instant)." };
 }
 
 // ─── 5. Materials at cost ─────────────────────────────────────────────────────
@@ -379,6 +397,7 @@ export async function runWeeklyPayouts(now = new Date()) {
   if (!s) { await raiseAlert("payout", "warn", `Weekly payouts not sent (week of ${week})`, "Stripe isn't configured — pay pros manually in Finance."); return { paid: 0, waiting: 0, total: 0 }; }
   const { data: due } = await db().from("payouts").select("contractor_id").eq("status", "approved");
   const ids = [...new Set(((due ?? []) as { contractor_id: string }[]).map((x) => x.contractor_id))];
+  let funds = await platformBalance(); // card money takes ~2 days to become available in Stripe
   let paid = 0, waiting = 0, total = 0;
   const failed: string[] = [];
   for (const id of ids) {
@@ -394,6 +413,10 @@ export async function runWeeklyPayouts(now = new Date()) {
         es: { title: `${money(amount)} le están esperando`, body: "Termine la configuración de pagos en Ganancias para que podamos enviarlo.", subject: `${money(amount)} listos — termine la configuración de pagos`, text: `Tiene ${money(amount)} aprobados. Termine la configuración de pagos en Stripe para que podamos enviarlos: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
       continue;
     }
+    if (funds !== null && funds < amount) {
+      failed.push(`${pro.business_name}: not enough available in Stripe yet (${money(funds)} available, ${money(amount)} needed) — waits for the next run`);
+      continue;
+    }
     await prepareDeductions(bal);
     const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
     const neg = rows.filter((r) => r.status === "clawback").map((r) => r.id);
@@ -405,17 +428,25 @@ export async function runWeeklyPayouts(now = new Date()) {
       failed.push(`${pro.business_name} (balance changed)`);
       continue;
     }
+    let t: { id: string };
     try {
-      const t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} weekly payout — week of ${week}`, metadata: { contractor_id: id, week_of: week } }, { idempotencyKey: `weekly-${id}-${week}` });
+      t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} weekly payout — week of ${week}`, metadata: { contractor_id: id, week_of: week } }, { idempotencyKey: `weekly-${id}-${week}-${stamp}` });
+    } catch (e) {
+      await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", pos);
+      failed.push(`${pro.business_name}: ${e instanceof Error ? e.message : "transfer failed"}`);
+      continue;
+    }
+    // money has moved: from here on, problems are reported, never undone (undoing would pay twice next week)
+    if (funds !== null) funds = r2(funds - amount);
+    paid++; total = r2(total + amount);
+    try {
       await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", pos);
       if (neg.length) await db().from("payouts").update({ paid_at: stamp, stripe_transfer_id: t.id, week_of: week }).in("id", neg);
-      paid++; total = r2(total + amount);
       await notify(pro.profile_id, { title: `Paid: ${money(amount)}`, body: `Your weekly payout is on its way to your bank (${pos.length} item${pos.length === 1 ? "" : "s"}).`, data: { type: "earnings" },
         email: { to: pro.email, subject: `${BRAND.name} weekly payout: ${money(amount)}`, text: `We sent ${money(amount)} to your Stripe account for the week of ${week}. It reaches your bank on Stripe's standard schedule (usually 2 business days).\n\nStatement for every job: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` },
         es: { title: `Pagado: ${money(amount)}`, body: `Su pago semanal va en camino a su banco (${pos.length} concepto${pos.length === 1 ? "" : "s"}).`, subject: `Pago semanal de ${BRAND.name}: ${money(amount)}`, text: `Enviamos ${money(amount)} a su cuenta de Stripe por la semana del ${esDate(week)}. Llegará a su banco según el calendario estándar de Stripe (normalmente 2 días hábiles).\n\nDetalle de cada trabajo: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
     } catch (e) {
-      await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", pos);
-      failed.push(`${pro.business_name}: ${e instanceof Error ? e.message : "transfer failed"}`);
+      await raiseAlert("payout", "warn", `Payout sent but not fully recorded — ${pro.business_name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
     }
   }
   if (failed.length) await raiseAlert("payout", "critical", `Weekly payouts: ${failed.length} failed`, failed.join("\n"));

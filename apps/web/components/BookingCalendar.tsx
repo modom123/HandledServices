@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-02_0302 UTC — today (same-day slots from on-call pros), until (only days up to
  *           the customer's deadline), earliest (ASAP: pick the first open slot, priority or not).
  * UPDATED : 2026-10-04_1934 UTC — "coming soon" + waitlist when the service isn't open yet in the customer's city.
+ * UPDATED : 2026-10-07_1610 UTC — no pros in the ZIP yet → waitlist only (booking would take payment with nobody to send).
  */
 "use client";
 
@@ -64,13 +65,18 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
       <WaitlistForm service={service} zip={zip} locale={locale} />
     </div>
   );
+  // no vetted pro covers this ZIP yet: no booking (and no payment) until one does — waitlist instead
+  if (data.mode === "request") return (
+    <div className="space-y-3">
+      <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Todavía no tenemos profesionales para este servicio en ${zip}. Déjenos su correo y le avisamos en cuanto haya uno: no se le cobra nada hasta entonces.` : `We don’t have a pro for this service in ${zip} yet. Leave your email and we’ll tell you as soon as one is available — nothing is charged until then.`}</p>
+      <WaitlistForm service={service} zip={zip} locale={locale} />
+    </div>
+  );
   const lead = data.days[0] ? data.days[0].weekday : 0;
   const day = data.days.find((x) => x.date === date);
   return (
     <div className="space-y-4">
       {data.mode === "live" && !data.days.some((x) => !x.closed && x.level !== "full") && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? "No hay horarios disponibles antes de su fecha. Elija una opción más adelante en “¿Para cuándo lo necesita?”, o llámenos y trataremos de acomodarlo." : "No open slots before your date. Choose a later “When do you need it?” option, or call us and we’ll try to fit you in."}</p>}
-      {data.mode === "request" && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Todavía estamos sumando profesionales en ${zip}. Elija su horario preferido y se lo confirmamos en un día hábil.` : `We’re still adding pros in ${zip}. Pick your preferred time and we’ll confirm it within one business day.`}</p>}
-      {data.mode === "request" && <WaitlistForm service={service} zip={zip} locale={locale} />}
       <div>
         <div className="grid grid-cols-7 gap-1 text-center text-[13px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS[locale === "es" ? "es" : "en"].map((w) => <div key={w}>{w}</div>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-1">

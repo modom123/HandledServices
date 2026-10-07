@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-06_0708 UTC — migration 45 (in-app payments) and the Stripe publishable key for Apple Pay / Google Pay in the app.
  * UPDATED : 2026-10-06_0726 UTC — CRON_SECRET must be 16+ characters (scheduled jobs fail closed otherwise).
  * UPDATED : 2026-10-07_1545 UTC — webhook event list includes payment_intent.succeeded (app payments) and the Stripe Identity events.
+ * UPDATED : 2026-10-07_1610 UTC — webhook list adds charge.refunded.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -93,7 +94,7 @@ export async function readiness(): Promise<Check[]> {
     } catch (e) {
       add("Payments (Stripe)", "Stripe account", false, `key rejected: ${e instanceof Error ? e.message : e}`, "Re-copy STRIPE_SECRET_KEY");
     }
-    add("Payments (Stripe)", "Webhook secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.succeeded (app payments), charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, identity.verification_session.verified and identity.verification_session.requires_input (pro ID checks); copy the signing secret`);
+    add("Payments (Stripe)", "Webhook secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.succeeded (app payments), charge.refunded (refunds made in Stripe), charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, identity.verification_session.verified and identity.verification_session.requires_input (pro ID checks); copy the signing secret`);
     add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services; turn on before adding states that tax services", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
     add("Payments (Stripe)", "Customer billing portal", true, "used for Handled Plus manage/cancel — enable it in Stripe → Settings → Billing → Customer portal");
   // ── Pro recruiting (background checks)

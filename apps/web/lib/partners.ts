@@ -11,6 +11,7 @@
  *             runPartnerPayouts() — Mondays: every eligible commission, re-checked for refunds, sent via Stripe Connect
  *           Guards: one partner per customer (first wins), no self-referrals, existing customers don't count,
  *           suspended partners earn nothing, refunds reduce or void the commission before it's paid.
+ * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -21,7 +22,7 @@ import {
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { raiseAlert } from "./jobs";
-import { getStripe } from "./stripe";
+import { availableBalance, getStripe } from "./stripe";
 
 const db = () => adminClient();
 export const PARTNER_COOKIE = "handled_partner";
@@ -165,6 +166,7 @@ export async function runPartnerPayouts(now = new Date()) {
   }
   let paid = 0, total = 0, waiting = 0;
   const failed: string[] = [];
+  let funds = await availableBalance(); // card money takes ~2 days to become available in Stripe
   for (const [pid, rows] of byPartner) {
     const amount = Math.round(rows.reduce((t, r) => t + Number(r.amount), 0) * 100) / 100;
     if (amount < PARTNER_PROGRAM.minPayout) continue; // rolls to next week
@@ -177,6 +179,7 @@ export async function runPartnerPayouts(now = new Date()) {
       await sendEmail(partner.email, `${money(amount)} in referral commissions is ready for you`, `Hi ${partner.name.split(" ")[0]},\n\nYou have ${money(amount)} in ${BRAND.name} referral commissions ready to send. Set up payouts (2 minutes, through Stripe) on your partner page: ${siteUrl()}/partner\n\n— ${BRAND.name}`).catch(() => {});
       continue;
     }
+    if (funds !== null && funds < amount) { failed.push(`${partner.name}: not enough available in Stripe yet — waits for next week`); continue; }
     const ids = rows.map((r) => r.id);
     const stamp = new Date().toISOString();
     const { data: claimed } = await db().from("partner_commissions").update({ status: "paid", paid_at: stamp, week_of: week }).in("id", ids).eq("status", "pending").select("id");
@@ -185,14 +188,22 @@ export async function runPartnerPayouts(now = new Date()) {
       failed.push(`${partner.name} (changed while paying)`);
       continue;
     }
+    let t: { id: string };
     try {
-      const t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: partner.stripe_account_id!, description: `${BRAND.name} referral commissions — week of ${week}`, metadata: { partner_id: pid, kind: "partner_commission", week_of: week } }, { idempotencyKey: `partner-${pid}-${week}` });
-      await db().from("partner_commissions").update({ stripe_transfer_id: t.id }).in("id", ids);
-      paid++; total = Math.round((total + amount) * 100) / 100;
-      await sendEmail(partner.email, `Paid: ${money(amount)} in ${BRAND.name} referral commissions`, `Hi ${partner.name.split(" ")[0]},\n\nWe sent ${money(amount)} for ${rows.length} completed job${rows.length === 1 ? "" : "s"} from customers you referred. It reaches your bank on Stripe's normal schedule (usually 2 business days).\n\nEvery job and payment: ${siteUrl()}/partner\n\nThank you for sending people our way.\n\n— ${BRAND.name}`).catch(() => {});
+      t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: partner.stripe_account_id!, description: `${BRAND.name} referral commissions — week of ${week}`, metadata: { partner_id: pid, kind: "partner_commission", week_of: week } }, { idempotencyKey: `partner-${pid}-${week}-${stamp}` });
     } catch (e) {
       await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", ids);
       failed.push(`${partner.name}: ${e instanceof Error ? e.message : "transfer failed"}`);
+      continue;
+    }
+    // money has moved: problems after this are reported, never undone (undoing would pay twice next week)
+    paid++; total = Math.round((total + amount) * 100) / 100;
+    if (funds !== null) funds = Math.round((funds - amount) * 100) / 100;
+    try {
+      await db().from("partner_commissions").update({ stripe_transfer_id: t.id }).in("id", ids);
+      await sendEmail(partner.email, `Paid: ${money(amount)} in ${BRAND.name} referral commissions`, `Hi ${partner.name.split(" ")[0]},\n\nWe sent ${money(amount)} for ${rows.length} completed job${rows.length === 1 ? "" : "s"} from customers you referred. It reaches your bank on Stripe's normal schedule (usually 2 business days).\n\nEvery job and payment: ${siteUrl()}/partner\n\nThank you for sending people our way.\n\n— ${BRAND.name}`).catch(() => {});
+    } catch (e) {
+      await raiseAlert("partners", "warn", `Partner payout sent but not fully recorded — ${partner.name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
     }
   }
   if (failed.length) await raiseAlert("partners", "critical", `Partner payouts: ${failed.length} failed`, failed.join("\n"));

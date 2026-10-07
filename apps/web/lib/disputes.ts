@@ -10,6 +10,8 @@
  *               agreement + IP, before/after photos, AI QA result, messages) and the deadline
  *           Closed as won → held payouts are released; lost → released unless the reason is about
  *           the work ("not received"/"unacceptable"), then a proposed deduction (notice, response, a person decides).
+ * UPDATED : 2026-10-07_1610 UTC — duplicate "created"/"closed" deliveries are ignored (no second deduction or alert); a lost
+ *           dispute adds its amount to the job's amount_refunded.
  */
 import "server-only";
 import type Stripe from "stripe";
@@ -35,13 +37,17 @@ export async function handleDispute(d: Stripe.Dispute, type: string) {
   const job = await jobForPaymentIntent(pi);
   const amount = d.amount / 100;
   const closed = type === "charge.dispute.closed";
+  // Stripe can deliver the same event more than once: act on "created" and "closed" only the first time
+  const { data: before } = await db().from("payment_disputes").select("id, closed_at").eq("stripe_dispute_id", d.id).maybeSingle();
+  const firstOpen = !before && !closed; // the first event we see for this dispute (created, or updated if it arrives first)
+  const firstClose = closed && !before?.closed_at;
   await db().from("payment_disputes").upsert({
     stripe_dispute_id: d.id, payment_intent: pi, job_id: job?.id ?? null, amount, reason: d.reason, status: d.status,
     evidence_due_by: d.evidence_details?.due_by ? new Date(d.evidence_details.due_by * 1000).toISOString() : null,
     ...(closed ? { closed_at: new Date().toISOString() } : {}),
   }, { onConflict: "stripe_dispute_id" });
 
-  if (type === "charge.dispute.created") {
+  if (firstOpen) {
     let held = 0;
     if (job) {
       await db().from("jobs").update({ disputed_at: new Date().toISOString() }).eq("id", job.id);
@@ -60,7 +66,12 @@ export async function handleDispute(d: Stripe.Dispute, type: string) {
       `Reason: ${d.reason}. ${held ? `Pro payout held (${held}).` : job?.contractor_id ? "Pro was already paid — consider a clawback if we lose." : ""}\n\nEvidence we have:\n${evidence}\n\nRespond in Stripe → Disputes. Invoice & signed agreement: ${job ? `${siteUrl()}/invoice/${job.id}` : "—"}`, job?.id ?? null);
   }
 
-  if (closed && job) {
+  if (firstClose && job) {
+    // a lost dispute is money returned to the customer: count it like a refund (partner commissions, points, reports)
+    if (d.status === "lost") {
+      const { data: j } = await db().from("jobs").select("amount_refunded").eq("id", job.id).single();
+      await db().from("jobs").update({ amount_refunded: Math.round((Number(j?.amount_refunded ?? 0) + amount) * 100) / 100 }).eq("id", job.id);
+    }
     if (d.status === "won") {
       await db().from("payouts").update({ status: "approved", reason: null }).eq("job_id", job.id).eq("status", "held").eq("reason", `Chargeback ${d.id}`);
       await addEvent(job.id, "dispute", `Card dispute won — held payout released.`, "stripe", false);

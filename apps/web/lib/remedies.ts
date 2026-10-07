@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
  * UPDATED : 2026-10-03_0119 UTC — pay protection always on; a pro-at-fault refund is only a proposed deduction
  *           (notice, 3 business days, a person decides) — never taken automatically.
+ * UPDATED : 2026-10-07_1610 UTC — refunds go across every card payment (refundAcross), so a deposit-plan job can be refunded past the deposit.
  * PURPOSE : Making it right after an upfront payment — never by holding money back:
  *             refund         — partial or full, back to the card. Shared with the pro in the
  *                              original split, or charged to the pro first when the pro was at
@@ -21,8 +22,8 @@ import "server-only";
 import { BRAND, estimate, getService, serviceText, money, refundSplit, splitJob, type Answers, type Job } from "@handled/core";
 import { proposeDeduction } from "./deductions";
 import { adminClient } from "./supabase/server";
-import { addEvent, dispatchJob, getJob } from "./jobs";
-import { refundPayment } from "./stripe";
+import { addEvent, dispatchJob, getJob, raiseAlert } from "./jobs";
+import { refundAcross } from "./stripe";
 import { sendEmail } from "./notify";
 import { syncCatalog } from "./catalog";
 import { localeOf } from "./push";
@@ -59,11 +60,13 @@ export async function issueRefund(jobId: string, amount: number, proAtFault: boo
   const split = refundSplit({ ...base, proAtFault: false, protectPro });
   const proposed = proAtFault && job.contractor_id ? refundSplit({ ...base, proAtFault: true, protectPro: false }).fromPro : 0;
   if (split.refund <= 0) return { ok: false, error: "Nothing left to refund" };
-  const r = await refundPayment(job, split.refund);
-  if (!r.ok) return { ok: false, error: r.error };
+  // across every card payment (a deposit and a balance are two payments), newest first
+  const r = await refundAcross(job, split.refund, "make_it_right");
+  if (r.refunded <= 0) return { ok: false, error: r.error ?? "The refund didn't go through" };
+  if (r.refunded < split.refund - 0.005) await raiseAlert("refund", "critical", `Refund only partly sent — ${job.ref}`, `${money(r.refunded)} of ${money(split.refund)} went back to the card${r.error ? ` (${r.error})` : ""}. Send the rest by hand.`, jobId);
 
   await db().from("jobs").update({ amount_refunded: Number(job.amount_refunded) + split.refund, contractor_payout: split.newPayout }).eq("id", jobId);
-  await db().from("payments").insert({ job_id: jobId, kind: "refund", amount: -split.refund, status: "paid", stripe_session_id: r.id ?? null });
+  await db().from("payments").insert({ job_id: jobId, kind: "refund", amount: -split.refund, status: "paid", stripe_session_id: r.ids[0] ?? null });
   if (job.contractor_id && split.fromPro > 0) {
     const { data: payout } = await db().from("payouts").select("id, amount, status").eq("job_id", jobId).eq("kind", "job").neq("status", "clawback").maybeSingle();
     if (payout && payout.status !== "paid") await db().from("payouts").update({ amount: split.newPayout }).eq("id", payout.id);
