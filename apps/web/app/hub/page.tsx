@@ -56,7 +56,7 @@ export default async function HubHome() {
           <div className="mt-1 text-4xl font-extrabold">{auto.rate === null ? "—" : `${Math.round(auto.rate * 100)}%`}</div>
           <div className="text-xs text-white/60">{auto.untouched} of {auto.completed} completed jobs had zero human touches · target {Math.round(AI_DRIVEN_TARGET * 100)}% this plan year</div>
         </div>
-        <div className="h-3 w-full max-w-sm overflow-hidden rounded-full bg-white/15"><div className={`h-full ${auto.rate !== null && auto.rate >= AI_DRIVEN_TARGET ? "bg-emerald-400" : "bg-sun"}`} style={{ width: `${Math.round((auto.rate ?? 0) * 100)}%` }} /></div>
+        <div className="h-3 w-full max-w-sm overflow-hidden rounded-full bg-white/15"><div className={`h-full ${auto.rate !== null && auto.rate >= AI_DRIVEN_TARGET ? "bg-emerald-400" : "bg-gold"}`} style={{ width: `${Math.round((auto.rate ?? 0) * 100)}%` }} /></div>
         <Link href="/hub/workforce" className="text-sm underline">{iebcPending ?? 0} IEBC actions awaiting approval</Link>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -25,7 +25,7 @@ export default function Events() {
         <div className="wrap grid items-center gap-10 py-16 md:grid-cols-[1.3fr_1fr]">
           <div>
             <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎉 Parties & Events</span>
-            <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Your event, <span className="text-mint">handled.</span></h1>
+            <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Your event, <span className="text-gold-light">handled.</span></h1>
             <p className="mt-4 max-w-xl text-lg text-white/75">Birthdays, weddings, corporate dinners, company BBQs, Taco Tuesday office lunches, day parties and pool parties. Catering, food trucks, music, seating and the space — planned and coordinated by one team, on one invoice.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/book?service=event-package" className="btn bg-white px-6 py-3 text-base text-brand-dark hover:bg-brand-tint">Plan by budget</Link>

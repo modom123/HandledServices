@@ -25,7 +25,7 @@ export default function Talent() {
       <section className="border-b border-line bg-brand-deep text-white">
         <div className="wrap py-16">
           <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🤝 {BRAND.name} Talent</span>
-          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">The right hire, <span className="text-mint">handled.</span></h1>
+          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">The right hire, <span className="text-gold-light">handled.</span></h1>
           <p className="mt-4 max-w-2xl text-lg text-white/75">Recruiting for operations, skilled trades, office, technical and leadership roles. Led by a recruiter with experience at Korn Ferry International and Hall Kinion, with a network of vetted independent recruiters.</p>
           <div className="mt-8 flex flex-wrap gap-3"><a href="#start" className="btn-primary">Start a search</a><Link href="/terms/talent-client-agreement" className="btn-ghost border-white/30 text-white">Read our client agreement</Link></div>
         </div>

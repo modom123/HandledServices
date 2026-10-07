@@ -39,13 +39,13 @@ export default async function Splash() {
       </header>
 
       <section className="wrap relative flex flex-1 flex-col items-center justify-center py-12 text-center splash-in">
-        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-mint ring-1 ring-white/15">● {t("AI-run operations · real local pros")}</span>
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-gold-light ring-1 ring-white/15">● {t("AI-run operations · real local pros")}</span>
         <h1 className="mt-6 max-w-4xl text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-6xl">
-          {t("Your home & business to-do list.")} <span className="text-mint">{t("Handled.")}</span>
+          {t("Your home & business to-do list.")} <span className="text-gold-light">{t("Handled.")}</span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-white/80">{l === "es" ? PITCH_ES : BRAND.pitch}</p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <Link href="/home" className="btn bg-white px-8 py-3.5 text-base text-brand-deep hover:bg-mint">{t("Enter")} {BRAND.name} →</Link>
+          <Link href="/home" className="btn bg-white px-8 py-3.5 text-base text-brand-deep hover:bg-gold-light">{t("Enter")} {BRAND.name} →</Link>
           <Link href="/book" className="btn border border-white/40 px-8 py-3.5 text-base text-white hover:border-white hover:bg-white/10">{t("Get my price")}</Link>
         </div>
 

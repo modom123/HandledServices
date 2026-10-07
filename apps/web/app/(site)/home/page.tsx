@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0841 UTC — national brand: the hero no longer says the site is Detroit-only ("Home & office cleaning.
  *           Handled."); the badge says we're launching in Metro Detroit and expanding nationwide; the city row reads
  *           "Cleaners in your city" with a link for cities we don't cover yet. Sales and marketing still start in Detroit.
+ * UPDATED : 2026-10-07_0040 UTC — gold accents (launch dot, trust checks, card hover borders).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -70,7 +71,7 @@ export default async function Home() {
       {/* hero — cleaning first (MARKETING_FOCUS) */}
       <section className="wrap grid items-center gap-10 pb-12 pt-12 md:grid-cols-[1.05fr_1fr] md:pt-16">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">● {t("Launching in Metro Detroit · expanding nationwide")}</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark"><span className="text-gold">●</span> {t("Launching in Metro Detroit · expanding nationwide")}</span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
             {t("Home & office cleaning, done right.")} <span className="text-brand">{t("Handled.")}</span>
           </h1>
@@ -83,7 +84,7 @@ export default async function Home() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {CLEANING.map((c) => (
-            <Link key={c.href} href={c.href} className="card flex flex-col p-4 transition hover:border-brand hover:bg-brand-tint">
+            <Link key={c.href} href={c.href} className="card flex flex-col p-4 transition hover:border-gold hover:bg-brand-tint">
               <span className="text-2xl sm:text-3xl">{c.icon}</span>
               <span className="mt-2 text-sm font-semibold leading-tight sm:text-base">{t(c.title)}</span>
               <span className="mt-1 text-xs text-ink-soft">{l === "es" && c.title === "Recurring plan" ? `Misma persona, ahorre hasta ${PLAN_SAVE}%` : t(c.body)}</span>
@@ -95,7 +96,7 @@ export default async function Home() {
       {/* trust strip */}
       <section className="border-y border-line bg-paper-deep">
         <div className="wrap grid grid-cols-2 gap-3 py-5 text-sm font-medium md:grid-cols-4">
-          {TRUST.map((t) => <div key={t} className="flex items-center gap-2"><span className="text-brand">✓</span>{t}</div>)}
+          {TRUST.map((t) => <div key={t} className="flex items-center gap-2"><span className="font-bold text-gold-dark">✓</span>{t}</div>)}
         </div>
       </section>
 
@@ -167,7 +168,7 @@ export default async function Home() {
       <section className="wrap pb-8">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {MORE.map((m) => (
-            <Link key={m.href} href={m.href} className="card flex flex-col p-4 transition hover:border-brand sm:p-5">
+            <Link key={m.href} href={m.href} className="card flex flex-col p-4 transition hover:border-gold sm:p-5">
               <span className="text-3xl">{m.icon}</span>
               <span className="mt-3 text-base font-bold sm:text-lg">{m.title}</span>
               <span className="mt-1 hidden flex-1 text-sm text-ink-soft sm:block">{m.body}</span>

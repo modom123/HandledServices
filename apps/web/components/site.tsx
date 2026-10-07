@@ -12,6 +12,8 @@
  * UPDATED : 2026-10-06_0802 UTC — dropdown menus (Services · For Business · Become a Pro · More) and a ☰ phone menu (phones
  *           had none); the header no longer runs off the side of a phone screen (it caused a sideways scroll on
  *           every page).
+ * UPDATED : 2026-10-07_0030 UTC — green, white and gold: white header with a gold top rule, gold-on-deep-green logo mark,
+ *           gold rule above the footer.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -23,7 +25,7 @@ import { DesktopNav, MobileNav, type NavGroup } from "./SiteNav";
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <Link href="/home" className={`flex items-center gap-2 font-extrabold tracking-tight ${className}`}>
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">✓</span>
+      <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-deep text-gold-light ring-1 ring-gold/50">✓</span>
       <span className="text-lg">{BRAND.name}</span>
     </Link>
   );
@@ -72,7 +74,7 @@ export async function SiteHeader() {
   ];
   const snap = es ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job";
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-t-[3px] border-line border-t-gold bg-white/95 backdrop-blur">
       <div className="wrap flex h-16 items-center justify-between gap-2 sm:gap-4">
         <Logo />
         <DesktopNav groups={groups} />
@@ -92,7 +94,7 @@ export async function SiteFooter() {
   const l = await getLocale();
   const t = (s: string) => tr(l, s);
   return (
-    <footer className="mt-24 border-t border-line bg-paper-deep">
+    <footer className="mt-24 border-t-2 border-gold/60 bg-paper-deep">
       <div className="wrap grid gap-10 py-12 md:grid-cols-4">
         <div className="md:col-span-2">
           <Logo />

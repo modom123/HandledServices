@@ -50,16 +50,16 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
       <section className="bg-brand-deep text-white">
         <div className="wrap grid items-center gap-8 py-10 md:grid-cols-[1.3fr_1fr] md:py-16">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-mint">Handled for Business</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gold-light">Handled for Business</p>
             <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Commercial cleaning and facilities, one vendor.</h1>
             <p className="mt-4 max-w-xl text-lg text-white/80">Offices, property managers, clinics, retail and restaurants use one account for janitorial, move-out and turnover cleans — plus grounds, repairs, courier, transportation and events.</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="#quote" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-mint">Request a proposal</a>
+              <a href="#quote" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Request a proposal</a>
               <a href="#services" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See business services</a>
             </div>
           </div>
           <ul className="grid grid-cols-2 gap-3">
-            {PROOF.map((p) => <li key={p} className="rounded-2xl bg-white/10 p-3 text-sm font-semibold ring-1 ring-white/15 sm:p-4"><span className="text-mint">✓</span> {p}</li>)}
+            {PROOF.map((p) => <li key={p} className="rounded-2xl bg-white/10 p-3 text-sm font-semibold ring-1 ring-white/15 sm:p-4"><span className="text-gold-light">✓</span> {p}</li>)}
           </ul>
         </div>
       </section>
