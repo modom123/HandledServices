@@ -16,6 +16,8 @@
  * UPDATED : 2026-10-05_1433 UTC — security trade: patrol, standing posts and fire watch (security-guard).
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade: dead animal removal (dead-animal-removal).
  * UPDATED : 2026-10-06_0637 UTC — new trades: small engine, dock & door, fire extinguisher (state license), foundation (builder license), used oil (EPA ID, EGLE registration).
+ * UPDATED : 2026-10-07_0310 UTC — cleaners: no license, no bond for residential work; a janitorial bond only for large commercial
+ *           cleaning jobs ($1,500+) — TradeProfile.commercial, checked at dispatch.
  */
 import { BRAND } from "./brand.ts";
 
@@ -48,6 +50,8 @@ export interface TradeProfile {
   requires: CoverageKey[];
   /** Coverages required only in some cases (e.g. alcohol served). */
   conditional: { key: CoverageKey; when: string }[];
+  /** Extra requirements only for large commercial jobs (e.g. a janitorial bond for big office contracts). */
+  commercial?: { requires: CoverageKey[]; minPrice: number; note: string };
   /** How we check the work is good before the first offer. */
   skillsCheck: string;
 }
@@ -66,7 +70,9 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
       { id: "office_clean", label: "Office & commercial" },
       { id: "green_clean", label: "Eco / fragrance-free products" },
     ],
-    license: null, preferred: [], glMin: GL1, requires: ["bond"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    // residential cleaners need no license and no bond (owner rule 2026-10-07); big commercial jobs need a janitorial bond
+    license: null, preferred: [], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }, { key: "bond", when: "you take large commercial cleaning jobs ($1,500+)" }],
+    commercial: { requires: ["bond"], minPrice: 1500, note: "Large commercial cleaning jobs ($1,500+, offices and janitorial contracts) need a janitorial / fidelity bond; some buildings also ask for your business registration." },
     skillsCheck: "Photos of 3 recent jobs, 2 client references, cleaning-standards quiz.",
   },
   windows: {
@@ -385,8 +391,12 @@ export function coverageValid(coverage: Record<string, string> | null | undefine
 const profile = (trade: string): TradeProfile | undefined => TRADE_PROFILES[trade];
 
 /** Coverages (beyond general liability) a pro must have verified for these trades. */
-export function requiredCoverages(trades: string[]): CoverageKey[] {
-  return [...new Set(trades.flatMap((t) => profile(t)?.requires ?? []))];
+export function requiredCoverages(trades: string[], job?: { customer_type?: string | null; price_final?: number | null } | null): CoverageKey[] {
+  const bigCommercial = (t: string) => {
+    const c = profile(t)?.commercial;
+    return Boolean(c && job?.customer_type === "commercial" && Number(job.price_final ?? 0) >= c.minPrice);
+  };
+  return [...new Set(trades.flatMap((t) => [...(profile(t)?.requires ?? []), ...(bigCommercial(t) ? profile(t)!.commercial!.requires : [])]))];
 }
 
 /** The highest general-liability minimum across the pro's trades. */

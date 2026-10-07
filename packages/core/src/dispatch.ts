@@ -37,6 +37,8 @@ export interface DispatchJob {
   scheduled_date: string | null;
   /** Job price; caps the size of jobs offered to pros still on probation. */
   price_final?: number | null;
+  /** residential | commercial — large commercial jobs can need extra coverage (e.g. a cleaning bond). */
+  customer_type?: string | null;
   time_window?: string | null;
   /** Job location (ZIP centroid) for distance; falls back to the pro's ZIP list when missing. */
   lat?: number | null;
@@ -106,7 +108,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (!c.insured_until || new Date(c.insured_until) < today) return "insurance expired";
   if (!c.background_checked) return "background check pending";
   if (svc) {
-    const missing = requiredCoverages(svc.trades.filter((t) => c.trades.includes(t))).find((k) => !coverageValid(c.coverage, k, today));
+    const missing = requiredCoverages(svc.trades.filter((t) => c.trades.includes(t)), job).find((k) => !coverageValid(c.coverage, k, today));
     if (missing) return `${missing.replace("_", " ")} coverage missing or expired`;
   }
   if (c.jobs_completed < PROBATION.jobs && !c.tier_floor && Number(job.price_final ?? 0) > PROBATION.maxJobPrice) return "on probation: job too large";

@@ -171,7 +171,7 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"], license_number: "PL-1", license_expires: future }).complete, true);
-  assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, false, "in-home cleaners need a bond");
+  assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, true, "residential cleaners need no bond (bond only for large commercial jobs)");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
 });
@@ -282,7 +282,10 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
   const { requiredCoverages, glMinimum, TRADE_PROFILES, PROBATION } = await import("./vetting.ts");
   const { TRADES } = await import("./services.ts");
   for (const t of TRADES) assert.ok(TRADE_PROFILES[t.id], `no vetting profile for trade ${t.id}`);
-  assert.deepEqual(requiredCoverages(["hauling", "cleaning"]).sort(), ["auto", "bond"]);
+  assert.deepEqual(requiredCoverages(["hauling", "cleaning"]).sort(), ["auto"], "cleaners: no bond for regular jobs");
+  assert.deepEqual(requiredCoverages(["cleaning"], { customer_type: "commercial", price_final: 2000 }), ["bond"], "big commercial cleaning needs a bond");
+  assert.deepEqual(requiredCoverages(["cleaning"], { customer_type: "commercial", price_final: 400 }), [], "small commercial jobs don't");
+  assert.deepEqual(requiredCoverages(["cleaning"], { customer_type: "residential", price_final: 5000 }), [], "big homes don't");
   assert.equal(glMinimum(["lawn", "tree"]), 2_000_000);
   const pro: Contractor = {
     id: "n", profile_id: null, business_name: "N", contact_name: "N", email: "n@x", phone: "1", trades: ["hauling"], service_zips: [], status: "approved",

@@ -111,7 +111,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
           <div className="grid gap-4 sm:grid-cols-3">
             <div><label className="label">{t("Years in business")}</label><input name="years_experience" type="number" min={0} className="input" /></div>
             <div><label className="label">{t("Crew size")}</label><input name="crew_size" type="number" min={1} className="input" /></div>
-            <div><label className="label">{t("License # (if your trade needs one)")}</label><input name="license_number" className="input" /></div>
+            {needs.includes("license") && <div><label className="label">{t("License # (if your trade needs one)")}</label><input name="license_number" className="input" /></div>}
           </div>
           <div><label className="label">{t("Other coverage you carry")}</label><Chips options={(Object.keys(COVERAGES) as CoverageKey[]).filter((k) => k !== "gl").map((k) => ({ id: k, label: t(COVERAGES[k].label) }))} value={coverages} onChange={setCoverages} /></div>
           <div><label className="label">{t("Equipment & vehicle")}</label><input name="equipment" className="input" placeholder={t("e.g. 16 ft box truck, truck-mount carpet unit, 52\" zero-turn")} /></div>
