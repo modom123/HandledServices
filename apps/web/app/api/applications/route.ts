@@ -13,7 +13,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { markLeadConverted } from "@/lib/leads";
-import { BRAND, COVERAGE_KINDS } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, MAX_TRADES } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { sendEmail, siteUrl } from "@/lib/notify";
 import { logRecruiting, onApplication, signInUrl } from "@/lib/recruiting";
@@ -22,7 +22,7 @@ import { localeOf } from "@/lib/push";
 
 const Body = z.object({
   business_name: z.string().min(2), contact_name: z.string().min(2), email: z.string().email(), phone: z.string().min(7),
-  trades: z.array(z.string()).min(1), zips: z.string().max(400).optional(), years_experience: z.coerce.number().int().min(0).max(80).optional(),
+  trades: z.array(z.string()).min(1).max(MAX_TRADES), zips: z.string().max(400).optional(), years_experience: z.coerce.number().int().min(0).max(80).optional(),
   crew_size: z.coerce.number().int().min(1).max(200).optional(), insured: z.boolean().default(false), license_number: z.string().max(80).optional(),
   has_vehicle: z.boolean().default(true), message: z.string().max(2000).optional(),
   specialties: z.array(z.string().max(40)).max(40).default([]), coverages_held: z.array(z.enum(COVERAGE_KINDS)).default([]),

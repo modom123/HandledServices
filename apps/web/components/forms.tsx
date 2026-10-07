@@ -15,7 +15,7 @@
 "use client";
 
 import { useState } from "react";
-import { COVERAGES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
+import { COVERAGES, MAX_TRADES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
 
 function useSubmit(url: string) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -30,14 +30,15 @@ function useSubmit(url: string) {
   return { state, error, submit };
 }
 
-function Chips({ options, value, onChange }: { options: { id: string; label: string }[]; value: string[]; onChange: (v: string[]) => void }) {
+function Chips({ options, value, onChange, max }: { options: { id: string; label: string }[]; value: string[]; onChange: (v: string[]) => void; max?: number }) {
+  const full = max != null && value.length >= max;
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((o) => {
         const on = value.includes(o.id);
         return (
-          <button type="button" key={o.id} onClick={() => onChange(on ? value.filter((v) => v !== o.id) : [...value, o.id])}
-            className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{o.label}</button>
+          <button type="button" key={o.id} disabled={!on && full} onClick={() => onChange(on ? value.filter((v) => v !== o.id) : [...value, o.id])}
+            className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"} ${!on && full ? "cursor-not-allowed opacity-40" : ""}`}>{o.label}</button>
         );
       })}
     </div>
@@ -84,7 +85,8 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
         <div><label className="label">{t("Email")}</label><input name="email" type="email" required className="input" autoComplete="email" /></div>
         <div><label className="label">{t("Mobile")}</label><input name="phone" type="tel" required className="input" autoComplete="tel" /></div>
       </div>
-      <div><label className="label">{t("What do you do?")}</label><Chips options={tradeOptions} value={trades} onChange={setTrades} /></div>
+      <div><label className="label">{t("What do you do?")} <span className="font-normal normal-case text-ink-soft">({es ? `hasta ${MAX_TRADES}` : `up to ${MAX_TRADES}`} · {trades.length}/{MAX_TRADES})</span></label><Chips options={tradeOptions} value={trades} onChange={setTrades} max={MAX_TRADES} />
+        {trades.length >= MAX_TRADES && <p className="mt-1 text-xs text-ink-soft">{es ? `Máximo ${MAX_TRADES} oficios: los profesionales enfocados reciben mejores calificaciones y más trabajos. Quite uno para cambiarlo.` : `Up to ${MAX_TRADES} trades — focused pros get better ratings and more jobs. Tap one to remove it and pick another.`}</p>}</div>
       {specialtyOptions.length > 0 && <div><label className="label">{t("Your specialties (what you do best)")}</label><Chips options={specialtyOptions} value={specialties} onChange={setSpecialties} /></div>}
       {needs.length > 0 && (
         <p className="rounded-xl bg-brand-tint p-3 text-xs text-ink-soft">

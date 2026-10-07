@@ -90,6 +90,9 @@ export function tierPayout(price: number | null | undefined, basePayout: number 
 }
 
 /** One-time bonus for referring a pro, paid after their 10th completed job (from our take). */
+/** A pro picks up to this many trades (focus = better quality and ratings; owner rule 2026-10-07). */
+export const MAX_TRADES = 3;
+
 export const PRO_REFERRAL = { bonus: 150, afterJobs: 10 };
 
 /** Plain-language promises shown on the recruiting page and in the pro agreement summary. */
