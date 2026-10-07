@@ -1434,25 +1434,6 @@ test("referral partner program: 10% of our take, never negative, codes", async (
   assert.equal(partnerExpiry(new Date("2026-10-07T00:00:00Z")).toISOString().slice(0, 10), "2027-10-07");
 });
 
-test("grand opening promotion: window, phases, discount caps", async () => {
-  const { launchState, launchDiscount, countdownParts } = await import("./launch-promo.ts");
-  const p = { enabled: true, start: "2026-10-10", days: 100, pct: 0.2 };
-  assert.equal(launchState(p, new Date("2026-10-09T12:00:00Z")).phase, "upcoming");
-  assert.equal(launchState(p, new Date("2026-10-10T12:00:00Z")).phase, "active");
-  assert.equal(launchState(p, new Date("2027-01-17T12:00:00Z")).phase, "active", "day 100");
-  assert.equal(launchState(p, new Date("2027-01-18T12:00:00Z")).phase, "grand_opening", "after 100 days");
-  assert.equal(launchState(p, new Date("2027-03-01T12:00:00Z")).phase, "done");
-  assert.equal(launchState({ ...p, enabled: false }).phase, "off");
-  assert.equal(launchState({ ...p, start: "" }).phase, "off");
-  // $200 job, pro paid $140 (we keep $60): 20% = $40 fits
-  assert.equal(launchDiscount({ price: 200, payout: 140, pct: 0.2 }), 40);
-  // $200 job, pro paid $170 (we keep $30): capped so we keep 5% ($10) → $20
-  assert.equal(launchDiscount({ price: 200, payout: 170, pct: 0.2 }), 20);
-  assert.equal(launchDiscount({ price: 200, payout: 170, pct: 0.2, full: true }), 40, "full discount: we cover it");
-  assert.equal(launchDiscount({ price: 100, payout: 99, pct: 0.2 }), 0);
-  assert.deepEqual(countdownParts(90061000), { days: 1, hours: 1, minutes: 1, seconds: 1 });
-});
-
 test("measurements pick the calibrated size band and are required", async () => {
   const { getService, applyMeasurements, missingMeasurements, questionVisible } = await import("./services.ts");
   const { estimate } = await import("./pricing.ts");

@@ -3,6 +3,7 @@
 # RUN     : python3 scripts/build-business-plan-pdf_2026-10-07_0330.py . docs/OUT.pdf docs/OUT.md /tmp/chart.png  (needs reportlab, matplotlib)
 # PROJECT : Handled (myhumanai)
 # CREATED : 2026-10-07_0330 UTC
+# UPDATED : 2026-10-07_0350 UTC — grand opening discount removed (owner decision); early bookings trimmed to match.
 # PURPOSE : 12-month projected income statement + 52-week operating plan, merged with the existing business plan
 #           (docs/BUSINESS_PLAN_2026-10-01_1830.md) into one PDF. Every number comes from the ASSUMPTIONS below.
 # ============================================================================
@@ -21,15 +22,15 @@ REPO = sys.argv[1]
 OUT_PDF = sys.argv[2]
 OUT_MD = sys.argv[3]
 CHART = sys.argv[4]
-STAMP = "2026-10-07_0330"
+STAMP = "2026-10-07_0350"
 
 BLACK, GREEN, GREEN_D, GRAY, LINE, TINT = colors.HexColor("#0a0a0a"), colors.HexColor("#0b7a4e"), colors.HexColor("#075c3a"), colors.HexColor("#525252"), colors.HexColor("#e5e5e5"), colors.HexColor("#ecfdf5")
 
 # ─── Assumptions (base case = the plan's conservative, self-funded year 1, plus what we built since Oct 1) ───
 MONTHS = ["Nov 26", "Dec 26", "Jan 27", "Feb 27", "Mar 27", "Apr 27", "May 27", "Jun 27", "Jul 27", "Aug 27", "Sep 27", "Oct 27"]
-GROSS = [18000, 28000, 38000, 48000, 56000, 64000, 72000, 80000, 86000, 92000, 98000, 105000]  # bookings at list price
+GROSS = [15000, 24000, 34000, 45000, 56000, 64000, 72000, 80000, 86000, 92000, 98000, 105000]  # bookings at list price
 TAKE = 0.28            # blended share we keep (cleaning/hauling 35%, lawn 30%, trees 25%, rides 20%, remodels 15%)
-PROMO_FACTOR = [1, 1, 1, 0.3, 0, 0, 0, 0, 0, 0, 0, 0]   # grand opening: 100 days from Nov 2 2026 → Feb 9 2027
+PROMO_FACTOR = [0] * 12   # no launch discount (owner decision 2026-10-07)
 PROMO_SHARE, PROMO_DEPTH = 0.75, 0.17                    # 75% of bookings discounted; avg 17% (20% "up to", capped)
 CARD = 0.030           # Stripe 2.9% + 30¢ ≈ 3.0% of what customers pay
 RESERVE = 0.01         # make-it-right guarantee reserve
@@ -50,11 +51,10 @@ STARTUP = 18000        # one-time before launch: LLC, first insurance premium, l
 
 def model():
     rows = {}
-    rows["Gross bookings (list price)"] = GROSS
+    rows["Gross bookings"] = GROSS
     disc = [round(g * PROMO_SHARE * PROMO_DEPTH * f) for g, f in zip(GROSS, PROMO_FACTOR)]
-    rows["Less: grand opening discounts"] = [-d for d in disc]
     net_b = [g - d for g, d in zip(GROSS, disc)]
-    rows["Customer payments (net bookings)"] = net_b
+    rows["Customer payments"] = net_b
     pay = [round(g * (1 - TAKE)) for g in GROSS]
     rows["Less: paid to pros"] = [-p for p in pay]
     take = [n - p for n, p in zip(net_b, pay)]
@@ -80,7 +80,7 @@ def model():
     return rows, {"disc": disc, "take": take, "ni": ni, "net_b": net_b, "opex": opex, "cum": cum}
 
 ROWS, K = model()
-BOLD = {"Customer payments (net bookings)", "Our take (revenue)", "Contribution after variable costs", "Total operating expenses", "Net operating income", "Cumulative (after $18k startup)"}
+BOLD = {"Customer payments", "Our take (revenue)", "Contribution after variable costs", "Total operating expenses", "Net operating income", "Cumulative (after $18k startup)"}
 
 def money(v, k=False):
     if k: return f"{'-' if v < 0 else ''}${abs(v)/1000:,.1f}k"
@@ -93,8 +93,6 @@ ax.bar([i - 0.2 for i in x], [g / 1000 for g in GROSS], width=0.4, color="#d4d4d
 ax.bar([i + 0.2 for i in x], [t / 1000 for t in K["take"]], width=0.4, color="#0b7a4e", label="Our take (revenue)")
 ax.plot(list(x), [n / 1000 for n in K["ni"]], color="#0a0a0a", marker="o", linewidth=2, label="Net operating income")
 ax.axhline(0, color="#0a0a0a", linewidth=0.6)
-ax.axvspan(-0.5, 3.0, color="#ecfdf5", zorder=0)
-ax.text(1.25, max(GROSS) / 1000 * 0.92, "Grand opening: up to 20% off (100 days)", ha="center", fontsize=8, color="#075c3a")
 ax.set_xticks(list(x)); ax.set_xticklabels(MONTHS, fontsize=8); ax.set_ylabel("$ thousands", fontsize=8)
 ax.tick_params(axis="y", labelsize=8); ax.spines[["top", "right"]].set_visible(False)
 ax.legend(fontsize=8, frameon=False, loc="upper left")
@@ -106,7 +104,7 @@ WEEKS = [
  ("Go-live setup", "Run the pending Supabase SQL; Resend domain verified (/auth/check all green); Vercel production branch = main; NEXT_PUBLIC_SITE_URL set", "Sign-in works for every role"),
  ("Go-live setup", "Stripe live keys + webhook; connect Xero (Hub → Accounting), create accounts, map checking; Gusto set up for future W-2 staff", "Test booking paid end to end"),
  ("Recruit pros", "Post Indeed/Facebook jobs; approve first cleaners, haulers, lawn/snow crews (up to 3 trades each); background + ID checks", "12 pros approved"),
- ("Soft launch + grand opening", "Grand opening starts Nov 2 (100-day countdown, up to 20% off); friends & family bookings; Google Business Profile live", "First 10 paid jobs"),
+ ("Soft launch", "Open for bookings Nov 2 at full price; friends & family bookings; Google Business Profile live; referral partners share their links", "First 10 paid jobs"),
  ("Partner program", "Pitch 25 realtors + 15 property managers on the referral program (/partners): 10% of our fee for 12 months", "10 partners signed"),
  ("Snow season prep", "Sign seasonal snow plans (driveways measured in sq ft); line up 4 plow/shovel pros; business lots quoted", "20 snow plans"),
  ("Cleaning push", "Detroit cleaning marketing plan: Nextdoor, local ads, move-out cleans for realtors' listings", "25 cleanings booked"),
@@ -117,10 +115,10 @@ WEEKS = [
  ("Recurring plans", "Convert one-time customers to biweekly plans (AI-timed offer); Handled Plus memberships", "40 recurring customers"),
  ("Gov contracts", "Bid engine: 3 cleaning/facility bids (measured lines, deal-maker pricing); register SAM/City of Detroit", "3 bids submitted"),
  ("Recruit wave 2", "Fill supply gaps from Hub → Supply gaps; second pro per trade for backup coverage", "25 pros approved"),
- ("Grand opening final push", "Countdown last 3 weeks: email past visitors, partners, waitlist; 'last chance' ads", "Peak promo month"),
- ("Grand opening ends Feb 9", "Banner switches to 'Grand Opening — we're officially open' for 30 days; PR to local media", "Retention ≥ 60% at full price"),
- ("Grand Opening event", "Grand Opening celebration + partner thank-you; reviews push (Google)", "50 Google reviews"),
- ("Price check", "Compare full-price conversion after promo; adjust market factors per service", "Take ≥ 27% blended"),
+ ("Winter push", "Email past visitors, partners and the waitlist; snow and deep-clean ads; Handled Plus offer", "$45k February bookings"),
+ ("Local PR", "Story to local media and community groups: AI-run local services company in Detroit", "2 press mentions"),
+ ("Partner thank-you & reviews", "Partner appreciation event; Google reviews push from happy customers", "50 Google reviews"),
+ ("Price check", "Review conversion and pricing accuracy per service; adjust market factors", "Take ≥ 27% blended"),
  ("Commercial cleaning", "Janitorial proposals (bonded crews for $1,500+ jobs); factoring partner chosen for net-30 clients", "3 commercial accounts"),
  ("Spring lawn prep", "Lawn plans sold with measured yard sq ft; aeration/fertilization upsells; recruit lawn crews", "60 lawn plans pre-sold"),
  ("Q1 review", "Income statement vs plan; adjust marketing to best channel (attribution); city scorecard", "Q1 profit target hit"),
@@ -153,7 +151,7 @@ WEEKS = [
  ("Year-end promotions", "Handled Plus annual offer; partner bonus for top referrers", "+50 Plus members"),
  ("Year-end close", "Xero close; 1099s for pros and partners (Stripe Connect tax forms); CPA", "Books closed"),
  ("Annual review", "12-month income statement vs actuals; update the 5-year plan", "Year 1 profitable"),
- ("City 2 launch", "Open city 2 with the launch set; grand opening playbook reused", "First 10 jobs in city 2"),
+ ("City 2 launch", "Open city 2 with the launch set; launch playbook reused", "First 10 jobs in city 2"),
  ("Plan year 2", "Set year-2 targets ($2M take growth case); hiring plan; B2B portfolios", "Year-2 plan published"),
 ]
 assert len(WEEKS) == 52, len(WEEKS)
@@ -234,7 +232,6 @@ S += [Paragraph("Executive summary", H1),
       Paragraph("Handled is one company and one app for home and business services: cleaning, lawn and snow, hauling, repairs, trades, remodels, errands, events and rides. Customers get an upfront price in about a minute, a vetted and insured pro, photo-checked work and a 30-day make-it-right guarantee. Handled keeps 15–35% of every job (like Uber) and pays pros only from money already collected, so no job can lose money.", P),
       Paragraph("What's new since the October 1 plan (built and live):", H3)]
 for b in ["<b>Accounting:</b> Xero is the books of record; every day of Stripe activity, business invoices and pro payouts post automatically.",
-          "<b>Grand opening:</b> up to 20% off every booking for the first 100 days, with a live countdown; then a Grand Opening banner.",
           "<b>Referral Partner Program:</b> realtors, property managers, contractors and neighbors earn 10% of our fee for 12 months on customers they send.",
           "<b>Measured pricing:</b> lawns, snow, trees, junk, deliveries and more are priced from real measurements (sq ft, lb, cu yd).",
           "<b>Bid engine deal-maker:</b> public bids are priced for the best expected profit, anchored on past awards and on what our own customers pay.",
@@ -246,12 +243,11 @@ q = lambda arr, a, b: sum(arr[a:b])
 qt = [["", "Q1 (Nov–Jan)", "Q2 (Feb–Apr)", "Q3 (May–Jul)", "Q4 (Aug–Oct)", "Year 1"],
       ["Gross bookings"] + [f"${q(GROSS, i, i+3)/1000:,.0f}k" for i in (0, 3, 6, 9)] + [f"${yr_gross/1000:,.0f}k"],
       ["Our take (revenue)"] + [f"${q(K['take'], i, i+3)/1000:,.1f}k" for i in (0, 3, 6, 9)] + [f"${yr_take/1000:,.1f}k"],
-      ["Grand opening discounts"] + [f"${q(K['disc'], i, i+3)/1000:,.1f}k" for i in (0, 3, 6, 9)] + [f"${sum(K['disc'])/1000:,.1f}k"],
       ["Operating expenses"] + [f"${q(K['opex'], i, i+3)/1000:,.1f}k" for i in (0, 3, 6, 9)] + [f"${sum(K['opex'])/1000:,.1f}k"],
       ["Net operating income"] + [money(q(K['ni'], i, i+3), True) for i in (0, 3, 6, 9)] + [money(yr_ni, True)]]
 t = Table(qt, colWidths=[1.9 * inch] + [1.05 * inch] * 5); t.setStyle(TableStyle(tstyle() + [("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("FONT", (0, -1), (-1, -1), "Helvetica-Bold", 7.5), ("BACKGROUND", (0, -1), (-1, -1), TINT)]))
 S += [t, Spacer(1, 8),
-      Paragraph(f"The first three months run at a small loss on purpose: the grand opening discount (about ${sum(K['disc'])/1000:,.1f}k in year 1) buys the first customers, reviews and recurring plans. The business turns profitable in {next((MONTHS[i] for i, v in enumerate(K['ni']) if v > 0), '—')} and earns back the ${STARTUP/1000:.0f}k startup cost in {next((MONTHS[i] for i, v in enumerate(K['cum']) if v >= 0), 'year 2')}. Spending stays inside the plan's rule: operating costs at or below 85% of net take once the promotion ends.", P),
+      Paragraph(f"The first months run at a small loss while volume builds (no launch discount: customers pay full price from day one). The business turns profitable in {next((MONTHS[i] for i, v in enumerate(K['ni']) if v > 0), '—')} and earns back the ${STARTUP/1000:.0f}k startup cost in {next((MONTHS[i] for i, v in enumerate(K['cum']) if v >= 0), 'year 2')}. Spending stays inside the plan's rule: operating costs at or below 85% of net take.", P),
       Paragraph(f"Spending check: operating costs plus IEBC and partner commissions come to {(sum(K['opex']) - ROWS['IEBC AI workforce (10% of net take)'][0]*0 + -sum(ROWS['IEBC AI workforce (10% of net take)']) + -sum(ROWS['Referral partner commissions'])) / (sum(K['take']) + sum(ROWS['Card processing (Stripe)']) + sum(ROWS['Guarantee reserve (1%)'])):.0%} of net take for the year (plan rule: 85% or less).", P),
       Paragraph("Growth case for comparison: the October 4 growth plan targets $0.5M of take in year 1 ($2.5M bookings), which needs business accounts and outside capital earlier. The base case below is what the business can do self-funded.", P),
       NextPageTemplate("landscape"), PageBreak()]
@@ -269,14 +265,13 @@ for i, k in enumerate(ROWS.keys(), start=1):
 for i, v in enumerate(K["ni"]):
     if v < 0: st += [("TEXTCOLOR", (i + 1, list(ROWS).index("Net operating income") + 1), (i + 1, list(ROWS).index("Net operating income") + 1), colors.HexColor("#b91c1c"))]
 t.setStyle(TableStyle(st))
-S += [t, Spacer(1, 6), Paragraph("Dollars; (parentheses) = cost or loss. Taxes not shown (LLC income passes through to the owner). Gross bookings are at list price; customer payments are after the grand opening discount.", SMALL),
+S += [t, Spacer(1, 6), Paragraph("Dollars; (parentheses) = cost or loss. Taxes not shown (LLC income passes through to the owner).", SMALL),
       Spacer(1, 4), Image(CHART, width=9.4 * inch, height=3.38 * inch), PageBreak()]
 
 S += [Paragraph("Assumptions behind the numbers", H1)]
 asm = [["Item", "Assumption", "Where it comes from"],
-       ["Bookings ramp", f"${GROSS[0]/1000:.0f}k in month 1 to ${GROSS[-1]/1000:.0f}k in month 12 (${yr_gross/1000:,.0f}k year 1)", "Business plan base case ($0.67M) plus the grand opening and partner boost"],
+       ["Bookings ramp", f"${GROSS[0]/1000:.0f}k in month 1 to ${GROSS[-1]/1000:.0f}k in month 12 (${yr_gross/1000:,.0f}k year 1)", "Business plan base case ($0.67M) plus the referral partner boost; full price from day one"],
        ["Our take", f"{TAKE:.0%} blended of list price", "35% cleaning/hauling, 30% lawn/handyman, 25% trees, 20% rides, 15% remodels"],
-       ["Grand opening", f"{PROMO_SHARE:.0%} of bookings discounted, {PROMO_DEPTH:.0%} average (\"up to 20%\", capped so we keep 5%); Nov 2 – Feb 9", "Hub → Website & promotions; discount comes out of our take, pros paid in full"],
        ["Card processing", f"{CARD:.1%} of customer payments", "Stripe 2.9% + 30¢"],
        ["Guarantee reserve", f"{RESERVE:.0%} of customer payments", "30-day make-it-right guarantee"],
        ["Referral partners", f"{REFERRED[0]:.0%} → {REFERRED[-1]:.0%} of bookings referred; partners earn {PARTNER_PCT:.0%} of our take", "Partner Program (paid after the 30-day window)"],
@@ -288,11 +283,11 @@ asm = [["Item", "Assumption", "Where it comes from"],
        ["Startup (one-time)", f"${STARTUP/1000:.0f}k before launch", "LLC, first insurance premium, legal review, trademark, brand"]]
 t = Table([[Paragraph(c, CELLB if i == 0 else CELL) for c in r] for i, r in enumerate(asm)], colWidths=[1.6 * inch, 4.4 * inch, 3.9 * inch], repeatRows=1)
 t.setStyle(TableStyle(tstyle()))
-S += [t, Spacer(1, 8), Paragraph("Biggest swings: the blended take (every point is about $8k a year), how many grand-opening customers stay at full price, and how fast business accounts and public contracts arrive. Hub → Finance and Xero show actuals against this plan every month.", P),
+S += [t, Spacer(1, 8), Paragraph("Biggest swings: the blended take (every point is about $8k a year), how fast first customers turn into recurring plans, and how fast business accounts and public contracts arrive. Hub → Finance and Xero show actuals against this plan every month.", P),
       NextPageTemplate("landscape"), PageBreak()]
 
 # 52-week plan
-S += [Paragraph("52-week operating plan", H1), Paragraph("Week 1 starts Monday, October 12, 2026. Soft launch and the grand opening begin in week 4 (November 2).", P)]
+S += [Paragraph("52-week operating plan", H1), Paragraph("Week 1 starts Monday, October 12, 2026. Soft launch begins in week 4 (November 2).", P)]
 data = [["Wk", "Starts", "Focus", "Key actions", "Target"]]
 for i, (f, a, tg) in enumerate(WEEKS):
     data.append([str(i + 1), (start + dt.timedelta(weeks=i)).strftime("%b %d"), Paragraph(f, CELLB), Paragraph(a, CELL), Paragraph(tg, CELL)])

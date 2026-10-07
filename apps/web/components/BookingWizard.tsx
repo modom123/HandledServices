@@ -45,7 +45,7 @@ const PICKUP_TIMES = Array.from({ length: 48 }, (_, i) => {
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
-type Perks = { member: boolean; memberBenefit: number; launchAmount?: number; launchPct?: number; promoCode: string | null; promoAmount: number; promoMessage: string | null; promoOk: boolean | null; gift: number; isGift: boolean; price: number; dueNow: number };
+type Perks = { member: boolean; memberBenefit: number; promoCode: string | null; promoAmount: number; promoMessage: string | null; promoOk: boolean | null; gift: number; isGift: boolean; price: number; dueNow: number };
 
 /** First-touch marketing source saved by <Attribution /> (utm_*, referrer, landing page). */
 function readAttribution(): Record<string, string> | null {
@@ -377,10 +377,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               {perks?.promoMessage && <p className={`mt-1 text-xs ${perks.promoOk ? "text-brand-dark" : "text-rose-700"}`}>{perks.promoOk ? "✓ " : ""}{t(perks.promoMessage)}{perks.promoOk && perks.promoAmount === 0 && !perks.isGift ? ` ${t("(already at our lowest price for this job)")}` : ""}</p>}
             </div>
           )}
-          {perks && (perks.memberBenefit > 0 || perks.promoAmount > 0 || perks.gift > 0 || (perks.launchAmount ?? 0) > 0) && (
+          {perks && (perks.memberBenefit > 0 || perks.promoAmount > 0 || perks.gift > 0) && (
             <div className="mt-3 space-y-1 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">
               {perks.memberBenefit > 0 && <div className="flex justify-between"><span>⭐ {t("Plus member saving")}</span><span>−{money(perks.memberBenefit)}</span></div>}
-              {(perks.launchAmount ?? 0) > 0 && <div className="flex justify-between"><span>🎉 {locale === "es" ? "Descuento de gran apertura" : "Grand opening discount"}</span><span>−{money(perks.launchAmount!)}</span></div>}
               {perks.promoAmount > 0 && <div className="flex justify-between"><span>{t("Code")} {perks.promoCode}</span><span>−{money(perks.promoAmount)}</span></div>}
               {perks.gift > 0 && <div className="flex justify-between"><span>{t("Gift card")}</span><span>−{money(perks.gift)}</span></div>}
               <div className="flex justify-between border-t border-brand/20 pt-1 font-semibold"><span>{t("Due today")}</span><span>{money(perks.dueNow)}</span></div>

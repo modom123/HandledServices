@@ -71,7 +71,7 @@ const NAV: HubGroup[] = [
   ] },
   { id: "growth", label: "Growth & pricing", links: [
     ["/hub/growth", "📈", "Growth"],
-    ["/hub/site", "🎨", "Website & promotions"],
+    ["/hub/site", "🎨", "Website look"],
     ["/hub/cities", "🏙️", "City scorecard"],
     ["/hub/market", "⚖️", "Market pricing"],
     ["/hub/pricing-accuracy", "📐", "Pricing accuracy"],
