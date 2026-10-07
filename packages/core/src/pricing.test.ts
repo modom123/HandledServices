@@ -1521,3 +1521,15 @@ test("Handled Points: earn, tiers, balance, redeem", async () => {
   assert.ok(!checkRedeem(250, 700).ok, "blocks of 500");
   assert.ok(!checkRedeem(1000, 700).ok, "not more than available");
 });
+
+test("area pricing raises price, minimum and pro pay", async () => {
+  const { estimate } = await import("./pricing.ts");
+  const ans = { bedrooms: 3, bathrooms: 2 } as never;
+  const base = estimate({ slug: "house-cleaning", answers: ans });
+  const sea = estimate({ slug: "house-cleaning", answers: ans, region: 1.25 });
+  assert.equal(sea.region, 1.25);
+  assert.ok(sea.point > base.point * 1.2 && sea.point < base.point * 1.3, `${base.point} → ${sea.point}`);
+  assert.ok(sea.payout > base.payout, "pros are paid more in pricier areas");
+  assert.ok(sea.items.some((i) => i.label === "Area pricing"));
+  assert.equal(estimate({ slug: "house-cleaning", answers: ans, region: 99 }).region, 2, "bounded");
+});

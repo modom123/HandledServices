@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-06_0708 UTC — Pay & book opens Apple Pay / Google Pay / card right in the app (Stripe PaymentSheet); closing it
  *           keeps the booking with Pay now / Later; Checkout is the fallback.
  * UPDATED : 2026-10-07_0235 UTC — required measurements (yard sq ft, weight, height…) block booking until entered.
+ * UPDATED : 2026-10-07_1830 UTC — area price level (region) from /api/market, same as the server.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -89,15 +90,16 @@ function BookService({ slug: _slug }: { slug: string }) {
   const [plan, setPlan] = useState<"full" | "deposit">("full");
   // what pros in this area actually accept (learned) — the same factor the server prices with
   const [market, setMarket] = useState(1);
+  const [region, setRegion] = useState(1); // the service area's price level (Seattle area +25%, rest of WA +20%)
   const zipOk = /^\d{5}$/.test(f.zip);
   useEffect(() => {
     let live = true;
-    api<{ factor?: number }>(`/api/market?service=${encodeURIComponent(svc.slug)}${zipOk ? `&zip=${f.zip}` : ""}`)
-      .then((r) => { if (live && r.ok) setMarket(Number(r.data.factor) || 1); })
+    api<{ factor?: number; region?: number }>(`/api/market?service=${encodeURIComponent(svc.slug)}${zipOk ? `&zip=${f.zip}` : ""}`)
+      .then((r) => { if (live && r.ok) { setMarket(Number(r.data.factor) || 1); setRegion(Number(r.data.region) || 1); } })
       .catch(() => {});
     return () => { live = false; };
   }, [svc.slug, zipOk, f.zip]);
-  const est = useMemo(() => estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market }), [svc, answers, frequency, date, market]);
+  const est = useMemo(() => estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }), [svc, answers, frequency, date, market, region]);
   // Name your price ("" = our suggestion)
   const [offer, setOffer] = useState("");
   const suggested = est.point;

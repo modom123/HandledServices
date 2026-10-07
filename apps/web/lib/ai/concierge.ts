@@ -7,6 +7,7 @@
  *           recommends the right service, gives instant estimates from the real pricing
  *           engine and captures leads. It never promises a price outside the engine.
  * UPDATED : 2026-10-06_0752 UTC — runs with the shared mission, standing and assigned tasks (kept internal: never told to customers).
+ * UPDATED : 2026-10-07_1830 UTC — get_estimate takes the ZIP and applies the area price level.
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -42,13 +43,15 @@ const tools = [
       service_slug: z.string(),
       answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).describe("Question id → answer; see list_questions"),
       frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).optional(),
+      zip: z.string().regex(/^\d{5}$/).optional().describe("The customer's 5-digit ZIP if known — prices differ by area (Seattle area and Washington cost more)"),
     }),
-    run: async ({ service_slug, answers, frequency }) => {
+    run: async ({ service_slug, answers, frequency, zip }) => {
       const svc = getService(service_slug);
       if (!svc) return `Unknown service ${service_slug}`;
       const defaults = Object.fromEntries(svc.questions.map((q) => [q.id, q.default]));
-      const e = estimate({ slug: service_slug, answers: { ...defaults, ...answers }, frequency });
-      return JSON.stringify({ range: moneyRange(e.low, e.high), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: e.siteVisit, items: e.items });
+      const region = zip ? await (await import("../launch")).regionFactor(zip) : 1;
+      const e = estimate({ slug: service_slug, answers: { ...defaults, ...answers }, frequency, region });
+      return JSON.stringify({ range: moneyRange(e.low, e.high), ...(zip ? {} : { note: "Prices vary by area: ask for the ZIP to quote exactly (Washington is higher)." }), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: e.siteVisit, items: e.items });
     },
   }),
   betaZodTool({

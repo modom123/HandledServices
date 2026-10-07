@@ -22,6 +22,8 @@
  *           this price (from splitJob), not a fixed per-service number; proShare(), typicalProShare() and slidingScale()
  *           give the hub, the catalog sync and the seed the same numbers pros are actually paid. splitJob rounds to
  *           the cent before rounding down (a $1,004 job paid $679 instead of $680 from float noise).
+ * UPDATED : 2026-10-07_1830 UTC — area pricing: EstimateInput.region (markets.price_multiplier, e.g. Seattle area 1.25, rest of
+ *           Washington 1.20) raises the price and the minimum; the pro's pay follows the price.
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -132,6 +134,8 @@ export interface EstimateInput {
   rush?: boolean;
   /** Learned local market factor for this service and area (1 = no change). See marketFactor(). */
   market?: number;
+  /** Area price level set by us for the customer's service area (markets.price_multiplier, e.g. 1.25 for Seattle). */
+  region?: number;
 }
 
 export interface Estimate {
@@ -152,9 +156,14 @@ export interface Estimate {
   fee: number;
   /** Market factor that was applied. */
   market: number;
+  /** Area price level that was applied. */
+  region: number;
 }
 
 export const roundTo = (v: number, step = 5) => Math.round(v / step) * step;
+
+/** Area price level, bounded 0.5–2 (a typo in the Hub can't make a job free or 10× the price). */
+export const clampRegion = (f: number) => (Number.isFinite(f) && f > 0 ? Math.min(2, Math.max(0.5, Math.round(f * 100) / 100)) : 1);
 
 export function estimate(input: EstimateInput): Estimate {
   const service = getService(input.slug);
@@ -169,6 +178,13 @@ export function estimate(input: EstimateInput): Estimate {
   if (size > 1) { const extra = Math.round(base * (size - 1)); lines.push({ label: "Larger than our standard size", amount: extra }); base += extra; }
   let point = Math.max(base, service.minimum);
   if (point > base) lines.push({ label: "Service minimum", amount: point - base });
+  // the area's price level (higher-cost areas like Seattle): the minimum scales with it, and so does the pro's pay
+  const region = clampRegion(input.region ?? 1);
+  if (region !== 1) {
+    const r = Math.round(point * (region - 1));
+    if (r) { lines.push({ label: "Area pricing", amount: r }); point += r; }
+  }
+  const minimum = Math.round(service.minimum * region);
   // what pros in this area actually accept (learned from offers; ±, bounded) — see marketFactor()
   const market = clampFactor(input.market ?? 1);
   if (market !== 1 && !service.siteVisit) {
@@ -187,7 +203,7 @@ export function estimate(input: EstimateInput): Estimate {
     lines.push({ label: "Within-48h priority", amount: r });
     point += r;
   }
-  point = Math.max(point, Math.round(service.minimum * (1 - discount)));
+  point = Math.max(point, Math.round(minimum * (1 - discount)));
 
   const step = point >= 5000 ? 250 : point >= 1000 ? 25 : 5;
   // exact-price services (spread [1,1]) quote the exact amount — never a rounded "range"
@@ -204,7 +220,7 @@ export function estimate(input: EstimateInput): Estimate {
     slug: service.slug,
     items: lines,
     point: total,
-    low: Math.max(low, Math.round(service.minimum * (1 - discount))) + fee,
+    low: Math.max(low, Math.round(minimum * (1 - discount))) + fee,
     high: high + fee,
     hours: Math.round(hours * 10) / 10,
     siteVisit: service.siteVisit,
@@ -214,6 +230,7 @@ export function estimate(input: EstimateInput): Estimate {
     payoutShare: total > 0 ? Math.round((payout / total) * 1000) / 1000 : 0,
     fee,
     market,
+    region,
   };
 }
 

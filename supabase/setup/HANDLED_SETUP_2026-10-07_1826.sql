@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-07_1820.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-07_1826.sql   (generated — do not hand edit)
 -- PROJECT : Handled (myhumanai)
--- CREATED : 2026-10-07_1820 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 58 migrations + production seed.
+-- CREATED : 2026-10-07_1826 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 59 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -3499,6 +3499,22 @@ select v.name, v.state, v.zips from (values
   ('Spokane & Eastern WA', 'WA', array['990','991','992','993','994'])
 ) as v(name, state, zips)
 where not exists (select 1 from public.markets m where m.name = v.name);
+
+
+-- >>> migration 20261007070000_washington_area_pricing.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261007070000_washington_area_pricing.sql
+-- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- CREATED : 2026-10-07_1830 UTC
+-- PURPOSE : Area pricing for Washington (markets.price_multiplier, read by lib/launch regionFactor → estimate region):
+--             Seattle area (Seattle & Eastside, Everett & North Sound, Tacoma & South Sound)  +25%  → 1.25
+--             Rest of Washington (Olympia & Southwest WA, Central Washington, Spokane & Eastern WA, new areas)  +20%  → 1.20
+--           Michigan stays 1.00. The pro's pay follows the price. Safe to run twice.
+-- ============================================================================
+update public.markets set price_multiplier = 1.25
+ where state = 'WA' and name in ('Seattle & Eastside', 'Everett & North Sound', 'Tacoma & South Sound');
+update public.markets set price_multiplier = 1.20
+ where state = 'WA' and name not in ('Seattle & Eastside', 'Everett & North Sound', 'Tacoma & South Sound');
 
 
 -- >>> seed.sql

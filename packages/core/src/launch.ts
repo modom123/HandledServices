@@ -8,7 +8,7 @@
  *           A market with no launch list (null) has every service open.
  */
 
-export interface LaunchMarket { id?: string; name?: string; zip_prefixes: string[]; active?: boolean; launch_services?: string[] | null }
+export interface LaunchMarket { id?: string; name?: string; zip_prefixes: string[]; active?: boolean; launch_services?: string[] | null; price_multiplier?: number | null }
 
 /** Recommended first services for a new city (growth plan, phase 1). */
 export const LAUNCH_SET_RECOMMENDED = [

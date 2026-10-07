@@ -8,6 +8,7 @@
  *           "new areas" market (addZipToServiceArea). Outside ZIPs stay bookable when a pro covers them.
  * UPDATED : 2026-10-07_1700 UTC — Handled serves Michigan and Washington (SERVED_STATES, by ZIP range). ZIPs in other states
  *           are closed (waitlist); a Michigan / Washington ZIP missing from every market is still bookable and gets added.
+ * UPDATED : 2026-10-07_1830 UTC — regionFactor(zip): the service area's price level (markets.price_multiplier).
  */
 import "server-only";
 import { marketForZip, serviceOpen, type LaunchMarket } from "@handled/core";
@@ -18,15 +19,15 @@ let cache: { at: number; markets: LaunchMarket[] } | null = null;
 export async function launchMarkets(): Promise<LaunchMarket[]> {
   if (cache && Date.now() - cache.at < 60_000) return cache.markets;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
-  const { data } = await adminClient().from("markets").select("id, name, zip_prefixes, active, launch_services");
+  const { data } = await adminClient().from("markets").select("id, name, zip_prefixes, active, launch_services, price_multiplier");
   cache = { at: Date.now(), markets: (data ?? []) as LaunchMarket[] };
   return cache.markets;
 }
 
 /** The states Handled serves, by 3-digit ZIP range. Add a state here (and its markets) to open it. */
-export const SERVED_STATES: { state: string; name: string; from: number; to: number }[] = [
-  { state: "MI", name: "Michigan", from: 480, to: 499 },
-  { state: "WA", name: "Washington", from: 980, to: 994 },
+export const SERVED_STATES: { state: string; name: string; from: number; to: number; priceMultiplier: number }[] = [
+  { state: "MI", name: "Michigan", from: 480, to: 499, priceMultiplier: 1 },
+  { state: "WA", name: "Washington", from: 980, to: 994, priceMultiplier: 1.2 }, // rest of WA +20% (Seattle-area markets are 1.25)
 ];
 export const servedState = (zip: string | null | undefined) => {
   const p = zip && /^\d{5}$/.test(zip) ? Number(zip.slice(0, 3)) : NaN;
@@ -50,6 +51,15 @@ export async function openFor(slug: string, zip: string | null | undefined) {
 
 export const clearLaunchCache = () => { cache = null; };
 
+/** The area's price level for a ZIP (markets.price_multiplier: Seattle area 1.25, rest of Washington 1.20, Michigan 1). */
+export async function regionFactor(zip: string | null | undefined): Promise<number> {
+  try {
+    const m = marketForZip(await launchMarkets(), zip);
+    const f = Number(m?.price_multiplier ?? 1);
+    return Number.isFinite(f) && f > 0 ? f : 1;
+  } catch { return 1; }
+}
+
 /**
  * A job was booked: if its ZIP isn't in any service area yet, add it — to the state's "new areas" market (created on first
  * use, no launch list, so every service is bookable there). Staff can move ZIPs into a named market in Hub → Cities.
@@ -68,7 +78,7 @@ export async function addZipToServiceArea(zip: string | null | undefined, _state
     const zips = [...new Set([...((m.zip_prefixes ?? []) as string[]), zip])];
     await db.from("markets").update({ zip_prefixes: zips, active: true }).eq("id", m.id);
   } else {
-    await db.from("markets").insert({ name, state: st, zip_prefixes: [zip] });
+    await db.from("markets").insert({ name, state: st, zip_prefixes: [zip], price_multiplier: served.priceMultiplier });
   }
   clearLaunchCache();
   return name;

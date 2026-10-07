@@ -38,6 +38,7 @@
  * UPDATED : 2026-10-07_1640 UTC — onBooked adds a new ZIP to a service area (lib/launch addZipToServiceArea).
  * UPDATED : 2026-10-07_1545 UTC — markPaid: a dispatch error no longer throws back into the Stripe webhook (alert instead).
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
+ * UPDATED : 2026-10-07_1830 UTC — area pricing: the ZIP's service-area price level (regionFactor) goes into the price and the AI quote.
  */
 import "server-only";
 import { z } from "zod";
@@ -147,7 +148,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
-  const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush, market });
+  const region = await (await import("./launch")).regionFactor(input.zip); // area price level (Seattle area +25%, rest of WA +20%)
+  const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush, market, region });
   // the price the customer saw (signed quote) if nothing changed since; otherwise check now
   const q = readQuoteToken(quote_token);
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
@@ -156,7 +158,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
-      : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market });
+      : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
   const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));

@@ -307,6 +307,7 @@ export const ES_LINES: Record<string, string> = {
   "{#}rd crew member ({#} lb+ item)": "{#}.º integrante del equipo (artículo de {#} lb+)",
   "Booking fee": "Cargo por reserva",
   "Local market adjustment": "Ajuste según el mercado local",
+  "Area pricing": "Precio según la zona",
   "Larger than our standard size": "Más grande que nuestro tamaño estándar",
   // Small moves, large-item delivery, staging moves, unit turnover
   "{#} movers × {#} hours (estimated)": "{#} mudanceros × {#} horas (estimado)",

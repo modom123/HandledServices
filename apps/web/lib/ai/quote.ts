@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-03_0148 UTC — baseline uses the learned local market factor.
  * PURPOSE : AI quote review. Claude reads the customer's answers, notes and photos and
  *           proposes a price for the work that's really there.
+ * UPDATED : 2026-10-07_1830 UTC — area price level (region) in the baseline and corrected price.
  */
 import "server-only";
 import { z } from "zod";
@@ -61,8 +62,10 @@ export async function aiQuote(input: {
   locale?: "en" | "es";
   /** Learned local market factor (lib/market). */
   market?: number;
+  /** Service-area price level (lib/launch regionFactor). */
+  region?: number;
 }): Promise<{ baseline: Estimate; ai: AiQuote | null }> {
-  const baseline = estimate({ slug: input.slug, answers: input.answers, frequency: input.frequency, rush: input.rush, market: input.market });
+  const baseline = estimate({ slug: input.slug, answers: input.answers, frequency: input.frequency, rush: input.rush, market: input.market, region: input.region });
   const svc = getService(input.slug)!;
   const hasSignal = Boolean(input.notes?.trim()) || Boolean(input.photoUrls?.length);
   if (!hasSignal) return { baseline, ai: null }; // nothing for the AI to add — skip the call
@@ -93,7 +96,7 @@ export async function aiQuote(input: {
   if (!out) return { baseline, ai: null };
   // corrections are re-priced by the rules engine, not taken on trust
   const fixed = applyCorrections(input.slug, input.answers, out.corrected_answers);
-  const corrected = estimate({ slug: input.slug, answers: fixed.answers, frequency: input.frequency, rush: input.rush, market: input.market });
+  const corrected = estimate({ slug: input.slug, answers: fixed.answers, frequency: input.frequency, rush: input.rush, market: input.market, region: input.region });
   const d = aiPriceDecision(corrected, out.proposed_price, { needsSiteVisit: out.needs_site_visit, confidence: out.confidence });
   // never more than 10% under what the customer's own answers price at
   const final = Math.max(d.final, Math.round(baseline.point * (1 - AI_MAX_CUT)));

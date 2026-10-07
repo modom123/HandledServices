@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-05_0447 UTC — photos and notes carried in from Snap & post a job.
  * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (Add event security); Plan My Event passes alcohol.
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
+ * UPDATED : 2026-10-07_1830 UTC — area price level from /api/market (region), so the price shown matches what the server charges.
  */
 "use client";
 
@@ -99,12 +100,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
 
   // what pros in this area actually accept (learned) — the same factor the server prices with
   const [market, setMarket] = useState(1);
+  const [region, setRegion] = useState(1); // the service area's price level (Seattle area +25%, rest of WA +20%)
   useEffect(() => {
     if (!slug) return;
     const zip = /^\d{5}$/.test(form.zip) ? form.zip : "";
-    fetch(`/api/market?service=${slug}${zip ? `&zip=${zip}` : ""}`).then((r) => r.json()).then((j) => setMarket(Number(j.factor) || 1)).catch(() => {});
+    fetch(`/api/market?service=${slug}${zip ? `&zip=${zip}` : ""}`).then((r) => r.json()).then((j) => { setMarket(Number(j.factor) || 1); setRegion(Number(j.region) || 1); }).catch(() => {});
   }, [slug, form.zip]);
-  const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market }) : null), [svc, answers, frequency, date, market]);
+  const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
   // Name your price ("" = our suggestion)
   const [offer, setOffer] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
