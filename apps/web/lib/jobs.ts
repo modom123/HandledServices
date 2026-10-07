@@ -125,6 +125,11 @@ export async function getJob(id: string): Promise<Job | null> {
  */
 export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, preferred_pro_id, requested_crew_member_id, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
+  // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
+  const { applyMeasurements, missingMeasurements } = await import("@handled/core");
+  const missing = missingMeasurements(svc.questions, input.answers as never);
+  if (missing.length) throw new Error(`Please enter: ${missing.map((q) => `${q.label}${q.type === "number" && q.unit ? ` (${q.unit})` : ""}`).join(", ")}.`);
+  input.answers = applyMeasurements(svc.questions, input.answers as never) as typeof input.answers;
   // business account booking: the property's address, the company, and the account's billing rules
   const biz = business_property_id ? await (await import("./business")).bookingContext(customerId, input.contact_email, business_property_id) : null;
   if (biz) {

@@ -15,11 +15,12 @@
  *           Stripe Checkout opens in an in-app sheet; a link to an unknown service shows a friendly message.
  * UPDATED : 2026-10-06_0708 UTC — Pay & book opens Apple Pay / Google Pay / card right in the app (Stripe PaymentSheet); closing it
  *           keeps the booking with Pay now / Later; Checkout is the fallback.
+ * UPDATED : 2026-10-07_0235 UTC — required measurements (yard sq ft, weight, height…) block booking until entered.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
 import { payForJob } from "../../lib/pay";
@@ -175,6 +176,8 @@ function BookService({ slug: _slug }: { slug: string }) {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.contact_email.trim());
   const phoneOk = f.contact_phone.replace(/\D/g, "").length >= 10;
   const problems: { key: string; msg: string }[] = [];
+  // required measurements (yard sq ft, weight, height…) — same rule as the website and the server
+  for (const q of missingMeasurements(svc.questions, answers)) problems.push({ key: `m_${q.id}`, msg: es ? `Escriba: ${t(q.label)}` : `Enter: ${t(q.label)}` });
   if (!svc.leadDays && !urgency) problems.push({ key: "when", msg: t("Choose when you need it done") });
   if (photosMissing) problems.push({ key: "photos", msg: es ? `Agregue ${rule.min - photos.length} foto(s) más` : `Add ${rule.min - photos.length} more photo(s)` });
   if (!zipOk) problems.push({ key: "zip", msg: t("Enter the 5-digit ZIP code") });
@@ -259,12 +262,12 @@ function BookService({ slug: _slug }: { slug: string }) {
       </Card>
       {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
         <View key={q.id} style={{ marginTop: 14 }}>
-          <Text style={s.label}>{t(q.label)}</Text>
+          <Text style={s.label}>{t(q.label)}{q.type === "number" && q.required ? " *" : ""}</Text>
           {q.help ? <Text style={[s.p, { marginBottom: 6, fontSize: 14 }]}>{t(q.help)}</Text> : null}
-          {q.type === "number" && q.max >= 200 && (
+          {q.type === "number" && (q.max >= 200 || q.required || ["ft", "in", "lb", "cu yd"].includes(q.unit ?? "")) && (
             <NumberBox value={Number(answers[q.id])} min={q.min} max={q.max} unit={q.unit ? t(q.unit) : undefined} onChange={(v) => setAnswers((cur) => ({ ...cur, [q.id]: v }))} />
           )}
-          {q.type === "number" && q.max < 200 && (
+          {q.type === "number" && q.max < 200 && !q.required && !["ft", "in", "lb", "cu yd"].includes(q.unit ?? "") && (
             <View style={[s.row, { alignItems: "center" }]}>
               <Chip label="−" on={false} onPress={() => setAnswers({ ...answers, [q.id]: Math.max(q.min, Number(answers[q.id]) - 1) })} />
               <Text style={[s.b, { minWidth: 70, textAlign: "center", marginBottom: 8 }]}>{String(answers[q.id])} {q.unit ? t(q.unit) : ""}</Text>

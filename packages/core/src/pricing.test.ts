@@ -486,7 +486,9 @@ function numberSteps(q: Extract<Question, { type: "number" }>): number[] {
 /** Toggles that intentionally make the job smaller (and cheaper). */
 const SMALLER_SCOPE_TOGGLES = new Set(["exterior-painting.trim_only"]);
 /** Amount questions that intentionally don't change the price (the budget sets it, or they only matter in combination). */
-const INFO_ONLY_NUMBERS = new Set(["event-package.guests"]);
+const INFO_ONLY_NUMBERS = new Set(["event-package.guests",
+  // measurements the pro uses to plan (vehicle, saw, crew), not priced: tree trunk, load weight, longest side
+  "tree-removal.trunk_in", "junk-removal.est_weight_lb", "retail-delivery.largest_in", "courier.package_in"]);
 
 test("calculators: raising any amount never lowers the price", () => {
   for (const svc of SERVICES) {
@@ -494,7 +496,8 @@ test("calculators: raising any amount never lowers the price", () => {
       if (q.type !== "number") continue;
       const base = answersFor(svc, q);
       let prev = -1, prevV = 0;
-      for (const v of numberSteps(q)) {
+      // a required measurement at 0 means "not entered yet" (booking is blocked), so start from 1
+      for (const v of numberSteps(q).filter((x) => !(q.required && x === 0))) {
         const p = estimate({ slug: svc.slug, answers: { ...base, [q.id]: v } }).point;
         assert.ok(p >= prev, `${svc.slug}.${q.id}: ${prevV}→${v} dropped the price ${prev}→${p}`);
         prev = p; prevV = v;
@@ -1445,4 +1448,25 @@ test("grand opening promotion: window, phases, discount caps", async () => {
   assert.equal(launchDiscount({ price: 200, payout: 170, pct: 0.2, full: true }), 40, "full discount: we cover it");
   assert.equal(launchDiscount({ price: 100, payout: 99, pct: 0.2 }), 0);
   assert.deepEqual(countdownParts(90061000), { days: 1, hours: 1, minutes: 1, seconds: 1 });
+});
+
+test("measurements pick the calibrated size band and are required", async () => {
+  const { getService, applyMeasurements, missingMeasurements, questionVisible } = await import("./services.ts");
+  const { estimate } = await import("./pricing.ts");
+  const lawn = getService("lawn-care")!;
+  assert.equal(applyMeasurements(lawn.questions, { yard_sqft: 8000 }).lot, "small");
+  assert.equal(applyMeasurements(lawn.questions, { yard_sqft: 15000 }).lot, "quarter");
+  assert.equal(applyMeasurements(lawn.questions, { yard_sqft: 60000 }).lot, "acre");
+  assert.equal(applyMeasurements(lawn.questions, { yard_sqft: 0, lot: "half" }).lot, "half", "no measurement → band kept");
+  // same price as picking the band by hand
+  assert.equal(estimate({ slug: "lawn-care", answers: { yard_sqft: 15000 } }).point, estimate({ slug: "lawn-care", answers: { lot: "quarter" } }).point);
+  assert.equal(missingMeasurements(lawn.questions, {}).map((q) => q.id).join(), "yard_sqft");
+  assert.equal(missingMeasurements(lawn.questions, { yard_sqft: 9000 }).length, 0);
+  assert.equal(questionVisible(lawn.questions.find((q) => q.id === "lot")!, {}, lawn.questions), false, "band isn't asked");
+  const junk = getService("junk-removal")!;
+  assert.equal(applyMeasurements(junk.questions, { cubic_yards: 3 }).volume, "quarter");
+  assert.equal(applyMeasurements(junk.questions, { cubic_yards: 40 }).volume, "double");
+  const animal = getService("dead-animal-removal")!;
+  assert.equal(applyMeasurements(animal.questions, { weight_lb: 3 }).size, "small");
+  assert.equal(applyMeasurements(animal.questions, { weight_lb: 150 }).size, "xl");
 });

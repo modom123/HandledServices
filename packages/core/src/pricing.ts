@@ -24,7 +24,7 @@
  *           the cent before rounding down (a $1,004 job paid $679 instead of $680 from float noise).
  */
 
-import { defaultAnswers, getService, type Answers, type LineItem } from "./services.ts";
+import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
 import type { CustomerType, Frequency } from "./types.ts";
 
 export const RECURRING_DISCOUNT: Record<Frequency, number> = {
@@ -160,8 +160,13 @@ export function estimate(input: EstimateInput): Estimate {
   const service = getService(input.slug);
   if (!service) throw new Error(`Unknown service: ${input.slug}`);
   const freq: Frequency = service.frequencies.includes(input.frequency ?? "once") ? input.frequency ?? "once" : "once";
-  const { items, base, hours } = service.price(input.answers);
+  // measurements (yard sq ft, weight, height…) pick the calibrated size band before pricing
+  const priced = service.price(applyMeasurements(service.questions, input.answers));
+  const { items, hours } = priced;
+  let base = priced.base;
   const lines = [...items];
+  const size = sizeFactor(service.questions, input.answers);
+  if (size > 1) { const extra = Math.round(base * (size - 1)); lines.push({ label: "Larger than our standard size", amount: extra }); base += extra; }
   let point = Math.max(base, service.minimum);
   if (point > base) lines.push({ label: "Service minimum", amount: point - base });
   // what pros in this area actually accept (learned from offers; ±, bounded) — see marketFactor()

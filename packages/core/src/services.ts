@@ -34,6 +34,9 @@
  *           fire_safety, foundation, waste_oil.
  * UPDATED : 2026-10-06_0740 UTC — removed the fixed per-service payoutShare (it said 65–70% while real pay slides with
  *           job size). What a pro earns now comes from one place only: splitJob() / proShare() in pricing.ts.
+ * UPDATED : 2026-10-07_0225 UTC — real measurements for size- and weight-based services (lawn, leaves, snow, trees, pet waste,
+ *           junk, dead animal, deliveries, courier, interior painting): required numbers that pick the calibrated size band
+ *           (applyMeasurements) so prices stay the same and the pro sees the exact size.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -45,16 +48,52 @@ export type Answers = Record<string, number | string | boolean | undefined>;
 export type ShowIf = { id: string; is: (string | boolean)[] };
 
 export type Question =
-  | { id: string; label: string; type: "number"; min: number; max: number; default: number; unit?: string; help?: string; showIf?: ShowIf }
+  | {
+      id: string; label: string; type: "number"; min: number; max: number; default: number; unit?: string; help?: string; showIf?: ShowIf;
+      /** a real measurement the customer must enter (0 = not entered yet) */
+      required?: boolean;
+      /** this measurement picks the size band of another (select) question: [up to and including, option value] */
+      sets?: { id: string; tiers: [number, string][]; scaleAbove?: number };
+    }
   | { id: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string; help?: string; showIf?: ShowIf }
   | { id: string; label: string; type: "toggle"; default: boolean; help?: string; showIf?: ShowIf };
 
-/** Should this question be shown for these answers? */
+/** Should this question be shown for these answers? A size band filled in from a measurement is never asked. */
 export function questionVisible(q: Question, answers: Answers, all: Question[] = []): boolean {
+  if (q.type === "select" && all.some((x) => x.type === "number" && x.sets?.id === q.id)) return false;
   if (!q.showIf) return true;
   const dep = all.find((x) => x.id === q.showIf!.id);
   const v = answers[q.showIf.id] ?? dep?.default;
   return q.showIf.is.includes(v as string | boolean);
+}
+
+/** Fill size bands from the measurements entered (prices stay on the calibrated bands; the pro sees the exact numbers). */
+export function applyMeasurements(questions: Question[], answers: Answers): Answers {
+  const out: Answers = { ...answers };
+  for (const q of questions) {
+    if (q.type !== "number" || !q.sets) continue;
+    const v = Number(answers[q.id] ?? 0);
+    if (!(v > 0)) continue;
+    const tier = q.sets.tiers.find(([max]) => v <= max) ?? q.sets.tiers[q.sets.tiers.length - 1];
+    out[q.sets.id] = tier[1];
+  }
+  return out;
+}
+
+/** Above the top band's typical size the price grows with the measurement (a 5-acre lawn isn't a 1-acre lawn). */
+export function sizeFactor(questions: Question[], answers: Answers): number {
+  let f = 1;
+  for (const q of questions) {
+    if (q.type !== "number" || !q.sets?.scaleAbove) continue;
+    const v = Number(answers[q.id] ?? 0);
+    if (v > q.sets.scaleAbove) f = Math.max(f, v / q.sets.scaleAbove);
+  }
+  return f;
+}
+
+/** Required measurements still missing (visible ones only). */
+export function missingMeasurements(questions: Question[], answers: Answers): Question[] {
+  return questions.filter((q) => q.type === "number" && q.required && questionVisible(q, answers, questions) && !(Number(answers[q.id] ?? 0) > 0));
 }
 
 export interface LineItem {
@@ -454,6 +493,7 @@ export const SERVICES: Service[] = [
     description: "Weekly or biweekly mowing plus seasonal leaf cleanup, aeration and fertilization for homes and commercial lots.",
     includes: ["Mow & edge", "Trim around beds", "Blow walks & drives", "Clippings handled"],
     questions: [
+      { id: "yard_sqft", label: "Yard size", type: "number", min: 0, max: 400000, default: 0, unit: "sq ft", required: true, help: "The lawn area to mow. Measure length × width in feet, or on Google Maps (computer) right-click your yard → Measure distance and click around it. 1 acre = 43,560 sq ft.", sets: { id: "lot", tiers: [[10890, "small"], [21780, "quarter"], [43560, "half"], [Infinity, "acre"]], scaleAbove: 65000 } },
       {
         id: "lot",
         label: "Lot size",
@@ -508,6 +548,8 @@ export const SERVICES: Service[] = [
           { value: "remove", label: "Full removal" },
         ],
       },
+      { id: "height_ft", label: "Tree height (tallest tree)", type: "number", min: 0, max: 150, default: 0, unit: "ft", required: true, help: "Best guess is fine: a 2-story house is about 25 ft to the roof peak.", sets: { id: "height", tiers: [[29, "small"], [60, "medium"], [Infinity, "large"]] } },
+      { id: "trunk_in", label: "Trunk width at chest height", type: "number", min: 0, max: 120, default: 0, unit: "in", help: "Across the trunk, about 4 ft off the ground. Optional, but it helps the pro bring the right saw." },
       {
         id: "height",
         label: "Tree height",
@@ -549,6 +591,7 @@ export const SERVICES: Service[] = [
     description: "Fall and spring leaf cleanup for yards, beds and driveways. We blow and rake everything out, then bag it at the curb or haul it away. Book once or every week or two through the season.",
     includes: ["Lawn, beds & hard surfaces cleared", "Bagged at the curb or hauled away", "Downspout outlets cleared", "Before/after photos"],
     questions: [
+      { id: "yard_sqft", label: "Yard size", type: "number", min: 0, max: 400000, default: 0, unit: "sq ft", required: true, help: "The area to clear. Measure length × width in feet, or on Google Maps (computer) right-click your yard → Measure distance. 1 acre = 43,560 sq ft.", sets: { id: "lot", tiers: [[10890, "small"], [21780, "quarter"], [43560, "half"], [Infinity, "acre"]], scaleAbove: 65000 } },
       {
         id: "lot",
         label: "Lot size",
@@ -599,6 +642,7 @@ export const SERVICES: Service[] = [
     description: "Snow plowing and shoveling for homes and businesses. Book a single clearing, or a prepaid season plan where your crew comes automatically after every 2-inch-plus snowfall, November through March.",
     includes: ["Driveway plowed or blown", "Walks & steps shoveled", "Ice melt on request", "Photo after every visit"],
     questions: [
+      { id: "drive_sqft", label: "Driveway or lot size", type: "number", min: 0, max: 100000, default: 0, unit: "sq ft", required: true, help: "Length × width in feet. A 1-car driveway is about 10 × 40 = 400 sq ft; a parking space with its share of aisle is about 300 sq ft.", sets: { id: "area", tiers: [[450, "one_car"], [900, "two_car"], [2000, "large"], [4000, "lot_small"], [Infinity, "lot_large"]], scaleAbove: 12000 } },
       {
         id: "area",
         label: "What needs clearing",
@@ -738,6 +782,7 @@ export const SERVICES: Service[] = [
     includes: ["Full yard sweep", "Waste bagged & removed", "Gate-closed photo", "Deodorizer available"],
     questions: [
       { id: "dogs", label: "Number of dogs", type: "number", min: 1, max: 8, default: 1 },
+      { id: "yard_sqft", label: "Yard size", type: "number", min: 0, max: 200000, default: 0, unit: "sq ft", required: true, help: "The area the dogs use. Length × width in feet.", sets: { id: "yard", tiers: [[5000, "small"], [15000, "medium"], [Infinity, "large"]], scaleAbove: 30000 } },
       {
         id: "yard",
         label: "Yard size",
@@ -778,6 +823,8 @@ export const SERVICES: Service[] = [
     description: "Full-service junk hauling from homes, garages, basements, offices and job sites. You point, we lift, load and sweep. Prefer to load it yourself over a few days? Book a Junk Container instead.",
     includes: ["2-person crew", "All lifting & loading", "Donation & recycling first", "Area swept clean"],
     questions: [
+      { id: "cubic_yards", label: "How much (cubic yards)", type: "number", min: 0, max: 80, default: 0, unit: "cu yd", required: true, help: "A pickup-truck bed holds about 2 cubic yards; a couch is about 2; a full one-car garage is about 16. Best guess is fine — add photos and we check them before you pay.", sets: { id: "volume", tiers: [[1, "min"], [2, "eighth"], [4, "quarter"], [8, "half"], [12, "three_quarter"], [16, "full"], [Infinity, "double"]], scaleAbove: 32 } },
+      { id: "est_weight_lb", label: "Rough total weight", type: "number", min: 0, max: 20000, default: 0, unit: "lb", help: "Optional. Helps for heavy loads (concrete, dirt, roofing, appliances)." },
       {
         id: "volume",
         label: "How much stuff",
@@ -942,6 +989,7 @@ export const SERVICES: Service[] = [
     description: "Removal of dead animals from yards, driveways, garages, under decks and porches, crawlspaces, attics and walls: squirrels, birds, rodents, raccoons, opossums, skunks, cats and dogs, deer and more. Sealed in double bags, disposed of at an approved site the same day, and the spot sanitized on request. Lost a pet? We can take them to your vet or a pet crematory instead. We don't handle live or trapped animals.",
     includes: ["Protective gear & sealed double bags", "Disposal at an approved site the same day", "Before & after photos", "Sanitizing & odor treatment available"],
     questions: [
+      { id: "weight_lb", label: "Animal\u2019s approximate weight", type: "number", min: 0, max: 400, default: 0, unit: "lb", required: true, help: "Squirrel ≈ 1 lb, raccoon ≈ 15 lb, large dog ≈ 70 lb, deer ≈ 150 lb.", sets: { id: "size", tiers: [[4.99, "small"], [40, "medium"], [100, "large"], [Infinity, "xl"]] } },
       {
         id: "size", label: "Size of the animal", type: "select", default: "medium",
         options: [
@@ -1080,6 +1128,8 @@ export const SERVICES: Service[] = [
     includes: ["2-person crew", "Blankets, straps & dollies", "Placed in the room you choose", "Packaging taken away", "Photo proof of delivery"],
     questions: [
       { id: "items", label: "Items", type: "number", min: 1, max: 20, default: 1 },
+      { id: "heaviest_lb", label: "Heaviest item\u2019s weight", type: "number", min: 0, max: 2000, default: 0, unit: "lb", required: true, help: "Check the product page or box. A sofa is about 100–200 lb, a fridge 250–350 lb.", sets: { id: "weight", tiers: [[49, "light"], [150, "medium"], [300, "heavy"], [Infinity, "very_heavy"]] } },
+      { id: "largest_in", label: "Largest item\u2019s longest side", type: "number", min: 0, max: 240, default: 0, unit: "in", required: true, help: "So we send a vehicle it fits in. Measure the box or check the product dimensions." },
       { id: "weight", label: "Heaviest item", type: "select", default: "medium", options: [
         { value: "light", label: "Under 50 lb" }, { value: "medium", label: "50 to 150 lb" }, { value: "heavy", label: "150 to 300 lb" }, { value: "very_heavy", label: "Over 300 lb" },
       ] },
@@ -1612,6 +1662,7 @@ export const SERVICES: Service[] = [
     questions: [
       { id: "property", label: "Property", type: "select", default: "home", options: [{ value: "home", label: "Home / apartment" }, { value: "office", label: "Office / commercial" }] },
       { id: "rooms", label: "Rooms or areas (a hallway or stairwell counts as one)", type: "number", min: 1, max: 40, default: 2 },
+      { id: "room_sqft", label: "Average room size (floor)", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft", required: true, help: "Length × width of a typical room in feet (a 12 × 12 bedroom is 144 sq ft).", sets: { id: "size", tiers: [[99, "small"], [200, "medium"], [Infinity, "large"]], scaleAbove: 300 } },
       { id: "size", label: "Typical room size", type: "select", default: "medium", options: [{ value: "small", label: "Small (bath, closet, under 100 sq ft)" }, { value: "medium", label: "Medium (bedroom, 100–200 sq ft)" }, { value: "large", label: "Large (living room, open plan, 200+ sq ft)" }] },
       { id: "ceilings", label: "Paint ceilings too", type: "toggle", default: false },
       { id: "trim", label: "Trim, baseboards & doors", type: "toggle", default: false },
@@ -1860,6 +1911,8 @@ export const SERVICES: Service[] = [
     description: "A background-checked courier picks up and delivers documents, packages, parts and supplies across metro Detroit: same day, within 2 hours, or on a regular route for your business. Photo proof at pickup and drop-off, and a signature when you need one. (Prescriptions and lab specimens go through Medical Deliveries.)",
     includes: ["Background-checked courier", "Photo proof at pickup & drop-off", "Live tracking link", "Signature on request", "Regular business routes available"],
     questions: [
+      { id: "package_lb", label: "Package weight", type: "number", min: 0, max: 500, default: 0, unit: "lb", required: true, help: "Envelopes: enter 1. Up to 50 lb fits a car; heavier goes in an SUV or truck.", sets: { id: "size", tiers: [[1, "envelope"], [50, "box"], [Infinity, "bulky"]] } },
+      { id: "package_in", label: "Longest side", type: "number", min: 0, max: 144, default: 0, unit: "in", help: "Optional. Anything over 36 in may need a larger vehicle." },
       { id: "size", label: "What are we carrying?", type: "select", default: "box", options: [
         { value: "envelope", label: "Envelope or documents" }, { value: "box", label: "Box or package (up to 50 lb)" }, { value: "bulky", label: "Bulky or heavy (needs an SUV or truck)" },
       ] },

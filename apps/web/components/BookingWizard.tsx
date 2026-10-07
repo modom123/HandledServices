@@ -27,7 +27,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint,
+  questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint, missingMeasurements,
 } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
@@ -134,6 +134,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const siteVisit = Boolean(svc?.siteVisit || bigJob || ai?.action === "site_visit");
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
+  // required measurements (yard sq ft, weight, height…) must be filled in before the price step
+  const measuresMissing = svc ? missingMeasurements(svc.questions, answers) : [];
 
   async function book() {
     setBusy(true);
@@ -208,7 +210,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             </div>
             {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
               <div key={q.id}>
-                <label className="label">{t(q.label)}</label>
+                <label className="label">{t(q.label)}{q.type === "number" && q.required && <span className="text-rose-700"> *</span>}</label>
                 {q.type === "number" && (
                   <NumberField min={q.min} max={q.max} unit={q.unit ? t(q.unit) : undefined} value={Number(answers[q.id] ?? q.default)}
                     onChange={(v) => { setAnswers((cur) => ({ ...cur, [q.id]: v })); resetAi(); }} />
@@ -224,6 +226,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                   <button onClick={() => { setAnswers({ ...answers, [q.id]: !answers[q.id] }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{answers[q.id] ? t("Yes") : t("No")}</button>
                 )}
                 {q.help && <p className="mt-1 text-xs text-ink-soft">{t(q.help)}</p>}
+                {q.type === "number" && q.required && !(Number(answers[q.id] ?? 0) > 0) && <p className="mt-1 text-xs font-semibold text-rose-700">{es ? "Escriba la medida para ver su precio." : "Enter the measurement to see your price."}</p>}
               </div>
             ))}
             {svc.frequencies.length > 1 && (
@@ -251,7 +254,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-1 text-xs text-ink-soft">{t("Our AI checks your photos so the price fits the job — no surprises on the day.")}</p>
               {photosMissing && photos.length > 0 && <p className="mt-1 text-xs text-amber-800">{photosMissing}</p>}
             </div>
-            <button className="btn-primary" disabled={Boolean(photosMissing)} onClick={() => setStep(2)}>{photosMissing ? (es ? `Agregue ${rule!.min - photos.length} foto(s) más para continuar` : `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue`) : t("Continue")}</button>
+            <button className="btn-primary" disabled={Boolean(photosMissing) || measuresMissing.length > 0} onClick={() => setStep(2)}>{measuresMissing.length ? (es ? `Falta: ${measuresMissing.map((q) => t(q.label)).join(", ")}` : `Enter: ${measuresMissing.map((q) => t(q.label)).join(", ")}`) : photosMissing ? (es ? `Agregue ${rule!.min - photos.length} foto(s) más para continuar` : `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue`) : t("Continue")}</button>
           </div>
         )}
 
