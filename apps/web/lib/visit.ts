@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/visit.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of customer and pro texts, emails, push and timeline.
  * PURPOSE : The visit itself, for customers:

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/MarketsAdmin.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Hub → City scorecard controls: add a city (name, state, ZIP prefixes) and pause / resume one.
  * UPDATED : 2026-10-04_1934 UTC — LaunchSet: which services a city has open (constraint-driven launch).

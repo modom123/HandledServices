@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261007023000_site_settings_grand_opening.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-07_0230 UTC
 -- PURPOSE : Small key/value settings staff change from the Hub without a redeploy:
 --             site_theme      - the website look shown by default ("classic" | "greengold" | "modern")

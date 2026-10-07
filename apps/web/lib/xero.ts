@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/xero.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2200 UTC
  * PURPOSE : Xero connection. OAuth 2.0 (authorization code) for ONE Xero organisation, tokens encrypted at rest
  *           (AES-256-GCM, key from XERO_TOKEN_KEY or the client secret), automatic refresh (access tokens last

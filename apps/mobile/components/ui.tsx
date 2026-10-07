@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/components/ui.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-06_0645 UTC — world-class basics shared by every screen: Form (keyboard never covers
  *           the field you're typing in), StickyBar (price + main button always in reach), Loading,

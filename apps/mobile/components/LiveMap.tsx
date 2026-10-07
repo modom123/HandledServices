@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/components/LiveMap.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0708 UTC
  * PURPOSE : "Your pro is on the way" map, like a ride app: the pro (🚗) and your home (🏠), framed
  *           together and re-framed as the pro moves. Apple Maps on iPhone; Google Maps on Android

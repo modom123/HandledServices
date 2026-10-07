@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ProOnboarding.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * PURPOSE : Pro self-onboarding forms — W-9, insurance, license, agreement, payout.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro onboarding & recruiting)

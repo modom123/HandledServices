@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/jobs/[id]/checklist/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : The pro's job checklist (lib/checklists.ts).
  *             GET                                   — checklist, what's checked, progress (app + portal)

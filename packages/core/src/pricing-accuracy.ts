@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/pricing-accuracy.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1253 UTC
  * PURPOSE : Pricing accuracy: did our suggested price match reality once the job was done?
  *           The market factor (pricing.ts → marketFactor) only learns from what pros do with an

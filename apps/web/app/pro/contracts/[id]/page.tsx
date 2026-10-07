@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/contracts/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : One contract the pro signed — the frozen copy, when, how, fingerprint. Own copies only.
  * UPDATED : 2026-10-03_0051 UTC — shown in the language they signed in; switch to the other.

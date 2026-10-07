@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/notes.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2141 UTC
  * UPDATED : 2026-10-05_2146 UTC — customers too: keyed by email (customerSubjectId), timeline adds their bookings and reviews.
  * PURPOSE : Account notes — the running conversation history for a business lead, business account, Talent client or customer.

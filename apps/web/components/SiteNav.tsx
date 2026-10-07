@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/SiteNav.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0802 UTC
  * PURPOSE : Header menus. Desktop: Services · For Business · Become a Pro · More, each a dropdown (opens on hover or
  *           click, closes on Escape / outside click / navigation; keyboard and screen-reader friendly). Phones: a ☰

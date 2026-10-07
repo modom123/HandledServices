@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Checklist.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Job checklist UI (format in packages/core/src/checklists.ts), English and Spanish:
  *             ChecklistPanel    — the pro checks items off, or marks N/A with the reason (job sheet)

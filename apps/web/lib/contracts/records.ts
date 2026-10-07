@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/records.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : Reading signed contracts back: a customer's (by account or booking email), a pro's
  *           (by contractor record), or one signed copy — for My contracts and the Hub.

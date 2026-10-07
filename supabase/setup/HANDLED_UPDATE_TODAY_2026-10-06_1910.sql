@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_UPDATE_TODAY_2026-10-06_1910.sql
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_1910 UTC
 -- PURPOSE : Today's database changes for an EXISTING Supabase project (one that already ran the
 --           earlier setup). Safe to run more than once. Runs as one transaction: all or nothing.
@@ -16,7 +16,7 @@ begin;
 -- >>> migration 20261006070800_app_payments.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006070800_app_payments.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0708 UTC
 -- PURPOSE : In-app payments (Apple Pay, Google Pay, card via Stripe PaymentSheet): a payment row
 --           remembers its PaymentIntent, so the webhook can settle it and support can look it up.
@@ -27,7 +27,7 @@ create index if not exists payments_stripe_payment_intent_idx on public.payments
 -- >>> migration 20261006072600_lock_down_rpc.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006072600_lock_down_rpc.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0726 UTC
 -- PURPOSE : Security (defense in depth): functions that run with elevated rights (security definer) are
 --           not callable from the app unless they're meant to be. Supabase exposes the public schema as
@@ -51,7 +51,7 @@ alter default privileges in schema public revoke execute on functions from publi
 -- >>> migration 20261006075200_agent_tasks.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006075200_agent_tasks.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0752 UTC
 -- PURPOSE : Tasks the team assigns to the AI agents (Hub → AI agents, or by asking the Ops co-pilot).
 --           Each open task is added to that agent's instructions on every run (packages/core/src/mission.ts),
@@ -79,7 +79,7 @@ create policy staff_all on public.agent_tasks for all to authenticated using (pu
 -- >>> migration 20261006084100_business_rfp_scope.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006084100_business_rfp_scope.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0841 UTC
 -- PURPOSE : The business Request for Proposal keeps its scope of work as structured data (packages/core/src/rfp.ts):
 --           square footage, site, each service with how often and specifics, working hours, current vendor, term,

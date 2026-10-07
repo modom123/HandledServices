@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/network/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * PURPOSE : Pro Network — the workforce as the company's core asset: size and coverage,
  *           value generated, quality, retention, hiring funnel, compliance risk, and the

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/LoyaltyCard.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Handled Points card for the account pages: balance, tier and progress, pending points, unused credit
  *           codes, redeem button, recent activity and the rules. Server component (reads lib/loyalty).

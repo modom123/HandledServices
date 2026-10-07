@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/i18n-lines-es.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Spanish for price-breakdown lines. Keys are the English line with every number or
  *           amount replaced by {#}; lineText() puts the numbers back in the same order.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/deductions.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0119 UTC
  * PURPOSE : Charging a pro for a workmanship refund or a lost chargeback — only the way the pro
  *           agreement (§17) promises:

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/team/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0434 UTC
  * PURPOSE : Hub → Team: who has Hub access (admins and dispatchers), add someone by email (they get a one-click sign-in
  *           link), or remove access. Admins only can change it. How everyone else is recognized is explained here too.

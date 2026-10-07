@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/partners/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0130 UTC
  * PURPOSE : Public page for the Referral Partner Program: what partners earn (10% of our fee, 12 months, weekly via
  *           Stripe), who it's for, worked examples, sign-up form and the partner terms.

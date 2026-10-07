@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/LEAD_ENGINE_SETUP_2026-10-03_0332.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-03_0332 UTC
   PURPOSE : Step-by-step: turn on automatic pro recruiting (auto-invite + the pro lead engine) with
             Google Places to find pros and Instantly.ai to send the invitations — LEAN setup

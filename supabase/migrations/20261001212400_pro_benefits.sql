@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001212400_pro_benefits.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_2124 UTC
 -- PURPOSE : The six Pro Program benefits.
 --             • pro_program_settings — who qualifies for each benefit and its amounts

@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/pro-fairness.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0117 UTC
  * PURPOSE : The rules behind the promises in the Independent Contractor Agreement, kept pure and
  *           tested:

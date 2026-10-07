@@ -1,6 +1,6 @@
 /*
  * FILE    : scripts/build-setup-sql.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2230 UTC
  * PURPOSE : Builds ONE file that sets up a brand-new Supabase project from the SQL editor:
  *           every migration in order + the production seed. (CLI users run `supabase db push`
@@ -18,7 +18,7 @@ for (const old of readdirSync(new URL("setup/", root))) if (/^HANDLED_SETUP_\d{4
 const parts = [
   `-- ============================================================================
 -- FILE    : supabase/setup/HANDLED_SETUP_${stamp}.sql   (generated — do not hand edit)
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : ${stamp} UTC
 -- PURPOSE : One-paste setup for a NEW Supabase project: ${migrations.length} migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.

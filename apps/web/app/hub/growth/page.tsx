@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/growth/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Growth — where bookings come from (first-touch source, last 30 days), Handled Plus
  *           members and monthly revenue, promo codes (create / on-off / uses), gift card balances

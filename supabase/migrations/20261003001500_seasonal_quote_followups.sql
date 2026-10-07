@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003001500_seasonal_quote_followups.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_0015 UTC
 -- PURPOSE : Bringing customers back:
 --             • saved_quotes     — "Email me this price": the price, then follow-ups, with a link

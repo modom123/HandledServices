@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006212000_cancellation_tracking.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2120 UTC
 -- PURPOSE : Track every cancellation, not just the ones that count against a pro:
 --             pro_standing_events.kind adds 'free_cancel' (handed back 24h+ ahead - recorded, never counted).

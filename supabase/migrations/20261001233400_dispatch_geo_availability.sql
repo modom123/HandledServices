@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001233400_dispatch_geo_availability.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_2334 UTC
 -- PURPOSE : Dispatch by availability, quality and location.
 --             • contractors: base ZIP + coordinates, driving radius, working days/windows,

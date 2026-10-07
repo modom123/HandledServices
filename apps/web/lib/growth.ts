@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/growth.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Customer money features, server side (rules in @handled/core growth.ts):

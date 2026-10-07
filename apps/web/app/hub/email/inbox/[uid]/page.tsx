@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/email/inbox/[uid]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Hub → Email Center → one inbox email: read it, see who they are (a business lead's reply marks the
  *           lead "replied" so the sales sequence stops), and reply from the company mailbox.

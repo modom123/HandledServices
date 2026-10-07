@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_FACTORING_PARTNERS_2026-10-06_0324.sql
--- PROJECT : Handled Services LLC (myhumanai) — Hub → Factoring
+-- PROJECT : Handled Services LLC (HandledServices) — Hub → Factoring
 -- CREATED : 2026-10-06_0324 UTC
 -- PURPOSE : Turns on Hub → Factoring in the EXISTING Supabase project: creates factoring_partners and adds the five
 --           factoring companies (Advance Partners, 1st Commercial Credit, Porter Capital, eCapital, 8A Factoring),

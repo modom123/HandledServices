@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/partners.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0100 UTC
  * PURPOSE : Referral Partner Program rules, shared by web, app and Hub. Anyone (realtors, property managers,
  *           contractors, neighbors) can sign up, share their link or send us a customer, and earn:

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/talent.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Talent, server side (rules in core talent.ts):
  *             clients & searches  — intake from the website, staff set-up, fair-hiring check, recruiters assigned,

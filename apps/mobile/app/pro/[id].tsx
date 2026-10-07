@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/[id].tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-01_2140 UTC — materials receipts (reimbursed at cost) and "Can't get in?".
  * UPDATED : 2026-10-02_1329 UTC — On my way button (customer gets a live ETA link).

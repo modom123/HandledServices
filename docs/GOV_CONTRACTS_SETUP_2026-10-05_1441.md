@@ -1,6 +1,6 @@
 <!--
 FILE    : docs/GOV_CONTRACTS_SETUP_2026-10-05_1441.md
-PROJECT : Handled (myhumanai) — AI-run home & business services
+PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-10-05_1441 UTC
 PURPOSE : How to switch on government contract search (SAM.gov) in the Hub, and what to check before bidding.
 -->

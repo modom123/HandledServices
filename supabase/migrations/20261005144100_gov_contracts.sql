@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005144100_gov_contracts.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_1441 UTC
 -- PURPOSE : Government contracts from SAM.gov (packages/core/src/gov-contracts.ts, Hub → Gov contracts).
 --             • gov_settings       — the saved daily search: on/off, NAICS codes, state, keywords, notice types, days back,

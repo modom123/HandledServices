@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/_layout.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish (LocaleProvider).
  * UPDATED : 2026-10-02_1329 UTC — crash reporting to the Hub; Account screen (delete my account).

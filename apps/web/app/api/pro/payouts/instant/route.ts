@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/payouts/instant/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * UPDATED : 2026-10-01_2140 UTC — GET: balance, fee and eligibility (mobile app).
  * PURPOSE : Pro: cash out approved payouts now (instant pay), or start Stripe payout setup.

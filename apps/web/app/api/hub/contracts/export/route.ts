@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/contracts/export/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0043 UTC
  * PURPOSE : Staff download of the whole contract library as one Markdown file (for counsel).
  * UPDATED : 2026-10-03_0052 UTC — ?lang=es downloads the Spanish translations.

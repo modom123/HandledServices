@@ -1,6 +1,6 @@
 /*
  * FILE    : scripts/smoke-test.mjs
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * PURPOSE : Launch smoke test — hits every public page and API on a deployed site and prints
  *           PASS/FAIL. Run after every deploy:

@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/bid-engine.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : The bid engine — how we decide, price and submit public contract bids the same careful way every time.
  *             GO_NO_GO / goDecision    — five must-pass questions (eligible, staffed, insured, profitable, time) + fit

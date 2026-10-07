@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/site/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0320 UTC
  * PURPOSE : Handled Hub → Website: the default website look (one link per look for market-by-market campaigns).
  * UPDATED : 2026-10-07_0345 UTC — grand opening promotion removed (owner decision).

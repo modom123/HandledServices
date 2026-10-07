@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/interviews/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : Staff side of screening interviews (lib/interviews.ts). POST JSON:
  *             { action: "start", application_id, mode: "ai" | "human" }      — send the AI link / open a scorecard

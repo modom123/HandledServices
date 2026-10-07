@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003020600_pro_lead_engine.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_0206 UTC
 -- PURPOSE : Pro lead engine — find independent pros automatically and invite them:
 --             • pro_leads         — businesses found (Google Places, CSV import of license lists)

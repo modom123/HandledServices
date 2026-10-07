@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/coverage.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_1950 UTC
  * PURPOSE : Every job gets done. The rules, kept pure and tested:
  *             CANCEL_POLICY / cancelTier — a pro can hand a job back:

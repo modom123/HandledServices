@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261004220400_board_favorites.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-04_2204 UTC
 -- PURPOSE : Open job board, customer favorites and crew member requests (packages/core/src/board.ts).
 --             • job_offers.kind adds 'favorite' (a customer's favorite pro gets a first look) and

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/index.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : The contract library: every customer, business and pro contract, and which ones
  *           apply when —

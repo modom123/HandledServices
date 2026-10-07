@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001200000_contractor_workforce.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_2000 UTC
 -- PURPOSE : The subcontractor workforce — our core asset.
 --             • 1099 tax profile per pro (independent contractors, never employees):

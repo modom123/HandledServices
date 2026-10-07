@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/cancel/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Customer cancels a booking. Free more than 24 hours before the arrival window;
  *           inside 24 hours the late-cancellation fee is kept (Service Agreement §5).

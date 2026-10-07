@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/talent/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Recruiter portal actions (approved pros with the "recruiter" trade, on searches they're assigned to):
  *           upload a résumé, add a candidate, move them through screening, submit to the client (consent + write-up,

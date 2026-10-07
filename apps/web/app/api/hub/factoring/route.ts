@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/factoring/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0324 UTC
  * PURPOSE : Staff controls for Hub → Factoring. POST JSON:
  *             { action: "update", id, status, advance_rate?, fee_pct?, …, notes? }  — outreach status and the quote

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261004193200_business_growth.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-04_1932 UTC
 -- PURPOSE : The growth plan's missing pieces:
 --             • markets.launch_services   — constraint-driven launch: only these services are bookable in

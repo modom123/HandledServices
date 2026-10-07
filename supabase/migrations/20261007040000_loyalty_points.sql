@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261007040000_loyalty_points.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-07_0530 UTC
 -- PURPOSE : Handled Points — loyalty points for every customer account (rules: packages/core/src/loyalty.ts).
 --             • loyalty_settings — earn rate, point value, pending days, expiry, bonuses (one row)

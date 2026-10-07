@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/jobs/[id]/expenses/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * UPDATED : 2026-10-01_2140 UTC — GET: eligibility + receipts on this job (mobile app).
  * PURPOSE : Pro submits a materials receipt (multipart: amount, description, file).

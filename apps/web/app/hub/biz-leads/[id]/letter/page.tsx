@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/biz-leads/[id]/letter/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0130 UTC
  * PURPOSE : Hub → Business leads → the job-posting letter for one lead, signed by the staff member: print or save
  *           as PDF, or copy into a job site's message or your own email. Also shows the 3 emails the sequence sends.

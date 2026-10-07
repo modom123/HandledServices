@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/market/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0149 UTC
  * PURPOSE : Staff override for a service's market factor (Hub → Market pricing):
  *           POST { service_slug, area?, manual_factor | null }. null hands it back to learning.

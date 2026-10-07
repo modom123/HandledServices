@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002015700_iebc_recruiting_roles.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0157 UTC
 -- PURPOSE : IEBC recruiting agents work the automated onboarding pipeline.
 --             • Tyler Walsh — recruiting pipeline: screening, invites, follow-up with stuck applicants

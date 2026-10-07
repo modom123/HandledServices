@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/business.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business accounts (rules in core business-accounts.ts):
  *             myAccounts / memberOf     — which accounts a signed-in person belongs to (by login or email)

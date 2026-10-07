@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/not-found.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Branded "page not found" (any unknown URL): the site header and footer, and the most useful next steps.
  */

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/index.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-01_2140 UTC — Earnings opens the in-app earnings screen (instant pay).
  * UPDATED : 2026-10-02_0255 UTC — On call switch (location shared while on call / on a job today) and My calendar.

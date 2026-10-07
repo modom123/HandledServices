@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/availability/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2115 UTC
  * PURPOSE : Booking calendar: open / limited / full for each day and arrival window over
  *           the booking horizon, from real pro capacity in the customer's ZIP.

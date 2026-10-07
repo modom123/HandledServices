@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/b/[token]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : The link in a business sales email: records the click, then opens the For Business page with
  *           the lead token (so the account is credited and gets the pilot offer) and utm_source=biz_email.

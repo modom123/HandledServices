@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/invoice/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2030 UTC
  * UPDATED : 2026-10-03_0042 UTC — prints the service-specific addenda and links the Terms of Use.
  * PURPOSE : Invoice & Service Agreement for one job — what was booked, the price, payment

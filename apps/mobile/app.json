@@ -66,7 +66,7 @@
     ],
     "extra": {
       "createdAt": "2026-10-01_1800 UTC",
-      "project": "Handled (myhumanai) mobile app",
+      "project": "Handled (HandledServices) mobile app",
       "privacyPolicyUrl": "filled from EXPO_PUBLIC_API_URL by app.config.js",
       "termsUrl": "filled from EXPO_PUBLIC_API_URL by app.config.js",
       "eas": {

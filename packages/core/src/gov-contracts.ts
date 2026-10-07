@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/gov-contracts.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Government contracts from SAM.gov (the federal Contract Opportunities API), matched to the work our pros do.
  *             GOV_NAICS          — the NAICS codes agencies use for work we offer, mapped to our services

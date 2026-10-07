@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003011700_pro_fairness.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_0117 UTC
 -- PURPOSE : Make the system do what the Independent Contractor Agreement promises:
 --             • pro_deductions        — a refund or lost chargeback charged to a pro is only a

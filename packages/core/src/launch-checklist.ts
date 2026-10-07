@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/launch-checklist.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : The business & legal launch checklist — the things software can't do for us.
  *           Shown in Hub → Go-live setup with tick boxes (who / when is saved), and written up in

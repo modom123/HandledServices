@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/PrintButton.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_2030 UTC
  */
 "use client";

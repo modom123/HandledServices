@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003014600_market_pricing.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_0146 UTC
 -- PURPOSE : Market pricing — the market sets the price, inside guardrails:
 --             • jobs.suggested_price / customer_offer — our suggestion vs. what the customer offered

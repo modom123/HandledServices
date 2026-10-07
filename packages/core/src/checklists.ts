@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/checklists.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Job checklists — one format for every service, so every job of a kind is delivered the same way.
  *             CHECKLISTS        — a template per service (English + Spanish). Items switch on from the booking

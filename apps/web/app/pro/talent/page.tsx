@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/talent/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Pro portal → Talent (recruiters): the searches you're on with the job order and must-haves, your pipeline
  *           per search (add candidates with résumé, screen, submit with consent and a write-up), what clients said,

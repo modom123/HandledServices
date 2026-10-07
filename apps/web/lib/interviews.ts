@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/interviews.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : Pro screening interviews (packet in packages/core/src/interview.ts; AI in lib/ai/interview.ts).
  *             startInterview    — AI: a private link by email (14 days); person: an empty scorecard in the Hub

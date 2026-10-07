@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/recruiting/[appId]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : Hub → Recruiting → one candidate: where they are (approval checklist from application to first job,
  *           with the next step and who it waits on), the application and AI screen, interviews (AI transcript,

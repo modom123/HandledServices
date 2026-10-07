@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/schedule/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Pro calendar — the next five weeks: jobs booked, open slots against your daily limit,
  *           and days off (take a day off or reopen it in one tap). Customers can only book you

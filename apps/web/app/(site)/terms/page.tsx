@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/terms/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : Index of every current agreement — for customers, businesses and pros — each with its
  *           plain-English short version. Signed copies live in each person's account.

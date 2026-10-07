@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/recruiting.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * UPDATED : 2026-10-03_0121 UTC — orderBackgroundCheck(…, { recheck }) for the yearly re-check.

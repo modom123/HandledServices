@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/waitlist.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_2241 UTC
  * PURPOSE : Waitlist — people who wanted a service where no pro covers their ZIP yet.
  *             joinWaitlist   — saves (or refreshes) the sign-up

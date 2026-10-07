@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002223400_waitlist_google_reviews.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_2234 UTC
 -- PURPOSE : Growth — finding customers and pros:
 --             • waitlist — people who asked for a service where we have no pros yet; they're

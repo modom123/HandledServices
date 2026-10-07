@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/fast-track.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Proven-skill fast track (rules in core crew.ts → FAST_TRACK):
  *             applyFastTrack   — the pro sends years in the trade, a short summary, references and

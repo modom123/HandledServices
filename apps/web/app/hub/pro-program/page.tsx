@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/pro-program/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Handled Hub → Pro Program: set who qualifies for each of the six pro benefits
  *           and their amounts, and see who qualifies today.

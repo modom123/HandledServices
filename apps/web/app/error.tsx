@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/error.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Page-level crash screen (reports to the Hub).
  */

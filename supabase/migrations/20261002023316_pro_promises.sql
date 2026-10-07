@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002023316_pro_promises.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0233 UTC
 -- PURPOSE : What the Pro Program promises, backed by data:
 --             • offer status 'taken' — another pro accepted first; doesn't count against

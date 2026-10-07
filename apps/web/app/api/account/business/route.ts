@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/business/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business account portal actions for signed-in members. POST JSON { action, account_id, ... }:
  *             add_property / update_property   — name, address, city, state, zip, units, access notes, active

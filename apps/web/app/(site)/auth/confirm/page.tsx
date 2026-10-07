@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/auth/confirm/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2305 UTC
  * PURPOSE : Where the sign-in link in our emails lands. One tap on "Finish signing in" posts the one-time token to
  *           /auth/callback. The tap matters: email security scanners (Outlook Safe Links, Defender, Mimecast) open links

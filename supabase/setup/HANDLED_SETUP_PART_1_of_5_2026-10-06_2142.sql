@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_SETUP_PART_1_of_5_2026-10-06_2142.sql
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : NEW Supabase project setup, part 1 of 5 (run IN ORDER, one at a time). Migrations 20261001172300_init.sql .. 20261001200000_contractor_workforce.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
@@ -440,7 +440,7 @@ alter publication supabase_realtime add table public.jobs, public.job_offers, pu
 -- >>> migration 20261001180000_iebc_workforce.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001180000_iebc_workforce.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_1800 UTC
 -- PURPOSE : IEBC Workforce integration. IEBC's AI employees (from the IEBC MasterHub
 --           workforce roster) are assigned to departments of this business. Each
@@ -511,7 +511,7 @@ insert into public.iebc_agents (iebc_employee_id, name, title, iebc_dept, role_h
 -- >>> migration 20261001183000_take_rate_guard.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001183000_take_rate_guard.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_1830 UTC
 -- PURPOSE : Never lose money on a job. The database rejects any job whose
 --           subcontractor payout would leave us outside a 15-35% take, and any payout
@@ -546,7 +546,7 @@ alter table public.services add constraint services_payout_share_band check (pay
 -- >>> migration 20261001190000_upfront_payment.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001190000_upfront_payment.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_1900 UTC
 -- PURPOSE : Paid upfront, always. No job is dispatched to a pro until the customer
 --           has paid. When something isn't right we make it right with a free redo,
@@ -610,7 +610,7 @@ alter table public.payments add constraint payments_kind_check check (kind in ('
 -- >>> migration 20261001200000_contractor_workforce.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001200000_contractor_workforce.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2000 UTC
 -- PURPOSE : The subcontractor workforce - our core asset.
 --             * 1099 tax profile per pro (independent contractors, never employees):

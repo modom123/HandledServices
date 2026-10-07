@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/HubNav.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0200 UTC
  * PURPOSE : Handled Hub menu as dropdown sections (Operations, Pros, Sales, Money, Growth & website, Settings) instead of one
  *           long list. The section holding the current page opens itself and the page is highlighted. Phones get a ☰ Menu

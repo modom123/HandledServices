@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/catalog.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2230 UTC
  * PURPOSE : Keep the database's services table in sync with the code catalog. Jobs reference
  *           services(slug), so a service added in code must exist in the DB before anyone

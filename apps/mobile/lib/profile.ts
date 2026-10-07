@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/profile.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0645 UTC
  * PURPOSE : Remember the customer's name, email, phone and last service address on this phone, so the
  *           second booking takes seconds (like ride apps remember home and work). Stored only on the

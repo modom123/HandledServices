@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/components/LiveMap.web.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0708 UTC
  * PURPOSE : Web build: no native map; the ETA text is shown instead.
  */

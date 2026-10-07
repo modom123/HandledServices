@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/webhooks/instantly/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0324 UTC
  * PURPOSE : Instantly.ai webhook → pro lead status. Set it up in Instantly → Settings → Webhooks with
  *           URL https://<site>/api/webhooks/instantly?secret=<INSTANTLY_WEBHOOK_SECRET> and the events:

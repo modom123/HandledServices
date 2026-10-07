@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005021600_job_checklists.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_0221 UTC
 -- PURPOSE : Job checklists (packages/core/src/checklists.ts): one format for every service.
 --             • jobs.checklist        — the checklist frozen when a pro takes the job (text can't change mid-job)

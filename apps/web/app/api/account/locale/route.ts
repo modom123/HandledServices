@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/locale/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1412 UTC
  * PURPOSE : Set my language (app and website): { locale: "en" | "es" } → saved on my account and
  *           in the "lang" cookie. GET returns the saved language.

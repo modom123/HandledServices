@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/talent/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Talent — recruiting for companies (contingency and retained search). How it works, the fees
  *           (from core TALENT_TERMS), the guarantee, fair-hiring promise, the founder's background, and the intake form.

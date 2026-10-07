@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/interview/[token]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : The candidate's side of the AI screening interview (private link, no login).
  *             GET                                        — status and transcript

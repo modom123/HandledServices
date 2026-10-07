@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/bids/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : Staff controls for the bid engine (Hub → Bids). POST JSON { action, … }:
  *             create · fields · go · upload_url · add_doc · doc_link · delete_doc · read (AI compliance matrix) ·

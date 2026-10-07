@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/i18n.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : English / Spanish in the app. Starts from the phone's language, can be switched on
  *           the home and Account screens, and is remembered on the device.

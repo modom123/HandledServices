@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/gift-cards/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Buy a Handled gift card ($25–$1,000): emailed to the recipient once paid, good for
  *           any service, balance carries over between bookings.

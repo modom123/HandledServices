@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/events/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2145 UTC
  * PURPOSE : Parties & Events landing page — planning, catering, food trucks, DJs, rentals
  *           and venues, booked separately or coordinated as one event.

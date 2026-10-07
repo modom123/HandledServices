@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/account/business/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business account portal (property managers, brokerages, stagers, stores, storage):
  *           billing status (prepay or invoiced on approved terms, credit limit, open balance), pilot

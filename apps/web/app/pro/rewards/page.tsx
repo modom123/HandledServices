@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/rewards/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Pro portal → Rewards: available and pending points (what they're worth), tenure tier and the next one,
  *           how points are earned, milestones, the catalog with redeem, orders, and the point history. EN / ES.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/earnings/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-01_2124 UTC — instant pay, payout kinds (show-up, stipend, materials, guarantee).
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)

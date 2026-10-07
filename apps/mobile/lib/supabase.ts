@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/supabase.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Supabase client (session in AsyncStorage) + authenticated calls to the web API.
  * UPDATED : 2026-10-06_0645 UTC — never crashes or hangs: a build without the Supabase settings gets a

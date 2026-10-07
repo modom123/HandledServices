@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005213900_account_notes.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_2141 UTC
 -- PURPOSE : Account notes — the running conversation history for every business lead, business account and
 --           Handled Talent client: notes, calls, emails, meetings and texts, each with who wrote it and when.

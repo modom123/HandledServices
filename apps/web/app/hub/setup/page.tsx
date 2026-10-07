@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/setup/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
  * UPDATED : 2026-10-02_1346 UTC — business & legal checklist (insurance, legal review, HIPAA, licensing).
  * PURPOSE : Go-live checklist — every integration, migration and account the business needs,

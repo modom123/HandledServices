@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/board/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : Open job board ("Jobs near you", lib/board.ts).
  *             GET  ?locale=es        — jobs this pro qualifies for that nobody has taken (city/ZIP only)

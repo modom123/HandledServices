@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/plus/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * UPDATED : 2026-10-03_0043 UTC — auto-renewal disclosure and link to the Plus, Gift Card & Promo Terms.
  * PURPOSE : Handled Plus — the membership: no priority fees, 10% off every job, first pick of

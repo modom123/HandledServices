@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/signin.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2300 UTC
  * PURPOSE : Sign-in that works for everyone (customers, businesses, pros, staff) on any device.
  *           Supabase's own magic link only works in the browser that asked for it (PKCE: the secret is kept there),

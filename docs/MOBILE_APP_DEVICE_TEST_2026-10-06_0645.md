@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/MOBILE_APP_DEVICE_TEST_2026-10-06_0645.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-06_0645 UTC
   PURPOSE : What to check on a real iPhone and a real Android phone before each app release (v0.4.0+).
             The app builds and is type-checked and screen-tested automatically; these are the things only a

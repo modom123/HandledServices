@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/iebc/gateway.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Policy gateway for IEBC's AI employees. Authenticates the IEBC API key,
  *           checks the agent's scopes and autonomy, runs or queues the action, and

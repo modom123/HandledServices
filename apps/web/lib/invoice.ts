@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/invoice.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2030 UTC
  * PURPOSE : Signed, login-free links to a job's Invoice & Service Agreement.
  * UPDATED : 2026-10-03_0027 UTC — signed one-click unsubscribe tokens for reminder emails.

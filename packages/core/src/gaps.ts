@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/gaps.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_2232 UTC
  * PURPOSE : Supply gaps — where customers want a service and we don't have enough pros.
  *           For each service × ZIP: bookings, bookings no pro could take, waitlist sign-ups,

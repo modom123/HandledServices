@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/(tabs)/jobs.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Customer's jobs with live status (Supabase RLS + realtime).

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/l/[token]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0209 UTC
  * PURPOSE : The link in a pro lead invitation: records the click, then opens the pro sign-up page
  *           with the lead token (so the application is credited) and utm_source=lead_email.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/xero/callback/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2210 UTC
  * PURPOSE : Xero sends the admin back here after sign-in. Checks the state cookie, swaps the code for tokens
  *           (stored encrypted), remembers the organisation, and sets the sync start date to today if none is set

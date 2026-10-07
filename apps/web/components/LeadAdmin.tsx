@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/LeadAdmin.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0210 UTC
  * PURPOSE : Hub → Pro leads controls: engine settings, run now, CSV import, and call-list actions.
  * UPDATED : 2026-10-03_0332 UTC — lean-setup guidance for the daily cap.

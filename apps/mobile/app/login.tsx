@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/login.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Passwordless sign-in with a 6-digit email code.

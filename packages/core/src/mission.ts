@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/mission.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0752 UTC
  * PURPOSE : The one mission every AI agent works toward: $100M a year in revenue (our take) by year 10, on the
  *           growth plan in city-scorecard.ts. missionPrompt(kind) is put in front of every agent's own

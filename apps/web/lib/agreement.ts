@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/agreement.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-01_2124 UTC — v2: Pro Program benefits.
  * UPDATED : 2026-10-03_0042 UTC — the text now lives in the contract library (lib/contracts/pro.ts);

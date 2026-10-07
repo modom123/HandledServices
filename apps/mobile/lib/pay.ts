@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/pay.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0708 UTC
  * PURPOSE : Pay for a booking without leaving the app: Apple Pay, Google Pay or a card in Stripe's
  *           PaymentSheet (one tap on phones with a wallet). The server decides the amount (deposit,

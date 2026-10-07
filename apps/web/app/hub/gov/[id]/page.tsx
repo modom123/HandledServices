@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/gov/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : One government contract opportunity: the fit (reasons and red flags), key facts and contacts, the AI bid
  *           brief, the full notice text, pipeline status and notes, and the pros who could fill it (ask them, record

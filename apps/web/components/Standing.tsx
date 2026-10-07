@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Standing.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0123 UTC
  * PURPOSE : Pro standing UI (Pro Deactivation Policy): the pro's appeal form and "hand back this
  *           job" button; staff's standing actions and "record no-show".

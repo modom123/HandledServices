@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/ai/doccheck.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : Read a pro's uploaded certificate of insurance, license or coverage document and
  *           check it against what their trades require (named insured, policy type, limits,

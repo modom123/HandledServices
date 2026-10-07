@@ -1,6 +1,6 @@
 <!--
 FILE    : docs/FACTORING_OUTREACH_EMAIL_2026-10-06_0320.md
-PROJECT : Handled (myhumanai) — AI-run home & business services
+PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-10-06_0320 UTC
 PURPOSE : Outreach emails asking five factoring companies to quote invoice factoring for Handled Services LLC,
           so weekly pro payouts stay on time while business, city and government clients pay on net 30+.

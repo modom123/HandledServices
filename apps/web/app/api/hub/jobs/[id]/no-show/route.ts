@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/jobs/[id]/no-show/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0123 UTC
  * PURPOSE : Staff record a pro no-show (after checking with the customer): the job goes back out
  *           and the no-show counts toward the Pro Deactivation Policy thresholds. POST { note }.

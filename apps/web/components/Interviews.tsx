@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Interviews.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : Hub controls for screening interviews: send the AI interview link, score an interview you do in person
  *           or by phone (the packet's questions, 1–5 per competency, notes, knockouts), score an unfinished AI

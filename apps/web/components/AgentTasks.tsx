@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/AgentTasks.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0752 UTC
  * PURPOSE : Hub → AI agents controls: assign a task to an agent, mark one done / cancelled, run the Growth planner now.
  */

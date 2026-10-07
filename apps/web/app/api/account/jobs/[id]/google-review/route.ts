@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/google-review/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_2236 UTC
  * PURPOSE : Customer tapped "Review us on Google" after rating a job (web or app). Records the
  *           tap on their review so Hub → Growth can show how many reviews we're asking for.

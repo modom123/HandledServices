@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/coverage/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2120 UTC
  * PURPOSE : Hub → Cancellations & coverage. Every job gets done:
  *             • right now — jobs in the next 3 days that are uncovered, being recovered after a hand-back, or short on

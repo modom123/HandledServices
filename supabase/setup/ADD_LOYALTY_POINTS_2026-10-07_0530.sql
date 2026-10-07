@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_LOYALTY_POINTS_2026-10-07_0530.sql
--- PROJECT : Handled Services LLC (myhumanai) — Handled Points (customer & business loyalty)
+-- PROJECT : Handled Services LLC (HandledServices) — Handled Points (customer & business loyalty)
 -- CREATED : 2026-10-07_0530 UTC
 -- PURPOSE : Turns on Handled Points in the EXISTING Supabase project. Same as migration
 --           20261007040000_loyalty_points.sql. Run once in Supabase → SQL Editor. Safe to run twice.

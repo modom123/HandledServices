@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/pro-stats.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0233 UTC
  * UPDATED : 2026-10-03_0115 UTC — acceptance rate is informational only (not used for tiers, ranking or pay);
  *           expired offers no longer count.

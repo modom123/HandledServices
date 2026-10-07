@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/JobBoard.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : "Jobs near you" (open job board, lib/board.ts): Take it → a 15-minute hold, then the usual offer
  *           page to read the full work order and accept. English and Spanish.

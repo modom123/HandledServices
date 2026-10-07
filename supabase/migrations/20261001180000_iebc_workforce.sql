@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001180000_iebc_workforce.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_1800 UTC
 -- PURPOSE : IEBC Workforce integration. IEBC's AI employees (from the IEBC MasterHub
 --           workforce roster) are assigned to departments of this business. Each

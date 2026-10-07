@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006201000_pro_business_address.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_2010 UTC
 -- PURPOSE : A pro's place of business (street, city, state, ZIP). Dispatch measures driving distance from it
 --           (geocoded street address; ZIP centre when the lookup isn't available — base_located says which).

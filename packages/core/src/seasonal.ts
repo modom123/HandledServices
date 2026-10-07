@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/seasonal.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0010 UTC
  * PURPOSE : Seasonal reminders and quote follow-ups — the rules, kept pure so they're tested.
  *             SEASONAL       — which services come around again, in which months (Michigan

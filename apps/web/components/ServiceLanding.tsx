@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ServiceLanding.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : One service landing page, used for /services/<slug> and the city pages
  *           /services/<slug>/in/<city>: what's included, how pricing works, the questions we ask,

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/cities/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Handled Hub → City scorecard. "Get the model right in Michigan, then replicate": every market
  *           scored against traction / proven / ready-to-replicate gates (90 days, confirmed on the last 30),

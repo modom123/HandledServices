@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/favorites/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : Customer favorites (lib/favorites.ts).
  *             GET                          — my favorite pros (and crew members)

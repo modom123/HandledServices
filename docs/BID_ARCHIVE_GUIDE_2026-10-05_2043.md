@@ -1,6 +1,6 @@
 <!--
 FILE    : docs/BID_ARCHIVE_GUIDE_2026-10-05_2043.md
-PROJECT : Handled (myhumanai) — AI-run home & business services
+PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-10-05_2043 UTC
 PURPOSE : How RFPs / RFQs are stored, versioned and resubmitted in Hub → Bids.
 -->

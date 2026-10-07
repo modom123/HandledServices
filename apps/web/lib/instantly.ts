@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/instantly.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0324 UTC
  * PURPOSE : Instantly.ai (API v2) — the cold-email sender for the pro lead engine. Instantly owns the
  *           sending: warmed-up inboxes, rotation, daily limits, sequence timing, reply detection and

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/push.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish: each notice may carry a Spanish version (es); the
  *           person's language comes from their profile (their toggle), else the booking's language.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/offer/[id].tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_2047 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_0152 UTC — market pricing ("Not enough? Name your pay" counter offer; "countered" status).

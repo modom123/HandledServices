@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/VERCEL_ENVIRONMENT_VARIABLES_2026-10-06_1956.md
-  PROJECT : Handled (myhumanai)
+  PROJECT : Handled (HandledServices)
   CREATED : 2026-10-06_1956 UTC
   UPDATED : 2026-10-06_2010 UTC — GOOGLE_MAPS_API_KEY (exact job-to-pro distances).
   UPDATED : 2026-10-06_2230 UTC — XERO_CLIENT_ID / XERO_CLIENT_SECRET (Xero accounting).
@@ -11,7 +11,7 @@
 
 # Vercel environment variables — Handled
 
-Vercel → project **myhumanai-web** → **Settings → Environment Variables**. Add each one for **Production** (and **Preview** if you use preview links), then **Redeploy**.
+Vercel → project **myhumanai-web** (the Vercel project keeps its old name after the GitHub repo rename to HandledServices — that is fine) → **Settings → Environment Variables**. Add each one for **Production** (and **Preview** if you use preview links), then **Redeploy**.
 
 🔒 = secret (only in Vercel, never in chat, email or git) · 🌐 = public by design
 

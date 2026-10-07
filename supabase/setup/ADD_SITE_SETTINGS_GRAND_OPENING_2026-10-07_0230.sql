@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_SITE_SETTINGS_GRAND_OPENING_2026-10-07_0230.sql
--- PROJECT : Handled Services LLC (myhumanai) — Website looks + grand opening promotion
+-- PROJECT : Handled Services LLC (HandledServices) — Website looks + grand opening promotion
 -- CREATED : 2026-10-07_0230 UTC
 -- PURPOSE : For the EXISTING Supabase project: settings table for Hub → Website & promotions, and the fix that lets
 --           discounted bookings through the take-rate guard. Same as migration 20261007023000_site_settings_grand_opening.sql.

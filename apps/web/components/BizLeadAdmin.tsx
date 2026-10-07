@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/BizLeadAdmin.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Hub → Business leads controls: engine settings (on/off, volume, segments, pilot offer),
  *           run now, and lead outcomes from calls.

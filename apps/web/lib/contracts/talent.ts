@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/talent.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Talent Client Agreement (businesses that hire through our recruiting service), English and Spanish.
  *           Terms come from core TALENT_TERMS so the website, invoices and this agreement always match:

@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/security.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0726 UTC
  * PURPOSE : Small, pure security checks shared by the web app and tested in pricing.test.ts.
  *             safeNext(next, origin)   — where to send someone after sign-in: only a page on our own site.

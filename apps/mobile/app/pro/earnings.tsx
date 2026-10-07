@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/earnings.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_2140 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Pro earnings in the app — approved balance, instant pay (cash out now via Stripe,

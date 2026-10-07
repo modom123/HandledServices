@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Deductions.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0120 UTC
  * PURPOSE : Proposed deductions (pro agreement §17): the pro's response form, and staff's
  *           uphold / waive buttons in Hub → Finance.

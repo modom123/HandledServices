@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/gov.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Government contracts from SAM.gov (rules in core gov-contracts.ts; Hub → Gov contracts):
  *             runGovSearch     — search the Contract Opportunities API (one call per NAICS code), parse, score the fit

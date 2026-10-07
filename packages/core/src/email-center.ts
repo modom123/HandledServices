@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/email-center.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Email Center (Hub → Email) rules, shared and pure:
  *             EMAIL_AUDIENCES  — who a campaign can go to (customers, repeat / lapsed customers, business

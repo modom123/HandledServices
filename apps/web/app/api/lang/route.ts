@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/lang/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * UPDATED : 2026-10-02_1412 UTC — signed in → also saved on the account, so texts and emails follow it.
  * UPDATED : 2026-10-07_1545 UTC — security: next= goes through safeNext() ("/\\evil.com" was an open redirect).

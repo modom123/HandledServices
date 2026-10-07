@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/pay/[id]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_1610 UTC
  * PURPOSE : The permanent pay link in every email, invoice and text (lib/stripe payLink). Stripe Checkout links expire after
  *           24 hours, so this opens the payment's current Checkout, or a fresh one when it has expired:

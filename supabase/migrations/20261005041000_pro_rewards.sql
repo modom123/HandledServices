@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005041000_pro_rewards.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_0418 UTC
 -- PURPOSE : Handled Pro Rewards (packages/core/src/rewards.ts) — loyalty points for independent pros.
 --             • reward_settings     — earn rate, point value, pending days… (Hub → Rewards)

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ServicesBrowser.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0212 UTC
  * PURPOSE : Services page layout: categories down the left (a row of tabs on phones), the
  *           chosen category's service cards on the right. Every service stays in the HTML

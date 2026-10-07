@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/rewards/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Pro Rewards for the signed-in pro (lib/rewards.ts).
  *             GET                                   — balance, pending, history, tier, milestones, catalog, orders

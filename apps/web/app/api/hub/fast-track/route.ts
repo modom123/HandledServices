@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/fast-track/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Staff decides a fast-track application. POST { contractor_id, action: trial | approve | decline, note? }.
  */

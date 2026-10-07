@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/customers/[email]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2146 UTC
  * PURPOSE : One customer (keyed by email): contact details, bookings, lifetime spend, reviews, and the full permanent
  *           history — every note, call, email, meeting and text staff logged, plus their bookings, completions and

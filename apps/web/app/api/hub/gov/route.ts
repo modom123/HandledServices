@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/gov/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Staff controls for government contracts (SAM.gov). POST JSON:
  *             { action: "settings", enabled, naics[], state, keywords, ptypes[], days_back, daily_call_budget, certifications[] }

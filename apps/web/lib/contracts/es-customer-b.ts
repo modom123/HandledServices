@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/es-customer-b.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0048 UTC
  * PURPOSE : Spanish (neutral Latin-American, formal "usted") translations of the business
  *           contract, Plus/gift cards/promos terms and every customer service addendum:

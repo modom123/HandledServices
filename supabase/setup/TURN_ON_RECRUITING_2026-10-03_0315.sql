@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/TURN_ON_RECRUITING_2026-10-03_0315.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_0315 UTC
 -- PURPOSE : Turn on automatic pro recruiting in production (paste into Supabase → SQL editor, run once,
 --           AFTER all migrations — incl. 20261003020600_pro_lead_engine.sql):

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/types.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0037 UTC
  * PURPOSE : Shape of every contract Handled uses. One source of truth: the same text renders on
  *           the website (/terms/…), prints on invoices, is signed in the pro portal, and is

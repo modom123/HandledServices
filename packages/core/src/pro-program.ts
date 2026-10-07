@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/pro-program.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2101 UTC
  * UPDATED : 2026-10-02_0233 UTC — promises match what the system does: free automatic Monday payouts
  *           (instant cash-out optional), recurring visits offered to the same pro first, daily limit.

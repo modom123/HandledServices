@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-01_1941 UTC
   PURPOSE : Exact steps to take Handled live: Supabase, Vercel, Stripe, email, AI, the
             Handled Hub, the IEBC MasterHub connection and the mobile apps. Work top to
@@ -58,7 +58,7 @@
 
 ## 2. Vercel (website + Handled Hub) — 10 minutes
 
-Project `myhumanai-web` → **Settings**:
+Project `myhumanai-web` (Vercel name; the GitHub repo is now `modom123/HandledServices`) → **Settings**:
 
 - **Build and Deployment → Root Directory** = `apps/web`
 - **Git → Production Branch** = `main`

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/snap/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0449 UTC
  * PURPOSE : "Snap & post a job" (web + app): POST { photos[] (uploaded via /api/uploads), note?, locale } → the service
  *           the photos show and its job details, filled in (lib/ai/identify.ts). No login needed; rate limited.

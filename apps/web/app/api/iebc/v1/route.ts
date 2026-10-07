@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/iebc/v1/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : IEBC Workforce API. IEBC's AI employees call this from the IEBC MasterHub.
  *           Auth:   Authorization: Bearer $IEBC_API_KEY   +   X-IEBC-Agent: <employee id, e.g. arthur>

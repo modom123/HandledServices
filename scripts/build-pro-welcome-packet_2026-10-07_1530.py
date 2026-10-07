@@ -1,6 +1,6 @@
 # ============================================================================
 # FILE    : scripts/build-pro-welcome-packet_2026-10-07_1530.py
-# PROJECT : Handled (myhumanai) — AI-run home & business services
+# PROJECT : Handled (HandledServices) — AI-run home & business services
 # CREATED : 2026-10-07_1530 UTC
 # PURPOSE : Builds the Pro Welcome Packet PDF sent to every invited pro (independent contractor, 1099):
 #           the steps, what they sign online, what they upload, and how they get paid. Mirrors the live onboarding

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/pay/thanks/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2053 UTC
  * PURPOSE : Landing page after paying a Quick Charge link.
  */

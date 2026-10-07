@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/recruiting.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : The pro recruiting pipeline, end to end, as plain rules the Hub, the daily sweep
  *           and the IEBC recruiting agents share:

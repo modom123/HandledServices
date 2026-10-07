@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/mailbox.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : The company mailbox at Hostinger (info@handledsvc.com) for the Email Center.
  *             sendMail       — SMTP (smtp.hostinger.com:465, SSL) with List-Unsubscribe headers

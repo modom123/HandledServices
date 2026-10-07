@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/leads.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0207 UTC
  * PURPOSE : Pro lead engine — runs daily (Hub → Pro leads to change it):
  *             1. discover  — Google Places text search for the trades and areas we're short on

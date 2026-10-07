@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/errors.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Error monitoring without a vendor: server errors (instrumentation.ts), website
  *           crashes (error pages) and app crashes (mobile) become Hub alerts, de-duplicated to

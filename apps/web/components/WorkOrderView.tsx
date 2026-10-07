@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/WorkOrderView.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
  * PURPOSE : The pro's work order (offer page + job sheet) and the Uber-style accept panel.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)

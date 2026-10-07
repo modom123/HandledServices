@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/fast-track/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Pro portal → Fast track. For pros who are already masters of their trade: send a portfolio,
  *           do one paid trial job we review by hand, and start at Pro+ instead of working up from Pro.

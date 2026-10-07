@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/email/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Hub → Email Center: marketing from the company mailbox (Hostinger, info@handledsvc.com).
  *           Setup status, today's sending vs the daily cap, campaigns with results, starter templates,

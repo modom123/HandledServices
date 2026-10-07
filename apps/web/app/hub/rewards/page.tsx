@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/rewards/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Hub → Rewards: what the program costs (points owed in dollars, % of our take this year), the order queue
  *           (approve → order → ship → deliver, or cancel and return points), top pros by points, the catalog, point

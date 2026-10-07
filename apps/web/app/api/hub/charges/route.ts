@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/charges/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2053 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Staff: Quick Charge — create a Stripe payment link for any amount (with or

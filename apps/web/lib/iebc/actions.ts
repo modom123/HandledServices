@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/iebc/actions.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_0255 UTC — read.roster: live pro status, location and week ahead.
  * UPDATED : 2026-10-02_0157 UTC — actions receive the acting agent (ctx.actor) for the audit

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/identity/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Staff marks a pro's photo ID verified after a video call (ID next to their face, name matching the W-9).
  *           POST { contractor_id }.

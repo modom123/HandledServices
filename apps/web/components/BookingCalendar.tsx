@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/BookingCalendar.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2115 UTC
  * PURPOSE : Booking calendar — pick a day (open / limited / full from real pro capacity in
  *           the customer's ZIP) and an arrival window with spots left.

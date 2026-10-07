@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/biz-leads.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business sales engine (demand side; rules in core biz-lead-engine.ts). Runs weekdays with
  *           the pro lead engine (Hub → Business leads to change it):

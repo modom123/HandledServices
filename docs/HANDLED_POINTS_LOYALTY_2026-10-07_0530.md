@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/HANDLED_POINTS_LOYALTY_2026-10-07_0530.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-07_0530 UTC
   PURPOSE : How Handled Points (customer and business loyalty) works, how to turn it on, and what it costs.
 -->

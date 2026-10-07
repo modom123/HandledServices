@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/business/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * UPDATED : 2026-10-06_0841 UTC — scope of work from the Request for Proposal, and what to ask on the follow-up call.
  * PURPOSE : Handled Hub → one business account: billing (prepay, or invoicing on terms approved case by case

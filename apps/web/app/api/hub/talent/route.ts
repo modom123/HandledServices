@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/talent/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Staff controls for Handled Talent (Hub → Talent). POST JSON { action, … }:
  *             client · client_terms · search · search_update · assign · unassign · send_review_link · upload_url ·

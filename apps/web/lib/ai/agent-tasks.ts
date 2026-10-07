@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/ai/agent-tasks.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0752 UTC
  * PURPOSE : Tasks the team assigns to AI agents (agent_tasks) and the mission preface every agent runs with.
  *           systemFor(kind, own) = missionPrompt (goal, focus, standing + assigned tasks, guardrails) + the agent's own

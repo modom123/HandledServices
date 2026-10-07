@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003130300_crews_fast_track.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_1303 UTC
 -- PURPOSE : Crew accounts and the proven-skill fast track.
 --             • crew_members      — people a pro company sends to jobs (helpers, apprentices,

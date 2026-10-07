@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/loyalty.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Handled Points engine — every customer account keeps a points balance (rules: packages/core/src/loyalty.ts).
  *             earnForJob      — a job is completed: pending points (and the first-job bonus) for the account that booked it

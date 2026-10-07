@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/partners.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0105 UTC
  * PURPOSE : Referral Partner Program (rules in packages/core/src/partners.ts).
  *             signUp()            — anyone becomes a partner: code, link, welcome email with a sign-in link

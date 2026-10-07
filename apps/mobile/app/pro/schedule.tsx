@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/schedule.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Pro calendar in the app — the next five weeks: jobs booked, open slots against the

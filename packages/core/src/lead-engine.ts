@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/lead-engine.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0206 UTC
  * PURPOSE : Pro lead engine rules (pure, tested):
  *             TRADE_SEARCH   — what to search for each trade (Google Places text search)

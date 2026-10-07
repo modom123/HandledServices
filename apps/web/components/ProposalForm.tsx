@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ProposalForm.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0841 UTC
  * PURPOSE : For Business → Request a proposal, in 3 short steps with a progress bar:
  *             1. Your company   — who you are, industry, how to reach you

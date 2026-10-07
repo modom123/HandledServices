@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/contractors/[id]/standing/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0123 UTC
  * PURPOSE : Staff standing decisions on a pro, always with a written reason sent to the pro:
  *           POST { action: warn | suspend | deactivate | reinstate | uphold_appeal, reason }.

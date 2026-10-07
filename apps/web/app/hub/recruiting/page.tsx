@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/recruiting/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : Handled Hub → Recruiting. Every applicant from first contact to active pro: the
  *           funnel, where they came from, how far along setup they are, every email/reminder/

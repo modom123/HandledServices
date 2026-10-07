@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/SmsConsent.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Text-message consent wording shown wherever we collect a mobile number (TCPA, carrier A2P 10DLC rules):
  *           who texts, what about, frequency, rates, STOP / HELP, and that consent isn't required to buy.

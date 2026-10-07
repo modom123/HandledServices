@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/reminders.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0027 UTC
  * PURPOSE : Bringing customers back, in each person's language:
  *             saveQuote              — "Email me this price": sends the price now with a link that

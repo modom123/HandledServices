@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/me/push-token/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
  * PURPOSE : The mobile app registers (POST) or removes (DELETE, on sign-out) this phone's
  *           Expo push token for the signed-in user.

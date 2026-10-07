@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/safe-fetch.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0726 UTC
  * PURPOSE : Fetch a website someone else gave us (lead engines read a business's own site for its
  *           contact email) without letting it point our server at internal addresses (SSRF): the URL and

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/reschedule/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Customer: move my booking to another open day and arrival window.
  */

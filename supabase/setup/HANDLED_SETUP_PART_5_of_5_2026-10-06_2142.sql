@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_SETUP_PART_5_of_5_2026-10-06_2142.sql
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : NEW Supabase project setup, part 5 of 5 (run IN ORDER, one at a time). Migrations 20261005203900_bid_archive.sql .. 20261006212000_cancellation_tracking.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
@@ -11,7 +11,7 @@
 -- >>> migration 20261005203900_bid_archive.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005203900_bid_archive.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2043 UTC
 -- PURPOSE : RFP / RFQ archive and resubmission (bid engine, Hub -> Bids).
 --             * bids: solicitation type (RFQ, RFP, IFB...), revision number, reopened for a revision (when / why),
@@ -60,7 +60,7 @@ create trigger bid_submission_frozen before update on public.bid_submissions for
 -- >>> migration 20261005213400_biz_lead_partners.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005213400_biz_lead_partners.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2134 UTC
 -- PURPOSE : Business leads can be teaming partners (segment 'partner'): firms we bid public contracts with.
 --           Tracked in Hub -> Business leads, never discovered, emailed by the sales sequence or included in
@@ -74,7 +74,7 @@ alter table public.biz_leads add constraint biz_leads_segment_check
 -- >>> migration 20261005213900_account_notes.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005213900_account_notes.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2141 UTC
 -- PURPOSE : Account notes - the running conversation history for every business lead, business account and
 --           Handled Talent client: notes, calls, emails, meetings and texts, each with who wrote it and when.
@@ -112,7 +112,7 @@ where l.notes is not null and length(trim(l.notes)) > 0
 -- >>> migration 20261005214500_customer_notes.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005214500_customer_notes.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2146 UTC
 -- PURPOSE : Customer notes - the same permanent, append-only history now covers homeowner / walk-in customers.
 --           A customer is keyed by their email: subject_id = md5(lower(trim(email)))::uuid, so every booking
@@ -130,7 +130,7 @@ $$;
 -- >>> migration 20261006032400_factoring_partners.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006032400_factoring_partners.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0324 UTC
 -- PURPOSE : Invoice factoring partners (packages/core/src/factoring.ts, Hub -> Factoring): the companies we're asking
 --           to fund net-30+ business, city and government invoices so weekly pro payouts stay on time. One row per
@@ -186,7 +186,7 @@ on conflict (slug) do nothing;
 -- >>> migration 20261006070800_app_payments.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006070800_app_payments.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0708 UTC
 -- PURPOSE : In-app payments (Apple Pay, Google Pay, card via Stripe PaymentSheet): a payment row
 --           remembers its PaymentIntent, so the webhook can settle it and support can look it up.
@@ -198,7 +198,7 @@ create index if not exists payments_stripe_payment_intent_idx on public.payments
 -- >>> migration 20261006072600_lock_down_rpc.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006072600_lock_down_rpc.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0726 UTC
 -- PURPOSE : Security (defense in depth): functions that run with elevated rights (security definer) are
 --           not callable from the app unless they're meant to be. Supabase exposes the public schema as
@@ -223,7 +223,7 @@ alter default privileges in schema public revoke execute on functions from publi
 -- >>> migration 20261006075200_agent_tasks.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006075200_agent_tasks.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0752 UTC
 -- PURPOSE : Tasks the team assigns to the AI agents (Hub -> AI agents, or by asking the Ops co-pilot).
 --           Each open task is added to that agent's instructions on every run (packages/core/src/mission.ts),
@@ -252,7 +252,7 @@ create policy staff_all on public.agent_tasks for all to authenticated using (pu
 -- >>> migration 20261006084100_business_rfp_scope.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006084100_business_rfp_scope.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0841 UTC
 -- PURPOSE : The business Request for Proposal keeps its scope of work as structured data (packages/core/src/rfp.ts):
 --           square footage, site, each service with how often and specifics, working hours, current vendor, term,
@@ -267,7 +267,7 @@ alter table public.business_accounts
 -- >>> migration 20261006195000_job_coverage.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006195000_job_coverage.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_1950 UTC
 -- PURPOSE : Every job gets done (packages/core/src/coverage.ts).
 --             * job_backups - backup #1, #2, #3 lined up behind the pro on every accepted job. Status:
@@ -311,7 +311,7 @@ alter table public.jobs add column if not exists handoffs int not null default 0
 -- >>> migration 20261006201000_pro_business_address.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006201000_pro_business_address.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2010 UTC
 -- PURPOSE : A pro's place of business (street, city, state, ZIP). Dispatch measures driving distance from it
 --           (geocoded street address; ZIP centre when the lookup isn't available - base_located says which).
@@ -326,7 +326,7 @@ alter table public.contractors
 -- >>> migration 20261006212000_cancellation_tracking.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006212000_cancellation_tracking.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2120 UTC
 -- PURPOSE : Track every cancellation, not just the ones that count against a pro:
 --             pro_standing_events.kind adds 'free_cancel' (handed back 24h+ ahead - recorded, never counted).

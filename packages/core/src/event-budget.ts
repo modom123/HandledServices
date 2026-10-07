@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/event-budget.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2145 UTC
  * PURPOSE : "Plan by budget" for parties & events. Splits a customer's total budget across
  *           food, venue, music, rentals and coordination by event type, says what each

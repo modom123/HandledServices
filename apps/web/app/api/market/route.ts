@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/market/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0149 UTC
  * PURPOSE : The learned local market factor for a service (booking page + app use it so the
  *           suggested price matches what the server charges). GET ?service=&zip=

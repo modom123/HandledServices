@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/i18n.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Spanish (español) for the customer path: splash, home, header/footer, service names
  *           and taglines, categories, "when do you need it" and the booking steps. English is the

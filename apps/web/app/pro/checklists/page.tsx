@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/checklists/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Pro portal → Checklists: what each kind of job includes, so pros know what "done" means before they
  *           take one. In the pro's language.

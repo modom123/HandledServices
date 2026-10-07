@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/launch.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Is this service open for booking in this ZIP's city? (core launch.ts). Markets are read
  *           once a minute per server instance. Used by availability, booking and the quote page.

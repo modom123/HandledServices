@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ContractList.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : A person's signed contracts, newest first, grouped by when they were accepted
  *           (one booking or one signing = one group). Used in My contracts and the Hub.

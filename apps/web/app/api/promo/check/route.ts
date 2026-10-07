@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/promo/check/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Booking screen preview: Plus member saving + promo / gift card / referral code for
  *           this service and price. The same rules run again at booking (priceBenefits).

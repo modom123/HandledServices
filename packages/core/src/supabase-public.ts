@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/supabase-public.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_1955 UTC
  * PURPOSE : The production Supabase project's PUBLIC settings — the URL and the publishable key. Both are meant to be
  *           public (every browser and app install sees them); row-level security protects the data. Used as the

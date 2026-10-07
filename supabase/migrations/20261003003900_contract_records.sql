@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003003900_contract_records.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-03_0039 UTC
 -- PURPOSE : Every contract a customer, business or pro accepts — with a frozen copy of the exact
 --           text they agreed to (sections + SHA-256 hash), when, how (booking, e-signature,

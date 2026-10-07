@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/loyalty/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Hub → Handled Points: every customer and business account's points (available, pending, all-time, tier),
  *           what the points are worth (liability), credit redeemed, adjustments and the settings.

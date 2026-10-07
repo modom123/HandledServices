@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Crew.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Crew accounts, pro side: sign the Crew Addendum, add / remove crew members, and pick who
  *           goes to a job. English and Spanish.

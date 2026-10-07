@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/crew/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Pro portal → My crew. A pro company lists the people it sends to jobs: sign the Crew
  *           Addendum, add crew (background check sent right away), see each check's status, remove

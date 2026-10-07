@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/market.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0147 UTC
  * PURPOSE : The market sets the price — inside guardrails:
  *             getMarketFactor     — what we've learned for a service in an area (manual override wins)

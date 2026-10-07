@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/DETROIT_CLEANING_MARKETING_PLAN_2026-10-06_0606.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-06_0606 UTC
   PURPOSE : Where sales and marketing focus: cleaning in Detroit and the surrounding cities.
             What the system now does on its own, and what the team does each week.

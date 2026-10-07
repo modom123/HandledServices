@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/FactoringUI.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0324 UTC
  * PURPOSE : Hub → Factoring controls: update a partner's outreach status and quote; add another factoring company.
  *           Rates are typed as percents here and saved as fractions.

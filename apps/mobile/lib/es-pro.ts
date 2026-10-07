@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/es-pro.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * UPDATED : 2026-10-03_1337 UTC — My crew, fast track to Pro+, and hand-back-a-job strings.

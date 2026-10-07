@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/HIPAA_BAA_DRAFT_2026-10-02_1346.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-02_1346 UTC
   PURPOSE : Starting draft of a HIPAA Business Associate Agreement for clinics, pharmacies and labs
             that use Handled Medical Deliveries. DRAFT FOR ATTORNEY REVIEW — not legal advice and

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/email/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Hub → Email Center (staff only). POST JSON:
  *             { action: "save", id?, name, subject, preheader?, body, subject_es?, body_es?, audience, custom_list?, custom_consent? }

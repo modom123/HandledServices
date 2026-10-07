@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261007010000_referral_partners.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-07_0100 UTC
 -- PURPOSE : Referral Partner Program. Anyone signs up, shares a link or sends us a customer, and earns 10% of
 --           Handled's take on that customer's completed jobs for 12 months, paid weekly via Stripe Connect after

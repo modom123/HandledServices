@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/bids/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : One bid's workspace, in the order a bid is done: details → 1. go / no-go → 2. documents and the AI reading →
  *           3. compliance matrix → 4. pricing → 5. pros' written prices → 6. review & submit → result. The gate at the top

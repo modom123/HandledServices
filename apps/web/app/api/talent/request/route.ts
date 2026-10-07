@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/talent/request/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Public intake for Handled Talent (/talent): a company asks us to fill a role. Creates the client and a search
  *           in "New request"; accepting the client agreement here is a click-to-sign (version, time, IP recorded).

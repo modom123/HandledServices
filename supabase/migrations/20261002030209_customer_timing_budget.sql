@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002030209_customer_timing_budget.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0302 UTC
 -- PURPOSE : Track what customers tell us when they ask for work:
 --             jobs.urgency          — asap / this_week / two_weeks / month / flexible

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/accessibility/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Accessibility statement: our WCAG 2.1 AA goal, what we do, known limits, and how to get help or report a barrier.
  *           TEMPLATE — have counsel review before launch.

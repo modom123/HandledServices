@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/reviews.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Public customer reviews — every rating counts toward the average (no hiding bad
  *           ones); comments are shown with first name + last initial and city only, and anything

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/rewards.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Handled Pro Rewards engine (rules in packages/core/src/rewards.ts).
  *             creditJob        — when a job is completed: pending points (estimate) on Handled's take

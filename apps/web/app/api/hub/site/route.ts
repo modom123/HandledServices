@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/site/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0250 UTC
  * PURPOSE : Hub → Website (admins). POST JSON:
  *             { action: "theme", theme: "classic" | "greengold" | "modern" | "bwg" } — the default website look

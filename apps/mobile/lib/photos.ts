@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/photos.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-02_0201 UTC
  * PURPOSE : Take or pick photos and upload them. iPhone photos come back as JPEG (not HEIC) so
  *           the AI price check can read them; quality 0.6 keeps uploads quick on cellular.

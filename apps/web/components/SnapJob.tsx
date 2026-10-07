@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/SnapJob.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0449 UTC
  * PURPOSE : "Snap & post a job" on the website: 1) take or upload photos (and say what you need, optional) →
  *           2) the AI names the service and fills in the job details → 3) pick when it needs to be done →

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/location/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Pro app: share the phone's location — accepted only while on call or on a job today.
  */

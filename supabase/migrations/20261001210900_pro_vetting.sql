@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001210900_pro_vetting.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_2109 UTC
 -- PURPOSE : Pro specialties, trade-specific insurance and a richer application.
 --             • contractors.specialties — what each pro does best (dispatch prefers specialists)

@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/rewards.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Handled Pro Rewards — loyalty points for independent pros, earned on the revenue they bring in.
  *             points per job = Handled's take ($) × earn rate (10) × quality multiplier × tenure multiplier

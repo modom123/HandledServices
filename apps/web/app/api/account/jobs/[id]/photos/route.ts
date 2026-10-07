@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/photos/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0201 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Customer adds photos to a booking after booking (web or app): more angles, a

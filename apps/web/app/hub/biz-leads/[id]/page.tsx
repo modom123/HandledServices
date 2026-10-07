@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/biz-leads/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2141 UTC
  * PURPOSE : One business lead (or teaming partner): who they are, contact details, status, the letter (sales leads),
  *           and the full conversation history — every note, call, email, meeting and text, plus automated events —

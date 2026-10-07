@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/metrics.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : The north-star operating metric: AI-driven rate — the share of completed
  *           jobs that went from booking to paid with zero human touches. Target ≥ 80%.

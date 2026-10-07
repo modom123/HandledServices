@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/EmailCenter.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Hub → Email Center controls: campaign editor with live preview, audience size, spam / law check,
  *           test send and launch (now or scheduled); campaign actions; sender settings and mailbox check;

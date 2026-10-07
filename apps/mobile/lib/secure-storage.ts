@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/secure-storage.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0726 UTC
  * PURPOSE : Where the sign-in session lives on the phone: the iOS Keychain / Android Keystore
  *           (expo-secure-store), encrypted by the OS, instead of plain AsyncStorage. Supabase sessions are

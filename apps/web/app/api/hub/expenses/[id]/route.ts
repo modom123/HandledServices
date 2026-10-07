@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/expenses/[id]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Staff: approve or reject a materials receipt, open the receipt, or record that the
  *           customer paid the materials by hand.

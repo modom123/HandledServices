@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/recruiting/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : Staff actions on the recruiting pipeline and its automation settings.
  *             POST { action: "nudge" | "revive" | "note" | "background_clear" | "order_background", contractor_id?, application_id?, note? }

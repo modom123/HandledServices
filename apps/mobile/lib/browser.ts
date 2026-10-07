@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/browser.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0645 UTC
  * PURPOSE : Open payment pages (Stripe Checkout) in an in-app browser sheet, so paying never throws the
  *           customer out of the app; when the sheet closes they're back where they were. Falls back to

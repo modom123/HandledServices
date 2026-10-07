@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/bid-quote/[token]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : A pro's written price for a bid, from the private link in the price-request email (no sign-in needed;
  *           the token is the key). POST { decline, prices: { lineId: unitPrice }, capacity, small_business, note }.

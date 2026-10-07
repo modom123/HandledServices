@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/InterviewChat.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : The candidate's AI screening interview: a clear AI disclosure and consent first (a person reviews
  *           and decides; they can ask for a person instead), then a simple chat. English / Spanish. Works on phones.

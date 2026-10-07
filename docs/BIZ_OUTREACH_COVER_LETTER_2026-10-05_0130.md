@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/BIZ_OUTREACH_COVER_LETTER_2026-10-05_0130.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-05_0130 UTC
   PURPOSE : The job-posting letter to prospective business clients: where it lives in the system, how to use it,
             and what changed from the owner's draft (docs/COVER_LETTER_ORIGINAL_2026-10-05_0130.pdf) and why.

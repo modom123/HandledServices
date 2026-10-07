@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/TradeRequirements.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0802 UTC
  * PURPOSE : Become a Pro → "What your trade needs": pick your trade from one dropdown and see its insurance, license,
  *           skills check and specialties (replaces a list of 20+ expanders). Text arrives already translated.

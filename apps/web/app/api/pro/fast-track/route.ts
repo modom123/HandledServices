@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/fast-track/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Pro applies for the proven-skill fast track. POST JSON { years, summary, references, trades[], photos[] }
  *           (photos are paths from /api/uploads).

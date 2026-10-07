@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/rewards.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Pro mode → Rewards (Handled Pro Rewards): available / pending points, tier, how points are earned,
  *           milestones, the catalog with redeem (shipping address), orders and the point history. EN / ES.

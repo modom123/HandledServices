@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/board.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : Two ways a job finds its pro beyond the targeted offers, and the rules for both:
  *             Open job board — a paid job nobody has taken after the first targeted round shows on

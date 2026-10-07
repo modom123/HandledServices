@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/site-url.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : The site's public address (NEXT_PUBLIC_SITE_URL, else the Vercel production URL on Vercel, else localhost).
  *           Its own small module so the root layout, robots and sitemap can use it without loading email code.

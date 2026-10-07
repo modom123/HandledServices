@@ -1,6 +1,6 @@
 /*
  * FILE    : scripts/build-rewards-flyer-pdf.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : One-page Handled Pro Rewards flyer for recruiting (front: English, back: Spanish) →
  *           docs/PRO_REWARDS_FLYER_<timestamp>.pdf, from packages/core/src/rewards.ts.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/theme.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0235 UTC
  * PURPOSE : Three website looks that can be switched per market without a redeploy:
  *             classic    — the original green & cream

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/CityScorecard.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : The pieces of Hub → City scorecard: a city card (stage track, money tiles, progress to the
  *           next level, to-do list, every gate with 90-day and last-30-day status), meters and tiles.

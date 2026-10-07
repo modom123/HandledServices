@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/email-center.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Email Center campaigns (rules in packages/core/src/email-center.ts; mailbox in mailbox.ts).
  *             audienceRecipients — who a campaign reaches (deduped, lowercase, unsubscribes removed)

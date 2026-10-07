@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/market/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0152 UTC
  * PURPOSE : Handled Hub → Market pricing. Per service: the suggested price for a typical job, what
  *           pros actually do with offers (accept / decline / counter / nobody), how customers price

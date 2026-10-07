@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/biz-lead-engine.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business sales engine rules (demand side; the pro lead engine is lead-engine.ts):
  *             BIZ_SEGMENTS   — who we sell to and what to offer each: property managers (unit turnovers,

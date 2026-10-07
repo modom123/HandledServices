@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/VerifyId.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Pro onboarding: start the photo ID check (opens Stripe Identity, or requests a video call),
  *           and the Hub button that marks an ID verified after a video call.

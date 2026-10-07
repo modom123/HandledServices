@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/MarketBox.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0150 UTC
  * PURPOSE : Customer, while no pro has taken the job: pros' counter offers (accept one — only the
  *           difference is charged) and "raise your offer" (re-offered to pros at the higher pay).

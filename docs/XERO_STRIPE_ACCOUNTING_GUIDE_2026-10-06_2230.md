@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-06_2230 UTC
   PURPOSE : How Handled's books work (Xero = books of record, Stripe = where money moves), how to set up the
             connection, what gets booked where, and the month-end routine.

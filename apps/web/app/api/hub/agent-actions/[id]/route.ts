@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/agent-actions/[id]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Staff: approve (execute) or reject an action proposed by an IEBC AI employee.
  */

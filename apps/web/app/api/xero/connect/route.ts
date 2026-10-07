@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/xero/connect/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2210 UTC
  * PURPOSE : Hub → Accounting → "Connect Xero" (admins only). Sends the admin to Xero to sign in and pick the
  *           organisation; a random state in an httpOnly cookie is checked on the way back (CSRF).

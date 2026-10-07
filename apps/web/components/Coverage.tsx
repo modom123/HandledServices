@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Coverage.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2120 UTC
  * PURPOSE : Hub controls for cancellations & coverage: call the next backup, offer to everyone, ask more backups,
  *           excuse an emergency cancel.

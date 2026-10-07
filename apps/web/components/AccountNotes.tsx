@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/AccountNotes.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2141 UTC
  * UPDATED : 2026-10-05_2146 UTC — AddNote takes customerEmail for customer histories; timeline icons for bookings and reviews.
  * PURPOSE : Account notes UI: AddNote (client — log a note, call, email, meeting or text; append-only) and Timeline

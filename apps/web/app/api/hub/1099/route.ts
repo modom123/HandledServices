@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/1099/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * PURPOSE : Staff: year-end 1099-NEC worksheet (CSV) — every pro paid in the tax year,
  *           net of clawbacks, flagged against the reporting threshold. TIN shows last 4

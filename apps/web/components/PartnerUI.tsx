@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/PartnerUI.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0125 UTC
  * PURPOSE : Referral Partner Program controls: public sign-up form (/partners), copy-link, "send us a customer" and
  *           Stripe payout setup (/partner), and the staff controls in Hub → Partners.

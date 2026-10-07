@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/setup/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
  * PURPOSE : Staff: readiness report (GET) and one-click fixes (POST { action: "sync_catalog" }).
  */

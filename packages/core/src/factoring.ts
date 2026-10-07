@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/factoring.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0324 UTC
  * PURPOSE : Invoice factoring partners (Hub → Factoring). Business, city and government clients pay on net 30–60 while
  *           pros are paid in the weekly payout run; a factor advances most of an approved invoice in 1–2 days.

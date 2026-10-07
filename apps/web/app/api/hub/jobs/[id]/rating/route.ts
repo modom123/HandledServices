@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/jobs/[id]/rating/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * PURPOSE : Staff: our rating of the pro on this job (overrides the AI draft).
  */

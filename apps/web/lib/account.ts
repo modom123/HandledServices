@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/account.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Delete my account (required by Apple and Google; also the right thing to do).

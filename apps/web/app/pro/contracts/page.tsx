@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/contracts/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * UPDATED : 2026-10-03_0051 UTC — Spanish copies note.
  * PURPOSE : Pro portal → My contracts. Everything the pro signed (Independent Contractor

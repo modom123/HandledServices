@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_UPDATE_CANCELLATIONS_2026-10-06_2142.sql
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : Run on your Supabase project (you already ran the 5 setup parts): tracks every pro cancellation,
 --           free ones too. Safe to run more than once. SQL Editor -> paste -> Run.
@@ -8,7 +8,7 @@
 begin;
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006212000_cancellation_tracking.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2120 UTC
 -- PURPOSE : Track every cancellation, not just the ones that count against a pro:
 --             pro_standing_events.kind adds 'free_cancel' (handed back 24h+ ahead - recorded, never counted).

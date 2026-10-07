@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/BidWorkspace.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : Hub → Bids controls (client): start a bid, the bid's details, go / no-go, documents (upload straight to
  *           private storage; the AI reads the solicitation into the matrix), the compliance matrix, pricing (live math

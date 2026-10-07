@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/unsubscribe/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0027 UTC
  * UPDATED : 2026-10-03_0324 UTC — also blocks the address in Instantly (pro lead invitations).
  * UPDATED : 2026-10-05_0148 UTC — covers Email Center campaigns too; &c=<campaign> counts the unsubscribe on that campaign.

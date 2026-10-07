@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/(tabs)/_layout.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0645 UTC
  * PURPOSE : The bottom tab bar, like the apps people already know: Home (book anything), Bookings (live
  *           status of every job), Pro (pros only: offers, on call, schedule) and Account. Labels follow the

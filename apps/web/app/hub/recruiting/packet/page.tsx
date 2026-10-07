@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/recruiting/packet/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : Hub → Recruiting → Interview packet (printable; ?lang=es for Spanish questions): how approval works,
  *           what not to ask, the questions with what a good answer has, the scoring guide, a blank scoring sheet

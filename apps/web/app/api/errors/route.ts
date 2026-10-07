@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/errors/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Crash reports from the website (error pages) and the mobile app → Hub alerts.
  *           Rate-limited per IP; message and stack are truncated.

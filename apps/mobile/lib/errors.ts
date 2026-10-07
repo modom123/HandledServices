@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/errors.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : App crash reporting → Hub alerts (/api/errors). Installs a global JS error handler
  *           that reports, then lets React Native show its normal crash behaviour.

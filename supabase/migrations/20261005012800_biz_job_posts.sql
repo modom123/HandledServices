@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005012800_biz_job_posts.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_0130 UTC
 -- PURPOSE : Business sales engine — job-posting track. A business that posted a job (Indeed and similar)
 --           for a cleaner, handyman, maintenance tech, groundskeeper or mover is added by hand in the Hub

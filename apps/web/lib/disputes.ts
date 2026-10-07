@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/disputes.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * UPDATED : 2026-10-03_0119 UTC — lost chargebacks follow the pro agreement (§18).
  * PURPOSE : Card chargebacks. When a customer disputes a charge with their bank:

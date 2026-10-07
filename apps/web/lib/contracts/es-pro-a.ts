@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/es-pro-a.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0048 UTC
  * UPDATED : 2026-10-04_2204 UTC — first looks (business account pros, customer favorites, crew member requests) and the open job board ("Jobs near you"); agreement v5 / Service Agreement v7.
  * UPDATED : 2026-10-03_0115 UTC — rechazar ofertas nunca afecta pago, nivel ni orden de ofertas.

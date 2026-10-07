@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/factoring/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0324 UTC
  * PURPOSE : Handled Hub → Factoring: the invoice factoring partners we're lining up so weekly pro payouts stay on time
  *           while business, city and government clients pay on net 30–60. Outreach status, each quote, and its cost on
@@ -13,7 +13,7 @@ import { AddFactoringPartner, FactoringEditor, type FactoringRow } from "@/compo
 
 export const dynamic = "force-dynamic";
 
-const DOCS = "https://github.com/modom123/myhumanai/blob/main/docs";
+const DOCS = "https://github.com/modom123/HandledServices/blob/main/docs";
 const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const TONE: Record<FactoringStatus, "slate" | "green" | "amber" | "red" | "brand"> = {
   to_contact: "slate", emailed: "amber", call_scheduled: "amber", quote_received: "brand", applied: "brand", active: "green", passed: "red",

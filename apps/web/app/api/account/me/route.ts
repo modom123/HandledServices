@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/me/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Account basics for the app: Handled Plus status and my refer-a-friend code/link.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points balance and tier (full detail: /api/account/loyalty).

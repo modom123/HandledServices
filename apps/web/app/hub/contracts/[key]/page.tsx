@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/contracts/[key]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0043 UTC
  * PURPOSE : Hub → one contract: the current text, and the latest people who accepted it.
  * UPDATED : 2026-10-03_0052 UTC — English / Spanish switch.

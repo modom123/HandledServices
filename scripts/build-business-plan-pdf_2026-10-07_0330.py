@@ -1,7 +1,7 @@
 # ============================================================================
 # FILE    : scripts/build-business-plan-pdf_2026-10-07_0330.py
 # RUN     : python3 scripts/build-business-plan-pdf_2026-10-07_0330.py . docs/OUT.pdf docs/OUT.md /tmp/chart.png  (needs reportlab, matplotlib)
-# PROJECT : Handled (myhumanai)
+# PROJECT : Handled (HandledServices)
 # CREATED : 2026-10-07_0330 UTC
 # UPDATED : 2026-10-07_0350 UTC — grand opening discount removed (owner decision); early bookings trimmed to match.
 # PURPOSE : 12-month projected income statement + 52-week operating plan, merged with the existing business plan
@@ -158,7 +158,7 @@ assert len(WEEKS) == 52, len(WEEKS)
 
 # ─── Markdown (for the repo) ───
 def write_md():
-    L = [f"<!--\n  FILE    : docs/OPERATING_PLAN_12M_52W_{STAMP}.md\n  PROJECT : Handled (myhumanai)\n  CREATED : {STAMP} UTC\n  PURPOSE : 12-month projected income statement (Nov 2026 – Oct 2027) and the 52-week operating plan; the PDF\n            docs/HANDLED_BUSINESS_PLAN_FINAL_{STAMP}.pdf combines these with BUSINESS_PLAN_2026-10-01_1830.md.\n-->\n",
+    L = [f"<!--\n  FILE    : docs/OPERATING_PLAN_12M_52W_{STAMP}.md\n  PROJECT : Handled (HandledServices)\n  CREATED : {STAMP} UTC\n  PURPOSE : 12-month projected income statement (Nov 2026 – Oct 2027) and the 52-week operating plan; the PDF\n            docs/HANDLED_BUSINESS_PLAN_FINAL_{STAMP}.pdf combines these with BUSINESS_PLAN_2026-10-01_1830.md.\n-->\n",
          "# 12-month income statement (projected, base case)\n",
          "| Line | " + " | ".join(MONTHS) + " | Year |", "|---" * 14 + "|"]
     for k, v in ROWS.items():

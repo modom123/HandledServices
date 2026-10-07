@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/book/[slug].tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_0302 UTC — "When do you need it done?" (ASAP incl. same day … flexible) and optional budget.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish (questions, answers, tips, steps).

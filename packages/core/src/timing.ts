@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/timing.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0301 UTC
  * PURPOSE : What the customer told us about timing and money when they asked for the job:
  *             URGENCY / neededBy()   — "As soon as possible" (same day if a pro is on call) …

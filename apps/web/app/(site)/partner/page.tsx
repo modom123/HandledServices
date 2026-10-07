@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/partner/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0135 UTC
  * PURPOSE : The referral partner's page: their link and short link, earnings (paid / ready / upcoming), Stripe payout
  *           setup, "send us a customer", the customers credited to them (and until when) and every commission.

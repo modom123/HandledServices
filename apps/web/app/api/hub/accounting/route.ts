@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/accounting/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2215 UTC
  * PURPOSE : Hub → Accounting (Xero) controls, admins only. POST JSON:
  *             { action: "save", accounts?, sync_from?, reconciled? }  — account mapping and options

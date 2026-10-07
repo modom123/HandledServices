@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/crew/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Staff: record a crew member's background-check result when it was run by hand (no Checkr key),
  *           or re-order it. POST { id, background_status: clear | consider | pending } | { id, action: "reorder" }.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/ai/growth-planner.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0752 UTC
  * PURPOSE : The Growth planner — runs every morning (cron/daily-brief) so the AI team works toward $100M every day.
  *           Reads pace against the growth plan, the last 30 days, the open pipeline and every open agent task; names

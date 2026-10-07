@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/pro-policy.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * UPDATED : 2026-10-03_0119 UTC — pay protection can't be switched off (pro agreement promise).
  * PURPOSE : The six Pro Program benefits and the rules for who qualifies. The defaults

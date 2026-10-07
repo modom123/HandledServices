@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/earnings.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1244 UTC
  * PURPOSE : "What pros make" — the earnings story for the /pros page and recruiting copy, computed
  *           from the live pricing engine so it can't drift. Leads with what matters to a pro

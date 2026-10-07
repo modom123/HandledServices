@@ -1,6 +1,6 @@
 /*
  * FILE    : scripts/build-contracts-md.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0042 UTC
  * PURPOSE : Writes the whole contract library (apps/web/lib/contracts) to
  *           docs/CONTRACTS_<UTC stamp>.md for attorney review, replacing the previous export.
@@ -19,7 +19,7 @@ const toc = (["customer", "business", "pro"] as const).map((g) => `**${AUDIENCE_
 const flagged = ALL_CONTRACTS.flatMap((c) => c.sections.filter((s) => s.p.includes("[Confirm with counsel.]")).map((s) => `- ${c.title} → ${s.h}`));
 
 const out = [
-  `<!--\n  FILE    : docs/CONTRACTS_${stamp}.md   (generated — edit apps/web/lib/contracts/*.ts, then re-run)\n  PROJECT : Handled (myhumanai) — AI-run home & business services\n  CREATED : ${stamp} UTC\n  PURPOSE : Every customer, business and pro contract, for attorney review.\n-->`,
+  `<!--\n  FILE    : docs/CONTRACTS_${stamp}.md   (generated — edit apps/web/lib/contracts/*.ts, then re-run)\n  PROJECT : Handled (HandledServices) — AI-run home & business services\n  CREATED : ${stamp} UTC\n  PURPOSE : Every customer, business and pro contract, for attorney review.\n-->`,
   `# ${BRAND.legalName} — Contract library`,
   `Plain-English templates. **Not legal advice** — have counsel licensed in each state we operate in review and approve before use. The same text appears on the website (/terms), on invoices, in pro onboarding, and as frozen signed copies in each person's account (My contracts) and Hub → Contract library.`,
   `## Contents\n\n${toc}`,
@@ -33,7 +33,7 @@ console.log(`wrote docs/CONTRACTS_${stamp}.md (${ALL_CONTRACTS.length} contracts
 const es = ALL_CONTRACTS.map((c) => ({ c, v: localized(c, "es") }));
 const missing = es.filter((x) => !x.v.translated).map((x) => x.c.title);
 const outEs = [
-  `<!--\n  FILE    : docs/CONTRATOS_ES_${stamp}.md   (generated — edit apps/web/lib/contracts/es-*.ts, then re-run)\n  PROJECT : Handled (myhumanai) — AI-run home & business services\n  CREATED : ${stamp} UTC\n  PURPOSE : Spanish translations of every contract, for review by a certified legal translator.\n-->`,
+  `<!--\n  FILE    : docs/CONTRATOS_ES_${stamp}.md   (generated — edit apps/web/lib/contracts/es-*.ts, then re-run)\n  PROJECT : Handled (HandledServices) — AI-run home & business services\n  CREATED : ${stamp} UTC\n  PURPOSE : Spanish translations of every contract, for review by a certified legal translator.\n-->`,
   `# ${BRAND.legalName} — Biblioteca de contratos (traducción al español)`,
   `Traducciones para comodidad de clientes y profesionales. **Si hay diferencias, prevalece la versión en inglés** (docs/CONTRACTS_${stamp}.md). Recomendamos que un traductor jurídico certificado y un abogado las revisen antes de usarlas.`,
   missing.length ? `Sin traducción todavía: ${missing.join(", ")}` : "",

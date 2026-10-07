@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/chat.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish (the concierge answers in the customer's language).
  * PURPOSE : AI concierge chat (same backend as the website widget).

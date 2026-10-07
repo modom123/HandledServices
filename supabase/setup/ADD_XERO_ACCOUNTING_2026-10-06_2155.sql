@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_XERO_ACCOUNTING_2026-10-06_2155.sql
--- PROJECT : Handled Services LLC (myhumanai) — Hub → Accounting (Xero)
+-- PROJECT : Handled Services LLC (HandledServices) — Hub → Accounting (Xero)
 -- CREATED : 2026-10-06_2155 UTC
 -- PURPOSE : Turns on Xero accounting in the EXISTING Supabase project. Same as migration
 --           20261006215500_xero_accounting.sql. Run once in Supabase → SQL Editor. Safe to run twice.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/status/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Pro: switch "On call" on (ready for same-day work, for 1–14 hours) or off.
  */

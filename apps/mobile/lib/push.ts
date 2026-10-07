@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/push.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_2047 UTC
  * PURPOSE : Push notifications: permission, Android channels ("offers" rings loud for new
  *           work, "updates" for job progress), and registering this phone's Expo push token

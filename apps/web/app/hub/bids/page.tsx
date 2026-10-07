@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/bids/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : Handled Hub → Bids: every public bid we're working, by deadline, with where each one stands in the
  *           five steps (go / no-go → compliance → pricing → review → submit), our win rate and the price benchmarks

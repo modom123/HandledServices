@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ChecklistLibrary.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : The checklist library (Hub → Checklists, and the pro portal): every service's checklist, with which
  *           items appear for which booking (standard / deep / move-out, pets, inside fridge & oven…). Printable.

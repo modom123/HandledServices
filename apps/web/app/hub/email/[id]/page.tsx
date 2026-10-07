@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/email/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Hub → Email Center → one campaign. A draft opens in the editor; once launched it shows progress,
  *           clicks, unsubscribes, who clicked, failures and skips, with pause / resume / cancel / duplicate.

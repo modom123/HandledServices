@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/standing.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0122 UTC
  * PURPOSE : Pro standing, exactly as the Pro Deactivation Policy describes:
  *             proReleaseJob    — a pro can hand back an accepted job: 24h+ free, 6–24h short notice (logged, no

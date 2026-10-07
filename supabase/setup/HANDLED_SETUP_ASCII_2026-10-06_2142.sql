@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_SETUP_2026-10-06_2142.sql   (generated - do not hand edit)
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : One-paste setup for a NEW Supabase project: 51 migrations + production seed.
 --           Supabase -> SQL Editor -> New query -> paste this whole file -> Run.
@@ -443,7 +443,7 @@ alter publication supabase_realtime add table public.jobs, public.job_offers, pu
 -- >>> migration 20261001180000_iebc_workforce.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001180000_iebc_workforce.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_1800 UTC
 -- PURPOSE : IEBC Workforce integration. IEBC's AI employees (from the IEBC MasterHub
 --           workforce roster) are assigned to departments of this business. Each
@@ -514,7 +514,7 @@ insert into public.iebc_agents (iebc_employee_id, name, title, iebc_dept, role_h
 -- >>> migration 20261001183000_take_rate_guard.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001183000_take_rate_guard.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_1830 UTC
 -- PURPOSE : Never lose money on a job. The database rejects any job whose
 --           subcontractor payout would leave us outside a 15-35% take, and any payout
@@ -549,7 +549,7 @@ alter table public.services add constraint services_payout_share_band check (pay
 -- >>> migration 20261001190000_upfront_payment.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001190000_upfront_payment.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_1900 UTC
 -- PURPOSE : Paid upfront, always. No job is dispatched to a pro until the customer
 --           has paid. When something isn't right we make it right with a free redo,
@@ -613,7 +613,7 @@ alter table public.payments add constraint payments_kind_check check (kind in ('
 -- >>> migration 20261001200000_contractor_workforce.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001200000_contractor_workforce.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2000 UTC
 -- PURPOSE : The subcontractor workforce - our core asset.
 --             * 1099 tax profile per pro (independent contractors, never employees):
@@ -770,7 +770,7 @@ create trigger ops_ratings_rollup after insert or update on public.ops_ratings f
 -- >>> migration 20261001203000_service_agreement.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001203000_service_agreement.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2030 UTC
 -- PURPOSE : Every booking is accepted under the customer Service Agreement printed on its
 --           invoice. Record which version, when, and from where it was accepted.
@@ -784,7 +784,7 @@ alter table public.jobs
 -- >>> migration 20261001204300_offers_push_notifications.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001204300_offers_push_notifications.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2043 UTC
 -- PURPOSE : Uber-style job offers and phone notifications.
 --             * push_tokens     - Expo push tokens per signed-in device (pros and customers)
@@ -846,7 +846,7 @@ grant execute on function public.job_pro(uuid) to authenticated;
 -- >>> migration 20261001205300_deposits_quick_charge.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001205300_deposits_quick_charge.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2053 UTC
 -- PURPOSE : Deposits and Quick Charge payment links.
 --             * jobs.payment_plan 'full' | 'deposit'; deposit amount, when it was paid, and
@@ -879,7 +879,7 @@ alter table public.payments add constraint payments_kind_check
 -- >>> migration 20261001210900_pro_vetting.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001210900_pro_vetting.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2109 UTC
 -- PURPOSE : Pro specialties, trade-specific insurance and a richer application.
 --             * contractors.specialties - what each pro does best (dispatch prefers specialists)
@@ -911,7 +911,7 @@ alter table public.contractor_documents add constraint contractor_documents_kind
 -- >>> migration 20261001212400_pro_benefits.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001212400_pro_benefits.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2124 UTC
 -- PURPOSE : The six Pro Program benefits.
 --             * pro_program_settings - who qualifies for each benefit and its amounts
@@ -997,7 +997,7 @@ alter table public.contractors add column insurance_stipend_paid_at timestamptz;
 -- >>> migration 20261001233400_dispatch_geo_availability.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001233400_dispatch_geo_availability.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-01_2334 UTC
 -- PURPOSE : Dispatch by availability, quality and location.
 --             * contractors: base ZIP + coordinates, driving radius, working days/windows,
@@ -1036,7 +1036,7 @@ create policy zip_geo_read on public.zip_geo for select to anon, authenticated u
 -- >>> migration 20261002000600_pro_recruiting.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002000600_pro_recruiting.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0006 UTC
 -- PURPOSE : Automated pro recruiting & onboarding, tracked end to end.
 --             * contractor_applications: where the applicant came from (source, referral,
@@ -1130,7 +1130,7 @@ update public.contractors c set profile_id = p.id from public.profiles p
 -- >>> migration 20261002015700_iebc_recruiting_roles.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002015700_iebc_recruiting_roles.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0157 UTC
 -- PURPOSE : IEBC recruiting agents work the automated onboarding pipeline.
 --             * Tyler Walsh - recruiting pipeline: screening, invites, follow-up with stuck applicants
@@ -1148,7 +1148,7 @@ update public.iebc_agents set role_here = 'Onboarding compliance: insurance & li
 -- >>> migration 20261002020100_transportation.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002020100_transportation.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0201 UTC
 -- PURPOSE : Transportation (private driver, airport transfer, limousine, party bus, charter bus,
 --           event shuttle) booked with licensed operator companies. Operators upload passenger-
@@ -1163,7 +1163,7 @@ alter table public.contractor_documents add constraint contractor_documents_kind
 -- >>> migration 20261002023316_pro_promises.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002023316_pro_promises.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0233 UTC
 -- PURPOSE : What the Pro Program promises, backed by data:
 --             * offer status 'taken' - another pro accepted first; doesn't count against
@@ -1190,7 +1190,7 @@ alter table public.job_offers add column if not exists kind text not null defaul
 -- >>> migration 20261002025553_pro_roster.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002025553_pro_roster.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0255 UTC
 -- PURPOSE : Know where pros are and when they can work:
 --             * on_call_until - the pro switched "On call" on (same-day work) until this time
@@ -1211,7 +1211,7 @@ create index if not exists jobs_contractor_date_idx on public.jobs (contractor_i
 -- >>> migration 20261002030209_customer_timing_budget.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002030209_customer_timing_budget.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0302 UTC
 -- PURPOSE : Track what customers tell us when they ask for work:
 --             jobs.urgency          - asap / this_week / two_weeks / month / flexible
@@ -1234,7 +1234,7 @@ alter table public.business_accounts
 -- >>> migration 20261002031601_launch_growth.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002031601_launch_growth.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_0316 UTC
 -- PURPOSE : Launch blockers + growth + customer experience, in one place:
 --             * rate_limits + hit_rate_limit()   - abuse limits on public endpoints (AI, uploads)
@@ -1399,7 +1399,7 @@ alter table public.business_accounts add constraint business_accounts_owner_prof
 -- >>> migration 20261002134642_launch_checklist.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002134642_launch_checklist.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_1346 UTC
 -- PURPOSE : Business & legal launch checklist ticks (items live in @handled/core
 --           launch-checklist.ts): who ticked it, when, and a note (policy number, attorney...).
@@ -1417,7 +1417,7 @@ alter table public.launch_checklist enable row level security;
 -- >>> migration 20261002141249_message_language.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002141249_message_language.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_1412 UTC
 -- PURPOSE : Each person chooses English or Spanish, and every text, email, push notification
 --           and timeline entry follows it:
@@ -1434,7 +1434,7 @@ alter table public.job_events add column if not exists message_es text;
 -- >>> migration 20261002223400_waitlist_google_reviews.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002223400_waitlist_google_reviews.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-02_2234 UTC
 -- PURPOSE : Growth - finding customers and pros:
 --             * waitlist - people who asked for a service where we have no pros yet; they're
@@ -1466,7 +1466,7 @@ alter table public.reviews add column if not exists google_clicked_at timestampt
 -- >>> migration 20261003001500_seasonal_quote_followups.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003001500_seasonal_quote_followups.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_0015 UTC
 -- PURPOSE : Bringing customers back:
 --             * saved_quotes     - "Email me this price": the price, then follow-ups, with a link
@@ -1516,7 +1516,7 @@ alter table public.email_optouts enable row level security;
 -- >>> migration 20261003003900_contract_records.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003003900_contract_records.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_0039 UTC
 -- PURPOSE : Every contract a customer, business or pro accepts - with a frozen copy of the exact
 --           text they agreed to (sections + SHA-256 hash), when, how (booking, e-signature,
@@ -1559,7 +1559,7 @@ create policy "own contracts" on public.contract_acceptances for select using (
 -- >>> migration 20261003004900_contract_language.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003004900_contract_language.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_0049 UTC
 -- PURPOSE : Contracts in Spanish: record the language each person read when they accepted.
 --           The frozen copy (sections) also keeps the Spanish text they saw; English controls.
@@ -1571,7 +1571,7 @@ alter table public.contract_acceptances
 -- >>> migration 20261003011700_pro_fairness.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003011700_pro_fairness.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_0117 UTC
 -- PURPOSE : Make the system do what the Independent Contractor Agreement promises:
 --             * pro_deductions        - a refund or lost chargeback charged to a pro is only a
@@ -1637,7 +1637,7 @@ alter table public.payouts add column if not exists deduction_id uuid references
 -- >>> migration 20261003014600_market_pricing.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003014600_market_pricing.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_0146 UTC
 -- PURPOSE : Market pricing - the market sets the price, inside guardrails:
 --             * jobs.suggested_price / customer_offer - our suggestion vs. what the customer offered
@@ -1702,7 +1702,7 @@ alter table public.payments add constraint payments_kind_check
 -- >>> migration 20261003020600_pro_lead_engine.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003020600_pro_lead_engine.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_0206 UTC
 -- PURPOSE : Pro lead engine - find independent pros automatically and invite them:
 --             * pro_leads         - businesses found (Google Places, CSV import of license lists)
@@ -1777,7 +1777,7 @@ alter table public.contractor_applications add column if not exists lead_id uuid
 -- >>> migration 20261003130300_crews_fast_track.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261003130300_crews_fast_track.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-03_1303 UTC
 -- PURPOSE : Crew accounts and the proven-skill fast track.
 --             * crew_members      - people a pro company sends to jobs (helpers, apprentices,
@@ -1838,7 +1838,7 @@ alter table public.contractors
 -- >>> migration 20261004193200_business_growth.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261004193200_business_growth.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-04_1932 UTC
 -- PURPOSE : The growth plan's missing pieces:
 --             * markets.launch_services   - constraint-driven launch: only these services are bookable in
@@ -2029,7 +2029,7 @@ update public.contractors set id_verified_at = coalesce(background_checked_at, o
 -- >>> migration 20261004194900_retire_grocery.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261004194900_retire_grocery.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-04_1949 UTC
 -- PURPOSE : Grocery pickup & delivery is no longer offered (replaced by Same-Day Courier). Its catalog row
 --           stays for any past jobs but is marked inactive; the new courier row is added by the catalog sync.
@@ -2040,7 +2040,7 @@ update public.services set active = false where slug = 'grocery-delivery';
 -- >>> migration 20261004220400_board_favorites.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261004220400_board_favorites.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-04_2204 UTC
 -- PURPOSE : Open job board, customer favorites and crew member requests (packages/core/src/board.ts).
 --             * job_offers.kind adds 'favorite' (a customer's favorite pro gets a first look) and
@@ -2091,7 +2091,7 @@ grant execute on function public.job_crew(uuid) to authenticated;
 -- >>> migration 20261005012800_biz_job_posts.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005012800_biz_job_posts.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0130 UTC
 -- PURPOSE : Business sales engine - job-posting track. A business that posted a job (Indeed and similar)
 --           for a cleaner, handyman, maintenance tech, groundskeeper or mover is added by hand in the Hub
@@ -2111,7 +2111,7 @@ alter table public.biz_leads add constraint biz_leads_segment_check
 -- >>> migration 20261005014100_email_center.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005014100_email_center.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0148 UTC
 -- PURPOSE : Email Center (Hub -> Email): marketing campaigns sent from the company mailbox
 --           (Hostinger SMTP, info@handledsvc.com), a trickle send by the 10-minute cron, click tracking,
@@ -2188,7 +2188,7 @@ alter table public.marketing_sends add constraint marketing_sends_kind_check
 -- >>> migration 20261005021600_job_checklists.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005021600_job_checklists.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0221 UTC
 -- PURPOSE : Job checklists (packages/core/src/checklists.ts): one format for every service.
 --             * jobs.checklist        - the checklist frozen when a pro takes the job (text can't change mid-job)
@@ -2226,7 +2226,7 @@ create policy staff_all on public.job_checklist_checks for all to authenticated 
 -- >>> migration 20261005024000_pro_interviews.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005024000_pro_interviews.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0246 UTC
 -- PURPOSE : Pro screening interviews (packages/core/src/interview.ts) between application and invite.
 --             * pro_interviews - one per interview: AI (the candidate chats from a private link, after an AI
@@ -2270,7 +2270,7 @@ alter table public.contractor_applications add constraint contractor_application
 -- >>> migration 20261005041000_pro_rewards.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005041000_pro_rewards.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0418 UTC
 -- PURPOSE : Handled Pro Rewards (packages/core/src/rewards.ts) - loyalty points for independent pros.
 --             * reward_settings     - earn rate, point value, pending days... (Hub -> Rewards)
@@ -2381,7 +2381,7 @@ from public.reward_ledger group by contractor_id;
 -- >>> migration 20261005144100_gov_contracts.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005144100_gov_contracts.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_1441 UTC
 -- PURPOSE : Government contracts from SAM.gov (packages/core/src/gov-contracts.ts, Hub -> Gov contracts).
 --             * gov_settings       - the saved daily search: on/off, NAICS codes, state, keywords, notice types, days back,
@@ -2484,7 +2484,7 @@ insert into public.gov_settings (id) values (1) on conflict (id) do nothing;
 -- >>> migration 20261005195400_bid_engine.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005195400_bid_engine.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_1954 UTC
 -- PURPOSE : The bid engine (packages/core/src/bid-engine.ts, Hub -> Bids): one workspace per public bid.
 --             * bids             - the bid: source, agency, deadlines, status, go / no-go answers, pricing assumptions,
@@ -2628,7 +2628,7 @@ insert into storage.buckets (id, name, public) values ('bids', 'bids', false) on
 -- >>> migration 20261005203400_handled_talent.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005203400_handled_talent.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2034 UTC
 -- PURPOSE : Handled Talent - recruiting agency as a service (packages/core/src/talent.ts; Hub -> Talent; /pro/talent).
 --             * talent_clients           - companies that hire through us, their fee terms and signed agreement
@@ -2836,7 +2836,7 @@ insert into storage.buckets (id, name, public) values ('talent', 'talent', false
 -- >>> migration 20261005203900_bid_archive.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005203900_bid_archive.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2043 UTC
 -- PURPOSE : RFP / RFQ archive and resubmission (bid engine, Hub -> Bids).
 --             * bids: solicitation type (RFQ, RFP, IFB...), revision number, reopened for a revision (when / why),
@@ -2885,7 +2885,7 @@ create trigger bid_submission_frozen before update on public.bid_submissions for
 -- >>> migration 20261005213400_biz_lead_partners.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005213400_biz_lead_partners.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2134 UTC
 -- PURPOSE : Business leads can be teaming partners (segment 'partner'): firms we bid public contracts with.
 --           Tracked in Hub -> Business leads, never discovered, emailed by the sales sequence or included in
@@ -2899,7 +2899,7 @@ alter table public.biz_leads add constraint biz_leads_segment_check
 -- >>> migration 20261005213900_account_notes.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005213900_account_notes.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2141 UTC
 -- PURPOSE : Account notes - the running conversation history for every business lead, business account and
 --           Handled Talent client: notes, calls, emails, meetings and texts, each with who wrote it and when.
@@ -2937,7 +2937,7 @@ where l.notes is not null and length(trim(l.notes)) > 0
 -- >>> migration 20261005214500_customer_notes.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005214500_customer_notes.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2146 UTC
 -- PURPOSE : Customer notes - the same permanent, append-only history now covers homeowner / walk-in customers.
 --           A customer is keyed by their email: subject_id = md5(lower(trim(email)))::uuid, so every booking
@@ -2955,7 +2955,7 @@ $$;
 -- >>> migration 20261006032400_factoring_partners.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006032400_factoring_partners.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0324 UTC
 -- PURPOSE : Invoice factoring partners (packages/core/src/factoring.ts, Hub -> Factoring): the companies we're asking
 --           to fund net-30+ business, city and government invoices so weekly pro payouts stay on time. One row per
@@ -3011,7 +3011,7 @@ on conflict (slug) do nothing;
 -- >>> migration 20261006070800_app_payments.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006070800_app_payments.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0708 UTC
 -- PURPOSE : In-app payments (Apple Pay, Google Pay, card via Stripe PaymentSheet): a payment row
 --           remembers its PaymentIntent, so the webhook can settle it and support can look it up.
@@ -3023,7 +3023,7 @@ create index if not exists payments_stripe_payment_intent_idx on public.payments
 -- >>> migration 20261006072600_lock_down_rpc.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006072600_lock_down_rpc.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0726 UTC
 -- PURPOSE : Security (defense in depth): functions that run with elevated rights (security definer) are
 --           not callable from the app unless they're meant to be. Supabase exposes the public schema as
@@ -3048,7 +3048,7 @@ alter default privileges in schema public revoke execute on functions from publi
 -- >>> migration 20261006075200_agent_tasks.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006075200_agent_tasks.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0752 UTC
 -- PURPOSE : Tasks the team assigns to the AI agents (Hub -> AI agents, or by asking the Ops co-pilot).
 --           Each open task is added to that agent's instructions on every run (packages/core/src/mission.ts),
@@ -3077,7 +3077,7 @@ create policy staff_all on public.agent_tasks for all to authenticated using (pu
 -- >>> migration 20261006084100_business_rfp_scope.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006084100_business_rfp_scope.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_0841 UTC
 -- PURPOSE : The business Request for Proposal keeps its scope of work as structured data (packages/core/src/rfp.ts):
 --           square footage, site, each service with how often and specifics, working hours, current vendor, term,
@@ -3092,7 +3092,7 @@ alter table public.business_accounts
 -- >>> migration 20261006195000_job_coverage.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006195000_job_coverage.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_1950 UTC
 -- PURPOSE : Every job gets done (packages/core/src/coverage.ts).
 --             * job_backups - backup #1, #2, #3 lined up behind the pro on every accepted job. Status:
@@ -3136,7 +3136,7 @@ alter table public.jobs add column if not exists handoffs int not null default 0
 -- >>> migration 20261006201000_pro_business_address.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006201000_pro_business_address.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2010 UTC
 -- PURPOSE : A pro's place of business (street, city, state, ZIP). Dispatch measures driving distance from it
 --           (geocoded street address; ZIP centre when the lookup isn't available - base_located says which).
@@ -3151,7 +3151,7 @@ alter table public.contractors
 -- >>> migration 20261006212000_cancellation_tracking.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006212000_cancellation_tracking.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2120 UTC
 -- PURPOSE : Track every cancellation, not just the ones that count against a pro:
 --             pro_standing_events.kind adds 'free_cancel' (handed back 24h+ ahead - recorded, never counted).

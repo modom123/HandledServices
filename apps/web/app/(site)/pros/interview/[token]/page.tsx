@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/pros/interview/[token]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : A candidate's private AI screening interview link (emailed after they apply). No login.
  */

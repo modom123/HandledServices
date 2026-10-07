@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006072600_lock_down_rpc.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0726 UTC
 -- PURPOSE : Security (defense in depth): functions that run with elevated rights (security definer) are
 --           not callable from the app unless they're meant to be. Supabase exposes the public schema as

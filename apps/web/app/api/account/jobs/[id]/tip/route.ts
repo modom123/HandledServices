@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/tip/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Customer tips the pro after a finished job — card on file (one tap) or Checkout.
  */

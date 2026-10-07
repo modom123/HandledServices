@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/(tabs)/index.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish, with an EN | ES switch.
  * PURPOSE : Home — services, concierge, my jobs; switches to pro mode for subcontractors.

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002141249_message_language.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_1412 UTC
 -- PURPOSE : Each person chooses English or Spanish, and every text, email, push notification
 --           and timeline entry follows it:

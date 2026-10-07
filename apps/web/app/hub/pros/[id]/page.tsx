@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/pros/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-03_0042 UTC — link to the pro's signed contracts.
  * UPDATED : 2026-10-03_0124 UTC — standing panel: events, warn / suspend / deactivate / reinstate / appeal.

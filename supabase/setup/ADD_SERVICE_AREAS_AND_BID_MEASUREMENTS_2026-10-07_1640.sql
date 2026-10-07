@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_1640 UTC
 -- PURPOSE : For the EXISTING Supabase project: (1) new service areas outside Metro Detroit (rest of Michigan),
 --           (2) bid measurements (size / unit on bid cost lines). Same as migrations 20261007030000_bid_measurements.sql and

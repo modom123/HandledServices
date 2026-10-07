@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/email/new/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Hub → Email Center → new campaign (blank, or ?template=<key> from the starter templates).
  */

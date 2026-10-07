@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/waitlist/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_2243 UTC
  * PURPOSE : Join the waitlist for a service in a ZIP we don't cover yet (web booking calendar
  *           and the app). POST { email, phone?, name?, zip, service, locale? }. We email/text them

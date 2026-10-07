@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-07_0150.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_0150 UTC
 -- PURPOSE : Everything the EXISTING Supabase project still needs, in one paste:
 --             1. Xero accounting            (ADD_XERO_ACCOUNTING_2026-10-06_2155.sql)
@@ -14,7 +14,7 @@
 -- >>> ADD_XERO_ACCOUNTING_2026-10-06_2155.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_XERO_ACCOUNTING_2026-10-06_2155.sql
--- PROJECT : Handled Services LLC (myhumanai) — Hub → Accounting (Xero)
+-- PROJECT : Handled Services LLC (HandledServices) — Hub → Accounting (Xero)
 -- CREATED : 2026-10-06_2155 UTC
 -- PURPOSE : Turns on Xero accounting in the EXISTING Supabase project. Same as migration
 --           20261006215500_xero_accounting.sql. Run once in Supabase → SQL Editor. Safe to run twice.
@@ -68,7 +68,7 @@ alter table public.contractors add column if not exists xero_contact_id text;
 -- >>> ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql
--- PROJECT : Handled Services LLC (myhumanai) — Referral Partner Program
+-- PROJECT : Handled Services LLC (HandledServices) — Referral Partner Program
 -- CREATED : 2026-10-07_0100 UTC
 -- PURPOSE : Turns on the Referral Partner Program in the EXISTING Supabase project (/partners, /partner,
 --           Hub → Referral partners). Same as migration 20261007010000_referral_partners.sql.
@@ -143,7 +143,7 @@ create policy staff_all on public.partner_commissions for all to authenticated u
 -- >>> ADD_SITE_SETTINGS_GRAND_OPENING_2026-10-07_0230.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_SITE_SETTINGS_GRAND_OPENING_2026-10-07_0230.sql
--- PROJECT : Handled Services LLC (myhumanai) — Website looks + grand opening promotion
+-- PROJECT : Handled Services LLC (HandledServices) — Website looks + grand opening promotion
 -- CREATED : 2026-10-07_0230 UTC
 -- PURPOSE : For the EXISTING Supabase project: settings table for Hub → Website & promotions, and the fix that lets
 --           discounted bookings through the take-rate guard. Same as migration 20261007023000_site_settings_grand_opening.sql.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/talent/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : One Handled Talent search: the job order and fair-hiring check, terms, status, the client's review link,
  *           recruiters, the pipeline (add, submit, move, hire), hires with invoicing and the guarantee, retained payments,

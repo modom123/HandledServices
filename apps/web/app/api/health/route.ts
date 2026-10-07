@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/health/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
  * PURPOSE : Public uptime check — is the site up, which commit is live, can it reach the
  *           database. No secrets. Point an uptime monitor at /api/health.

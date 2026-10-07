@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/ContractView.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * UPDATED : 2026-10-03_0050 UTC — English / Spanish: language switch, Spanish labels, and the
  *           "English controls" notice on translations.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/LoyaltyRedeem.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : "Turn points into credit" for Handled Points (a person's or a business account's points).
  */

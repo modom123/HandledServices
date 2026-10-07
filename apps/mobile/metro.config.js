@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/metro.config.js
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Let Metro bundle the shared @handled/core package from the monorepo.
  */

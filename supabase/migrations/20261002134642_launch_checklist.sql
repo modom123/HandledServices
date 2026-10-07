@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002134642_launch_checklist.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_1346 UTC
 -- PURPOSE : Business & legal launch checklist ticks (items live in @handled/core
 --           launch-checklist.ts): who ticked it, when, and a note (policy number, attorney…).

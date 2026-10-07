@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/GovAdmin.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Hub → Gov contracts controls: the saved daily SAM.gov search (and run a search now), pipeline status and
  *           notes per notice, full text + AI bid brief, and asking matching pros whether they want the work.

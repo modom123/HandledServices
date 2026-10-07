@@ -1,6 +1,6 @@
 /*
  * FILE    : scripts/build-interview-packet-pdf.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0352 UTC
  * PURPOSE : Printable interview packet → docs/INTERVIEW_PACKET_<timestamp>.pdf (US Letter), built from
  *           packages/core/src/interview.ts — the same questions and scoring the AI interviewer and the Hub use.

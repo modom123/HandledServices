@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/session.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0645 UTC
  * PURPOSE : Who is signed in, shared by every screen (one /api/me call instead of one per screen).
  *           Cached on the phone so the app opens straight into the right mode (customer or pro)

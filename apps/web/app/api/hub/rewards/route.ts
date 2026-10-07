@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/rewards/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Hub → Rewards (staff; settings and forfeits: admin). POST JSON:
  *             { action: "settings", enabled, earnRate, pointValue, pendingDays, inactivityExpiryMonths, qualityMultiplier, minRatingForQuality }

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/onboarding/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-02_0233 UTC — pros set their own daily job limit (dispatch never offers past it).
  * UPDATED : 2026-10-01_2109 UTC — specialties, trade-specific coverage, requirements by trade.

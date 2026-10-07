@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/offers/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
  * PURPOSE : Uber-style job offer (linked from the offer email/push): payout, countdown,
  *           work order and one-tap accept with the terms agreement.

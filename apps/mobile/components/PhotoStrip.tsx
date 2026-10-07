@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/components/PhotoStrip.tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-02_0201 UTC
  * PURPOSE : Photo capture for customers: Take photo (with "take another" for several shots in a
  *           row) or choose from the library, thumbnails with remove, and a count.

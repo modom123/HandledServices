@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/terms/[key]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : Public copy of any current contract: /terms/service-agreement, /terms/terms-of-use,
  *           /terms/pro-agreement, the service and trade addenda… (replaces the old static

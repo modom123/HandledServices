@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/contracts/signed/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0043 UTC
  * PURPOSE : Hub → one signed contract: the frozen copy, plus the evidence of acceptance
  *           (who, email, booking, method, time, IP, device, SHA-256 fingerprint).

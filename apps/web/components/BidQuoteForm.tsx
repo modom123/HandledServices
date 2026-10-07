@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/BidQuoteForm.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : The pro's written quote for a public bid (from /pros/bid-quote/[token]): a price per line, capacity,
  *           small-business status and a note — or "not for us". Can be updated until the bid is submitted.

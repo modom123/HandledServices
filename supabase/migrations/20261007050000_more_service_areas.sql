@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261007050000_more_service_areas.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-07_1640 UTC
 -- PURPOSE : Service areas beyond Metro Detroit (480–483): the rest of Michigan by region (Handled serves Michigan and Washington).
 --           No launch list, so every service can be booked there. A booking still needs a vetted pro who covers the

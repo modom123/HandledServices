@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/checkr/webhook/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : Background-check results from Checkr. A "clear" report marks the pro's check done
  *           (and activates them if everything else is complete); anything else goes to ops for

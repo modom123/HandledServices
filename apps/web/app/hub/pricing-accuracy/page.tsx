@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/pricing-accuracy/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1255 UTC
  * PURPOSE : Handled Hub → Pricing accuracy. Per service: did the suggested price match what really
  *           happened on finished jobs (time on site, final price, work added, materials, pro pay per

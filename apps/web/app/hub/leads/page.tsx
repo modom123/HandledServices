@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/leads/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0210 UTC
  * UPDATED : 2026-10-03_0324 UTC — invitations sent through Instantly.
  * PURPOSE : Handled Hub → Pro leads. The automatic pro-recruiting engine: what it found, who it

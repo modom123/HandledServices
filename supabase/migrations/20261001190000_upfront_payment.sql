@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001190000_upfront_payment.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_1900 UTC
 -- PURPOSE : Paid upfront, always. No job is dispatched to a pro until the customer
 --           has paid. When something isn't right we make it right with a free redo,

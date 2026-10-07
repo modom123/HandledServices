@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/ai/interview.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : The AI screening interviewer (questions and rubric in packages/core/src/interview.ts).
  *             aiInterviewTurn — the next message: a short acknowledgement and the next planned question (or one

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/favorites.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : Customer favorites and "Book again with …" (rules in packages/core/src/board.ts).
  *             addFavorite / removeFavorite / myFavorites — a customer favorites a pro they had (or a crew

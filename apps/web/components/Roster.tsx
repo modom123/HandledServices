@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Roster.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Client pieces for pro whereabouts and schedules:
  *             AutoRefresh  — re-loads a server page every N seconds (Hub live roster)

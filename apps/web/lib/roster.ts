@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/roster.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Pro whereabouts and schedule, server side (rules live in @handled/core roster.ts):
  *             setOnCall()          — pro switches "On call" on (for N hours) or off

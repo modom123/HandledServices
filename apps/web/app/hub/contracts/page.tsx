@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/contracts/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0043 UTC
  * PURPOSE : Handled Hub → Contract library. Every current contract (customers, businesses, pros,
  *           service and trade addenda) with version and how many people accepted it; look up any

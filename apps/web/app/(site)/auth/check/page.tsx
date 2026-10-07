@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/auth/check/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0145 UTC
  * PURPOSE : Sign-in check anyone can open (no sign-in needed, no secrets shown): is everything in place for Handled to
  *           send its own sign-in email (code + any-device link)? Server key, email provider, the sender's domain verified

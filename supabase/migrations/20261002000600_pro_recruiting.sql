@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002000600_pro_recruiting.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0006 UTC
 -- PURPOSE : Automated pro recruiting & onboarding, tracked end to end.
 --             • contractor_applications: where the applicant came from (source, referral,

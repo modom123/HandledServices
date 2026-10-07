@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_UPDATE_BACKUPS_2026-10-06_1956.sql
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_1956 UTC
 -- PURPOSE : EXISTING project: job coverage (backups #1-#3, cancel tiers). Run AFTER HANDLED_UPDATE_TODAY.
 --           Safe to run more than once; all or nothing. Supabase -> SQL Editor -> paste -> Run.
@@ -8,7 +8,7 @@
 begin;
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006195000_job_coverage.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_1950 UTC
 -- PURPOSE : Every job gets done (packages/core/src/coverage.ts).
 --             * job_backups - backup #1, #2, #3 lined up behind the pro on every accepted job. Status:

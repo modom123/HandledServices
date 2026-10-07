@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/job/[id].tsx
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-01_2047 UTC
  * UPDATED : 2026-10-02_1329 UTC — live pro ETA, tip your pro, reschedule.
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish; reschedule right in the app.

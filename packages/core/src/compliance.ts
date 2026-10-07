@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/compliance.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-04_2204 UTC — agreement v5 and Service Agreement v7 (first looks, favorites, open job board).
  * UPDATED : 2026-10-03_0042 UTC — AGREEMENT_VERSION v3 and SERVICE_AGREEMENT_VERSION v5 (full contract library).

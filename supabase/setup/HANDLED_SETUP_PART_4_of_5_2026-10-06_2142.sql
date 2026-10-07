@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/HANDLED_SETUP_PART_4_of_5_2026-10-06_2142.sql
--- PROJECT : Handled (myhumanai)
+-- PROJECT : Handled (HandledServices)
 -- CREATED : 2026-10-06_2142 UTC
 -- PURPOSE : NEW Supabase project setup, part 4 of 5 (run IN ORDER, one at a time). Migrations 20261005012800_biz_job_posts.sql .. 20261005203400_handled_talent.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
@@ -9,7 +9,7 @@
 -- >>> migration 20261005012800_biz_job_posts.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005012800_biz_job_posts.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0130 UTC
 -- PURPOSE : Business sales engine - job-posting track. A business that posted a job (Indeed and similar)
 --           for a cleaner, handyman, maintenance tech, groundskeeper or mover is added by hand in the Hub
@@ -29,7 +29,7 @@ alter table public.biz_leads add constraint biz_leads_segment_check
 -- >>> migration 20261005014100_email_center.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005014100_email_center.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0148 UTC
 -- PURPOSE : Email Center (Hub -> Email): marketing campaigns sent from the company mailbox
 --           (Hostinger SMTP, info@handledsvc.com), a trickle send by the 10-minute cron, click tracking,
@@ -106,7 +106,7 @@ alter table public.marketing_sends add constraint marketing_sends_kind_check
 -- >>> migration 20261005021600_job_checklists.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005021600_job_checklists.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0221 UTC
 -- PURPOSE : Job checklists (packages/core/src/checklists.ts): one format for every service.
 --             * jobs.checklist        - the checklist frozen when a pro takes the job (text can't change mid-job)
@@ -144,7 +144,7 @@ create policy staff_all on public.job_checklist_checks for all to authenticated 
 -- >>> migration 20261005024000_pro_interviews.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005024000_pro_interviews.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0246 UTC
 -- PURPOSE : Pro screening interviews (packages/core/src/interview.ts) between application and invite.
 --             * pro_interviews - one per interview: AI (the candidate chats from a private link, after an AI
@@ -188,7 +188,7 @@ alter table public.contractor_applications add constraint contractor_application
 -- >>> migration 20261005041000_pro_rewards.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005041000_pro_rewards.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_0418 UTC
 -- PURPOSE : Handled Pro Rewards (packages/core/src/rewards.ts) - loyalty points for independent pros.
 --             * reward_settings     - earn rate, point value, pending days... (Hub -> Rewards)
@@ -299,7 +299,7 @@ from public.reward_ledger group by contractor_id;
 -- >>> migration 20261005144100_gov_contracts.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005144100_gov_contracts.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_1441 UTC
 -- PURPOSE : Government contracts from SAM.gov (packages/core/src/gov-contracts.ts, Hub -> Gov contracts).
 --             * gov_settings       - the saved daily search: on/off, NAICS codes, state, keywords, notice types, days back,
@@ -402,7 +402,7 @@ insert into public.gov_settings (id) values (1) on conflict (id) do nothing;
 -- >>> migration 20261005195400_bid_engine.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005195400_bid_engine.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_1954 UTC
 -- PURPOSE : The bid engine (packages/core/src/bid-engine.ts, Hub -> Bids): one workspace per public bid.
 --             * bids             - the bid: source, agency, deadlines, status, go / no-go answers, pricing assumptions,
@@ -546,7 +546,7 @@ insert into storage.buckets (id, name, public) values ('bids', 'bids', false) on
 -- >>> migration 20261005203400_handled_talent.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005203400_handled_talent.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-05_2034 UTC
 -- PURPOSE : Handled Talent - recruiting agency as a service (packages/core/src/talent.ts; Hub -> Talent; /pro/talent).
 --             * talent_clients           - companies that hire through us, their fee terms and signed agreement

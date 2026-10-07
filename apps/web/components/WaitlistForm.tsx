@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/WaitlistForm.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_2245 UTC
  * PURPOSE : "No pros here yet" → join the waitlist. Shown on the booking calendar when no pro
  *           covers the ZIP. We email (and text, if given) the day a pro starts covering it.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/LangSwitch.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : EN | ES switch — keeps the visitor on the same page.
  */

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pay/sheet/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0708 UTC
  * PURPOSE : The mobile app's in-place payment (Apple Pay, Google Pay or card). Returns a Stripe
  *           PaymentSheet for what's owed on the job now, or the Checkout link when the sheet isn't

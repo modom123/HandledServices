@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/loyalty/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Hub → Handled Points (staff; settings: admin). POST JSON:
  *             { action: "settings", enabled, earnRate, pointValue, redeemStep, pendingDays, inactivityExpiryMonths, firstJobBonus, reviewBonus }

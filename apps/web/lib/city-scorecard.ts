@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/city-scorecard.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Loads the numbers behind the city scorecard (core city-scorecard.ts). One pass over the last
  *           90 days of jobs, offers, reviews, plans and pros, bucketed into markets by ZIP prefix, then

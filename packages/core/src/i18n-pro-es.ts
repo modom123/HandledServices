@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/i18n-pro-es.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1425 UTC
  * PURPOSE : Spanish for the pro web portal (jobs, offers, calendar, earnings, actions). Keys are the exact English text; read through t() in i18n.ts.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal): shell, home, tiers & benefits, calendar,

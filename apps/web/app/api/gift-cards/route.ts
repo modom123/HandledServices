@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/gift-cards/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Buy a gift card ($25–$1,000) → Stripe Checkout; the code is emailed once paid.
  * UPDATED : 2026-10-03_0042 UTC — records the buyer's acceptance of the Plus, Gift Card & Promo Terms.

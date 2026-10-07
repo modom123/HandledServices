@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006195000_job_coverage.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_1950 UTC
 -- PURPOSE : Every job gets done (packages/core/src/coverage.ts).
 --             • job_backups — backup #1, #2, #3 lined up behind the pro on every accepted job. Status:

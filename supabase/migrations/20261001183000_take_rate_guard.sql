@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001183000_take_rate_guard.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_1830 UTC
 -- PURPOSE : Never lose money on a job. The database rejects any job whose
 --           subcontractor payout would leave us outside a 15–35% take, and any payout

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001205300_deposits_quick_charge.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_2053 UTC
 -- PURPOSE : Deposits and Quick Charge payment links.
 --             • jobs.payment_plan 'full' | 'deposit'; deposit amount, when it was paid, and

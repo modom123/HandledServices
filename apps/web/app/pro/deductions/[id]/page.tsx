@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/pro/deductions/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0120 UTC
  * PURPOSE : Pro portal → one proposed deduction: what, why, the deadline, the pro's response and
  *           the decision. Nothing is taken until a person decides (pro agreement §17).

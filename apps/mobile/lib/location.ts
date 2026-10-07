@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/location.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Pro location sharing — only while the pro is on call or on a job today, and only
  *           while the app is open (no background tracking). The server refuses locations at any

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005203900_bid_archive.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_2043 UTC
 -- PURPOSE : RFP / RFQ archive and resubmission (bid engine, Hub → Bids).
 --             • bids: solicitation type (RFQ, RFP, IFB…), revision number, reopened for a revision (when / why),

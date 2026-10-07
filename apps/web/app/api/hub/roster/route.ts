@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/roster/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Staff: live roster — every active pro's status, location and week ahead (JSON,
  *           refreshed by the Hub's Live roster page).

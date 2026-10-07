@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/account/contracts/[id]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : One signed contract — the frozen copy the customer agreed to, with when/how and its
  *           SHA-256 fingerprint. Only the person who accepted it (or staff, in the Hub) can see it.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/loyalty/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Handled Points for the signed-in person (web + app).
  *             GET  ?business=<account id>              — balance, tier, history, unused credit codes

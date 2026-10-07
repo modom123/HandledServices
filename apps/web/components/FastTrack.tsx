@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/FastTrack.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Proven-skill fast track: the pro's application form (portfolio upload, years, summary,
  *           references; English and Spanish) and the Hub decision buttons.

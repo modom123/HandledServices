@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Favorites.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : Customer favorites (lib/favorites.ts): ★ Favorite a pro (or their crew member) from a job, and
  *           remove a favorite on the account page. English and Spanish.

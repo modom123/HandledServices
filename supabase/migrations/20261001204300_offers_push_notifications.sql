@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001204300_offers_push_notifications.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-01_2043 UTC
 -- PURPOSE : Uber-style job offers and phone notifications.
 --             • push_tokens     — Expo push tokens per signed-in device (pros and customers)

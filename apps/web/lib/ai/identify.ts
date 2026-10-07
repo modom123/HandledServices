@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/ai/identify.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0449 UTC
  * PURPOSE : "Snap & post a job": from the customer's photos (and an optional line of text), the AI picks the service
  *           from our catalog and fills in that service's booking questions (size, rooms, items…) from what it sees.

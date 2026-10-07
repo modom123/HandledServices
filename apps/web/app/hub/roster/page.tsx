@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/roster/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Live roster — where every active pro is and when they can work: status right now
  *           (on a job / on call / booked / open / off), live location while on call or on a job

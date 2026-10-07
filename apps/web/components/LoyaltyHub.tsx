@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/LoyaltyHub.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Hub → Handled Points client pieces: settings form (admin), adjust an account's points, run release now.
  */

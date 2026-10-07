@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/PRICING_CALIBRATION_2026-10-03_0147.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-03_0147 UTC
   PURPOSE : Detroit-metro market recalibration of the suggested prices in packages/core/src/services.ts
             (default scenarios before → after, market benchmarks, pro payout under the new sliding commission).

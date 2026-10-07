@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/locale.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : The visitor's language (English / Spanish) from the "lang" cookie set by the
  *           language switch (/api/lang).

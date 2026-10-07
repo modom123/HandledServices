@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/ratelimit.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Abuse limits for public endpoints that cost money (AI) or storage (uploads), counted
  *           per visitor IP in Postgres (hit_rate_limit), so limits hold across serverless instances.

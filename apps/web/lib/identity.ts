@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/identity.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Photo ID verification for pros (onboarding step "Photo ID verified"):
  *             startIdCheck  — Stripe Identity session (photo of a government ID + a matching selfie); the pro

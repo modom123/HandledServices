@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261007060000_washington_service_areas.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-07_1700 UTC
 -- PURPOSE : Washington service areas (Handled serves Michigan and Washington). No launch list → every service bookable.
 --             Seattle & Eastside        980, 981   (Seattle, Bellevue, Redmond, Kirkland, Renton, Kent, Auburn, Issaquah)

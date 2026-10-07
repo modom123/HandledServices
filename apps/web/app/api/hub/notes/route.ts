@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/notes/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2141 UTC
  * UPDATED : 2026-10-05_2146 UTC — customers: subject_type "customer" with customer_email (the id is derived from the email).
  * PURPOSE : Add an account note (staff only): POST { subject_type, subject_id | customer_email, kind, body }. Append-only — there is no

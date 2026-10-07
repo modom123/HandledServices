@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/reviews/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Public customer reviews — the overall average (every rating counts) and recent
  *           comments, filterable by service.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/counters/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0154 UTC
  * PURPOSE : The customer's view of pros' counter offers on their job (the app uses it; the website
  *           reads them server-side). First name, rating, jobs done, the price it makes, their note.

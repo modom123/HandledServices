@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/pro/crew.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1337 UTC
  * PURPOSE : Pro → My crew (app twin of the portal page). Sign the Crew Addendum, add crew (their
  *           background check link is emailed right away), see each check's status, remove people who

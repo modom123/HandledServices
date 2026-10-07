@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/AccountingUI.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2225 UTC
  * PURPOSE : Hub → Accounting (Xero) controls: connect / disconnect, sync start date and "mark reconciled",
  *           push now, the account mapping (save, check against Xero, create missing accounts) and the day preview.

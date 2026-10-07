@@ -1,6 +1,6 @@
 <!--
   FILE    : README.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-01_1800 UTC
 -->
 

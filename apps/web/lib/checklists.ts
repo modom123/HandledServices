@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/checklists.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Job checklists on the server (format and templates in packages/core/src/checklists.ts).
  *             freezeChecklist  — when a pro takes the job, its checklist is saved on the job so the text

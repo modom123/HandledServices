@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/cron-auth.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0726 UTC
  * PURPOSE : Who may run the scheduled jobs (/api/cron/*): only Vercel Cron or the GitHub Action, which send
  *           "Authorization: Bearer <CRON_SECRET>". Fails closed: with CRON_SECRET missing or shorter than

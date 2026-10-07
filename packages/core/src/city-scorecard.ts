@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/city-scorecard.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : The city scorecard — "get the model right in Michigan, then replicate." Each market is scored
  *           on the numbers that prove the model works there (demand, liquidity, supply, retention,

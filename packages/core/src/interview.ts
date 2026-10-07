@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/interview.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : The pro screening interview and the approval checklist — one source for the printable packet,
  *           the Hub scorecard (in-person / phone) and the AI interviewer. English and Spanish.

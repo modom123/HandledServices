@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/accounting.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2205 UTC
  * PURPOSE : Stripe → Xero. Xero is the books; Stripe is set up in Xero as its own bank account ("Stripe", 1090) and
  *           everything is booked from Stripe's balance transactions — the record of every cent that moved — one

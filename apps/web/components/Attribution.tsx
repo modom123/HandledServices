@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Attribution.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : First-touch marketing source: on a visitor's first page view, remember utm_source /
  *           medium / campaign, the referring site and the landing page (this browser only).

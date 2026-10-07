@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/loyalty.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Handled Points — loyalty points for every customer account (people and business accounts).
  *           (Pros have their own program: rewards.ts.)

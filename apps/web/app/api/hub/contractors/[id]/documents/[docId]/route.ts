@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/contractors/[id]/documents/[docId]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2000 UTC
  * UPDATED : 2026-10-02_0157 UTC — uses decideDocument() (shared with the IEBC agents).
  * PURPOSE : Staff: open (signed URL), verify or reject a pro's compliance document.

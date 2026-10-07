@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/JOB_CHECKLISTS_2026-10-05_0221.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-05_0221 UTC
   PURPOSE : How job checklists work across the system, the format, and how to add or change one.
 -->

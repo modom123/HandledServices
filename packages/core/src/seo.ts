@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/seo.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Cities we publish "<service> in <city>" pages for (search traffic). Launch metro is
  *           Detroit; add a city here when pros cover it and every service gets a page there.

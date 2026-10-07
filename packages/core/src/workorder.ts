@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/workorder.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2043 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish work orders (opts.locale / workOrderText(w, locale)) for pros who chose Spanish.
  * UPDATED : 2026-10-03_0117 UTC — "Customer requirements & access" (not instructions on how to do the work).

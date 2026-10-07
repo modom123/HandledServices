@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/crew/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Pro company → crew. POST JSON:
  *             { action: "sign", signer_name }            — sign the Crew Addendum (needed before adding anyone)

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/biz-leads/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Staff controls for the business sales engine. POST JSON:
  *             { action: "settings", enabled, discover_per_day, emails_per_day, segments[], pilot_pct, pilot_jobs }

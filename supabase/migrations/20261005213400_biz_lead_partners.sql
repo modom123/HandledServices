@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005213400_biz_lead_partners.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_2134 UTC
 -- PURPOSE : Business leads can be teaming partners (segment 'partner'): firms we bid public contracts with.
 --           Tracked in Hub → Business leads, never discovered, emailed by the sales sequence or included in

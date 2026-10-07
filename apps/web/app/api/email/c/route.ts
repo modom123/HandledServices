@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/email/c/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0148 UTC
  * PURPOSE : Email Center click tracking: a signed link (only links we put in a campaign) counts the click and
  *           redirects to the real page. Bad or unsigned links go to the home page (never an open redirect).

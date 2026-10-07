@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/bids/[id]/v/[n]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2043 UTC
  * PURPOSE : One submitted version of a bid, exactly as it was sent (frozen record): why it was sent, what changed from
  *           the version before (prices line by line, lines added / removed, the total), the price sheet, the compliance

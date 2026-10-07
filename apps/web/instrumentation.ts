@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/instrumentation.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Every server error (pages, API routes, cron, webhooks) is reported to the Hub as an
  *           alert — money and dispatch paths also email ops (lib/errors.ts).

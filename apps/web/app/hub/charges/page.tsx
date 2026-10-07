@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/charges/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2053 UTC
  * PURPOSE : Quick Charge — get paid for anything with a Stripe payment link (no products to
  *           set up in Stripe), and see every link and whether it's been paid.

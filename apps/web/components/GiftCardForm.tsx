@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/GiftCardForm.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * UPDATED : 2026-10-03_0043 UTC — gift card terms notice and link.
  * PURPOSE : Gift card purchase form → /api/gift-cards → Stripe Checkout.

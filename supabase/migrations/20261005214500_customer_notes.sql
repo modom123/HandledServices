@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005214500_customer_notes.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_2146 UTC
 -- PURPOSE : Customer notes — the same permanent, append-only history now covers homeowner / walk-in customers.
 --           A customer is keyed by their email: subject_id = md5(lower(trim(email)))::uuid, so every booking

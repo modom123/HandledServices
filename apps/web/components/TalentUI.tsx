@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/TalentUI.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Talent screens (client components):
  *             TalentRequestForm  — /talent: a company starts a search (and accepts the client agreement)

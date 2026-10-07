@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/i18n-catalog-es.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Spanish for the service catalog text: every pricing question, help line, answer
  *           option, "what's included" item and notes hint (keyed by the English text).

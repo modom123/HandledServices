@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/gaps/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_2250 UTC
  * PURPOSE : Handled Hub → Supply gaps. Where customers want work and we're short of pros:
  *           bookings, bookings no pro could take, and waitlist sign-ups per service and ZIP,

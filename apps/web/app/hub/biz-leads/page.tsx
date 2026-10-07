@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/biz-leads/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Handled Hub → Business leads: the demand-side sales engine (property managers, brokerages,
  *           stagers, self-storage, stores). Settings and pilot offer, the funnel, warm replies to answer,

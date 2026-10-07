@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/roster.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0254 UTC
  * PURPOSE : Where pros are and when they can work — shared by dispatch, the pro app and the Hub.
  *             onCall()        — the pro switched "On call" on (ready for same-day work) until a time

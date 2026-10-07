@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/es.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0050 UTC
  * PURPOSE : All Spanish translations of the contract library, by contract key. English controls
  *           if they differ (said at the top of every Spanish copy).

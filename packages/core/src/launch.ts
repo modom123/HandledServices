@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/launch.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Constraint-driven launch: a city opens with a short list of frequent, simple services
  *           (hauling, small moves, basic cleaning, lawn, handyman, turnovers) so every booking gets a

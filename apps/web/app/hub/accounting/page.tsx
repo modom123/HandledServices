@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/accounting/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2220 UTC
  * PURPOSE : Handled Hub → Accounting (Xero). Xero is the books of record; this page connects it, maps each kind of
  *           money to a Xero account, previews a day's entries, pushes on demand, and shows every document sent
@@ -15,7 +15,7 @@ import { AccountingControls, AccountMapping, DayPreview } from "@/components/Acc
 
 export const dynamic = "force-dynamic";
 
-const DOCS = "https://github.com/modom123/myhumanai/blob/main/docs";
+const DOCS = "https://github.com/modom123/HandledServices/blob/main/docs";
 const LABEL: Record<string, string> = {
   stripe_day: "Stripe day", stripe_receive: "Money in", stripe_spend: "Money out", pro_payout: "Pro payout", bank_payout: "Payout to bank",
   invoice: "Sales invoice", invoice_payment: "Invoice payment", invoice_void: "Invoice voided",

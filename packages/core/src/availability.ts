@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/availability.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2115 UTC
  * PURPOSE : Booking-calendar availability. For each day and arrival window, how many more
  *           jobs the qualified, insured pros serving this ZIP can take — their daily capacity

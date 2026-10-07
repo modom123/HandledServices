@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/intake.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2334 UTC
  * PURPOSE : Getting the price right before anyone pays, so jobs are never underbid.
  *             • photoRule()       — which photos the customer must or should add per service

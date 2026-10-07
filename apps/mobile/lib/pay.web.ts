@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/pay.web.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0708 UTC
  * PURPOSE : Web build of payForJob(): Stripe's mobile SDK has no web version, so pay through Checkout.
  */

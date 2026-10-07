@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/LaunchChecklist.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1346 UTC
  * PURPOSE : Hub → Go-live setup: the business & legal checklist with tick boxes and notes.
  */

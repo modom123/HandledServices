@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/business-accounts.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Business accounts (property managers, brokerages, stagers, stores, storage facilities):
  *             • Invoicing on terms (Net 15/30/45) is offered CASE BY CASE: every account starts on

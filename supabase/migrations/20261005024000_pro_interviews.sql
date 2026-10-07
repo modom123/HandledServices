@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005024000_pro_interviews.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_0246 UTC
 -- PURPOSE : Pro screening interviews (packages/core/src/interview.ts) between application and invite.
 --             • pro_interviews — one per interview: AI (the candidate chats from a private link, after an AI

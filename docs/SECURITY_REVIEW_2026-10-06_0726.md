@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/SECURITY_REVIEW_2026-10-06_0726.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-06_0726 UTC
   PURPOSE : Security review of the website, Hub, mobile app, API and database, with a focus on payments:
             what was checked, what was fixed, and the account settings only the owner can turn on.

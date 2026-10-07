@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261007070000_washington_area_pricing.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-07_1830 UTC
 -- PURPOSE : Area pricing for Washington (markets.price_multiplier, read by lib/launch regionFactor → estimate region):
 --             Seattle area (Seattle & Eastside, Everett & North Sound, Tacoma & South Sound)  +25%  → 1.25

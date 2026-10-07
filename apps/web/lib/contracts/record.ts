@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/contracts/record.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : Saves who accepted which contracts — with a frozen copy of the text and its hash —
  *           into contract_acceptances. Never blocks the booking or signing that triggered it.

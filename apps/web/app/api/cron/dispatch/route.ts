@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/cron/dispatch/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Every 10 minutes: offers nobody answered expire and the job goes to the next pros,
  *           so same-day and ASAP work never waits for the daily sweep.

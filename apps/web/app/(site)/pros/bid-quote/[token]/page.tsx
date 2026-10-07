@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/pros/bid-quote/[token]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : A pro's private link to quote a public bid in writing: their price per line, how much they can cover,
  *           and whether they're a small business. No login. A quote, never an offer of work.

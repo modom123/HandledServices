@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/talent/candidate/[token]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : A candidate's link from "your résumé went to …": confirm they agreed, or withdraw it right away.
  */

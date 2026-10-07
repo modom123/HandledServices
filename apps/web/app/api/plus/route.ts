@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/plus/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Join Handled Plus → Stripe subscription Checkout (signed-in customers).
  * UPDATED : 2026-10-03_0042 UTC — records acceptance of the Plus, Gift Card & Promo Terms (My contracts).

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/cron/gov/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Vercel cron (weekdays, morning Detroit time) — runs the saved SAM.gov search (Hub → Gov contracts) inside
  *           the daily call budget and caches new government contract opportunities. Off until switched on.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/account/jobs/[id]/raise/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0149 UTC
  * PURPOSE : The customer raises their offer ({ price }) or accepts a pro's counter
  *           ({ counter_offer_id }). Only the difference is charged (saved card, else a link).

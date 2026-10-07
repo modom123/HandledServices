@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/AccountExtras.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * UPDATED : 2026-10-02_1329 UTC — TrackPro (live ETA + map) and Reschedule.
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish (locale prop) and LanguageToggle (saved on the account).

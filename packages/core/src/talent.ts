@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/talent.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Talent — the recruiting agency as a service. Companies hire us to fill roles; independent recruiters
  *           (pros with the "recruiter" trade) source and submit candidates; we run the client relationship, contracts,

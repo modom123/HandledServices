@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/EMAIL_CENTER_SETUP_2026-10-05_0148.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-05_0148 UTC
   PURPOSE : How to connect the Hostinger mailbox (info@handledsvc.com) to Hub → Email Center, keep marketing
             email out of spam, and stay within the law.

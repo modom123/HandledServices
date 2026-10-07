@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/PhotoPicker.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0201 UTC
  * PURPOSE : Easy photo capture and upload on phone and desktop.
  *             • Phone: "Take photo" opens the camera; "Choose photos" opens the library

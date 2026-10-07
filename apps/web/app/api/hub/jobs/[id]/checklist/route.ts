@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/jobs/[id]/checklist/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Staff special instructions on one job's checklist (shown to the pro first, on the work order).
  *             POST { action: "add", text, required? } · { action: "remove", id }

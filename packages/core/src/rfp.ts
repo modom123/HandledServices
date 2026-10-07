@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/rfp.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0841 UTC
  * PURPOSE : The business Request for Proposal: the scope of work a facilities buyer gives us in 3 short steps
  *           (company → scope → timing), in one shape the website form, the API, the Hub and the ops email share.

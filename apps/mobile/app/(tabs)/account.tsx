@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/account.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish and the language switch.
  * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies on the website).

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/RUN_ONCE_LATEST_2026-10-07_1900.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_1900 UTC
 -- PURPOSE : Everything the EXISTING (live) Supabase project needs as of 2026-10-07, in ONE paste:
 --             1. Xero accounting, referral partners, website settings + discount guard fix  (RUN_ONCE_ALL_PENDING_2026-10-07_0150)
@@ -17,7 +17,7 @@
 -- >>> RUN_ONCE_ALL_PENDING_2026-10-07_0150.sql
 -- ============================================================================
 -- FILE    : supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-07_0150.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_0150 UTC
 -- PURPOSE : Everything the EXISTING Supabase project still needs, in one paste:
 --             1. Xero accounting            (ADD_XERO_ACCOUNTING_2026-10-06_2155.sql)
@@ -31,7 +31,7 @@
 -- >>> ADD_XERO_ACCOUNTING_2026-10-06_2155.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_XERO_ACCOUNTING_2026-10-06_2155.sql
--- PROJECT : Handled Services LLC (myhumanai) — Hub → Accounting (Xero)
+-- PROJECT : Handled Services LLC (HandledServices) — Hub → Accounting (Xero)
 -- CREATED : 2026-10-06_2155 UTC
 -- PURPOSE : Turns on Xero accounting in the EXISTING Supabase project. Same as migration
 --           20261006215500_xero_accounting.sql. Run once in Supabase → SQL Editor. Safe to run twice.
@@ -85,7 +85,7 @@ alter table public.contractors add column if not exists xero_contact_id text;
 -- >>> ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql
--- PROJECT : Handled Services LLC (myhumanai) — Referral Partner Program
+-- PROJECT : Handled Services LLC (HandledServices) — Referral Partner Program
 -- CREATED : 2026-10-07_0100 UTC
 -- PURPOSE : Turns on the Referral Partner Program in the EXISTING Supabase project (/partners, /partner,
 --           Hub → Referral partners). Same as migration 20261007010000_referral_partners.sql.
@@ -160,7 +160,7 @@ create policy staff_all on public.partner_commissions for all to authenticated u
 -- >>> ADD_SITE_SETTINGS_GRAND_OPENING_2026-10-07_0230.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_SITE_SETTINGS_GRAND_OPENING_2026-10-07_0230.sql
--- PROJECT : Handled Services LLC (myhumanai) — Website looks + grand opening promotion
+-- PROJECT : Handled Services LLC (HandledServices) — Website looks + grand opening promotion
 -- CREATED : 2026-10-07_0230 UTC
 -- PURPOSE : For the EXISTING Supabase project: settings table for Hub → Website & promotions, and the fix that lets
 --           discounted bookings through the take-rate guard. Same as migration 20261007023000_site_settings_grand_opening.sql.
@@ -210,7 +210,7 @@ end $$;
 -- >>> ADD_LOYALTY_POINTS_2026-10-07_0530.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_LOYALTY_POINTS_2026-10-07_0530.sql
--- PROJECT : Handled Services LLC (myhumanai) — Handled Points (customer & business loyalty)
+-- PROJECT : Handled Services LLC (HandledServices) — Handled Points (customer & business loyalty)
 -- CREATED : 2026-10-07_0530 UTC
 -- PURPOSE : Turns on Handled Points in the EXISTING Supabase project. Same as migration
 --           20261007040000_loyalty_points.sql. Run once in Supabase → SQL Editor. Safe to run twice.
@@ -284,7 +284,7 @@ revoke all on function public.redeem_loyalty(uuid, text, uuid, int, text, numeri
 -- >>> ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_1640 UTC
 -- PURPOSE : For the EXISTING Supabase project: (1) new service areas outside Metro Detroit (rest of Michigan),
 --           (2) bid measurements (size / unit on bid cost lines). Same as migrations 20261007030000_bid_measurements.sql and
@@ -309,7 +309,7 @@ alter table public.bid_cost_lines add column if not exists measure_unit text;
 -- >>> ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_1700 UTC
 -- PURPOSE : For the EXISTING Supabase project: Washington service areas — Seattle & Eastside, Everett & North Sound,
 --           Tacoma & South Sound, Olympia & Southwest WA, Central Washington, Spokane & Eastern WA. Also turns off the
@@ -333,7 +333,7 @@ update public.markets set active = false where name = 'Toledo' and state = 'OH';
 -- >>> ADD_WASHINGTON_AREA_PRICING_2026-10-07_1830.sql
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_WASHINGTON_AREA_PRICING_2026-10-07_1830.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_1830 UTC
 -- PURPOSE : For the EXISTING Supabase project: Washington prices — Seattle area +25%, rest of Washington +20%.
 --           Run AFTER ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql. Same as migration 20261007070000_washington_area_pricing.sql.

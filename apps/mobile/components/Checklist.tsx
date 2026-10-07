@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/components/Checklist.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Job checklist in the app (format in packages/core/src/checklists.ts), English and Spanish:
  *             ChecklistList   — read-only (offer screen, customer progress)

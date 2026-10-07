@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/r/[code]/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0115 UTC
  * PURPOSE : Short partner links for cards, texts and QR codes: /r/JANE7K2Q → the home page, partner remembered
  *           (same cookie and rules as ?partner=, 90 days, first click wins).

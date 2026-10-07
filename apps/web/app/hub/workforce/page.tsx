@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/workforce/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : IEBC Workforce desk — which IEBC AI employees run which departments here,
  *           their autonomy, the approval queue for their proposed actions, and the

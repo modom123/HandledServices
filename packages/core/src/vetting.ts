@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/vetting.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2109 UTC
  * UPDATED : 2026-10-02_0251 UTC — transportation specialty: sporting events & concerts.
  * UPDATED : 2026-10-03_0117 UTC — additional insured uses the legal name (BRAND.legalName).

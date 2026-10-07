@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/partners/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0120 UTC
  * PURPOSE : Public sign-up for the Referral Partner Program (/partners). POST { name, email, phone?, company?, kind, how?, agree }
  *           → partner code + link, welcome email with a sign-in link to the partner page. Rate-limited.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/crew.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Crew accounts (rules in core crew.ts):
  *             signCrewAddendum   — the owner signs the Crew Addendum (right to work, I-9, workers' comp)

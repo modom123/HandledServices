@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/pricing-accuracy.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1255 UTC
  * PURPOSE : Loads what really happened on finished jobs (time on site, final price, work added,
  *           materials, refunds, ratings), offer outcomes and saved quotes for a period, and scores

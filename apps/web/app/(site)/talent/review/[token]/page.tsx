@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/talent/review/[token]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : The client's private page for one search (no login; the link is the key): accept the client agreement
  *           once, then review each submitted candidate and choose interview / pass / hold.

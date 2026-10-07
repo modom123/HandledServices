@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/identity/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Pro starts the photo ID check: returns Stripe Identity's link, or { manual: true } when we'll
  *           verify on a short video call instead.

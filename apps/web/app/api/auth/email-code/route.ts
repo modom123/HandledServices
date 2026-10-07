@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/auth/email-code/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2300 UTC
  * PURPOSE : Sign-in step 1 for the website and the app: POST { email, next?, lang? } → Handled emails a sign-in code and a
  *           link that works on any device (lib/signin). Answers { ok: true } whether or not the email has an account

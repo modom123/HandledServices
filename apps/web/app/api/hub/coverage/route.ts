@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/coverage/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_2120 UTC
  * PURPOSE : Hub → Cancellations & coverage actions (staff):
  *             { action: "call_backup", job_id }        — call the next backup now

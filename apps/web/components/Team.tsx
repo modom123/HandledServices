@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Team.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0434 UTC
  * PURPOSE : Hub → Team controls: add a team member by email (admin or dispatcher), remove access.
  */

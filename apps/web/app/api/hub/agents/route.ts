@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/agents/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0752 UTC
  * PURPOSE : Hub → AI agents (staff). POST JSON:
  *             { action: "assign", agent, title, target?, due_date? }   — give an agent a task (it sees it on every run)

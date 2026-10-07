@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005195400_bid_engine.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_1954 UTC
 -- PURPOSE : The bid engine (packages/core/src/bid-engine.ts, Hub → Bids): one workspace per public bid.
 --             • bids             — the bid: source, agency, deadlines, status, go / no-go answers, pricing assumptions,

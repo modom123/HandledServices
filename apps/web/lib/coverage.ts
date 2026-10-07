@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/coverage.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_1950 UTC
  * PURPOSE : Every job gets done (rules in @handled/core coverage.ts).
  *             lineUpBackups(job)   — after a pro accepts, ask the next 3 best pros to be backup #1–#3 ("can you cover if

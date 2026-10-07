@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/checklists/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0221 UTC
  * PURPOSE : Hub → Checklists: the checklist library for every service (?lang=es for Spanish).
  */

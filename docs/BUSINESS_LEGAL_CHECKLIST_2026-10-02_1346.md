@@ -1,6 +1,6 @@
 <!--
   FILE    : docs/BUSINESS_LEGAL_CHECKLIST_2026-10-02_1346.md
-  PROJECT : Handled (myhumanai) — AI-run home & business services
+  PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-02_1346 UTC
   PURPOSE : What the business needs that software can't do — insurance, legal review, HIPAA,
             transportation authority and company setup. The same list is in Hub → Go-live setup

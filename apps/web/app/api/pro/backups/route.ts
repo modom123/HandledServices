@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/backups/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_1950 UTC
  * PURPOSE : Pro answers a standby request (backup #1–#3 on someone else's job). POST { id, answer: "yes" | "no" }.
  *           GET lists the pro's open standby requests (for the app). Passing is always free.

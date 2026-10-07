@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/MarketAdmin.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0152 UTC
  * PURPOSE : Hub → Market pricing controls: override a service's factor (or hand it back to
  *           learning), and re-learn from offers now.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/partners/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0145 UTC
  * PURPOSE : Handled Hub → Partners (Referral Partner Program): every partner with their customers and earnings,
  *           pause / reactivate, credit a customer by hand, and the commission queue (void before payout).

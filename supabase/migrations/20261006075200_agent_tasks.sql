@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006075200_agent_tasks.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0752 UTC
 -- PURPOSE : Tasks the team assigns to the AI agents (Hub → AI agents, or by asking the Ops co-pilot).
 --           Each open task is added to that agent's instructions on every run (packages/core/src/mission.ts),

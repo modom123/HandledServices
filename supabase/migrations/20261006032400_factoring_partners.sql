@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006032400_factoring_partners.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-06_0324 UTC
 -- PURPOSE : Invoice factoring partners (packages/core/src/factoring.ts, Hub → Factoring): the companies we're asking
 --           to fund net-30+ business, city and government invoices so weekly pro payouts stay on time. One row per

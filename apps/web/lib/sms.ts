@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/sms.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Text messages (Twilio REST — no SDK). Without TWILIO_* settings messages are logged,
  *           so every flow still works in development. Twilio handles STOP/HELP opt-outs; we also

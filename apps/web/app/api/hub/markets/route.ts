@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/markets/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Staff: add a market (city) or pause / resume one. POST { name, state, zip_prefixes[] } or { id, active }.
  *           A ZIP prefix can belong to one market only, so jobs are never counted twice.

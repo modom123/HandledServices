@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/locale-save.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1412 UTC
  * PURPOSE : Save a signed-in person's language (English / Spanish) on their account — every text,
  *           email, push notification and timeline entry they get follows it. Guests: the cookie

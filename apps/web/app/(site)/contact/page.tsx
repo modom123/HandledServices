@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/contact/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Contact page: support email and phone, the business mailing address (BUSINESS_POSTAL_ADDRESS), service areas,
  *           and where to go for bookings, pros, businesses and partners.

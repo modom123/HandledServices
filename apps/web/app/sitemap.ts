@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/sitemap.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : sitemap.xml for search engines: main pages, every service, every service × city.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: focus services (MARKETING_FOCUS) and their city pages get higher priority.

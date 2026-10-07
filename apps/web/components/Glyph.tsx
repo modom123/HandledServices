@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Glyph.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0215 UTC
  * PURPOSE : Modern look: the catalog keeps its emoji (they're data, and the apps and emails still use them); on the website
  *           each emoji is drawn as one consistent line icon (Lucide) in a soft green tile with a gold option.

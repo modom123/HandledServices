@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/growth.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Customer money features, as plain rules shared by web, app and Hub:
  *             HANDLED_PLUS        — monthly membership: no priority fees + % off every job

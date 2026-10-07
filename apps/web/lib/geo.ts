@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/geo.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2334 UTC
  * PURPOSE : ZIP code → coordinates (centroid) for dispatch distance and the booking
  *           calendar's driving-radius check. Looked up once from a free public service

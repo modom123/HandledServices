@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/team/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0434 UTC
  * PURPOSE : Hub → Team (admin only). The only way to give someone Hub access — nobody can choose "staff" themselves.
  *             POST { action: "add", email, role: admin|dispatcher, name? } — creates the account if needed, sets the role,

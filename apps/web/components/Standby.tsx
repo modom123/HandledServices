@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Standby.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_1950 UTC
  * PURPOSE : Pro home → Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  */

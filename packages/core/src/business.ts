@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/business.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0244 UTC
  * UPDATED : 2026-10-02_0251 UTC — game day & concert rides under corporate transportation.
  * PURPOSE : How we present services to businesses: grouped by what a facility needs (not by

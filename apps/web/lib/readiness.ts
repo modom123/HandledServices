@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/readiness.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
  * UPDATED : 2026-10-02_1329 UTC — text messages (Twilio), Stripe dispute/subscription webhook events,
  *           sales tax, Vercel Pro for the 10-minute dispatch cron, migrations 13–16.

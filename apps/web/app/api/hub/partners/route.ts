@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/partners/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0120 UTC
  * PURPOSE : Hub → Partners controls (staff). POST JSON:
  *             { action: "status", id, status: "active" | "suspended" }

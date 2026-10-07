@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql
--- PROJECT : Handled Services LLC (myhumanai)
+-- PROJECT : Handled Services LLC (HandledServices)
 -- CREATED : 2026-10-07_1700 UTC
 -- PURPOSE : For the EXISTING Supabase project: Washington service areas — Seattle & Eastside, Everett & North Sound,
 --           Tacoma & South Sound, Olympia & Southwest WA, Central Washington, Spokane & Eastern WA. Also turns off the

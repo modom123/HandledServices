@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/board.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-04_2204 UTC
  * PURPOSE : Open job board — "Jobs near you" (rules in packages/core/src/board.ts).
  *             boardFor(pro)        — paid jobs still untaken after the first targeted round (and after any

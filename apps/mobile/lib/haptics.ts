@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/haptics.ts
- * PROJECT : Handled (myhumanai)
+ * PROJECT : Handled (HandledServices)
  * CREATED : 2026-10-06_0708 UTC
  * PURPOSE : Small vibrations that make the app feel solid, like the apps people use every day:
  *           a light tick when you pick an option, a firm tap on the main button, and success /

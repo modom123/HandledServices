@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/checklist/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1346 UTC
  * PURPOSE : Staff: tick / untick a business & legal launch item, with an optional note.
  */

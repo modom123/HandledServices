@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/talent/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Hub → Talent: the recruiting agency at a glance — open searches, pipeline, hires, fees billed and
  *           collected, what's owed to recruiters, new requests from the website, clients and new searches.

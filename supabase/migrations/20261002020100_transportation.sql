@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002020100_transportation.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0201 UTC
 -- PURPOSE : Transportation (private driver, airport transfer, limousine, party bus, charter bus,
 --           event shuttle) booked with licensed operator companies. Operators upload passenger-

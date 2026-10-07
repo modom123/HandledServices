@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/hub/pro-program/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Staff: read and save the Pro Program policy — who qualifies for each benefit and its amounts.
  */

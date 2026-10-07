@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005014100_email_center.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_0148 UTC
 -- PURPOSE : Email Center (Hub → Email): marketing campaigns sent from the company mailbox
 --           (Hostinger SMTP, info@handledsvc.com), a trickle send by the 10-minute cron, click tracking,

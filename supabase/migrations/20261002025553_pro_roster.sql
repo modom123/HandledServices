@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002025553_pro_roster.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0255 UTC
 -- PURPOSE : Know where pros are and when they can work:
 --             • on_call_until — the pro switched "On call" on (same-day work) until this time

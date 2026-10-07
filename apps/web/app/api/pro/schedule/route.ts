@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/schedule/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0255 UTC
  * PURPOSE : Pro: my calendar (GET — jobs ahead, days off, open slots, on-call status) and
  *           block or reopen a day (POST {date, off}).

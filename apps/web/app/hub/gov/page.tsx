@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/gov/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Handled Hub → Gov contracts: federal contract opportunities from SAM.gov for work our pros do. The saved
  *           daily search and "search now" (inside the daily call budget), the pipeline (new → reviewing → bidding →

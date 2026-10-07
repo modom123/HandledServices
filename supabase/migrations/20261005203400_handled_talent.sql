@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005203400_handled_talent.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-05_2034 UTC
 -- PURPOSE : Handled Talent — recruiting agency as a service (packages/core/src/talent.ts; Hub → Talent; /pro/talent).
 --             • talent_clients           — companies that hire through us, their fee terms and signed agreement

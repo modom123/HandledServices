@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/plus/portal/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Manage or cancel Handled Plus (Stripe billing portal).
  */

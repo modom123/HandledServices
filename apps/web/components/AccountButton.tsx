@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/AccountButton.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0434 UTC
  * PURPOSE : The header's one account button (replaces "My Bookings" + "Sign in"). Signed out: "Sign in". Signed in, by
  *           who the email belongs to: staff → "Hub", pro → "Pro portal", everyone else → "My account" — with a menu to

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261006215500_xero_accounting.sql
--- PROJECT : Handled (myhumanai) - AI-run home & business services
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-06_2155 UTC
 -- PURPOSE : Xero is the books of record; Stripe is where the money moves. This adds:
 --             xero_connection    - the one connected Xero organisation: OAuth tokens (encrypted by the server,

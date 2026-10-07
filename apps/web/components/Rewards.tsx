@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/components/Rewards.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0418 UTC
  * PURPOSE : Pro Rewards UI: the pro's redeem form (shipping address), and the Hub controls (settings, catalog items,
  *           order status, point adjustments / forfeits, run the release now).

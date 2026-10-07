@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/migrations/20261002031601_launch_growth.sql
--- PROJECT : Handled (myhumanai) — AI-run home & business services
+-- PROJECT : Handled (HandledServices) — AI-run home & business services
 -- CREATED : 2026-10-02_0316 UTC
 -- PURPOSE : Launch blockers + growth + customer experience, in one place:
 --             • rate_limits + hit_rate_limit()   — abuse limits on public endpoints (AI, uploads)

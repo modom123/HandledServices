@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/focus.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0606 UTC
  * PURPOSE : Where sales and marketing push first: cleaning, in Detroit and the surrounding cities. The brand and website
  *           are national (any city can book or join the waitlist); this is only where outbound effort starts.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/privacy/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1945 UTC
  * PURPOSE : Privacy policy (required by Apple/Google app stores and SMS carriers).
  *           TEMPLATE — have counsel review before launch.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/hub/agents/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-06_0752 UTC
  * PURPOSE : Hub → AI agents: proof the AI team is working toward $100M every day. The mission and the two priorities
  *           (onboard pros, win new jobs); today's Growth plan; for every agent: what it does, when it runs, whether it's

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/snap/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0449 UTC
  * PURPOSE : /snap — "Snap & post a job": photo → AI picks the service and fills in the details → timeframe → booking.
  */

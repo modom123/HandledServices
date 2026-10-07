@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/pro/standing/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0123 UTC
  * PURPOSE : A pro appeals a warning, suspension or deactivation (Pro Deactivation Policy).
  *           POST { appeal }. A person decides within 7 days.

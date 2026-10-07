@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/api/quote/save/route.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_0027 UTC
  * PURPOSE : "Email me this price" from the booking page. POST { email, service_slug, answers,
  *           frequency, locale } → emails the price (re-computed here) with a link back to the

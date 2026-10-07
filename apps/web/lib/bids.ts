@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/lib/bids.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_1954 UTC
  * PURPOSE : The bid engine, server side (rules and math in core bid-engine.ts; Hub → Bids):
  *             createBid        — a bid from a SAM.gov notice or by hand (city / county / state / school…), seeded with

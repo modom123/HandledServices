@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/lib/es-app.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * UPDATED : 2026-10-03_0152 UTC — market pricing (raise your offer / pros' counters on the job screen).
  * UPDATED : 2026-10-04_2204 UTC — favorites and "Book again with …".

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/app/snap.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0449 UTC
  * PURPOSE : "Snap & post a job" in the app: take photos with the camera (or pick from the library) and say what you
  *           need → the AI names the service and fills in the job details (/api/snap) → choose when it needs doing →

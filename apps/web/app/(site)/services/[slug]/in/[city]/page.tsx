@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/web/app/(site)/services/[slug]/in/[city]/page.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : "<Service> in <City>" landing pages for search (every service × every city in
  *           SEO_CITIES), built on demand and cached for a day.

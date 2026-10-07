@@ -1,6 +1,6 @@
 <!--
 FILE    : docs/BID_ENGINE_GUIDE_2026-10-05_1956.md
-PROJECT : Handled (myhumanai) — AI-run home & business services
+PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-10-05_1956 UTC
 PURPOSE : How to use the bid engine (Hub → 📝 Bids) so every public bid is decided, priced and submitted the same careful way.
 -->

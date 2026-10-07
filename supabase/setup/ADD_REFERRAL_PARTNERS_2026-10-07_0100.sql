@@ -1,6 +1,6 @@
 -- ============================================================================
 -- FILE    : supabase/setup/ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql
--- PROJECT : Handled Services LLC (myhumanai) — Referral Partner Program
+-- PROJECT : Handled Services LLC (HandledServices) — Referral Partner Program
 -- CREATED : 2026-10-07_0100 UTC
 -- PURPOSE : Turns on the Referral Partner Program in the EXISTING Supabase project (/partners, /partner,
 --           Hub → Referral partners). Same as migration 20261007010000_referral_partners.sql.

@@ -1,6 +1,6 @@
 /*
  * FILE    : apps/mobile/components/BookingPickers.tsx
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1405 UTC
  * PURPOSE : Shared pickers for booking and rescheduling: the availability calendar (real open
  *           days and arrival windows for the ZIP) and a typed number box. English / Spanish.

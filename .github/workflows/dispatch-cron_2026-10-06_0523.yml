@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # FILE    : .github/workflows/dispatch-cron_2026-10-06_0523.yml
-# PROJECT : Handled (myhumanai) — AI-run home & business services
+# PROJECT : Handled (HandledServices) — AI-run home & business services
 # CREATED : 2026-10-06_0523 UTC
 # PURPOSE : Calls /api/cron/dispatch every 10 minutes (expired job offers go to the next
 #           pros; the next Email Center batch goes out). This runs on GitHub Actions

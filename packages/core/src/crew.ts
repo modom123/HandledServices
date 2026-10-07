@@ -1,6 +1,6 @@
 /*
  * FILE    : packages/core/src/crew.ts
- * PROJECT : Handled (myhumanai) — AI-run home & business services
+ * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-03_1305 UTC
  * PURPOSE : Crew accounts and the proven-skill fast track — the rules both the web portal, the Hub
  *           and dispatch use.
