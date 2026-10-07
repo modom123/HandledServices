@@ -55,7 +55,7 @@ async function businessBooking(propertyId: string) {
 export const metadata = { title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { service, when, budget, promo, frequency, property, pro, crew, photos, notes, src: _src, ...rest } = await searchParams;
+  const { service, when, budget, promo, frequency, property, pro, crew, photos, notes, src: _src, partner: _partner, ...rest } = await searchParams;
   // from "Snap & post a job": the uploaded photos and the note come along
   const initialPhotos = (photos ?? "").split(",").filter((p) => /^booking\/[\w\-./]+$/.test(p) && !p.includes("..")).slice(0, 8);
   const business = property ? await businessBooking(property) : undefined;

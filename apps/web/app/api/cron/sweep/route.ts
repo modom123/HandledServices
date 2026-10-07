@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-04_1934 UTC — business invoices on the 1st; invoice reminders and terms holds daily.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: release pending points, milestones, inactivity expiry.
  * UPDATED : 2026-10-05_2034 UTC — Handled Talent: invoice hires on their start date and retainer payments when due.
+ * UPDATED : 2026-10-07_0110 UTC — Mondays: referral partner commissions (lib/partners).
  * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  */
 import { adminClient } from "@/lib/supabase/server";
@@ -75,11 +76,12 @@ export async function GET(req: Request) {
   const monday = new Date().getUTCDay() === 1;
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
   const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
+  const partnerPayouts = monday ? await (await import("@/lib/partners")).runPartnerPayouts().catch((e) => { console.error("[partner payouts]", e); return null; }) : null; // Mondays: referral commissions
   // business accounts on terms: invoices on the 1st (last month's jobs); reminders and holds daily
   const invoices = new Date().getUTCDate() === 1 ? await runInvoices().catch((e) => { console.error("[invoices]", e); return 0; }) : null;
   const billing = await invoiceSweep().catch((e) => { console.error("[invoice sweep]", e); return null; });
   const rewards = await (await import("@/lib/rewards")).releaseRewards().catch((e) => { console.error("[rewards]", e); return null; });
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
 
-  return Response.json({ invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

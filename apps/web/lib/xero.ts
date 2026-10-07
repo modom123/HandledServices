@@ -31,7 +31,7 @@ export const xeroRedirectUri = () => process.env.XERO_REDIRECT_URI?.trim() || `$
 
 export type AccountKey =
   | "stripe_bank" | "checking_bank" | "service_revenue" | "membership_revenue" | "talent_revenue" | "instant_pay_fees" | "refunds"
-  | "subcontractors" | "pro_incentives" | "tips" | "gift_cards" | "sales_tax" | "materials" | "stripe_fees" | "chargebacks" | "adjustments";
+  | "subcontractors" | "pro_incentives" | "referral_commissions" | "tips" | "gift_cards" | "sales_tax" | "materials" | "stripe_fees" | "chargebacks" | "adjustments";
 
 /** The chart Handled needs in Xero. "Create missing accounts" adds any code that isn't there yet (not checking_bank). */
 export const DEFAULT_ACCOUNTS: Record<AccountKey, { code: string; name: string; type: string; help: string }> = {
@@ -44,6 +44,7 @@ export const DEFAULT_ACCOUNTS: Record<AccountKey, { code: string; name: string; 
   refunds: { code: "4190", name: "Customer refunds", type: "REVENUE", help: "Refunds to customers (reduces revenue)." },
   subcontractors: { code: "5100", name: "Pro payouts (subcontractors)", type: "DIRECTCOSTS", help: "What pros earn for jobs, show-up pay, guarantee top-ups and recruiter shares, minus deductions." },
   pro_incentives: { code: "5110", name: "Pro bonuses & stipends", type: "DIRECTCOSTS", help: "Referral bonuses and insurance stipends paid to pros." },
+  referral_commissions: { code: "6130", name: "Referral commissions", type: "EXPENSE", help: "What referral partners earn: 10% of our fee on jobs from customers they sent (Partner Program)." },
   tips: { code: "2100", name: "Tips owed to pros", type: "CURRLIAB", help: "Tips are the pro's money: in when the customer tips, out when the pro is paid. Should net to ~0." },
   gift_cards: { code: "2110", name: "Gift cards outstanding", type: "CURRLIAB", help: "Gift cards sold and not yet used." },
   sales_tax: { code: "2120", name: "Sales tax collected", type: "CURRLIAB", help: "Sales tax Stripe Tax collected on top of the price. Clear it when you file and pay the tax." },

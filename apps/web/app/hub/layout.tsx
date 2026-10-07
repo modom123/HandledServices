@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-06_0752 UTC — 🤖 AI agents (mission, daily growth plan, agent health, assign tasks).
  * UPDATED : 2026-10-06_2120 UTC — 🛟 Cancellations & coverage.
  * UPDATED : 2026-10-06_2230 UTC — 📒 Accounting (Xero + Stripe).
+ * UPDATED : 2026-10-07_0145 UTC — 💸 Referral partners.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -46,6 +47,7 @@ const NAV = [
   ["/hub/gaps", "🕳️", "Supply gaps"],
   ["/hub/customers", "👥", "Customers & B2B"],
   ["/hub/biz-leads", "🤝", "Business leads"],
+  ["/hub/partners", "💸", "Referral partners"],
   ["/hub/gov", "🏛️", "Gov contracts"],
   ["/hub/bids", "📝", "Bids"],
   ["/hub/talent", "🤝", "Talent (recruiting)"],

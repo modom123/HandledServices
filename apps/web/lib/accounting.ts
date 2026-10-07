@@ -11,6 +11,7 @@
  *             • SPEND   "Stripe YYYY-MM-DD"  money out: Stripe fees, refunds, chargebacks, adjustments
  *             • SPEND per pro (contact = the pro)  their payout transfer, split into job pay / bonuses / tips /
  *                                            materials from our payouts ledger — spend by contact = 1099 detail
+ *             • SPEND per referral partner (contact = the partner)  their weekly commissions (6130 Referral commissions)
  *             • Bank transfer per Stripe payout   Stripe → your checking account, dated the arrival day, so it
  *                                            matches the deposit on the bank feed
  *             • Business invoices on terms → Xero sales invoices (Accounts Receivable, aging, factoring), and the
@@ -111,7 +112,7 @@ const id = (v: string | { id: string } | null | undefined) => (v ? (typeof v ===
 export type DayPlan = {
   day: string;
   postings: { account: AccountKey; cents: number }[];          // + money into Stripe, − money out (general)
-  pros: { contractorId: string; name: string; email: string | null; xeroContactId: string | null; lines: { account: AccountKey; cents: number }[] }[];
+  pros: { payee: "pro" | "partner"; contractorId: string; name: string; email: string | null; xeroContactId: string | null; lines: { account: AccountKey; cents: number }[] }[];
   payouts: { id: string; cents: number; arrival: string }[];    // + Stripe → checking, − checking → Stripe
   invoicePayments: { chargeId: string; invoiceId: string; xeroInvoiceId: string; number: string; cents: number }[];
   stripeNetCents: number;
@@ -165,7 +166,15 @@ export async function planDay(day: string, settings: XeroSettings): Promise<DayP
       add("chargebacks", bt.amount);
     } else if (cat === "transfer") {
       const tr = src as Stripe.Transfer | null;
-      const pro = tr?.metadata?.contractor_id;
+      // referral partner commissions: one spend per partner (contact = the partner) → 1099 detail
+      if (tr?.metadata?.partner_id) {
+        const key = `partner:${tr.metadata.partner_id}`;
+        const m = pros.get(key) ?? new Map<AccountKey, number>();
+        m.set("referral_commissions", (m.get("referral_commissions") ?? 0) - bt.amount);
+        pros.set(key, m);
+        continue;
+      }
+      const pro = tr?.metadata?.contractor_id ? `pro:${tr.metadata.contractor_id}` : null;
       const sent = -bt.amount;
       const { data: rows } = tr ? await db().from("payouts").select("kind, amount").eq("stripe_transfer_id", tr.id) : { data: null };
       const lines = new Map<AccountKey, number>();
@@ -197,14 +206,24 @@ export async function planDay(day: string, settings: XeroSettings): Promise<DayP
   }
 
   // pro spends: an account that nets to ≤ 0 for a pro (e.g. only a deduction) is booked in the general entries instead
-  const contractorIds = [...pros.keys()];
-  const { data: cons } = contractorIds.length ? await db().from("contractors").select("id, business_name, email, xero_contact_id").in("id", contractorIds) : { data: [] };
+  const ids = (kind: string) => [...pros.keys()].filter((k) => k.startsWith(`${kind}:`)).map((k) => k.slice(kind.length + 1));
+  const [{ data: cons }, { data: parts }] = await Promise.all([
+    ids("pro").length ? db().from("contractors").select("id, business_name, email, xero_contact_id").in("id", ids("pro")) : Promise.resolve({ data: [] }),
+    ids("partner").length ? db().from("referral_partners").select("id, name, company, email, xero_contact_id").in("id", ids("partner")) : Promise.resolve({ data: [] }),
+  ]);
   const proPlans: DayPlan["pros"] = [];
-  for (const [cid, m] of pros) {
+  for (const [key, m] of pros) {
+    const [payee, cid] = key.split(":") as ["pro" | "partner", string];
     const lines: { account: AccountKey; cents: number }[] = [];
     for (const [k, c] of m) { if (c > 0) lines.push({ account: k, cents: c }); else add(k, -c); }
-    const con = (cons ?? []).find((x: { id: string }) => x.id === cid) as { business_name: string; email: string | null; xero_contact_id: string | null } | undefined;
-    if (lines.length) proPlans.push({ contractorId: cid, name: con?.business_name ?? `Pro ${cid.slice(0, 8)}`, email: con?.email ?? null, xeroContactId: con?.xero_contact_id ?? null, lines });
+    if (!lines.length) continue;
+    if (payee === "pro") {
+      const con = (cons ?? []).find((x: { id: string }) => x.id === cid) as { business_name: string; email: string | null; xero_contact_id: string | null } | undefined;
+      proPlans.push({ payee, contractorId: cid, name: con?.business_name ?? `Pro ${cid.slice(0, 8)}`, email: con?.email ?? null, xeroContactId: con?.xero_contact_id ?? null, lines });
+    } else {
+      const p = (parts ?? []).find((x: { id: string }) => x.id === cid) as { name: string; company: string | null; email: string | null; xero_contact_id: string | null } | undefined;
+      proPlans.push({ payee, contractorId: cid, name: p ? (p.company ? `${p.name} (${p.company})` : p.name) : `Partner ${cid.slice(0, 8)}`, email: p?.email ?? null, xeroContactId: p?.xero_contact_id ?? null, lines });
+    }
   }
   const booked = () => [...post.values()].reduce((t, c) => t + c, 0) - proPlans.reduce((t, p) => t + p.lines.reduce((a, l) => a + l.cents, 0), 0)
     + invoicePayments.reduce((t, p) => t + p.cents, 0) - payouts.reduce((t, p) => t + p.cents, 0);
@@ -285,13 +304,14 @@ export async function syncStripeDay(day: string, settings: XeroSettings): Promis
 
   for (const p of plan.pros) {
     const total = p.lines.reduce((t, l) => t + l.cents, 0);
-    await tryDoc(() => once("pro_payout", `${day}:${p.contractorId}`, { day, amount: dollars(total), detail: { pro: p.name } }, async () => {
+    const ref = p.payee === "pro" ? `${day}:${p.contractorId}` : `${day}:partner:${p.contractorId}`;
+    await tryDoc(() => once("pro_payout", ref, { day, amount: dollars(total), detail: { pro: p.name } }, async () => {
       let cid = p.xeroContactId;
       if (!cid) {
         cid = await findOrCreateContact({ name: p.name, email: p.email, isSupplier: true });
-        await db().from("contractors").update({ xero_contact_id: cid }).eq("id", p.contractorId);
+        await db().from(p.payee === "pro" ? "contractors" : "referral_partners").update({ xero_contact_id: cid }).eq("id", p.contractorId);
       }
-      return bankTransaction(settings, { type: "SPEND", contactId: cid, date: day, reference: `Pro payout ${day}`, lines: p.lines.map((l) => line(settings, l.account, l.cents, `${DEFAULT_ACCOUNTS[l.account].name} — ${p.name}`)), key: `pro-${day}-${p.contractorId}` });
+      return bankTransaction(settings, { type: "SPEND", contactId: cid, date: day, reference: `${p.payee === "pro" ? "Pro payout" : "Referral commissions"} ${day}`, lines: p.lines.map((l) => line(settings, l.account, l.cents, `${DEFAULT_ACCOUNTS[l.account].name} — ${p.name}`)), key: `${p.payee}-${day}-${p.contractorId}` });
     }));
   }
 

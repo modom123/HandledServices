@@ -18,8 +18,8 @@
 import { useEffect, useState } from "react";
 import { browserClient } from "@/lib/supabase/browser";
 
-type Who = "customer" | "business" | "pro" | "team";
-const DEST: Record<Who, string> = { customer: "/account", business: "/account/business", pro: "/pro", team: "/hub" };
+type Who = "customer" | "business" | "pro" | "partner" | "team";
+const DEST: Record<Who, string> = { customer: "/account", business: "/account/business", pro: "/pro", partner: "/partner", team: "/hub" };
 const KEY = "handled_who";
 
 /** Supabase's sign-in errors in plain words, with the fix (the raw message stays at the end for support). */
@@ -84,6 +84,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
     { id: "customer", icon: "🏠", t: es ? "Reservo servicios" : "I book services", d: es ? "Su hogar: reservas, pagos, fotos, mensajes" : "For your home: bookings, payments, photos, messages" },
     { id: "business", icon: "🏢", t: es ? "Tengo una cuenta empresarial" : "I have a business account", d: es ? "Propiedades, reservas del equipo, facturas" : "Properties, team bookings, invoices" },
     { id: "pro", icon: "🧰", t: es ? "Soy profesional" : "I'm a pro", d: es ? "Ofertas, trabajos, pagos, recompensas" : "Offers, jobs, pay, rewards" },
+    { id: "partner", icon: "🤝", t: es ? "Soy socio de referidos" : "I'm a referral partner", d: es ? "Su enlace, clientes referidos y comisiones" : "Your link, referred customers and commissions" },
     { id: "team", icon: "🛠️", t: es ? "Equipo de Handled" : "Handled team", d: es ? "Personal autorizado (Hub)" : "Authorized staff (Hub)" },
   ];
 
@@ -103,6 +104,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
           </div>
           {who === "pro" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no es profesional de Handled? " : "Not a Handled pro yet? "}<a href="/pros#apply" className="font-semibold text-brand underline">{es ? "Postúlese aquí" : "Apply here"}</a>{es ? ": su cuenta de profesional se abre cuando lo aprobamos. Use el correo de su solicitud." : " — your pro account opens once you're approved. Use the email from your application."}</p>}
           {who === "business" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no tiene cuenta empresarial? Inicie sesión y créela en dos minutos." : "No business account yet? Sign in and set one up in two minutes."}</p>}
+          {who === "partner" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no es socio? " : "Not a partner yet? "}<a href="/partners#join" className="font-semibold text-brand underline">{es ? "Únase aquí" : "Join here"}</a>{es ? ": use el mismo correo con el que se registró." : " — use the email you signed up with."}</p>}
           {who === "team" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "Solo para personal: un administrador debe agregar su correo en Hub → Equipo." : "Staff only: an admin must add your email in Hub → Team first."}</p>}
         </div>
       )}

@@ -1410,3 +1410,20 @@ test("coverage: cancel tiers, time zones and backup order", async () => {
   assert.deepEqual(openBackupRanks([{ contractor_id: "x", rank: 2, status: "standby" }, { contractor_id: "y", rank: 1, status: "declined" }]), [1, 3]);
   assert.ok(backupAnswerMinutes(2) < backupAnswerMinutes(12) && backupAnswerMinutes(12) < backupAnswerMinutes(48));
 });
+
+test("referral partner program: 10% of our take, never negative, codes", async () => {
+  const { partnerCommission, partnerTake, makePartnerCode, cleanPartnerCode, partnerExpiry, PARTNER_PROGRAM } = await import("./partners.ts");
+  assert.equal(PARTNER_PROGRAM.pctOfTake, 0.1);
+  assert.equal(partnerTake({ price: 400, payout: 300 }), 100);
+  assert.equal(partnerCommission({ price: 400, payout: 300 }), 10);
+  assert.equal(partnerCommission({ price: 199.99, payout: 150 }), 4.99, "rounded down to the cent");
+  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 60 }), 4, "refunds come out first");
+  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 400 }), 0, "never negative");
+  assert.equal(partnerCommission({ price: 100, payout: 120 }), 0);
+  let i = 0;
+  const code = makePartnerCode("Jane O'Neil", () => [0, 0.5, 0.99, 0.2][i++ % 4]);
+  assert.match(code, /^JANEO[A-Z2-9]{4}$/);
+  assert.equal(cleanPartnerCode(" jane7k2q "), "JANE7K2Q");
+  assert.equal(cleanPartnerCode("<script>"), null);
+  assert.equal(partnerExpiry(new Date("2026-10-07T00:00:00Z")).toISOString().slice(0, 10), "2027-10-07");
+});

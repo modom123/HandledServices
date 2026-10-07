@@ -34,6 +34,7 @@
  * UPDATED : 2026-10-05_0221 UTC — the job checklist is frozen on the job when a pro accepts.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
+ * UPDATED : 2026-10-07_0110 UTC — Referral Partner Program: bookings credited to the customer's partner; commission accrued on completion.
  */
 import "server-only";
 import { z } from "zod";
@@ -236,6 +237,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   }
   if (ben?.isGift && ben.promoCode && (await redeemGift(job, ben.promoCode))) job = (await getJob(job.id)) ?? job;
   if (biz && acct?.pilot) await db().from("business_accounts").update({ pilot_jobs_left: Math.max(0, biz.account.pilot_jobs_left - 1) }).eq("id", biz.account.id);
+  // Referral Partner Program: credit the job to the customer's partner (existing referral, or a partner link for a new customer)
+  const partnerId = await (await import("./partners")).attributeJob(job).catch((e) => { console.error("[partners]", e); return null; });
+  if (partnerId) job = { ...job, partner_id: partnerId };
   return { job, estimate: est, ai, billing: acct ? { onTerms: job.billed_on_terms === true, reason: acct.reason, pilot: acct.pilot } : null };
 }
 
@@ -740,6 +744,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   });
   if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
+  if (job.partner_id) await (await import("./partners")).accrueCommission(job).catch((e) => console.error("[partners]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }
 

@@ -136,6 +136,8 @@ export interface Job {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+  /** Referral partner credited with this job (Referral Partner Program). */
+  partner_id?: string | null;
   /** Market pricing: our suggestion, the customer's offer, the booking fee inside price_final. */
   suggested_price?: number | null;
   customer_offer?: number | null;

@@ -14,6 +14,7 @@
  *           every page).
  * UPDATED : 2026-10-07_0030 UTC — green, white and gold: white header with a gold top rule, gold-on-deep-green logo mark,
  *           gold rule above the footer.
+ * UPDATED : 2026-10-07_0140 UTC — Partner Program in the For Business menu and the footer.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -48,6 +49,7 @@ export async function SiteHeader() {
         { href: "/business#industries", label: es ? "Industrias que atendemos" : "Who we serve", icon: "🏬" },
         { href: "/events", label: t("Parties & events"), icon: "🎉", hint: es ? "Eventos corporativos, una factura" : "Corporate events, one invoice" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
+        { href: "/partners", label: es ? "Programa de socios: gane por referir" : "Partner Program: earn on referrals", icon: "💸", hint: es ? "10% de nuestra tarifa por 12 meses" : "10% of our fee for 12 months" },
       ],
       footer: { href: "/business#quote", label: es ? "Pida una propuesta →" : "Request a proposal →" },
     },
@@ -115,6 +117,7 @@ export async function SiteFooter() {
             <li><Link href="/events" className="hover:text-ink">{t("Parties & events")}</Link></li>
             <li><Link href="/business" className="hover:text-ink">{t("Commercial accounts")}</Link></li>
             <li><Link href="/talent" className="hover:text-ink">{t("Recruiting (Handled Talent)")}</Link></li>
+            <li><Link href="/partners" className="hover:text-ink">💸 {l === "es" ? "Programa de socios" : "Partner Program"}</Link></li>
             <li><Link href="/plus" className="hover:text-ink">⭐ Handled Plus</Link></li>
             <li><Link href="/gift-cards" className="hover:text-ink">🎁 {t("Gift cards")}</Link></li>
             <li><Link href="/reviews" className="hover:text-ink">{t("Customer reviews")}</Link></li>

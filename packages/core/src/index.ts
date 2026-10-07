@@ -52,4 +52,5 @@ export * from "./factoring.ts";
 export * from "./mission.ts";
 export * from "./rfp.ts";
 export * from "./coverage.ts";
+export * from "./partners.ts";
 export * from "./supabase-public.ts";
