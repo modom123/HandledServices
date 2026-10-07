@@ -21,6 +21,6 @@ export async function POST(req: Request) {
   const limited = (await rateLimit(req, "signin")) ?? (await rateLimit(req, "signin", `email:${email}`));
   if (limited) return limited;
   const es = (b.data.lang ?? (await getLocale())) === "es";
-  const r = await sendSignInEmail(email, b.data.next || "/auth/home", es);
+  const r = await sendSignInEmail(email, b.data.next || "/auth/home", es, new URL(req.url).origin);
   return Response.json(r.status === "sent" ? { ok: true, codeLength: r.codeLength ?? 6 } : { fallback: true });
 }

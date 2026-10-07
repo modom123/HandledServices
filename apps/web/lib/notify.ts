@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-06_2105 UTC — defaults: sender and ops alerts go to info@handledsvc.com (EMAIL_FROM / OPS_EMAIL override).
  * UPDATED : 2026-10-06_2300 UTC — sendEmail() returns whether the email was handed off (sign-in codes fall back to Supabase when it wasn't);
  *           emailConfigured().
+ * UPDATED : 2026-10-07_0010 UTC — siteUrl() never hands out a localhost link on Vercel (falls back to the production domain).
  */
 import "server-only";
 
@@ -40,4 +41,14 @@ export async function sendEmail(to: string | string[], subject: string, text: st
 export const emailConfigured = () => Boolean(process.env.RESEND_API_KEY || (process.env.SMTP_USER && process.env.SMTP_PASSWORD));
 
 export const opsEmail = () => process.env.OPS_EMAIL || "info@handledsvc.com";
-export const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+/**
+ * The public web address for links in emails. NEXT_PUBLIC_SITE_URL wins — unless it's missing or still the localhost example
+ * while running on Vercel (that sent members to "localhost refused to connect"); then Vercel's own production domain is used.
+ */
+export const siteUrl = () => {
+  const set = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  const local = !set || /localhost|127\.0\.0\.1/.test(set);
+  if (!local || !process.env.VERCEL) return set || "http://localhost:3000";
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  return vercel ? `https://${vercel}` : set || "http://localhost:3000";
+};

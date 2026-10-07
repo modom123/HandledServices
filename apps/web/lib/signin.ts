@@ -46,19 +46,21 @@ async function makeLogin(email: string): Promise<Login | null> {
 }
 
 /** The link that lands on the "Finish signing in" page (works in any browser, survives link scanners). */
-export const confirmUrl = (hash: string, next: string) =>
-  `${siteUrl()}/auth/confirm?token_hash=${encodeURIComponent(hash)}&type=magiclink&next=${encodeURIComponent(safeNext(next, siteUrl()))}`;
+export const confirmUrl = (hash: string, next: string, base = siteUrl()) =>
+  `${base}/auth/confirm?token_hash=${encodeURIComponent(hash)}&type=magiclink&next=${encodeURIComponent(safeNext(next, siteUrl()))}`;
 
 /**
  * Email a sign-in code + link. Returns "sent" (with the code's length — Supabase projects send 6 to 10 digits), or
  * "fallback" when the caller should use Supabase's own email (no service role key, no email provider, or the send failed).
  */
-export async function sendSignInEmail(rawEmail: string, next: string, es = false): Promise<{ status: "sent" | "fallback"; codeLength?: number }> {
+export async function sendSignInEmail(rawEmail: string, next: string, es = false, origin?: string): Promise<{ status: "sent" | "fallback"; codeLength?: number }> {
   const email = normalizeEmail(rawEmail);
   if (!emailConfigured()) return { status: "fallback" };
   const login = await makeLogin(email);
   if (!login) return { status: "fallback" };
-  const link = confirmUrl(login.hash, next);
+  // the configured address, unless it's localhost and the person is on the real site — then the site they're on
+  const base = /localhost|127\.0\.0\.1/.test(siteUrl()) && origin && !/localhost|127\.0\.0\.1/.test(origin) ? origin : siteUrl();
+  const link = confirmUrl(login.hash, next, base);
   const code = login.code;
   const subject = es
     ? (code ? `Su código de ${BRAND.name}: ${code}` : `Su enlace para entrar a ${BRAND.name}`)

@@ -34,6 +34,7 @@ import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 import { getStripe } from "./stripe";
 import { getConnection, xeroConfigured } from "./xero";
+import { siteUrl as siteUrlNow } from "./notify";
 
 export type Check = { group: string; label: string; status: "ok" | "warn" | "fail"; detail: string; fix?: string };
 
@@ -46,7 +47,7 @@ export async function readiness(): Promise<Check[]> {
 
   // ── Environment
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  add("Website & Vercel", "Site URL", site.startsWith("https://") ? true : "warn", site || "not set", "Vercel → Settings → Environment Variables → NEXT_PUBLIC_SITE_URL = https://your-domain (used in every email link)");
+  add("Website & Vercel", "Site URL", site.startsWith("https://") && !site.includes("localhost") ? true : false, site ? (site.includes("localhost") ? `${site} — email links would point to localhost; using ${siteUrlNow()} for now` : site) : `not set — using ${siteUrlNow()} for now`, "Vercel → Settings → Environment Variables → NEXT_PUBLIC_SITE_URL = https://your-domain (used in every email link)");
   add("Website & Vercel", "Support email & phone", !BRAND_PLACEHOLDERS, BRAND_PLACEHOLDERS ? "still the placeholder support@handled.example / (555)" : "set", "Set NEXT_PUBLIC_SUPPORT_EMAIL and NEXT_PUBLIC_SUPPORT_PHONE in Vercel (and EXPO_PUBLIC_… for the app)");
   add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Google Business Profile → Ask for reviews → copy the link → set NEXT_PUBLIC_GOOGLE_REVIEW_URL in Vercel and EXPO_PUBLIC_GOOGLE_REVIEW_URL for the app");
   add("Pro recruiting", "Lead engine: finding pros", has("GOOGLE_PLACES_API_KEY") ? true : "warn", has("GOOGLE_PLACES_API_KEY") ? "Google Places key set" : "not set — CSV import only", "Google Cloud → enable Places API (New) → create an API key (restrict it to Places API) → GOOGLE_PLACES_API_KEY in Vercel. Then turn the engine on in Hub → Pro leads");
