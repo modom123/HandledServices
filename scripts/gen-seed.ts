@@ -12,6 +12,7 @@
  *           Run: node --experimental-strip-types scripts/gen-seed.ts
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share: services.payout_share = typical-job share (typicalProShare);
  *           demo payouts use the same split as splitJob (booking fee + sliding commission + per-service cap).
+ * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  */
 
 import { BOOKING_FEE, COMMISSION, SERVICES, TAKE_MAX, TAKE_MIN, defaultAnswers, estimate, typicalProShare } from "../packages/core/src/index.ts";
@@ -42,7 +43,7 @@ out.push(`-- ===================================================================
 
 out.push("insert into public.services (slug, name, category, minimum, payout_share, site_visit, sort) values");
 out.push(
-  SERVICES.map((s, i) => `  (${q(s.slug)}, ${q(s.name)}, ${q(s.category)}, ${s.minimum}, ${Math.min(0.85, Math.max(0.65, typicalProShare(s.slug)))}, ${s.siteVisit}, ${i})`).join(",\n") +
+  SERVICES.map((s, i) => `  (${q(s.slug)}, ${q(s.name)}, ${q(s.category)}, ${s.minimum}, ${Math.min(0.85, Math.max(0.6, typicalProShare(s.slug)))}, ${s.siteVisit}, ${i})`).join(",\n") +
     "\non conflict (slug) do update set name = excluded.name, category = excluded.category, minimum = excluded.minimum,\n  payout_share = excluded.payout_share, site_visit = excluded.site_visit, sort = excluded.sort;\n",
 );
 

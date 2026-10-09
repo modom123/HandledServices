@@ -22,6 +22,8 @@
  *           this price (from splitJob), not a fixed per-service number; proShare(), typicalProShare() and slidingScale()
  *           give the hub, the catalog sync and the seed the same numbers pros are actually paid. splitJob rounds to
  *           the cent before rounding down (a $1,004 job paid $679 instead of $680 from float noise).
+ * UPDATED : 2026-10-09_0300 UTC — Handled +5 points on every job, paid by customers: commission 20% → 37% (was 15% → 32%),
+ *           take cap 40%, and every price (lines and minimums) raised by upliftFactor() so pro pay in dollars is unchanged.
  * UPDATED : 2026-10-07_1830 UTC — area pricing: EstimateInput.region (markets.price_multiplier, e.g. Seattle area 1.25, rest of
  *           Washington 1.20) raises the price and the minimum; the pro's pay follows the price.
  */
@@ -40,9 +42,18 @@ export const RECURRING_DISCOUNT: Record<Frequency, number> = {
 /** Bookings that start within this many hours get the rush surcharge. */
 export const RUSH_HOURS = 48;
 export const RUSH_SURCHARGE = 0.15;
-/** Our take on every job: never below 15%, never above 35% of the price. */
+/** Our take on every job: never below 15%, never above 40% of the price. */
 export const TAKE_MIN = 0.15;
-export const TAKE_MAX = 0.35;
+export const TAKE_MAX = 0.4;
+
+/**
+ * Handled's margin uplift (owner, 2026-10-09): +5 points of every price go to Handled, paid by the CUSTOMER — prices
+ * rise just enough that the pro's pay in dollars stays the same as before. Commission is the old sliding scale + 5
+ * points (20% → 37%); customer prices are raised by upliftFactor() so (1 − old rate) × old price = (1 − new rate) × new price.
+ */
+export const HANDLED_UPLIFT = 0.05;
+/** The commission scale before the uplift (what pro pay is anchored to). */
+export const BASE_COMMISSION = { minRate: 0.15, maxRate: 0.32, from: 60, to: 600 } as const;
 
 /** Paid by the customer on every booking (each visit for plans); kept by us, never shared or discounted. */
 export const BOOKING_FEE = 4;
@@ -55,12 +66,44 @@ export const bookingFeeOf = (price: number) => (price >= FEE_FROM ? BOOKING_FEE 
  * pros earn a fair amount on a $60 mow; big jobs carry more. Linear from 15% at $60 to 32% at $600+.
  * Payout still rises with every extra dollar of price.
  */
-export const COMMISSION = { minRate: 0.15, maxRate: 0.32, from: 60, to: 600 } as const;
-export function commissionRate(servicePrice: number, slug?: string): number {
-  const t = Math.min(1, Math.max(0, (servicePrice - COMMISSION.from) / (COMMISSION.to - COMMISSION.from)));
-  const cap = (slug && getService(slug)?.maxCommission) || TAKE_MAX;
-  return Math.min(cap, TAKE_MAX, Math.max(TAKE_MIN, COMMISSION.minRate + (COMMISSION.maxRate - COMMISSION.minRate) * t));
+/** Shown in the Hub / docs: the effective commission on the service price, roughly 20% on small jobs → 37% on big ones. */
+export const COMMISSION = { minRate: BASE_COMMISSION.minRate + HANDLED_UPLIFT, maxRate: BASE_COMMISSION.maxRate + HANDLED_UPLIFT, from: BASE_COMMISSION.from, to: BASE_COMMISSION.to } as const;
+
+/** The pre-uplift commission on a pre-uplift service price (what pro pay is anchored to). */
+function baseCommissionRate(servicePrice: number, slug?: string): number {
+  const t = Math.min(1, Math.max(0, (servicePrice - BASE_COMMISSION.from) / (BASE_COMMISSION.to - BASE_COMMISSION.from)));
+  const cap = (slug && getService(slug)?.maxCommission) || 0.35;
+  return Math.min(cap, 0.35, Math.max(TAKE_MIN, BASE_COMMISSION.minRate + (BASE_COMMISSION.maxRate - BASE_COMMISSION.minRate) * t));
 }
+/** Pro pay for a pre-uplift service price (unrounded). */
+const basePay = (service: number, slug?: string) => service * (1 - baseCommissionRate(service, slug));
+/** The customer total after the uplift, for a pre-uplift total (booking fee included): Handled keeps exactly HANDLED_UPLIFT more of it. */
+function upliftTotal(total0: number, slug?: string): number {
+  if (!(total0 > 0)) return total0;
+  const pay = basePay(Math.max(0, total0 - bookingFeeOf(total0)), slug);
+  return pay > 0 ? pay / (pay / total0 - HANDLED_UPLIFT) : total0;
+}
+/** Inverse of upliftTotal: the pre-uplift total that a customer price corresponds to. */
+function baseTotalFor(price: number, slug?: string): number {
+  if (!(price > 0)) return price;
+  let lo = 0, hi = price;
+  for (let i = 0; i < 48; i++) { const mid = (lo + hi) / 2; if (upliftTotal(mid, slug) < price) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+/** How much a pre-uplift service price (booking fee excluded) rises so the pro's pay is unchanged and Handled keeps +5 points of the total. */
+export function upliftFactor(servicePrice: number, slug?: string): number {
+  if (!(servicePrice > 0)) return 1;
+  const total0 = servicePrice + bookingFeeOf(servicePrice);
+  const total = upliftTotal(total0, slug);
+  return (total - bookingFeeOf(total)) / servicePrice;
+}
+/** Effective commission on a (customer) service price: everything that isn't the pro's pay. For display. */
+export function commissionRate(servicePrice: number, slug?: string): number {
+  if (!(servicePrice > 0)) return COMMISSION.minRate;
+  const price = servicePrice + bookingFeeOf(servicePrice);
+  return 1 - splitJob(price, slug).payout / servicePrice;
+}
+
 /** Card processing estimate (Stripe US standard). Big tickets should use ACH instead. */
 export const CARD_FEE = { pct: 0.029, fixed: 0.3 };
 
@@ -87,7 +130,9 @@ export function splitJob(price: number, slug?: string): JobSplit {
   const fee = bookingFeeOf(price);
   const service = Math.max(0, price - fee);
   // round to the cent before rounding down, so float noise (1000 × 0.68 = 679.999…) never shaves a dollar off the pro
-  const payout = price > 0 ? Math.floor(Math.round(service * (1 - commissionRate(service, slug)) * 100) / 100) : 0;
+  // pro pay is anchored to the pre-uplift price (Handled's +5 points are paid by the customer, not the pro)
+  const base = baseTotalFor(price, slug);
+  const payout = price > 0 ? Math.min(Math.floor(service), Math.floor(Math.round(basePay(Math.max(0, base - bookingFeeOf(base)), slug) * 100) / 100 + 1e-6)) : 0;
   const take = Math.round((price - payout) * 100) / 100;
   const cardFee = price > 0 ? Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100 : 0;
   return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };
@@ -176,7 +221,19 @@ export function estimate(input: EstimateInput): Estimate {
   const lines = [...items];
   const size = sizeFactor(service.questions, input.answers);
   if (size > 1) { const extra = Math.round(base * (size - 1)); lines.push({ label: "Larger than our standard size", amount: extra }); base += extra; }
-  let point = Math.max(base, service.minimum);
+  // Handled's +5-point uplift, paid by the customer: every price line rises so the pro's pay stays the same
+  // (not on the event package: its price IS the customer's budget)
+  { const f = service.slug === "event-package" ? 1 : upliftFactor(base, service.slug);
+    if (f !== 1 && lines.length) {
+      const scaled = lines.map((l) => ({ ...l, amount: Math.round(l.amount * f) }));
+      const target = Math.round(base * f), drift = target - scaled.reduce((t, l) => t + l.amount, 0);
+      const big = scaled.reduce((bi, l, i) => (l.amount > scaled[bi].amount ? i : bi), 0);
+      scaled[big] = { ...scaled[big], amount: scaled[big].amount + drift };
+      lines.splice(0, lines.length, ...scaled);
+      base = target;
+    } }
+  const svcMinimum = service.slug === "event-package" ? service.minimum : Math.round(service.minimum * upliftFactor(service.minimum, service.slug));
+  let point = Math.max(base, svcMinimum);
   if (point > base) lines.push({ label: "Service minimum", amount: point - base });
   // the area's price level (higher-cost areas like Seattle): the minimum scales with it, and so does the pro's pay
   const region = clampRegion(input.region ?? 1);
@@ -184,7 +241,7 @@ export function estimate(input: EstimateInput): Estimate {
     const r = Math.round(point * (region - 1));
     if (r) { lines.push({ label: "Area pricing", amount: r }); point += r; }
   }
-  const minimum = Math.round(service.minimum * region);
+  const minimum = Math.round(svcMinimum * region);
   // what pros in this area actually accept (learned from offers; ±, bounded) — see marketFactor()
   const market = clampFactor(input.market ?? 1);
   if (market !== 1 && !service.siteVisit) {

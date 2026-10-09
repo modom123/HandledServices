@@ -30,6 +30,7 @@
  * UPDATED : 2026-10-05_1433 UTC — security addendum covers standing posts, patrols and fire watch (section 7).
  * UPDATED : 2026-10-05_2034 UTC — pro-addendum-recruiter (Handled Talent: 20% of first-year salary, consent, ownership, fair hiring).
  * UPDATED : 2026-10-07_2000 UTC — Washington pros (RCW 49.62): customer clause limited to soliciting (accepting work a customer offers is allowed), Washington law and courts; agreement v8.
+ * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  */
 import {
   AGREEMENT_VERSION,
@@ -77,7 +78,7 @@ const NEC_YEAR = 2026;
 /** Worked payout example for section 8: a $100 service plus the booking fee. */
 const EX_PRICE = 100 + BOOKING_FEE;
 const EX = splitJob(EX_PRICE);
-const COMMISSION_TEXT = `${pct(COMMISSION.minRate)} on jobs of ${money(COMMISSION.from)} or less, rising evenly to ${pct(COMMISSION.maxRate)} on jobs of ${money(COMMISSION.to)} or more`;
+const COMMISSION_TEXT = `about ${pct(COMMISSION.minRate)} on small jobs, rising evenly to about ${pct(COMMISSION.maxRate)} on large ones (the exact payout is always shown on the offer before you accept)`;
 
 /**
  * Objective deactivation thresholds referenced by the agreement and the Deactivation Policy.

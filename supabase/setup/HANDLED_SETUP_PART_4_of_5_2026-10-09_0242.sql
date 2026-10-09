@@ -1,301 +1,11 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_PART_4_of_5_2026-10-06_2142.sql
--- PROJECT : Handled (HandledServices)
--- CREATED : 2026-10-06_2142 UTC
--- PURPOSE : NEW Supabase project setup, part 4 of 5 (run IN ORDER, one at a time). Migrations 20261005012800_biz_job_posts.sql .. 20261005203400_handled_talent.sql.
+-- FILE    : supabase/setup/HANDLED_SETUP_PART_4_of_5_2026-10-09_0242.sql
+-- PROJECT : Handled (myhumanai)
+-- CREATED : 2026-10-09_0242 UTC
+-- PURPOSE : NEW Supabase project setup, part 4 of 5 (run IN ORDER, one at a time). Migrations 20261005144100_gov_contracts.sql .. 20261006195000_job_coverage.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
 --           Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success" before the next part.
 -- ============================================================================
--- >>> migration 20261005012800_biz_job_posts.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261005012800_biz_job_posts.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-05_0130 UTC
--- PURPOSE : Business sales engine - job-posting track. A business that posted a job (Indeed and similar)
---           for a cleaner, handyman, maintenance tech, groundskeeper or mover is added by hand in the Hub
---           (job sites don't allow scraping) and gets the "book the work as a service" letter.
---             * biz_leads.job_title / posting_source / posting_url
---             * biz_leads.segment adds 'facilities' (offices, hotels & facilities)
--- ============================================================================
-alter table public.biz_leads
-  add column if not exists job_title text check (job_title is null or length(job_title) between 2 and 120),
-  add column if not exists posting_source text check (posting_source is null or length(posting_source) <= 60),
-  add column if not exists posting_url text check (posting_url is null or posting_url ~ '^https?://');
-alter table public.biz_leads drop constraint if exists biz_leads_segment_check;
-alter table public.biz_leads add constraint biz_leads_segment_check
-  check (segment in ('property_manager','real_estate','stager','storage','retail','facilities'));
-
-
--- >>> migration 20261005014100_email_center.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261005014100_email_center.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-05_0148 UTC
--- PURPOSE : Email Center (Hub -> Email): marketing campaigns sent from the company mailbox
---           (Hostinger SMTP, info@handledsvc.com), a trickle send by the 10-minute cron, click tracking,
---           and the shared unsubscribe list (email_optouts).
---             * email_campaigns            - draft -> scheduled -> sending -> sent (or paused / cancelled)
---             * email_campaign_recipients  - one row per person per campaign (queued -> sent / failed / skipped)
---             * email_center_settings      - sender name, reply-to, daily cap, per-run pace
---             * marketing_sends.kind adds 'campaign' (one marketing email a week per person, across all)
--- ============================================================================
-create table if not exists public.email_campaigns (
-  id uuid primary key default gen_random_uuid(),
-  name text not null check (length(name) between 2 and 120),
-  subject text not null default '',
-  preheader text,
-  body text not null default '',
-  subject_es text,
-  body_es text,
-  audience text not null check (audience in ('customers','repeat_customers','lapsed_customers','business_accounts','biz_leads','pros','custom')),
-  custom_list text,
-  custom_consent boolean not null default false,
-  status text not null default 'draft' check (status in ('draft','scheduled','sending','sent','paused','cancelled')),
-  scheduled_at timestamptz,
-  started_at timestamptz,
-  finished_at timestamptz,
-  recipients int not null default 0,
-  sent int not null default 0,
-  failed int not null default 0,
-  skipped int not null default 0,
-  clicks int not null default 0,
-  unsubscribes int not null default 0,
-  created_by text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-alter table public.email_campaigns enable row level security;
-create policy staff_all on public.email_campaigns for all to authenticated using (public.is_staff()) with check (public.is_staff());
-create index if not exists email_campaigns_status_idx on public.email_campaigns (status, scheduled_at);
-
-create table if not exists public.email_campaign_recipients (
-  id uuid primary key default gen_random_uuid(),
-  campaign_id uuid not null references public.email_campaigns(id) on delete cascade,
-  email text not null check (email = lower(email) and position('@' in email) > 1),
-  name text,
-  locale text not null default 'en' check (locale in ('en','es')),
-  vars jsonb not null default '{}',
-  status text not null default 'queued' check (status in ('queued','sent','failed','skipped')),
-  error text,
-  sent_at timestamptz,
-  clicked_at timestamptz,
-  clicks int not null default 0,
-  unique (campaign_id, email)
-);
-alter table public.email_campaign_recipients enable row level security;
-create policy staff_all on public.email_campaign_recipients for all to authenticated using (public.is_staff()) with check (public.is_staff());
-create index if not exists email_recipients_queue_idx on public.email_campaign_recipients (campaign_id, status);
-
-create table if not exists public.email_center_settings (
-  id int primary key default 1 check (id = 1),
-  from_name text not null default 'Handled',
-  reply_to text,
-  daily_cap int not null default 250 check (daily_cap between 1 and 1000),
-  per_run int not null default 25 check (per_run between 1 and 60),
-  updated_by text,
-  updated_at timestamptz not null default now()
-);
-alter table public.email_center_settings enable row level security;
-create policy staff_all on public.email_center_settings for all to authenticated using (public.is_staff()) with check (public.is_staff());
-
-alter table public.marketing_sends drop constraint if exists marketing_sends_kind_check;
-alter table public.marketing_sends add constraint marketing_sends_kind_check
-  check (kind in ('seasonal','quote_followup','booking_followup','campaign'));
-
-
--- >>> migration 20261005021600_job_checklists.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261005021600_job_checklists.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-05_0221 UTC
--- PURPOSE : Job checklists (packages/core/src/checklists.ts): one format for every service.
---             * jobs.checklist        - the checklist frozen when a pro takes the job (text can't change mid-job)
---             * jobs.checklist_extra  - special instructions added to one job (staff, or a customer request
---                                       before the work starts): [{ id, text, required, from, at }]
---             * job_checklist_checks  - each item done or N/A (with the reason), by whom and when. The pro on
---                                       the job and the customer can read them; writes go through the API.
--- ============================================================================
-alter table public.jobs
-  add column if not exists checklist jsonb,
-  add column if not exists checklist_extra jsonb not null default '[]'::jsonb check (jsonb_typeof(checklist_extra) = 'array');
-
-create table if not exists public.job_checklist_checks (
-  id uuid primary key default gen_random_uuid(),
-  job_id uuid not null references public.jobs(id) on delete cascade,
-  item_id text not null check (length(item_id) between 3 and 80),
-  status text not null check (status in ('done','na')),
-  note text check (note is null or length(note) <= 500),
-  checked_by text,
-  checked_at timestamptz not null default now(),
-  unique (job_id, item_id),
-  check (status <> 'na' or (note is not null and length(trim(note)) >= 3))
-);
-alter table public.job_checklist_checks enable row level security;
-create index if not exists job_checklist_checks_job_idx on public.job_checklist_checks (job_id);
-create policy "pro reads own job checks" on public.job_checklist_checks for select to authenticated using (
-  exists (select 1 from public.jobs j where j.id = job_id and j.contractor_id = public.my_contractor_id())
-);
-create policy "customer reads own job checks" on public.job_checklist_checks for select to authenticated using (
-  exists (select 1 from public.jobs j where j.id = job_id and j.customer_id = auth.uid())
-);
-create policy staff_all on public.job_checklist_checks for all to authenticated using (public.is_staff()) with check (public.is_staff());
-
-
--- >>> migration 20261005024000_pro_interviews.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261005024000_pro_interviews.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-05_0246 UTC
--- PURPOSE : Pro screening interviews (packages/core/src/interview.ts) between application and invite.
---             * pro_interviews - one per interview: AI (the candidate chats from a private link, after an AI
---               disclosure and consent) or a person (in person / phone, scored in the Hub). Transcript, scores
---               with evidence, the computed result, and the staff decision. A person always decides.
---             * contractor_applications.stage adds 'interviewing' and 'interviewed'
--- ============================================================================
-create table if not exists public.pro_interviews (
-  id uuid primary key default gen_random_uuid(),
-  application_id uuid not null references public.contractor_applications(id) on delete cascade,
-  token text not null unique default substr(replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''), 1, 32),
-  mode text not null default 'ai' check (mode in ('ai','human')),
-  locale text not null default 'en' check (locale in ('en','es')),
-  status text not null default 'invited' check (status in ('invited','in_progress','completed','expired','cancelled','human_requested')),
-  plan jsonb not null default '[]'::jsonb,
-  transcript jsonb not null default '[]'::jsonb,
-  scores jsonb,
-  evaluation jsonb,
-  result text check (result is null or result in ('advance','follow_up','not_now')),
-  average numeric(3,1),
-  interviewer text,
-  consent_at timestamptz,
-  started_at timestamptz,
-  completed_at timestamptz,
-  expires_at timestamptz not null default now() + interval '14 days',
-  decision text check (decision is null or decision in ('invite','follow_up','decline')),
-  decided_by text,
-  decided_at timestamptz,
-  notes text,
-  created_at timestamptz not null default now()
-);
-alter table public.pro_interviews enable row level security; -- candidates reach it only through the token API
-create policy staff_all on public.pro_interviews for all to authenticated using (public.is_staff()) with check (public.is_staff());
-create index if not exists pro_interviews_app_idx on public.pro_interviews (application_id, created_at desc);
-
-alter table public.contractor_applications drop constraint if exists contractor_applications_stage_check;
-alter table public.contractor_applications add constraint contractor_applications_stage_check
-  check (stage in ('applied','screened','interviewing','interviewed','invited','rejected','withdrawn'));
-
-
--- >>> migration 20261005041000_pro_rewards.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261005041000_pro_rewards.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-05_0418 UTC
--- PURPOSE : Handled Pro Rewards (packages/core/src/rewards.ts) - loyalty points for independent pros.
---             * reward_settings     - earn rate, point value, pending days... (Hub -> Rewards)
---             * reward_ledger       - every point movement: earn (per job, pending -> available), milestone,
---                                     redeem (negative), return (cancelled order), adjust, expire, forfeit
---             * reward_catalog      - what points buy (gear, gift cards, tools, electronics, trips); starter items below
---             * reward_redemptions  - orders: requested -> approved -> ordered -> shipped -> delivered (or cancelled);
---                                     fair market value goes on the pro's 1099 for the year it's delivered
---             * reward_balances     - view: available and pending points per pro
---           Pros read their own ledger and orders; the catalog is readable by signed-in users; writes go through the API.
--- ============================================================================
-create table if not exists public.reward_settings (
-  id int primary key default 1 check (id = 1),
-  settings jsonb not null default '{}'::jsonb,
-  updated_by text,
-  updated_at timestamptz not null default now()
-);
-alter table public.reward_settings enable row level security;
-create policy staff_all on public.reward_settings for all to authenticated using (public.is_staff()) with check (public.is_staff());
-
-create table if not exists public.reward_ledger (
-  id uuid primary key default gen_random_uuid(),
-  contractor_id uuid not null references public.contractors(id) on delete cascade,
-  kind text not null check (kind in ('earn','milestone','redeem','return','adjust','expire','forfeit')),
-  points int not null,
-  status text not null default 'available' check (status in ('pending','available','void')),
-  job_id uuid references public.jobs(id) on delete set null,
-  redemption_id uuid,
-  milestone text,
-  available_at timestamptz,
-  detail jsonb,
-  note text,
-  created_by text not null default 'system',
-  created_at timestamptz not null default now()
-);
-create unique index if not exists reward_ledger_job_uniq on public.reward_ledger (contractor_id, job_id) where kind = 'earn';
-create unique index if not exists reward_ledger_milestone_uniq on public.reward_ledger (contractor_id, milestone) where kind = 'milestone';
-create index if not exists reward_ledger_pro_idx on public.reward_ledger (contractor_id, created_at desc);
-create index if not exists reward_ledger_pending_idx on public.reward_ledger (available_at) where status = 'pending';
-alter table public.reward_ledger enable row level security;
-create policy "pro reads own rewards" on public.reward_ledger for select to authenticated using (contractor_id = public.my_contractor_id());
-create policy staff_all on public.reward_ledger for all to authenticated using (public.is_staff()) with check (public.is_staff());
-
-create table if not exists public.reward_catalog (
-  id uuid primary key default gen_random_uuid(),
-  slug text unique,
-  name text not null,
-  name_es text,
-  category text not null check (category in ('merch','gift_card','tools','electronics','travel','experience')),
-  points int not null check (points > 0),
-  cost_usd numeric(10,2) not null check (cost_usd >= 0),
-  description text,
-  description_es text,
-  image_url text,
-  stock int check (stock is null or stock >= 0),
-  active boolean not null default true,
-  sort int not null default 0,
-  created_at timestamptz not null default now()
-);
-alter table public.reward_catalog enable row level security;
-create policy "signed-in users read the catalog" on public.reward_catalog for select to authenticated using (active or public.is_staff());
-create policy staff_all on public.reward_catalog for all to authenticated using (public.is_staff()) with check (public.is_staff());
-insert into public.reward_catalog (slug, name, name_es, category, points, cost_usd, description, description_es, sort) values
-  ('hat', 'Handled hat', 'Gorra Handled', 'merch', 2500, 25, 'Embroidered cap.', 'Gorra bordada.', 0),
-  ('tee', 'Handled T-shirt', 'Camiseta Handled', 'merch', 2500, 25, 'Heavyweight cotton tee.', U&'Camiseta de algod\00F3n grueso.', 10),
-  ('hoodie', 'Handled hoodie', 'Sudadera Handled', 'merch', 6000, 60, 'Warm pullover hoodie.', U&'Sudadera c\00E1lida con capucha.', 20),
-  ('jacket', 'Handled work jacket', 'Chamarra de trabajo Handled', 'merch', 12000, 120, 'Insulated, water-resistant.', 'Aislada y resistente al agua.', 30),
-  ('gas-50', '$50 gas card', 'Tarjeta de gasolina de $50', 'gift_card', 5000, 50, 'For the miles you drive.', 'Para las millas que maneja.', 40),
-  ('tools-100', '$100 tool store gift card', U&'Tarjeta de regalo de $100 para ferreter\00EDa', 'gift_card', 10000, 100, 'Home-improvement store gift card.', 'Tarjeta de una tienda de mejoras para el hogar.', 50),
-  ('drill-kit', 'Cordless drill & driver kit', U&'Kit de taladro y atornillador inal\00E1mbrico', 'tools', 20000, 200, 'Brushless, two batteries.', U&'Sin escobillas, dos bater\00EDas.', 60),
-  ('earbuds', 'Wireless earbuds', U&'Aud\00EDfonos inal\00E1mbricos', 'electronics', 15000, 150, 'Noise-cancelling.', U&'Con cancelaci\00F3n de ruido.', 70),
-  ('tv-55', '55" 4K TV', U&'Televisi\00F3n 4K de 55"', 'electronics', 45000, 450, 'Smart TV, delivered.', 'Smart TV, con entrega.', 80),
-  ('tablet', 'Tablet', 'Tableta', 'electronics', 35000, 350, 'For quotes, photos and the app.', 'Para cotizaciones, fotos y la app.', 90),
-  ('game-day', 'Detroit game-day tickets (2)', 'Boletos para un partido en Detroit (2)', 'experience', 30000, 300, 'Two tickets to a home game.', 'Dos boletos para un partido en casa.', 100),
-  ('weekend-trip', 'Weekend getaway (2 nights)', 'Escapada de fin de semana (2 noches)', 'travel', 90000, 900, 'Hotel for two nights in Michigan or nearby.', 'Hotel por dos noches en Michigan o cerca.', 110),
-  ('trip-for-two', '4-day trip for two', U&'Viaje de 4 d\00EDas para dos', 'travel', 200000, 2000, 'Flights and hotel, booked with you.', 'Vuelos y hotel, reservados con usted.', 120)
-on conflict (slug) do nothing;
-
-create table if not exists public.reward_redemptions (
-  id uuid primary key default gen_random_uuid(),
-  contractor_id uuid not null references public.contractors(id) on delete cascade,
-  item_id uuid references public.reward_catalog(id) on delete set null,
-  item_name text not null,
-  points int not null check (points > 0),
-  fmv_usd numeric(10,2) not null check (fmv_usd >= 0),
-  status text not null default 'requested' check (status in ('requested','approved','ordered','shipped','delivered','cancelled')),
-  ship_to jsonb,
-  tracking text,
-  note text,
-  delivered_at timestamptz,
-  tax_year int,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-create index if not exists reward_redemptions_status_idx on public.reward_redemptions (status, created_at);
-alter table public.reward_redemptions enable row level security;
-create policy "pro reads own orders" on public.reward_redemptions for select to authenticated using (contractor_id = public.my_contractor_id());
-create policy staff_all on public.reward_redemptions for all to authenticated using (public.is_staff()) with check (public.is_staff());
-
-create or replace view public.reward_balances with (security_invoker = true) as
-select contractor_id,
-  coalesce(sum(points) filter (where status = 'available'), 0)::int as available,
-  coalesce(sum(points) filter (where status = 'pending'), 0)::int as pending,
-  coalesce(sum(points) filter (where kind in ('earn','milestone') and status <> 'void'), 0)::int as lifetime
-from public.reward_ledger group by contractor_id;
-
-
 -- >>> migration 20261005144100_gov_contracts.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261005144100_gov_contracts.sql
@@ -749,5 +459,305 @@ alter table public.payments add column if not exists talent_placement_id uuid re
 alter table public.payments add column if not exists talent_retainer_id uuid references public.talent_retainer_payments(id) on delete set null;
 
 insert into storage.buckets (id, name, public) values ('talent', 'talent', false) on conflict (id) do nothing;
+
+
+-- >>> migration 20261005203900_bid_archive.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261005203900_bid_archive.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-05_2043 UTC
+-- PURPOSE : RFP / RFQ archive and resubmission (bid engine, Hub -> Bids).
+--             * bids: solicitation type (RFQ, RFP, IFB...), revision number, reopened for a revision (when / why),
+--               and the earlier bid it was copied from (next year's re-bid)
+--             * bid_documents: versions - replacing a file keeps the old one (superseded, never deleted)
+--             * bid_submissions: every time a bid is submitted, a frozen record: number, reason, what changed, the
+--               exact pricing, compliance matrix, review sign-off and the documents sent, plus the confirmation
+-- ============================================================================
+alter table public.bids add column if not exists solicitation_type text not null default 'rfq'
+  check (solicitation_type in ('rfq','rfp','ifb','rfi','sources_sought','other'));
+alter table public.bids add column if not exists revision int not null default 0;
+alter table public.bids add column if not exists reopened_at timestamptz;
+alter table public.bids add column if not exists reopen_reason text;
+alter table public.bids add column if not exists reopen_note text;
+alter table public.bids add column if not exists previous_bid_id uuid references public.bids(id) on delete set null;
+create index if not exists bids_search on public.bids (solicitation_type, status, created_at desc);
+
+alter table public.bid_documents add column if not exists version int not null default 1;
+alter table public.bid_documents add column if not exists superseded_at timestamptz;
+alter table public.bid_documents add column if not exists superseded_by uuid references public.bid_documents(id) on delete set null;
+alter table public.bid_documents add column if not exists note text;
+
+create table if not exists public.bid_submissions (
+  id uuid primary key default gen_random_uuid(),
+  bid_id uuid not null references public.bids(id) on delete cascade,
+  number int not null check (number >= 1),
+  reason text not null default 'initial' check (reason in ('initial','correction','addendum','agency_request','bafo','price_update')),
+  change_note text,
+  submitted_at timestamptz not null default now(),
+  submitted_by text not null,
+  our_price numeric,
+  snapshot jsonb not null,
+  document_ids uuid[] not null default '{}',
+  confirmation_doc_id uuid references public.bid_documents(id) on delete restrict,
+  unique (bid_id, number)
+);
+alter table public.bid_submissions enable row level security;
+create policy staff_all on public.bid_submissions for all to authenticated using (public.is_staff()) with check (public.is_staff());
+-- a submission record is evidence: it can't be edited after the fact
+create or replace function public.bid_submission_frozen() returns trigger language plpgsql as $$
+begin raise exception 'Submission records are permanent - submit a new version instead'; end $$;
+drop trigger if exists bid_submission_frozen on public.bid_submissions;
+create trigger bid_submission_frozen before update on public.bid_submissions for each row execute function public.bid_submission_frozen();
+
+
+-- >>> migration 20261005213400_biz_lead_partners.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261005213400_biz_lead_partners.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-05_2134 UTC
+-- PURPOSE : Business leads can be teaming partners (segment 'partner'): firms we bid public contracts with.
+--           Tracked in Hub -> Business leads, never discovered, emailed by the sales sequence or included in
+--           Email Center blasts (enforced in lib/biz-leads.ts and lib/email-center.ts).
+-- ============================================================================
+alter table public.biz_leads drop constraint if exists biz_leads_segment_check;
+alter table public.biz_leads add constraint biz_leads_segment_check
+  check (segment in ('property_manager','real_estate','stager','storage','retail','facilities','partner'));
+
+
+-- >>> migration 20261005213900_account_notes.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261005213900_account_notes.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-05_2141 UTC
+-- PURPOSE : Account notes - the running conversation history for every business lead, business account and
+--           Handled Talent client: notes, calls, emails, meetings and texts, each with who wrote it and when.
+--           Append-only: a note is never edited or deleted (the database refuses), so the history stays complete;
+--           a correction is a new note. Status changes and automated events stay in biz_lead_events and are shown
+--           in the same timeline.
+-- ============================================================================
+create table if not exists public.account_notes (
+  id uuid primary key default gen_random_uuid(),
+  subject_type text not null check (subject_type in ('biz_lead','business_account','talent_client')),
+  subject_id uuid not null,
+  kind text not null default 'note' check (kind in ('note','call','email','meeting','text','status')),
+  body text not null check (length(trim(body)) between 1 and 8000),
+  author text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists account_notes_subject on public.account_notes (subject_type, subject_id, created_at desc);
+alter table public.account_notes enable row level security;
+create policy staff_read on public.account_notes for select to authenticated using (public.is_staff());
+create policy staff_add on public.account_notes for insert to authenticated with check (public.is_staff());
+
+create or replace function public.account_notes_append_only() returns trigger language plpgsql as $$
+begin raise exception 'Account notes are permanent - add a new note instead of changing or deleting one'; end $$;
+drop trigger if exists account_notes_append_only on public.account_notes;
+create trigger account_notes_append_only before update or delete on public.account_notes for each row execute function public.account_notes_append_only();
+
+-- keep what's already written: each lead's existing notes become its first history entry
+insert into public.account_notes (subject_type, subject_id, kind, body, author, created_at)
+select 'biz_lead', l.id, 'note', l.notes, 'imported', l.created_at
+from public.biz_leads l
+where l.notes is not null and length(trim(l.notes)) > 0
+  and not exists (select 1 from public.account_notes n where n.subject_type = 'biz_lead' and n.subject_id = l.id);
+
+
+-- >>> migration 20261005214500_customer_notes.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261005214500_customer_notes.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-05_2146 UTC
+-- PURPOSE : Customer notes - the same permanent, append-only history now covers homeowner / walk-in customers.
+--           A customer is keyed by their email: subject_id = md5(lower(trim(email)))::uuid, so every booking
+--           under that email shares one history (the app computes the same id).
+-- ============================================================================
+alter table public.account_notes drop constraint if exists account_notes_subject_type_check;
+alter table public.account_notes add constraint account_notes_subject_type_check
+  check (subject_type in ('biz_lead','business_account','talent_client','customer'));
+
+create or replace function public.customer_subject_id(email text) returns uuid language sql immutable as $$
+  select md5(lower(trim(email)))::uuid
+$$;
+
+
+-- >>> migration 20261006032400_factoring_partners.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006032400_factoring_partners.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-06_0324 UTC
+-- PURPOSE : Invoice factoring partners (packages/core/src/factoring.ts, Hub -> Factoring): the companies we're asking
+--           to fund net-30+ business, city and government invoices so weekly pro payouts stay on time. One row per
+--           partner with the outreach status and the quote (advance rate, fee, recourse, minimums, term, fees).
+--           Seeded with the five partners from docs/FACTORING_COMPARISON_2026-10-06_0320.xlsx (web search, verify on
+--           the call). Staff only. No contract or bank details are stored here.
+-- ============================================================================
+create table if not exists public.factoring_partners (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  website text,
+  fit text,
+  sort int not null default 100,
+  status text not null default 'to_contact'
+    check (status in ('to_contact','emailed','call_scheduled','quote_received','applied','active','passed')),
+  gov_scope text,                                   -- which receivables they fund: federal / state / city
+  advance_rate numeric check (advance_rate is null or (advance_rate > 0 and advance_rate <= 1)),
+  fee_pct numeric check (fee_pct is null or (fee_pct >= 0 and fee_pct < 1)),
+  fee_period_days int check (fee_period_days is null or fee_period_days between 1 and 90),
+  days_to_fund int check (days_to_fund is null or days_to_fund between 0 and 60),
+  recourse text check (recourse is null or recourse in ('recourse','non_recourse')),
+  monthly_minimum numeric check (monthly_minimum is null or monthly_minimum >= 0),
+  term text,                                        -- contract length / auto-renew / early-exit fee
+  spot_factoring boolean,
+  other_fees text,
+  contact_name text,
+  contact_email text,
+  contact_phone text,
+  contacted_at date,
+  notes text,
+  updated_by text,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+alter table public.factoring_partners enable row level security;
+create policy staff_all on public.factoring_partners for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
+insert into public.factoring_partners (slug, name, website, fit, sort) values
+  ('advance-partners', 'Advance Partners', 'https://www.advancepartners.com/payroll-funding/government-staffing/',
+   'Payroll funding for staffing on government contracts, including municipal; back office for payroll and billing. Best fit for the weekly pro payout run.', 10),
+  ('1st-commercial-credit', '1st Commercial Credit', 'https://www.1stcommercialcredit.com/financial-services/government-receivables',
+   'Dedicated government-receivables program plus staffing and payroll funding; works with small businesses.', 20),
+  ('porter-capital', 'Porter Capital', 'https://portercap.com/government-invoice-factoring',
+   'Long-time government contractor factoring; covers service and staffing businesses.', 30),
+  ('ecapital', 'eCapital', 'https://ecapital.com/blog/using-government-contractor-financing-to-bridge-cash-flow-gaps',
+   'Large lender with government contractor financing; can grow into an asset-based credit line for bigger contracts.', 40),
+  ('8a-factoring', '8A Factoring', 'https://www.8afactoring.com',
+   'Government invoices for small and 8(a) / minority-owned businesses; fits set-aside and MBE/DBE work.', 50)
+on conflict (slug) do nothing;
+
+
+-- >>> migration 20261006070800_app_payments.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006070800_app_payments.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-06_0708 UTC
+-- PURPOSE : In-app payments (Apple Pay, Google Pay, card via Stripe PaymentSheet): a payment row
+--           remembers its PaymentIntent, so the webhook can settle it and support can look it up.
+-- ============================================================================
+alter table public.payments add column if not exists stripe_payment_intent_id text;
+create index if not exists payments_stripe_payment_intent_idx on public.payments (stripe_payment_intent_id) where stripe_payment_intent_id is not null;
+
+
+-- >>> migration 20261006072600_lock_down_rpc.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006072600_lock_down_rpc.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-06_0726 UTC
+-- PURPOSE : Security (defense in depth): functions that run with elevated rights (security definer) are
+--           not callable from the app unless they're meant to be. Supabase exposes the public schema as
+--           RPC, so an un-revoked function can be called with the public (anon) key.
+--             * recompute_contractor_rating(cid) - was callable by anyone (it only recomputes from existing
+--               reviews, so harmless, but it isn't the app's business). Now server-only.
+--             * draw_promo_balance(code, amount) - already revoked in launch_growth; re-asserted here and
+--               granted explicitly to the server (service_role) so it can't be lost by accident.
+--           Helpers that only answer about the caller (is_staff, app_role, my_contractor_id) and the
+--           customer's own-job lookups (job_pro, job_crew) stay callable by signed-in users.
+--           New functions in this schema are no longer executable by anonymous users by default.
+-- ============================================================================
+revoke all on function public.draw_promo_balance(text, numeric) from public, anon, authenticated;
+grant execute on function public.draw_promo_balance(text, numeric) to service_role;
+
+revoke all on function public.recompute_contractor_rating(uuid) from public, anon, authenticated;
+grant execute on function public.recompute_contractor_rating(uuid) to service_role;
+
+alter default privileges in schema public revoke execute on functions from public, anon;
+
+
+-- >>> migration 20261006075200_agent_tasks.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006075200_agent_tasks.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-06_0752 UTC
+-- PURPOSE : Tasks the team assigns to the AI agents (Hub -> AI agents, or by asking the Ops co-pilot).
+--           Each open task is added to that agent's instructions on every run (packages/core/src/mission.ts),
+--           and the morning brief reports progress on all of them. agent = the agent's kind
+--           (concierge, dispatch, daily_brief...) or 'all' for every agent. Staff only.
+-- ============================================================================
+create table if not exists public.agent_tasks (
+  id uuid primary key default gen_random_uuid(),
+  agent text not null check (agent ~ '^[a-z_]{2,40}$'),
+  title text not null check (char_length(title) between 3 and 300),
+  target text check (target is null or char_length(target) <= 200),
+  due_date date,
+  status text not null default 'open' check (status in ('open', 'done', 'cancelled')),
+  note text check (note is null or char_length(note) <= 1000),
+  created_by text,
+  created_at timestamptz not null default now(),
+  closed_at timestamptz
+);
+create index if not exists agent_tasks_open on public.agent_tasks (agent) where status = 'open';
+
+alter table public.agent_tasks enable row level security;
+drop policy if exists staff_all on public.agent_tasks;
+create policy staff_all on public.agent_tasks for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
+
+-- >>> migration 20261006084100_business_rfp_scope.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006084100_business_rfp_scope.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-06_0841 UTC
+-- PURPOSE : The business Request for Proposal keeps its scope of work as structured data (packages/core/src/rfp.ts):
+--           square footage, site, each service with how often and specifics, working hours, current vendor, term,
+--           decision process (and bid due date), walkthrough times, preferred contact. The Hub shows it with a
+--           follow-up checklist of what's still missing.
+-- ============================================================================
+alter table public.business_accounts
+  add column if not exists rfp_scope jsonb,
+  add column if not exists preferred_contact text check (preferred_contact is null or preferred_contact in ('call','email','text'));
+
+
+-- >>> migration 20261006195000_job_coverage.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261006195000_job_coverage.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-06_1950 UTC
+-- PURPOSE : Every job gets done (packages/core/src/coverage.ts).
+--             * job_backups - backup #1, #2, #3 lined up behind the pro on every accepted job. Status:
+--                 asked (we asked) -> standby (they confirmed they can cover) -> called (the pro dropped; their turn)
+--                 -> promoted (they took the job) - declined / passed (said no) - released (job done or cancelled)
+--             * job_offers.kind adds 'backup' (the call that goes to a backup when the pro drops)
+--             * pro_standing_events.kind adds 'short_notice_cancel' (6-24h: logged, no penalty) and 'excused_cancel'
+--             * jobs.handoffs - how many times the job changed pros (shown to staff)
+-- ============================================================================
+create table if not exists public.job_backups (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  contractor_id uuid not null references public.contractors(id) on delete cascade,
+  rank int not null check (rank between 1 and 3),
+  status text not null default 'asked' check (status in ('asked','standby','called','declined','passed','promoted','released')),
+  asked_at timestamptz not null default now(),
+  responded_at timestamptz,
+  called_at timestamptz,
+  unique (job_id, contractor_id)
+);
+create index if not exists job_backups_job_idx on public.job_backups (job_id, rank);
+create index if not exists job_backups_pro_idx on public.job_backups (contractor_id, status);
+
+alter table public.job_backups enable row level security;
+drop policy if exists "pro reads own backups" on public.job_backups;
+create policy "pro reads own backups" on public.job_backups for select to authenticated using (contractor_id = public.my_contractor_id());
+drop policy if exists staff_all on public.job_backups;
+create policy staff_all on public.job_backups for all to authenticated using (public.is_staff()) with check (public.is_staff());
+
+alter table public.job_offers drop constraint if exists job_offers_kind_check;
+alter table public.job_offers add constraint job_offers_kind_check
+  check (kind in ('job','recurring','redo','account','favorite','board','backup'));
+
+alter table public.pro_standing_events drop constraint if exists pro_standing_events_kind_check;
+alter table public.pro_standing_events add constraint pro_standing_events_kind_check
+  check (kind in ('late_cancel','short_notice_cancel','excused_cancel','no_show','warning','suspension','deactivation','appeal','appeal_upheld','reinstated','note'));
+
+alter table public.jobs add column if not exists handoffs int not null default 0;
 
 
