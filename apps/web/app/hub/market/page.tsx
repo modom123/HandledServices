@@ -8,6 +8,7 @@
  *           pro make at the typical price (sliding commission + booking fee).
  * UPDATED : 2026-10-06_0740 UTC — "Pro pay, sliding scale" table: at each job size, what the pro is paid, what we keep and
  *           each as a % of the price (slidingScale, the same math that pays pros); Pro share column per service.
+ * UPDATED : 2026-10-09_0310 UTC — sliding-scale note matches the +5-point price change (pro keeps ~75% → ~63% of the price).
  */
 import { BOOKING_FEE, COMMISSION, MARKET_BOUNDS, SERVICES, TAKE_MAX, commissionRate, defaultAnswers, estimate, money, slidingScale, splitJob } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
@@ -52,7 +53,7 @@ export default async function MarketPricing() {
       <div className="card overflow-x-auto p-0">
         <div className="p-4 pb-2">
           <h2 className="font-bold">Pro pay, sliding scale</h2>
-          <p className="text-sm text-ink-soft">The real split on every job (customer price includes the {money(BOOKING_FEE)} booking fee). Small jobs: the pro keeps ~80%; $600+ jobs: ~68%. Our share never passes {pct(TAKE_MAX)}. Pro+ / Elite pros earn up to 3–5 points more.</p>
+          <p className="text-sm text-ink-soft">The real split on every job (customer price includes the {money(BOOKING_FEE)} booking fee). Small jobs: the pro keeps ~75% of the price; $600+ jobs: ~63% (customers pay Handled's +5 points; pro pay unchanged). Our share never passes {pct(TAKE_MAX)}. Pro+ / Elite pros earn up to 3–5 points more.</p>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
