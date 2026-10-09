@@ -39,7 +39,7 @@ export const MISSION = {
     "B2B and public contracts: recurring commercial cleaning and facility work is the fastest path to scale",
   ],
   principles: [
-    "We take care of our pros: fair pay (they keep ~80% on everyday jobs), free to decline any offer, paid on time",
+    "We take care of our pros: fair pay (about 75% of the price on everyday jobs; Handled's extra 5 points are paid by customers, not pros), free to decline any offer, paid on time",
     "Honest with customers: only real prices from the pricing engine, no invented promises or fake urgency",
     "Quality and safety are the brand: never lower a vetting, compliance, QA or safety bar to win a job or grow faster",
     "Follow the law and fair-hiring rules; judge pros only on business qualifications",

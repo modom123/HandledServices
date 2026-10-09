@@ -6,6 +6,7 @@
  *           from the live pricing engine so it can't drift. Leads with what matters to a pro
  *           (a full day, and the range from a small job to a big one) instead of a single small-job
  *           number. Small and large jobs are hand-picked realistic examples per trade.
+ * UPDATED : 2026-10-09_0310 UTC — headline "keep X–Y%" comes from real payouts (after the +5-point price change: 62–78%).
  */
 import { BOOKING_FEE, COMMISSION, estimate, splitJob } from "./pricing.ts";
 import { defaultAnswers, getService, type Answers } from "./services.ts";
@@ -61,7 +62,10 @@ export function earningsShowcase(defs: ShowcaseDef[] = EARNINGS_SHOWCASE): Showc
 
 /** Headline numbers: the share pros keep (small → large jobs) and the best tier boost. */
 export function earningsHeadline() {
-  const keepSmall = Math.round((1 - COMMISSION.minRate) * 100), keepLarge = Math.round((1 - COMMISSION.maxRate) * 100);
+  // what pros really keep of the service price, from the payout rule itself (rounded down so we never overstate)
+  const shares: number[] = [];
+  for (let price = COMMISSION.from + BOOKING_FEE; price <= 5004; price += 5) { const sp = splitJob(price); shares.push(sp.payout / (price - sp.fee)); }
+  const keepSmall = Math.floor(Math.max(...shares) * 100), keepLarge = Math.floor(Math.min(...shares) * 100);
   const topBoost = Math.round(Math.max(...PRO_TIERS.map((t) => t.payoutBoost)) * 100);
   return { keepSmall, keepLarge, topBoost, bookingFee: BOOKING_FEE };
 }
