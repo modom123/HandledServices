@@ -14,6 +14,7 @@
  *           TEMPLATES — not legal advice; have counsel review before use.
  * UPDATED : 2026-10-03_1311 UTC — niveles: vía rápida a Pro+ (portafolio + trabajo de prueba pagado revisado).
  * UPDATED : 2026-10-07_2000 UTC — profesionales en Washington (RCW 49.62): solo se prohíbe solicitar clientes; ley y tribunales de Washington; contrato v8.
+ * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  */
 import {
   AGREEMENT_VERSION,
@@ -60,7 +61,7 @@ const NEC_YEAR = 2026;
 /** Ejemplo de pago de la sección 8 (igual que en pro.ts): un servicio de $100 más el cargo de reserva. */
 const EX_PRICE = 100 + BOOKING_FEE;
 const EX = splitJob(EX_PRICE);
-const COMMISSION_TEXT = `${pct(COMMISSION.minRate)} en trabajos de ${money(COMMISSION.from)} o menos, y sube de forma pareja hasta ${pct(COMMISSION.maxRate)} en trabajos de ${money(COMMISSION.to)} o más`;
+const COMMISSION_TEXT = `alrededor de ${pct(COMMISSION.minRate)} en trabajos pequeños, y sube de forma pareja hasta alrededor de ${pct(COMMISSION.maxRate)} en trabajos grandes (el pago exacto siempre se muestra en la oferta antes de aceptarla)`;
 
 const tierLines = PRO_TIERS.map((t) =>
   t.payoutBoost

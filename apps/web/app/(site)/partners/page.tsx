@@ -4,6 +4,7 @@
  * CREATED : 2026-10-07_0130 UTC
  * PURPOSE : Public page for the Referral Partner Program: what partners earn (10% of our fee, 12 months, weekly via
  *           Stripe), who it's for, worked examples, sign-up form and the partner terms.
+ * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  */
 import Link from "next/link";
 import { BRAND, PARTNER_KINDS, PARTNER_PROGRAM, money, partnerCommission, partnerTerms } from "@handled/core";
@@ -11,7 +12,7 @@ import { PartnerSignUp } from "@/components/PartnerUI";
 
 export const metadata = { title: "Referral Partner Program — get paid for every job you send us", description: `Refer customers to ${BRAND.name} and earn ${PARTNER_PROGRAM.pctOfTake * 100}% of our fee on every job they book for ${PARTNER_PROGRAM.months} months, paid weekly.` };
 
-// examples assume we keep about a quarter of the price (our take ranges 15–35% by service)
+// examples assume we keep about a quarter of the price (our take ranges about 20–40% by service)
 const EX = [
   { who: "Realtor", what: "Sends 3 sellers a month a move-out clean ($350)", jobs: 3, price: 350 },
   { who: "Property manager", what: "8 unit turnovers a month ($450)", jobs: 8, price: 450 },
@@ -46,7 +47,7 @@ export default function Partners() {
 
       <section className="wrap pb-12">
         <h2 className="text-2xl font-bold">What it adds up to</h2>
-        <p className="mt-1 text-sm text-ink-soft">Examples. Our fee is what&apos;s left after the pro is paid (about 15–35% of the price, depending on the service); you get {P.pctOfTake * 100}% of it.</p>
+        <p className="mt-1 text-sm text-ink-soft">Examples. Our fee is what&apos;s left after the pro is paid (about 20–40% of the price, depending on the service); you get {P.pctOfTake * 100}% of it.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">{EX.map((e) => (
           <div key={e.who} className="card border-t-4 border-t-gold">
             <div className="text-sm font-semibold text-brand">{e.who}</div>

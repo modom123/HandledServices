@@ -1,87 +1,11 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_PART_2_of_5_2026-10-06_2142.sql
--- PROJECT : Handled (HandledServices)
--- CREATED : 2026-10-06_2142 UTC
--- PURPOSE : NEW Supabase project setup, part 2 of 5 (run IN ORDER, one at a time). Migrations 20261001203000_service_agreement.sql .. 20261002141249_message_language.sql.
+-- FILE    : supabase/setup/HANDLED_SETUP_PART_2_of_5_2026-10-09_0242.sql
+-- PROJECT : Handled (myhumanai)
+-- CREATED : 2026-10-09_0242 UTC
+-- PURPOSE : NEW Supabase project setup, part 2 of 5 (run IN ORDER, one at a time). Migrations 20261001205300_deposits_quick_charge.sql .. 20261003011700_pro_fairness.sql.
 --           Plain-ASCII (accented text uses U&'' escapes) so copy/paste can't corrupt it.
 --           Supabase -> SQL Editor -> New query -> paste -> Run. Wait for "Success" before the next part.
 -- ============================================================================
--- >>> migration 20261001203000_service_agreement.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261001203000_service_agreement.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-01_2030 UTC
--- PURPOSE : Every booking is accepted under the customer Service Agreement printed on its
---           invoice. Record which version, when, and from where it was accepted.
--- ============================================================================
-alter table public.jobs
-  add column terms_version text,
-  add column terms_accepted_at timestamptz,
-  add column terms_accepted_ip text;
-
-
--- >>> migration 20261001204300_offers_push_notifications.sql
--- ============================================================================
--- FILE    : supabase/migrations/20261001204300_offers_push_notifications.sql
--- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-01_2043 UTC
--- PURPOSE : Uber-style job offers and phone notifications.
---             * push_tokens     - Expo push tokens per signed-in device (pros and customers)
---             * notifications   - in-app inbox + delivery log of every push/email we send
---             * jobs.instructions - ops/IEBC instructions printed on the pro's work order
---             * job_offers acceptance record - which work-order version the pro agreed to
---             * job_pro(job)    - the customer's safe view of who is covering their job
--- ============================================================================
-
-create table public.push_tokens (
-  id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.profiles(id) on delete cascade,
-  token text not null unique,
-  platform text,
-  created_at timestamptz not null default now(),
-  last_seen_at timestamptz not null default now()
-);
-alter table public.push_tokens enable row level security;
-create policy staff_all on public.push_tokens for all to authenticated using (public.is_staff()) with check (public.is_staff());
-create policy push_tokens_self on public.push_tokens for all to authenticated using (profile_id = auth.uid()) with check (profile_id = auth.uid());
-
-create table public.notifications (
-  id bigint generated always as identity primary key,
-  profile_id uuid references public.profiles(id) on delete cascade,
-  email text,
-  title text not null,
-  body text not null,
-  data jsonb not null default '{}',
-  channels text[] not null default '{}',
-  read_at timestamptz,
-  created_at timestamptz not null default now()
-);
-create index notifications_profile_idx on public.notifications(profile_id, created_at desc);
-alter table public.notifications enable row level security;
-create policy staff_all on public.notifications for all to authenticated using (public.is_staff()) with check (public.is_staff());
-create policy notifications_self_read on public.notifications for select to authenticated using (profile_id = auth.uid());
-create policy notifications_self_mark on public.notifications for update to authenticated using (profile_id = auth.uid()) with check (profile_id = auth.uid());
-alter publication supabase_realtime add table public.notifications;
-
-alter table public.jobs add column instructions text;
-
-alter table public.job_offers
-  add column work_order_version text,
-  add column terms_accepted_at timestamptz,
-  add column accepted_ip text;
-
--- Who is covering my job? Business name, rating and track record of the assigned pro -
--- only for the customer on that job (customers can't read the contractors table directly).
-create or replace function public.job_pro(p_job uuid)
-returns table (business_name text, contact_first_name text, rating numeric, jobs_completed int)
-language sql stable security definer set search_path = public as $$
-  select c.business_name, split_part(c.contact_name, ' ', 1), c.rating, c.jobs_completed
-  from public.jobs j join public.contractors c on c.id = j.contractor_id
-  where j.id = p_job and (j.customer_id = auth.uid() or public.is_staff())
-$$;
-grant execute on function public.job_pro(uuid) to authenticated;
-
-
 -- >>> migration 20261001205300_deposits_quick_charge.sql
 -- ============================================================================
 -- FILE    : supabase/migrations/20261001205300_deposits_quick_charge.sql
@@ -668,5 +592,208 @@ alter table public.launch_checklist enable row level security;
 alter table public.jobs add column if not exists locale text not null default 'en' check (locale in ('en','es'));
 alter table public.contractor_applications add column if not exists locale text not null default 'en' check (locale in ('en','es'));
 alter table public.job_events add column if not exists message_es text;
+
+
+-- >>> migration 20261002223400_waitlist_google_reviews.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261002223400_waitlist_google_reviews.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-02_2234 UTC
+-- PURPOSE : Growth - finding customers and pros:
+--             * waitlist - people who asked for a service where we have no pros yet; they're
+--               told the day a pro starts covering their ZIP, and the counts drive recruiting
+--               (Hub -> Supply gaps)
+--             * reviews.google_clicked_at - customer tapped "Review us on Google" after rating
+-- ============================================================================
+
+create table if not exists public.waitlist (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (position('@' in email) > 1),
+  phone text,
+  name text,
+  zip text not null check (zip ~ '^[0-9]{5}$'),
+  service_slug text not null,
+  locale text not null default 'en' check (locale in ('en','es')),
+  profile_id uuid references public.profiles(id) on delete set null,
+  source text not null default 'booking',
+  created_at timestamptz not null default now(),
+  notified_at timestamptz,
+  unique (email, service_slug, zip)
+);
+alter table public.waitlist enable row level security; -- written and read by the server only
+create index if not exists waitlist_open_idx on public.waitlist (service_slug, zip) where notified_at is null;
+
+alter table public.reviews add column if not exists google_clicked_at timestamptz;
+
+
+-- >>> migration 20261003001500_seasonal_quote_followups.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261003001500_seasonal_quote_followups.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-03_0015 UTC
+-- PURPOSE : Bringing customers back:
+--             * saved_quotes     - "Email me this price": the price, then follow-ups, with a link
+--                                  that reopens the booking with their answers filled in
+--             * marketing_sends  - every seasonal reminder / quote follow-up sent (never twice,
+--                                  at most one seasonal email a month per person)
+--             * email_optouts    - one-click unsubscribe from reminders (booking messages still go)
+-- ============================================================================
+
+create table if not exists public.saved_quotes (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (position('@' in email) > 1),
+  service_slug text not null,
+  answers jsonb not null default '{}',
+  frequency text not null default 'once',
+  price numeric(10,2),
+  locale text not null default 'en' check (locale in ('en','es')),
+  profile_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  followups_sent int not null default 0,
+  last_followup_at timestamptz,
+  booked_job_id uuid references public.jobs(id) on delete set null
+);
+alter table public.saved_quotes enable row level security; -- server only
+create index if not exists saved_quotes_open_idx on public.saved_quotes (created_at) where booked_job_id is null;
+create index if not exists saved_quotes_email_idx on public.saved_quotes (lower(email));
+
+create table if not exists public.marketing_sends (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  kind text not null check (kind in ('seasonal','quote_followup','booking_followup')),
+  key text not null,
+  job_id uuid references public.jobs(id) on delete set null,
+  sent_at timestamptz not null default now(),
+  unique (email, kind, key)
+);
+alter table public.marketing_sends enable row level security;
+create index if not exists marketing_sends_recent_idx on public.marketing_sends (lower(email), sent_at desc);
+
+create table if not exists public.email_optouts (
+  email text primary key check (email = lower(email)),
+  created_at timestamptz not null default now()
+);
+alter table public.email_optouts enable row level security;
+
+
+-- >>> migration 20261003003900_contract_records.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261003003900_contract_records.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-03_0039 UTC
+-- PURPOSE : Every contract a customer, business or pro accepts - with a frozen copy of the exact
+--           text they agreed to (sections + SHA-256 hash), when, how (booking, e-signature,
+--           checkout), and from where. Shown in each person's account ("My contracts"), in the
+--           pro portal, and in Hub -> Contract library. Kept after account deletion (legal record);
+--           the profile link is cleared, the email stays.
+-- ============================================================================
+
+create table if not exists public.contract_acceptances (
+  id uuid primary key default gen_random_uuid(),
+  contract_key text not null,
+  version text not null,
+  title text not null,
+  audience text not null check (audience in ('customer','business','pro')),
+  profile_id uuid references public.profiles(id) on delete set null,
+  contractor_id uuid references public.contractors(id) on delete set null,
+  email text,
+  signer_name text,
+  job_id uuid references public.jobs(id) on delete set null,
+  method text not null default 'click' check (method in ('booking','signature','checkout','click')),
+  ip text,
+  user_agent text,
+  sections jsonb not null,
+  content_hash text not null,
+  accepted_at timestamptz not null default now()
+);
+alter table public.contract_acceptances enable row level security;
+create index if not exists contract_acceptances_profile_idx on public.contract_acceptances (profile_id, accepted_at desc);
+create index if not exists contract_acceptances_contractor_idx on public.contract_acceptances (contractor_id, accepted_at desc);
+create index if not exists contract_acceptances_email_idx on public.contract_acceptances (lower(email));
+create index if not exists contract_acceptances_key_idx on public.contract_acceptances (contract_key, version);
+
+-- People read their own records (written by the server only).
+create policy "own contracts" on public.contract_acceptances for select using (
+  profile_id = auth.uid()
+  or contractor_id in (select id from public.contractors where profile_id = auth.uid())
+);
+
+
+-- >>> migration 20261003004900_contract_language.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261003004900_contract_language.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-03_0049 UTC
+-- PURPOSE : Contracts in Spanish: record the language each person read when they accepted.
+--           The frozen copy (sections) also keeps the Spanish text they saw; English controls.
+-- ============================================================================
+alter table public.contract_acceptances
+  add column if not exists locale text not null default 'en' check (locale in ('en','es'));
+
+
+-- >>> migration 20261003011700_pro_fairness.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261003011700_pro_fairness.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-03_0117 UTC
+-- PURPOSE : Make the system do what the Independent Contractor Agreement promises:
+--             * pro_deductions        - a refund or lost chargeback charged to a pro is only a
+--                                        PROPOSAL: written notice, 3 business days to respond, a
+--                                        person decides; applied amounts never exceed half of a
+--                                        weekly payout and never touch tips
+--             * pro_standing_events   - late cancels, no-shows, warnings, suspensions,
+--                                        deactivations, appeals and reinstatements, with reasons
+--             * contractors.standing  - good / warned / suspended / deactivated (+ dates)
+-- ============================================================================
+
+create table if not exists public.pro_deductions (
+  id uuid primary key default gen_random_uuid(),
+  contractor_id uuid not null references public.contractors(id) on delete cascade,
+  job_id uuid references public.jobs(id) on delete set null,
+  amount numeric(10,2) not null check (amount > 0),
+  reason text not null,
+  source text not null check (source in ('refund','chargeback')),
+  status text not null default 'proposed' check (status in ('proposed','upheld','waived')),
+  respond_by timestamptz not null,
+  pro_response text,
+  responded_at timestamptz,
+  decided_by text,
+  decided_at timestamptz,
+  decision_note text,
+  created_at timestamptz not null default now()
+);
+alter table public.pro_deductions enable row level security;
+create index if not exists pro_deductions_open_idx on public.pro_deductions (status, respond_by);
+create index if not exists pro_deductions_pro_idx on public.pro_deductions (contractor_id, created_at desc);
+create policy "pro reads own deductions" on public.pro_deductions for select using (
+  contractor_id in (select id from public.contractors where profile_id = auth.uid())
+);
+
+create table if not exists public.pro_standing_events (
+  id uuid primary key default gen_random_uuid(),
+  contractor_id uuid not null references public.contractors(id) on delete cascade,
+  kind text not null check (kind in ('late_cancel','no_show','warning','suspension','deactivation','appeal','appeal_upheld','reinstated','note')),
+  job_id uuid references public.jobs(id) on delete set null,
+  note text,
+  actor text,
+  created_at timestamptz not null default now()
+);
+alter table public.pro_standing_events enable row level security;
+create index if not exists pro_standing_pro_idx on public.pro_standing_events (contractor_id, created_at desc);
+create policy "pro reads own standing" on public.pro_standing_events for select using (
+  contractor_id in (select id from public.contractors where profile_id = auth.uid())
+);
+
+alter table public.contractors
+  add column if not exists standing text not null default 'good' check (standing in ('good','warned','suspended','deactivated')),
+  add column if not exists standing_reason text,
+  add column if not exists warned_at timestamptz,
+  add column if not exists improve_by date,
+  add column if not exists appeal_by date,
+  add column if not exists appeal_decide_by date,
+  add column if not exists background_recheck_due date;
+
+-- Payout rows can be held for a deduction decision; a deduction's applied piece is recorded as a clawback row.
+alter table public.payouts add column if not exists deduction_id uuid references public.pro_deductions(id) on delete set null;
 
 

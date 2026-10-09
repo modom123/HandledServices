@@ -22,13 +22,14 @@
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
  * UPDATED : 2026-10-06_0752 UTC — every AI agent has a mission role, the two priorities and standing tasks.
  * UPDATED : 2026-10-06_0841 UTC — Request for Proposal scope summary and follow-up questions.
+ * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers: pro pay unchanged at higher prices.
  * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
  */
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SERVICES, defaultAnswers, getService, type Answers, type Question } from "./services.ts";
-import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT, BOOKING_FEE, splitJob, commissionRate } from "./pricing.ts";
+import { estimate, clampAiPrice, AI_MAX_RAISE, AI_MAX_CUT, BOOKING_FEE, splitJob, commissionRate, upliftFactor } from "./pricing.ts";
 import { rankContractors } from "./dispatch.ts";
 import type { Contractor } from "./types.ts";
 
@@ -95,16 +96,19 @@ test("estimate().payoutShare is the real share of the price, not a fixed number"
   }
 });
 
-test("the sliding scale: pros keep more on small jobs, our cut never passes 35%", async () => {
+test("the sliding scale: pros keep more on small jobs, our cut never passes 40%", async () => {
   const { slidingScale, TAKE_MAX } = await import("./pricing.ts");
   const rows = slidingScale();
   for (let i = 1; i < rows.length; i++) {
     assert.ok(rows[i].payout >= rows[i - 1].payout, "payout rises with price");
-    assert.ok(rows[i].commission >= rows[i - 1].commission, "commission slides up with price");
+    // effective commission (from whole-dollar pro pay) slides up from $60 jobs on; a $25 job is all rounding
+    if (rows[i - 1].price >= 60) assert.ok(rows[i].commission >= rows[i - 1].commission - 0.02, `commission slides up with price @${rows[i].price}`);
   }
   for (const r of rows) assert.ok(r.takeRate <= TAKE_MAX + 1e-9, `take ${r.takeRate} @${r.price}`);
-  assert.equal(rows.find((r) => r.price === 64)!.payout, 51);
-  assert.equal(rows.find((r) => r.price === 1004)!.payout, 680);
+  // Handled's +5 points are paid by customers: the jobs that paid $51 and $680 still pay exactly that, at a higher price
+  const { priceForPayout, splitJob } = await import("./pricing.ts");
+  assert.equal(splitJob(priceForPayout(51)).payout, 51);
+  assert.equal(splitJob(priceForPayout(680)).payout, 680);
 });
 
 test("splitJob never pays out more than the band allows, at any price", async () => {
@@ -457,11 +461,12 @@ test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
 test("transportation: hourly minimums, licensed operators with passenger-carrier insurance", async () => {
   const { requiredCoverages } = await import("./vetting.ts");
   const { sizeNeedsSiteVisit } = await import("./intake.ts");
-  assert.equal(estimate({ slug: "private-driver", answers: { vehicle: "sedan", hours: 1 } }).point, 170 + BOOKING_FEE, "2-hour minimum (+ booking fee)");
+  const up = (slug: string, base: number) => Math.round(base * upliftFactor(base, slug)); // prices include Handled's +5-point uplift
+  assert.equal(estimate({ slug: "private-driver", answers: { vehicle: "sedan", hours: 1 } }).point, up("private-driver", 170) + BOOKING_FEE, "2-hour minimum (+ booking fee)");
   assert.ok(estimate({ slug: "limousine", answers: { vehicle: "suv_limo", hours: 4 } }).point > estimate({ slug: "limousine", answers: { vehicle: "stretch", hours: 4 } }).point);
-  assert.equal(estimate({ slug: "airport-transfer", answers: { vehicle: "sedan", trip: "round_trip" } }).point, 190 + BOOKING_FEE);
+  assert.equal(estimate({ slug: "airport-transfer", answers: { vehicle: "sedan", trip: "round_trip" } }).point, up("airport-transfer", 190) + BOOKING_FEE);
   assert.ok(estimate({ slug: "party-bus", answers: { size: "40", hours: 4, weekend_night: true } }).point > 1300);
-  assert.equal(estimate({ slug: "charter-bus", answers: { vehicle: "motorcoach", days: 2, overnight: true } }).point, 3800 + BOOKING_FEE);
+  assert.equal(estimate({ slug: "charter-bus", answers: { vehicle: "motorcoach", days: 2, overnight: true } }).point, up("charter-bus", 3800) + BOOKING_FEE);
   assert.deepEqual(requiredCoverages(["transportation"]), ["passenger_auto"]);
   assert.ok(sizeNeedsSiteVisit("event-shuttle", { vehicles: 6 }));
   assert.ok(sizeNeedsSiteVisit("charter-bus", { out_of_state: true }));
@@ -816,10 +821,11 @@ test("pro fairness: deduction notice, clawback cap, chargebacks, warnings, offer
 
 test("market pricing: booking fee, sliding commission, counters, learning, offer bounds", async () => {
   const { splitJob, commissionRate, priceForPayout, marketFactor, offerCheck, BOOKING_FEE, MARKET_BOUNDS } = await import("./pricing.ts");
-  // small jobs: small cut, so a $60 mow pays the pro $51 (+ our $4 fee)
-  const mow = splitJob(60 + BOOKING_FEE);
-  assert.equal(mow.payout, 51); assert.equal(mow.fee, BOOKING_FEE); assert.equal(mow.take, 13);
-  assert.equal(commissionRate(60), 0.15); assert.equal(commissionRate(600), 0.32); assert.equal(commissionRate(5000), 0.32);
+  // small jobs: small cut — the mow that paid the pro $51 still pays $51; the customer covers Handled's +5 points ($69 instead of $64)
+  const mow = splitJob(priceForPayout(51));
+  assert.equal(mow.payout, 51); assert.equal(mow.fee, BOOKING_FEE); assert.equal(mow.price, 69);
+  assert.ok(Math.abs(mow.takeRate - (13 / 64 + 0.05)) < 0.01, `take +5 points (${mow.takeRate})`);
+  assert.ok(commissionRate(60) > 0.19 && commissionRate(60) < 0.23); assert.ok(commissionRate(5000) > 0.36 && commissionRate(5000) < 0.38);
   // payout never goes down when the price goes up
   let last = -1;
   for (let p = 20; p <= 3000; p += 7) { const x = splitJob(p).payout; assert.ok(x >= last, `payout drops at ${p}`); last = x; }
@@ -870,16 +876,16 @@ test("pro earnings showcase: ranges are ordered, days computed, nothing below a 
     if (r.day !== null) assert.ok(r.day >= 250, `${r.slug} full day ≥ $250`);
   }
   const h = earningsHeadline();
-  assert.ok(h.keepSmall > h.keepLarge && h.keepLarge >= 65);
+  assert.ok(h.keepSmall > h.keepLarge && h.keepLarge >= 60);
 });
 
 test("water heater: standard tank priced to market, commission capped so the plumber clears labor", () => {
   const e = estimate({ slug: "water-heater", answers: { type: "tank50", fuel: "gas" } });
   assert.ok(e.point >= 1150 && e.point <= 1400, `50-gal gas suggested ${e.point}`);
   const sp = splitJob(e.point, "water-heater");
-  assert.ok(sp.payout / e.point >= 0.84, "our cut is capped at 15% on equipment jobs");
+  assert.ok(sp.payout / e.point >= 0.79, "our cut is capped at 20% on equipment jobs (15% + the 5-point uplift)");
   assert.ok(sp.payout - 750 >= 250, "pro clears ≥ $250 labor after a ~$750 unit + permit");
-  assert.ok(commissionRate(1000, "water-heater") <= 0.15 && commissionRate(1000) === 0.32);
+  assert.ok(commissionRate(1000, "water-heater") <= 0.205 && commissionRate(1000) > 0.36);
 });
 
 test("pricing accuracy: flags under/overpriced services from what happened after the job", async () => {
@@ -1204,9 +1210,9 @@ test("security: event budget sets aside licensed guards when alcohol is served; 
   const tight = planEventBudget({ budget: 1000, guests: 100, eventType: "birthday", alcohol: true });
   assert.ok(!tight.lines.some((l) => l.key === "security") && tight.warnings.some((w) => w.includes("licensed guard")));
   const post = estimate({ slug: "security-guard", answers: { kind: "post", guards: 1, hours: 8, days: 5, type: "unarmed" } });
-  assert.equal(post.items[0].amount, 1 * 8 * 5 * 36);
+  assert.equal(post.items[0].amount, Math.round(1 * 8 * 5 * 36 * upliftFactor(1 * 8 * 5 * 36, "security-guard")));
   const patrol = estimate({ slug: "security-guard", answers: { kind: "patrol", visits: 3, days: 7 } });
-  assert.equal(patrol.items[0].amount, 3 * 7 * 45);
+  assert.equal(patrol.items[0].amount, Math.round(3 * 7 * 45 * upliftFactor(3 * 7 * 45, "security-guard")));
   assert.ok(getService("security-guard")!.licensed && getService("security-guard")!.trades.includes("security"));
 });
 
