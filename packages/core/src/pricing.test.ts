@@ -344,6 +344,24 @@ test("freight: the vehicle moves up to fit the load; a licensed carrier with car
   assert.deepEqual(requiredCoverages(["freight"]).sort(), ["auto", "cargo"]);
 });
 
+test("lead emails from Hunter.io: own domain, confident, the right person, never jobs/HR inboxes", async () => {
+  const { pickHunterEmail } = await import("./lead-engine.ts");
+  const emails = [
+    { value: "jobs@acme.com", confidence: 99, type: "generic" as const },
+    { value: "sam@other.com", confidence: 99, position: "Owner" },
+    { value: "pat@acme.com", confidence: 95, first_name: "Pat", last_name: "Lee", position: "Software Engineer" },
+    { value: "dana@acme.com", confidence: 88, first_name: "Dana", last_name: "Ruiz", position: "Facilities Manager" },
+    { value: "info@acme.com", confidence: 92, type: "generic" as const },
+    { value: "lo@acme.com", confidence: 40, position: "Owner" },
+    { value: "bad@acme.com", confidence: 99, position: "President", verification: { status: "invalid" } },
+  ];
+  assert.deepEqual(pickHunterEmail(emails, "www.acme.com", "decision_maker"), { email: "dana@acme.com", name: "Dana Ruiz", position: "Facilities Manager", confidence: 88 });
+  assert.equal(pickHunterEmail(emails, "acme.com", "owner")?.email, "info@acme.com", "no confident owner: the general inbox, not an engineer");
+  assert.equal(pickHunterEmail([{ value: "owner@acme.com", confidence: 80, position: "Owner & Founder" }, ...emails], "acme.com", "owner")?.email, "owner@acme.com");
+  assert.equal(pickHunterEmail([{ value: "jobs@acme.com", confidence: 99 }, { value: "x@acme.com", confidence: 50 }], "acme.com", "owner"), null);
+  assert.equal(pickHunterEmail([{ value: "info@acme.co.uk", confidence: 90 }], "shop.acme.co.uk", "owner")?.email, "info@acme.co.uk", "a site on a subdomain: the company domain counts");
+});
+
 test("pro policy: who qualifies, and every benefit keeps the job at or above $0", async () => {
   const { PRO_POLICY_DEFAULTS: P, mergePolicy, whyNot, qualifies, showUpPay, instantPayFee, materialsDecision, guaranteeTopUp } = await import("./pro-policy.ts");
   const { refundSplit } = await import("./pricing.ts");
