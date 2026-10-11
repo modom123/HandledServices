@@ -440,7 +440,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Legal name, tax classification and TIN": "Nombre legal, clasificación fiscal y número de identificación fiscal (TIN)",
   "What you do best: we send you those jobs first": "Lo que mejor hace: le enviamos esos trabajos primero",
   "Where you start from, how far you'll drive, which days and times you work": "Desde dónde sale, qué tan lejos maneja y qué días y horarios trabaja",
-  "Required for plumbing, electrical, HVAC, painting, remodeling, food service, passenger transportation and medical couriers (HIPAA training)": "Obligatoria para plomería, electricidad, climatización, pintura, remodelación, servicio de alimentos, transporte de pasajeros y mensajería médica (capacitación en HIPAA)",
+  "Required for plumbing, electrical, HVAC, painting, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)": "Obligatoria para plomería, electricidad, climatización, pintura, remodelación, servicio de alimentos, transporte de pasajeros, transportistas de carga (número USDOT) y mensajería médica (capacitación en HIPAA)",
   "Consent + check through your screening provider": "Consentimiento + verificación con el proveedor de verificación",
   "Bank (ACH) or Stripe Connect": "Banco (ACH) o Stripe Connect",
   "Cleared": "Aprobada",

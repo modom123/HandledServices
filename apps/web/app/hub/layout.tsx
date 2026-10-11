@@ -29,7 +29,7 @@
  * UPDATED : 2026-10-07_0530 UTC — 🏅 Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-07_0600 UTC — "Staff only" page shows the signed-in email, its role and exactly how to become admin.
  * UPDATED : 2026-10-07_1945 UTC — official logo (light version on the dark sidebar).
- * UPDATED : 2026-10-11_1500 UTC — dispatchers don't see the admin-only pages (Money, Market pricing, Website look, Go-live setup);
+ * UPDATED : 2026-10-11_0451 UTC — dispatchers don't see the admin-only pages (Money, Market pricing, Website look, Go-live setup);
  *           those pages show "Admins only" (components/AdminOnly) and their APIs refuse dispatchers.
  */
 import Link from "next/link";

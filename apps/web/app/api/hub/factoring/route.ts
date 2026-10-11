@@ -6,7 +6,7 @@
  *             { action: "update", id, status, advance_rate?, fee_pct?, …, notes? }  — outreach status and the quote
  *             { action: "add", name, website?, fit? }                               — another factoring company
  *           Rates are fractions (0.85 = 85%, 0.015 = 1.5%).
- * UPDATED : 2026-10-11_1500 UTC — admins only.
+ * UPDATED : 2026-10-11_0451 UTC — admins only.
  */
 import { z } from "zod";
 import { FACTORING_STATUS_LABEL } from "@handled/core";

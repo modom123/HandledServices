@@ -4,7 +4,7 @@
  * CREATED : 2026-10-03_0149 UTC
  * PURPOSE : Staff override for a service's market factor (Hub → Market pricing):
  *           POST { service_slug, area?, manual_factor | null }. null hands it back to learning.
- * UPDATED : 2026-10-11_1500 UTC — admins only (pricing setting).
+ * UPDATED : 2026-10-11_0451 UTC — admins only (pricing setting).
  */
 import { z } from "zod";
 import { MARKET_BOUNDS, getService } from "@handled/core";

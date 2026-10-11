@@ -5,7 +5,7 @@
  * PURPOSE : Staff: add a market (city) or pause / resume one. POST { name, state, zip_prefixes[] } or { id, active }.
  *           A ZIP prefix can belong to one market only, so jobs are never counted twice.
  * UPDATED : 2026-10-04_1934 UTC — { id, launch_services: [...] | null }: which services a city has open (null = all).
- * UPDATED : 2026-10-11_1500 UTC — admins only (which cities and services are open).
+ * UPDATED : 2026-10-11_0451 UTC — admins only (which cities and services are open).
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";

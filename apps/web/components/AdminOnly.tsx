@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/components/AdminOnly.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
- * CREATED : 2026-10-11_1500 UTC
+ * CREATED : 2026-10-11_0451 UTC
  * PURPOSE : Gate for Hub pages that only admins can open (money, settings and setup). Dispatchers don't see them in the menu;
  *           opening one by link shows this notice. The /api/hub routes enforce the same rule on their own.
  *           Usage at the top of a page:  const gate = await adminOnly(); if (gate) return gate;

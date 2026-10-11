@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-05_0441 UTC — security trade group (agency license, de-escalation).
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade interviews with the outdoor group.
  * UPDATED : 2026-10-06_0637 UTC — new trades join their interview groups (repair; used oil with moving).
+ * UPDATED : 2026-10-11_0608 UTC — "business" trade group (remote specialists) with portfolio and client-data questions.
  */
 import { BRAND } from "./brand.ts";
 
@@ -31,17 +32,18 @@ export const COMPETENCIES: Record<Competency, { en: string; es: string; anchors:
   business: { en: "Business readiness", es: "Preparación del negocio", anchors: { 1: "No insurance and unwilling to get it; no tools or transportation", 3: "Has or will get insurance; own tools and transportation; can use a phone app", 5: "Insured and licensed where needed, set up as a business, comfortable with app, photos and receipts" } },
 };
 
-export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "painting" | "licensed" | "pets" | "transport" | "errands" | "events" | "security" | "recruiting";
+export type TradeGroup = "cleaning" | "repair" | "outdoor" | "moving" | "painting" | "licensed" | "pets" | "transport" | "errands" | "events" | "security" | "recruiting" | "business";
 
 const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
   gutters: "outdoor", lawn: "outdoor", tree: "outdoor", snow: "outdoor", pet_waste: "outdoor", wildlife: "outdoor", pressure_washing: "outdoor",
-  hauling: "moving", dumpster: "moving", waste_oil: "moving",
+  hauling: "moving", dumpster: "moving", waste_oil: "moving", freight: "moving",
   handyman: "repair", remodel: "repair", low_voltage: "repair", small_engine: "repair", dock_door: "repair", foundation: "repair", fire_safety: "repair",
   painting: "painting",
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",
   event_planner: "events", catering: "events", food_truck: "events", dj_music: "events", rentals: "events", venue: "events", security: "security", recruiter: "recruiting",
+  web_design: "business", business_formation: "business", consulting: "business", ai_automation: "business",
 };
 export const tradeGroups = (trades: string[]): TradeGroup[] => [...new Set(trades.map((t) => GROUP_OF[t]).filter(Boolean))] as TradeGroup[];
 
@@ -90,6 +92,8 @@ export const QUESTIONS: InterviewQuestion[] = [
   q("security_deescalate", "safety", "A guest who's been drinking gets loud and pushes another guest. Walk me through what your guards do.", "Un invitado que ha estado bebiendo levanta la voz y empuja a otro invitado. Explíqueme qué hacen sus guardias.", "Calm de-escalation first, separate people, involve the host, call police when needed, never more force than the law allows, written incident report.", "Goes straight to force, or no incident reporting.", "security"),
   q("recruiting_placement", "skill", "Walk me through a recent hire you made, from the intake call to the start date. How did you find the person and close them?", "Cuénteme una contratación reciente que logró, desde la llamada de requisitos hasta el primer día. ¿Cómo encontró a la persona y cómo cerró la oferta?", "Clear intake, sourcing beyond job boards, real screening, managed both sides through offer, kept the candidate warm to the start date.", "Only posts ads and forwards résumés, or can't describe a close.", "recruiting"),
   q("recruiting_ethics", "customer", "A client asks you to send only candidates under 35 who are 'a good culture fit.' What do you do?", "Un cliente le pide que envíe solo candidatos menores de 35 años que 'encajen con la cultura'. ¿Qué hace?", "Declines the age requirement, explains it's illegal, steers the client to real job requirements, documents it.", "Goes along with it, or quietly filters candidates.", "recruiting"),
+  q("business_portfolio", "skill", "Show me a recent project you delivered for a small business. What did they need, what did you build or write, and how did it turn out?", "Muéstreme un proyecto reciente que entregó a un pequeño negocio. ¿Qué necesitaban, qué construyó o escribió y cómo resultó?", "A real, recent example with a clear brief, their own work, and a measurable result or a happy client they can name as a reference.", "Can't show their own work, or only describes tools instead of outcomes.", "business"),
+  q("business_data", "customer", "A client gives you their logins and customer list. How do you keep that safe, and what happens to it when the project ends?", "Un cliente le da sus contraseñas y su lista de clientes. ¿Cómo los protege y qué pasa con ellos al terminar el proyecto?", "Password manager or shared vault, least access needed, never reuses or shares client data, hands every account back in the client's name and removes their own access at the end.", "Keeps logins in email or notes, keeps client data afterwards, or registers accounts in their own name.", "business"),
   q("questions", null, "What questions do you have for us?", "¿Qué preguntas tiene para nosotros?", "Not scored. Good questions about how offers, pay and support work are a plus."),
 ];
 

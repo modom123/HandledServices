@@ -7,7 +7,7 @@
  *             { action: "assign", partner_id, email }   — credit a customer to a partner by hand (12 months from today)
  *             { action: "unassign", email }             — remove a customer's partner (future jobs stop paying)
  *             { action: "void", commission_id, note }   — cancel an unpaid commission
- * UPDATED : 2026-10-11_1500 UTC — voiding a commission is admins only.
+ * UPDATED : 2026-10-11_0451 UTC — voiding a commission is admins only.
  */
 import { z } from "zod";
 import { partnerExpiry } from "@handled/core";

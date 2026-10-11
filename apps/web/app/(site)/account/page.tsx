@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-04_1934 UTC — link to the business account portal for members.
  * UPDATED : 2026-10-04_2204 UTC — My favorite pros: book again with them, or remove.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: balance, tier, credits, redeem, activity.
- * UPDATED : 2026-10-11_1500 UTC — new customers (no bookings, no business account) get a welcome instead of an empty list:
+ * UPDATED : 2026-10-11_0451 UTC — new customers (no bookings, no business account) get a welcome instead of an empty list:
  *           how it works, popular services, first-booking perks (Points bonus, a friend's code) and "Book your first service".
  *           It switches to the normal bookings view after their first booking.
  */

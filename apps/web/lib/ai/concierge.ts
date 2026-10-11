@@ -49,7 +49,7 @@ const tools = [
       const svc = getService(service_slug);
       if (!svc) return `Unknown service ${service_slug}`;
       const defaults = Object.fromEntries(svc.questions.map((q) => [q.id, q.default]));
-      const region = zip ? await (await import("../launch")).regionFactor(zip) : 1;
+      const region = zip ? await (await import("../launch")).regionFactor(zip, service_slug) : 1;
       const e = estimate({ slug: service_slug, answers: { ...defaults, ...answers }, frequency, region });
       return JSON.stringify({ range: moneyRange(e.low, e.high), ...(zip ? {} : { note: "Prices vary by area: ask for the ZIP to quote exactly (Washington is higher)." }), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: e.siteVisit, items: e.items });
     },

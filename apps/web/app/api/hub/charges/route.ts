@@ -5,7 +5,7 @@
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * PURPOSE : Staff: Quick Charge — create a Stripe payment link for any amount (with or
  *           without a job), email it to the customer, and list recent links.
- * UPDATED : 2026-10-11_1500 UTC — Quick Charge is admins only.
+ * UPDATED : 2026-10-11_0451 UTC — Quick Charge is admins only.
  */
 import { z } from "zod";
 import { BRAND, money, t, type Job } from "@handled/core";

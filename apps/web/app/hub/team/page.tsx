@@ -4,7 +4,7 @@
  * CREATED : 2026-10-05_0434 UTC
  * PURPOSE : Hub → Team: who has Hub access (admins and dispatchers), add someone by email (they get a one-click sign-in
  *           link), or remove access. Admins only can change it. How everyone else is recognized is explained here too.
- * UPDATED : 2026-10-11_1500 UTC — "What each role can do": the admin-only list (money, settings, marketing email, pro approvals).
+ * UPDATED : 2026-10-11_0451 UTC — "What each role can do": the admin-only list (money, settings, marketing email, pro approvals).
  */
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";

@@ -3,7 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1900 UTC
  * PURPOSE : Staff: make it right — refund, free redo, or complimentary service.
- * UPDATED : 2026-10-11_1500 UTC — refunds are admins only; dispatchers can still book a free redo or complimentary service.
+ * UPDATED : 2026-10-11_0451 UTC — refunds are admins only; dispatchers can still book a free redo or complimentary service.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";

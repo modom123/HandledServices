@@ -15,6 +15,6 @@ export async function GET(req: Request) {
   const slug = u.searchParams.get("service") ?? "";
   if (!getService(slug)) return Response.json({ factor: 1, region: 1 });
   const zip = u.searchParams.get("zip");
-  const [factor, region] = await Promise.all([getMarketFactor(slug, zip), regionFactor(zip)]);
+  const [factor, region] = await Promise.all([getMarketFactor(slug, zip), regionFactor(zip, slug)]);
   return Response.json({ factor, region }, { headers: { "Cache-Control": "public, max-age=300" } });
 }

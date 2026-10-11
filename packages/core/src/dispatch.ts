@@ -16,6 +16,7 @@
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
  *           is used as-is, so dispatch never stops.
  * UPDATED : 2026-10-07_1900 UTC — same-day checks use the job's time zone (Pacific in Washington).
+ * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
  */
 
 import { getService } from "./services.ts";
@@ -99,10 +100,11 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
   if (svc?.licensed && !c.license_number) return "license required";
   if (svc?.licensed && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
-  const base = proDistance(c, job);
-  const live = liveDistance(c, job, today);
+  // remote work (websites, AI, formation, consulting): no driving radius or service area
+  const base = svc?.remote ? null : proDistance(c, job);
+  const live = svc?.remote ? null : liveDistance(c, job, today);
   const miles = base != null && live != null ? Math.min(base, live) : base ?? live;
-  if (miles != null) {
+  if (svc?.remote) { /* any location */ } else if (miles != null) {
     if (miles > (c.service_radius_mi ?? 25)) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
   } else if (c.service_zips.length && !c.service_zips.includes(job.zip) && !c.service_zips.includes(job.zip.slice(0, 3) + "*"))
     return "outside service area";
@@ -154,12 +156,14 @@ export function rankContractors(
       // accepting or declining offers never affects ranking (pros are free to decline)
       score += Number(c.on_time_rate) * 18;
       if (c.on_time_rate < 0.85) reasons.push(`${Math.round(c.on_time_rate * 100)}% on time`);
-      // proximity
-      const live = liveDistance(c, job);
-      const miles = live ?? proDistance(c, job);
-      if (onCallFor(c, job)) { score += 15; reasons.push("on call now"); }
+      // proximity (remote work: everyone gets the same middle score — distance doesn't matter)
+      const remote = Boolean(getService(job.service_slug)?.remote);
+      const live = remote ? null : liveDistance(c, job);
+      const miles = remote ? null : live ?? proDistance(c, job);
+      if (!remote && onCallFor(c, job)) { score += 15; reasons.push("on call now"); }
       if (live != null) reasons.push("live location");
-      if (miles != null) {
+      if (remote) score += 8;
+      else if (miles != null) {
         score += 12 * Math.max(0, 1 - miles / Math.max(1, c.service_radius_mi ?? 25));
         reasons.push(`${miles < 1 ? "<1" : Math.round(miles)} mi away`);
       } else score += c.service_zips.includes(job.zip) ? 8 : 5;

@@ -2,13 +2,16 @@
   FILE    : README.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-01_1800 UTC
+  UPDATED : 2026-10-11_1603 UTC — 66 services: Business & Technology (websites, AI automation & agents, business formation,
+            consulting) and Freight & Pallet Delivery with carrier partners such as 3 Lakes Logistics.
 -->
 
 # Handled — AI-run home & business services
 
 A services company that delivers cleaning, power washing, lawn & snow, trees, pet care, hauling, handyman and
-licensed trades, interior & exterior painting, remodels, errands, events and transportation (licensed operators) through vetted
-subcontractors. AI runs it day to day, IEBC's AI workforce staffs it, and a small
+licensed trades, interior & exterior painting, remodels, errands, events, transportation (licensed operators), freight and
+pallet delivery (licensed carriers, e.g. 3 Lakes Logistics), and remote business services — websites, AI automation and AI
+agents, business formation and consulting — through vetted subcontractors and Handled staff. AI runs it day to day, IEBC's AI workforce staffs it, and a small
 human team manages it. Business plan: [`docs/BUSINESS_PLAN_2026-10-01_1830.md`](docs/BUSINESS_PLAN_2026-10-01_1830.md).
 
 ```

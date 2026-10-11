@@ -7,7 +7,7 @@
  * UPDATED : 2026-10-03_0120 UTC — proposed pro deductions: pro's response, uphold / waive with a reason.
  * PURPOSE : Unit economics — revenue, payouts, gross margin by service; payout queue;
  *           AI cost tracking from ai_runs.
- * UPDATED : 2026-10-11_1500 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  */
 import { CARD_FEE, TAKE_MAX, TAKE_MIN, getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
