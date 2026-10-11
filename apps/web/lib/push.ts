@@ -8,8 +8,10 @@
  * PURPOSE : One way to reach a person: push to every phone they've signed in on (Expo push
  *           service → APNs/FCM), plus email, plus a row in their in-app inbox. Dead device
  *           tokens are pruned automatically. Works with no phones registered (email only).
+ * UPDATED : 2026-10-11_2242 UTC — push notifications are recorded in the notification log (texts and emails log themselves).
  */
 import "server-only";
+import { logNotice } from "./notification-log";
 import { adminClient } from "./supabase/server";
 import { sendEmail } from "./notify";
 import { sendSms } from "./sms";
@@ -67,7 +69,10 @@ export async function notify(profileId: string | null | undefined, notice: Notic
         const json = (await res.json().catch(() => ({}))) as { data?: { status: string; details?: { error?: string } }[] };
         const dead = (json.data ?? []).map((t, i) => (t.details?.error === "DeviceNotRegistered" ? list[i] : null)).filter(Boolean) as string[];
         if (dead.length) await db.from("push_tokens").delete().in("token", dead);
-        if ((json.data ?? []).some((t) => t.status === "ok")) channels.push("push");
+        const pushed = (json.data ?? []).some((t) => t.status === "ok");
+        if (pushed) channels.push("push");
+        await logNotice({ channel: "push", to: `${list.length} device${list.length === 1 ? "" : "s"} · ${profileId}`, subject: n.title, text: n.body, status: pushed ? "sent" : "failed",
+          error: pushed ? null : (json.data ?? []).map((t) => t.details?.error).filter(Boolean)[0] ?? "not delivered", jobId: n.data?.jobId ?? n.data?.job_id ?? null });
       } catch (e) {
         console.error("[push]", e);
       }

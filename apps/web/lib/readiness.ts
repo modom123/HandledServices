@@ -33,6 +33,7 @@
  * UPDATED : 2026-10-07_2030 UTC — Adzuna (job-posting leads) check.
  * UPDATED : 2026-10-11_1625 UTC — Hunter.io lead-email check (HUNTER_API_KEY).
  * UPDATED : 2026-10-11_1603 UTC — carrier partner check (3 Lakes Logistics: added, vetting or approved).
+ * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -156,6 +157,7 @@ export async function readiness(): Promise<Check[]> {
     ["54 website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
     ["55 bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
     ["56 Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],
+    ["58 notification log (Dispatch, job page)", () => db.from("notification_log").select("id").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

@@ -362,6 +362,30 @@ test("lead emails from Hunter.io: own domain, confident, the right person, never
   assert.equal(pickHunterEmail([{ value: "info@acme.co.uk", confidence: 90 }], "shop.acme.co.uk", "owner")?.email, "info@acme.co.uk", "a site on a subdomain: the company domain counts");
 });
 
+test("dispatch board: hours to start, payment state and what needs a dispatcher", async () => {
+  const { hoursUntilStart, paymentState, dispatchFlags } = await import("./dispatch-board.ts");
+  const now = new Date("2026-10-12T13:30:00Z"); // 9:30am in Detroit, 6:30am in Seattle
+  const base = { scheduled_date: "2026-10-12", time_window: "afternoon", zip: "48201", status: "dispatched", contractor_id: null, price_final: 200, paid_at: "2026-10-10T00:00:00Z" };
+  assert.equal(hoursUntilStart(base, now), 4.5, "Detroit afternoon opens at 2pm: 4.5 hours");
+  assert.equal(hoursUntilStart({ ...base, zip: "98101" }, now), 7.5, "Seattle uses Pacific time");
+  assert.equal(hoursUntilStart({ ...base, scheduled_date: "2026-10-13", time_window: "morning" }, now), 22.5);
+  assert.equal(hoursUntilStart({ ...base, scheduled_date: null }, now), null);
+  assert.equal(dispatchFlags(base, { standby: 0, pendingOffers: 3, now })[0].key, "no_pro_soon", "no pro inside 6 hours is red");
+  assert.equal(dispatchFlags({ ...base, scheduled_date: "2026-10-14" }, { standby: 0, pendingOffers: 3, now })[0].label, "No pro yet · 3 offers out");
+  const assigned = { ...base, contractor_id: "p1", status: "assigned" };
+  assert.ok(dispatchFlags(assigned, { standby: 0, pendingOffers: 0, now }).some((f) => f.key === "no_backups"));
+  assert.ok(!dispatchFlags(assigned, { standby: 2, pendingOffers: 0, now }).length, "pro + backups + paid: nothing to do");
+  assert.ok(dispatchFlags({ ...assigned, time_window: "morning" }, { standby: 2, pendingOffers: 0, now }).some((f) => f.key === "late"), "90 minutes into the morning window, not started");
+  assert.ok(!dispatchFlags({ ...assigned, status: "in_progress", time_window: "morning" }, { standby: 2, pendingOffers: 0, now }).length);
+  assert.equal(dispatchFlags({ ...base, status: "completed" }, { standby: 0, pendingOffers: 0, now }).length, 0);
+  assert.equal(paymentState({ ...base, paid_at: null }).key, "unpaid");
+  assert.equal(paymentState({ ...base, paid_at: null, deposit_paid_at: "x" }).key, "balance");
+  assert.equal(paymentState({ ...base, paid_at: null, billed_on_terms: true }).key, "terms");
+  assert.equal(paymentState({ ...base, amount_refunded: 50 }).label, "Paid · $50 refunded");
+  assert.equal(paymentState({ ...base, paid_at: null, status: "site_visit" }).key, "visit");
+  assert.equal(dispatchFlags({ ...base, paid_at: null, status: "requested" }, { standby: 0, pendingOffers: 0, now })[0].key, "unpaid", "unpaid today is red; no 'no pro' flag before payment");
+});
+
 test("pro policy: who qualifies, and every benefit keeps the job at or above $0", async () => {
   const { PRO_POLICY_DEFAULTS: P, mergePolicy, whyNot, qualifies, showUpPay, instantPayFee, materialsDecision, guaranteeTopUp } = await import("./pro-policy.ts");
   const { refundSplit } = await import("./pricing.ts");
