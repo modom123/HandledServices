@@ -10,6 +10,8 @@
   UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
   UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
             Insurance: contingent pollution liability (used oil). Transportation: urgent-ride wording review.
+  UPDATED : 2026-10-11_1600 UTC — 65 services (Business & Technology: websites, business formation, consulting, AI automation,
+            AI agents). Professional E&O now also covers this delivered work; formation is paperwork only (no legal advice).
 -->
 
 # Business & legal launch checklist
@@ -21,7 +23,7 @@ real customers' money.
 ## How to work through it fastest
 
 1. **One commercial insurance broker** who already insures marketplaces or gig platforms can quote
-   every policy in the insurance section at once. Bring: the service list (60 services), expected
+   every policy in the insurance section at once. Bring: the service list (65 services), expected
    jobs per month, that pros are 1099 subcontractors carrying their own insurance (our onboarding
    verifies it), and that we arrange rides and deliveries in vehicles we don't own.
 2. **One business attorney** for the legal review section, with referrals for the specialists
@@ -47,7 +49,7 @@ real customers' money.
 |---|---|---|---|
 | **Before launch** | General liability for the company (with contingent liability over subcontractors) | Customers and their insurers will name Handled in any claim, not just the pro. | Commercial insurance broker who places marketplace / gig-platform policies |
 | **Before launch** | Hired & non-owned auto (HNOA) | Rides, deliveries, errands and courier runs happen in vehicles we don't own. | Same broker |
-| **Before launch** | Professional / tech errors & omissions | Our AI sets prices and dispatches work — a mistake there is a professional-liability claim. | Same broker |
+| **Before launch** | Professional / tech errors & omissions | Our AI sets prices and dispatches work — a mistake there is a professional-liability claim. Handled also sells websites, AI automation and agents, business formation filings and consulting directly, so the policy must cover that delivered work (and the specialists we subcontract it to). | Same broker |
 | **Before launch** | Cyber liability | We hold addresses, door codes, photos of homes, medical-delivery details and payment data. | Same broker |
 | **Before the first used-oil pickup** | Contingent pollution liability | Used Oil Collection moves oil, filters and antifreeze; a spill is an environmental claim general liability excludes. Haulers must carry their own pollution coverage too. | Same broker |
 | Soon after | Third-party crime / fidelity bond | Covers theft by a pro inside a customer's home or business — customers ask for it. | Same broker |
@@ -83,6 +85,7 @@ real customers' money.
 
 | | Item | Why | Who to ask |
 |---|---|---|---|
+| **Before the first formation job** | Attorney review of the Business Formation service page and agreement | Filing paperwork for customers is legal as a document-preparation service, but Handled must never give legal advice; an attorney should confirm the wording and the referral process. | Business attorney |
 | **Before launch** | Company formed, EIN, Michigan registration, business bank account | Stripe, insurance, contracts and taxes are all in the company's name. | Accountant / attorney |
 | Soon after | Register in each new state before launching there (and its sales tax if services are taxable) | Expansion to new cities means foreign qualification and, in some states, sales tax on services. | Accountant |
 | Soon after | Local business licenses (City of Detroit and each city served) | Many cities license service businesses separately. | City clerk / accountant |

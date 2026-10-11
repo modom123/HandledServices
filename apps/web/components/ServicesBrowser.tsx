@@ -9,13 +9,14 @@
  * UPDATED : 2026-10-05_1433 UTC — Security category links to Event Security.
  * UPDATED : 2026-10-06_0625 UTC — easier to read: category list, card titles and descriptions one size up on the site's
  *           scale (base / lg), bold or semibold, in dark ink instead of light grey; counts in a pill.
+ * UPDATED : 2026-10-11_1600 UTC — remote services show "free consultation" instead of "free site visit".
  */
 "use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-export type BrowserCategory = { id: string; name: string; icon: string; blurb: string; services: { slug: string; name: string; icon: string; tagline: string; from: string; siteVisit: boolean }[] };
+export type BrowserCategory = { id: string; name: string; icon: string; blurb: string; services: { slug: string; name: string; icon: string; tagline: string; from: string; siteVisit: boolean; remote?: boolean }[] };
 
 export function ServicesBrowser({ categories, initial }: { categories: BrowserCategory[]; initial?: string }) {
   const [cat, setCat] = useState(categories.some((c) => c.id === initial) ? initial! : categories[0]?.id);
@@ -71,7 +72,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
                   <div className="text-3xl">{s.icon}</div>
                   <div className="mt-3 text-lg font-bold leading-snug text-ink">{s.name}</div>
                   <p className="mt-1.5 flex-1 text-base leading-relaxed text-ink/90">{s.tagline}</p>
-                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit ? " · free site visit" : ""}</div>
+                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit ? (s.remote ? " · free consultation" : " · free site visit") : ""}</div>
                 </Link>
               ))}
             </div>

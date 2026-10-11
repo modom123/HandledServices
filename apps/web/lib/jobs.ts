@@ -40,6 +40,7 @@
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
  * UPDATED : 2026-10-07_1830 UTC — area pricing: the ZIP's service-area price level (regionFactor) goes into the price and the AI quote.
  * UPDATED : 2026-10-07_1900 UTC — pro offer texts show the expiry in the job's time zone (PT for Washington, ET for Michigan).
+ * UPDATED : 2026-10-11_1600 UTC — remote services: no area price level, the booked ZIP isn't added to a service area, and the free site visit is a video consultation (customer email + pro offer wording).
  */
 import "server-only";
 import { z } from "zod";
@@ -149,7 +150,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
-  const region = await (await import("./launch")).regionFactor(input.zip); // area price level (Seattle area +25%, rest of WA +20%)
+  const region = await (await import("./launch")).regionFactor(input.zip, svc.slug); // area price level (Seattle area +25%, rest of WA +20%)
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush, market, region });
   // the price the customer saw (signed quote) if nothing changed since; otherwise check now
   const q = readQuoteToken(quote_token);
@@ -260,7 +261,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 export async function onBooked(job: Job, paymentUrl: string | null) {
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
-  const added = await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
+  const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
   if (added) await raiseAlert("market", "info", `New service area ZIP: ${job.zip}`, `${job.ref} was booked in ${job.city ?? ""} ${job.zip}, so it was added to "${added}". Move it to a named market in Hub → Cities if you like.`, job.id).catch(() => {});
   const ai = job.ai_quote as { customer_summary?: string; risk_flags?: string[]; ops_notes?: string } | null;
   if (svc.slug === "junk-container" && job.scheduled_date)
@@ -270,6 +271,18 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   if (ai?.risk_flags?.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes ?? null, job.id);
 
   const es = (await localeOf(job.customer_id, job.locale)) === "es";
+  if (job.status === "site_visit" && svc.remote) {
+    // websites, AI, formation, consulting: a free video consultation instead of a site visit
+    if (es) await sendEmail(job.contact_email, `${BRAND.name}: consulta gratis ${job.ref} reservada`,
+      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} le escribirá para agendar su consulta gratis por video sobre ${svcEs(svc.slug)} (estimado ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
+      `En la consulta confirmamos el alcance y un precio firme. No debe nada hasta que apruebe la cotización.\n\nSu estimado y acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    else await sendEmail(job.contact_email, `${BRAND.name}: free consultation ${job.ref} booked`,
+      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will reach out to schedule your free video consultation for ${svc.name} (estimated ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
+      `On the call we confirm the scope and a firm price. Nothing is owed until you approve the quote.\n\nYour estimate & service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    await addEvent(job.id, "site_visit", "Free consultation requested — a specialist will reach out to schedule a video call.", "system", true, "Consulta gratis solicitada: un especialista le escribirá para agendar una videollamada.").catch(() => {});
+    await dispatchJob(job.id, { siteVisit: true });
+    return;
+  }
   if (job.status === "site_visit") {
     if (es) await sendEmail(job.contact_email, `${BRAND.name}: visita al sitio gratuita ${job.ref} reservada`,
       `Hola ${job.contact_name.split(" ")[0]}:\n\nUn profesional le visitará para confirmar un precio firme para su ${svcEs(svc.slug)} (estimado ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
@@ -435,6 +448,11 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     stats[r.contractor_id] = { qaPass: Number(r.qa_checked) >= 3 ? Number(r.qa_passed) / Number(r.qa_checked) : null, redoRate: Number(r.jobs_completed) >= 3 ? Number(r.redos) / Number(r.jobs_completed) : null };
   const ranked = rankContractors((pros ?? []) as Contractor[], job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
   if (!ranked.length) {
+    if (getService(job.service_slug)?.remote) {
+      // websites, AI, formation, consulting: no specialist yet — a staff member holds the free consultation
+      await raiseAlert("no_pros", "warn", `${job.ref}: consultation for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. Email ${job.contact_name} (${job.contact_email}) to schedule the free video consultation for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}), or assign it to a specialist.`, job.id);
+      return { offers: 0, reason: "no eligible pros" };
+    }
     await raiseAlert("no_pros", "critical", `${job.ref}: no eligible pro`, `No approved, insured pro who works ${job.scheduled_date ?? "that day"} (${job.time_window}) within driving distance of ${job.zip} for ${job.service_slug}. Assign manually, ask a pro to take it, or recruit.`, job.id);
     return { offers: 0, reason: "no eligible pros" };
   }
@@ -504,9 +522,10 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const asked = job.preferred_contractor_id === p.id;
     const crewAskHere = crewAsk && p.id === favs[0]?.contractor.id ? crewAsk.name.split(" ")[0] : null;
     const hrs = `${hours} hour${hours === 1 ? "" : "s"}`, hrsEs = `${hours} hora${hours === 1 ? "" : "s"}`;
-    const lead = offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? "site visit" : "job"} · ${pay ? money(pay) : "site visit"}`;
+    const visitEn = svc.remote ? "consultation" : "site visit", visitEs = svc.remote ? "consulta" : "visita al sitio";
+    const lead = offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? visitEn : "job"} · ${pay ? money(pay) : visitEn}`;
     const nameEs = serviceText("es", svc.slug, svc).name;
-    const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? "Nueva visita al sitio" : "Nuevo trabajo"} · ${pay ? money(pay) : "visita al sitio"}`;
+    const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? (svc.remote ? "Nueva consulta" : "Nueva visita al sitio") : "Nuevo trabajo"} · ${pay ? money(pay) : visitEs}`;
     const whyEs = offerKind === "favorite" ? `Este cliente ${asked ? "lo pidió a usted" : "lo marcó como favorito"}: usted lo ve primero por ${hrsEs}. Puede pasar sin costo; luego se ofrece a otros profesionales.${crewAskHere ? ` Pidieron a ${crewAskHere}; usted decide quién va.` : ""}` : offerKind === "account" ? `La empresa lo eligió como uno de sus profesionales: usted lo ve primero por ${hours} horas. El primero en aceptar se lo lleva.` : offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
     const tz = jobTimeZone(job); // Washington jobs: Pacific time
     const expiresEs = `${new Date(expires).toLocaleTimeString("es-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}`;
@@ -517,13 +536,13 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
       data: { type: "offer", offerId },
       channel: "offers",
       sms: { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` },
-      email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? "site visit" : "job"} offer: ${svc.name} · ${pay ? money(pay) : "site visit"} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
+      email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? visitEn : "job"} offer: ${svc.name} · ${pay ? money(pay) : visitEn} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
       es: {
         title: leadEs,
         body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}`,
         sms: `${BRAND.name}: ${leadEs} — ${nameEs}, ${job.city} ${job.zip}, ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs} ${siteUrl()}/pro/offers/${offerId}`,
-        subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? "visita al sitio" : "trabajo"}: ${nameEs} · ${pay ? money(pay) : "visita al sitio"} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
+        subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? visitEs : "trabajo"}: ${nameEs} · ${pay ? money(pay) : visitEs} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: pay, locale: "es" }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
       },
     });

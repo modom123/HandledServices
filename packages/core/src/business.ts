@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal under clean-outs and for property managers.
  * UPDATED : 2026-10-06_0637 UTC — dock & door, fire extinguisher and small engine under maintenance; used oil under clean-outs;
  *           new industry: auto shops & fleets.
+ * UPDATED : 2026-10-11_1600 UTC — "Websites, AI & business setup" group (Business & Technology services).
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -28,6 +29,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
   { id: "events", title: "Corporate events & catering", icon: "🍽️", blurb: "Team lunches, client dinners, company BBQs and holiday parties, start to finish.", slugs: ["catering", "event-planning", "food-truck", "event-venue", "event-rentals", "dj-music"] },
   { id: "security", title: "Security guards & patrol", icon: "🛡️", blurb: "Licensed guards for your building, job site or lot: a standing post, nightly patrols, fire watch, or security for your event.", slugs: ["security-guard", "event-security", "camera-install"] },
+  { id: "tech", title: "Websites, AI & business setup", icon: "💼", blurb: "A website that wins customers, AI that answers leads and does the busywork, your LLC filed, and a consultant for plans and bids — done remotely.", slugs: ["website-design", "ai-automation", "ai-agents", "business-formation", "business-consulting"] },
   { id: "fleet", title: "Fleet & staff perks", icon: "🚗", blurb: "On-site detailing for company vehicles — or as a perk in your lot.", slugs: ["mobile-car-detailing", "personal-assistant"] },
 ];
 

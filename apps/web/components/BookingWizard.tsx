@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-07_1900 UTC — quick choices Today / Next week / In 2 weeks / Within a month / Flexible, then "Pick the day and arrival time" on the calendar.
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
  * UPDATED : 2026-10-07_1830 UTC — area price level from /api/market (region), so the price shown matches what the server charges.
+ * UPDATED : 2026-10-11_1600 UTC — remote services (websites, AI, formation, consulting) say "free consultation" instead of "site visit".
  */
 "use client";
 
@@ -299,7 +300,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               ))}
             </div>
             {form.customer_type === "commercial" && <div><label className="label">{t("Company")}</label><input className="input" value={form.company_name} onChange={set("company_name")} /></div>}
-            <div><label className="label">{t(svc?.leadDays ? "Event address (or your neighborhood if you need a venue)" : "Street address")}</label><input className="input" autoComplete="street-address" value={form.address} onChange={set("address")} /></div>
+            <div><label className="label">{t(svc?.leadDays ? "Event address (or your neighborhood if you need a venue)" : svc?.remote ? "Business address" : "Street address")}</label><input className="input" autoComplete="street-address" value={form.address} onChange={set("address")} /></div>
             <div className="grid grid-cols-[1fr_80px] gap-3">
               <div><label className="label">{t("City")}</label><input className="input" value={form.city} onChange={set("city")} /></div>
               <div><label className="label">{t("State")}</label><input className="input uppercase" maxLength={2} value={form.state} onChange={set("state")} /></div>
@@ -333,12 +334,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {t(siteVisit ? "the site visit is free; I pay upfront once I approve the firm quote." : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right.")}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {t(siteVisit ? (svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right.")}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t("Book free site visit") : `${t("Pay")} ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, total, date).allowed ? depositPolicy(svc!.slug, total, date).amount : perks ? perks.dueNow : total) : ""}${plan === "deposit" ? (es ? " de depósito" : " deposit") : ""} ${es ? "y reservar" : "& book"}`}</button>
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Book free consultation" : "Book free site visit") : `${t("Pay")} ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, total, date).allowed ? depositPolicy(svc!.slug, total, date).amount : perks ? perks.dueNow : total) : ""}${plan === "deposit" ? (es ? " de depósito" : " deposit") : ""} ${es ? "y reservar" : "& book"}`}</button>
             </div>
           </div>
         )}
@@ -425,7 +426,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ {t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? "Free site visit — a pro confirms the firm price, then you pay to lock in the work." : BRAND.promise)}
+            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free video consultation — a specialist confirms the scope and firm price, then you pay to start the work." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
           </p>
         </aside>
       )}

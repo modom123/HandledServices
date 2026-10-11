@@ -10,10 +10,12 @@
  * UPDATED : 2026-10-02_0301 UTC — same day (includeToday): today counts pros who are On call or
  *           working today, and only arrival windows that haven't started yet.
  * UPDATED : 2026-10-07_1900 UTC — the calendar's "today" and same-day cut-offs use the customer's time zone (Pacific in Washington).
+ * UPDATED : 2026-10-11_1600 UTC — remote services with no specialist yet stay bookable: staff hold the video consultations.
  */
 import { BRAND } from "./brand.ts";
 import { eligible, offDuty } from "./dispatch.ts";
 import { isRush } from "./pricing.ts";
+import { getService } from "./services.ts";
 import type { Contractor, TimeWindow } from "./types.ts";
 import { localDate, localHour, onCall, timeZoneForZip } from "./roster.ts";
 
@@ -39,6 +41,9 @@ export interface DaySlots {
   windows: Record<Exclude<TimeWindow, "flexible">, number>;
 }
 
+/** Video consultations Handled staff can hold per time window for remote services with no specialist yet. */
+const STAFF_CONSULTS_PER_WINDOW = 2;
+
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export function buildAvailability(opts: {
@@ -61,6 +66,7 @@ export function buildAvailability(opts: {
   const start = opts.start ?? (opts.includeToday ? new Date(`${todayLocal}T12:00:00Z`) : new Date(now.getTime() + 86400000));
   const days = opts.days ?? BRAND.bookingHorizonDays;
   const pros = opts.contractors.filter((c) => eligible(c, { service_slug: opts.slug, zip: opts.zip, scheduled_date: null, lat: opts.lat, lng: opts.lng }) === null);
+  const staffCovers = !pros.length && Boolean(getService(opts.slug)?.remote);
   const out: DaySlots[] = [];
 
   for (let i = 0; i < days; i++) {
@@ -90,8 +96,14 @@ export function buildAvailability(opts: {
       spots = Math.max(0, spots - waiting.length);
       for (const j of waiting) if (j.time_window !== "flexible" && windows[j.time_window] > 0) windows[j.time_window]--;
     }
-    const level: DaySlots["level"] = closed ? "closed" : !pros.length ? "request" : spots === 0 ? "full" : spots <= 2 ? "limited" : "open";
+    // remote work (websites, AI, formation, consulting): until specialists sign up, Handled staff hold the consultations
+    if (staffCovers && !closed) {
+      const hourNow = date === todayLocal ? localHour(now, tz) : 0;
+      for (const w of WINDOWS) windows[w] = date !== todayLocal || hourNow < WINDOW_START[w] - 1 ? STAFF_CONSULTS_PER_WINDOW : 0;
+      spots = windows.morning + windows.midday + windows.afternoon;
+    }
+    const level: DaySlots["level"] = closed ? "closed" : !pros.length && !staffCovers ? "request" : spots === 0 ? "full" : spots <= 2 ? "limited" : "open";
     out.push({ date, weekday, closed, rush: isRush(date), level, spots, windows });
   }
-  return { mode: pros.length ? "live" : "request", pros: pros.length, days: out };
+  return { mode: pros.length || staffCovers ? "live" : "request", pros: pros.length, days: out };
 }

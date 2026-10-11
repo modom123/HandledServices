@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — new trades: small engine, dock & door, fire extinguisher (state license), foundation (builder license), used oil (EPA ID, EGLE registration).
  * UPDATED : 2026-10-07_0310 UTC — cleaners: no license, no bond for residential work; a janitorial bond only for large commercial
  *           cleaning jobs ($1,500+) — TradeProfile.commercial, checked at dispatch.
+ * UPDATED : 2026-10-11_1600 UTC — trade profiles for the remote specialists: web design, business formation, consulting, AI automation.
  */
 import { BRAND } from "./brand.ts";
 
@@ -371,6 +372,30 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     specialties: [{ id: "trades_ops", label: "Skilled trades & operations" }, { id: "tech", label: "Technical / IT" }, { id: "office", label: "Office, admin & finance" }, { id: "sales", label: "Sales & customer service" }, { id: "healthcare", label: "Healthcare" }, { id: "exec", label: "Leadership / executive search" }],
     license: null, preferred: ["2+ years agency or in-house recruiting", "Applicant tracking and sourcing tools", "AIRS / CIR / CDR or similar certification"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
     skillsCheck: "Two recent placements with salary range and role (no client names needed), a sample candidate write-up, and a 20-minute mock intake call.",
+  },
+  web_design: {
+    does: "Remote web designers and developers: business websites, online stores, landing pages, Google setup and site care.",
+    specialties: [{ id: "business_site", label: "Business websites", slug: "website-design" }, { id: "ecommerce", label: "Online stores" }, { id: "branding", label: "Logos & brand kits" }, { id: "seo", label: "Google & search setup" }],
+    license: null, preferred: ["Professional liability (E&O) insurance", "Accessibility (WCAG) experience", "Spanish-language sites"], glMin: GL1, requires: [], conditional: [],
+    skillsCheck: "Portfolio with 3 live sites they built, 2 client references, and a short review of a sample brief.",
+  },
+  business_formation: {
+    does: "Remote business formation specialists: LLC, corporation and nonprofit filings, EINs, registered agent, licenses and permits. Paperwork only — no legal or tax advice.",
+    specialties: [{ id: "llc_corp", label: "LLC & corporation filings", slug: "business-formation" }, { id: "nonprofit", label: "Nonprofit filings" }, { id: "licenses", label: "Business licenses & permits" }, { id: "registered_agent", label: "Registered agent service" }],
+    license: null, preferred: ["Professional liability (E&O) insurance", "Paralegal or enrolled agent background", "Notary public"], glMin: GL1, requires: [], conditional: [],
+    skillsCheck: "Three recent filings (redacted), the states they file in, and a walkthrough of how they keep client data private.",
+  },
+  consulting: {
+    does: "Remote business consultants: strategy sessions, startup and business plans, growth and operations, marketing plans and bid / RFP writing.",
+    specialties: [{ id: "strategy", label: "Strategy & business plans", slug: "business-consulting" }, { id: "operations", label: "Operations & growth" }, { id: "marketing", label: "Marketing plans" }, { id: "bids", label: "Bid & RFP writing" }, { id: "finance", label: "Financial projections" }],
+    license: null, preferred: ["Professional liability (E&O) insurance", "5+ years running or advising small businesses", "Government contracting experience"], glMin: GL1, requires: [], conditional: [],
+    skillsCheck: "Two sample deliverables (redacted), 2 client references, and a 20-minute mock consultation.",
+  },
+  ai_automation: {
+    does: "Remote AI automation builders: workflow automations between business apps, AI chat and voice agents, and integrations with CRMs, calendars and invoicing.",
+    specialties: [{ id: "workflows", label: "Workflow automation", slug: "ai-automation" }, { id: "agents", label: "AI chat & voice agents", slug: "ai-agents" }, { id: "integrations", label: "CRM & app integrations" }, { id: "data", label: "Reports & dashboards" }],
+    license: null, preferred: ["Professional liability (E&O) / cyber insurance", "Security and data-privacy practices", "Spanish-language agents"], glMin: GL1, requires: [], conditional: [],
+    skillsCheck: "Two automations or agents they built (demo or recording), how they handle client logins and data, and 2 client references.",
   },
   venue: {
     does: "Event spaces for parties, meetings and celebrations.",

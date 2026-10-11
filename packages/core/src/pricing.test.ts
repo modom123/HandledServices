@@ -305,6 +305,32 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
   assert.equal(a.contractor.id, "y", "specialist ranks first");
 });
 
+test("business & technology: remote, consultation first, state fees at cost", async () => {
+  const { buildAvailability } = await import("./availability.ts");
+  const remote = SERVICES.filter((s) => s.category === "business");
+  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "business-consulting", "business-formation", "website-design"]);
+  for (const s of remote) assert.ok(s.remote && s.siteVisit && s.onDemand, `${s.slug}: remote, free consultation, no rush fee`);
+  // a Seattle specialist can take a Detroit website job: no driving radius or service area for remote work
+  const far: Contractor = {
+    id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design"], service_zips: ["98101"], status: "approved",
+    rating: 5, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+    lat: 47.61, lng: -122.33, service_radius_mi: 25,
+  } as Contractor;
+  assert.equal(rankContractors([far], { service_slug: "website-design", zip: "48201", scheduled_date: null, price_final: 1500, lat: 42.33, lng: -83.05 }).length, 1);
+  assert.equal(rankContractors([{ ...far, trades: ["handyman"] }], { service_slug: "handyman", zip: "48201", scheduled_date: null, price_final: 200, lat: 42.33, lng: -83.05 }).length, 0, "on-site work still needs the radius");
+  // a consultation inside 48 hours isn't a rush job
+  const site = estimate({ slug: "website-design", answers: defaultAnswers(getService("website-design")!), frequency: "once", rush: true });
+  assert.ok(!site.items.some((i) => /rush/i.test(i.label)));
+  // the state's filing fee is shown but billed at cost ($0 in our price)
+  const llc = estimate({ slug: "business-formation", answers: { ...defaultAnswers(getService("business-formation")!), state: "WA" }, frequency: "once", rush: false });
+  const fee = llc.items.find((i) => /State filing fee/.test(i.label));
+  assert.ok(fee && fee.amount === 0 && /\$200/.test(fee.label));  // no specialist signed up yet: still bookable — staff hold the consultations (on-site services go to the waitlist)
+  const staff = buildAvailability({ slug: "ai-agents", zip: "10001", contractors: [], jobs: [], days: 7 });
+  assert.equal(staff.mode, "live");
+  assert.ok(staff.days.some((d) => !d.closed && d.spots > 0));
+  assert.equal(buildAvailability({ slug: "handyman", zip: "48201", contractors: [], jobs: [], days: 7 }).mode, "request");
+});
+
 test("pro policy: who qualifies, and every benefit keeps the job at or above $0", async () => {
   const { PRO_POLICY_DEFAULTS: P, mergePolicy, whyNot, qualifies, showUpPay, instantPayFee, materialsDecision, guaranteeTopUp } = await import("./pro-policy.ts");
   const { refundSplit } = await import("./pricing.ts");

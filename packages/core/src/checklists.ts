@@ -82,6 +82,18 @@ const FRAMES: Record<string, [ChecklistSectionDef, ChecklistSectionDef]> = {
       i("left", "Vehicle checked for left-behind items", "Vehículo revisado por objetos olvidados", { required: true }),
     ] },
   ],
+  business: [
+    { id: "start", en: "Kickoff", es: "Inicio del proyecto", items: [
+      i("scope", "Scope, deliverables and timeline approved by the client in writing", "Alcance, entregables y plazos aprobados por el cliente por escrito", { required: true }),
+      i("access", "Logins and materials received through a secure method (never by plain email or text)", "Accesos y materiales recibidos por un medio seguro (nunca por correo o texto sin protección)", { required: true }),
+    ] },
+    { id: "finish", en: "Delivery", es: "Entrega", items: [
+      i("ownership", "Every account, domain and file is in the client's name; the client has the admin login", "Cada cuenta, dominio y archivo está a nombre del cliente; el cliente tiene el acceso de administrador", { required: true }),
+      i("handoff", "Deliverables and a short how-to handed over; questions answered", "Entregables y una guía breve entregados; preguntas respondidas", { required: true }),
+      i("access_removed", "Your own access removed or reduced to what the client approved", "Su propio acceso retirado o reducido a lo que el cliente aprobó", { required: true }),
+      i("signoff", "Client sign-off recorded in the app (or the open items listed)", "Aprobación del cliente registrada en la app (o los pendientes anotados)", { required: true }),
+    ] },
+  ],
   events: [
     { id: "start", en: "Setup", es: "Montaje", items: [
       i("contact", "Checked in with the on-site contact; timeline confirmed", "Registro con el contacto en el lugar; horario confirmado", { required: true }),
@@ -520,6 +532,104 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
       i("ceramic", "Ceramic coating applied; cure instructions given to the customer", "Recubrimiento cerámico aplicado; instrucciones de curado dadas al cliente", { when: { q: "package", in: ["ceramic"] }, required: true }),
     ] }],
   }),
+
+  "website-design": {
+    service: "website-design", version: 1, title: { en: "Website project checklist", es: "Lista del proyecto de sitio web" },
+    sections: [
+      FRAMES.business[0],
+      { id: "build", en: "Design & build", es: "Diseño y creación", items: [
+        i("design", "Design approved by the client before the full build", "Diseño aprobado por el cliente antes de la creación completa", { required: true }),
+        i("pages", "Every booked page built with the client's content", "Cada página reservada creada con el contenido del cliente", { required: true }),
+        i("mobile", "Tested on a phone, tablet and computer", "Probado en celular, tableta y computadora", { required: true }),
+        i("forms", "Contact and booking forms tested end to end (messages reach the client)", "Formularios de contacto y reservas probados de principio a fin (los mensajes le llegan al cliente)", { required: true }),
+        i("speed", "Pages load fast; images compressed; every link works", "Las páginas cargan rápido; imágenes comprimidas; todos los enlaces funcionan"),
+        i("access", "Readable for everyone: alt text on images, good color contrast, works with a keyboard", "Legible para todos: texto alternativo en imágenes, buen contraste, funciona con teclado"),
+        i("logo", "Logo and brand kit delivered (files for web, print and social)", "Logotipo y kit de marca entregados (archivos para web, impresión y redes)", { when: { q: "logo", in: [true] }, required: true }),
+        i("copy", "Page text written and approved by the client", "Textos de las páginas redactados y aprobados por el cliente", { when: { q: "copy", in: [true] }, required: true }),
+        i("seo", "Google Business Profile, analytics and search basics set up", "Perfil de Empresa en Google, analítica y búsquedas básicas configurados", { when: { q: "seo", in: [true] }, required: true }),
+        i("spanish", "Spanish version of every page reviewed by a fluent speaker", "Versión en español de cada página revisada por un hablante con fluidez", { when: { q: "spanish", in: [true] }, required: true }),
+        i("store", "Products, payments, shipping and tax set up; a test order placed and refunded", "Productos, pagos, envíos e impuestos configurados; un pedido de prueba hecho y reembolsado", { when: { q: "package", in: ["store"] }, required: true }),
+        i("live", "Site live on the client's domain with HTTPS", "Sitio publicado en el dominio del cliente con HTTPS", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "business-formation": {
+    service: "business-formation", version: 1, title: { en: "Business formation checklist", es: "Lista de formación de empresa" },
+    sections: [
+      FRAMES.business[0],
+      { id: "filing", en: "Filing", es: "Registro", items: [
+        i("name", "Business name availability checked with the state", "Disponibilidad del nombre verificada con el estado", { required: true }),
+        i("review", "Filing details reviewed and approved by the client before submitting", "Datos del registro revisados y aprobados por el cliente antes de presentarlos", { required: true }),
+        i("filed", "State filing submitted; the state's receipt uploaded", "Registro estatal presentado; recibo del estado subido", { required: true, photo: true }),
+        i("approved", "State approval (certificate or stamped articles) delivered to the client", "Aprobación del estado (certificado o artículos sellados) entregada al cliente", { required: true }),
+        i("ein", "EIN obtained from the IRS; confirmation letter delivered", "EIN obtenido del IRS; carta de confirmación entregada", { required: true }),
+        i("agreement", "Operating agreement or bylaws template delivered, filled in with the owners' names", "Modelo de acuerdo operativo o estatutos entregado, con los nombres de los socios", { required: true }),
+        i("agent", "Registered agent service set up and the address given to the client", "Servicio de agente registrado activado y la dirección entregada al cliente", { when: { q: "agent", in: [true] }, required: true }),
+        i("licenses", "License and permit list delivered (city, county, state) with links and fees", "Lista de licencias y permisos entregada (ciudad, condado, estado) con enlaces y tarifas", { when: { q: "licenses", in: [true] }, required: true }),
+        i("scorp", "S-corp election (Form 2553) filed; IRS confirmation tracked", "Elección de corporación S (formulario 2553) presentada; confirmación del IRS en seguimiento", { when: { q: "scorp", in: [true] }, required: true }),
+        i("calendar", "Compliance calendar delivered (annual report and other deadlines)", "Calendario de cumplimiento entregado (informe anual y otras fechas límite)", { required: true }),
+        i("no_advice", "Legal or tax questions referred to an attorney or accountant, not answered", "Preguntas legales o de impuestos referidas a un abogado o contador, no respondidas", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "business-consulting": {
+    service: "business-consulting", version: 1, title: { en: "Consulting engagement checklist", es: "Lista del servicio de consultoría" },
+    sections: [
+      FRAMES.business[0],
+      { id: "work", en: "The engagement", es: "El servicio", items: [
+        i("discovery", "Discovery done: goals, current numbers and constraints written down", "Diagnóstico hecho: metas, cifras actuales y limitaciones por escrito", { required: true }),
+        i("session", "Strategy session held for the full booked time", "Sesión de estrategia realizada por el tiempo completo reservado", { when: { q: "package", in: ["session"] }, required: true }),
+        i("plan", "Written plan delivered with clear next steps, owners and dates", "Plan por escrito entregado con próximos pasos claros, responsables y fechas", { when: { q: "package", in: ["session", "startup", "growth", "marketing"] }, required: true }),
+        i("financials", "3-year financial projections delivered with the assumptions explained", "Proyecciones financieras a 3 años entregadas con los supuestos explicados", { when: { q: "financials", in: [true] }, required: true }),
+        i("bid_req", "Every requirement in the RFP checked off in a compliance matrix", "Cada requisito de la licitación marcado en una matriz de cumplimiento", { when: { q: "package", in: ["bid"] }, required: true }),
+        i("bid_due", "Proposal delivered to the client before the due date, ready to submit", "Propuesta entregada al cliente antes de la fecha límite, lista para presentar", { when: { q: "package", in: ["bid"] }, required: true }),
+        i("hours", "Hours logged with what was done in each", "Horas registradas con lo que se hizo en cada una", { when: { q: "package", in: ["hourly"] }, required: true }),
+        i("followup", "Follow-up call scheduled", "Llamada de seguimiento agendada"),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "ai-automation": {
+    service: "ai-automation", version: 1, title: { en: "AI automation checklist", es: "Lista de automatización con IA" },
+    sections: [
+      FRAMES.business[0],
+      { id: "build", en: "Build", es: "Creación", items: [
+        i("audit", "Process audit delivered: current steps, time spent and the automation plan", "Auditoría de procesos entregada: pasos actuales, tiempo invertido y plan de automatización", { when: { q: "audit", in: [true] }, required: true }),
+        i("map", "Each workflow mapped and approved by the client before building", "Cada flujo mapeado y aprobado por el cliente antes de crearlo", { required: true }),
+        i("built", "Every booked workflow built in the client's own accounts", "Cada flujo reservado creado en las cuentas del propio cliente", { required: true }),
+        i("tested", "Tested with real examples, including what happens when something fails", "Probado con ejemplos reales, incluido qué pasa cuando algo falla", { required: true }),
+        i("alerts", "Failure alerts go to the client (email or text)", "Las alertas de fallas le llegan al cliente (correo o texto)", { required: true }),
+        i("data", "Customer data stays in the client's systems; nothing stored on your own accounts", "Los datos de clientes se quedan en los sistemas del cliente; nada guardado en sus propias cuentas", { required: true }),
+        i("guide", "How-it-works guide delivered for each workflow", "Guía de funcionamiento entregada para cada flujo", { required: true }),
+        i("training", "Team training held and the recording shared", "Capacitación del equipo realizada y grabación compartida", { when: { q: "training", in: [true] }, required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "ai-agents": {
+    service: "ai-agents", version: 1, title: { en: "AI agent checklist", es: "Lista del agente de IA" },
+    sections: [
+      FRAMES.business[0],
+      { id: "build", en: "Build", es: "Creación", items: [
+        i("knowledge", "Agent trained on the client's approved information only", "Agente entrenado solo con la información aprobada por el cliente", { required: true }),
+        i("rules", "What it may and may not do written down and approved (prices, promises, refunds)", "Lo que puede y no puede hacer, por escrito y aprobado (precios, promesas, reembolsos)", { required: true }),
+        i("handoff", "Hands off to a person when unsure or when asked; tested", "Pasa a una persona cuando no está seguro o cuando se lo piden; probado", { required: true }),
+        i("disclose", "Tells people they're talking to an AI assistant", "Les dice a las personas que hablan con un asistente de IA", { required: true }),
+        i("integrations", "Every booked integration connected and tested", "Cada integración reservada conectada y probada", { required: true }),
+        i("voice", "Phone number connected; calls answered, recorded where legal, and appointments booked in tests", "Número telefónico conectado; llamadas contestadas, grabadas donde la ley lo permite, y citas agendadas en pruebas", { when: { q: "agent", in: ["voice"] }, required: true }),
+        i("bilingual", "Tested in English and Spanish", "Probado en inglés y español", { when: { q: "bilingual", in: [true] }, required: true }),
+        i("tests", "20+ real-world test conversations reviewed with the client", "Más de 20 conversaciones de prueba reales revisadas con el cliente", { required: true }),
+        i("logs", "Conversation log and usage dashboard shared with the client", "Registro de conversaciones y panel de uso compartidos con el cliente", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
 };
 
 // ── Resolving a job's checklist ──────────────────────────────────────────────
