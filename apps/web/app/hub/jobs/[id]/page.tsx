@@ -10,6 +10,7 @@
  *           next backup or offer to everyone.
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
+ * UPDATED : 2026-10-11_2250 UTC — checklist box: use a different checklist (saved or built-in) or email it to a pro.
  * UPDATED : 2026-10-11_2242 UTC — "Notifications sent": every text, email and push about this job (notification log).
  */
 import Link from "next/link";
@@ -22,8 +23,9 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
 import { CancelPanel, ExpenseActions, JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
-import { checklistState } from "@/lib/checklists";
+import { checklistState, checklistOptions } from "@/lib/checklists";
 import { ChecklistView, StaffInstructions } from "@/components/Checklist";
+import { JobChecklistTools } from "@/components/ChecklistManager";
 import { adminClient } from "@/lib/supabase/server";
 
 type AnyRec = Record<string, unknown>;
@@ -155,10 +157,14 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
 
 /** The job's checklist with what the pro checked, and staff special instructions. */
 async function HubChecklist({ job }: { job: Job }) {
-  const cl = await checklistState(job);
+  const [cl, { options }, { data: pros }] = await Promise.all([
+    checklistState(job), checklistOptions(),
+    adminClient().from("contractors").select("id, business_name").eq("status", "approved").order("business_name").limit(500),
+  ]);
   return (
     <div className="card space-y-3">
-      <div className="flex items-center justify-between"><div className="font-semibold">✅ {cl.checklist.title}</div><a href={`/hub/checklists#${job.service_slug}`} className="text-xs text-brand underline">checklist library</a></div>
+      <div className="flex items-center justify-between"><div className="font-semibold">✅ {cl.checklist.title}</div><a href="/hub/checklists" className="text-xs text-brand underline">Checklists →</a></div>
+      {!["completed", "cancelled", "qa_review"].includes(job.status) && <JobChecklistTools jobId={job.id} jobRef={job.ref} options={options} assignedPro={job.contractor_id} pros={((pros ?? []) as { id: string; business_name: string }[]).map((p) => ({ id: p.id, name: p.business_name }))} />}
       {!["completed", "cancelled"].includes(job.status) && <div><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Special instructions for this job</div><StaffInstructions jobId={job.id} extra={job.checklist_extra ?? []} /></div>}
       <details open={["in_progress", "qa_review"].includes(job.status)}><summary className="cursor-pointer text-sm font-semibold">Checklist{job.contractor_id ? " — what the pro checked" : ""}</summary><div className="mt-2"><ChecklistView checklist={cl.checklist} checks={cl.checks} es={false} compact /></div></details>
     </div>

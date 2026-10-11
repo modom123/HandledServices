@@ -386,6 +386,22 @@ test("dispatch board: hours to start, payment state and what needs a dispatcher"
   assert.equal(dispatchFlags({ ...base, paid_at: null, status: "requested" }, { standby: 0, pendingOffers: 0, now })[0].key, "unpaid", "unpaid today is red; no 'no pro' flag before payment");
 });
 
+test("saved checklists: cleaned up, unique ids, Spanish falls back to English", async () => {
+  const { checklistFromDraft } = await import("./checklists.ts");
+  const c = checklistFromDraft({ title: "  Office  nightly clean ", sections: [
+    { title: "Restrooms", items: [{ text: "Toilets cleaned", required: true }, { text: "Toilets cleaned", text_es: "Inodoros limpios" }, { text: " " }, { text: "Photo of each restroom", photo: true }] },
+    { title: "Empty", items: [{ text: "" }] },
+  ] }, "house-cleaning");
+  assert.ok(c);
+  assert.equal(c!.title, "Office nightly clean");
+  assert.equal(c!.sections.length, 1, "empty sections are dropped");
+  assert.deepEqual(c!.sections[0].items.map((i) => i.id), ["toilets_cleaned", "toilets_cleaned_2", "photo_of_each_restroom"]);
+  assert.equal(c!.sections[0].items[0].text_es, "Toilets cleaned", "blank Spanish uses the English");
+  assert.equal(c!.sections[0].items[1].text_es, "Inodoros limpios");
+  assert.equal(c!.service, "house-cleaning");
+  assert.equal(checklistFromDraft({ title: "x", sections: [{ title: "y", items: [] }] }), null);
+});
+
 test("pro policy: who qualifies, and every benefit keeps the job at or above $0", async () => {
   const { PRO_POLICY_DEFAULTS: P, mergePolicy, whyNot, qualifies, showUpPay, instantPayFee, materialsDecision, guaranteeTopUp } = await import("./pro-policy.ts");
   const { refundSplit } = await import("./pricing.ts");
