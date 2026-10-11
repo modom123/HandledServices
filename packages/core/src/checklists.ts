@@ -533,6 +533,26 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
     ] }],
   }),
 
+  "freight-delivery": {
+    service: "freight-delivery", version: 1, title: { en: "Freight delivery checklist", es: "Lista de entrega de carga" },
+    sections: [
+      { id: "pickup", en: "Pickup", es: "Recogida", items: [
+        i("checkin", "Checked in at the pickup on time (or the customer told about a delay)", "Registro a tiempo en la recogida (o aviso al cliente de un retraso)", { required: true }),
+        i("count", "Pallet count and condition match the bill of lading; photos of the freight before loading", "Cantidad y estado de las tarimas coinciden con el conocimiento de embarque; fotos de la carga antes de cargar", { required: true, photo: true }),
+        i("bol", "Bill of lading signed by the shipper; photo uploaded", "Conocimiento de embarque firmado por el remitente; foto subida", { required: true, photo: true }),
+        i("secured", "Load secured (straps or load bars) before leaving", "Carga asegurada (correas o barras) antes de salir", { required: true }),
+      ] },
+      { id: "delivery", en: "Delivery", es: "Entrega", items: [
+        i("stops", "Every extra stop completed in order, with a photo at each", "Cada parada adicional completada en orden, con foto en cada una", { when: { q: "stops", gt: 0 }, required: true, photo: true }),
+        i("liftgate", "Liftgate used to unload where there's no dock", "Plataforma elevadora usada para descargar donde no hay muelle", { when: { q: "liftgate", in: [true] }, required: true }),
+        i("inside", "Freight brought inside to the spot the receiver chose", "Carga llevada al interior, al lugar que eligió quien recibe", { when: { q: "inside", in: [true] }, required: true }),
+        i("pod", "Proof of delivery signed by the receiver (printed name and time); photo uploaded", "Comprobante de entrega firmado por quien recibe (nombre y hora); foto subida", { required: true, photo: true }),
+        i("exceptions", "Any damage or shortage written on the delivery receipt and photographed", "Cualquier daño o faltante anotado en el recibo de entrega y fotografiado", { required: true }),
+        i("empty", "Pallets, wrap and dunnage taken back if the receiver asked", "Tarimas, plástico y material de relleno retirados si quien recibe lo pidió"),
+      ] },
+    ],
+  },
+
   "website-design": {
     service: "website-design", version: 1, title: { en: "Website project checklist", es: "Lista del proyecto de sitio web" },
     sections: [

@@ -41,6 +41,9 @@
  *           Business Consulting, AI Automation and Custom AI Agents. Remote (Service.remote): any US ZIP, a free video
  *           consultation sets the firm price, state filing fees billed at cost. New trades: web_design, business_formation,
  *           consulting, ai_automation.
+ * UPDATED : 2026-10-11_1405 UTC — Freight & Pallet Delivery (66 services): cargo van, 26-ft box truck with liftgate or a 53-ft
+ *           truckload, moved up to the vehicle that fits the pallets and weight; weekly or monthly routes. New trade: freight
+ *           (licensed: USDOT number on file; commercial auto + cargo insurance required).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -2689,6 +2692,65 @@ export const SERVICES: Service[] = [
       return { items, base, hours: 10 };
     },
   },
+  // ───────────────────────────── FREIGHT (licensed carriers) ─────────────────────────────
+  {
+    slug: "freight-delivery",
+    name: "Freight & Pallet Delivery",
+    category: "removal",
+    icon: "🏭",
+    tagline: "Pallets and freight moved by a licensed carrier — cargo van, box truck with liftgate, or a full 53-ft truckload.",
+    description: "Business freight picked up and delivered by a licensed, insured carrier with USDOT operating authority and cargo insurance: one or two pallets in a cargo van, up to 12 pallets in a 26-ft box truck with a liftgate, or a full 53-ft truckload. Dock to dock, curbside, or inside delivery. Signed bill of lading at pickup and photo proof of delivery at drop-off. Book once, or set up a weekly or monthly route. No hazardous materials.",
+    includes: ["Licensed carrier with USDOT authority", "Commercial auto & cargo insurance", "Signed bill of lading at pickup", "Photo proof of delivery", "Live tracking link", "First hour of loading and unloading included"],
+    notesHint: "Pickup and delivery addresses, dock or no dock at each end, hours each site receives freight, what's on the pallets, contact names and phones, and any appointment or reference numbers",
+    questions: [
+      {
+        id: "vehicle",
+        label: "Vehicle",
+        type: "select",
+        default: "box_truck",
+        help: "If your load doesn't fit, we move it up to the next size.",
+        options: [
+          { value: "cargo_van", label: "Cargo van (up to 2 pallets / 3,000 lb)" },
+          { value: "box_truck", label: "26-ft box truck with liftgate (up to 12 pallets / 10,000 lb)" },
+          { value: "truckload", label: "53-ft dry van, full truckload (up to 26 pallets / 45,000 lb)" },
+        ],
+      },
+      { id: "pallets", label: "Pallets", type: "number", min: 1, max: 26, default: 2, help: "Standard 48 × 40 in pallets. Loose boxes or crates: count the pallets they would fill." },
+      { id: "weight", label: "Total weight", type: "number", min: 100, max: 45000, default: 1500, unit: "lb" },
+      { id: "miles", label: "Miles from pickup to delivery", type: "number", min: 1, max: 1500, default: 25, unit: "mi" },
+      { id: "stops", label: "Extra stops", type: "number", min: 0, max: 8, default: 0, help: "Pickups or drop-offs beyond the first pickup and the final delivery." },
+      { id: "liftgate", label: "Liftgate needed (no loading dock)", type: "toggle", default: false },
+      { id: "inside", label: "Inside delivery (past the front door or dock)", type: "toggle", default: false },
+    ],
+    minimum: 125,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    licensed: true,
+    frequencies: ["once", "weekly", "monthly"],
+    trades: ["freight"],
+    price: (a) => {
+      const pallets = Math.max(1, n(a, "pallets", 2)), weight = Math.max(100, n(a, "weight", 1500));
+      // the vehicle the customer picked, or the smallest one that carries the load
+      const fleet: [string, string, number, number, number, number, number][] = [
+        // id, label, max pallets, max lb, base, per mile, per extra stop
+        ["cargo_van", "Cargo van", 2, 3000, 95, 2.25, 35],
+        ["box_truck", "26-ft box truck", 12, 10000, 225, 3.5, 60],
+        ["truckload", "53-ft truckload", 26, 45000, 600, 3, 125],
+      ];
+      const pick = Math.max(0, fleet.findIndex(([id]) => id === s(a, "vehicle", "box_truck")));
+      const fit = fleet.findIndex(([, , p, lb], i) => i >= pick && pallets <= p && weight <= lb);
+      const [id, label, , , base, perMile, perStop] = fleet[fit === -1 ? fleet.length - 1 : fit];
+      const miles = Math.max(1, n(a, "miles", 25)), stops = Math.max(0, n(a, "stops", 0));
+      const items: LineItem[] = [{ label: `${label}${fit > pick ? " (moved up to fit your load)" : ""} — pickup, loading & delivery`, amount: base }];
+      items.push({ label: `Linehaul — ${miles} mi`, amount: Math.round(miles * perMile) });
+      if (stops) items.push({ label: `Extra stops — ${stops}`, amount: stops * perStop });
+      if (b(a, "liftgate") && id !== "box_truck") items.push({ label: "Liftgate service", amount: 75 });
+      if (b(a, "inside")) items.push({ label: "Inside delivery", amount: 95 });
+      const speed = id === "truckload" ? 45 : id === "box_truck" ? 35 : 40;
+      return { items, base: sum(items), hours: Math.round((({ cargo_van: 1.5, box_truck: 2.5, truckload: 4 } as Record<string, number>)[id] + miles / speed + stops * 0.5) * 10) / 10 };
+    },
+  },
+
   // ───────────────────────── BUSINESS & TECHNOLOGY (remote) ─────────────────────────
   // Done remotely by Handled staff or vetted specialists: any US ZIP, no driving radius, a free video consultation sets
   // the firm price (siteVisit). onDemand: a consultation booked inside 48 hours is never a rush job.
@@ -2986,4 +3048,5 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "business_formation", label: "Business formation & filings (remote)" },
   { id: "consulting", label: "Business consulting (remote)" },
   { id: "ai_automation", label: "AI automation & AI agents (remote)" },
+  { id: "freight", label: "Freight carrier (USDOT authority)" },
 ];

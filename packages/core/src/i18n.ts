@@ -387,6 +387,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "food-truck": ["Reserva de food truck", "Tacos, barbacoa, pizza, hamburguesas o postres en su fiesta."],
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
   "security-guard": ["Guardias de seguridad y patrullaje", "Guardias con licencia para su edificio, obra o estacionamiento: puesto fijo, rondas nocturnas o vigilancia contra incendios."],
+  "freight-delivery": ["Carga y entrega de tarimas", "Tarimas y carga con un transportista con licencia: camioneta, camión caja con plataforma elevadora o un tráiler completo de 53 pies."],
   "website-design": ["Diseño y creación de sitios web", "Un sitio web profesional para su negocio: diseñado, escrito y publicado por nosotros."],
   "business-formation": ["Formación de empresas (LLC y corporación)", "Cree su LLC o corporación correctamente: registrada, con su EIN y los documentos listos."],
   "business-consulting": ["Consultoría de negocios", "Planes, precios, mercadeo y licitaciones: un consultor que le ayuda a crecer."],

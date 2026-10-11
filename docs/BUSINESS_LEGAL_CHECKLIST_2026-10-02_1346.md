@@ -10,6 +10,7 @@
   UPDATED : 2026-10-06_0526 UTC — 54 services (dead animal removal added).
   UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
             Insurance: contingent pollution liability (used oil). Transportation: urgent-ride wording review.
+  UPDATED : 2026-10-11_1405 UTC — 66 services: Freight & Pallet Delivery added (motor truck cargo insurance required of carriers).
   UPDATED : 2026-10-11_1600 UTC — 65 services (Business & Technology: websites, business formation, consulting, AI automation,
             AI agents). Professional E&O now also covers this delivered work; formation is paperwork only (no legal advice).
 -->
@@ -23,7 +24,7 @@ real customers' money.
 ## How to work through it fastest
 
 1. **One commercial insurance broker** who already insures marketplaces or gig platforms can quote
-   every policy in the insurance section at once. Bring: the service list (65 services), expected
+   every policy in the insurance section at once. Bring: the service list (66 services), expected
    jobs per month, that pros are 1099 subcontractors carrying their own insurance (our onboarding
    verifies it), and that we arrange rides and deliveries in vehicles we don't own.
 2. **One business attorney** for the legal review section, with referrals for the specialists

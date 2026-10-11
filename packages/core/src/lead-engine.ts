@@ -29,6 +29,7 @@ export const TRADE_SEARCH: Record<string, string> = {
   security: "security guard company",
   recruiter: "independent recruiter",
   web_design: "web design agency", business_formation: "business formation service", consulting: "small business consultant", ai_automation: "AI automation agency",
+  freight: "trucking company",
 };
 
 /** Plain-English trade name for the email ("house cleaning", "electrical"). */
@@ -43,6 +44,7 @@ export const TRADE_WORD: Record<string, string> = {
   security: "event security",
   recruiter: "recruiting",
   web_design: "web design", business_formation: "business formation", consulting: "business consulting", ai_automation: "AI automation",
+  freight: "freight delivery",
 };
 
 export interface LeadFacts { rating?: number | null; reviewCount?: number | null; email?: string | null; website?: string | null; phone?: string | null; inGap?: boolean; licensed?: boolean }
