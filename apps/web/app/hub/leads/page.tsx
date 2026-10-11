@@ -6,6 +6,7 @@
  * PURPOSE : Handled Hub → Pro leads. The automatic pro-recruiting engine: what it found, who it
  *           emailed, who clicked and applied, the call list for phone-only leads, CSV import, and
  *           the settings. Setup status for the three keys it needs.
+ * UPDATED : 2026-10-11_1625 UTC — HUNTER_API_KEY in the setup list (Hunter.io finds emails the website doesn't show).
  */
 import Link from "next/link";
 import { TRADES } from "@handled/core";
@@ -34,6 +35,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const keys = [
     ["GOOGLE_PLACES_API_KEY", Boolean(process.env.GOOGLE_PLACES_API_KEY), "finds businesses automatically (Google Cloud → Places API (New) → API key)"],
     ["INSTANTLY_API_KEY + INSTANTLY_CAMPAIGN_ID", Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_CAMPAIGN_ID), "Instantly sends the invitations from warmed-up inboxes on a SEPARATE domain; webhook reports sends, replies, unsubscribes, bounces"],
+    ["HUNTER_API_KEY", Boolean(process.env.HUNTER_API_KEY), "optional: finds the owner's email when their website doesn't show one (hunter.io → API key; HUNTER_DAILY_LIMIT caps lookups, default 25 a day)"],
     ["BUSINESS_POSTAL_ADDRESS", Boolean(process.env.BUSINESS_POSTAL_ADDRESS), "required by law (CAN-SPAM) in every invitation"],
   ] as const;
   return (

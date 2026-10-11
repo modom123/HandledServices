@@ -8,6 +8,7 @@
             About 45 minutes, plus ~2 weeks of inbox warm-up in Instantly.
   UPDATED : 2026-10-04_1934 UTC — added "Business sales engine": the same setup pointed at property managers, brokerages,
             stagers, self-storage and stores, through a second Instantly campaign.
+  UPDATED : 2026-10-11_1625 UTC — optional Hunter.io: finds the email when a lead's website doesn't show one (section 3b).
 -->
 
 # Turn on automatic pro recruiting — lean setup (Google Places + Instantly, ~$50–60/month)
@@ -73,6 +74,23 @@ Steps 2–5 need your own accounts, so only you can do them. **Put API keys stra
 6. **Settings → Webhooks → add a webhook:**
    - URL: `https://YOUR-DOMAIN/api/webhooks/instantly?secret=YOUR_SECRET`. Make up a long random string as the secret, and use the same string for `INSTANTLY_WEBHOOK_SECRET` below.
    - Events: **email sent, link clicked, reply received, lead unsubscribed, email bounced**. Choose "all campaigns" or this campaign.
+
+## 3b. Hunter.io — finds emails websites don't show (optional, 5 minutes)
+
+Many businesses have a website with no email on it, so those leads end up on the call list. With a Hunter.io key, the
+engine makes one Hunter lookup on the business's domain and picks the best person to email: the **owner** for pro
+leads, and the **facilities, operations or office manager** for business leads. It only uses addresses on the
+business's own domain that Hunter is at least 70% sure of, and never jobs@, hr@ or billing@ inboxes. When Hunter knows
+the person's name, the email greets them by name.
+
+1. Go to **hunter.io** → sign up → **API** (in your account menu) → copy your **API key**.
+2. In Vercel add **`HUNTER_API_KEY`**. Optional: **`HUNTER_DAILY_LIMIT`** (default **25**). Each lookup uses one Hunter
+   credit, so set it to roughly your monthly credits ÷ 22 weekdays.
+3. Redeploy. Hub → Go-live setup shows **Lead emails (Hunter.io)** in green, and each lookup appears in the lead's history
+   as "hunter_lookup" with the address found, the person's role and Hunter's confidence.
+
+Hunter's addresses are publicly available business emails. The same rules apply as for every other lead: the
+unsubscribe link and your postal address in every email, and no texts or auto-dialed calls.
 
 ## 4. Your business postal address
 

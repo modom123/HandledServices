@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-06_2300 UTC — sendEmail() returns whether the email was handed off (sign-in codes fall back to Supabase when it wasn't);
  *           emailConfigured().
  * UPDATED : 2026-10-07_0140 UTC — deliverEmail(): says why a send failed (shown on sign-in); Resend refusal → company mailbox.
+ * UPDATED : 2026-10-11_2242 UTC — every email is recorded in the notification log (lib/notification-log).
  * UPDATED : 2026-10-07_0010 UTC — siteUrl() never hands out a localhost link on Vercel (falls back to the production domain).
  */
 import "server-only";
@@ -28,6 +29,12 @@ export const emailFrom = () => process.env.EMAIL_FROM || "Handled <info@handleds
  * company mailbox is connected, the mailbox sends it instead.
  */
 export async function deliverEmail(to: string | string[], subject: string, text: string, opts: { headers?: Record<string, string> } = {}): Promise<{ ok: boolean; via?: "resend" | "smtp"; error?: string }> {
+  const r = await deliverEmailNow(to, subject, text, opts);
+  await (await import("./notification-log")).logNotice({ channel: "email", to, subject, text, status: r.ok ? "sent" : "failed", error: r.ok ? null : r.error ?? null });
+  return r;
+}
+
+async function deliverEmailNow(to: string | string[], subject: string, text: string, opts: { headers?: Record<string, string> } = {}): Promise<{ ok: boolean; via?: "resend" | "smtp"; error?: string }> {
   const key = process.env.RESEND_API_KEY;
   const smtpReady = Boolean(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
   const viaSmtp = async (): Promise<{ ok: boolean; via?: "smtp"; error?: string }> => {

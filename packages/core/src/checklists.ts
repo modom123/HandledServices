@@ -554,7 +554,7 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
   },
 
   "website-design": {
-    service: "website-design", version: 1, title: { en: "Website project checklist", es: "Lista del proyecto de sitio web" },
+    service: "website-design", version: 2, title: { en: "Intelligent website checklist", es: "Lista del sitio web inteligente" },
     sections: [
       FRAMES.business[0],
       { id: "build", en: "Design & build", es: "Diseño y creación", items: [
@@ -569,6 +569,8 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
         i("seo", "Google Business Profile, analytics and search basics set up", "Perfil de Empresa en Google, analítica y búsquedas básicas configurados", { when: { q: "seo", in: [true] }, required: true }),
         i("spanish", "Spanish version of every page reviewed by a fluent speaker", "Versión en español de cada página revisada por un hablante con fluidez", { when: { q: "spanish", in: [true] }, required: true }),
         i("store", "Products, payments, shipping and tax set up; a test order placed and refunded", "Productos, pagos, envíos e impuestos configurados; un pedido de prueba hecho y reembolsado", { when: { q: "package", in: ["store"] }, required: true }),
+        i("ai_assistant", "AI assistant trained on the client's approved information; answers, captures leads and books in tests; hands off to a person", "Asistente de IA entrenado con la información aprobada por el cliente; responde, capta clientes y agenda en pruebas; pasa a una persona", { when: { q: "ai_assistant", in: [true] }, required: true }),
+        i("followup", "Instant follow-up tested: a test inquiry gets the text and email reply within a minute", "Respuesta inmediata probada: una consulta de prueba recibe el texto y el correo en menos de un minuto", { when: { q: "followup", in: [true] }, required: true }),
         i("live", "Site live on the client's domain with HTTPS", "Sitio publicado en el dominio del cliente con HTTPS", { required: true }),
       ] },
       FRAMES.business[1],
@@ -727,6 +729,36 @@ export function checklistProgress(c: JobChecklist, checks: ChecklistCheck[]) {
   const na = items.filter((x) => by.get(x.id)?.status === "na").length;
   const open = items.filter((x) => x.required && !by.has(x.id));
   return { total: items.length, done, na, left: items.length - done - na, open, pct: items.length ? Math.round(((done + na) / items.length) * 100) : 100 };
+}
+
+/** A checklist staff write or edit in Hub → Checklists, before it's cleaned up (Spanish optional). */
+export interface ChecklistDraft { title: string; title_es?: string | null; sections: { title: string; title_es?: string | null; items: { text: string; text_es?: string | null; required?: boolean; photo?: boolean }[] }[] }
+
+const slugId = (t: string, used: Set<string>) => {
+  const base = t.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 32) || "item";
+  let id = base, n = 2;
+  while (used.has(id)) id = `${base}_${n++}`;
+  used.add(id);
+  return id;
+};
+
+/**
+ * A saved checklist in the job format: trimmed text, empty lines dropped, stable unique ids, English used where the
+ * Spanish is blank, at most 20 sections × 60 items. null when nothing is left to check.
+ */
+export function checklistFromDraft(d: ChecklistDraft, service = "custom", version = 1): JobChecklist | null {
+  const clean = (x: string | null | undefined, max: number) => (x ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const secIds = new Set<string>(), itemIds = new Set<string>();
+  const sections = (d.sections ?? []).slice(0, 20).map((sec) => {
+    const title = clean(sec.title, 80) || "Checklist";
+    const items = (sec.items ?? []).slice(0, 60).map((it) => ({ text: clean(it.text, 300), text_es: clean(it.text_es, 300), required: Boolean(it.required), photo: Boolean(it.photo) }))
+      .filter((it) => it.text.length >= 2)
+      .map((it) => ({ id: slugId(it.text, itemIds), text: it.text, text_es: it.text_es || it.text, required: it.required, photo: it.photo }));
+    return { id: slugId(title, secIds), title, title_es: clean(sec.title_es, 80) || title, items };
+  }).filter((sec) => sec.items.length);
+  if (!sections.length) return null;
+  const title = clean(d.title, 120) || "Checklist";
+  return { service, version, title, title_es: clean(d.title_es, 120) || title, sections };
 }
 
 /** Plain text for work orders, emails and the AI photo review. */

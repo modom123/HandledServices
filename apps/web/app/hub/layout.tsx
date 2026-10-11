@@ -31,6 +31,7 @@
  * UPDATED : 2026-10-07_1945 UTC — official logo (light version on the dark sidebar).
  * UPDATED : 2026-10-11_0451 UTC — dispatchers don't see the admin-only pages (Money, Market pricing, Website look, Go-live setup);
  *           those pages show "Admins only" (components/AdminOnly) and their APIs refuse dispatchers.
+ * UPDATED : 2026-10-11_2242 UTC — 🧭 Dispatch (Operations) and 💳 Payments (Money; dispatchers see it too).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -45,6 +46,7 @@ export const metadata = { title: "Handled Hub" };
 const NAV: HubGroup[] = [
   { id: "ops", label: "Operations", links: [
     ["/hub", "📊", "Dashboard"],
+    ["/hub/dispatch", "🧭", "Dispatch"],
     ["/hub/jobs", "🗂️", "Jobs board"],
     ["/hub/roster", "📍", "Live roster"],
     ["/hub/coverage", "🛟", "Cancellations & coverage"],
@@ -70,6 +72,7 @@ const NAV: HubGroup[] = [
     ["/hub/email", "✉️", "Email Center"],
   ] },
   { id: "money", label: "Money", links: [
+    ["/hub/payments", "💳", "Payments"],
     ["/hub/finance", "💵", "Finance"],
     ["/hub/accounting", "📒", "Accounting (Xero)"],
     ["/hub/charges", "💳", "Quick Charge"],

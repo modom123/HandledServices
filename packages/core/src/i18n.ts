@@ -326,7 +326,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
   events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres, salones y seguridad, en una sola factura." },
   security: { name: "Guardias de seguridad y patrullaje", short: "Seguridad", blurb: "Guardias con licencia para edificios, obras, estacionamientos y eventos: puestos fijos, rondas nocturnas y vigilancia contra incendios." },
-  business: { name: "Negocios y tecnología", short: "Negocios y tec.", blurb: "Sitios web, automatización y agentes de IA, formación de empresas y consultoría: a distancia, con una consulta gratis primero." },
+  business: { name: "Negocios y tecnología", short: "Negocios y tec.", blurb: "Creamos sitios web inteligentes, sistemas operativos para negocios y negocios automatizados, además de agentes de IA, automatización, formación de empresas y consultoría. A distancia, con una consulta gratis primero." },
 };
 
 const ES_SERVICE: Record<string, [string, string]> = {
@@ -388,7 +388,9 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
   "security-guard": ["Guardias de seguridad y patrullaje", "Guardias con licencia para su edificio, obra o estacionamiento: puesto fijo, rondas nocturnas o vigilancia contra incendios."],
   "freight-delivery": ["Carga y entrega de tarimas", "Tarimas y carga con un transportista con licencia: camioneta, camión caja con plataforma elevadora o un tráiler completo de 53 pies."],
-  "website-design": ["Diseño y creación de sitios web", "Un sitio web profesional para su negocio: diseñado, escrito y publicado por nosotros."],
+  "website-design": ["Sitios web inteligentes", "Un sitio web que trabaja por usted: atiende visitantes, capta cada cliente potencial y agenda citas, 24/7."],
+  "business-operating-system": ["Sistema operativo para su negocio", "Un solo sistema que maneja su negocio: clientes, reservas, horarios, despacho, facturación y paneles."],
+  "automated-business": ["Negocio automatizado", "Un negocio que funciona solo: sitio web, sistema operativo, agentes de IA y automatizaciones, de principio a fin."],
   "business-formation": ["Formación de empresas (LLC y corporación)", "Cree su LLC o corporación correctamente: registrada, con su EIN y los documentos listos."],
   "business-consulting": ["Consultoría de negocios", "Planes, precios, mercadeo y licitaciones: un consultor que le ayuda a crecer."],
   "ai-automation": ["Automatización con IA", "Ponga en piloto automático el trabajo repetitivo: seguimiento de clientes, citas, facturas e informes."],

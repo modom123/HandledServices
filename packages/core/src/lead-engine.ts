@@ -13,6 +13,8 @@
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade (dead animal removal).
  * UPDATED : 2026-10-06_0637 UTC — trades: small engine, dock & door, fire extinguisher, foundation, used oil.
  * UPDATED : 2026-10-11_0608 UTC — remote trades: web design, business formation, consulting, AI automation.
+ * UPDATED : 2026-10-11_1625 UTC — pickHunterEmail: the best outreach address from a Hunter.io domain search (owner for pros,
+ *           facilities / operations / office manager for business customers; confident, own domain, never jobs/HR/billing).
  */
 import { BRAND } from "./brand.ts";
 
@@ -76,6 +78,47 @@ export function extractEmails(html: string, siteHost?: string | null): string[] 
   const host = (siteHost ?? "").replace(/^www\./, "").toLowerCase();
   const rank = (e: string) => (host && e.endsWith(`@${host}`) ? 0 : 2) + (PREFERRED.test(e) ? 0 : 1);
   return [...found].sort((a, b) => rank(a) - rank(b));
+}
+
+/** One address from a Hunter.io domain search (GET /v2/domain-search). */
+export interface HunterEmail {
+  value: string;
+  type?: "personal" | "generic" | null;
+  confidence?: number | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  position?: string | null;
+  verification?: { status?: string | null } | null;
+}
+
+/** Who we want to reach: a pro company's owner, or the person at a business who buys services. */
+export type HunterTarget = "owner" | "decision_maker";
+
+const HUNTER_MIN_CONFIDENCE = 70;
+const NOT_FOR_OUTREACH = /^(jobs|careers|hr|recruit\w*|privacy|legal|abuse|webmaster|postmaster|billing|accounting|invoices?|ap|payroll|press|media|investors?)@/;
+const OWNER_ROLE = /owner|founder|president|ceo|principal|proprietor|partner/i;
+const BUYER_ROLE = /facilit|property|building|maintenance|office manager|operations|purchas|procure|general manager|owner|president|ceo|founder|director|administrator/i;
+const GENERIC_OK = /^(info|office|contact|hello|sales|service|admin|team|manager)@/;
+
+/**
+ * The best address for an outreach email from a Hunter.io domain search: on the business's own domain, confident
+ * (70%+), not marked invalid, never a no-reply / jobs / HR / billing inbox; then the right role first (owner for pros,
+ * facilities / operations / office manager for business customers), then a general inbox, then confidence.
+ */
+export function pickHunterEmail(emails: HunterEmail[], domain: string, target: HunterTarget): { email: string; name: string | null; position: string | null; confidence: number } | null {
+  const host = domain.replace(/^www\./, "").toLowerCase();
+  const role = target === "owner" ? OWNER_ROLE : BUYER_ROLE;
+  const ok = emails.filter((e) => {
+    const v = (e.value ?? "").toLowerCase();
+    const at = v.split("@")[1] ?? "";
+    return v.length < 80 && (at === host || at.endsWith(`.${host}`) || (host.endsWith(`.${at}`) && at.includes("."))) && !JUNK.test(v) && !NOT_FOR_OUTREACH.test(v)
+      && (e.confidence ?? 0) >= HUNTER_MIN_CONFIDENCE && e.verification?.status !== "invalid";
+  });
+  const score = (e: HunterEmail) => (e.position && role.test(e.position) ? 40 : 0) + (GENERIC_OK.test(e.value.toLowerCase()) ? 20 : 0) + (e.confidence ?? 0) / 10;
+  const best = ok.sort((a, b) => score(b) - score(a))[0];
+  if (!best) return null;
+  const name = [best.first_name, best.last_name].filter(Boolean).join(" ").trim() || null;
+  return { email: best.value.toLowerCase(), name, position: best.position ?? null, confidence: best.confidence ?? 0 };
 }
 
 /** Days after the first email for each step. After the last one, we stop. */

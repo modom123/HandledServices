@@ -308,7 +308,7 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
 test("business & technology: remote, consultation first, state fees at cost", async () => {
   const { buildAvailability } = await import("./availability.ts");
   const remote = SERVICES.filter((s) => s.category === "business");
-  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "business-consulting", "business-formation", "website-design"]);
+  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "business-consulting", "business-formation", "business-operating-system", "website-design"]);
   for (const s of remote) assert.ok(s.remote && s.siteVisit && s.onDemand, `${s.slug}: remote, free consultation, no rush fee`);
   // a Seattle specialist can take a Detroit website job: no driving radius or service area for remote work
   const far: Contractor = {
@@ -342,6 +342,64 @@ test("freight: the vehicle moves up to fit the load; a licensed carrier with car
   assert.ok(!price({ liftgate: true }).items.some((i) => i.label === "Liftgate service"), "box trucks include the liftgate");
   assert.ok(svc.licensed && svc.trades.includes("freight"));
   assert.deepEqual(requiredCoverages(["freight"]).sort(), ["auto", "cargo"]);
+});
+
+test("lead emails from Hunter.io: own domain, confident, the right person, never jobs/HR inboxes", async () => {
+  const { pickHunterEmail } = await import("./lead-engine.ts");
+  const emails = [
+    { value: "jobs@acme.com", confidence: 99, type: "generic" as const },
+    { value: "sam@other.com", confidence: 99, position: "Owner" },
+    { value: "pat@acme.com", confidence: 95, first_name: "Pat", last_name: "Lee", position: "Software Engineer" },
+    { value: "dana@acme.com", confidence: 88, first_name: "Dana", last_name: "Ruiz", position: "Facilities Manager" },
+    { value: "info@acme.com", confidence: 92, type: "generic" as const },
+    { value: "lo@acme.com", confidence: 40, position: "Owner" },
+    { value: "bad@acme.com", confidence: 99, position: "President", verification: { status: "invalid" } },
+  ];
+  assert.deepEqual(pickHunterEmail(emails, "www.acme.com", "decision_maker"), { email: "dana@acme.com", name: "Dana Ruiz", position: "Facilities Manager", confidence: 88 });
+  assert.equal(pickHunterEmail(emails, "acme.com", "owner")?.email, "info@acme.com", "no confident owner: the general inbox, not an engineer");
+  assert.equal(pickHunterEmail([{ value: "owner@acme.com", confidence: 80, position: "Owner & Founder" }, ...emails], "acme.com", "owner")?.email, "owner@acme.com");
+  assert.equal(pickHunterEmail([{ value: "jobs@acme.com", confidence: 99 }, { value: "x@acme.com", confidence: 50 }], "acme.com", "owner"), null);
+  assert.equal(pickHunterEmail([{ value: "info@acme.co.uk", confidence: 90 }], "shop.acme.co.uk", "owner")?.email, "info@acme.co.uk", "a site on a subdomain: the company domain counts");
+});
+
+test("dispatch board: hours to start, payment state and what needs a dispatcher", async () => {
+  const { hoursUntilStart, paymentState, dispatchFlags } = await import("./dispatch-board.ts");
+  const now = new Date("2026-10-12T13:30:00Z"); // 9:30am in Detroit, 6:30am in Seattle
+  const base = { scheduled_date: "2026-10-12", time_window: "afternoon", zip: "48201", status: "dispatched", contractor_id: null, price_final: 200, paid_at: "2026-10-10T00:00:00Z" };
+  assert.equal(hoursUntilStart(base, now), 4.5, "Detroit afternoon opens at 2pm: 4.5 hours");
+  assert.equal(hoursUntilStart({ ...base, zip: "98101" }, now), 7.5, "Seattle uses Pacific time");
+  assert.equal(hoursUntilStart({ ...base, scheduled_date: "2026-10-13", time_window: "morning" }, now), 22.5);
+  assert.equal(hoursUntilStart({ ...base, scheduled_date: null }, now), null);
+  assert.equal(dispatchFlags(base, { standby: 0, pendingOffers: 3, now })[0].key, "no_pro_soon", "no pro inside 6 hours is red");
+  assert.equal(dispatchFlags({ ...base, scheduled_date: "2026-10-14" }, { standby: 0, pendingOffers: 3, now })[0].label, "No pro yet · 3 offers out");
+  const assigned = { ...base, contractor_id: "p1", status: "assigned" };
+  assert.ok(dispatchFlags(assigned, { standby: 0, pendingOffers: 0, now }).some((f) => f.key === "no_backups"));
+  assert.ok(!dispatchFlags(assigned, { standby: 2, pendingOffers: 0, now }).length, "pro + backups + paid: nothing to do");
+  assert.ok(dispatchFlags({ ...assigned, time_window: "morning" }, { standby: 2, pendingOffers: 0, now }).some((f) => f.key === "late"), "90 minutes into the morning window, not started");
+  assert.ok(!dispatchFlags({ ...assigned, status: "in_progress", time_window: "morning" }, { standby: 2, pendingOffers: 0, now }).length);
+  assert.equal(dispatchFlags({ ...base, status: "completed" }, { standby: 0, pendingOffers: 0, now }).length, 0);
+  assert.equal(paymentState({ ...base, paid_at: null }).key, "unpaid");
+  assert.equal(paymentState({ ...base, paid_at: null, deposit_paid_at: "x" }).key, "balance");
+  assert.equal(paymentState({ ...base, paid_at: null, billed_on_terms: true }).key, "terms");
+  assert.equal(paymentState({ ...base, amount_refunded: 50 }).label, "Paid · $50 refunded");
+  assert.equal(paymentState({ ...base, paid_at: null, status: "site_visit" }).key, "visit");
+  assert.equal(dispatchFlags({ ...base, paid_at: null, status: "requested" }, { standby: 0, pendingOffers: 0, now })[0].key, "unpaid", "unpaid today is red; no 'no pro' flag before payment");
+});
+
+test("saved checklists: cleaned up, unique ids, Spanish falls back to English", async () => {
+  const { checklistFromDraft } = await import("./checklists.ts");
+  const c = checklistFromDraft({ title: "  Office  nightly clean ", sections: [
+    { title: "Restrooms", items: [{ text: "Toilets cleaned", required: true }, { text: "Toilets cleaned", text_es: "Inodoros limpios" }, { text: " " }, { text: "Photo of each restroom", photo: true }] },
+    { title: "Empty", items: [{ text: "" }] },
+  ] }, "house-cleaning");
+  assert.ok(c);
+  assert.equal(c!.title, "Office nightly clean");
+  assert.equal(c!.sections.length, 1, "empty sections are dropped");
+  assert.deepEqual(c!.sections[0].items.map((i) => i.id), ["toilets_cleaned", "toilets_cleaned_2", "photo_of_each_restroom"]);
+  assert.equal(c!.sections[0].items[0].text_es, "Toilets cleaned", "blank Spanish uses the English");
+  assert.equal(c!.sections[0].items[1].text_es, "Inodoros limpios");
+  assert.equal(c!.service, "house-cleaning");
+  assert.equal(checklistFromDraft({ title: "x", sections: [{ title: "y", items: [] }] }), null);
 });
 
 test("pro policy: who qualifies, and every benefit keeps the job at or above $0", async () => {
