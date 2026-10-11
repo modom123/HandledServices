@@ -308,7 +308,7 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
 test("business & technology: remote, consultation first, state fees at cost", async () => {
   const { buildAvailability } = await import("./availability.ts");
   const remote = SERVICES.filter((s) => s.category === "business");
-  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "business-consulting", "business-formation", "website-design"]);
+  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "business-consulting", "business-formation", "business-operating-system", "website-design"]);
   for (const s of remote) assert.ok(s.remote && s.siteVisit && s.onDemand, `${s.slug}: remote, free consultation, no rush fee`);
   // a Seattle specialist can take a Detroit website job: no driving radius or service area for remote work
   const far: Contractor = {

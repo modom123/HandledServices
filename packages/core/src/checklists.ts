@@ -554,7 +554,7 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
   },
 
   "website-design": {
-    service: "website-design", version: 1, title: { en: "Website project checklist", es: "Lista del proyecto de sitio web" },
+    service: "website-design", version: 2, title: { en: "Intelligent website checklist", es: "Lista del sitio web inteligente" },
     sections: [
       FRAMES.business[0],
       { id: "build", en: "Design & build", es: "Diseño y creación", items: [
@@ -569,6 +569,8 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
         i("seo", "Google Business Profile, analytics and search basics set up", "Perfil de Empresa en Google, analítica y búsquedas básicas configurados", { when: { q: "seo", in: [true] }, required: true }),
         i("spanish", "Spanish version of every page reviewed by a fluent speaker", "Versión en español de cada página revisada por un hablante con fluidez", { when: { q: "spanish", in: [true] }, required: true }),
         i("store", "Products, payments, shipping and tax set up; a test order placed and refunded", "Productos, pagos, envíos e impuestos configurados; un pedido de prueba hecho y reembolsado", { when: { q: "package", in: ["store"] }, required: true }),
+        i("ai_assistant", "AI assistant trained on the client's approved information; answers, captures leads and books in tests; hands off to a person", "Asistente de IA entrenado con la información aprobada por el cliente; responde, capta clientes y agenda en pruebas; pasa a una persona", { when: { q: "ai_assistant", in: [true] }, required: true }),
+        i("followup", "Instant follow-up tested: a test inquiry gets the text and email reply within a minute", "Respuesta inmediata probada: una consulta de prueba recibe el texto y el correo en menos de un minuto", { when: { q: "followup", in: [true] }, required: true }),
         i("live", "Site live on the client's domain with HTTPS", "Sitio publicado en el dominio del cliente con HTTPS", { required: true }),
       ] },
       FRAMES.business[1],

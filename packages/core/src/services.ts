@@ -44,6 +44,8 @@
  * UPDATED : 2026-10-11_1405 UTC — Freight & Pallet Delivery (66 services): cargo van, 26-ft box truck with liftgate or a 53-ft
  *           truckload, moved up to the vehicle that fits the pallets and weight; weekly or monthly routes. New trade: freight
  *           (licensed: USDOT number on file; commercial auto + cargo insurance required).
+ * UPDATED : 2026-10-11_2307 UTC — "We build": Website Design & Build is now Intelligent Websites (AI assistant built in,
+ *           instant lead follow-up option; same slug), plus Business Operating System and Automated Business (68 services).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -166,7 +168,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals, venues and event security — one invoice." },
   { id: "security", name: "Security Guards & Patrol", short: "Security", icon: "🛡️", blurb: "Licensed guards for buildings, job sites, lots and events: standing posts, nightly patrols and fire watch." },
-  { id: "business", name: "Business & Technology", short: "Business & Tech", icon: "💼", blurb: "Websites, AI automation and AI agents, business formation and consulting — done remotely, with a free consultation first." },
+  { id: "business", name: "Business & Technology", short: "Business & Tech", icon: "💼", blurb: "We build intelligent websites, business operating systems and automated businesses — plus AI agents, automation, business formation and consulting. Done remotely, with a free consultation first." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
@@ -2756,12 +2758,12 @@ export const SERVICES: Service[] = [
   // the firm price (siteVisit). onDemand: a consultation booked inside 48 hours is never a rush job.
   {
     slug: "website-design",
-    name: "Website Design & Build",
+    name: "Intelligent Websites",
     category: "business",
     icon: "🌐",
-    tagline: "A professional website for your business — designed, written and launched for you.",
-    description: "A designer builds a fast, mobile-friendly website for your business: your pages, your photos and your brand, with contact and booking forms, Google setup and a site you can edit yourself. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. A free video consultation confirms the scope and the firm price before any work starts.",
-    includes: ["Free video consultation", "Mobile-friendly custom design", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups) from $49/month"],
+    tagline: "A website that works for you — answers visitors, captures every lead and books appointments, 24/7.",
+    description: "We build intelligent websites: fast, mobile-friendly and designed around your brand, with an AI assistant that answers visitors' questions, captures every lead and books appointments around the clock. Add instant follow-up so every inquiry gets a reply in seconds by text and email. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. A free video consultation confirms the scope and the firm price before any work starts.",
+    includes: ["Free video consultation", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups) from $49/month"],
     notesHint: "Your business and who it serves, sites you like, the pages you need, your domain if you have one, and any deadline",
     questions: [
       {
@@ -2780,6 +2782,8 @@ export const SERVICES: Service[] = [
       { id: "copy", label: "We write the words (copywriting)", type: "toggle", default: false, help: "Priced per page. Or send us your text and photos." },
       { id: "seo", label: "Google setup: Business Profile, analytics and search basics", type: "toggle", default: true },
       { id: "spanish", label: "Spanish version of every page", type: "toggle", default: false },
+      { id: "ai_assistant", label: "AI assistant on the site (answers questions, captures leads, books appointments)", type: "toggle", default: true },
+      { id: "followup", label: "Instant lead follow-up (every inquiry gets a text and email reply in seconds)", type: "toggle", default: false },
     ],
     minimum: 1500,
     spread: [0.9, 1.25],
@@ -2799,7 +2803,98 @@ export const SERVICES: Service[] = [
       if (b(a, "copy")) items.push({ label: `Copywriting — ${pages} pages`, amount: pages * 75 });
       if (b(a, "seo")) items.push({ label: "Google Business Profile, analytics & search setup", amount: 350 });
       if (b(a, "spanish")) items.push({ label: `Spanish version — ${pages} pages`, amount: pages * 80 });
-      return { items, base: sum(items), hours: hrs + extra * 2 + (b(a, "logo") ? 8 : 0) + (b(a, "copy") ? pages : 0) };
+      if (b(a, "ai_assistant")) items.push({ label: "AI assistant — trained on your business, captures leads & books", amount: 1200 });
+      if (b(a, "followup")) items.push({ label: "Instant lead follow-up by text & email", amount: 450 });
+      return { items, base: sum(items), hours: hrs + extra * 2 + (b(a, "logo") ? 8 : 0) + (b(a, "copy") ? pages : 0) + (b(a, "ai_assistant") ? 10 : 0) + (b(a, "followup") ? 4 : 0) };
+    },
+  },
+  {
+    slug: "business-operating-system",
+    name: "Business Operating System",
+    category: "business",
+    icon: "🧠",
+    tagline: "One system that runs your business — customers, booking, scheduling, dispatch, invoicing and dashboards.",
+    description: "We build a business operating system around how your company actually works: your customer list, online booking, scheduling and dispatch, job tracking, invoicing and payments, your team's to-dos and a live dashboard — in one place instead of ten apps and a spreadsheet. Add AI agents, accounting sync and a branded mobile app as you grow. It's the same kind of system Handled runs on. You own your data. A free video consultation maps your operation and sets the firm price.",
+    includes: ["Free video consultation", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support quoted at the consultation (from $299/month)"],
+    notesHint: "What your business does, how work comes in and gets done today, the apps and spreadsheets you use, how many people would use it, and what you'd most like to stop doing by hand",
+    questions: [
+      {
+        id: "scope",
+        label: "System",
+        type: "select",
+        default: "core",
+        options: [
+          { value: "core", label: "Core OS: customers, booking & scheduling, invoicing & payments, dashboard" },
+          { value: "operations", label: "Operations OS: Core + dispatch, team & job tracking, customer and staff portals" },
+          { value: "enterprise", label: "Enterprise OS: Operations + AI agents, accounting sync, custom workflows & reporting" },
+        ],
+      },
+      { id: "users", label: "Team members who'll use it", type: "number", min: 1, max: 200, default: 5, help: "Core includes 5, Operations 15, Enterprise 40. More users add setup and training." },
+      { id: "integrations", label: "Systems to connect", type: "number", min: 0, max: 15, default: 2, help: "Accounting, payments, email, phone, existing software… Two are included." },
+      { id: "migrate", label: "Move your data in (customers, jobs, price lists)", type: "toggle", default: true },
+      { id: "app", label: "Branded mobile app (iPhone & Android)", type: "toggle", default: false },
+    ],
+    minimum: 7500,
+    spread: [0.9, 1.35],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["web_design", "ai_automation"],
+    price: (a) => {
+      const scope = s(a, "scope", "core");
+      const [label, base, included, hrs] = ({ core: ["Core OS", 7500, 5, 80], operations: ["Operations OS", 15000, 15, 160], enterprise: ["Enterprise OS", 30000, 40, 320] } as Record<string, [string, number, number, number]>)[scope] ?? ["Core OS", 7500, 5, 80];
+      const items: LineItem[] = [{ label: `${label} — discovery, build, launch & team training`, amount: base }];
+      const users = Math.max(1, n(a, "users", 5)), extraUsers = Math.max(0, users - included);
+      if (extraUsers) items.push({ label: `Additional team members — ${extraUsers}`, amount: extraUsers * 50 });
+      const extraInt = Math.max(0, n(a, "integrations", 2) - 2);
+      if (extraInt) items.push({ label: `Additional integrations — ${extraInt}`, amount: extraInt * 750 });
+      if (b(a, "migrate")) items.push({ label: "Data migration", amount: 1500 });
+      if (b(a, "app")) items.push({ label: "Branded mobile app (iPhone & Android)", amount: 6000 });
+      return { items, base: sum(items), hours: hrs + extraInt * 6 + (b(a, "migrate") ? 12 : 0) + (b(a, "app") ? 60 : 0) };
+    },
+  },
+  {
+    slug: "automated-business",
+    name: "Automated Business",
+    category: "business",
+    icon: "🚀",
+    tagline: "A business that runs itself — website, operating system, AI agents and automations, built end to end.",
+    description: "We automate your business from end to end, the way Handled is run: an intelligent website that brings in and books customers, a business operating system for the work, AI agents that answer leads, handle customer service, schedule and follow up, and automations for the busywork in between — with a dashboard showing everything the AI did and a person whenever it matters. Launch a new business, automate the one you have, or scale across locations. A free video consultation maps what to automate first and sets the firm price.",
+    includes: ["Free video consultation", "Automation plan for your business", "Intelligent website", "Business operating system", "AI agents that answer, book and follow up", "Automations for the busywork", "Dashboard of everything the AI did", "Monthly hosting, AI usage & support quoted at the consultation"],
+    notesHint: "What the business does (or will do), how customers find and buy from you, who does what today, the tasks that eat the most time, and your goals for the next 12 months",
+    questions: [
+      {
+        id: "stage",
+        label: "Where you are",
+        type: "select",
+        default: "automate",
+        options: [
+          { value: "launch", label: "Launch: a new business, automated from day one" },
+          { value: "automate", label: "Automate: an existing business — take the busywork off your team" },
+          { value: "scale", label: "Scale: several locations or services on one automated system" },
+        ],
+      },
+      { id: "agents", label: "AI agents (sales, customer service, scheduling, bookkeeping…)", type: "number", min: 1, max: 12, default: 2, help: "Launch includes 1, Automate 2, Scale 4." },
+      { id: "formation", label: "Business formation included (LLC or corporation, EIN)", type: "toggle", default: true, showIf: { id: "stage", is: ["launch"] } },
+      { id: "managed", label: "Managed launch: we run it with you for the first 90 days", type: "toggle", default: false },
+    ],
+    minimum: 12000,
+    spread: [0.9, 1.35],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["ai_automation", "web_design", "consulting"],
+    price: (a) => {
+      const stage = s(a, "stage", "automate");
+      const [label, base, included, hrs] = ({ launch: ["Launch", 12000, 1, 140], automate: ["Automate", 22000, 2, 240], scale: ["Scale", 40000, 4, 420] } as Record<string, [string, number, number, number]>)[stage] ?? ["Automate", 22000, 2, 240];
+      const items: LineItem[] = [{ label: `Automated business — ${label}: plan, website, operating system, AI agents & automations`, amount: base }];
+      const extra = Math.max(0, n(a, "agents", included) - included);
+      if (extra) items.push({ label: `Additional AI agents — ${extra}`, amount: extra * 2000 });
+      if (stage === "launch" && b(a, "formation")) items.push({ label: "Business formation (LLC or corporation, EIN)", amount: 299 });
+      if (b(a, "managed")) items.push({ label: "Managed launch — first 90 days", amount: 4500 });
+      return { items, base: sum(items), hours: hrs + extra * 20 + (b(a, "managed") ? 60 : 0) };
     },
   },
   {

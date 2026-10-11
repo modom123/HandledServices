@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-07_0140 UTC — Partner Program in the For Business menu and the footer.
  * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
  * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
+ * UPDATED : 2026-10-11_2307 UTC — For Business menu: Intelligent websites & automation (/technology).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -49,6 +50,7 @@ export async function SiteHeader() {
       id: "business", label: t("For Business"),
       items: [
         { href: "/business", label: t("Commercial accounts"), icon: "🏢", hint: es ? "Limpieza y mantenimiento, un proveedor" : "Cleaning and facilities, one vendor" },
+        { href: "/technology", label: es ? "Sitios inteligentes y automatización" : "Intelligent websites & automation", icon: "🧠", hint: es ? "Sistemas operativos y negocios automatizados" : "Operating systems & automated businesses" },
         { href: "/business#industries", label: es ? "Industrias que atendemos" : "Who we serve", icon: "🏬" },
         { href: "/events", label: t("Parties & events"), icon: "🎉", hint: es ? "Eventos corporativos, una factura" : "Corporate events, one invoice" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },

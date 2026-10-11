@@ -23,12 +23,14 @@
  *           underline, a live-job "tracker" card in the hero (shows how it works instead of a stock photo), icon trust strip,
  *           connected how-it-works steps, soft shadows and hover lift, closing call-to-action band. Same content and links.
  * UPDATED : 2026-10-07_0235 UTC — moved here: the home layout for the Modern look (lib/theme.ts).
+ * UPDATED : 2026-10-11_2307 UTC — "We build" band: intelligent websites, business operating systems, automated businesses.
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
 import { Glyph } from "@/components/Glyph";
 import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
+import { WeBuild } from "@/components/home/WeBuild";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -171,6 +173,8 @@ export async function HomeModern() {
       </section>
 
       {/* how it works */}
+      <WeBuild es={l === "es"} compact />
+
       <section className="reveal border-y border-line bg-paper py-16">
         <div className="wrap">
           <div className="eyebrow">{l === "es" ? "Simple" : "Simple"}</div>
