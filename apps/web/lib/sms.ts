@@ -6,8 +6,10 @@
  *           so every flow still works in development. Twilio handles STOP/HELP opt-outs; we also
  *           skip people who opted out in their profile. US numbers are normalized to +1.
  *           Env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM.
+ * UPDATED : 2026-10-11_2242 UTC — every text is recorded in the notification log (sent, failed with Twilio's reason, or skipped).
  */
 import "server-only";
+import { logNotice } from "./notification-log";
 
 export function e164(phone: string | null | undefined): string | null {
   const d = (phone ?? "").replace(/\D/g, "");
@@ -20,12 +22,18 @@ export const smsConfigured = () => Boolean(process.env.TWILIO_ACCOUNT_SID && pro
 
 /** Send one text. Returns true if Twilio accepted it. Never throws. */
 export async function sendSms(to: string | null | undefined, body: string): Promise<boolean> {
+  const r = await sendSmsNow(to, body);
+  if (r.to) await logNotice({ channel: "sms", to: r.to, text: body, status: r.ok ? "sent" : r.skipped ? "skipped" : "failed", error: r.error ?? null });
+  return r.ok;
+}
+
+async function sendSmsNow(to: string | null | undefined, body: string): Promise<{ ok: boolean; to?: string; skipped?: boolean; error?: string }> {
   const num = e164(to);
-  if (!num) return false;
+  if (!num) return { ok: false };
   const text = body.length > 600 ? `${body.slice(0, 597)}…` : body;
   if (!smsConfigured()) {
     console.info(`[sms:dev] to=${num} ${text}`);
-    return false;
+    return { ok: false, to: num, skipped: true, error: "texts not set up (Twilio)" };
   }
   const sid = process.env.TWILIO_ACCOUNT_SID!;
   const form = new URLSearchParams({ To: num, Body: text });
@@ -37,10 +45,14 @@ export async function sendSms(to: string | null | undefined, body: string): Prom
       headers: { Authorization: `Basic ${Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
     });
-    if (!res.ok) console.error("[sms] failed", res.status, (await res.text()).slice(0, 300));
-    return res.ok;
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 300);
+      console.error("[sms] failed", res.status, detail);
+      return { ok: false, to: num, error: `Twilio ${res.status}: ${detail.match(/"message"\s*:\s*"([^"]+)"/)?.[1] ?? "refused"}` };
+    }
+    return { ok: true, to: num };
   } catch (e) {
     console.error("[sms]", e);
-    return false;
+    return { ok: false, to: num, error: e instanceof Error ? e.message : String(e) };
   }
 }

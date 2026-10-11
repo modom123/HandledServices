@@ -21,10 +21,12 @@
  * UPDATED : 2026-10-07_2030 UTC — Places discovery covers Washington cities too (state saved on the lead).
  * UPDATED : 2026-10-07_2030 UTC — discoverJobPostings: weekday job-posting leads in Michigan and Washington from Adzuna's job-search API
  *           (never scraped from job sites), Places adds website and phone, then the usual enrich → job-posting sequence.
+ * UPDATED : 2026-10-11_1625 UTC — no email on a business's website → one Hunter.io domain search for the facilities / operations / office manager (lib/hunter, daily budget); their name is saved too.
  */
 import "server-only";
 import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
+import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
@@ -165,6 +167,7 @@ async function robotsOk(origin: string) {
 export async function enrichBizLeads(limit = 30) {
   const { data } = await db().from("biz_leads").select("id, website, phone, rating, review_count").eq("status", "new").is("email", null).not("website", "is", null).neq("segment", "partner").limit(limit);
   let found = 0;
+  let hunterLeft = (data ?? []).length ? await hunterLookupsLeft().catch(() => 0) : 0;
   for (const l of (data ?? []) as { id: string; website: string; phone: string | null; rating: number | null; review_count: number | null }[]) {
     let email: string | null = null;
     try {
@@ -174,9 +177,18 @@ export async function enrichBizLeads(limit = 30) {
         for (const p of ["/contact", "/contact-us", "/about"]) { if (email) break; email = extractEmails(await page(`${u.origin}${p}`), u.hostname)[0] ?? null; }
       }
     } catch { /* bad URL */ }
+    // nothing on their site: one Hunter.io domain search (daily budget), which can also give us the contact's name
+    let named: string | null = null;
+    const domain = !email && hunterLeft > 0 ? domainOf(l.website) : null;
+    if (domain) {
+      hunterLeft--;
+      const h = await hunterFind(domain, "decision_maker").catch(() => null);
+      await event(l.id, "hunter_lookup", h ? `${h.email}${h.position ? ` · ${h.position}` : ""} (${h.confidence}%)` : `nothing confident for ${domain}`);
+      if (h) { email = h.email; named = h.name; }
+    }
     const { count: out } = email ? await db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", email) : { count: 0 };
     const next = email && !out ? "queued" : l.phone ? "call" : "do_not_contact";
-    await db().from("biz_leads").update({ email, status: out ? "unsubscribed" : next, score: bizLeadScore({ rating: l.rating, reviewCount: l.review_count, email, website: l.website, phone: l.phone }) }).eq("id", l.id);
+    await db().from("biz_leads").update({ email, ...(named ? { contact_name: named } : {}), status: out ? "unsubscribed" : next, score: bizLeadScore({ rating: l.rating, reviewCount: l.review_count, email, website: l.website, phone: l.phone }) }).eq("id", l.id);
     if (email) { found++; await event(l.id, "email_found", email); }
   }
   await db().from("biz_leads").update({ status: "call" }).eq("status", "new").is("website", null).not("phone", "is", null);

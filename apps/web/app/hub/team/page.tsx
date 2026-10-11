@@ -5,6 +5,7 @@
  * PURPOSE : Hub → Team: who has Hub access (admins and dispatchers), add someone by email (they get a one-click sign-in
  *           link), or remove access. Admins only can change it. How everyone else is recognized is explained here too.
  * UPDATED : 2026-10-11_0451 UTC — "What each role can do": the admin-only list (money, settings, marketing email, pro approvals).
+ * UPDATED : 2026-10-11_2242 UTC — role list: Dispatch board and Payments for dispatchers; marking paid by hand is admin.
  */
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
@@ -38,7 +39,8 @@ export default async function Team() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div><div className="font-semibold">Dispatcher</div>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-soft">
-              <li>Jobs board, live roster, dispatch, cancellations and coverage, checklists</li>
+              <li>Dispatch board, jobs board, live roster, cancellations and coverage, checklists</li>
+              <li>Payments: see what's owed, send payment links, charge a saved card for a balance</li>
               <li>Free redos and complimentary services for customers</li>
               <li>Pros: edit areas and capacity, check documents, mark applicants "reviewing", record no-shows</li>
               <li>Customers, bids, gov contracts, talent; log lead call outcomes</li>
@@ -46,7 +48,7 @@ export default async function Team() {
             </ul></div>
           <div><div className="font-semibold">Admin — everything, plus</div>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-soft">
-              <li><b>Money</b>: Finance, payouts, Quick Charge, refunds, expenses, deductions, factoring, Accounting (Xero), partner commissions</li>
+              <li><b>Money</b>: Finance, payouts, Quick Charge, refunds, marking a job paid by hand, expenses, deductions, factoring, Accounting (Xero), partner commissions</li>
               <li><b>Settings</b>: Go-live setup, market pricing, cities and services, promo codes, Website look, Team</li>
               <li><b>Marketing email</b>: Email Center campaigns and settings, pro and business lead outreach</li>
               <li><b>Pros</b>: invite or decline applicants, activate, warn, suspend, deactivate or reinstate</li>

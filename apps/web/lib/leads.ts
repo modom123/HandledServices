@@ -20,12 +20,14 @@
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: rotates through Detroit and the 38 surrounding cities, and recruits cleaners
  *           (MARKETING_FOCUS.trades) when staff haven't picked trades. Supply gaps are still searched for every trade.
  * UPDATED : 2026-10-06_0726 UTC — security: business websites are read through safeFetch() (no internal / metadata addresses, redirects checked).
+ * UPDATED : 2026-10-11_1625 UTC — no email on a pro's website → one Hunter.io domain search (lib/hunter, daily budget); the owner's name is saved too.
  */
 import "server-only";
 import {
   BRAND, FOCUS_CITIES, LEAD_SEQUENCE, MARKETING_FOCUS, SERVICES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, serviceGaps, splitJob, type Contractor,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
+import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
@@ -131,6 +133,7 @@ async function page(url: string): Promise<string> {
 export async function enrichLeads(limit = 40): Promise<number> {
   const { data } = await db().from("pro_leads").select("id, website, phone, rating, review_count, trade, score").eq("status", "new").is("email", null).not("website", "is", null).limit(limit);
   let found = 0;
+  let hunterLeft = (data ?? []).length ? await hunterLookupsLeft().catch(() => 0) : 0;
   for (const l of (data ?? []) as { id: string; website: string; phone: string | null; rating: number | null; review_count: number | null; trade: string; score: number }[]) {
     let email: string | null = null;
     try {
@@ -140,9 +143,18 @@ export async function enrichLeads(limit = 40): Promise<number> {
         for (const p of ["/contact", "/contact-us", "/about"]) { if (email) break; email = extractEmails(await page(`${u.origin}${p}`), u.hostname)[0] ?? null; }
       }
     } catch { /* bad URL */ }
+    // nothing on their site: one Hunter.io domain search (daily budget), which can also give us the contact's name
+    let named: string | null = null;
+    const domain = !email && hunterLeft > 0 ? domainOf(l.website) : null;
+    if (domain) {
+      hunterLeft--;
+      const h = await hunterFind(domain, "owner").catch(() => null);
+      await event(l.id, "hunter_lookup", h ? `${h.email}${h.position ? ` · ${h.position}` : ""} (${h.confidence}%)` : `nothing confident for ${domain}`);
+      if (h) { email = h.email; named = h.name; }
+    }
     const { count: optedOut } = email ? await db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", email) : { count: 0 };
     const next = email && !optedOut ? "queued" : l.phone ? "call" : "do_not_contact";
-    await db().from("pro_leads").update({ email, status: optedOut ? "unsubscribed" : next, next_send_at: next === "queued" ? new Date().toISOString() : null,
+    await db().from("pro_leads").update({ email, ...(named ? { contact_name: named } : {}), status: optedOut ? "unsubscribed" : next, next_send_at: next === "queued" ? new Date().toISOString() : null,
       score: Math.max(l.score, leadScore({ rating: l.rating, reviewCount: l.review_count, email, website: l.website, phone: l.phone, licensed: LICENSED.has(l.trade) })) }).eq("id", l.id);
     if (email) { found++; await event(l.id, "email_found", email); }
   }

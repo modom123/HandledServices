@@ -3,10 +3,11 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Staff: edit a job — status, firm price after site visit, date, assign a pro directly, approve QA.
+ * UPDATED : 2026-10-11_2242 UTC — marking a job paid by hand is admins only (dispatchers can still send payment links and charge a saved card).
  */
 import { z } from "zod";
 import { JOB_STATUSES, splitJob } from "@handled/core";
-import { deny, getViewer, isStaff } from "@/lib/auth";
+import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent, finalizeJob, markPaid, sendPaymentLink } from "@/lib/jobs";
 import { cancelJob } from "@/lib/pro-benefits";
@@ -46,6 +47,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return r.ok ? Response.json(r) : Response.json({ error: r.error }, { status: 409 });
   }
   if (mark_paid) {
+    if (!isAdmin(v)) return deny(403, ADMINS_ONLY); // recording money received by hand is an admin decision
     await addEvent(id, "human_touch", `Marked paid (${mark_paid.method})`, who, false);
     await markPaid(id, { amount: mark_paid.amount, via: `${who} · ${mark_paid.method}`, kind: job.deposit_paid_at || Number(job.amount_paid) ? "balance" : "upfront" });
     return Response.json({ ok: true });

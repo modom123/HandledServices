@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-07_0110 UTC — Mondays: referral partner commissions (lib/partners).
  * UPDATED : 2026-10-07_0530 UTC — daily: Handled Points release / review bonuses / expiry (lib/loyalty).
  * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
+ * UPDATED : 2026-10-11_2242 UTC — prunes notification log rows older than 180 days.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -84,6 +85,7 @@ export async function GET(req: Request) {
   const rewards = await (await import("@/lib/rewards")).releaseRewards().catch((e) => { console.error("[rewards]", e); return null; });
   const loyalty = await (await import("@/lib/loyalty")).releaseLoyalty().catch((e) => { console.error("[loyalty]", e); return null; });
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
+  const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

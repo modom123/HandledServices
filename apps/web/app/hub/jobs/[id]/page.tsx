@@ -10,6 +10,8 @@
  *           next backup or offer to everyone.
  * PURPOSE : Job control panel — customer, scope, AI quote/dispatch/QA reasoning,
  *           offers, timeline, messages and every manual override.
+ * UPDATED : 2026-10-11_2250 UTC — checklist box: use a different checklist (saved or built-in) or email it to a pro.
+ * UPDATED : 2026-10-11_2242 UTC — "Notifications sent": every text, email and push about this job (notification log).
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -21,8 +23,10 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
 import { CancelPanel, ExpenseActions, JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
-import { checklistState } from "@/lib/checklists";
+import { checklistState, checklistOptions } from "@/lib/checklists";
 import { ChecklistView, StaffInstructions } from "@/components/Checklist";
+import { JobChecklistTools } from "@/components/ChecklistManager";
+import { adminClient } from "@/lib/supabase/server";
 
 type AnyRec = Record<string, unknown>;
 
@@ -34,6 +38,8 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   if (!data) notFound();
   const job = data as Job & { completion_photos: string[] };
   const s = getService(job.service_slug)!;
+  const noticeRes = await adminClient().from("notification_log").select("id, channel, recipient, subject, preview, status, error, created_at").or(`job_ref.eq.${job.ref},job_id.eq.${job.id}`).order("created_at", { ascending: false }).limit(60);
+  const notices = noticeRes.error ? null : (noticeRes.data ?? []) as { id: string; channel: string; recipient: string; subject: string | null; preview: string | null; status: string; error: string | null; created_at: string }[];
   const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after, { data: expenses }] = await Promise.all([
     v.db.from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
     v.db.from("job_events").select("*").eq("job_id", id).order("created_at"),
@@ -135,6 +141,13 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
         <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id, instructions: job.instructions }} pros={qualified} />
         <div className="card"><div className="font-semibold">Timeline</div>
           <ol className="mt-3 space-y-3 text-sm">{(events ?? []).map((e: AnyRec) => <li key={String(e.id)}><span className="text-xs text-ink-soft">{new Date(String(e.created_at)).toLocaleString()} · {String(e.actor)}</span><div>{String(e.message)}{!e.visible_to_customer && <span className="ml-1 text-xs text-ink-soft">(internal)</span>}</div></li>)}</ol></div>
+        <div className="card"><div className="font-semibold">Notifications sent</div>
+          {notices === null ? <p className="mt-2 text-sm text-ink-soft">Not logged yet — run supabase/setup/ADD_NOTIFICATION_LOG_2026-10-11_2242.sql in Supabase.</p>
+            : notices.length ? <ul className="mt-3 space-y-2 text-sm">{notices.map((n) => (
+              <li key={n.id}><span className="text-xs text-ink-soft">{new Date(n.created_at).toLocaleString()} · {n.channel === "sms" ? "Text" : n.channel === "push" ? "Push" : "Email"} → {n.recipient}</span>
+                <div>{n.status === "sent" ? "✅" : n.status === "skipped" ? "⏭️" : "❌"} {n.subject ?? n.preview}{n.error ? <span className="text-xs text-rose-700"> · {n.error}</span> : null}</div></li>
+            ))}</ul> : <p className="mt-2 text-sm text-ink-soft">No texts, emails or push notifications about this job yet.</p>}
+          <p className="mt-2 text-xs text-ink-soft">Links and sign-in codes are never stored.</p></div>
         <div className="card"><div className="font-semibold">Messages</div>
           <div className="mt-3 space-y-2 text-sm">{(msgs ?? []).map((m: AnyRec) => <div key={String(m.id)}><span className="text-xs uppercase text-ink-soft">{String(m.sender_role)}</span> {String(m.body)}</div>)}{!(msgs ?? []).length && <p className="text-ink-soft">None.</p>}</div></div>
       </div>
@@ -144,10 +157,14 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
 
 /** The job's checklist with what the pro checked, and staff special instructions. */
 async function HubChecklist({ job }: { job: Job }) {
-  const cl = await checklistState(job);
+  const [cl, { options }, { data: pros }] = await Promise.all([
+    checklistState(job), checklistOptions(),
+    adminClient().from("contractors").select("id, business_name").eq("status", "approved").order("business_name").limit(500),
+  ]);
   return (
     <div className="card space-y-3">
-      <div className="flex items-center justify-between"><div className="font-semibold">✅ {cl.checklist.title}</div><a href={`/hub/checklists#${job.service_slug}`} className="text-xs text-brand underline">checklist library</a></div>
+      <div className="flex items-center justify-between"><div className="font-semibold">✅ {cl.checklist.title}</div><a href="/hub/checklists" className="text-xs text-brand underline">Checklists →</a></div>
+      {!["completed", "cancelled", "qa_review"].includes(job.status) && <JobChecklistTools jobId={job.id} jobRef={job.ref} options={options} assignedPro={job.contractor_id} pros={((pros ?? []) as { id: string; business_name: string }[]).map((p) => ({ id: p.id, name: p.business_name }))} />}
       {!["completed", "cancelled"].includes(job.status) && <div><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Special instructions for this job</div><StaffInstructions jobId={job.id} extra={job.checklist_extra ?? []} /></div>}
       <details open={["in_progress", "qa_review"].includes(job.status)}><summary className="cursor-pointer text-sm font-semibold">Checklist{job.contractor_id ? " — what the pro checked" : ""}</summary><div className="mt-2"><ChecklistView checklist={cl.checklist} checks={cl.checks} es={false} compact /></div></details>
     </div>

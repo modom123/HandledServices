@@ -21,10 +21,12 @@
  * UPDATED : 2026-10-07_0040 UTC — gold accents (launch dot, trust checks, card hover borders).
  * UPDATED : 2026-10-07_0235 UTC — moved here from app/(site)/home/page.tsx: the home layout for the Original and
  *           Green-white-gold looks (lib/theme.ts). The Modern look uses HomeModern.
+ * UPDATED : 2026-10-11_2307 UTC — "We build" band: intelligent websites, business operating systems, automated businesses.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
+import { WeBuild } from "@/components/home/WeBuild";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -126,6 +128,9 @@ export async function HomeClassic() {
           ))}
         </div>
       </section>
+
+      {/* we build: intelligent websites, operating systems, automated businesses */}
+      <WeBuild es={l === "es"} compact />
 
       {/* how it works */}
       <section className="border-y border-line bg-paper-deep py-14">
