@@ -7,7 +7,7 @@
  * UPDATED : 2026-10-07_0600 UTC — owners (OWNER_EMAILS) are admins on every request, not only when they come through
  *           /auth/callback — a session from before OWNER_EMAILS was set (or a code typed in the app) no longer lands in the
  *           customer account / "Staff only".
- * UPDATED : 2026-10-11_1500 UTC — isAdmin() + ADMINS_ONLY: dispatchers run day-to-day operations; money, settings, marketing
+ * UPDATED : 2026-10-11_0451 UTC — isAdmin() + ADMINS_ONLY: dispatchers run day-to-day operations; money, settings, marketing
  *           email and pro approvals/standing are admin-only (enforced in each /api/hub route, menu hidden in the Hub).
  */
 import "server-only";

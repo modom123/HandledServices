@@ -16,7 +16,7 @@
  *           re-ranks this shortlist with job context; if AI is unavailable this ranking
  *           is used as-is, so dispatch never stops.
  * UPDATED : 2026-10-07_1900 UTC — same-day checks use the job's time zone (Pacific in Washington).
- * UPDATED : 2026-10-11_1600 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
+ * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
  */
 
 import { getService } from "./services.ts";

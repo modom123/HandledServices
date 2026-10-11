@@ -5,7 +5,7 @@
  * PURPOSE : Domain types shared by the website, ops hub, portals and mobile app.
  *           Mirrors the enums in supabase/migrations/20261001172300_init.sql.
  * UPDATED : 2026-10-05_1433 UTC — security category.
- * UPDATED : 2026-10-11_1600 UTC — CategoryId "business" (Business & Technology).
+ * UPDATED : 2026-10-11_0608 UTC — CategoryId "business" (Business & Technology).
  */
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";

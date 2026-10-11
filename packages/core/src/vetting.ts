@@ -18,7 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — new trades: small engine, dock & door, fire extinguisher (state license), foundation (builder license), used oil (EPA ID, EGLE registration).
  * UPDATED : 2026-10-07_0310 UTC — cleaners: no license, no bond for residential work; a janitorial bond only for large commercial
  *           cleaning jobs ($1,500+) — TradeProfile.commercial, checked at dispatch.
- * UPDATED : 2026-10-11_1600 UTC — trade profiles for the remote specialists: web design, business formation, consulting, AI automation.
+ * UPDATED : 2026-10-11_0608 UTC — trade profiles for the remote specialists: web design, business formation, consulting, AI automation.
  * UPDATED : 2026-10-11_1405 UTC — freight trade (licensed motor carriers) and the cargo coverage (motor truck cargo, $100K per load).
  */
 import { BRAND } from "./brand.ts";

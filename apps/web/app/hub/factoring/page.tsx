@@ -5,7 +5,7 @@
  * PURPOSE : Handled Hub → Factoring: the invoice factoring partners we're lining up so weekly pro payouts stay on time
  *           while business, city and government clients pay on net 30–60. Outreach status, each quote, and its cost on
  *           the same sample invoice, plus the questions to ask and the government assignment rules.
- * UPDATED : 2026-10-11_1500 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  */
 import { FACTORING_SAMPLE, FACTORING_STATUS_LABEL, factoringCost, money, type FactoringStatus } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";

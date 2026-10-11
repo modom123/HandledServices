@@ -26,7 +26,7 @@
  *           take cap 40%, and every price (lines and minimums) raised by upliftFactor() so pro pay in dollars is unchanged.
  * UPDATED : 2026-10-07_1830 UTC — area pricing: EstimateInput.region (markets.price_multiplier, e.g. Seattle area 1.25, rest of
  *           Washington 1.20) raises the price and the minimum; the pro's pay follows the price.
- * UPDATED : 2026-10-11_1600 UTC — priceHint: remote services show their starting price ("From $1,620") instead of "Free on-site quote".
+ * UPDATED : 2026-10-11_0608 UTC — priceHint: remote services show their starting price ("From $1,620") instead of "Free on-site quote".
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";

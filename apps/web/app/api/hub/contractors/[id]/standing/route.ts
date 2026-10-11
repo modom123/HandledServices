@@ -6,7 +6,7 @@
  *           POST { action: warn | suspend | deactivate | reinstate | uphold_appeal, reason }.
  *           Suspend is for safety threats or suspected fraud only (immediate); deactivation follows
  *           a written warning except for the immediate-removal reasons in the policy.
- * UPDATED : 2026-10-11_1500 UTC — admins only (warn, suspend, deactivate, reinstate).
+ * UPDATED : 2026-10-11_0451 UTC — admins only (warn, suspend, deactivate, reinstate).
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";

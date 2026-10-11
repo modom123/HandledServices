@@ -4,7 +4,7 @@
  * CREATED : 2026-10-07_0320 UTC
  * PURPOSE : Handled Hub → Website: the default website look (one link per look for market-by-market campaigns).
  * UPDATED : 2026-10-07_0345 UTC — grand opening promotion removed (owner decision).
- * UPDATED : 2026-10-11_1500 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  */
 import { getViewer } from "@/lib/auth";
 import { siteUrl } from "@/lib/notify";

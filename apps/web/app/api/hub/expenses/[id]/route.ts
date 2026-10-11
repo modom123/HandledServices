@@ -4,7 +4,7 @@
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Staff: approve or reject a materials receipt, open the receipt, or record that the
  *           customer paid the materials by hand.
- * UPDATED : 2026-10-11_1500 UTC — approving / rejecting a receipt is admins only; anyone on staff can still open it.
+ * UPDATED : 2026-10-11_0451 UTC — approving / rejecting a receipt is admins only; anyone on staff can still open it.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";

@@ -19,7 +19,7 @@
  * UPDATED : 2026-10-07_1900 UTC — quick choices Today / Next week / In 2 weeks / Within a month / Flexible, then "Pick the day and arrival time" on the calendar.
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
  * UPDATED : 2026-10-07_1830 UTC — area price level from /api/market (region), so the price shown matches what the server charges.
- * UPDATED : 2026-10-11_1600 UTC — remote services (websites, AI, formation, consulting) say "free consultation" instead of "site visit".
+ * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) say "free consultation" instead of "site visit".
  */
 "use client";
 

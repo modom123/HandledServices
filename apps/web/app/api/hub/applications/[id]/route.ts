@@ -5,7 +5,7 @@
  * UPDATED : 2026-10-02_0006 UTC — uses lib/recruiting (one-click invite email, pipeline log).
  * PURPOSE : Staff: invite, decline or hold a subcontractor application. Inviting creates the pro
  *           record (status vetting until setup, documents and background check are done).
- * UPDATED : 2026-10-11_1500 UTC — inviting (approve) or declining an applicant is admins only; dispatchers can mark one "reviewing".
+ * UPDATED : 2026-10-11_0451 UTC — inviting (approve) or declining an applicant is admins only; dispatchers can mark one "reviewing".
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";

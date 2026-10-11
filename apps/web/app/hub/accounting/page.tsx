@@ -5,7 +5,7 @@
  * PURPOSE : Handled Hub → Accounting (Xero). Xero is the books of record; this page connects it, maps each kind of
  *           money to a Xero account, previews a day's entries, pushes on demand, and shows every document sent
  *           (with links into Xero) and anything that failed. The daily cron does the pushing on its own.
- * UPDATED : 2026-10-11_1500 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/auth";

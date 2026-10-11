@@ -15,7 +15,7 @@
   UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
   UPDATED : 2026-10-06_0708 UTC — mobile app v0.5.0 setup: Apple Pay / Google Pay (Stripe publishable key, webhook event, Apple merchant ID) and the Android Maps key.
   UPDATED : 2026-10-06_0726 UTC — security review: see docs/SECURITY_REVIEW_2026-10-06_0726.md (CRON_SECRET 32+ chars, lockdown migration, 2FA everywhere).
-  UPDATED : 2026-10-11_1600 UTC — 65 services (Business & Technology added); setup no longer quotes a fixed count.
+  UPDATED : 2026-10-11_0608 UTC — 65 services (Business & Technology added); setup no longer quotes a fixed count.
 -->
 
 # Handled — Go-Live Checklist

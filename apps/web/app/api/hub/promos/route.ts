@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Staff: create a promo code, or turn one on/off.
- * UPDATED : 2026-10-11_1500 UTC — admins only (discounts).
+ * UPDATED : 2026-10-11_0451 UTC — admins only (discounts).
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";

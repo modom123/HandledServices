@@ -10,7 +10,7 @@
  * UPDATED : 2026-10-02_0301 UTC — same day (includeToday): today counts pros who are On call or
  *           working today, and only arrival windows that haven't started yet.
  * UPDATED : 2026-10-07_1900 UTC — the calendar's "today" and same-day cut-offs use the customer's time zone (Pacific in Washington).
- * UPDATED : 2026-10-11_1600 UTC — remote services with no specialist yet stay bookable: staff hold the video consultations.
+ * UPDATED : 2026-10-11_0608 UTC — remote services with no specialist yet stay bookable: staff hold the video consultations.
  */
 import { BRAND } from "./brand.ts";
 import { eligible, offDuty } from "./dispatch.ts";

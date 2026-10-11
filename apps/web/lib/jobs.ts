@@ -40,7 +40,7 @@
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
  * UPDATED : 2026-10-07_1830 UTC — area pricing: the ZIP's service-area price level (regionFactor) goes into the price and the AI quote.
  * UPDATED : 2026-10-07_1900 UTC — pro offer texts show the expiry in the job's time zone (PT for Washington, ET for Michigan).
- * UPDATED : 2026-10-11_1600 UTC — remote services: no area price level, the booked ZIP isn't added to a service area, and the free site visit is a video consultation (customer email + pro offer wording).
+ * UPDATED : 2026-10-11_0608 UTC — remote services: no area price level, the booked ZIP isn't added to a service area, and the free site visit is a video consultation (customer email + pro offer wording).
  */
 import "server-only";
 import { z } from "zod";

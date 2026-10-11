@@ -37,7 +37,7 @@
  * UPDATED : 2026-10-07_0225 UTC — real measurements for size- and weight-based services (lawn, leaves, snow, trees, pet waste,
  *           junk, dead animal, deliveries, courier, interior painting): required numbers that pick the calibrated size band
  *           (applyMeasurements) so prices stay the same and the pro sees the exact size.
- * UPDATED : 2026-10-11_1600 UTC — Business & Technology category (65 services): Website Design & Build, Business Formation,
+ * UPDATED : 2026-10-11_0608 UTC — Business & Technology category (65 services): Website Design & Build, Business Formation,
  *           Business Consulting, AI Automation and Custom AI Agents. Remote (Service.remote): any US ZIP, a free video
  *           consultation sets the firm price, state filing fees billed at cost. New trades: web_design, business_formation,
  *           consulting, ai_automation.

@@ -1,7 +1,7 @@
 /*
  * FILE    : apps/web/components/ChecklistControls.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
- * CREATED : 2026-10-11_1530 UTC
+ * CREATED : 2026-10-11_0548 UTC
  * PURPOSE : Controls for the checklist library's dropdowns (components/ChecklistLibrary): a "Jump to a service" menu grouped
  *           by category, Expand all / Collapse all, and Print (opens every dropdown first so the PDF has every checklist).
  *           A link to #service-slug opens that service and its category.

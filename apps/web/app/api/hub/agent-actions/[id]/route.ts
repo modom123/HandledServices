@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Staff: approve (execute) or reject an action proposed by an IEBC AI employee.
- * UPDATED : 2026-10-11_1500 UTC — approving a money, pro-approval or customer-remedy/marketing action (scopes finance, recruiting,
+ * UPDATED : 2026-10-11_0451 UTC — approving a money, pro-approval or customer-remedy/marketing action (scopes finance, recruiting,
  *           retention) is admins only, same as doing it by hand; dispatchers can still reject them.
  */
 import { z } from "zod";

@@ -5,7 +5,7 @@
  * PURPOSE : The checklist library (Hub → Checklists, and the pro portal): every service's checklist, with which
  *           items appear for which booking (standard / deep / move-out, pets, inside fridge & oven…). Printable.
  *           Server component; English or Spanish.
- * UPDATED : 2026-10-11_1530 UTC — organized as dropdowns: one per service category, and each service's checklist is its own
+ * UPDATED : 2026-10-11_0548 UTC — organized as dropdowns: one per service category, and each service's checklist is its own
  *           dropdown inside it (summary shows version and item counts). "Jump to a service" menu, Expand / Collapse all,
  *           and Print opens everything first (components/ChecklistControls).
  */

@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1940 UTC
  * PURPOSE : Staff: readiness report (GET) and one-click fixes (POST { action: "sync_catalog" }).
- * UPDATED : 2026-10-11_1500 UTC — Go-live setup is admins only.
+ * UPDATED : 2026-10-11_0451 UTC — Go-live setup is admins only.
  */
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { readiness } from "@/lib/readiness";

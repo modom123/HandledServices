@@ -13,7 +13,7 @@
  *             { action: "reply", uid, to, subject, text, in_reply_to?, references? } — answer an inbox email
  *             { action: "compose", to, subject, text }       — a one-off email from the company mailbox
  *             { action: "optout", email }                    — add someone to the do-not-email list
- * UPDATED : 2026-10-11_1500 UTC — campaigns, settings and checks are admins only; dispatchers can reply, compose one-off emails and record opt-outs.
+ * UPDATED : 2026-10-11_0451 UTC — campaigns, settings and checks are admins only; dispatchers can reply, compose one-off emails and record opt-outs.
  */
 import { z } from "zod";
 import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, type EmailAudience } from "@handled/core";

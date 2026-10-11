@@ -31,6 +31,7 @@
  * UPDATED : 2026-10-07_1610 UTC — webhook list adds charge.refunded.
  * UPDATED : 2026-10-07_1640 UTC — checks for bid measurements, Handled Points, service areas, mailing address and Google Maps.
  * UPDATED : 2026-10-07_2030 UTC — Adzuna (job-posting leads) check.
+ * UPDATED : 2026-10-11_1603 UTC — carrier partner check (3 Lakes Logistics: added, vetting or approved).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
@@ -161,6 +162,11 @@ export async function readiness(): Promise<Check[]> {
     const { error } = await run();
     add("Supabase", `Migration ${label}`, !error, error ? error.message : "applied", "Run the matching supabase/setup/ADD_*.sql (existing project) or HANDLED_SETUP_*.sql (new project) in the SQL editor");
   }
+  // carrier partner + freight cargo documents (ADD_3_LAKES_CARRIER_PARTNER_*.sql also adds the 'cargo' document kind)
+  const { data: carrier } = await db.from("contractors").select("status, insured_until, license_number").eq("email", "dispatch@3lakeslogistics.com").maybeSingle();
+  add("People", "Carrier partner (3 Lakes Logistics)", carrier?.status === "approved" ? true : "warn",
+    !carrier ? "not added yet" : carrier.status === "approved" ? `approved${carrier.license_number ? ` · USDOT ${carrier.license_number}` : ""}` : `${carrier.status}: finish onboarding and verification`,
+    !carrier ? "Run supabase/setup/ADD_3_LAKES_CARRIER_PARTNER_2026-10-11_1405.sql (PART 1) in the SQL editor — see docs/3_LAKES_CARRIER_PARTNER_2026-10-11_1405.md" : "Hub → Hiring & pros → 3 Lakes Logistics: verify insurance (incl. cargo), USDOT authority and payout, then approve");
 
   // ── Catalog, storage, people
   const { data: svc } = await db.from("services").select("slug, name, minimum");

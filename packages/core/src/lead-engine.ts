@@ -12,7 +12,7 @@
  * UPDATED : 2026-10-05_0438 UTC — security trade.
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade (dead animal removal).
  * UPDATED : 2026-10-06_0637 UTC — trades: small engine, dock & door, fire extinguisher, foundation, used oil.
- * UPDATED : 2026-10-11_1600 UTC — remote trades: web design, business formation, consulting, AI automation.
+ * UPDATED : 2026-10-11_0608 UTC — remote trades: web design, business formation, consulting, AI automation.
  */
 import { BRAND } from "./brand.ts";
 

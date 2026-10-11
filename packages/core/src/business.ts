@@ -11,7 +11,7 @@
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal under clean-outs and for property managers.
  * UPDATED : 2026-10-06_0637 UTC — dock & door, fire extinguisher and small engine under maintenance; used oil under clean-outs;
  *           new industry: auto shops & fleets.
- * UPDATED : 2026-10-11_1600 UTC — "Websites, AI & business setup" group (Business & Technology services).
+ * UPDATED : 2026-10-11_0608 UTC — "Websites, AI & business setup" group (Business & Technology services).
  * UPDATED : 2026-10-11_1405 UTC — "Freight & pallet delivery" group (licensed carriers, e.g. 3 Lakes Logistics).
  */
 import { SERVICE_BY_SLUG } from "./services.ts";

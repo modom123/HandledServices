@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol lines; event-budget security line.
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal lines.
  * UPDATED : 2026-10-06_0637 UTC — small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride lines.
- * UPDATED : 2026-10-11_1600 UTC — Spanish price-line templates for the Business & Technology services.
+ * UPDATED : 2026-10-11_0608 UTC — Spanish price-line templates for the Business & Technology services.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",

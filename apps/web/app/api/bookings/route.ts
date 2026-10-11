@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-07_1610 UTC — no booking (and no payment) when the ZIP is outside our markets or no vetted pro covers it yet: waitlist.
  * UPDATED : 2026-10-07_1700 UTC — outside Michigan and Washington the message says so (waitlist).
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
- * UPDATED : 2026-10-11_1600 UTC — remote services (websites, AI, formation, consulting) book from any ZIP even before a specialist signs up — staff take them.
+ * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) book from any ZIP even before a specialist signs up — staff take them.
  */
 import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";

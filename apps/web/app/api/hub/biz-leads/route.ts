@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-05_0130 UTC — { action: "add_job_post", business_name, job_title, segment, email?, … , send_now? } — a business
  *           that posted a job for work we do (job-posting letter).
  * UPDATED : 2026-10-07_2030 UTC — { action: "job_posts" } finds job-posting leads now (Adzuna, Michigan + Washington); settings take job_posts_per_day.
- * UPDATED : 2026-10-11_1500 UTC — engine settings, runs and send-now outreach are admins only; dispatchers can log outcomes and add job posts without sending.
+ * UPDATED : 2026-10-11_0451 UTC — engine settings, runs and send-now outreach are admins only; dispatchers can log outcomes and add job posts without sending.
  */
 import { z } from "zod";
 import { BIZ_SEGMENTS, BUSINESS_TERMS } from "@handled/core";

@@ -17,7 +17,7 @@
  * UPDATED : 2026-10-05_0441 UTC — security trade group (agency license, de-escalation).
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade interviews with the outdoor group.
  * UPDATED : 2026-10-06_0637 UTC — new trades join their interview groups (repair; used oil with moving).
- * UPDATED : 2026-10-11_1600 UTC — "business" trade group (remote specialists) with portfolio and client-data questions.
+ * UPDATED : 2026-10-11_0608 UTC — "business" trade group (remote specialists) with portfolio and client-data questions.
  */
 import { BRAND } from "./brand.ts";
 

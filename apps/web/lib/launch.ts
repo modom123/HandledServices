@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-07_1700 UTC — Handled serves Michigan and Washington (SERVED_STATES, by ZIP range). ZIPs in other states
  *           are closed (waitlist); a Michigan / Washington ZIP missing from every market is still bookable and gets added.
  * UPDATED : 2026-10-07_1830 UTC — regionFactor(zip): the service area's price level (markets.price_multiplier).
- * UPDATED : 2026-10-11_1600 UTC — remote services (Service.remote) are open in every US ZIP and have no area price level.
+ * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) are open in every US ZIP and have no area price level.
  */
 import "server-only";
 import { getService, marketForZip, serviceOpen, type LaunchMarket } from "@handled/core";

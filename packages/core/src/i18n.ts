@@ -19,7 +19,7 @@
  * UPDATED : 2026-10-06_0637 UTC — Spanish names for the six new services.
  * UPDATED : 2026-10-06_0748 UTC — "Pro Rewards & tiers" (footer link).
  * UPDATED : 2026-10-06_0841 UTC — national home-page copy (launching in Metro Detroit, expanding nationwide).
- * UPDATED : 2026-10-11_1600 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
+ * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";

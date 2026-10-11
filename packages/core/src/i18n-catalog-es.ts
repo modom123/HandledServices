@@ -11,7 +11,7 @@
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol; alcohol question on Plan My Event.
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal.
  * UPDATED : 2026-10-06_0637 UTC — small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride.
- * UPDATED : 2026-10-11_1600 UTC — Spanish for the Business & Technology questions, options and included items.
+ * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology questions, options and included items.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",
