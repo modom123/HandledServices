@@ -58,6 +58,7 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Workers' comp": "Seguro de accidentes laborales",
   "Fidelity / janitorial bond": "Fianza de fidelidad / limpieza",
   "Passenger carrier auto liability": "Responsabilidad civil para transporte de pasajeros",
+  "Motor truck cargo": "Seguro de carga (motor truck cargo)",
   "Liquor liability": "Responsabilidad por venta de alcohol",
 
   // tiers (PRO_TIERS perks)

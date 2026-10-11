@@ -37,6 +37,13 @@
  * UPDATED : 2026-10-07_0225 UTC — real measurements for size- and weight-based services (lawn, leaves, snow, trees, pet waste,
  *           junk, dead animal, deliveries, courier, interior painting): required numbers that pick the calibrated size band
  *           (applyMeasurements) so prices stay the same and the pro sees the exact size.
+ * UPDATED : 2026-10-11_0608 UTC — Business & Technology category (65 services): Website Design & Build, Business Formation,
+ *           Business Consulting, AI Automation and Custom AI Agents. Remote (Service.remote): any US ZIP, a free video
+ *           consultation sets the firm price, state filing fees billed at cost. New trades: web_design, business_formation,
+ *           consulting, ai_automation.
+ * UPDATED : 2026-10-11_1405 UTC — Freight & Pallet Delivery (66 services): cargo van, 26-ft box truck with liftgate or a 53-ft
+ *           truckload, moved up to the vehicle that fits the pallets and weight; weekly or monthly routes. New trade: freight
+ *           (licensed: USDOT number on file; commercial auto + cargo insurance required).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -141,6 +148,11 @@ export interface Service {
   licensed?: boolean;
   /** Already priced as on-demand (urgent rides): no within-48h rush surcharge on top. */
   onDemand?: boolean;
+  /**
+   * Done remotely (websites, AI, formation, consulting): bookable from any US ZIP, no market or driving-radius limits,
+   * no area price level, and the free "site visit" is a video consultation. Staff or specialists anywhere can take it.
+   */
+  remote?: boolean;
   price: (a: Answers) => PriceResult;
 }
 
@@ -154,6 +166,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals, venues and event security — one invoice." },
   { id: "security", name: "Security Guards & Patrol", short: "Security", icon: "🛡️", blurb: "Licensed guards for buildings, job sites, lots and events: standing posts, nightly patrols and fire watch." },
+  { id: "business", name: "Business & Technology", short: "Business & Tech", icon: "💼", blurb: "Websites, AI automation and AI agents, business formation and consulting — done remotely, with a free consultation first." },
 ];
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
@@ -2679,6 +2692,307 @@ export const SERVICES: Service[] = [
       return { items, base, hours: 10 };
     },
   },
+  // ───────────────────────────── FREIGHT (licensed carriers) ─────────────────────────────
+  {
+    slug: "freight-delivery",
+    name: "Freight & Pallet Delivery",
+    category: "removal",
+    icon: "🏭",
+    tagline: "Pallets and freight moved by a licensed carrier — cargo van, box truck with liftgate, or a full 53-ft truckload.",
+    description: "Business freight picked up and delivered by a licensed, insured carrier with USDOT operating authority and cargo insurance: one or two pallets in a cargo van, up to 12 pallets in a 26-ft box truck with a liftgate, or a full 53-ft truckload. Dock to dock, curbside, or inside delivery. Signed bill of lading at pickup and photo proof of delivery at drop-off. Book once, or set up a weekly or monthly route. No hazardous materials.",
+    includes: ["Licensed carrier with USDOT authority", "Commercial auto & cargo insurance", "Signed bill of lading at pickup", "Photo proof of delivery", "Live tracking link", "First hour of loading and unloading included"],
+    notesHint: "Pickup and delivery addresses, dock or no dock at each end, hours each site receives freight, what's on the pallets, contact names and phones, and any appointment or reference numbers",
+    questions: [
+      {
+        id: "vehicle",
+        label: "Vehicle",
+        type: "select",
+        default: "box_truck",
+        help: "If your load doesn't fit, we move it up to the next size.",
+        options: [
+          { value: "cargo_van", label: "Cargo van (up to 2 pallets / 3,000 lb)" },
+          { value: "box_truck", label: "26-ft box truck with liftgate (up to 12 pallets / 10,000 lb)" },
+          { value: "truckload", label: "53-ft dry van, full truckload (up to 26 pallets / 45,000 lb)" },
+        ],
+      },
+      { id: "pallets", label: "Pallets", type: "number", min: 1, max: 26, default: 2, help: "Standard 48 × 40 in pallets. Loose boxes or crates: count the pallets they would fill." },
+      { id: "weight", label: "Total weight", type: "number", min: 100, max: 45000, default: 1500, unit: "lb" },
+      { id: "miles", label: "Miles from pickup to delivery", type: "number", min: 1, max: 1500, default: 25, unit: "mi" },
+      { id: "stops", label: "Extra stops", type: "number", min: 0, max: 8, default: 0, help: "Pickups or drop-offs beyond the first pickup and the final delivery." },
+      { id: "liftgate", label: "Liftgate needed (no loading dock)", type: "toggle", default: false },
+      { id: "inside", label: "Inside delivery (past the front door or dock)", type: "toggle", default: false },
+    ],
+    minimum: 125,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    licensed: true,
+    frequencies: ["once", "weekly", "monthly"],
+    trades: ["freight"],
+    price: (a) => {
+      const pallets = Math.max(1, n(a, "pallets", 2)), weight = Math.max(100, n(a, "weight", 1500));
+      // the vehicle the customer picked, or the smallest one that carries the load
+      const fleet: [string, string, number, number, number, number, number][] = [
+        // id, label, max pallets, max lb, base, per mile, per extra stop
+        ["cargo_van", "Cargo van", 2, 3000, 95, 2.25, 35],
+        ["box_truck", "26-ft box truck", 12, 10000, 225, 3.5, 60],
+        ["truckload", "53-ft truckload", 26, 45000, 600, 3, 125],
+      ];
+      const pick = Math.max(0, fleet.findIndex(([id]) => id === s(a, "vehicle", "box_truck")));
+      const fit = fleet.findIndex(([, , p, lb], i) => i >= pick && pallets <= p && weight <= lb);
+      const [id, label, , , base, perMile, perStop] = fleet[fit === -1 ? fleet.length - 1 : fit];
+      const miles = Math.max(1, n(a, "miles", 25)), stops = Math.max(0, n(a, "stops", 0));
+      const items: LineItem[] = [{ label: `${label}${fit > pick ? " (moved up to fit your load)" : ""} — pickup, loading & delivery`, amount: base }];
+      items.push({ label: `Linehaul — ${miles} mi`, amount: Math.round(miles * perMile) });
+      if (stops) items.push({ label: `Extra stops — ${stops}`, amount: stops * perStop });
+      if (b(a, "liftgate") && id !== "box_truck") items.push({ label: "Liftgate service", amount: 75 });
+      if (b(a, "inside")) items.push({ label: "Inside delivery", amount: 95 });
+      const speed = id === "truckload" ? 45 : id === "box_truck" ? 35 : 40;
+      return { items, base: sum(items), hours: Math.round((({ cargo_van: 1.5, box_truck: 2.5, truckload: 4 } as Record<string, number>)[id] + miles / speed + stops * 0.5) * 10) / 10 };
+    },
+  },
+
+  // ───────────────────────── BUSINESS & TECHNOLOGY (remote) ─────────────────────────
+  // Done remotely by Handled staff or vetted specialists: any US ZIP, no driving radius, a free video consultation sets
+  // the firm price (siteVisit). onDemand: a consultation booked inside 48 hours is never a rush job.
+  {
+    slug: "website-design",
+    name: "Website Design & Build",
+    category: "business",
+    icon: "🌐",
+    tagline: "A professional website for your business — designed, written and launched for you.",
+    description: "A designer builds a fast, mobile-friendly website for your business: your pages, your photos and your brand, with contact and booking forms, Google setup and a site you can edit yourself. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. A free video consultation confirms the scope and the firm price before any work starts.",
+    includes: ["Free video consultation", "Mobile-friendly custom design", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups) from $49/month"],
+    notesHint: "Your business and who it serves, sites you like, the pages you need, your domain if you have one, and any deadline",
+    questions: [
+      {
+        id: "package",
+        label: "Website type",
+        type: "select",
+        default: "starter",
+        options: [
+          { value: "starter", label: "Starter site (up to 5 pages)" },
+          { value: "business", label: "Business site (up to 15 pages, forms & online booking)" },
+          { value: "store", label: "Online store (up to 50 products)" },
+        ],
+      },
+      { id: "pages", label: "Pages", type: "number", min: 1, max: 60, default: 5, help: "Home, About, Services, Contact… Pages beyond the package are added to the price." },
+      { id: "logo", label: "Logo & brand kit (colors, fonts, social images)", type: "toggle", default: false },
+      { id: "copy", label: "We write the words (copywriting)", type: "toggle", default: false, help: "Priced per page. Or send us your text and photos." },
+      { id: "seo", label: "Google setup: Business Profile, analytics and search basics", type: "toggle", default: true },
+      { id: "spanish", label: "Spanish version of every page", type: "toggle", default: false },
+    ],
+    minimum: 1500,
+    spread: [0.9, 1.25],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["web_design"],
+    price: (a) => {
+      const pkg = s(a, "package", "starter");
+      const [label, base, included, hrs] = ({ starter: ["Starter site", 1500, 5, 25], business: ["Business site", 3500, 15, 50], store: ["Online store", 5500, 10, 70] } as Record<string, [string, number, number, number]>)[pkg] ?? ["Starter site", 1500, 5, 25];
+      const pages = Math.max(1, n(a, "pages", included));
+      const items: LineItem[] = [{ label: `${label} — design, build & launch (${included} pages included)`, amount: base }];
+      const extra = Math.max(0, pages - included);
+      if (extra) items.push({ label: `Extra pages beyond the package — ${extra}`, amount: extra * 150 });
+      if (b(a, "logo")) items.push({ label: "Logo & brand kit", amount: 450 });
+      if (b(a, "copy")) items.push({ label: `Copywriting — ${pages} pages`, amount: pages * 75 });
+      if (b(a, "seo")) items.push({ label: "Google Business Profile, analytics & search setup", amount: 350 });
+      if (b(a, "spanish")) items.push({ label: `Spanish version — ${pages} pages`, amount: pages * 80 });
+      return { items, base: sum(items), hours: hrs + extra * 2 + (b(a, "logo") ? 8 : 0) + (b(a, "copy") ? pages : 0) };
+    },
+  },
+  {
+    slug: "business-formation",
+    name: "Business Formation (LLC & Corporation)",
+    category: "business",
+    icon: "🏛️",
+    tagline: "Start your LLC or corporation the right way — filed, with your EIN and paperwork done.",
+    description: "We prepare and file your LLC, corporation or nonprofit with the state, get your EIN from the IRS, and hand you an operating agreement or bylaws template, a compliance calendar and a checklist for your business bank account. Add a registered agent, license and permit research, or an S-corp election. State filing fees are passed through at cost — never marked up. Handled is not a law firm and doesn't give legal or tax advice; for those questions we'll point you to an attorney or accountant.",
+    includes: ["Free video consultation", "State filing prepared and submitted", "EIN from the IRS", "Operating agreement or bylaws template", "Compliance calendar (annual reports & deadlines)", "Business bank account checklist", "State fees at cost, never marked up"],
+    notesHint: "Business name (and a backup), what the business does, owners' names and percentages, the business address, and whether you need it by a date",
+    questions: [
+      {
+        id: "entity",
+        label: "Business type",
+        type: "select",
+        default: "llc",
+        options: [
+          { value: "llc", label: "LLC (most small businesses)" },
+          { value: "corp", label: "Corporation (C corp or S corp)" },
+          { value: "nonprofit", label: "Nonprofit corporation (state filing)" },
+        ],
+      },
+      {
+        id: "state",
+        label: "State of formation",
+        type: "select",
+        default: "MI",
+        options: [
+          { value: "MI", label: "Michigan" },
+          { value: "WA", label: "Washington" },
+          { value: "other", label: "Another state" },
+        ],
+      },
+      { id: "owners", label: "Owners or members", type: "number", min: 1, max: 10, default: 1, help: "Each owner beyond 2 adds a small fee for the ownership terms in your agreement." },
+      { id: "agent", label: "Registered agent service (first year)", type: "toggle", default: false, help: "A registered address for legal mail, so your home address stays off public records." },
+      { id: "licenses", label: "Business license & permit research (city, county, state)", type: "toggle", default: false },
+      { id: "scorp", label: "S-corp election filed with the IRS (Form 2553)", type: "toggle", default: false, showIf: { id: "entity", is: ["llc", "corp"] } },
+    ],
+    minimum: 299,
+    spread: [1, 1.1],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["business_formation"],
+    price: (a) => {
+      const entity = s(a, "entity", "llc");
+      const state = s(a, "state", "MI");
+      const [label, fee, doc] = ({ llc: ["LLC", 299, "operating agreement"], corp: ["Corporation", 449, "bylaws"], nonprofit: ["Nonprofit corporation", 499, "bylaws"] } as Record<string, [string, number, string]>)[entity] ?? ["LLC", 299, "operating agreement"];
+      const items: LineItem[] = [{ label: `${label} formation — state filing, EIN & ${doc} template`, amount: fee }];
+      const stateFee = ({ MI: { llc: 50, corp: 60, nonprofit: 20 }, WA: { llc: 200, corp: 200, nonprofit: 50 } } as Record<string, Record<string, number>>)[state]?.[entity];
+      items.push({ label: stateFee ? `State filing fee (about $${stateFee}) — paid to the state at cost` : "State filing fee — set by your state, paid at cost", amount: 0 });
+      const owners = Math.max(1, n(a, "owners", 1));
+      if (owners > 2) items.push({ label: `Additional owners — ${owners - 2}`, amount: (owners - 2) * 50 });
+      if (b(a, "agent")) items.push({ label: "Registered agent — first year", amount: 125 });
+      if (b(a, "licenses")) items.push({ label: "Business license & permit research", amount: 150 });
+      if (b(a, "scorp") && entity !== "nonprofit") items.push({ label: "S-corp election (IRS Form 2553)", amount: 150 });
+      return { items, base: sum(items), hours: 4 + (b(a, "licenses") ? 2 : 0) + (owners > 2 ? 1 : 0) };
+    },
+  },
+  {
+    slug: "business-consulting",
+    name: "Business Consulting",
+    category: "business",
+    icon: "📈",
+    tagline: "Plans, pricing, marketing and bids — a consultant who helps you grow.",
+    description: "Work with an experienced business consultant on what matters most right now: a strategy session with a written action plan, a startup plan with pricing and a launch checklist, a growth and operations plan, a 90-day marketing plan, or a bid or RFP proposal written for you. Packages have a fixed price, or book by the hour. A free video consultation confirms the scope and the firm price first.",
+    includes: ["Free video consultation", "Experienced business consultant", "Written plan you keep", "Follow-up call after delivery", "Fixed-price packages or by the hour"],
+    notesHint: "Your business, where it is today, what you want to fix or grow, any numbers you can share, and deadlines (bid due dates)",
+    questions: [
+      {
+        id: "package",
+        label: "What you need",
+        type: "select",
+        default: "session",
+        options: [
+          { value: "session", label: "Strategy session (2 hours + written action plan)" },
+          { value: "startup", label: "Startup plan: business plan, pricing & launch checklist" },
+          { value: "growth", label: "Growth & operations plan (4 weeks)" },
+          { value: "marketing", label: "90-day marketing plan" },
+          { value: "bid", label: "Bid / RFP proposal writing (per proposal)" },
+          { value: "hourly", label: "By the hour" },
+        ],
+      },
+      { id: "hours", label: "Hours", type: "number", min: 2, max: 80, default: 4, unit: "hrs", showIf: { id: "package", is: ["hourly"] }, help: "Billed by the hour (2-hour minimum) — the price updates as you change the hours." },
+      { id: "financials", label: "3-year financial projections", type: "toggle", default: false, showIf: { id: "package", is: ["startup", "growth"] } },
+    ],
+    minimum: 300,
+    spread: [0.95, 1.15],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["consulting"],
+    price: (a) => {
+      const pkg = s(a, "package", "session");
+      if (pkg === "hourly") {
+        const h = Math.max(2, n(a, "hours", 4));
+        const items: LineItem[] = [{ label: `Consulting — ${h} hrs`, amount: h * 150 }];
+        return { items, base: sum(items), hours: h };
+      }
+      const [label, amount, hrs] = ({ session: ["Strategy session & written action plan", 350, 3], startup: ["Startup plan — business plan, pricing & launch checklist", 1500, 14], growth: ["Growth & operations plan (4 weeks)", 3000, 28], marketing: ["90-day marketing plan", 1800, 16], bid: ["Bid / RFP proposal writing", 2500, 22] } as Record<string, [string, number, number]>)[pkg] ?? ["Strategy session & written action plan", 350, 3];
+      const items: LineItem[] = [{ label, amount }];
+      if (b(a, "financials") && (pkg === "startup" || pkg === "growth")) items.push({ label: "3-year financial projections", amount: 600 });
+      return { items, base: sum(items), hours: hrs + (b(a, "financials") ? 5 : 0) };
+    },
+  },
+  {
+    slug: "ai-automation",
+    name: "AI Automation",
+    category: "business",
+    icon: "⚙️",
+    tagline: "Put repetitive work on autopilot — lead follow-up, scheduling, invoicing and reports.",
+    description: "We connect the apps you already use and let AI handle the busywork: new leads answered and logged in seconds, appointments booked, invoices and reminders sent, data entered, reports built every morning. Each workflow is built, tested with you and documented, with 30 days of fixes after launch. Start with a process audit to find where you're losing the most time. A free video consultation confirms the scope and the firm price first.",
+    includes: ["Free video consultation", "Works with the apps you already use", "Tested with you before it goes live", "Written how-it-works guide", "30 days of fixes after launch", "Monthly support plans quoted at the consultation"],
+    notesHint: "What you do by hand today, step by step, the apps involved (email, CRM, calendar, invoicing, spreadsheets), and how often it happens",
+    questions: [
+      { id: "workflows", label: "Workflows to automate", type: "number", min: 1, max: 20, default: 1, help: "One workflow = one job done end to end, e.g. new web lead → CRM → text back → booked on your calendar." },
+      {
+        id: "complexity",
+        label: "How involved",
+        type: "select",
+        default: "standard",
+        options: [
+          { value: "simple", label: "Simple (1–2 apps, no AI decisions)" },
+          { value: "standard", label: "Standard (3–4 apps, AI writes or sorts)" },
+          { value: "advanced", label: "Advanced (5+ apps, custom logic or your data)" },
+        ],
+      },
+      { id: "audit", label: "Process audit first (map your workflows and find the time savings)", type: "toggle", default: false },
+      { id: "training", label: "Team training session (90 minutes, recorded)", type: "toggle", default: false },
+    ],
+    minimum: 675,
+    spread: [0.9, 1.3],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["ai_automation"],
+    price: (a) => {
+      const w = Math.max(1, n(a, "workflows", 1));
+      const cx = s(a, "complexity", "standard");
+      const [label, mult] = ({ simple: ["simple", 0.75], standard: ["standard", 1], advanced: ["advanced", 1.7] } as Record<string, [string, number]>)[cx] ?? ["standard", 1];
+      const items: LineItem[] = [{ label: `First workflow (${label}) — build, test & launch`, amount: Math.round(900 * mult) }];
+      if (w > 1) items.push({ label: `Additional workflows (${label}) — ${w - 1}`, amount: (w - 1) * Math.round(600 * mult) });
+      if (b(a, "audit")) items.push({ label: "Process audit & automation roadmap", amount: 400 });
+      if (b(a, "training")) items.push({ label: "Team training session (recorded)", amount: 250 });
+      return { items, base: sum(items), hours: Math.round((6 + 4 * (w - 1)) * mult) + (b(a, "audit") ? 3 : 0) + (b(a, "training") ? 2 : 0) };
+    },
+  },
+  {
+    slug: "ai-agents",
+    name: "Custom AI Agents",
+    category: "business",
+    icon: "🤖",
+    tagline: "An AI assistant that answers customers, books appointments and works inside your tools — 24/7.",
+    description: "We build an AI agent trained on your business: a chat assistant on your website that answers questions and captures leads, a customer service agent for email and chat, an AI receptionist that answers your phone and books appointments, or an operations agent that works inside your CRM, calendar and invoicing. It hands off to a person whenever it isn't sure, and every conversation is logged for you. Built, tested with you and tuned for 30 days after launch. A free video consultation confirms the scope and the firm price first.",
+    includes: ["Free video consultation", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage quoted separately (from $199/month)"],
+    notesHint: "What the agent should handle, the questions customers ask most, the tools it should connect to (website, phone, CRM, calendar), and when it should hand off to a person",
+    questions: [
+      {
+        id: "agent",
+        label: "Agent type",
+        type: "select",
+        default: "chat",
+        options: [
+          { value: "chat", label: "Website chat assistant (answers questions, captures leads)" },
+          { value: "service", label: "Customer service agent (email & chat, trained on your info)" },
+          { value: "voice", label: "AI phone receptionist (answers calls, books appointments)" },
+          { value: "ops", label: "Operations agent (works inside your CRM, calendar and invoicing)" },
+        ],
+      },
+      { id: "integrations", label: "Systems to connect", type: "number", min: 0, max: 10, default: 1, help: "CRM, calendar, booking, email, payments… The first one is included; each additional one is added to the price." },
+      { id: "bilingual", label: "English + Spanish", type: "toggle", default: false },
+    ],
+    minimum: 2500,
+    spread: [0.9, 1.3],
+    siteVisit: true,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once"],
+    trades: ["ai_automation"],
+    price: (a) => {
+      const kind = s(a, "agent", "chat");
+      const [label, amount, hrs] = ({ chat: ["Website chat assistant", 2500, 25], service: ["Customer service agent", 4500, 40], voice: ["AI phone receptionist", 6000, 50], ops: ["Operations agent", 8500, 70] } as Record<string, [string, number, number]>)[kind] ?? ["Website chat assistant", 2500, 25];
+      const items: LineItem[] = [{ label: `${label} — build, train, test & launch`, amount }];
+      const extra = Math.max(0, n(a, "integrations", 1) - 1);
+      if (extra) items.push({ label: `Additional integrations — ${extra}`, amount: extra * 750 });
+      if (b(a, "bilingual")) items.push({ label: "English + Spanish", amount: 600 });
+      return { items, base: sum(items), hours: hrs + extra * 6 + (b(a, "bilingual") ? 6 : 0) };
+    },
+  },
 ];
 
 export const SERVICE_BY_SLUG: Record<string, Service> = Object.fromEntries(SERVICES.map((sv) => [sv.slug, sv]));
@@ -2730,4 +3044,9 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "venue", label: "Event venue / space" },
   { id: "security", label: "Security guard agency (licensed)" },
   { id: "recruiter", label: "Recruiter (Handled Talent)" },
+  { id: "web_design", label: "Web design & development (remote)" },
+  { id: "business_formation", label: "Business formation & filings (remote)" },
+  { id: "consulting", label: "Business consulting (remote)" },
+  { id: "ai_automation", label: "AI automation & AI agents (remote)" },
+  { id: "freight", label: "Freight carrier (USDOT authority)" },
 ];

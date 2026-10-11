@@ -15,6 +15,7 @@
   UPDATED : 2026-10-06_0637 UTC — 60 services (small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride).
   UPDATED : 2026-10-06_0708 UTC — mobile app v0.5.0 setup: Apple Pay / Google Pay (Stripe publishable key, webhook event, Apple merchant ID) and the Android Maps key.
   UPDATED : 2026-10-06_0726 UTC — security review: see docs/SECURITY_REVIEW_2026-10-06_0726.md (CRON_SECRET 32+ chars, lockdown migration, 2FA everywhere).
+  UPDATED : 2026-10-11_0608 UTC — 65 services (Business & Technology added); setup no longer quotes a fixed count.
 -->
 
 # Handled — Go-Live Checklist
@@ -42,7 +43,7 @@
 ## 1. Supabase (database) — 15 minutes
 
 1. supabase.com → **New project** → region **US East** → save the database password somewhere safe.
-2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the 60 services and your launch market. Run it once, on a new project.)
+2. **SQL Editor → New query** → open `supabase/setup/HANDLED_SETUP_*.sql` from the repo → paste the whole file → **Run**. (Creates every table, security rule, storage bucket, the services and your launch market (new services in code are added automatically on the first booking). Run it once, on a new project.)
 3. **Do NOT run** `supabase/demo_data.sql` on this project; it's fake people for testing only.
 4. **Authentication → URL Configuration**
    - Site URL: `https://YOUR-DOMAIN`

@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-06_0637 UTC — Spanish names for the six new services.
  * UPDATED : 2026-10-06_0748 UTC — "Pro Rewards & tiers" (footer link).
  * UPDATED : 2026-10-06_0841 UTC — national home-page copy (launching in Metro Detroit, expanding nationwide).
+ * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -159,6 +160,10 @@ const ES: Record<string, string> = {
   "Booking…": "Reservando…",
   "Finalizing your price…": "Finalizando su precio…",
   "Book free site visit": "Reservar visita gratuita",
+  "Book free consultation": "Reservar consulta gratis",
+  "Business address": "Dirección del negocio",
+  "the consultation is free; I pay once I approve the firm quote.": "la consulta es gratis; pago cuando apruebe la cotización final.",
+  "Free video consultation — a specialist confirms the scope and firm price, then you pay to start the work.": "Consulta gratis por video — un especialista confirma el alcance y el precio final, y luego paga para empezar el trabajo.",
   "Pay": "Pagar",
   "Your budget — how we’d spend it": "Su presupuesto — cómo lo usaríamos",
   "What you’d like to spend": "Lo que le gustaría gastar",
@@ -321,6 +326,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
   events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres, salones y seguridad, en una sola factura." },
   security: { name: "Guardias de seguridad y patrullaje", short: "Seguridad", blurb: "Guardias con licencia para edificios, obras, estacionamientos y eventos: puestos fijos, rondas nocturnas y vigilancia contra incendios." },
+  business: { name: "Negocios y tecnología", short: "Negocios y tec.", blurb: "Sitios web, automatización y agentes de IA, formación de empresas y consultoría: a distancia, con una consulta gratis primero." },
 };
 
 const ES_SERVICE: Record<string, [string, string]> = {
@@ -381,6 +387,12 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "food-truck": ["Reserva de food truck", "Tacos, barbacoa, pizza, hamburguesas o postres en su fiesta."],
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
   "security-guard": ["Guardias de seguridad y patrullaje", "Guardias con licencia para su edificio, obra o estacionamiento: puesto fijo, rondas nocturnas o vigilancia contra incendios."],
+  "freight-delivery": ["Carga y entrega de tarimas", "Tarimas y carga con un transportista con licencia: camioneta, camión caja con plataforma elevadora o un tráiler completo de 53 pies."],
+  "website-design": ["Diseño y creación de sitios web", "Un sitio web profesional para su negocio: diseñado, escrito y publicado por nosotros."],
+  "business-formation": ["Formación de empresas (LLC y corporación)", "Cree su LLC o corporación correctamente: registrada, con su EIN y los documentos listos."],
+  "business-consulting": ["Consultoría de negocios", "Planes, precios, mercadeo y licitaciones: un consultor que le ayuda a crecer."],
+  "ai-automation": ["Automatización con IA", "Ponga en piloto automático el trabajo repetitivo: seguimiento de clientes, citas, facturas e informes."],
+  "ai-agents": ["Agentes de IA a la medida", "Un asistente de IA que atiende clientes, agenda citas y trabaja dentro de sus herramientas, 24/7."],
   "event-security": ["Seguridad para eventos", "Seguridad uniformada y con licencia para fiestas, salones y eventos."],
   "event-rentals": ["Alquiler de sillas y fiestas", "Sillas, mesas, manteles, carpas y pistas de baile, entregadas e instaladas."],
   "event-venue": ["Alquiler y coordinación de salones", "Buscamos, visitamos y reservamos el salón ideal para sus invitados."],

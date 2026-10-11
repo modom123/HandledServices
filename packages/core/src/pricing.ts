@@ -26,6 +26,7 @@
  *           take cap 40%, and every price (lines and minimums) raised by upliftFactor() so pro pay in dollars is unchanged.
  * UPDATED : 2026-10-07_1830 UTC — area pricing: EstimateInput.region (markets.price_multiplier, e.g. Seattle area 1.25, rest of
  *           Washington 1.20) raises the price and the minimum; the pro's pay follows the price.
+ * UPDATED : 2026-10-11_0608 UTC — priceHint: remote services show their starting price ("From $1,620") instead of "Free on-site quote".
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -422,6 +423,9 @@ export function typicalProShare(slug: string): number {
 export function priceHint(slug: string, locale: string = "en"): string {
   const es = locale === "es";
   if (slug === "event-package") return es ? "Según su presupuesto" : "By budget";
+  // remote work (websites, AI, formation, consulting): the starting price, with a free video consultation
+  const svc = getService(slug);
+  if (svc?.remote) { const from = money(Math.round(svc.minimum * upliftFactor(svc.minimum, slug) / 5) * 5); return es ? `Desde ${from}` : `From ${from}`; }
   if (typicalPrice(slug) === null) return es ? "Cotización gratis en sitio" : "Free on-site quote";
   // every job is priced on its own details: lists promise an instant upfront price instead of a number that
   // can look high next to a different kind of service (e.g. an airport transfer vs. a rideshare)

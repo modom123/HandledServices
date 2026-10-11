@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-07_1610 UTC — no booking (and no payment) when the ZIP is outside our markets or no vetted pro covers it yet: waitlist.
  * UPDATED : 2026-10-07_1700 UTC — outside Michigan and Washington the message says so (waitlist).
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
+ * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) book from any ZIP even before a specialist signs up — staff take them.
  */
 import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";
@@ -37,7 +38,8 @@ export async function POST(req: Request) {
   if (a.mode === "closed") return Response.json({ error: a.market
     ? `${svcDef.name} is coming soon to ${a.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
     : `We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach ${parsed.data.zip}.`, waitlist: true }, { status: 409 });
-  if (a.mode === "request" && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  // remote services are taken by Handled staff when no specialist has signed up yet
+  if (a.mode === "request" && !svcDef.remote && process.env.SUPABASE_SERVICE_ROLE_KEY)
     return Response.json({ error: `We don't have a pro for ${svcDef.name} in ${parsed.data.zip} yet. Join the waitlist and we'll tell you as soon as one is available — nothing is charged.`, waitlist: true }, { status: 409 });
   if (parsed.data.scheduled_date) {
     const day = a.days?.find((d: { date: string }) => d.date === parsed.data.scheduled_date);

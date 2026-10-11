@@ -9,9 +9,10 @@
  * UPDATED : 2026-10-07_1700 UTC — Handled serves Michigan and Washington (SERVED_STATES, by ZIP range). ZIPs in other states
  *           are closed (waitlist); a Michigan / Washington ZIP missing from every market is still bookable and gets added.
  * UPDATED : 2026-10-07_1830 UTC — regionFactor(zip): the service area's price level (markets.price_multiplier).
+ * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) are open in every US ZIP and have no area price level.
  */
 import "server-only";
-import { marketForZip, serviceOpen, type LaunchMarket } from "@handled/core";
+import { getService, marketForZip, serviceOpen, type LaunchMarket } from "@handled/core";
 import { adminClient } from "./supabase/server";
 
 let cache: { at: number; markets: LaunchMarket[] } | null = null;
@@ -40,6 +41,7 @@ export const servedState = (zip: string | null | undefined) => {
  * adds the ZIP to a service area (addZipToServiceArea). Fails open if markets can't be read.
  */
 export async function openFor(slug: string, zip: string | null | undefined) {
+  if (getService(slug)?.remote) return { open: true, market: null }; // done remotely: any US ZIP
   try {
     const market = marketForZip(await launchMarkets(), zip);
     if (!market) return { open: Boolean(servedState(zip)), market: null };
@@ -52,7 +54,8 @@ export async function openFor(slug: string, zip: string | null | undefined) {
 export const clearLaunchCache = () => { cache = null; };
 
 /** The area's price level for a ZIP (markets.price_multiplier: Seattle area 1.25, rest of Washington 1.20, Michigan 1). */
-export async function regionFactor(zip: string | null | undefined): Promise<number> {
+export async function regionFactor(zip: string | null | undefined, slug?: string): Promise<number> {
+  if (slug && getService(slug)?.remote) return 1; // remote work costs the same everywhere
   try {
     const m = marketForZip(await launchMarkets(), zip);
     const f = Number(m?.price_multiplier ?? 1);

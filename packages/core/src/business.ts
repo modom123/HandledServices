@@ -11,6 +11,8 @@
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal under clean-outs and for property managers.
  * UPDATED : 2026-10-06_0637 UTC — dock & door, fire extinguisher and small engine under maintenance; used oil under clean-outs;
  *           new industry: auto shops & fleets.
+ * UPDATED : 2026-10-11_0608 UTC — "Websites, AI & business setup" group (Business & Technology services).
+ * UPDATED : 2026-10-11_1405 UTC — "Freight & pallet delivery" group (licensed carriers, e.g. 3 Lakes Logistics).
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -24,10 +26,12 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "turnovers", title: "Unit turnovers & make-readies", icon: "🔑", blurb: "Cleanout, deep clean, touch-ups and punch list between tenants — rent-ready in one booking, photos of every room.", slugs: ["unit-turnover", "house-cleaning", "interior-painting", "carpet-cleaning"] },
   { id: "cleanouts", title: "Clean-outs, moves & hauling", icon: "🚛", blurb: "Office and small moves, abandoned items and furniture removal — or a container for the week.", slugs: ["junk-removal", "small-moves", "large-item-removal", "junk-container", "dead-animal-removal", "waste-oil-collection"] },
   { id: "delivery", title: "Large-item delivery & staging", icon: "🚚", blurb: "Same-day delivery for your store's customers, and staging furniture moved in and out of listings.", slugs: ["retail-delivery", "staging-transport"] },
+  { id: "freight", title: "Freight & pallet delivery", icon: "🏭", blurb: "Pallets and freight by a licensed carrier: a cargo van, a 26-ft box truck with liftgate, or a full truckload — once or on a weekly route.", slugs: ["freight-delivery", "retail-delivery", "courier"] },
   { id: "courier", title: "Courier & delivery", icon: "📦", blurb: "Medical courier for clinics and labs, plus same-day runs and supply pickups.", slugs: ["courier", "medical-delivery", "errands"] },
   { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
   { id: "events", title: "Corporate events & catering", icon: "🍽️", blurb: "Team lunches, client dinners, company BBQs and holiday parties, start to finish.", slugs: ["catering", "event-planning", "food-truck", "event-venue", "event-rentals", "dj-music"] },
   { id: "security", title: "Security guards & patrol", icon: "🛡️", blurb: "Licensed guards for your building, job site or lot: a standing post, nightly patrols, fire watch, or security for your event.", slugs: ["security-guard", "event-security", "camera-install"] },
+  { id: "tech", title: "Websites, AI & business setup", icon: "💼", blurb: "A website that wins customers, AI that answers leads and does the busywork, your LLC filed, and a consultant for plans and bids — done remotely.", slugs: ["website-design", "ai-automation", "ai-agents", "business-formation", "business-consulting"] },
   { id: "fleet", title: "Fleet & staff perks", icon: "🚗", blurb: "On-site detailing for company vehicles — or as a perk in your lot.", slugs: ["mobile-car-detailing", "personal-assistant"] },
 ];
 

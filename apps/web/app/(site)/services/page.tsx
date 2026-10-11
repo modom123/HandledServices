@@ -19,7 +19,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   const categories: BrowserCategory[] = CATEGORIES.map((c) => ({
     id: c.id, name: categoryText(l, c.id, c).name, icon: c.icon, blurb: categoryText(l, c.id, c).blurb,
     services: SERVICES.filter((s) => s.category === c.id).map((s) => ({
-      slug: s.slug, ...serviceText(l, s.slug, s), icon: s.icon, siteVisit: s.siteVisit,
+      slug: s.slug, ...serviceText(l, s.slug, s), icon: s.icon, siteVisit: s.siteVisit, remote: s.remote,
       from: priceHint(s.slug, l),
     })),
   })).filter((c) => c.services.length);
