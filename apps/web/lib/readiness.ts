@@ -35,14 +35,18 @@
  * UPDATED : 2026-10-11_1603 UTC — carrier partner check (3 Lakes Logistics: added, vetting or approved).
  * UPDATED : 2026-10-11_2250 UTC — migration 59: saved checklists (RUN_ONCE_LATEST_2026-10-11_2250.sql covers 58 and 59).
  * UPDATED : 2026-10-12_0005 UTC — migrations 60–62: texts inbox, saved home profiles, pro calendar feed and ZIP codes (RUN_ONCE_LATEST_2026-10-12_0005.sql covers 56–62).
+ * UPDATED : 2026-10-12_0138 UTC — Stripe checked live: account activation (charges / payouts / requirements), the webhook endpoint
+ *           and its events, live/test keys matching, signing-secret format, pros ready for payouts, money for Monday's
+ *           payouts, customer portal, 1099 tax forms.
  * UPDATED : 2026-10-12_0121 UTC — migration 63: ID numbers (RUN_ONCE_LATEST_2026-10-12_0121.sql covers 56–63).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
  */
 import "server-only";
-import { BRAND, BRAND_PLACEHOLDERS, SERVICES, TRADES } from "@handled/core";
+import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
-import { getStripe } from "./stripe";
+import { connectReady, getStripe } from "./stripe";
+import type Stripe from "stripe";
 import { getConnection, xeroConfigured } from "./xero";
 import { siteUrl as siteUrlNow } from "./notify";
 
@@ -108,12 +112,12 @@ export async function readiness(): Promise<Check[]> {
     }
     add("Payments (Stripe)", "Webhook secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.succeeded (app payments), charge.refunded (refunds made in Stripe), charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, identity.verification_session.verified and identity.verification_session.requires_input (pro ID checks); copy the signing secret`);
     add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services; turn on before adding states that tax services", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
-    add("Payments (Stripe)", "Customer billing portal", true, "used for Handled Plus manage/cancel — enable it in Stripe → Settings → Billing → Customer portal");
+    await stripeAccountChecks(stripe, add, site || siteUrlNow());
+  }
   // ── Pro recruiting (background checks)
   add("Pro recruiting", "Background checks (Checkr)", has("CHECKR_API_KEY") && has("CHECKR_PACKAGE") ? true : "warn",
     has("CHECKR_API_KEY") ? (has("CHECKR_PACKAGE") ? "automated — ordered as soon as a pro's W-9 and agreement are in" : "CHECKR_PACKAGE missing") : "manual — ops gets a task to order each check",
     `Checkr → Account settings → API keys: set CHECKR_API_KEY and CHECKR_PACKAGE (your package slug); add the webhook ${site || "https://your-domain"}/api/checkr/webhook (report.completed, report.suspended, report.canceled, invitation.completed)`);
-  }
 
   if (!supabaseConfigured || !has("SUPABASE_SERVICE_ROLE_KEY")) return c;
   const db = adminClient();
@@ -206,4 +210,87 @@ export async function readiness(): Promise<Check[]> {
   add("People", "Active pros", active.length > 0 ? (uncovered.length ? "warn" : true) : false, `${active.length} active${uncovered.length ? ` · no pro yet for: ${uncovered.join(", ")}` : ""}`, "Recruit at /pros, approve in Hub → Hiring & pros, verify documents, activate");
   add("People", "No demo data", (demo ?? 0) === 0, demo ? `${demo} demo pros (*.example) in this database` : "clean", "Delete demo rows: delete from contractors where email like '%.example'; (and their jobs)");
   return c;
+}
+
+type Add = (area: string, item: string, ok: boolean | "warn", detail: string, fix?: string) => void;
+
+/** Live checks against the Stripe account itself (Hub → Setup). Each check reports and never throws. */
+async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
+  const area = "Payments (Stripe)";
+  const has = (k: string) => Boolean(process.env[k]?.trim());
+  const pk = process.env.STRIPE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+  const sk = process.env.STRIPE_SECRET_KEY ?? "";
+  if (!keysMatch(sk, pk)) add(area, "Live / test keys match", false, `secret key is ${keyMode(sk) ?? "unknown"}, publishable key is ${keyMode(pk) ?? "unknown"} — app payments will fail`, "Stripe → Developers → API keys: copy both keys from the same mode (live) into STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY");
+  else if (pk) add(area, "Live / test keys match", true, `both ${keyMode(sk)}`);
+  const whsec = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+  if (whsec && !whsec.startsWith("whsec_")) add(area, "Webhook signing secret format", false, "doesn't start with whsec_ — every webhook will be rejected", "Stripe → Developers → Webhooks → your endpoint → Signing secret → Reveal; paste it into STRIPE_WEBHOOK_SECRET (not the API key)");
+
+  // the platform account: can it take cards and pay out?
+  try {
+    const me = await stripe.accounts.retrieveCurrent();
+    const due = me.requirements?.currently_due ?? [];
+    const ok = Boolean(me.charges_enabled && me.payouts_enabled) && !due.length;
+    add(area, "Account activated", ok ? true : me.charges_enabled ? "warn" : false,
+      ok ? "cards accepted, payouts to your bank on" : `${me.charges_enabled ? "cards accepted" : "can't accept cards yet"} · ${me.payouts_enabled ? "payouts on" : "payouts to your bank off"}${due.length ? ` · Stripe needs: ${due.slice(0, 4).join(", ")}${due.length > 4 ? "…" : ""}` : ""}`,
+      "Stripe Dashboard → Settings → Business details / the activation banner: finish what Stripe asks for (bank account, identity, business info)");
+  } catch (e) {
+    add(area, "Account activated", "warn", `couldn't read the account: ${e instanceof Error ? e.message : e}`, "Use a full secret key (sk_), or give the restricted key read access to Account");
+  }
+
+  // the webhook endpoint: right URL, enabled, every event the app needs
+  const want = `${site.replace(/\/$/, "")}/api/stripe/webhook`;
+  const host = (u: string) => { try { const x = new URL(u); return `${x.host.replace(/^www\./, "")}${x.pathname.replace(/\/$/, "")}`; } catch { return u; } };
+  try {
+    const { data: hooks } = await stripe.webhookEndpoints.list({ limit: 100 });
+    const ours = hooks.filter((h) => host(h.url) === host(want));
+    const live = ours.find((h) => h.status === "enabled");
+    if (!live) {
+      const elsewhere = hooks.filter((h) => h.url.includes("/api/stripe/webhook")).map((h) => `${h.url} (${h.status})`);
+      add(area, "Webhook endpoint", false, ours.length ? `${want} is disabled` : `no endpoint for ${want}${elsewhere.length ? ` — found ${elsewhere.join(", ")}` : ""}`,
+        `Stripe → Developers → Webhooks → Add endpoint: ${want}, select the events listed in the next check, then copy its signing secret into STRIPE_WEBHOOK_SECRET and redeploy`);
+    } else {
+      const missing = missingWebhookEvents(live.enabled_events);
+      add(area, "Webhook endpoint", true, `${live.url} · enabled · ${live.enabled_events.includes("*") ? "all events" : `${live.enabled_events.length} events`}`);
+      add(area, "Webhook events", missing.length ? (missing.includes("checkout.session.completed") ? false : "warn") : true,
+        missing.length ? `missing ${missing.length}: ${missing.map((e) => `${e} (${STRIPE_WEBHOOK_EVENTS[e]})`).join("; ")}` : "every event the app uses",
+        `Stripe → Developers → Webhooks → ${live.url} → Update details → add: ${missing.join(", ")}`);
+      if (ours.length > 1) add(area, "Duplicate webhook endpoints", "warn", `${ours.length} endpoints point at ${want} — each has its own signing secret, so only one can match STRIPE_WEBHOOK_SECRET`, "Delete the extra endpoints in Stripe → Developers → Webhooks");
+    }
+  } catch (e) {
+    add(area, "Webhook endpoint", "warn", `couldn't list endpoints: ${e instanceof Error ? e.message : e}`, "Check it by hand in Stripe → Developers → Webhooks");
+  }
+
+  // pros: connected accounts that can receive the Monday payout, and money to cover it
+  try {
+    const db = adminClient();
+    const { data: pros } = await db.from("contractors").select("id, stripe_account_id").eq("status", "approved").limit(500);
+    const list = (pros ?? []) as { id: string; stripe_account_id: string | null }[];
+    const linked = list.filter((p) => p.stripe_account_id);
+    const ready = (await Promise.all(linked.slice(0, 25).map((p) => connectReady(p.stripe_account_id)))).filter(Boolean).length;
+    const sampled = Math.min(linked.length, 25);
+    add(area, "Pros set up for payouts (Connect)", !list.length ? "warn" : ready === list.length ? true : "warn",
+      !list.length ? "no approved pros yet" : `${linked.length} of ${list.length} approved pros started payout setup${sampled ? ` · ${ready} of ${sampled} checked can receive money` : ""}`,
+      "Pros finish payout setup in Pro portal → Earnings. If no pro can start it, activate Connect in Stripe → Connect → Get started (Express accounts, platform profile)");
+    const { data: owed } = await db.from("payouts").select("amount").eq("status", "approved");
+    const total = ((owed ?? []) as { amount: number }[]).reduce((a, r) => a + Number(r.amount), 0);
+    const bal = await stripe.balance.retrieve();
+    const avail = (bal.available.find((x) => x.currency === "usd")?.amount ?? 0) / 100;
+    const pending = (bal.pending.find((x) => x.currency === "usd")?.amount ?? 0) / 100;
+    if (total > 0) add(area, "Money for Monday's payouts", avail >= total ? true : "warn", `$${avail.toFixed(2)} available ($${pending.toFixed(2)} pending) · $${total.toFixed(2)} approved for pros`,
+      "Card payments take about 2 days to become available. Pros not covered wait for the next run; you can top up the balance in Stripe → Balance → Add funds");
+  } catch (e) {
+    add(area, "Pros set up for payouts (Connect)", "warn", `couldn't check: ${e instanceof Error ? e.message : e}`);
+  }
+
+  // Handled Plus manage / cancel
+  try {
+    const { data: cfg } = await stripe.billingPortal.configurations.list({ is_default: true, limit: 1 });
+    add(area, "Customer billing portal", cfg.length && cfg[0].active ? true : "warn", cfg.length && cfg[0].active ? "set up (Handled Plus manage / cancel)" : "not set up — Handled Plus members can't manage or cancel themselves", "Stripe → Settings → Billing → Customer portal → Save");
+  } catch {
+    add(area, "Customer billing portal", "warn", "couldn't check", "Stripe → Settings → Billing → Customer portal → Save");
+  }
+
+  // year-end 1099-NEC for pros paid through Connect
+  add(area, "1099 tax forms for pros", has("STRIPE_1099") ? true : "warn", has("STRIPE_1099") ? "Stripe files 1099-NEC for pros paid through Connect" : "not confirmed — nothing files pros' 1099-NEC in January yet",
+    "Stripe → Connect → Tax forms (Settings → Connect → Tax reporting): turn on 1099-NEC e-filing and delivery, then set STRIPE_1099=on in Vercel");
 }

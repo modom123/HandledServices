@@ -1740,3 +1740,15 @@ test("mold removal: containment by location, removal, ducts, testing; big jobs g
   assert.ok(photoProblem("mold-removal", 1), "two photos required");
   assert.deepEqual(svc.trades, ["mold"]);
 });
+
+test("stripe setup: required webhook events and matching key modes", async () => {
+  const { missingWebhookEvents, keyMode, keysMatch, STRIPE_WEBHOOK_EVENTS } = await import("./stripe-setup.ts");
+  assert.deepEqual(missingWebhookEvents(["*"]), []);
+  assert.equal(missingWebhookEvents([]).length, Object.keys(STRIPE_WEBHOOK_EVENTS).length);
+  assert.deepEqual(missingWebhookEvents(Object.keys(STRIPE_WEBHOOK_EVENTS).filter((e) => e !== "payment_intent.succeeded")), ["payment_intent.succeeded"]);
+  assert.equal(keyMode("sk_live_abc"), "live");
+  assert.equal(keyMode("rk_test_abc"), "test");
+  assert.equal(keyMode("whsec_abc"), null);
+  assert.ok(keysMatch("sk_live_a", "pk_live_b") && keysMatch("sk_test_a", undefined));
+  assert.ok(!keysMatch("sk_live_a", "pk_test_b"), "live secret + test publishable fails in the app");
+});
