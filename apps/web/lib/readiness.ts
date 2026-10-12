@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-11_1603 UTC — carrier partner check (3 Lakes Logistics: added, vetting or approved).
  * UPDATED : 2026-10-11_2250 UTC — migration 59: saved checklists (RUN_ONCE_LATEST_2026-10-11_2250.sql covers 58 and 59).
  * UPDATED : 2026-10-12_0005 UTC — migrations 60–62: texts inbox, saved home profiles, pro calendar feed and ZIP codes (RUN_ONCE_LATEST_2026-10-12_0005.sql covers 56–62).
+ * UPDATED : 2026-10-12_0121 UTC — migration 63: ID numbers (RUN_ONCE_LATEST_2026-10-12_0121.sql covers 56–63).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
  */
 import "server-only";
@@ -164,6 +165,7 @@ export async function readiness(): Promise<Check[]> {
     ["60 texts inbox (Hub → Texts)", () => db.from("sms_inbox").select("id").limit(1)],
     ["61 saved home profiles (account, booking)", () => db.from("job_access").select("job_id").limit(1)],
     ["62 pro calendar feed + pro ZIP codes", () => db.from("contractors").select("calendar_token, zips_only").limit(1)],
+    ["63 ID numbers (C-, B-, P-, S-)", () => db.from("customer_ids").select("customer_no").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

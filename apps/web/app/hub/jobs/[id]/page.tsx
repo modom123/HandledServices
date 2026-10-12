@@ -12,6 +12,7 @@
  *           offers, timeline, messages and every manual override.
  * UPDATED : 2026-10-11_2250 UTC — checklist box: use a different checklist (saved or built-in) or email it to a pro.
  * UPDATED : 2026-10-11_2242 UTC — "Notifications sent": every text, email and push about this job (notification log).
+ * UPDATED : 2026-10-12_0121 UTC — customer (C-), business client (B-) and pro (P-) IDs.
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, editable), saved home link, and text the customer / pro from here.
  */
 import Link from "next/link";
@@ -30,6 +31,7 @@ import { JobChecklistTools } from "@/components/ChecklistManager";
 import { adminClient } from "@/lib/supabase/server";
 import { JobAccessEditor } from "@/components/JobAccessEditor";
 import { TextReply } from "@/components/TextsInbox";
+import { customerNo } from "@/lib/ids";
 
 type AnyRec = Record<string, unknown>;
 
@@ -44,9 +46,15 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   const noticeRes = await adminClient().from("notification_log").select("id, channel, recipient, subject, preview, status, error, created_at").or(`job_ref.eq.${job.ref},job_id.eq.${job.id}`).order("created_at", { ascending: false }).limit(60);
   const [{ data: entry }, { data: proContact }, { data: homeRow }] = await Promise.all([
     adminClient().from("job_access").select("access_info, updated_by").eq("job_id", job.id).maybeSingle(),
-    job.contractor_id ? adminClient().from("contractors").select("business_name, phone").eq("id", job.contractor_id).maybeSingle() : Promise.resolve({ data: null }),
+    job.contractor_id ? adminClient().from("contractors").select("*").eq("id", job.contractor_id).maybeSingle() : Promise.resolve({ data: null }),
     (job as { home_id?: string | null }).home_id ? adminClient().from("customer_homes").select("label").eq("id", (job as { home_id?: string | null }).home_id!).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const [cno, { data: clientRow }] = await Promise.all([
+    customerNo(job.contact_email),
+    job.business_account_id ? adminClient().from("business_accounts").select("*").eq("id", job.business_account_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const clientNo = (clientRow as { client_no?: string | null } | null)?.client_no ?? null;
+  const proNo = (proContact as { pro_no?: string | null } | null)?.pro_no ?? null;
   const notices = noticeRes.error ? null : (noticeRes.data ?? []) as { id: string; channel: string; recipient: string; subject: string | null; preview: string | null; status: string; error: string | null; created_at: string }[];
   const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after, { data: expenses }] = await Promise.all([
     v.db.from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
@@ -73,7 +81,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{job.ref} · {s.icon} {s.name}</h1><div className="flex gap-2">{job.remedy && <Badge tone="brand">{job.remedy}</Badge>}{!job.paid_at && !job.remedy && job.price_final ? <Badge tone="red">unpaid</Badge> : null}{job.priority !== "normal" && <Badge tone="amber">{job.priority}</Badge>}<StatusBadge status={job.status} /></div></div>
           <a href={`/invoice/${job.id}`} target="_blank" className="text-xs font-semibold text-brand underline">Invoice & service agreement ↗</a>
           <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
-            <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><Link href={`/hub/customers/${encodeURIComponent(String(job.contact_email).toLowerCase())}`} className="text-xs font-semibold text-brand underline">Customer history & notes →</Link><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div></div>
+            <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}{cno && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{cno}</span>}{clientNo && <Link href={`/hub/business/${job.business_account_id}`} className="ml-2 font-mono text-xs font-normal text-brand underline">{clientNo}</Link>}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><Link href={`/hub/customers/${encodeURIComponent(String(job.contact_email).toLowerCase())}`} className="text-xs font-semibold text-brand underline">Customer history & notes →</Link><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div>{proContact && <div className="mt-1">Pro: <Link className="font-semibold text-brand underline" href={`/hub/pros/${job.contractor_id}`}>{(proContact as { business_name: string }).business_name}</Link>{proNo && <span className="ml-1 font-mono text-xs text-ink-soft">{proNo}</span>}</div>}</div>
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>
               <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <span className="font-normal text-ink-soft">· payout {money(job.contractor_payout)} · margin {job.price_final && job.contractor_payout ? money(job.price_final - job.contractor_payout) : "—"}</span></div>
               {(job.urgency || job.needed_by) && <div className={deadlineRisk(job) === "late" ? "font-semibold text-rose-600" : deadlineRisk(job) ? "font-semibold text-amber-700" : ""}>Customer needs it: {job.urgency ? URGENCY_LABEL[job.urgency] : "—"}{job.needed_by ? ` · by ${fmtDate(job.needed_by)}` : ""}{deadlineRisk(job) === "late" ? " (past due)" : deadlineRisk(job) === "due" ? " (due now)" : ""}</div>}
@@ -152,7 +160,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
         {(job.contact_phone || (proContact as { phone: string | null } | null)?.phone) && (
           <div className="card space-y-2"><div className="font-semibold">💬 Text</div>
             {job.contact_phone && <div><div className="text-xs text-ink-soft">Customer · {job.contact_name}</div><TextReply compact to={job.contact_phone} jobId={job.id} /></div>}
-            {(proContact as { phone: string | null } | null)?.phone && <div><div className="text-xs text-ink-soft">Pro · {(proContact as { business_name: string }).business_name}</div><TextReply compact to={(proContact as { phone: string }).phone} jobId={job.id} /></div>}
+            {(proContact as { phone: string | null } | null)?.phone && <div><div className="text-xs text-ink-soft">Pro · {(proContact as { business_name: string }).business_name}{proNo ? ` · ${proNo}` : ""}</div><TextReply compact to={(proContact as { phone: string }).phone} jobId={job.id} /></div>}
             <p className="text-xs text-ink-soft">Texts are added to the messages below. Replies land in <Link className="underline" href="/hub/texts">Hub → Texts</Link>.</p></div>
         )}
         <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id, instructions: job.instructions }} pros={qualified} />

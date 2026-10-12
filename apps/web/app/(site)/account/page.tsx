@@ -13,6 +13,7 @@
  *           how it works, popular services, first-booking perks (Points bonus, a friend's code) and "Book your first service".
  *           It switches to the normal bookings view after their first booking.
  * UPDATED : 2026-10-12_0005 UTC — 🏠 My homes: saved home profiles (entry, keys, pets, preferences) used by bookings.
+ * UPDATED : 2026-10-12_0121 UTC — Customer ID (C-…) under the email.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -28,6 +29,7 @@ import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { getLoyaltySettings } from "@/lib/loyalty";
 import { RemoveFavorite } from "@/components/Favorites";
 import { MyHomes, type SavedHome } from "@/components/MyHomes";
+import { myCustomerNo } from "@/lib/ids";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
 
@@ -46,6 +48,7 @@ export default async function Account() {
   const list = (jobs ?? []) as Job[];
   const biz = await myAccounts(v).catch(() => []);
   const favs = await myFavorites(v.userId).catch(() => []);
+  const cno = await myCustomerNo(v.userId, v.email).catch(() => null);
   const l = await getLocale();
   const t = (s: string) => tr(l, s);
   const name = (slug: string) => { const s = getService(slug); return s ? serviceText(l, slug, s).name : slug; };
@@ -53,7 +56,7 @@ export default async function Account() {
   return (
     <div className="wrap py-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-3xl font-extrabold tracking-tight">{t("My bookings")}</h1><p className="text-sm text-ink-soft">{v.email}</p></div>
+        <div><h1 className="text-3xl font-extrabold tracking-tight">{t("My bookings")}</h1><p className="text-sm text-ink-soft">{v.email}{cno ? ` · ${l === "es" ? "N.º de cliente" : "Customer ID"} ${cno}` : ""}</p></div>
         <div className="flex gap-2"><Link href="/book" className="btn-primary">{t("Book a service")}</Link>{biz.length > 0 && <Link href="/account/business" className="btn-ghost">🏢 {biz.length === 1 ? biz[0].account.company : l === "es" ? "Cuentas empresariales" : "Business accounts"}</Link>}<Link href="/account/contracts" className="btn-ghost">{t("My contracts")}</Link><form action="/auth/signout" method="post"><button className="btn-ghost">{t("Sign out")}</button></form></div>
       </div>
       {(plans ?? []).length > 0 && (

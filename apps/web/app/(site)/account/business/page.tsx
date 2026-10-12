@@ -7,6 +7,7 @@
  *           offer, properties with one-tap booking, recent jobs, pros who worked for the account
  *           (choose dedicated pros), invoices with payment links, and the team.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points for the business account (admins redeem).
+ * UPDATED : 2026-10-12_0121 UTC — client ID (B-…) under the company name.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -55,7 +56,7 @@ export default async function BusinessAccount() {
         return (
           <section key={a.id} className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <div><h1 className="text-3xl font-extrabold tracking-tight">{a.company}</h1><p className="text-sm text-ink-soft">Business account · you’re {admin ? "an admin" : "a booker"}</p></div>
+              <div><h1 className="text-3xl font-extrabold tracking-tight">{a.company}</h1><p className="text-sm text-ink-soft">Business account{(a as { client_no?: string | null }).client_no ? ` ${(a as { client_no?: string | null }).client_no}` : ""} · you’re {admin ? "an admin" : "a booker"}</p></div>
               <div className="flex flex-wrap gap-2 text-sm">
                 <Badge tone={onTerms ? (canInvoice ? "green" : "amber") : "slate"}>{onTerms ? (a.terms_hold ? "Invoicing on hold" : `Invoiced · Net ${a.terms_days}`) : "Pay at booking"}</Badge>
                 {a.priority && <Badge tone="brand">Priority dispatch</Badge>}

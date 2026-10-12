@@ -7,6 +7,7 @@
  *           with a reason and credit limit; hold), open balance and invoices, priority dispatch, pilot offer,
  *           properties, members, dedicated pros and recent jobs.
  * UPDATED : 2026-10-05_2141 UTC — Notes & history: permanent conversation log for the account, plus its history as a lead.
+ * UPDATED : 2026-10-12_0121 UTC — business client ID (B-…) in the header.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -45,7 +46,7 @@ export default async function HubBusinessAccount({ params }: { params: Promise<{
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/hub/customers" className="text-xs text-ink-soft">← Customers</Link>
-          <h1 className="text-2xl font-bold">{a.company}</h1>
+          <h1 className="text-2xl font-bold">{a.company} {(a as { client_no?: string | null }).client_no && <span className="font-mono text-base font-normal text-ink-soft">{(a as { client_no?: string | null }).client_no}</span>}</h1>
           <p className="text-sm text-ink-soft">{a.contact_name} · {a.email}{a.phone ? ` · ${a.phone}` : ""}{a.industry ? ` · ${a.industry}` : ""} · {a.locations} location(s)</p>
           {a.services_needed?.length > 0 && <p className="text-xs text-ink-soft">Asked about: {a.services_needed.map((s) => getService(s)?.name ?? s).join(", ")}</p>}
           {a.notes && <p className="text-xs text-ink-soft">“{a.notes}”</p>}

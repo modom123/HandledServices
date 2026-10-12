@@ -6,6 +6,7 @@
  *           active pros with performance and compliance (insurance expiry).
  * UPDATED : 2026-10-06_0748 UTC — Tier & progress column (current tier, what's left for the next one) and Pro Rewards
  *           points (available / pending) for every pro, so progress can be tracked at a glance.
+ * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) next to each pro.
  */
 import { TRADES, nextTierProgress, proTier, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
@@ -57,7 +58,7 @@ export default async function Pros() {
                 const ins = p.insured_until ? new Date(p.insured_until) : null;
                 return (
                   <tr key={p.id} className="border-t border-line align-top">
-                    <td className="p-3"><a href={`/hub/pros/${p.id}`} className="font-semibold underline">{p.business_name}</a><div className="text-xs text-ink-soft">{p.contact_name} · {p.phone}</div></td>
+                    <td className="p-3"><a href={`/hub/pros/${p.id}`} className="font-semibold underline">{p.business_name}</a>{p.pro_no && <span className="ml-2 font-mono text-xs text-ink-soft">{p.pro_no}</span>}<div className="text-xs text-ink-soft">{p.contact_name} · {p.phone}</div></td>
                     <td className="p-3 text-xs">{(p.trades as string[]).map(tradeLabel).join(", ")}</td>
                     <td className="p-3">{p.rating} ★</td>
                     <td className="p-3">{p.jobs_completed}</td>
