@@ -47,7 +47,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (access_info !== undefined) {
     const text = access_info?.trim() || null;
     const { error } = text ? await db.from("job_access").upsert({ job_id: id, access_info: text, updated_by: who, updated_at: new Date().toISOString() }) : await db.from("job_access").delete().eq("job_id", id);
-    if (error) return deny(500, /job_access/.test(error.message) ? "Run supabase/setup/RUN_ONCE_LATEST_2026-10-12_0121.sql in Supabase first" : error.message);
+    if (error) return deny(500, /job_access/.test(error.message) ? "Run supabase/setup/RUN_ONCE_LATEST_2026-10-12_1525.sql in Supabase first" : error.message);
     await addEvent(id, "human_touch", text ? "Entry details updated" : "Entry details removed", who, false);
     if (!Object.keys(patch).length && !note) return Response.json({ ok: true });
   }

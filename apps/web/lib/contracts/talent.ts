@@ -6,12 +6,15 @@
  *           Terms come from core TALENT_TERMS so the website, invoices and this agreement always match:
  *           contingency fee (% of first-year base salary, due only on a hire), retained search in three payments,
  *           90-day guarantee (replacement or prorated refund), 12-month candidate ownership, net 30, candidates never pay.
+ *           v2 (2026-10-12_1525 UTC): flat fee per hire ($2,500 / $5,000 / $9,500 by the role's pay).
  *           TEMPLATE — not legal advice; have counsel review before use.
  */
-import { BRAND, TALENT_TERMS as T } from "@handled/core";
+import { BRAND, FLAT_FEE_TIERS, TALENT_TERMS as T } from "@handled/core";
 import type { Contract, ContractSection, ContractTranslation } from "./types";
 
-const V1 = "2026-10-v1";
+const V2 = "2026-10-v2"; // v2: flat fee per hire
+const FLAT_LIST = FLAT_FEE_TIERS.map((t) => `${t.label}: $${t.fee.toLocaleString("en-US")} per hire`);
+const FLAT_LIST_ES: Record<string, string> = { hourly: "Por hora y nivel inicial (hasta $50K)", professional: "Calificados y profesionales ($50K–$100K)", senior: "Puestos sénior y de gerencia ($100K–$150K)" };
 const COUNSEL = " [Confirm with counsel.]";
 const COUNSEL_ES = " [Confirmar con un abogado.]";
 const N = `${BRAND.name} Talent`;
@@ -22,12 +25,13 @@ const numbered = (items: [string, string][]): ContractSection[] => items.map(([h
 export const TALENT_CLIENT_AGREEMENT: Contract = {
   key: "talent-client-agreement",
   title: `${N} Client Agreement (Recruiting Services)`,
-  version: V1,
+  version: V2,
   audience: "business",
-  appliesTo: `Companies that ask ${N} to find candidates for a job (contingency or retained search).`,
+  appliesTo: `Companies that ask ${N} to find candidates for a job (contingency, retained or flat-fee search).`,
   summary: [
     `Contingency search: ${T.contingencyPct}% of the hire's first-year base salary, owed only if you hire someone we introduce.`,
     `Retained search: ${T.retainedPct}% of first-year base salary, paid in three parts (start, shortlist, hire); the last part is adjusted to the actual salary.`,
+    `Flat fee per hire: a set price for each person hired, by the role's pay (${FLAT_FEE_TIERS.map((t) => `$${t.fee.toLocaleString("en-US")}`).join(" / ")}), owed only if you hire.`,
     `Invoices are due ${T.invoiceDueDays} days after the start date (retained: ${T.invoiceDueDays} days after each invoice).`,
     `${T.guaranteeDays}-day guarantee: if a hire resigns or is let go for performance or cause, we run a free replacement search or refund part of the fee.`,
     `A candidate we introduce is ours for ${T.ownershipMonths} months: if you hire them for any role in that time, the fee applies.`,
@@ -37,12 +41,15 @@ export const TALENT_CLIENT_AGREEMENT: Contract = {
   sections: numbered([
     ["Our service", p(
       `${N} (part of ${BRAND.legalName}) finds, screens and introduces candidates for the jobs you give us ("searches"). Our recruiters are independent recruiting professionals working through ${BRAND.name}; ${BRAND.name} is your single point of contact and is responsible for the service under this agreement.`,
-      "For each search we agree on the job, the salary range, must-haves, the interview process and whether it's contingency or retained. We send candidates with a written summary and résumé through your private search page, and you tell us interview, pass or hold.",
+      "For each search we agree on the job, the salary range, must-haves, the interview process and whether it's contingency, retained or a flat fee per hire. We send candidates with a written summary and résumé through your private search page, and you tell us interview, pass or hold.",
     )],
     ["Contingency fee", p(
       `When you hire a candidate we introduced, the fee is ${T.contingencyPct}% of their first-year base salary${T.minimumFee ? `, with a minimum fee of $${T.minimumFee.toLocaleString("en-US")}` : ""}. "Base salary" is the annual base pay in the offer (for hourly roles, the hourly rate × 2,080 hours), not counting bonuses, commissions or benefits, unless a search states otherwise.`,
       "No hire, no fee. A hire means any employment or contractor engagement of the candidate by you or your affiliates, for any role, within the ownership period (section 5).",
       `Tell us the offer, base salary and start date within 2 business days of the candidate accepting. We invoice on the start date; payment is due ${T.invoiceDueDays} days after the start date.`,
+      `Flat fee per hire: if a search is agreed as a flat-fee search, the fee for each person hired is the flat amount set for that search instead of a percentage, by the role's pay at the time we agree the search:`,
+      ul(...FLAT_LIST),
+      "Roles paying over $150,000 are contingency or retained, unless we agree a flat fee for that search in writing. Every other term of this section applies to flat fees the same way, including the ownership period and the payment date.",
     )],
     ["Retained search", p(
       `A retained search is a dedicated search with a defined process and timeline. The fee is ${T.retainedPct}% of the first-year base salary, estimated from the top of the agreed salary range and paid in three equal parts:`,
@@ -86,10 +93,11 @@ export const TALENT_CLIENT_AGREEMENT: Contract = {
 
 export const TALENT_CLIENT_AGREEMENT_ES: ContractTranslation = {
   title: `${N} — Contrato de Cliente (Servicios de Reclutamiento)`,
-  appliesTo: `Empresas que piden a ${N} encontrar candidatos para un puesto (búsqueda por contingencia o con anticipo).`,
+  appliesTo: `Empresas que piden a ${N} encontrar candidatos para un puesto (búsqueda por contingencia, con anticipo o con tarifa fija).`,
   summary: [
     `Búsqueda por contingencia: ${T.contingencyPct}% del salario base del primer año de la persona contratada, solo si usted contrata a alguien que le presentamos.`,
     `Búsqueda con anticipo (retained): ${T.retainedPct}% del salario base del primer año, en tres pagos (inicio, lista final, contratación); el último se ajusta al salario real.`,
+    `Tarifa fija por contratación: un precio fijo por cada persona contratada, según el salario del puesto (${FLAT_FEE_TIERS.map((t) => `$${t.fee.toLocaleString("en-US")}`).join(" / ")}), solo si usted contrata.`,
     `Las facturas vencen ${T.invoiceDueDays} días después de la fecha de inicio (con anticipo: ${T.invoiceDueDays} días después de cada factura).`,
     `Garantía de ${T.guaranteeDays} días: si la persona renuncia o es despedida por desempeño o causa, hacemos una búsqueda de reemplazo gratis o reembolsamos parte de la tarifa.`,
     `Un candidato que presentamos es nuestro por ${T.ownershipMonths} meses: si lo contrata para cualquier puesto en ese tiempo, se aplica la tarifa.`,
@@ -99,12 +107,15 @@ export const TALENT_CLIENT_AGREEMENT_ES: ContractTranslation = {
   sections: numbered([
     ["Nuestro servicio", p(
       `${N} (parte de ${BRAND.legalName}) encuentra, evalúa y presenta candidatos para los puestos que usted nos encarga ("búsquedas"). Nuestros reclutadores son profesionales independientes que trabajan a través de ${BRAND.name}; ${BRAND.name} es su único punto de contacto y es responsable del servicio según este contrato.`,
-      "Para cada búsqueda acordamos el puesto, el rango salarial, los requisitos indispensables, el proceso de entrevistas y si es por contingencia o con anticipo. Le enviamos candidatos con un resumen escrito y su currículum a través de su página privada de búsqueda, y usted nos indica entrevistar, descartar o en espera.",
+      "Para cada búsqueda acordamos el puesto, el rango salarial, los requisitos indispensables, el proceso de entrevistas y si es por contingencia, con anticipo o con tarifa fija por contratación. Le enviamos candidatos con un resumen escrito y su currículum a través de su página privada de búsqueda, y usted nos indica entrevistar, descartar o en espera.",
     )],
     ["Tarifa por contingencia", p(
       `Cuando usted contrata a un candidato que le presentamos, la tarifa es el ${T.contingencyPct}% de su salario base del primer año${T.minimumFee ? `, con una tarifa mínima de $${T.minimumFee.toLocaleString("en-US")}` : ""}. "Salario base" es el pago base anual de la oferta (para puestos por hora, la tarifa por hora × 2,080 horas), sin contar bonos, comisiones ni beneficios, salvo que una búsqueda indique otra cosa.`,
       "Sin contratación, no hay tarifa. Una contratación es cualquier empleo o contratación como contratista del candidato por usted o sus afiliadas, para cualquier puesto, dentro del período de titularidad (sección 5).",
       `Avísenos la oferta, el salario base y la fecha de inicio dentro de los 2 días hábiles siguientes a que el candidato acepte. Facturamos en la fecha de inicio; el pago vence ${T.invoiceDueDays} días después de la fecha de inicio.`,
+      "Tarifa fija por contratación: si una búsqueda se acuerda con tarifa fija, la tarifa por cada persona contratada es el monto fijo de esa búsqueda en lugar de un porcentaje, según el salario del puesto al acordar la búsqueda:",
+      ul(...FLAT_FEE_TIERS.map((t) => `${FLAT_LIST_ES[t.id]}: $${t.fee.toLocaleString("en-US")} por contratación`)),
+      "Los puestos con salario de más de $150,000 son por contingencia o con anticipo, salvo que acordemos por escrito una tarifa fija para esa búsqueda. Todos los demás términos de esta sección se aplican igual a las tarifas fijas, incluido el período de titularidad y la fecha de pago.",
     )],
     ["Búsqueda con anticipo", p(
       `Una búsqueda con anticipo es una búsqueda dedicada con un proceso y un calendario definidos. La tarifa es el ${T.retainedPct}% del salario base del primer año, estimado con el tope del rango salarial acordado y pagado en tres partes iguales:`,

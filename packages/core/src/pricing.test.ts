@@ -1752,3 +1752,14 @@ test("stripe setup: required webhook events and matching key modes", async () =>
   assert.ok(keysMatch("sk_live_a", "pk_live_b") && keysMatch("sk_test_a", undefined));
   assert.ok(!keysMatch("sk_live_a", "pk_test_b"), "live secret + test publishable fails in the app");
 });
+
+test("talent: flat fee per hire by the role's pay, same 80/20 split", async () => {
+  const { flatFeeFor, flatPlacementFee, FLAT_FEE_TIERS, placementFee } = await import("./talent.ts");
+  assert.equal(flatFeeFor(42_000), 2_500);
+  assert.equal(flatFeeFor(50_000), 2_500, "the tier includes its top");
+  assert.equal(flatFeeFor(85_000), 5_000);
+  assert.equal(flatFeeFor(150_000), 9_500);
+  assert.equal(flatFeeFor(180_000), null, "above the last tier: contingency or retained");
+  assert.deepEqual(flatPlacementFee(5_000), { fee: 5_000, recruiterPay: 4_000, platform: 1_000 });
+  for (const t of FLAT_FEE_TIERS) assert.ok(t.fee < placementFee(t.maxSalary).fee, `${t.id}: flat is cheaper than contingency at the top of the tier`);
+});

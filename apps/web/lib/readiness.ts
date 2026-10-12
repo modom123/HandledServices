@@ -39,6 +39,7 @@
  *           and its events, live/test keys matching, signing-secret format, pros ready for payouts, money for Monday's
  *           payouts, customer portal, 1099 tax forms.
  * UPDATED : 2026-10-12_0121 UTC — migration 63: ID numbers (RUN_ONCE_LATEST_2026-10-12_0121.sql covers 56–63).
+ * UPDATED : 2026-10-12_1525 UTC — migration 64: Handled Talent flat fee per hire (RUN_ONCE_LATEST_2026-10-12_1525.sql covers 56–64).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
  */
 import "server-only";
@@ -170,6 +171,7 @@ export async function readiness(): Promise<Check[]> {
     ["61 saved home profiles (account, booking)", () => db.from("job_access").select("job_id").limit(1)],
     ["62 pro calendar feed + pro ZIP codes", () => db.from("contractors").select("calendar_token, zips_only").limit(1)],
     ["63 ID numbers (C-, B-, P-, S-)", () => db.from("customer_ids").select("customer_no").limit(1)],
+    ["64 Handled Talent flat fee per hire", () => db.from("talent_searches").select("flat_fee").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

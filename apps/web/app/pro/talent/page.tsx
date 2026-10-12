@@ -5,6 +5,7 @@
  * PURPOSE : Pro portal → Talent (recruiters): the searches you're on with the job order and must-haves, your pipeline
  *           per search (add candidates with résumé, screen, submit with consent and a write-up), what clients said,
  *           and your hires and earnings (paid in the weekly payout once the client pays).
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire searches (fee and the recruiter's 80%).
  */
 import Link from "next/link";
 import { TALENT_TERMS, money } from "@handled/core";
@@ -26,8 +27,8 @@ export default async function ProTalent() {
     </div>
   );
   const db = adminClient();
-  const { data: mine } = await db.from("talent_search_recruiters").select("role, talent_searches(id, title, status, type, location, workplace, salary_min, salary_max, description, must_haves, fee_pct, recruiter_pct, minimum_fee, talent_clients(company))").eq("contractor_id", rec.id);
-  const searches = (mine ?? []).map((m) => ({ role: m.role, s: m.talent_searches as unknown as { id: string; title: string; status: string; type: string; location: string | null; workplace: string; salary_min: number | null; salary_max: number | null; description: string | null; must_haves: string | null; fee_pct: number; recruiter_pct: number; minimum_fee: number; talent_clients: { company: string } } })).filter((x) => x.s);
+  const { data: mine } = await db.from("talent_search_recruiters").select("role, talent_searches(*, talent_clients(company))").eq("contractor_id", rec.id);
+  const searches = (mine ?? []).map((m) => ({ role: m.role, s: m.talent_searches as unknown as { id: string; title: string; status: string; type: string; location: string | null; workplace: string; salary_min: number | null; salary_max: number | null; description: string | null; must_haves: string | null; fee_pct: number; recruiter_pct: number; minimum_fee: number; flat_fee?: number | null; talent_clients: { company: string } } })).filter((x) => x.s);
   const ids = searches.map((x) => x.s.id);
   const [{ data: subs }, { data: placements }, { data: pays }] = await Promise.all([
     ids.length ? db.from("talent_submissions").select("id, search_id, stage, pitch, submitted_at, client_feedback, client_decision, expected_salary, recruiter_id, talent_candidates(full_name, email, current_title, location, resume_path)").in("search_id", ids).eq("recruiter_id", rec.id).order("updated_at", { ascending: false }) : Promise.resolve({ data: [] as never[] }),
@@ -45,7 +46,7 @@ export default async function ProTalent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Handled Talent</h1>
-        <p className="text-sm text-ink-soft">You earn {TALENT_TERMS.recruiterPct}% of first-year base salary on contingency hires and {Math.round(TALENT_TERMS.retainedRecruiterShare * 100)}% of retained payments, paid in the weekly payout once the client pays. Get written consent before every submission; candidates never pay a fee.</p>
+        <p className="text-sm text-ink-soft">You earn {TALENT_TERMS.recruiterPct}% of first-year base salary on contingency hires {Math.round(TALENT_TERMS.retainedRecruiterShare * 100)}% of retained payments and {Math.round(TALENT_TERMS.flatRecruiterShare * 100)}% of flat fees per hire, paid in the weekly payout once the client pays. Get written consent before every submission; candidates never pay a fee.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Searches" value={searches.filter((x) => x.s.status === "open").length} />
@@ -57,12 +58,12 @@ export default async function ProTalent() {
       {searches.map(({ role, s }) => (
         <section key={s.id} className="card space-y-3">
           <div>
-            <div className="text-xs text-ink-soft">{s.talent_clients.company} · {s.type === "retained" ? "Retained" : "Contingency"} · {role === "lead" ? "You're lead" : "Support"} · {s.status.replace("_", " ")}</div>
+            <div className="text-xs text-ink-soft">{s.talent_clients.company} · {s.type === "retained" ? "Retained" : s.type === "flat" ? `Flat fee ${Number(s.flat_fee ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} per hire (you earn ${Math.round(TALENT_TERMS.flatRecruiterShare * 100)}%)` : "Contingency"} · {role === "lead" ? "You're lead" : "Support"} · {s.status.replace("_", " ")}</div>
             <h2 className="text-lg font-bold">{s.title}</h2>
             <div className="text-sm text-ink-soft">{[s.location, s.workplace].filter(Boolean).join(" · ")}{s.salary_min || s.salary_max ? ` · ${s.salary_min ? money(Number(s.salary_min)) : "?"}–${s.salary_max ? money(Number(s.salary_max)) : "?"}` : ""}</div>
           </div>
           <details className="text-sm"><summary className="cursor-pointer font-semibold">Job order & must-haves</summary>{s.description && <p className="mt-2 whitespace-pre-wrap">{s.description}</p>}{s.must_haves && <p className="mt-2 whitespace-pre-wrap"><b>Must-haves:</b> {s.must_haves}</p>}</details>
-          <Pipeline url="/api/pro/talent" rows={rowsFor(s.id)} who="recruiter" feePct={Number(s.fee_pct)} recruiterPct={Number(s.recruiter_pct)} minimumFee={Number(s.minimum_fee)} type={s.type} />
+          <Pipeline url="/api/pro/talent" rows={rowsFor(s.id)} who="recruiter" feePct={Number(s.fee_pct)} recruiterPct={Number(s.recruiter_pct)} minimumFee={Number(s.minimum_fee)} type={s.type} flatFee={s.flat_fee ? Number(s.flat_fee) : null} />
           {s.status === "open" && <details><summary className="cursor-pointer text-sm font-semibold">+ Add a candidate</summary><div className="mt-2"><AddCandidateForm url="/api/pro/talent" searchId={s.id} /></div></details>}
         </section>
       ))}

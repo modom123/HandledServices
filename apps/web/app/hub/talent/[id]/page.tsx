@@ -6,6 +6,7 @@
  *           recruiters, the pipeline (add, submit, move, hire), hires with invoicing and the guarantee, retained payments,
  *           and the activity log.
  * UPDATED : 2026-10-05_2141 UTC — client notes & history (permanent, shared across the client's searches).
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire on the terms and the hire box.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -55,12 +56,12 @@ export default async function SearchPage({ params }: { params: Promise<{ id: str
           {s.description && <p className="whitespace-pre-wrap">{s.description}</p>}
           {s.must_haves && <><div className="mt-2 font-semibold">Must-haves</div><p className="whitespace-pre-wrap">{s.must_haves}</p></>}
         </section>
-        <section className="card"><h2 className="mb-2 text-lg font-bold">Terms & status</h2><SearchControls s={{ id: s.id, status: s.status, type: s.type, fee_pct: Number(s.fee_pct), recruiter_pct: Number(s.recruiter_pct), minimum_fee: Number(s.minimum_fee), estimated_salary: s.estimated_salary ? Number(s.estimated_salary) : null, fair_override: s.fair_override, fair_flags: (s.fair_flags ?? []) as { issue: string; fix: string; match: string }[], signed: Boolean(c.agreement_signed_at) }} /></section>
+        <section className="card"><h2 className="mb-2 text-lg font-bold">Terms & status</h2><SearchControls s={{ id: s.id, status: s.status, type: s.type, fee_pct: Number(s.fee_pct), recruiter_pct: Number(s.recruiter_pct), minimum_fee: Number(s.minimum_fee), flat_fee: s.flat_fee ? Number(s.flat_fee) : null, estimated_salary: s.estimated_salary ? Number(s.estimated_salary) : null, fair_override: s.fair_override, fair_flags: (s.fair_flags ?? []) as { issue: string; fix: string; match: string }[], signed: Boolean(c.agreement_signed_at) }} /></section>
       </div>
       <section className="card"><h2 className="mb-2 text-lg font-bold">Recruiters</h2><RecruiterPicker searchId={id} assigned={assignedList} recruiters={recs ?? []} /></section>
       <section className="card space-y-3">
         <h2 className="text-lg font-bold">Pipeline ({rows.length})</h2>
-        <Pipeline url="/api/hub/talent" rows={rows} who="staff" feePct={Number(s.fee_pct)} recruiterPct={Number(s.recruiter_pct)} minimumFee={Number(s.minimum_fee)} type={s.type} />
+        <Pipeline url="/api/hub/talent" rows={rows} who="staff" feePct={Number(s.fee_pct)} recruiterPct={Number(s.recruiter_pct)} minimumFee={Number(s.minimum_fee)} type={s.type} flatFee={s.flat_fee ? Number(s.flat_fee) : null} />
         {["open", "on_hold"].includes(s.status) ? <details><summary className="cursor-pointer text-sm font-semibold">+ Add a candidate</summary><div className="mt-2"><AddCandidateForm url="/api/hub/talent" searchId={id} recruiters={recs ?? []} /></div></details> : <p className="text-xs text-ink-soft">Open the search to add candidates.</p>}
       </section>
       {(placements ?? []).length > 0 && (
