@@ -10,6 +10,7 @@
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (Stripe Identity or a video call).
+ * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  */
 import { VerifyId } from "@/components/VerifyId";
 import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
@@ -112,6 +113,11 @@ export default async function Onboarding() {
             <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
             <Field label={t("How far you’ll drive (miles)")} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
             <Field label={t("Most jobs you want in one day")} name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
+          </div>
+          <div>
+            <Field label={t("ZIP codes you want to cover (optional)")} name="service_zips" defaultValue={(pro.service_zips ?? []).join(", ")} placeholder="48201, 48226, 481*" />
+            <p className="mt-1 text-xs text-ink-soft">{t("Separate with commas. 481* covers every ZIP starting with 481. Listed ZIPs get offers even past your driving distance.")}</p>
+            <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" name="zips_only" defaultChecked={Boolean((pro as { zips_only?: boolean | null }).zips_only)} /> {t("Only send me jobs in these ZIP codes")}</label>
           </div>
           <div><span className="label">{t("Days you work")}</span><div className="flex flex-wrap gap-3 text-sm">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <label key={d} className="flex items-center gap-1"><input type="checkbox" name="days" value={i} defaultChecked={days.includes(i)} /> {t(d)}</label>)}</div></div>
           <div><span className="label">{t("Times you work")}</span><div className="flex flex-wrap gap-3 text-sm">{[["morning", "Morning 8–11"], ["midday", "Midday 11–2"], ["afternoon", "Afternoon 2–5"]].map(([w, lb]) => <label key={w} className="flex items-center gap-1"><input type="checkbox" name="windows" value={w} defaultChecked={wins.includes(w)} /> {t(lb)}</label>)}</div></div>

@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-06_0841 UTC — Request for Proposal scope summary and follow-up questions.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers: pro pay unchanged at higher prices.
  * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
+ * UPDATED : 2026-10-12_0005 UTC — scheduling gaps (texts, calendar feed, saved homes) and pro ZIP coverage.
  */
 
 import { test } from "node:test";
@@ -1673,4 +1674,54 @@ test("job-posting discovery: parse Adzuna and screen buyers", async () => {
   assert.equal(screenJobPosting(c[2]).keep, false, "not work we do");
   assert.equal(screenJobPosting({ title: "Custodian", company: "Confidential", description: "" }).keep, false);
   assert.equal(screenJobPosting({ title: "Custodian", company: "Express Employment Professionals", description: "" }).keep, false, "agencies");
+});
+
+test("scheduling gaps: text matching, calendar feed times and file, home profile privacy", async () => {
+  const { phoneKey, smsKeyword, twilioSignatureBase, localToUtc, windowRange, buildIcs, icsEscape, cleanHome, homeAccessText, homeNotesText } = await import("./scheduling-gaps.ts");
+  assert.equal(phoneKey("+1 (248) 555-0100"), "2485550100");
+  assert.equal(phoneKey("248.555.0100"), phoneKey("12485550100"));
+  assert.equal(phoneKey("555-0100"), null);
+  assert.equal(smsKeyword(" stop "), "stop");
+  assert.equal(smsKeyword("Parar"), "stop", "Spanish opt-out");
+  assert.equal(smsKeyword("Start."), "start");
+  assert.equal(smsKeyword("stop by at 3?"), null, "only the bare word counts");
+  assert.equal(twilioSignatureBase("https://x.com/hook", { To: "+1", Body: "hi", From: "+2" }), "https://x.com/hookBodyhiFrom+2To+1");
+  const { createHmac } = await import("node:crypto");
+  const base = twilioSignatureBase("https://mycompany.com/myapp.php?foo=1&bar=2", { CallSid: "CA1234567890ABCDE", Caller: "+14158675310", Digits: "1234", From: "+14158675310", To: "+18005551212" });
+  assert.equal(createHmac("sha1", "12345").update(base).digest("base64"), "GvWf1cFY/Q7PnoempGyD5oXAezc=", "Twilio's documented example signature");
+  assert.equal(localToUtc("2026-07-15", 8, "America/Detroit").toISOString(), "2026-07-15T12:00:00.000Z", "summer: EDT is UTC-4");
+  assert.equal(localToUtc("2026-12-15", 8, "America/Detroit").toISOString(), "2026-12-15T13:00:00.000Z", "winter: EST is UTC-5");
+  assert.equal(localToUtc("2026-11-01", 14, "America/Los_Angeles").toISOString(), "2026-11-01T22:00:00.000Z", "the day DST ends");
+  const w = windowRange({ scheduled_date: "2026-10-15", time_window: "afternoon", zip: "98101" });
+  assert.equal(w.start.toISOString(), "2026-10-15T21:00:00.000Z");
+  assert.equal(w.end.toISOString(), "2026-10-16T00:00:00.000Z");
+  assert.equal(icsEscape("a,b;c\nd"), "a\\,b\\;c\\nd");
+  const ics = buildIcs("Handled jobs", [{ uid: "j1@handled", start: w.start, end: w.end, summary: "H-1042 Deep clean", location: "1 Main St, Seattle, WA", description: "x".repeat(200) }], new Date("2026-10-12T00:00:00Z"));
+  assert.ok(ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.endsWith("END:VCALENDAR\r\n"));
+  assert.ok(ics.includes("DTSTART:20261015T210000Z") && ics.includes("LOCATION:1 Main St\\, Seattle\\, WA"));
+  assert.ok(ics.split("\r\n").every((l) => new TextEncoder().encode(l).length <= 75), "long lines are folded");
+  const h = cleanHome({ label: " ", address: " 1 Main St ", city: "Detroit", state: "mi", zip: "48201-1234", key_info: "Lockbox 4821", pets: "Friendly dog", entry_instructions: "" });
+  assert.equal(h.label, "Home");
+  assert.equal(h.state, "MI");
+  assert.equal(h.zip, "48201");
+  assert.equal(h.entry_instructions, null);
+  assert.equal(homeAccessText(h), "Key / lockbox: Lockbox 4821");
+  assert.equal(homeNotesText(h), "Pets: Friendly dog", "pets show to every pro; the lockbox code does not");
+  assert.equal(homeAccessText({ address: "x" }), null);
+});
+
+test("pro coverage: driving radius, ZIP list, 'only these ZIP codes'", async () => {
+  const { eligible, zipCovered, parseZipList } = await import("./dispatch.ts");
+  assert.deepEqual(parseZipList("48201, 48226;481* 482 1234 48201"), ["48201", "48226", "481*", "482*"]);
+  assert.ok(zipCovered(["481*"], "48105") && !zipCovered(["481*"], "48201"));
+  const pro = { id: "p", business_name: "A", contact_name: "A", email: "a@x", phone: "", zip: "48201", service_zips: [] as string[], trades: ["cleaning"], status: "approved",
+    rating: 5, jobs_completed: 20, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 3, notes: null,
+    coverage: { bond: "2099-01-01" }, base_lat: 42.33, base_lng: -83.05, service_radius_mi: 10 } as unknown as Contractor;
+  const far = { service_slug: "house-cleaning", zip: "48105", scheduled_date: "2099-06-02", lat: 42.28, lng: -83.74 }; // Ann Arbor, ~35 mi
+  const near = { service_slug: "house-cleaning", zip: "48226", scheduled_date: "2099-06-02", lat: 42.33, lng: -83.05 };
+  assert.match(eligible(pro, far) ?? "", /mi away/, "past the radius");
+  assert.equal(eligible({ ...pro, service_zips: ["481*"] }, far), null, "a listed ZIP area counts even past the radius");
+  assert.equal(eligible({ ...pro, service_zips: ["48105"], zips_only: true }, near), "outside the pro's ZIP codes", "only these ZIPs: nearby but not listed");
+  assert.equal(eligible({ ...pro, service_zips: ["48105"], zips_only: true }, far), null);
+  assert.equal(eligible({ ...pro, zips_only: true }, near), null, "'only' with an empty list falls back to the radius");
 });

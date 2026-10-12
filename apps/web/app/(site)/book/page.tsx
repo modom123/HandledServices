@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-04_1934 UTC — ?property=<id>: book for a business account's property.
  * UPDATED : 2026-10-04_2204 UTC — ?pro=<id>&crew=<id>: "Book again with …" (only a favorite or past pro of the signed-in customer).
  * UPDATED : 2026-10-05_0447 UTC — ?photos=&notes= from Snap & post a job (photos limited to our upload folder).
+ * UPDATED : 2026-10-12_0005 UTC — signed-in customers pick one of My homes (?home=<id> preselects it).
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";
@@ -17,7 +18,7 @@ import { memberOf, openBalance, type Property } from "@/lib/business";
 import { adminClient } from "@/lib/supabase/server";
 import { termsDecision } from "@handled/core";
 import { bookingPreference } from "@/lib/favorites";
-import type { PreferredPro } from "@/components/BookingWizard";
+import type { HomeChoice, PreferredPro } from "@/components/BookingWizard";
 
 /** ?pro=&crew=: the signed-in customer's favorite or past pro (anything else is ignored). */
 async function preferredPro(pro: string, crew?: string): Promise<PreferredPro | undefined> {
@@ -52,21 +53,31 @@ async function businessBooking(propertyId: string) {
     contact: { name: prof?.full_name ?? a.contact_name, email: v.email, phone: prof?.phone ?? a.phone ?? "" } };
 }
 
+/** The signed-in customer's saved homes, without the entry details (those stay on the server). */
+async function savedHomes(): Promise<{ signedIn: boolean; homes: HomeChoice[] }> {
+  const v = await getViewer();
+  if (!v) return { signedIn: false, homes: [] };
+  const { data } = await adminClient().from("customer_homes").select("id, label, address, city, state, zip, entry_instructions, key_info, key_holder").eq("customer_id", v.userId).order("created_at");
+  return { signedIn: true, homes: ((data ?? []) as { id: string; label: string; address: string; city: string; state: string; zip: string; entry_instructions: string | null; key_info: string | null; key_holder: string | null }[])
+    .map((h) => ({ id: h.id, label: h.label, address: h.address, city: h.city, state: h.state, zip: h.zip, hasAccess: Boolean(h.entry_instructions || h.key_info || h.key_holder) })) };
+}
+
 export const metadata = { title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { service, when, budget, promo, frequency, property, pro, crew, photos, notes, src: _src, partner: _partner, ...rest } = await searchParams;
+  const { service, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, ...rest } = await searchParams;
   // from "Snap & post a job": the uploaded photos and the note come along
   const initialPhotos = (photos ?? "").split(",").filter((p) => /^booking\/[\w\-./]+$/.test(p) && !p.includes("..")).slice(0, 8);
   const business = property ? await businessBooking(property) : undefined;
   const preferred = pro ? await preferredPro(pro, crew) : undefined;
   const locale = await getLocale();
+  const saved = property ? { signedIn: true, homes: [] } : await savedHomes();
   // ?budget=5000&guests=50&event_type=birthday → pre-filled answers (only keys the service asks about)
   const prefill = Object.fromEntries(Object.entries(rest).filter(([k, v]) => v !== undefined && !k.startsWith("utm_")).map(([k, v]) => [k, /^\d+(\.\d+)?$/.test(v!) ? Number(v) : v === "true" ? true : v === "false" ? false : v!]));
   return (
     <div className="wrap py-12">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t(locale, "Get your price & book")}</h1>
-      <BookingWizard business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={notes?.slice(0, 1500)} />
+      <BookingWizard business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={notes?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
     </div>
   );
 }

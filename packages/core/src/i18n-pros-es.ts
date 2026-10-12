@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade.
  * UPDATED : 2026-10-06_0637 UTC — new trades.
  * UPDATED : 2026-10-06_2010 UTC — pro place of business (address fields).
+ * UPDATED : 2026-10-12_0005 UTC — pro ZIP codes to cover ("only these ZIP codes").
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -477,6 +478,9 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "State (2 letters)": "Estado (2 letras)",
   "We only offer you jobs within your driving distance of your place of business, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.": "Solo le ofrecemos trabajos dentro de su distancia de manejo desde su lugar de negocio, en los días y horarios en que trabaja. Fije su límite diario y sus días libres para no recibir ofertas que no puede tomar.",
   "How far you’ll drive (miles)": "Distancia que maneja (millas)",
+  "ZIP codes you want to cover (optional)": "Códigos postales que quiere cubrir (opcional)",
+  "Separate with commas. 481* covers every ZIP starting with 481. Listed ZIPs get offers even past your driving distance.": "Sepárelos con comas. 481* cubre todos los códigos que empiezan con 481. Los códigos de la lista reciben ofertas aunque estén más lejos de su distancia.",
+  "Only send me jobs in these ZIP codes": "Solo envíenme trabajos en estos códigos postales",
   "Most jobs you want in one day": "Máximo de trabajos por día",
   "Days you work": "Días que trabaja",
   "Times you work": "Horarios que trabaja",

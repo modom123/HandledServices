@@ -34,6 +34,7 @@
  * UPDATED : 2026-10-11_1625 UTC — Hunter.io lead-email check (HUNTER_API_KEY).
  * UPDATED : 2026-10-11_1603 UTC — carrier partner check (3 Lakes Logistics: added, vetting or approved).
  * UPDATED : 2026-10-11_2250 UTC — migration 59: saved checklists (RUN_ONCE_LATEST_2026-10-11_2250.sql covers 58 and 59).
+ * UPDATED : 2026-10-12_0005 UTC — migrations 60–62: texts inbox, saved home profiles, pro calendar feed and ZIP codes (RUN_ONCE_LATEST_2026-10-12_0005.sql covers 56–62).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
  */
 import "server-only";
@@ -160,6 +161,9 @@ export async function readiness(): Promise<Check[]> {
     ["56 Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],
     ["58 notification log (Dispatch, job page)", () => db.from("notification_log").select("id").limit(1)],
     ["59 saved checklists (Hub → Checklists)", () => db.from("saved_checklists").select("id").limit(1)],
+    ["60 texts inbox (Hub → Texts)", () => db.from("sms_inbox").select("id").limit(1)],
+    ["61 saved home profiles (account, booking)", () => db.from("job_access").select("job_id").limit(1)],
+    ["62 pro calendar feed + pro ZIP codes", () => db.from("contractors").select("calendar_token, zips_only").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
@@ -168,6 +172,9 @@ export async function readiness(): Promise<Check[]> {
     const { error } = await run();
     add("Supabase", `Migration ${label}`, !error, error ? error.message : "applied", "Run the matching supabase/setup/ADD_*.sql (existing project) or HANDLED_SETUP_*.sql (new project) in the SQL editor");
   }
+  const { count: inbound } = await db.from("sms_inbox").select("id", { count: "exact", head: true }).eq("direction", "in");
+  if (has("TWILIO_AUTH_TOKEN")) add("Text messages", "Replies come into the Hub", (inbound ?? 0) > 0 ? true : "warn", (inbound ?? 0) > 0 ? `${inbound} text(s) received` : "no text received yet — set the webhook once in Twilio",
+    `Twilio → Phone Numbers → your number (or Messaging Service → Integration) → "A message comes in": Webhook, HTTP POST, ${siteUrlNow()}/api/webhooks/twilio — replies then land in Hub → Texts`);
   // carrier partner + freight cargo documents (ADD_3_LAKES_CARRIER_PARTNER_*.sql also adds the 'cargo' document kind)
   const { data: carrier } = await db.from("contractors").select("status, insured_until, license_number").eq("email", "dispatch@3lakeslogistics.com").maybeSingle();
   add("People", "Carrier partner (3 Lakes Logistics)", carrier?.status === "approved" ? true : "warn",
