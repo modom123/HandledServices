@@ -9,12 +9,15 @@
  * UPDATED : 2026-10-04_1934 UTC — mode "closed" when the service isn't open yet in the ZIP's city (launch set).
  * UPDATED : 2026-10-02_0301 UTC — today=1: same-day slots from pros who are on call or working today.
  * UPDATED : 2026-10-07_1900 UTC — same-day dates use the ZIP's time zone (Pacific in Washington).
+ * UPDATED : 2026-10-12_0032 UTC — openBooking: when no pro covers the ZIP ("request"), customers can still book if the
+ *           Hub switch "Take bookings where no pro covers the area yet" is on (lib/booking-settings).
  */
 import { BRAND, buildAvailability, localDate, timeZoneForZip, getService, type BookedJob, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { zipCentroid } from "@/lib/geo";
 import { openFor } from "@/lib/launch";
+import { bookingWithoutPro } from "@/lib/booking-settings";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -48,5 +51,5 @@ export async function GET(req: Request) {
     jobs = [...((booked ?? []) as BookedJob[]), ...((waiting ?? []) as BookedJob[])];
   }
   const result = buildAvailability({ slug: svc.slug, zip, contractors, jobs, lat: loc?.lat, lng: loc?.lng, includeToday });
-  return Response.json(result, { headers: { "Cache-Control": "private, max-age=60" } });
+  return Response.json({ ...result, openBooking: result.mode === "live" || (await bookingWithoutPro()) }, { headers: { "Cache-Control": "private, max-age=60" } });
 }

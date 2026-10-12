@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1412 UTC — Spanish work orders (opts.locale / workOrderText(w, locale)) for pros who chose Spanish.
  * UPDATED : 2026-10-03_0117 UTC — "Customer requirements & access" (not instructions on how to do the work).
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (checklists.ts) with special instructions is part of every work order (v3).
+ * UPDATED : 2026-10-12_0005 UTC — entry & keys from the customer's saved home (access_info) on accepted work orders only.
  * PURPOSE : The work order a pro sees with every job offer (app, web, email): payout, when,
  *           where, exact scope, customer notes, ops instructions, required photos and the
  *           job terms they agree to when they accept. Before acceptance only the area is
@@ -32,6 +33,8 @@ export interface WorkOrder {
   /** What "done" looks like for this job, special instructions first (checklists.ts). */
   checklist: JobChecklist;
   customer?: { name: string; phone: string | null; company: string | null };
+  /** Entry details from the customer's saved home (lockbox, key, key holder) — only on a revealed (accepted) work order. */
+  access?: string | null;
   scope: { label: string; value: string }[];
   includes: string[];
   customerNotes: string | null;
@@ -40,7 +43,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
 
 /** Spanish for the fixed parts of a work order (pros who chose Spanish). */
 const WO_ES: Record<string, string> = {
@@ -100,6 +103,7 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     revealed: opts.reveal,
     checklist: resolveChecklist({ service_slug: job.service_slug, answers: job.answers as Record<string, unknown>, notes: job.notes, instructions: job.instructions, checklist: job.checklist, checklist_extra: job.checklist_extra }),
     customer: opts.reveal ? { name: job.contact_name, phone: job.contact_phone, company: job.company_name } : undefined,
+    access: opts.reveal ? job.access_info ?? null : null,
     scope,
     includes: (svc?.includes ?? []).map(L),
     customerNotes: job.notes,
@@ -124,6 +128,7 @@ export function workOrderText(w: WorkOrder, locale?: Locale | string | null): st
     `${es ? "Incluye" : "Included"}: ${w.includes.join("; ")}`,
     ...(w.customerNotes ? ["", `${es ? "Notas del cliente" : "Customer notes"}: "${w.customerNotes}"`] : []),
     ...(w.instructions ? ["", `${es ? "Requisitos del cliente y acceso" : "Customer requirements & access"}: ${w.instructions}`] : []),
+    ...(w.access ? ["", `${es ? "ENTRADA Y LLAVES (solo para usted — no lo comparta)" : "ENTRY & KEYS (for you only — don't share)"}:`, w.access] : []),
     "",
     checklistText(w.checklist, es ? "es" : "en"),
     "",

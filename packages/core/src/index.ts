@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Public entry point for @handled/core.
+ * UPDATED : 2026-10-12_0005 UTC — scheduling-gaps (texts, calendar feed, saved homes).
  */
 
 export * from "./types.ts";
@@ -23,6 +24,7 @@ export * from "./pro-stats.ts";
 export * from "./business.ts";
 export * from "./roster.ts";
 export * from "./dispatch-board.ts";
+export * from "./scheduling-gaps.ts";
 export * from "./timing.ts";
 export * from "./growth.ts";
 export * from "./seo.ts";

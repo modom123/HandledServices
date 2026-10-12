@@ -14,16 +14,17 @@
  *             license    license_number, expires_on, file (staff verifies → license_expires)
  *             agreement  signer_name, agree=true   (signs the current version)
  *             payout     payout_method, account_last4
- *             area       base_zip, service_radius_mi, daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
+ *             area       base_zip, service_radius_mi, service_zips ("48201, 481*"), zips_only ("on" = only those ZIPs), daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
  *             specialties specialties (repeat the field once per specialty)
  *             coverage   coverage (auto | workers_comp | bond | liquor), expires_on, file —
  *                        or coverage=workers_comp + exempt=true for the no-employees statement
  *           Only the last 4 of the TIN is stored in the database; the W-9 itself is a
  *           private file staff can open.
+ * UPDATED : 2026-10-12_0005 UTC — area step: the ZIP codes the pro wants to cover and "only these ZIP codes".
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, COVERAGE_KINDS, requiredCoverages, specialtiesFor } from "@handled/core";
+import { AGREEMENT_VERSION, COVERAGES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { uploadDoc } from "@/lib/photos";
@@ -46,7 +47,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
   z.object({ step: z.literal("specialties") }),
-  z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
+  z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
 ]);
@@ -77,8 +78,11 @@ export async function POST(req: Request) {
     const timeOff = (b.time_off ?? "").split(/[,\s]+/).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 120);
     const loc = await geocodeAddress({ address: b.base_address, city: b.base_city, state: b.base_state, zip: b.base_zip });
     // location lookup down → never leave a pro matching jobs everywhere: fall back to their ZIP area
+    // ZIP codes the pro wants (typed list); with none typed, keep what's there, or fall back to their ZIP area if the lookup is down
+    const typed = b.service_zips !== undefined ? parseZipList(b.service_zips) : null;
     const { data: cur } = await db.from("contractors").select("service_zips").eq("id", id).single();
-    const zips = !loc && !(cur?.service_zips ?? []).length ? [b.base_zip, `${b.base_zip.slice(0, 3)}*`] : undefined;
+    const zips = typed?.length ? typed : !loc && !(cur?.service_zips ?? []).length ? [b.base_zip, `${b.base_zip.slice(0, 3)}*`] : typed ? [] : undefined;
+    if (b.zips_only === "on" && !typed?.length) return deny(400, "List the ZIP codes you want, or untick “Only these ZIP codes”");
     await db.from("contractors").update({
       ...(zips ? { service_zips: zips } : {}),
       base_address: b.base_address, base_city: b.base_city, base_state: b.base_state.toUpperCase(), base_located: loc ? (loc.exact ? "address" : "zip") : null,
@@ -86,6 +90,8 @@ export async function POST(req: Request) {
       ...(b.daily_capacity ? { daily_capacity: b.daily_capacity } : {}),
       availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
     }).eq("id", id);
+    // separate so the rest still saves before the 2026-10-12 migration (zips_only) is run
+    await db.from("contractors").update({ zips_only: b.zips_only === "on" && Boolean(typed?.length) }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
     return done({ located: Boolean(loc), exact: Boolean(loc?.exact) });
   }
   if (b.step === "specialties") {

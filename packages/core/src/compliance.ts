@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (ID + selfie via Stripe Identity, or staff on a video call).
  * UPDATED : 2026-10-06_2010 UTC — work-area step needs the pro's place of business (street address), not just a ZIP.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
+ * UPDATED : 2026-10-12_0005 UTC — work-area detail shows "only ZIPs …" when the pro limits offers to their ZIP list.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -54,6 +55,8 @@ export interface ComplianceInput {
   base_city?: string | null;
   availability?: { days: number[]; windows: string[] } | null;
   service_radius_mi?: number | null;
+  service_zips?: string[] | null;
+  zips_only?: boolean | null;
   /** Photo ID matched to a selfie (Stripe Identity) or checked by staff on a video call. */
   id_verified_at?: string | null;
 }
@@ -76,7 +79,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
-    { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, up to ${c.service_radius_mi ?? 25} mi · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive, which days and times you work" },
+    { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
     { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) },
   ];
   // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement

@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-11_0451 UTC — new customers (no bookings, no business account) get a welcome instead of an empty list:
  *           how it works, popular services, first-booking perks (Points bonus, a friend's code) and "Book your first service".
  *           It switches to the normal bookings view after their first booking.
+ * UPDATED : 2026-10-12_0005 UTC — 🏠 My homes: saved home profiles (entry, keys, pets, preferences) used by bookings.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -26,6 +27,7 @@ import { myFavorites } from "@/lib/favorites";
 import { LoyaltyCard } from "@/components/LoyaltyCard";
 import { getLoyaltySettings } from "@/lib/loyalty";
 import { RemoveFavorite } from "@/components/Favorites";
+import { MyHomes, type SavedHome } from "@/components/MyHomes";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
 
@@ -36,9 +38,10 @@ export default async function Account() {
   if (!supabaseConfigured) return <NotConfigured />;
   const v = await getViewer();
   if (!v) redirect("/login?next=/account");
-  const [{ data: jobs }, { data: plans }] = await Promise.all([
+  const [{ data: jobs }, { data: plans }, homesRes] = await Promise.all([
     v.db.from("jobs").select("*").order("created_at", { ascending: false }),
     v.db.from("recurring_plans").select("*").eq("active", true),
+    v.db.from("customer_homes").select("*").eq("customer_id", v.userId).order("created_at"),
   ]);
   const list = (jobs ?? []) as Job[];
   const biz = await myAccounts(v).catch(() => []);
@@ -78,6 +81,7 @@ export default async function Account() {
           </div>
         </div>
       )}
+      {!homesRes.error && <MyHomes homes={(homesRes.data ?? []) as SavedHome[]} es={l === "es"} />}
       {isNew && <Welcome locale={l} name={name} />}
       <div className="mt-8 space-y-3">
         {list.length === 0 && !isNew && <Empty>{l === "es" ? `Aún no hay reservas. Todo lo que reserve con ${v.email} aparece aquí, con estado, facturas, mensajes y fotos.` : `No bookings yet. Anything you book with ${v.email} shows up here, with status, invoices, messages and photos.`}</Empty>}

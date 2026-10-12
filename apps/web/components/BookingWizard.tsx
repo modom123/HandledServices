@@ -20,6 +20,8 @@
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
  * UPDATED : 2026-10-07_1830 UTC — area price level from /api/market (region), so the price shown matches what the server charges.
  * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) say "free consultation" instead of "site visit".
+ * UPDATED : 2026-10-12_0005 UTC — saved homes: pick one of My homes (address + entry details), "save this home", and an entry
+ *           details box (lockbox, key, gate) that only the assigned pro sees.
  */
 "use client";
 
@@ -65,7 +67,10 @@ export interface BusinessBooking { propertyId: string; propertyName: string; com
 /** "Book again with …" (?pro=&crew=): checked server-side against the customer's favorites and past pros. */
 export interface PreferredPro { proId: string; crewId: string | null; label: string; crewName: string | null }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "" }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string }) {
+/** One of the signed-in customer's saved homes (My homes). Entry details stay on the server. */
+export interface HomeChoice { id: string; label: string; address: string; city: string; state: string; zip: string; hasAccess: boolean }
+
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -83,9 +88,17 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [photos, setPhotos] = useState<string[]>(initialPhotos);
   const [date, setDate] = useState(defaultDate());
   const [win, setWin] = useState<TimeWindow>("morning");
+  const startHome = !business ? homes.find((h) => h.id === initialHome) ?? null : null;
+  const [homeId, setHomeId] = useState<string | null>(startHome?.id ?? null);
+  const [saveHome, setSaveHome] = useState(false);
+  const [access, setAccess] = useState("");
   const [form, setForm] = useState(business
     ? { contact_name: business.contact.name, contact_email: business.contact.email, contact_phone: business.contact.phone, address: business.address, city: business.city, state: business.state, zip: business.zip, customer_type: "commercial", company_name: business.company }
-    : { contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "", customer_type: "residential", company_name: "" });
+    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: "residential", company_name: "" });
+  const pickHome = (h: HomeChoice | null) => {
+    setHomeId(h?.id ?? null);
+    if (h) { setSaveHome(false); setForm((f) => ({ ...f, address: h.address, city: h.city, state: h.state, zip: h.zip, customer_type: "residential" })); }
+  };
   const [ai, setAi] = useState<AiResult>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [quoteToken, setQuoteToken] = useState<string | null>(null);
@@ -111,7 +124,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
   // Name your price ("" = our suggestion)
   const [offer, setOffer] = useState("");
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (homeId && ["address", "city", "state", "zip"].includes(k)) setHomeId(null); // a different address isn't the saved home any more
+    setForm({ ...form, [k]: e.target.value });
+  };
 
   function pick(s: string) {
     const next = getService(s)!;
@@ -149,7 +165,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn) }),
     });
     const json = await res.json();
     setBusy(false);
@@ -267,6 +283,16 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         {step === 2 && (
           <div className="card space-y-5">
             <h2 className="text-xl font-bold">{t("When & where")}</h2>
+            {!business && homes.length > 0 && (
+              <div>
+                <label className="label">{es ? "¿En cuál de sus casas?" : "Which of your homes?"}</label>
+                <div className="flex flex-wrap gap-2">
+                  {homes.map((h) => <button key={h.id} type="button" onClick={() => pickHome(h)} className={`rounded-full border px-3.5 py-1.5 text-sm ${homeId === h.id ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>🏠 {h.label}</button>)}
+                  <button type="button" onClick={() => { pickHome(null); setForm((f) => ({ ...f, address: "", city: "", zip: "" })); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${!homeId ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{es ? "Otra dirección" : "Another address"}</button>
+                </div>
+                {homeId && homes.find((h) => h.id === homeId)?.hasAccess && <p className="mt-1 text-xs text-ink-soft">🔒 {es ? "Sus detalles de entrada guardados van solo al profesional asignado." : "Your saved entry details go only to the pro assigned to this job."}</p>}
+              </div>
+            )}
             <div className="max-w-[10rem]"><label className="label">{t("Service ZIP code")}</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
             {svc?.leadDays ? (
               <div className="grid gap-4 sm:grid-cols-2">
@@ -305,6 +331,14 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <div><label className="label">{t("City")}</label><input className="input" value={form.city} onChange={set("city")} /></div>
               <div><label className="label">{t("State")}</label><input className="input uppercase" maxLength={2} value={form.state} onChange={set("state")} /></div>
             </div>
+            {!business && !svc?.remote && (
+              <div>
+                <label className="label">🔒 {homeId ? (es ? "¿Algo diferente para esta visita? (opcional)" : "Anything different for this visit? (optional)") : (es ? "Cómo entrar (opcional)" : "How to get in (optional)")}</label>
+                <textarea className="input min-h-16" maxLength={1000} value={access} onChange={(e) => setAccess(e.target.value)} placeholder={es ? "Código de la caja de llaves, dónde está la llave, código del portón…" : "Lockbox code, where the key is, gate or alarm code…"} />
+                <p className="mt-1 text-xs text-ink-soft">{es ? "Solo lo ve el profesional asignado a su trabajo, no los que deciden si lo toman." : "Only the pro assigned to your job sees this — not pros deciding whether to take it."}</p>
+                {signedIn && !homeId && <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={saveHome} onChange={(e) => setSaveHome(e.target.checked)} /> {es ? "Guardar esta casa en Mis casas" : "Save this home to My homes"}</label>}
+              </div>
+            )}
             <div className="flex gap-2"><button className="btn-ghost" onClick={() => setStep(1)}>{t("Back")}</button><button className="btn-primary" disabled={!placeOk} onClick={() => setStep(3)}>{t("Continue")}</button></div>
           </div>
         )}

@@ -10,6 +10,8 @@
  * UPDATED : 2026-10-07_1700 UTC — outside Michigan and Washington the message says so (waitlist).
  * PURPOSE : Create a booking (web, mobile, AI chat). Works for guests and signed-in users.
  * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) book from any ZIP even before a specialist signs up — staff take them.
+ * UPDATED : 2026-10-12_0032 UTC — no pro in the ZIP yet: booked anyway when the Hub switch is on (default), and staff get an
+ *           alert to recruit or line up a pro; with the switch off, waitlist as before.
  */
 import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";
@@ -18,6 +20,8 @@ import { paymentCheckoutUrl } from "@/lib/stripe";
 import { getService, photoProblem } from "@handled/core";
 import { GET as availability } from "../availability/route";
 import { rateLimit } from "@/lib/ratelimit";
+import { bookingWithoutPro } from "@/lib/booking-settings";
+import { raiseAlert } from "@/lib/jobs";
 
 export const maxDuration = 60; // AI price check runs before payment when notes/photos are present
 
@@ -39,7 +43,8 @@ export async function POST(req: Request) {
     ? `${svcDef.name} is coming soon to ${a.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
     : `We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach ${parsed.data.zip}.`, waitlist: true }, { status: 409 });
   // remote services are taken by Handled staff when no specialist has signed up yet
-  if (a.mode === "request" && !svcDef.remote && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  const noPro = a.mode === "request" && !svcDef.remote && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (noPro && !(await bookingWithoutPro()))
     return Response.json({ error: `We don't have a pro for ${svcDef.name} in ${parsed.data.zip} yet. Join the waitlist and we'll tell you as soon as one is available — nothing is charged.`, waitlist: true }, { status: 409 });
   if (parsed.data.scheduled_date) {
     const day = a.days?.find((d: { date: string }) => d.date === parsed.data.scheduled_date);
@@ -53,6 +58,9 @@ export async function POST(req: Request) {
     const { job, estimate, billing } = await createJob(parsed.data, viewer?.userId ?? null, ip);
     const checkout = job.status === "site_visit" || job.billed_on_terms ? null : await paymentCheckoutUrl(job);
     after(() => onBooked(job, checkout).catch((e) => console.error("[onBooked]", e)));
+    // booked where no pro covers the ZIP yet: recruit or line someone up before the date
+    if (noPro) after(() => raiseAlert("no_pro_area", "warn", `${job.ref}: no pro covers ${job.zip} for ${svcDef.name} yet`,
+      `Booked for ${job.scheduled_date ?? "a date to confirm"} (${job.city}). Recruit one (Hub → Recruiting / Supply gaps), assign someone who'll travel (Hub → Schedule), or refund if nobody can take it.`, job.id).catch((e) => console.error("[no_pro_area]", e)));
     return Response.json({ id: job.id, ref: job.ref, status: job.status, price: job.price_final, estimate, checkout, billing });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "Booking failed" }, { status: 500 });
