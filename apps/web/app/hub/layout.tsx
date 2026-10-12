@@ -32,6 +32,7 @@
  * UPDATED : 2026-10-11_0451 UTC — dispatchers don't see the admin-only pages (Money, Market pricing, Website look, Go-live setup);
  *           those pages show "Admins only" (components/AdminOnly) and their APIs refuse dispatchers.
  * UPDATED : 2026-10-11_2242 UTC — 🧭 Dispatch (Operations) and 💳 Payments (Money; dispatchers see it too).
+ * UPDATED : 2026-10-12_0121 UTC — "Find by ID" box (H-, C-, B-, P-, S-) and the signed-in staff member's S- number.
  * UPDATED : 2026-10-12_0005 UTC — 💬 Texts (two-way texting) and 🗓️ Schedule (drag-and-drop) in Operations.
  */
 import Link from "next/link";
@@ -41,6 +42,7 @@ import { getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { NotConfigured } from "@/components/ui";
 import { HubNav, type HubGroup } from "@/components/HubNav";
+import { adminClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Handled Hub" };
 
@@ -122,12 +124,15 @@ export default async function HubLayout({ children }: { children: React.ReactNod
         <p className="text-ink-soft"><form action="/auth/signout" method="post" className="inline">Signed in with the wrong email? <button className="underline">Sign out</button></form> · <a className="underline" href="/account">My account</a> · <a className="underline" href="/pro">Pro portal</a></p>
       </div></div>
     );
+  const { data: me } = await adminClient().from("profiles").select("staff_no").eq("id", v.userId).maybeSingle().then((r) => r, () => ({ data: null }));
+  const staffNo = (me as { staff_no?: string | null } | null)?.staff_no ?? null;
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
         <Link href="/home" className="flex items-center gap-2 px-2">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/handled-lockup-light.png" alt={BRAND.name} width={891} height={240} className="h-8 w-auto" /> <span className="text-xs font-normal text-white/50">Hub</span></Link>
+        <form action="/hub/find" className="mt-4 px-1"><input name="q" aria-label="Find by ID" placeholder="Find ID: H-, C-, B-, P-, S-" className="w-full rounded-lg border-0 bg-white/10 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:bg-white/20 focus:outline-none" /></form>
         <HubNav groups={navFor(isAdmin(v))} />
-        <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
+        <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}{staffNo ? ` · ${staffNo}` : ""}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
       </aside>
       <main className="min-w-0 bg-paper p-4 md:p-8">{children}</main>
     </div>

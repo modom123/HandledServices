@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards card (available / pending points).
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
+ * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -115,7 +116,7 @@ export default async function ProHome() {
           <div className="text-sm text-ink-soft">{setup.steps.filter((x) => !x.done || x.expiring).map((x) => stepLabel(x.label)).join(" · ")}</div>
         </Link>
       )}
-      <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once insurance & background check are verified") : ""}</p></div>
+      <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{(me as { pro_no?: string | null } | null)?.pro_no ? `${es ? "ID de profesional" : "Pro ID"} ${(me as { pro_no?: string | null }).pro_no} · ` : ""}{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once insurance & background check are verified") : ""}</p></div>
       {me?.status === "approved" && (
         <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status))} />
       )}

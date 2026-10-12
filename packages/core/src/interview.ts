@@ -38,7 +38,7 @@ const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
   gutters: "outdoor", lawn: "outdoor", tree: "outdoor", snow: "outdoor", pet_waste: "outdoor", wildlife: "outdoor", pressure_washing: "outdoor",
   hauling: "moving", dumpster: "moving", waste_oil: "moving", freight: "moving",
-  handyman: "repair", remodel: "repair", low_voltage: "repair", small_engine: "repair", dock_door: "repair", foundation: "repair", fire_safety: "repair",
+  handyman: "repair", remodel: "repair", low_voltage: "repair", small_engine: "repair", dock_door: "repair", foundation: "repair", mold: "repair", fire_safety: "repair",
   painting: "painting",
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",

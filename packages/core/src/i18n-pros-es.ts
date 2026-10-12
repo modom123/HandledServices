@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade.
  * UPDATED : 2026-10-06_0637 UTC — new trades.
  * UPDATED : 2026-10-06_2010 UTC — pro place of business (address fields).
+ * UPDATED : 2026-10-12_0117 UTC — mold remediation trade.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP codes to cover ("only these ZIP codes").
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
@@ -39,6 +40,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Commercial & dock door service": "Servicio de puertas comerciales y de muelle",
   "Fire extinguisher service (state-certified)": "Servicio de extintores (certificado por el estado)",
   "Foundation repair (licensed)": "Reparación de cimientos (con licencia)",
+  "Mold remediation (certified)": "Remediación de moho (certificado)",
   "Roll-off container / dumpster": "Contenedor de basura (roll-off)",
   "Handyman": "Mantenimiento general",
   "Remodeling / general contractor": "Remodelación / contratista general",

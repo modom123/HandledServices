@@ -5,8 +5,10 @@
  * PURPOSE : One customer (keyed by email): contact details, bookings, lifetime spend, reviews, and the full permanent
  *           history — every note, call, email, meeting and text staff logged, plus their bookings, completions and
  *           reviews — newest first. Notes are append-only; a correction is a new note.
+ * UPDATED : 2026-10-12_0121 UTC — customer ID (C-…) in the header.
  */
 import Link from "next/link";
+import { customerNo } from "@/lib/ids";
 import { notFound } from "next/navigation";
 import { getService, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
@@ -29,14 +31,14 @@ export default async function Customer({ params }: { params: Promise<{ email: st
   const latest = jobs?.[0];
   const name = latest?.company_name ?? latest?.contact_name ?? profile?.full_name ?? email;
   const spend = (jobs ?? []).filter((j) => j.status === "completed").reduce((s, j) => s + Number(j.price_final ?? 0), 0);
-  const items = await timeline("customer", customerSubjectId(email), email);
+  const [items, cno] = await Promise.all([timeline("customer", customerSubjectId(email), email), customerNo(email)]);
   const notes = items.filter((i) => i.source === "note").length;
   return (
     <div className="space-y-5">
       <Link href="/hub/customers" className="text-sm text-brand">← Customers</Link>
       <div>
         <div className="text-xs text-ink-soft">{latest?.customer_type ?? profile?.role ?? "customer"}{latest?.city ? ` · ${latest.city}` : ""} · {(jobs ?? []).length} job(s) · lifetime spend {money(spend)} · {notes} note(s)</div>
-        <h1 className="text-2xl font-bold">{name}</h1>
+        <h1 className="text-2xl font-bold">{name} {cno && <span className="font-mono text-base font-normal text-ink-soft">{cno}</span>}</h1>
         <div className="text-sm text-ink-soft">{[latest?.contact_name !== name ? latest?.contact_name : null, email, latest?.contact_phone ?? profile?.phone].filter(Boolean).join(" · ")}{latest?.address ? ` · ${latest.address}, ${latest.city} ${latest.zip}` : ""}</div>
         <Link href={`/hub/contracts?q=${encodeURIComponent(email)}`} className="text-sm text-brand underline">Signed contracts</Link>
       </div>

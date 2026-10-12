@@ -6,8 +6,10 @@
  * PURPOSE : Customers (rolled up from jobs), commercial accounts and AI-chat leads.
  * UPDATED : 2026-10-04_1934 UTC — commercial accounts open their Hub account page (billing, properties, members, dedicated pros).
  * UPDATED : 2026-10-05_2146 UTC — each customer opens their page (bookings + permanent notes history); latest note shown.
+ * UPDATED : 2026-10-12_0121 UTC — customer ID (C-…) next to each name.
  */
 import Link from "next/link";
+import { customerNos } from "@/lib/ids";
 import { getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { customerSubjectId, noteSummaries } from "@/lib/notes";
@@ -34,7 +36,7 @@ export default async function Customers() {
   }
   const customers = [...map.values()].sort((a, b) => b.spend - a.spend);
   const shown: Rec[] = customers.slice(0, 200).map((c) => ({ ...c, sid: customerSubjectId(String(c.email)) }));
-  const notes = await noteSummaries("customer", shown.map((c) => c.sid));
+  const [notes, nos] = await Promise.all([noteSummaries("customer", shown.map((c) => c.sid)), customerNos(shown.map((c) => String(c.email)))]);
   return (
     <div className="space-y-10">
       <section>
@@ -42,7 +44,7 @@ export default async function Customers() {
         <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Customer</th><th className="p-3">Type</th><th className="p-3">Jobs</th><th className="p-3">Lifetime spend</th><th className="p-3">Plan</th><th className="p-3">Last booking</th></tr></thead>
           <tbody>{shown.map((c) => (
-            <tr key={c.email} className="border-t border-line"><td className="p-3"><Link href={`/hub/customers/${encodeURIComponent(c.email)}`} className="font-semibold text-brand hover:underline">{c.name}</Link><div className="text-xs text-ink-soft">{c.email} · {c.phone} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(c.email)}`}>contracts</Link></div>{notes[c.sid] && <div className="mt-1 line-clamp-1 text-xs text-ink-soft">📝 {notes[c.sid].count} · {new Date(notes[c.sid].last.at).toLocaleDateString()}: {notes[c.sid].last.body}</div>}</td><td className="p-3">{c.type}</td><td className="p-3">{c.jobs}</td><td className="p-3">{money(c.spend)}</td><td className="p-3">{c.recurring ? <Badge tone="green">recurring</Badge> : "—"}</td><td className="p-3 text-xs">{new Date(c.last).toLocaleDateString()}</td></tr>
+            <tr key={c.email} className="border-t border-line"><td className="p-3"><Link href={`/hub/customers/${encodeURIComponent(c.email)}`} className="font-semibold text-brand hover:underline">{c.name}</Link>{nos.get(String(c.email).toLowerCase()) && <span className="ml-2 font-mono text-xs text-ink-soft">{nos.get(String(c.email).toLowerCase())}</span>}<div className="text-xs text-ink-soft">{c.email} · {c.phone} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(c.email)}`}>contracts</Link></div>{notes[c.sid] && <div className="mt-1 line-clamp-1 text-xs text-ink-soft">📝 {notes[c.sid].count} · {new Date(notes[c.sid].last.at).toLocaleDateString()}: {notes[c.sid].last.body}</div>}</td><td className="p-3">{c.type}</td><td className="p-3">{c.jobs}</td><td className="p-3">{money(c.spend)}</td><td className="p-3">{c.recurring ? <Badge tone="green">recurring</Badge> : "—"}</td><td className="p-3 text-xs">{new Date(c.last).toLocaleDateString()}</td></tr>
           ))}</tbody>
         </table></div>
       </section>

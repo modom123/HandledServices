@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal lines.
  * UPDATED : 2026-10-06_0637 UTC — small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride lines.
  * UPDATED : 2026-10-11_0608 UTC — Spanish price-line templates for the Business & Technology services.
+ * UPDATED : 2026-10-12_0117 UTC — Mold Removal lines.
  */
 export const ES_LINES: Record<string, string> = {
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
@@ -458,4 +459,9 @@ export const ES_LINES: Record<string, string> = {
   "Additional AI agents — {#}": "Agentes de IA adicionales — {#}",
   "Business formation (LLC or corporation, EIN)": "Formación de empresa (LLC o corporación, EIN)",
   "Managed launch — first {#} days": "Lanzamiento acompañado — primeros {#} días",
+  "Containment, HEPA air & cleanup — {#} sq ft": "Contención, aire HEPA y limpieza — {#} pies cuadrados",
+  "Remove & bag moldy materials — {#} sq ft": "Retiro y embolsado de materiales con moho — {#} pies cuadrados",
+  "Furnace & duct mold cleaning": "Limpieza de moho en calefacción y ductos",
+  "Mold inspection & air test (before)": "Inspección de moho y prueba de aire (antes)",
+  "Clearance air test (after)": "Prueba de aire final (después)",
 };
