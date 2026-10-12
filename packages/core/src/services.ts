@@ -46,6 +46,7 @@
  *           (licensed: USDOT number on file; commercial auto + cargo insurance required).
  * UPDATED : 2026-10-11_2307 UTC — "We build": Website Design & Build is now Intelligent Websites (AI assistant built in,
  *           instant lead follow-up option; same slug), plus Business Operating System and Automated Business (68 services).
+ * UPDATED : 2026-10-12_0117 UTC — Mold Removal (certified remediation: containment, removal, HEPA, optional testing) and the mold trade.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -1777,6 +1778,64 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "mold-removal",
+    name: "Mold Removal",
+    category: "repair_remodel",
+    icon: "🦠",
+    tagline: "Mold found, contained and removed by a certified remediation pro — and the moisture behind it found.",
+    description: "Mold remediation by a certified pro: the area is sealed off with plastic and negative air, moldy drywall, insulation and carpet are removed and bagged, surfaces are HEPA-vacuumed and treated, and the space is dried. The pro finds the moisture source (leak, humidity, poor venting) and tells you how to fix it, so the mold doesn't come back. Testing before and after is optional — we recommend an independent lab test after big jobs. Large or spreading growth gets a free site visit and a firm price first.",
+    includes: ["Certified remediation pro (IICRC or equal)", "Containment and negative-air HEPA filtration", "Removal and bagging of moldy materials", "HEPA vacuuming and antimicrobial treatment", "Moisture source found and explained", "Before & after photos"],
+    notesHint: "Where the mold is, how big an area, how long it's been there, any leak or flooding, a musty smell, and whether anyone in the home has asthma or allergies",
+    questions: [
+      { id: "sqft", label: "Moldy area", type: "number", min: 1, max: 2000, default: 20, unit: "sq ft", help: "Your best guess of the visible growth. 10 sq ft is about a 3 × 3 ft patch. Over 100 sq ft gets a free site visit first." },
+      {
+        id: "location",
+        label: "Where is it?",
+        type: "select",
+        default: "basement",
+        options: [
+          { value: "bathroom", label: "Bathroom or laundry" },
+          { value: "room", label: "Walls or ceiling in a living area" },
+          { value: "basement", label: "Basement" },
+          { value: "crawlspace", label: "Crawlspace" },
+          { value: "attic", label: "Attic" },
+        ],
+      },
+      { id: "remove", label: "Moldy drywall, insulation or carpet to remove", type: "toggle", default: true, help: "Porous materials with mold growing in them are cut out and bagged, not just cleaned. Rebuilding drywall is a separate handyman job." },
+      { id: "hvac", label: "Mold in the furnace or air ducts too", type: "toggle", default: false },
+      {
+        id: "testing",
+        label: "Mold testing",
+        type: "select",
+        default: "none",
+        options: [
+          { value: "none", label: "No testing — the mold is visible" },
+          { value: "before", label: "Inspection & air test before (find hidden mold)" },
+          { value: "after", label: "Clearance test after (proof it's gone)" },
+          { value: "both", label: "Both before and after" },
+        ],
+        help: "Lab results in 2–3 business days. Clearance tests are done by an independent tester, not the crew that did the work.",
+      },
+    ],
+    minimum: 450,
+    spread: [0.85, 1.35],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["mold"],
+    price: (a) => {
+      const sq = Math.max(1, n(a, "sqft", 20));
+      const loc = s(a, "location", "basement");
+      const setup = ({ bathroom: 400, room: 550, basement: 750, crawlspace: 950, attic: 1050 } as Record<string, number>)[loc] ?? 750;
+      const items: LineItem[] = [{ label: `Containment, HEPA air & cleanup — ${sq} sq ft`, amount: setup + sq * 16 }];
+      if (b(a, "remove")) items.push({ label: `Remove & bag moldy materials — ${sq} sq ft`, amount: sq * 7 });
+      if (b(a, "hvac")) items.push({ label: "Furnace & duct mold cleaning", amount: 650 });
+      const test = s(a, "testing", "none");
+      if (test === "before" || test === "both") items.push({ label: "Mold inspection & air test (before)", amount: 375 });
+      if (test === "after" || test === "both") items.push({ label: "Clearance air test (after)", amount: 325 });
+      return { items, base: sum(items), hours: Math.max(3, 2 + sq / 25 + (b(a, "remove") ? sq / 40 : 0) + (b(a, "hvac") ? 3 : 0)) };
+    },
+  },
+  {
     slug: "bathroom-remodel",
     name: "Bathroom Remodel",
     category: "repair_remodel",
@@ -3124,6 +3183,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "dock_door", label: "Commercial & dock door service" },
   { id: "fire_safety", label: "Fire extinguisher service (state-certified)" },
   { id: "foundation", label: "Foundation repair (licensed)" },
+  { id: "mold", label: "Mold remediation (certified)" },
   { id: "remodel", label: "Remodeling / general contractor" },
   { id: "painting", label: "Painting (interior & exterior)" },
   { id: "plumbing", label: "Plumbing (licensed)" },

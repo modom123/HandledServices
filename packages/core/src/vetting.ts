@@ -20,6 +20,7 @@
  *           cleaning jobs ($1,500+) — TradeProfile.commercial, checked at dispatch.
  * UPDATED : 2026-10-11_0608 UTC — trade profiles for the remote specialists: web design, business formation, consulting, AI automation.
  * UPDATED : 2026-10-11_1405 UTC — freight trade (licensed motor carriers) and the cargo coverage (motor truck cargo, $100K per load).
+ * UPDATED : 2026-10-12_0117 UTC — mold trade (certified remediation; no state license in MI or WA).
  */
 import { BRAND } from "./brand.ts";
 
@@ -267,6 +268,13 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: "Michigan residential builder license (LARA); local permits for structural work",
     preferred: ["Manufacturer-certified installer for the pier or bracing system used"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
     skillsCheck: "LARA license lookup, a sample written estimate and warranty, photos of recent jobs, 3 homeowner references.",
+  },
+  mold: {
+    does: "Mold remediation: containment with negative air, removal of moldy drywall, insulation and carpet, HEPA vacuuming, antimicrobial treatment, drying, and finding the moisture source.",
+    specialties: [{ id: "remediation", label: "Mold remediation", slug: "mold-removal" }, { id: "attic_crawl", label: "Attics & crawlspaces" }, { id: "hvac_mold", label: "Furnace & duct mold" }, { id: "testing", label: "Mold inspection & air testing" }],
+    license: null,
+    preferred: ["IICRC AMRT (Applied Microbial Remediation Technician) or NORMI certification", "Contractor's pollution liability (mold) insurance", "Moisture meter and thermal camera on every job"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Remediation certificate (IICRC AMRT or equal), certificate for pollution liability that covers mold, photos of containment from 3 recent jobs, and 2 references. Michigan and Washington have no state mold license.",
   },
   handyman: {
     does: "Repairs, mounting, assembly, drywall, doors, fixtures and small projects.",

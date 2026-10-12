@@ -1725,3 +1725,18 @@ test("pro coverage: driving radius, ZIP list, 'only these ZIP codes'", async () 
   assert.equal(eligible({ ...pro, service_zips: ["48105"], zips_only: true }, far), null);
   assert.equal(eligible({ ...pro, zips_only: true }, near), null, "'only' with an empty list falls back to the radius");
 });
+
+test("mold removal: containment by location, removal, ducts, testing; big jobs get a site visit", async () => {
+  const { sizeNeedsSiteVisit, photoProblem } = await import("./intake.ts");
+  const svc = getService("mold-removal")!;
+  const base = (a: Record<string, unknown>) => svc.price({ ...defaultAnswers(svc), ...a } as Answers).base;
+  assert.equal(base({ sqft: 20, location: "basement", remove: false, testing: "none" }), 750 + 20 * 16);
+  assert.equal(base({ sqft: 20, location: "basement", remove: true, testing: "none" }), 750 + 20 * 16 + 20 * 7);
+  assert.equal(base({ sqft: 20, location: "basement", remove: false, testing: "both", hvac: true }), 750 + 320 + 650 + 375 + 325);
+  assert.ok(base({ sqft: 20, location: "attic", remove: false }) > base({ sqft: 20, location: "bathroom", remove: false }), "attics cost more to contain");
+  assert.equal(sizeNeedsSiteVisit("mold-removal", { sqft: 20 }), null);
+  assert.ok(sizeNeedsSiteVisit("mold-removal", { sqft: 150 }));
+  assert.ok(sizeNeedsSiteVisit("mold-removal", { sqft: 20, hvac: true }));
+  assert.ok(photoProblem("mold-removal", 1), "two photos required");
+  assert.deepEqual(svc.trades, ["mold"]);
+});
