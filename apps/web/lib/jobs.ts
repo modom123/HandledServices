@@ -256,7 +256,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   // entry details (lockbox, key) live in job_access: readable only by the assigned pro, the customer and staff
   const access = home?.access ?? (access_info?.trim() || null);
   if (access) await db().from("job_access").insert({ job_id: job.id, access_info: access.slice(0, 1500), updated_by: "booking" }).then(async ({ error: e }) => {
-    if (e) await raiseAlert("job_access", "warn", `Entry details for ${job.ref} not saved — run RUN_ONCE_LATEST_2026-10-12_0121.sql`, `Give these to the assigned pro by hand:\n${access}`, job.id);
+    if (e) await raiseAlert("job_access", "warn", `Entry details for ${job.ref} not saved — run RUN_ONCE_LATEST_2026-10-12_1525.sql`, `Give these to the assigned pro by hand:\n${access}`, job.id);
   });
   // the contracts accepted with this booking → the customer's "My contracts" (frozen copy of the text)
   await recordAcceptance(bookingContracts(job.service_slug, input.customer_type === "commercial"), {

@@ -1,15 +1,16 @@
 -- ============================================================================
--- FILE    : supabase/setup/RUN_ONCE_LATEST_2026-10-12_0121.sql
+-- FILE    : supabase/setup/RUN_ONCE_LATEST_2026-10-12_1525.sql
 -- PROJECT : Handled Services LLC (HandledServices)
--- CREATED : 2026-10-12_0121 UTC
+-- CREATED : 2026-10-12_1525 UTC
 -- PURPOSE : ONE paste for the EXISTING Supabase project — everything added on 2026-10-11 and 2026-10-12
---           (replaces RUN_ONCE_LATEST_2026-10-12_0005.sql; if you already ran an earlier one, running this is still safe):
+--           (replaces RUN_ONCE_LATEST_2026-10-12_0121.sql; if you already ran an earlier one, running this is still safe):
 --             1. cargo insurance documents (freight carriers)          = migration 20261011140500_freight_cargo_coverage.sql
 --             2. 3 Lakes Logistics carrier partner record (vetting)   = ADD_3_LAKES_CARRIER_PARTNER_2026-10-11_1405.sql PART 1
 --             3. notification log (Hub → Dispatch, job page)          = migration 20261011224200_notification_log.sql
 --             4. saved checklists (Hub → Checklists)                  = migration 20261011225000_saved_checklists.sql
 --             5. texts inbox, saved homes, pro calendar feed, pro ZIPs = migration 20261012000500_dispatch_gaps.sql
 --             6. ID numbers: customers C-, business clients B-, pros P-, staff S- = migration 20261012012100_id_numbers.sql
+--             7. Handled Talent flat fee per hire                    = migration 20261012152500_talent_flat_fee.sql
 --           Supabase -> SQL Editor -> paste this whole file -> Run. Safe to run twice (skips what already exists).
 -- ============================================================================
 
@@ -265,3 +266,13 @@ do $$ begin
   perform setval('public.client_no_seq', greatest(501, coalesce((select max(substr(client_no, 3)::int) + 1 from public.business_accounts where client_no ~ '^B-\d+$'), 501)), false);
 end $$;
 alter table public.business_accounts alter column client_no set default ('B-' || nextval('public.client_no_seq')::text);
+
+
+-- 7 ─────────────────────────────────────────────────────────────────────────────
+alter table public.talent_searches add column if not exists flat_fee numeric;
+alter table public.talent_searches drop constraint if exists talent_searches_type_check;
+alter table public.talent_searches add constraint talent_searches_type_check check (type in ('contingency','retained','flat'));
+alter table public.talent_searches drop constraint if exists talent_searches_fee_pct_check;
+alter table public.talent_searches add constraint talent_searches_fee_pct_check check (fee_pct >= 0 and fee_pct <= 50 and (type = 'flat' or fee_pct > 0));
+alter table public.talent_searches drop constraint if exists talent_searches_flat_fee_check;
+alter table public.talent_searches add constraint talent_searches_flat_fee_check check (type <> 'flat' or coalesce(flat_fee, 0) > 0);
