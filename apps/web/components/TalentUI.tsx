@@ -9,12 +9,14 @@
  *             CandidateAnswer    — /talent/candidate/[token]: the candidate confirms or withdraws
  *             Hub + recruiter    — new client / search, terms, status, recruiters, add candidate (résumé upload straight
  *                                  to private storage), submit (consent + write-up), stages, hire, invoice, guarantee exit
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire: third search type in the website request form and the Hub, flat fee on
+ *           the search terms, hire box and agreement prompt.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TALENT_STAGE_LABEL, TALENT_TERMS, placementFee, type TalentStage } from "@handled/core";
+import { FLAT_FEE_TIERS, TALENT_STAGE_LABEL, TALENT_TERMS, flatFeeFor, flatPlacementFee, placementFee, type TalentStage } from "@handled/core";
 import { browserClient } from "@/lib/supabase/browser";
 
 async function call(url: string, body: Record<string, unknown>): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
@@ -48,12 +50,14 @@ export function TalentRequestForm() {
           <div className="flex flex-wrap gap-3 pt-2">
             <label className="flex items-center gap-1"><input type="radio" checked={f.type === "contingency"} onChange={() => setF({ ...f, type: "contingency" })} /> Contingency — {TALENT_TERMS.contingencyPct}%, only if you hire</label>
             <label className="flex items-center gap-1"><input type="radio" checked={f.type === "retained"} onChange={() => setF({ ...f, type: "retained" })} /> Retained — {TALENT_TERMS.retainedPct}%, dedicated search</label>
+            <label className="flex items-center gap-1"><input type="radio" checked={f.type === "flat"} onChange={() => setF({ ...f, type: "flat" })} /> Flat fee per hire — from {usd(FLAT_FEE_TIERS[0].fee)}, only if you hire</label>
           </div>
         </div>
       </div>
       <div><label className="label">About the role (what they'll do, who they report to)</label><textarea className="input min-h-28" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
       <div><label className="label">Must-haves (skills, licenses, experience)</label><textarea className="input min-h-20" value={f.must_haves} onChange={(e) => setF({ ...f, must_haves: e.target.value })} /></div>
-      {max ? <p className="rounded-lg bg-paper p-2 text-xs">At {usd(max)} base, the {f.type === "retained" ? `retained fee would be about ${usd(max * TALENT_TERMS.retainedPct / 100)}, in three payments` : `fee would be ${usd(placementFee(max).fee)}, due ${TALENT_TERMS.invoiceDueDays} days after the start date — and nothing if you don't hire`}.</p> : null}
+      {f.type === "flat" && <p className="rounded-lg bg-paper p-2 text-xs">Flat fee per hire, by the role&apos;s pay: {FLAT_FEE_TIERS.map((t) => `${t.label} ${usd(t.fee)}`).join(" · ")}. {max ? (flatFeeFor(max) ? <b>This role: {usd(flatFeeFor(max)!)} per hire.</b> : <b>Roles over $150K: choose contingency or retained.</b>) : "Enter the salary to see your fee."} Due {TALENT_TERMS.invoiceDueDays} days after the start date — nothing if you don&apos;t hire.</p>}
+      {max && f.type !== "flat" ? <p className="rounded-lg bg-paper p-2 text-xs">At {usd(max)} base, the {f.type === "retained" ? `retained fee would be about ${usd(max * TALENT_TERMS.retainedPct / 100)}, in three payments` : `fee would be ${usd(placementFee(max).fee)}, due ${TALENT_TERMS.invoiceDueDays} days after the start date — and nothing if you don't hire`}.</p> : null}
       <label className="flex items-start gap-2"><input type="checkbox" className="mt-1" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> <span>I agree to the <a href="/terms/talent-client-agreement" target="_blank" className="text-brand underline">Handled Talent Client Agreement</a> for my company, and I&apos;m authorized to.</span></label>
       <input type="text" name="website_url_hp" className="hidden" tabIndex={-1} autoComplete="off" />
       <button className="btn-primary" disabled={busy || !agree || !f.company || !f.contact_name || !f.email || !f.title} onClick={async () => {
@@ -80,7 +84,7 @@ export function ReviewBoard({ token, signed, subs, agreementUrl }: { token: stri
   if (!signed) return (
     <div className="card space-y-3 text-sm">
       <h2 className="text-lg font-bold">Before we send candidates</h2>
-      <p>Please review and accept the <a href={agreementUrl} target="_blank" className="text-brand underline">Handled Talent Client Agreement</a>: contingency {TALENT_TERMS.contingencyPct}% (only if you hire) or retained {TALENT_TERMS.retainedPct}%, a {TALENT_TERMS.guaranteeDays}-day guarantee, and {TALENT_TERMS.ownershipMonths}-month candidate ownership.</p>
+      <p>Please review and accept the <a href={agreementUrl} target="_blank" className="text-brand underline">Handled Talent Client Agreement</a>: contingency {TALENT_TERMS.contingencyPct}% (only if you hire), retained {TALENT_TERMS.retainedPct}%, or a flat fee per hire from {usd(FLAT_FEE_TIERS[0].fee)}, a {TALENT_TERMS.guaranteeDays}-day guarantee, and {TALENT_TERMS.ownershipMonths}-month candidate ownership.</p>
       <div className="grid gap-2 sm:grid-cols-2"><input className="input" placeholder="Your full name" value={name} onChange={(e) => setName(e.target.value)} /><input className="input" placeholder="Your title" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
       <label className="flex items-start gap-2"><input type="checkbox" className="mt-1" checked={ok} onChange={(e) => setOk(e.target.checked)} /> I accept the agreement for my company and I&apos;m authorized to.</label>
       <button className="btn-primary" disabled={!ok || name.trim().length < 2} onClick={async () => { const r = await call(`/api/talent/review/${token}`, { action: "accept", name, title: title || null }); if (r.ok) router.refresh(); else setMsg(String(r.error)); }}>Accept and continue</button>
@@ -175,7 +179,7 @@ export function AddCandidateForm({ url, searchId, recruiters }: { url: string; s
 export interface PipeRow { id: string; stage: string; pitch: string | null; submitted_at: string | null; client_feedback: string | null; client_decision: string | null; expected_salary: number | null; recruiter: string | null; mine?: boolean; candidate: { full_name: string; email: string; current_title: string | null; location: string | null; hasResume: boolean } }
 
 /** The pipeline for a search. `who` decides which controls show (recruiter: screen, submit, withdraw; staff: everything). */
-export function Pipeline({ url, rows, who, feePct, recruiterPct, minimumFee, type }: { url: string; rows: PipeRow[]; who: "staff" | "recruiter"; feePct: number; recruiterPct: number; minimumFee: number; type: string }) {
+export function Pipeline({ url, rows, who, feePct, recruiterPct, minimumFee, type, flatFee = null }: { url: string; rows: PipeRow[]; who: "staff" | "recruiter"; feePct: number; recruiterPct: number; minimumFee: number; type: string; flatFee?: number | null }) {
   const { busy, msg, act } = useAct(url);
   const [open, setOpen] = useState<string | null>(null);
   const [pitch, setPitch] = useState("");
@@ -185,7 +189,7 @@ export function Pipeline({ url, rows, who, feePct, recruiterPct, minimumFee, typ
   if (!rows.length) return <p className="text-sm text-ink-soft">No candidates yet.</p>;
   const staffStages: TalentStage[] = ["client_review", "interview", "offer", "rejected", "withdrawn"];
   const sal = numOrNull(hire.salary) ?? 0;
-  const fee = type === "retained" ? null : placementFee(sal, { feePct, recruiterPct, minimumFee });
+  const fee = type === "retained" ? null : type === "flat" ? flatPlacementFee(Number(flatFee)) : placementFee(sal, { feePct, recruiterPct, minimumFee });
   return (
     <div className="space-y-2 text-sm">
       {rows.map((r) => (
@@ -219,7 +223,7 @@ export function Pipeline({ url, rows, who, feePct, recruiterPct, minimumFee, typ
           {open === `h${r.id}` && (
             <div className="mt-2 space-y-2 border-t border-line pt-2">
               <div className="grid gap-2 sm:grid-cols-3"><input className="input" placeholder="First-year base salary $" inputMode="numeric" value={hire.salary} onChange={(e) => setHire({ ...hire, salary: e.target.value })} /><input className="input" type="date" value={hire.start} onChange={(e) => setHire({ ...hire, start: e.target.value })} /></div>
-              {fee && sal > 0 && <p className="text-xs">Fee {usd(fee.fee)} ({feePct}%) · recruiter {usd(fee.recruiterPay)} · Handled {usd(fee.platform)} · invoiced on the start date, due {TALENT_TERMS.invoiceDueDays} days later.</p>}
+              {fee && sal > 0 && <p className="text-xs">Fee {usd(fee.fee)} ({type === "flat" ? "flat fee per hire" : `${feePct}%`}) · recruiter {usd(fee.recruiterPay)} · Handled {usd(fee.platform)} · invoiced on the start date, due {TALENT_TERMS.invoiceDueDays} days later.</p>}
               {type === "retained" && <p className="text-xs text-ink-soft">Retained: the final payment is trued up to this salary and invoiced on the start date.</p>}
               <button className="btn-primary" disabled={busy || !(sal >= 1000) || !hire.start} onClick={async () => { const x = await act({ action: "hire", submission_id: r.id, base_salary: sal, start_date: hire.start }, "Hire recorded."); if (x.ok) setOpen(null); }}>Record hire</button>
             </div>
@@ -249,7 +253,7 @@ export function NewClientForm() {
 }
 
 export function NewSearchForm({ clients }: { clients: { id: string; company: string }[] }) {
-  const empty = { client_id: clients[0]?.id ?? "", title: "", location: "", workplace: "onsite", salary_min: "", salary_max: "", openings: "1", description: "", must_haves: "", type: "contingency", exclusive: false };
+  const empty = { client_id: clients[0]?.id ?? "", title: "", location: "", workplace: "onsite", salary_min: "", salary_max: "", openings: "1", description: "", must_haves: "", type: "contingency", exclusive: false, flat_fee: "" };
   const [f, setF] = useState(empty);
   const { busy, msg, act } = useAct(HUB);
   if (!clients.length) return <p className="text-sm text-ink-soft">Add a client first.</p>;
@@ -258,23 +262,25 @@ export function NewSearchForm({ clients }: { clients: { id: string; company: str
       <div className="grid gap-2 sm:grid-cols-4">
         <select className="input" value={f.client_id} onChange={(e) => setF({ ...f, client_id: e.target.value })}>{clients.map((c) => <option key={c.id} value={c.id}>{c.company}</option>)}</select>
         <input className="input sm:col-span-2" placeholder="Job title *" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
-        <select className="input" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}><option value="contingency">Contingency</option><option value="retained">Retained</option></select>
+        <select className="input" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}><option value="contingency">Contingency</option><option value="retained">Retained</option><option value="flat">Flat fee per hire</option></select>
         <input className="input" placeholder="Location" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} />
         <select className="input" value={f.workplace} onChange={(e) => setF({ ...f, workplace: e.target.value })}><option value="onsite">On site</option><option value="hybrid">Hybrid</option><option value="remote">Remote</option></select>
         <input className="input" placeholder="Salary from" inputMode="numeric" value={f.salary_min} onChange={(e) => setF({ ...f, salary_min: e.target.value })} />
         <input className="input" placeholder="Salary to" inputMode="numeric" value={f.salary_max} onChange={(e) => setF({ ...f, salary_max: e.target.value })} />
+        {f.type === "flat" && <input className="input" placeholder={`Flat fee per hire (default ${flatFeeFor(numOrNull(f.salary_max) ?? numOrNull(f.salary_min)) ? usd(flatFeeFor(numOrNull(f.salary_max) ?? numOrNull(f.salary_min))!) : "by pay"})`} inputMode="numeric" value={f.flat_fee} onChange={(e) => setF({ ...f, flat_fee: e.target.value })} />}
       </div>
       <textarea className="input min-h-20" placeholder="About the role" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
       <textarea className="input min-h-16" placeholder="Must-haves" value={f.must_haves} onChange={(e) => setF({ ...f, must_haves: e.target.value })} />
-      <button className="btn-primary" disabled={busy || !f.title || !f.client_id} onClick={async () => { const r = await act({ action: "search", client_id: f.client_id, title: f.title, location: f.location || null, workplace: f.workplace, salary_min: numOrNull(f.salary_min), salary_max: numOrNull(f.salary_max), openings: Math.max(1, Number(f.openings) || 1), description: f.description || null, must_haves: f.must_haves || null, type: f.type, exclusive: f.exclusive }, "Search created (New request). Open it to assign recruiters and open it."); if (r.ok) setF(empty); }}>Create search</button>
+      <button className="btn-primary" disabled={busy || !f.title || !f.client_id} onClick={async () => { const r = await act({ action: "search", client_id: f.client_id, title: f.title, location: f.location || null, workplace: f.workplace, salary_min: numOrNull(f.salary_min), salary_max: numOrNull(f.salary_max), openings: Math.max(1, Number(f.openings) || 1), description: f.description || null, must_haves: f.must_haves || null, type: f.type, exclusive: f.exclusive, ...(f.type === "flat" ? { flat_fee: numOrNull(f.flat_fee) } : {}) }, "Search created (New request). Open it to assign recruiters and open it."); if (r.ok) setF(empty); }}>Create search</button>
       {msg && <span className="ml-2 text-ink-soft">{msg}</span>}
     </div>
   );
 }
 
-export function SearchControls({ s }: { s: { id: string; status: string; type: string; fee_pct: number; recruiter_pct: number; minimum_fee: number; estimated_salary: number | null; fair_override: string | null; fair_flags: { issue: string; fix: string; match: string }[]; signed: boolean } }) {
+export function SearchControls({ s }: { s: { id: string; status: string; type: string; fee_pct: number; recruiter_pct: number; minimum_fee: number; flat_fee?: number | null; estimated_salary: number | null; fair_override: string | null; fair_flags: { issue: string; fix: string; match: string }[]; signed: boolean } }) {
   const { busy, msg, act } = useAct(HUB);
-  const [t, setT] = useState({ fee_pct: String(s.fee_pct), recruiter_pct: String(s.recruiter_pct), minimum_fee: String(s.minimum_fee), estimated_salary: s.estimated_salary ? String(s.estimated_salary) : "", fair_override: s.fair_override ?? "" });
+  const [t, setT] = useState({ fee_pct: String(s.fee_pct), recruiter_pct: String(s.recruiter_pct), minimum_fee: String(s.minimum_fee), flat_fee: s.flat_fee ? String(s.flat_fee) : "", estimated_salary: s.estimated_salary ? String(s.estimated_salary) : "", fair_override: s.fair_override ?? "" });
+  const flat = s.type === "flat";
   return (
     <div className="space-y-3 text-sm">
       {s.fair_flags.length > 0 && (
@@ -286,14 +292,17 @@ export function SearchControls({ s }: { s: { id: string; status: string; type: s
         </div>
       )}
       {!s.signed && <p className="rounded-xl bg-amber-50 p-3">The client hasn&apos;t accepted the agreement yet. Send them the review link — it asks them to accept first.</p>}
-      <div className="grid gap-2 sm:grid-cols-4">
+      {flat ? <div className="grid gap-2 sm:grid-cols-4">
+        <div><label className="text-xs text-ink-soft">Flat fee per hire $</label><input className="input" value={t.flat_fee} onChange={(e) => setT({ ...t, flat_fee: e.target.value })} /></div>
+        <p className="self-end text-xs text-ink-soft sm:col-span-3">Recruiter {Math.round(TALENT_TERMS.flatRecruiterShare * 100)}% ({usd(flatPlacementFee(Number(numOrNull(t.flat_fee)) || 0).recruiterPay)}), Handled {usd(flatPlacementFee(Number(numOrNull(t.flat_fee)) || 0).platform)} per hire.</p>
+      </div> : <div className="grid gap-2 sm:grid-cols-4">
         <div><label className="text-xs text-ink-soft">Fee % of salary</label><input className="input" value={t.fee_pct} onChange={(e) => setT({ ...t, fee_pct: e.target.value })} /></div>
         <div><label className="text-xs text-ink-soft">Recruiter % of salary</label><input className="input" value={t.recruiter_pct} onChange={(e) => setT({ ...t, recruiter_pct: e.target.value })} /></div>
         <div><label className="text-xs text-ink-soft">Minimum fee $</label><input className="input" value={t.minimum_fee} onChange={(e) => setT({ ...t, minimum_fee: e.target.value })} /></div>
         {s.type === "retained" && <div><label className="text-xs text-ink-soft">Estimated salary (retainer)</label><input className="input" value={t.estimated_salary} onChange={(e) => setT({ ...t, estimated_salary: e.target.value })} /></div>}
-      </div>
+      </div>}
       <div className="flex flex-wrap gap-2">
-        <button className="btn-ghost" disabled={busy} onClick={() => act({ action: "search_update", search_id: s.id, fee_pct: Number(t.fee_pct), recruiter_pct: Number(t.recruiter_pct), minimum_fee: Number(t.minimum_fee) || 0, ...(s.type === "retained" ? { estimated_salary: numOrNull(t.estimated_salary) } : {}), fair_override: t.fair_override || null }, "Saved.")}>Save terms</button>
+        <button className="btn-ghost" disabled={busy} onClick={() => act(flat ? { action: "search_update", search_id: s.id, flat_fee: numOrNull(t.flat_fee), fair_override: t.fair_override || null } : { action: "search_update", search_id: s.id, fee_pct: Number(t.fee_pct), recruiter_pct: Number(t.recruiter_pct), minimum_fee: Number(t.minimum_fee) || 0, ...(s.type === "retained" ? { estimated_salary: numOrNull(t.estimated_salary) } : {}), fair_override: t.fair_override || null }, "Saved.")}>Save terms</button>
         {s.status !== "open" && <button className="btn-primary" disabled={busy} onClick={() => act({ action: "search_update", search_id: s.id, status: "open", fair_override: t.fair_override || null }, "Search is open.")}>Open the search</button>}
         {s.status === "open" && <button className="btn-ghost" disabled={busy} onClick={() => act({ action: "search_update", search_id: s.id, status: "on_hold" }, "On hold.")}>Put on hold</button>}
         {!["cancelled", "filled"].includes(s.status) && <button className="btn-ghost" disabled={busy} onClick={() => { if (confirm("Cancel this search?")) void act({ action: "search_update", search_id: s.id, status: "cancelled" }, "Cancelled."); }}>Cancel search</button>}

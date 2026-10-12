@@ -5,6 +5,7 @@
  * PURPOSE : Staff controls for Handled Talent (Hub → Talent). POST JSON { action, … }:
  *             client · client_terms · search · search_update · assign · unassign · send_review_link · upload_url ·
  *             resume_link · add_candidate · submit · stage · hire · invoice · exit
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire searches (type "flat", flat_fee).
  */
 import { z } from "zod";
 import { BRAND } from "@handled/core";
@@ -18,7 +19,7 @@ import {
 const uuid = z.string().uuid();
 const money = z.number().min(0).max(10_000_000).nullable();
 const text = (max: number) => z.string().trim().max(max).nullable();
-const search = { title: z.string().trim().min(2).max(160), location: text(160), workplace: z.enum(["onsite", "hybrid", "remote"]), salary_min: money, salary_max: money, openings: z.number().int().min(1).max(100), description: text(8000), must_haves: text(4000), type: z.enum(["contingency", "retained"]), exclusive: z.boolean().optional() };
+const search = { title: z.string().trim().min(2).max(160), location: text(160), workplace: z.enum(["onsite", "hybrid", "remote"]), salary_min: money, salary_max: money, openings: z.number().int().min(1).max(100), description: text(8000), must_haves: text(4000), type: z.enum(["contingency", "retained", "flat"]), exclusive: z.boolean().optional(), flat_fee: z.number().min(100).max(1_000_000).nullable().optional() };
 const candidate = { full_name: z.string().trim().min(2).max(120), email: z.string().trim().email(), phone: text(30), location: text(120), current_title: text(160), linkedin: text(300), resume_path: z.string().max(300).nullable(), summary: text(4000), source: text(80), expected_salary: money };
 
 const Body = z.discriminatedUnion("action", [

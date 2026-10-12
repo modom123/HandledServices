@@ -4,9 +4,10 @@
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Handled Hub → Talent: the recruiting agency at a glance — open searches, pipeline, hires, fees billed and
  *           collected, what's owed to recruiters, new requests from the website, clients and new searches.
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire in the terms line and the search list.
  */
 import Link from "next/link";
-import { SEARCH_STATUS_LABEL, TALENT_TERMS, money, type SearchStatus } from "@handled/core";
+import { FLAT_FEE_TIERS, SEARCH_STATUS_LABEL, TALENT_TERMS, money, type SearchStatus } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { NewClientForm, NewSearchForm } from "@/components/TalentUI";
@@ -32,7 +33,7 @@ export default async function TalentHub() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Handled Talent</h1>
-        <p className="max-w-3xl text-sm text-ink-soft">Recruiting as a service. Contingency {TALENT_TERMS.contingencyPct}% of first-year base salary (recruiter {TALENT_TERMS.recruiterPct}%, Handled {TALENT_TERMS.contingencyPct - TALENT_TERMS.recruiterPct}%), retained {TALENT_TERMS.retainedPct}% in three payments, {TALENT_TERMS.guaranteeDays}-day guarantee, {TALENT_TERMS.ownershipMonths}-month candidate ownership. Hires are invoiced on the start date; the recruiter&apos;s share goes out in the weekly payout once the client pays. Public page: <Link href="/talent" className="underline">/talent</Link>.</p>
+        <p className="max-w-3xl text-sm text-ink-soft">Recruiting as a service. Contingency {TALENT_TERMS.contingencyPct}% of first-year base salary (recruiter {TALENT_TERMS.recruiterPct}%, Handled {TALENT_TERMS.contingencyPct - TALENT_TERMS.recruiterPct}%), retained {TALENT_TERMS.retainedPct}% in three payments, or a flat fee per hire ({FLAT_FEE_TIERS.map((t) => `$${t.fee.toLocaleString("en-US")}`).join(" / ")} by pay, recruiter {Math.round(TALENT_TERMS.flatRecruiterShare * 100)}%), {TALENT_TERMS.guaranteeDays}-day guarantee, {TALENT_TERMS.ownershipMonths}-month candidate ownership. Hires are invoiced on the start date; the recruiter&apos;s share goes out in the weekly payout once the client pays. Public page: <Link href="/talent" className="underline">/talent</Link>.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-6">
         <Stat label="Open searches" value={S.filter((s) => s.status === "open").length} />
@@ -50,7 +51,7 @@ export default async function TalentHub() {
             <tbody>{S.map((s) => (
               <tr key={s.id} className="border-t border-line">
                 <td className="p-3"><Link href={`/hub/talent/${s.id}`} className="font-semibold text-brand hover:underline">{s.title}</Link><div className="text-xs text-ink-soft">{(s.talent_clients as unknown as { company: string } | null)?.company}{s.salary_max ? ` · up to ${money(Number(s.salary_max))}` : ""}</div></td>
-                <td className="p-3 text-xs capitalize">{s.type}</td>
+                <td className="p-3 text-xs capitalize">{s.type === "flat" ? "flat fee" : s.type}</td>
                 <td className="p-3 text-xs">{SEARCH_STATUS_LABEL[s.status as SearchStatus]}</td>
                 <td className="p-3 text-xs">{count(s.id, ["sourced", "screened"])}</td>
                 <td className="p-3 text-xs">{count(s.id, ["submitted", "client_review"])}</td>

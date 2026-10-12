@@ -13,11 +13,13 @@
  *                                   (Stripe checkout, net 30); paid → the recruiter's share becomes an approved payout
  *                                   in the weekly run; retained searches bill in three payments, the last trued up
  *             guarantee           — an early exit: replacement search or prorated refund, and the recruiter's share back
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire: searches of type "flat" (fee set by the role's pay tier, or by staff), hires
+ *           billed the flat fee with the recruiter's 80% share, invoices say "flat fee per hire".
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
 import {
-  BRAND, TALENT_CLIENT_VISIBLE, TALENT_STAGE_LABEL, TALENT_TERMS, fairHiringCheck, guaranteeOutcome, money, normalizeEmail, ownershipCheck, placementFee, retainedSchedule,
+  BRAND, TALENT_CLIENT_VISIBLE, TALENT_STAGE_LABEL, TALENT_TERMS, fairHiringCheck, flatFeeFor, flatPlacementFee, guaranteeOutcome, money, normalizeEmail, ownershipCheck, placementFee, retainedSchedule,
   type ExitReason, type TalentStage,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -31,7 +33,7 @@ const now = () => new Date().toISOString();
 const token = () => randomBytes(18).toString("base64url");
 const today = () => now().slice(0, 10);
 const addDays = (iso: string, d: number) => { const x = new Date(`${iso.slice(0, 10)}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
-export const TALENT_AGREEMENT_VERSION = "talent-client-v1";
+export const TALENT_AGREEMENT_VERSION = "talent-client-v2"; // v2: flat fee per hire
 
 async function log(o: { submission_id?: string | null; search_id?: string | null; actor: string; kind: string; note?: string | null }) {
   await db().from("talent_events").insert({ submission_id: o.submission_id ?? null, search_id: o.search_id ?? null, actor: o.actor, kind: o.kind, note: o.note ?? null });
@@ -56,7 +58,7 @@ export async function recruiterOnSearch(searchId: string, contractorId: string) 
 
 export interface SearchInput {
   title: string; location: string | null; workplace: "onsite" | "hybrid" | "remote"; salary_min: number | null; salary_max: number | null; openings: number;
-  description: string | null; must_haves: string | null; type: "contingency" | "retained"; exclusive?: boolean;
+  description: string | null; must_haves: string | null; type: "contingency" | "retained" | "flat"; exclusive?: boolean; flat_fee?: number | null;
 }
 
 /** From the website: a company asks us to fill a role. Creates (or reuses) the client and a search in "New request". */
@@ -73,27 +75,32 @@ export async function requestSearch(o: { company: string; contact_name: string; 
   const r = await createSearch(clientId!, o, "website", "intake");
   if (!r.ok) return r;
   if (opsEmail()) await sendEmail(opsEmail(), `Handled Talent request: ${o.title} at ${o.company}`, `${o.contact_name} <${email}> ${o.phone ?? ""}\n${o.title} · ${o.location ?? ""} · ${o.workplace} · ${o.salary_min ?? "?"}–${o.salary_max ?? "?"} · ${o.type}\n\n${o.description ?? ""}\n\nOpen it: ${siteUrl()}/hub/talent/${r.id}`).catch(() => {});
-  await sendEmail(email, `We've got your search: ${o.title}`, `Hi ${o.contact_name.split(" ")[0]},\n\nThanks for trusting ${BRAND.name} Talent with your ${o.title} search. A recruiter will call you within one business day for a short intake: what great looks like in this role, must-haves, the interview process and timing.\n\nOur terms: ${o.type === "retained" ? `retained search, ${TALENT_TERMS.retainedPct}% of the first year's base salary in three payments` : `contingency, ${TALENT_TERMS.contingencyPct}% of the first year's base salary, due only if you hire someone we introduce`}; ${TALENT_TERMS.guaranteeDays}-day guarantee. Candidates never pay a fee.\n\n— ${BRAND.name} Talent`).catch(() => {});
+  await sendEmail(email, `We've got your search: ${o.title}`, `Hi ${o.contact_name.split(" ")[0]},\n\nThanks for trusting ${BRAND.name} Talent with your ${o.title} search. A recruiter will call you within one business day for a short intake: what great looks like in this role, must-haves, the interview process and timing.\n\nOur terms: ${o.type === "flat" ? `flat fee of ${money(Number(o.flat_fee ?? flatFeeFor(o.salary_max ?? o.salary_min) ?? 0))} per hire, due only if you hire someone we introduce` : o.type === "retained" ? `retained search, ${TALENT_TERMS.retainedPct}% of the first year's base salary in three payments` : `contingency, ${TALENT_TERMS.contingencyPct}% of the first year's base salary, due only if you hire someone we introduce`}; ${TALENT_TERMS.guaranteeDays}-day guarantee. Candidates never pay a fee.\n\n— ${BRAND.name} Talent`).catch(() => {});
   return { ok: true, id: r.id };
 }
 
 export async function createSearch(clientId: string, s: SearchInput, actor: string, status: "intake" | "open" = "intake") {
   const { data: c } = await db().from("talent_clients").select("terms").eq("id", clientId).maybeSingle();
   const t = (c?.terms ?? {}) as { feePct?: number; recruiterPct?: number; retainedPct?: number; minimumFee?: number };
-  const feePct = s.type === "retained" ? t.retainedPct ?? TALENT_TERMS.retainedPct : t.feePct ?? TALENT_TERMS.contingencyPct;
-  const recruiterPct = s.type === "retained" ? feePct * TALENT_TERMS.retainedRecruiterShare : Math.min(t.recruiterPct ?? TALENT_TERMS.recruiterPct, feePct);
+  const flat = s.type === "flat";
+  // flat fee per hire: the fee is set on the search (from the role's pay unless staff set it); no percentage
+  const flatFee = flat ? Number(s.flat_fee) || flatFeeFor(s.salary_max ?? s.salary_min) : null;
+  if (flat && !flatFee) return { ok: false as const, error: "Roles over $150K are contingency or retained — or set a flat fee for this search" };
+  const feePct = flat ? 0 : s.type === "retained" ? t.retainedPct ?? TALENT_TERMS.retainedPct : t.feePct ?? TALENT_TERMS.contingencyPct;
+  const recruiterPct = flat ? 0 : s.type === "retained" ? feePct * TALENT_TERMS.retainedRecruiterShare : Math.min(t.recruiterPct ?? TALENT_TERMS.recruiterPct, feePct);
   const flags = fairHiringCheck(`${s.title}\n${s.description ?? ""}\n${s.must_haves ?? ""}`);
   const { data, error } = await db().from("talent_searches").insert({
     client_id: clientId, title: s.title, location: s.location, workplace: s.workplace, salary_min: s.salary_min, salary_max: s.salary_max, openings: s.openings,
     description: s.description, must_haves: s.must_haves, type: s.type, exclusive: Boolean(s.exclusive), fee_pct: feePct, recruiter_pct: Math.round(recruiterPct * 100) / 100,
-    minimum_fee: t.minimumFee ?? TALENT_TERMS.minimumFee, estimated_salary: s.salary_max ?? s.salary_min, status, review_token: token(), fair_flags: flags, created_by: actor,
+    minimum_fee: flat ? 0 : t.minimumFee ?? TALENT_TERMS.minimumFee, estimated_salary: s.salary_max ?? s.salary_min, status, review_token: token(), fair_flags: flags, created_by: actor,
+    ...(flat ? { flat_fee: flatFee } : {}),
   }).select("id").single();
   if (error || !data) return { ok: false as const, error: error?.message ?? "Couldn't save the search" };
   await log({ search_id: data.id, actor, kind: "created", note: flags.length ? `Fair-hiring flags: ${flags.map((f) => f.issue).join(", ")}` : null });
   return { ok: true as const, id: data.id as string };
 }
 
-export async function saveSearch(searchId: string, patch: Partial<SearchInput> & { status?: string; fee_pct?: number; recruiter_pct?: number; minimum_fee?: number; estimated_salary?: number | null; fair_override?: string | null }, actor: string) {
+export async function saveSearch(searchId: string, patch: Partial<SearchInput> & { status?: string; fee_pct?: number; recruiter_pct?: number; minimum_fee?: number; estimated_salary?: number | null; fair_override?: string | null; flat_fee?: number | null }, actor: string) {
   const { data: s } = await db().from("talent_searches").select("*, talent_clients(agreement_signed_at)").eq("id", searchId).maybeSingle();
   if (!s) return { ok: false, error: "Search not found" };
   const merged = { ...s, ...patch };
@@ -103,6 +110,8 @@ export async function saveSearch(searchId: string, patch: Partial<SearchInput> &
     if (flags.length && !merged.fair_override) return { ok: false, error: `Fix the job order first (${flags.map((f) => f.issue).join(", ")}) — or record why it's a lawful requirement` };
     if (Number(merged.recruiter_pct) > Number(merged.fee_pct)) return { ok: false, error: "The recruiter's share can't be more than the fee" };
   }
+  if (merged.type === "flat" && !(Number(merged.flat_fee) > 0)) return { ok: false, error: "Set the flat fee per hire" };
+  if (merged.type === "flat") { patch.fee_pct = 0; patch.recruiter_pct = 0; patch.minimum_fee = 0; }
   const update: Record<string, unknown> = { ...patch, fair_flags: flags };
   if (patch.status === "open" && s.status !== "open" && !s.engaged_on) update.engaged_on = today();
   if (patch.status === "filled") update.filled_at = now();
@@ -267,7 +276,7 @@ export async function recordHire(submissionId: string, o: { base_salary: number;
   const { data: sub } = await db().from("talent_submissions").select("*, talent_searches(*)").eq("id", submissionId).maybeSingle();
   if (!sub) return { ok: false, error: "Not found" };
   if (!sub.submitted_at) return { ok: false, error: "Only candidates submitted to the client can be hired through us" };
-  const s = sub.talent_searches as { id: string; type: string; fee_pct: number; recruiter_pct: number; minimum_fee: number; openings: number; estimated_salary: number | null; engaged_on: string | null; title: string };
+  const s = sub.talent_searches as { id: string; type: string; fee_pct: number; recruiter_pct: number; minimum_fee: number; openings: number; estimated_salary: number | null; engaged_on: string | null; title: string; flat_fee?: number | null };
   const retained = s.type === "retained";
   let fee: number, recruiterPay: number;
   if (retained) {
@@ -277,6 +286,9 @@ export async function recordHire(submissionId: string, o: { base_salary: number;
     const last = sched.payments[2];
     await db().from("talent_retainer_payments").update({ amount: last.amount, recruiter_pay: last.recruiterPay, due: o.start_date }).eq("search_id", s.id).eq("key", "placement").eq("status", "scheduled");
     fee = sched.totalFee; recruiterPay = Math.round(fee * TALENT_TERMS.retainedRecruiterShare * 100) / 100;
+  } else if (s.type === "flat") {
+    const f = flatPlacementFee(Number(s.flat_fee));
+    fee = f.fee; recruiterPay = f.recruiterPay;
   } else {
     const f = placementFee(o.base_salary, { feePct: Number(s.fee_pct), recruiterPct: Number(s.recruiter_pct), minimumFee: Number(s.minimum_fee) });
     fee = f.fee; recruiterPay = f.recruiterPay;
@@ -310,10 +322,11 @@ export async function invoicePlacement(placementId: string, actor = "system") {
   const title = (p.talent_searches as { title: string }).title;
   const who = (p.talent_candidates as { full_name: string }).full_name;
   const number = await invNo("TAL");
-  const pay = await createCheckout({ amount: Number(p.fee), name: `${BRAND.name} Talent invoice ${number}`, description: `Placement fee: ${who}, ${title} (${p.fee_pct}% of ${money(Number(p.base_salary))})`, kind: "invoice", customerEmail: c.email, customerName: c.company, successPath: "/pay/thanks", createdBy: actor }).catch(() => null);
+  const basis = (p.talent_searches as { type?: string }).type === "flat" ? "flat fee per hire" : `${p.fee_pct}% of the first year's base salary, ${money(Number(p.base_salary))}`;
+  const pay = await createCheckout({ amount: Number(p.fee), name: `${BRAND.name} Talent invoice ${number}`, description: `Placement fee: ${who}, ${title} (${basis})`, kind: "invoice", customerEmail: c.email, customerName: c.company, successPath: "/pay/thanks", createdBy: actor }).catch(() => null);
   if (pay) await db().from("payments").update({ talent_placement_id: p.id }).eq("id", pay.paymentId);
   await db().from("talent_placements").update({ status: "invoiced", invoice_number: number, payment_url: pay?.url ?? null }).eq("id", p.id);
-  await sendEmail(c.email, `${BRAND.name} Talent invoice ${number}: ${money(Number(p.fee))} due ${p.invoice_due}`, `Hi ${c.contact_name.split(" ")[0]},\n\nCongratulations on ${who} joining as ${title}. Here is the placement fee under our agreement:\n\nInvoice: ${number}\nFee: ${money(Number(p.fee))} (${p.fee_pct}% of the first year's base salary, ${money(Number(p.base_salary))})\nDue: ${p.invoice_due}\nGuarantee through: ${p.guarantee_ends}\n\n${pay ? `Pay by card or bank: ${pay.url}` : "Reply for wire / ACH details."}\n\nThank you for working with ${BRAND.name} Talent.`).catch(() => {});
+  await sendEmail(c.email, `${BRAND.name} Talent invoice ${number}: ${money(Number(p.fee))} due ${p.invoice_due}`, `Hi ${c.contact_name.split(" ")[0]},\n\nCongratulations on ${who} joining as ${title}. Here is the placement fee under our agreement:\n\nInvoice: ${number}\nFee: ${money(Number(p.fee))} (${basis})\nDue: ${p.invoice_due}\nGuarantee through: ${p.guarantee_ends}\n\n${pay ? `Pay by card or bank: ${pay.url}` : "Reply for wire / ACH details."}\n\nThank you for working with ${BRAND.name} Talent.`).catch(() => {});
   if (!pay) await raiseAlert("talent", "warn", `Talent invoice ${number} has no payment link`, "Stripe isn't configured — send payment details by hand.");
   return { ok: true };
 }

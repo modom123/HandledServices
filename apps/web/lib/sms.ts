@@ -5,7 +5,9 @@
  * PURPOSE : Text messages (Twilio REST — no SDK). Without TWILIO_* settings messages are logged,
  *           so every flow still works in development. Twilio handles STOP/HELP opt-outs; we also
  *           skip people who opted out in their profile. US numbers are normalized to +1.
- *           Env: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM.
+ *           Env: TWILIO_ACCOUNT_SID (AC…), and TWILIO_AUTH_TOKEN or an API key (TWILIO_API_KEY SK… + TWILIO_API_SECRET),
+ *           and TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM.
+ * UPDATED : 2026-10-12_1540 UTC — Twilio API keys (TWILIO_API_KEY + TWILIO_API_SECRET) work instead of the Auth Token for sending.
  * UPDATED : 2026-10-11_2242 UTC — every text is recorded in the notification log (sent, failed with Twilio's reason, or skipped).
  */
 import "server-only";
@@ -18,7 +20,15 @@ export function e164(phone: string | null | undefined): string | null {
   return (phone ?? "").startsWith("+") && d.length >= 10 ? `+${d}` : null;
 }
 
-export const smsConfigured = () => Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_FROM));
+/** Basic-auth user and password for Twilio's API: an API key (SK… + secret) when set, else the Account SID + Auth Token. */
+function twilioAuth(): [string, string] | null {
+  const key = process.env.TWILIO_API_KEY?.trim(), secret = process.env.TWILIO_API_SECRET?.trim();
+  if (key && secret) return [key, secret];
+  const sid = process.env.TWILIO_ACCOUNT_SID?.trim(), token = process.env.TWILIO_AUTH_TOKEN?.trim();
+  return sid && token ? [sid, token] : null;
+}
+
+export const smsConfigured = () => Boolean(process.env.TWILIO_ACCOUNT_SID?.startsWith("AC") && twilioAuth() && (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_FROM));
 
 /** Send one text. Returns true if Twilio accepted it. Never throws. */
 export async function sendSms(to: string | null | undefined, body: string): Promise<boolean> {
@@ -35,14 +45,15 @@ async function sendSmsNow(to: string | null | undefined, body: string): Promise<
     console.info(`[sms:dev] to=${num} ${text}`);
     return { ok: false, to: num, skipped: true, error: "texts not set up (Twilio)" };
   }
-  const sid = process.env.TWILIO_ACCOUNT_SID!;
+  const sid = process.env.TWILIO_ACCOUNT_SID!.trim();
+  const [user, pass] = twilioAuth()!;
   const form = new URLSearchParams({ To: num, Body: text });
   if (process.env.TWILIO_MESSAGING_SERVICE_SID) form.set("MessagingServiceSid", process.env.TWILIO_MESSAGING_SERVICE_SID);
   else form.set("From", process.env.TWILIO_FROM!);
   try {
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: "POST",
-      headers: { Authorization: `Basic ${Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
     });
     if (!res.ok) {

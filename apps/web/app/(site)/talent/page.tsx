@@ -2,15 +2,16 @@
  * FILE    : apps/web/app/(site)/talent/page.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
- * PURPOSE : Handled Talent — recruiting for companies (contingency and retained search). How it works, the fees
+ * PURPOSE : Handled Talent — recruiting for companies (contingency, retained and flat fee per hire). How it works, the fees
  *           (from core TALENT_TERMS), the guarantee, fair-hiring promise, the founder's background, and the intake form.
  *           Recruiters are pointed to apply as pros (trade: Recruiter).
+ * UPDATED : 2026-10-12_1525 UTC — third pricing card: flat fee per hire ($2,500 / $5,000 / $9,500 by the role's pay).
  */
 import Link from "next/link";
-import { BRAND, FAIR_HIRING_RULES, TALENT_TERMS as T } from "@handled/core";
+import { BRAND, FAIR_HIRING_RULES, FLAT_FEE_TIERS, TALENT_TERMS as T } from "@handled/core";
 import { TalentRequestForm } from "@/components/TalentUI";
 
-export const metadata = { title: "Handled Talent — recruiting for your company", description: `Contingency and retained search nationwide: ${T.contingencyPct}% only if you hire, ${T.guaranteeDays}-day guarantee, candidates never pay.` };
+export const metadata = { title: "Handled Talent — recruiting for your company", description: `Contingency, retained or flat-fee search nationwide: ${T.contingencyPct}% or a flat fee from $${FLAT_FEE_TIERS[0].fee.toLocaleString("en-US")} per hire, only if you hire, ${T.guaranteeDays}-day guarantee, candidates never pay.` };
 
 const STEPS = [
   ["Intake call (30 minutes)", "What great looks like, must-haves, the salary range, your interview process and timing. We tell you honestly how the market looks for the role."],
@@ -30,7 +31,7 @@ export default function Talent() {
           <div className="mt-8 flex flex-wrap gap-3"><a href="#start" className="btn-primary">Start a search</a><Link href="/terms/talent-client-agreement" className="btn-ghost border-white/30 text-white">Read our client agreement</Link></div>
         </div>
       </section>
-      <section className="wrap grid gap-4 py-12 md:grid-cols-2">
+      <section className="wrap grid gap-4 py-12 md:grid-cols-3">
         <div className="card">
           <div className="text-sm font-semibold text-brand">Contingency search</div>
           <div className="mt-1 text-3xl font-extrabold">{T.contingencyPct}%</div>
@@ -42,6 +43,12 @@ export default function Talent() {
           <div className="mt-1 text-3xl font-extrabold">{T.retainedPct}%</div>
           <p className="text-sm text-ink-soft">of the first year&apos;s base salary, in three payments: at the start, at the shortlist, and at the hire (adjusted to the actual salary).</p>
           <p className="mt-2 text-sm">Best for leadership, hard-to-fill or confidential roles: a dedicated recruiter, a defined timeline and a weekly report.</p>
+        </div>
+        <div className="card">
+          <div className="text-sm font-semibold text-brand">Flat fee per hire</div>
+          <div className="mt-1 text-3xl font-extrabold">from ${FLAT_FEE_TIERS[0].fee.toLocaleString("en-US")}</div>
+          <ul className="mt-1 space-y-0.5 text-sm text-ink-soft">{FLAT_FEE_TIERS.map((t) => <li key={t.id}>{t.label}: <b className="text-ink">${t.fee.toLocaleString("en-US")}</b></li>)}</ul>
+          <p className="mt-2 text-sm">Best for hourly, trades and volume hiring: one set price per person hired, only if you hire — the same {T.guaranteeDays}-day guarantee.</p>
         </div>
       </section>
       <section className="wrap pb-12">

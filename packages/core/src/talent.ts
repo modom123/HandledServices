@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/talent.ts
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_2034 UTC
+ * UPDATED : 2026-10-12_1525 UTC — flat fee per hire (third search type): $2,500 / $5,000 / $9,500 by the role's pay.
  * PURPOSE : Handled Talent — the recruiting agency as a service. Companies hire us to fill roles; independent recruiters
  *           (pros with the "recruiter" trade) source and submit candidates; we run the client relationship, contracts,
  *           invoicing and payouts.
@@ -15,6 +16,9 @@
  *                                  recruiters never both claim one hire and a client can't hire around the fee
  *             fairHiringCheck    — words in a job order that suggest discrimination (age, sex, national origin…) with
  *                                  a plain fix; we don't post or source for a discriminatory order
+ *             FLAT_FEE_TIERS     — flat fee per hire (volume and hourly hiring): one set price per hire by the role's pay,
+ *                                  same guarantee and split (recruiter 80%); above $150K, contingency or retained
+ *             flatFeeFor / flatPlacementFee — the tier for a salary, and the split of a flat fee
  *           Candidates never pay a fee. Recruiters are independent businesses paid a share of the fee we collect.
  */
 
@@ -37,9 +41,35 @@ export const TALENT_TERMS = {
   invoiceDueDays: 30,
   /** Retained: days from engagement to the shortlist payment. */
   shortlistDays: 30,
+  /** The recruiter's share of a flat fee (same 80/20 split). */
+  flatRecruiterShare: 0.8,
 } as const;
 
-export type SearchType = "contingency" | "retained";
+/**
+ * Flat fee per hire, by the role's first-year base pay (hourly roles: rate × 2,080). Cheaper than a percentage for
+ * hourly and mid-level roles, and the same price whatever the final offer — good for volume hiring. Roles above the
+ * last tier are quoted as contingency or retained.
+ */
+export const FLAT_FEE_TIERS = [
+  { id: "hourly", label: "Hourly & entry-level (up to $50K)", maxSalary: 50_000, fee: 2_500 },
+  { id: "professional", label: "Skilled & professional ($50K–$100K)", maxSalary: 100_000, fee: 5_000 },
+  { id: "senior", label: "Senior & management ($100K–$150K)", maxSalary: 150_000, fee: 9_500 },
+] as const;
+
+/** The flat fee for a role's pay (top of the range), or null above the last tier (use contingency or retained). */
+export function flatFeeFor(salary: number | null | undefined): number | null {
+  const sal = Math.max(0, Number(salary) || 0);
+  return FLAT_FEE_TIERS.find((t) => sal <= t.maxSalary)?.fee ?? null;
+}
+
+/** How a flat fee splits between the recruiter and Handled. */
+export function flatPlacementFee(fee: number, share: number = TALENT_TERMS.flatRecruiterShare) {
+  const f = Math.max(0, Number(fee) || 0);
+  const recruiterPay = Math.round(f * share * 100) / 100;
+  return { fee: f, recruiterPay, platform: Math.round((f - recruiterPay) * 100) / 100 };
+}
+
+export type SearchType = "contingency" | "retained" | "flat";
 export type SearchStatus = "intake" | "open" | "on_hold" | "filled" | "cancelled";
 export const SEARCH_STATUS_LABEL: Record<SearchStatus, string> = { intake: "New request", open: "Open", on_hold: "On hold", filled: "Filled", cancelled: "Cancelled" };
 

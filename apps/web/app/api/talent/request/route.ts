@@ -4,6 +4,7 @@
  * CREATED : 2026-10-05_2034 UTC
  * PURPOSE : Public intake for Handled Talent (/talent): a company asks us to fill a role. Creates the client and a search
  *           in "New request"; accepting the client agreement here is a click-to-sign (version, time, IP recorded).
+ * UPDATED : 2026-10-12_1525 UTC — "flat" (flat fee per hire, priced from the role's pay).
  */
 import { z } from "zod";
 import { deny } from "@/lib/auth";
@@ -16,7 +17,7 @@ const Body = z.object({
   website: z.string().trim().max(200).nullable(), city: z.string().trim().max(80).nullable(),
   title: z.string().trim().min(2).max(160), location: z.string().trim().max(160).nullable(), workplace: z.enum(["onsite", "hybrid", "remote"]),
   salary_min: n, salary_max: n, openings: z.number().int().min(1).max(100), description: z.string().trim().max(8000).nullable(), must_haves: z.string().trim().max(4000).nullable(),
-  type: z.enum(["contingency", "retained"]), agree: z.boolean(), website_url_hp: z.string().max(0).optional(),
+  type: z.enum(["contingency", "retained", "flat"]), agree: z.boolean(), website_url_hp: z.string().max(0).optional(),
 });
 
 export async function POST(req: Request) {
