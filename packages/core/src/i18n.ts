@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-06_0748 UTC — "Pro Rewards & tiers" (footer link).
  * UPDATED : 2026-10-06_0841 UTC — national home-page copy (launching in Metro Detroit, expanding nationwide).
  * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
+ * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -387,6 +388,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "food-truck": ["Reserva de food truck", "Tacos, barbacoa, pizza, hamburguesas o postres en su fiesta."],
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
   "security-guard": ["Guardias de seguridad y patrullaje", "Guardias con licencia para su edificio, obra o estacionamiento: puesto fijo, rondas nocturnas o vigilancia contra incendios."],
+  "mold-removal": ["Eliminación de moho", "Moho localizado, contenido y retirado por un profesional certificado en remediación, y se encuentra la humedad que lo causa."],
   "freight-delivery": ["Carga y entrega de tarimas", "Tarimas y carga con un transportista con licencia: camioneta, camión caja con plataforma elevadora o un tráiler completo de 53 pies."],
   "website-design": ["Sitios web inteligentes", "Un sitio web que trabaja por usted: atiende visitantes, capta cada cliente potencial y agenda citas, 24/7."],
   "business-operating-system": ["Sistema operativo para su negocio", "Un solo sistema que maneja su negocio: clientes, reservas, horarios, despacho, facturación y paneles."],

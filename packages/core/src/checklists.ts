@@ -16,6 +16,7 @@
  *           Services without their own template get one built from what the service includes.
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol checklist (post, patrol, fire watch).
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal checklist.
+ * UPDATED : 2026-10-12_0117 UTC — Mold removal checklist (containment, moisture source, removal, drying, clearance test).
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -533,6 +534,29 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
     ] }],
   }),
 
+  "mold-removal": {
+    service: "mold-removal", version: 1, title: { en: "Mold removal checklist", es: "Lista de eliminación de moho" },
+    sections: [
+      { id: "setup", en: "Before starting", es: "Antes de empezar", items: [
+        i("before", "Photos of all mold and the area before work", "Fotos de todo el moho y del área antes del trabajo", { required: true, photo: true }),
+        i("moisture", "Moisture readings taken; the moisture source found and explained to the customer", "Lecturas de humedad tomadas; fuente de humedad encontrada y explicada al cliente", { required: true }),
+        i("containment", "Work area sealed with plastic, HVAC vents covered, negative air running with HEPA", "Área sellada con plástico, rejillas de aire cubiertas, presión negativa con HEPA funcionando", { required: true, photo: true }),
+        i("ppe", "Respirator, gloves and coveralls worn; household kept out of the work area", "Respirador, guantes y overol puestos; la familia fuera del área de trabajo", { required: true }),
+      ] },
+      { id: "work", en: "Remediation", es: "Remediación", items: [
+        i("removed", "Moldy drywall, insulation or carpet cut out past the growth, bagged and sealed in the containment", "Paneles de yeso, aislamiento o alfombra con moho cortados más allá del moho, embolsados y sellados dentro de la contención", { when: { q: "remove", in: [true] }, required: true }),
+        i("hepa", "All surfaces HEPA-vacuumed and wiped; antimicrobial applied", "Todas las superficies aspiradas con HEPA y limpiadas; antimicrobiano aplicado", { required: true }),
+        i("hvac", "Furnace and ducts cleaned and treated", "Calefacción y ductos limpiados y tratados", { when: { q: "hvac", in: [true] }, required: true }),
+        i("dry", "Area dry (readings back to normal) before containment comes down", "Área seca (lecturas normales) antes de quitar la contención", { required: true }),
+      ] },
+      { id: "finish", en: "Finish", es: "Terminar", items: [
+        i("after", "Photos of the cleaned area, no visible mold", "Fotos del área limpia, sin moho visible", { required: true, photo: true }),
+        i("waste", "Bagged waste taken away; work area left broom-clean", "Desechos embolsados retirados; área barrida y limpia", { required: true }),
+        i("advice", "Customer told how to fix the moisture source and what to rebuild (drywall, insulation)", "Se le explicó al cliente cómo corregir la humedad y qué reponer (paneles, aislamiento)", { required: true }),
+        i("test", "Clearance test scheduled with the independent tester", "Prueba final programada con el evaluador independiente", { when: { q: "testing", in: ["after", "both"] }, required: true }),
+      ] },
+    ],
+  },
   "freight-delivery": {
     service: "freight-delivery", version: 1, title: { en: "Freight delivery checklist", es: "Lista de entrega de carga" },
     sections: [

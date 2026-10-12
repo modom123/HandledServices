@@ -11,6 +11,7 @@
  *           bars), Pro Rewards points (available, pending, lifetime, ≈ $), tenure multiplier, milestones, orders.
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
+ * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -62,7 +63,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/hub/pros" className="text-xs text-ink-soft">← Pros</Link>
-          <h1 className="text-2xl font-bold">{pro.business_name}</h1>
+          <h1 className="text-2xl font-bold">{pro.business_name} {(pro as { pro_no?: string | null }).pro_no && <span className="font-mono text-base font-normal text-ink-soft">{(pro as { pro_no?: string | null }).pro_no}</span>}</h1>
           <p className="text-sm text-ink-soft">{pro.contact_name} · {pro.phone} · {pro.email} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(pro.email)}`}>Signed contracts</Link></p>
           <p className="text-xs text-ink-soft">{pro.trades.map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ")} · ZIPs {pro.service_zips.join(", ") || "—"}</p>
           <p className="text-xs text-ink-soft">

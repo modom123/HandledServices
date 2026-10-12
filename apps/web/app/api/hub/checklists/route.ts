@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     if (!checklist) return deny(400, "Add at least one item");
     const row = { name: d.name, service_slug: slug, checklist, updated_by: who, updated_at: new Date().toISOString() };
     const res = d.id ? await db.from("saved_checklists").update(row).eq("id", d.id).select("id").maybeSingle() : await db.from("saved_checklists").insert({ ...row, created_by: who }).select("id").maybeSingle();
-    if (res.error) return deny(500, /saved_checklists/.test(res.error.message) ? "Run supabase/setup/RUN_ONCE_LATEST_2026-10-12_0005.sql in Supabase first" : res.error.message);
+    if (res.error) return deny(500, /saved_checklists/.test(res.error.message) ? "Run supabase/setup/RUN_ONCE_LATEST_2026-10-12_0121.sql in Supabase first" : res.error.message);
     return Response.json({ ok: true, id: res.data?.id });
   }
   if (d.action === "delete") {

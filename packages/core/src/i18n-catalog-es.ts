@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal.
  * UPDATED : 2026-10-06_0637 UTC — small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride.
  * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology questions, options and included items.
+ * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
  */
 export const ES_CATALOG: Record<string, string> = {
   "1 month": "1 mes",
@@ -997,4 +998,28 @@ export const ES_CATALOG: Record<string, string> = {
   "Launch includes 1, Automate 2, Scale 4.": "Lanzamiento incluye 1, Automatización 2, Crecimiento 4.",
   "Business formation included (LLC or corporation, EIN)": "Formación de empresa incluida (LLC o corporación, EIN)",
   "Managed launch: we run it with you for the first 90 days": "Lanzamiento acompañado: lo operamos con usted los primeros 90 días",
+  // Mold Removal
+  "Certified remediation pro (IICRC or equal)": "Profesional certificado en remediación (IICRC o equivalente)",
+  "Containment and negative-air HEPA filtration": "Contención y filtración HEPA con presión negativa",
+  "Removal and bagging of moldy materials": "Retiro y embolsado de materiales con moho",
+  "HEPA vacuuming and antimicrobial treatment": "Aspirado HEPA y tratamiento antimicrobiano",
+  "Moisture source found and explained": "Se encuentra y explica la fuente de humedad",
+  "Where the mold is, how big an area, how long it's been there, any leak or flooding, a musty smell, and whether anyone in the home has asthma or allergies": "Dónde está el moho, qué tan grande es el área, cuánto tiempo lleva, cualquier fuga o inundación, olor a humedad y si alguien en casa tiene asma o alergias",
+  "Moldy area": "Área con moho",
+  "Your best guess of the visible growth. 10 sq ft is about a 3 × 3 ft patch. Over 100 sq ft gets a free site visit first.": "Su mejor cálculo del moho visible. 10 pies cuadrados son una mancha de unos 3 × 3 pies. Más de 100 pies cuadrados recibe primero una visita gratis.",
+  "Where is it?": "¿Dónde está?",
+  "Bathroom or laundry": "Baño o lavandería",
+  "Walls or ceiling in a living area": "Paredes o techo en un área habitada",
+  "Basement": "Sótano",
+  "Crawlspace": "Espacio de acceso bajo el piso",
+  "Attic": "Ático",
+  "Moldy drywall, insulation or carpet to remove": "Paneles de yeso, aislamiento o alfombra con moho para retirar",
+  "Porous materials with mold growing in them are cut out and bagged, not just cleaned. Rebuilding drywall is a separate handyman job.": "Los materiales porosos con moho se cortan y se embolsan, no solo se limpian. Reponer los paneles de yeso es un trabajo aparte de mantenimiento.",
+  "Mold in the furnace or air ducts too": "También hay moho en la calefacción o los ductos de aire",
+  "Mold testing": "Pruebas de moho",
+  "Lab results in 2–3 business days. Clearance tests are done by an independent tester, not the crew that did the work.": "Resultados del laboratorio en 2–3 días hábiles. Las pruebas finales las hace un evaluador independiente, no el equipo que hizo el trabajo.",
+  "No testing — the mold is visible": "Sin pruebas: el moho se ve",
+  "Inspection & air test before (find hidden mold)": "Inspección y prueba de aire antes (encontrar moho oculto)",
+  "Clearance test after (proof it's gone)": "Prueba final después (comprobar que se eliminó)",
+  "Both before and after": "Antes y después",
 };

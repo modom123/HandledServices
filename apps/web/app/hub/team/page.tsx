@@ -6,6 +6,7 @@
  *           link), or remove access. Admins only can change it. How everyone else is recognized is explained here too.
  * UPDATED : 2026-10-11_0451 UTC — "What each role can do": the admin-only list (money, settings, marketing email, pro approvals).
  * UPDATED : 2026-10-11_2242 UTC — role list: Dispatch board and Payments for dispatchers; marking paid by hand is admin.
+ * UPDATED : 2026-10-12_0121 UTC — staff ID (S-…) next to each name.
  */
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
@@ -15,8 +16,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Team() {
   const v = await getViewer();
-  const { data } = await adminClient().from("profiles").select("id, email, full_name, role, created_at").in("role", ["admin", "dispatcher"]).order("role").order("email");
-  const team = (data ?? []) as { id: string; email: string; full_name: string | null; role: string; created_at: string }[];
+  const { data } = await adminClient().from("profiles").select("*").in("role", ["admin", "dispatcher"]).order("role").order("email");
+  const team = (data ?? []) as { id: string; email: string; full_name: string | null; role: string; created_at: string; staff_no?: string | null }[];
   const admin = v?.role === "admin";
   return (
     <div className="max-w-3xl space-y-6">
@@ -27,7 +28,7 @@ export default async function Team() {
       <div className="card divide-y divide-line p-0">
         {team.map((m) => (
           <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-            <div><div className="font-semibold">{m.full_name ?? m.email}</div><div className="text-xs text-ink-soft">{m.email} · {m.role}{m.id === v?.userId ? " · you" : ""}</div></div>
+            <div><div className="font-semibold">{m.full_name ?? m.email}{m.staff_no && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{m.staff_no}</span>}</div><div className="text-xs text-ink-soft">{m.email} · {m.role}{m.id === v?.userId ? " · you" : ""}</div></div>
             {admin && m.id !== v?.userId && <TeamRemove email={m.email} />}
           </div>
         ))}

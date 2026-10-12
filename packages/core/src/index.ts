@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Public entry point for @handled/core.
  * UPDATED : 2026-10-12_0005 UTC — scheduling-gaps (texts, calendar feed, saved homes).
+ * UPDATED : 2026-10-12_0138 UTC — stripe-setup (webhook events and key checks for Hub → Setup).
  */
 
 export * from "./types.ts";
@@ -25,6 +26,7 @@ export * from "./business.ts";
 export * from "./roster.ts";
 export * from "./dispatch-board.ts";
 export * from "./scheduling-gaps.ts";
+export * from "./stripe-setup.ts";
 export * from "./timing.ts";
 export * from "./growth.ts";
 export * from "./seo.ts";
