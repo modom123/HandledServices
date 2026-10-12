@@ -56,7 +56,7 @@ export default async function Texts({ searchParams }: { searchParams: Promise<{ 
       {(!smsConfigured() || error) && (
         <div className="card border-amber-300 bg-amber-50 text-sm">
           {error ? <p><b>Run supabase/setup/RUN_ONCE_LATEST_2026-10-12_1525.sql</b> in Supabase → SQL Editor to turn on the texts inbox ({error.message}).</p>
-            : <p><b>Texting isn&apos;t set up yet.</b> In Vercel set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM), redeploy, then in Twilio set the number&apos;s “A message comes in” webhook to <code>{siteUrl()}/api/webhooks/twilio</code> (HTTP POST).</p>}
+            : <p><b>Texting isn&apos;t set up yet.</b> In Vercel set TWILIO_ACCOUNT_SID (AC…), TWILIO_AUTH_TOKEN (needed to accept incoming texts; an API key TWILIO_API_KEY + TWILIO_API_SECRET also works for sending) and TWILIO_FROM (your number) or TWILIO_MESSAGING_SERVICE_SID, redeploy, then in Twilio set the number&apos;s “A message comes in” webhook to <code>{siteUrl()}/api/webhooks/twilio</code> (HTTP POST).</p>}
         </div>
       )}
       {!list.length ? <p className="card text-sm text-ink-soft">No texts yet. When a customer or pro texts the Handled number, it shows up here.</p> : (

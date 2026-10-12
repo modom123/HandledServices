@@ -39,6 +39,7 @@
  *           and its events, live/test keys matching, signing-secret format, pros ready for payouts, money for Monday's
  *           payouts, customer portal, 1099 tax forms.
  * UPDATED : 2026-10-12_0121 UTC — migration 63: ID numbers (RUN_ONCE_LATEST_2026-10-12_0121.sql covers 56–63).
+ * UPDATED : 2026-10-12_1540 UTC — Twilio check names what's missing (Account SID AC…, Auth Token or API key SK…, number / Messaging Service).
  * UPDATED : 2026-10-12_1525 UTC — migration 64: Handled Talent flat fee per hire (RUN_ONCE_LATEST_2026-10-12_1525.sql covers 56–64).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
  */
@@ -84,8 +85,19 @@ export async function readiness(): Promise<Check[]> {
   const signinMail = has("SUPABASE_SERVICE_ROLE_KEY") && (has("RESEND_API_KEY") || (has("SMTP_USER") && has("SMTP_PASSWORD")));
   add("Email", "Sign-in emails", signinMail ? true : "warn", signinMail ? "Handled sends the code + a link that works on any device" : "falling back to Supabase's email — links only work in the same browser, and the code shows only if the templates include it", "Set SUPABASE_SERVICE_ROLE_KEY and RESEND_API_KEY (or SMTP_USER + SMTP_PASSWORD) in Vercel; add https://YOUR-DOMAIN/auth/confirm to Supabase → Authentication → URL Configuration → Redirect URLs");
   add("Email", "Ops inbox", has("OPS_EMAIL") ? true : "warn", process.env.OPS_EMAIL ?? "missing", "Add OPS_EMAIL — receives critical alerts, new pro applications and the daily brief");
-  add("Text messages", "Twilio SMS", has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && (has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM")) ? true : "warn",
-    has("TWILIO_ACCOUNT_SID") ? "set" : "missing — customers and pros get push + email only", "Twilio → buy a number, register A2P 10DLC for business texting, then set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM)");
+  {
+    const acct = process.env.TWILIO_ACCOUNT_SID?.trim() ?? "";
+    const auth = has("TWILIO_AUTH_TOKEN") || (has("TWILIO_API_KEY") && has("TWILIO_API_SECRET"));
+    const sender = has("TWILIO_MESSAGING_SERVICE_SID") || has("TWILIO_FROM");
+    const keyLooksWrong = has("TWILIO_API_KEY") && !process.env.TWILIO_API_KEY!.trim().startsWith("SK");
+    const ok = acct.startsWith("AC") && auth && sender && !keyLooksWrong;
+    const missing = [!acct ? "TWILIO_ACCOUNT_SID" : !acct.startsWith("AC") ? "TWILIO_ACCOUNT_SID must start with AC (the Account SID, not an API key)" : null,
+      !auth ? "TWILIO_AUTH_TOKEN (or TWILIO_API_KEY + TWILIO_API_SECRET)" : null, keyLooksWrong ? "TWILIO_API_KEY must start with SK" : null,
+      !sender ? "TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM" : null].filter(Boolean);
+    add("Text messages", "Twilio SMS", ok ? true : "warn", ok ? `set${has("TWILIO_API_KEY") ? " (API key)" : ""}` : `missing: ${missing.join("; ")} — customers and pros get push + email only`,
+      "Twilio Console → Account info: Account SID (AC…) into TWILIO_ACCOUNT_SID; Auth Token into TWILIO_AUTH_TOKEN (or an API key: SK… into TWILIO_API_KEY, its secret into TWILIO_API_SECRET); your number (+1…) into TWILIO_FROM or a Messaging Service SID (MG…) into TWILIO_MESSAGING_SERVICE_SID; register A2P 10DLC");
+    if (ok && !has("TWILIO_AUTH_TOKEN")) add("Text messages", "Incoming texts verified", "warn", "TWILIO_AUTH_TOKEN not set — texts sent to your number are refused (Twilio signs them with the Auth Token, not the API key)", "Twilio Console → Account info → Auth Token: copy it into TWILIO_AUTH_TOKEN");
+  }
   const dispatchCron = process.env.DISPATCH_CRON === "github" ? "GitHub Actions" : process.env.VERCEL_PLAN === "pro" ? "Vercel Pro" : "";
   add("Website & Vercel", "10-minute dispatch cron", dispatchCron ? true : "warn", dispatchCron || "not confirmed — without it, unanswered offers wait for the daily sweep", "In GitHub → Settings → Secrets and variables → Actions, add secret CRON_SECRET (same as Vercel) and variable HANDLED_URL, then set DISPATCH_CRON=github in Vercel");
   add("Mobile app", "Apple Pay / Google Pay in the app", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? true : "warn", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? "publishable key set" : "missing — the app falls back to the Stripe Checkout page", "Stripe → Developers → API keys → copy the publishable key into STRIPE_PUBLISHABLE_KEY; add the payment_intent.succeeded event to the webhook")
