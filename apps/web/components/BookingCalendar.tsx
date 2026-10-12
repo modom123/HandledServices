@@ -11,6 +11,8 @@
  * UPDATED : 2026-10-04_1934 UTC — "coming soon" + waitlist when the service isn't open yet in the customer's city.
  * UPDATED : 2026-10-07_1700 UTC — outside Michigan and Washington: says so, with the waitlist.
  * UPDATED : 2026-10-07_1610 UTC — no pros in the ZIP yet → waitlist only (booking would take payment with nobody to send).
+ * UPDATED : 2026-10-12_0032 UTC — no pros in the ZIP yet: bookable when the Hub switch is on (openBooking) — the customer
+ *           picks a time and we line up a pro; waitlist only when the switch is off.
  */
 "use client";
 
@@ -18,7 +20,7 @@ import { useEffect, useState } from "react";
 import { WaitlistForm } from "./WaitlistForm";
 import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, t as tr, type DaySlots, type Locale, type TimeWindow } from "@handled/core";
 
-type Avail = { mode: "live" | "request" | "closed"; pros: number; days: DaySlots[]; market?: string | null };
+type Avail = { mode: "live" | "request" | "closed"; pros: number; days: DaySlots[]; market?: string | null; openBooking?: boolean };
 const WEEKDAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], es: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] };
 const ES: Record<string, string> = {
   "Enter your ZIP code to see open dates and times.": "Ingrese su código postal para ver fechas y horarios disponibles.", "Checking pro availability…": "Revisando disponibilidad…",
@@ -69,7 +71,7 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
     </div>
   );
   // no vetted pro covers this ZIP yet: no booking (and no payment) until one does — waitlist instead
-  if (data.mode === "request") return (
+  if (data.mode === "request" && data.openBooking === false) return (
     <div className="space-y-3">
       <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? `Todavía no tenemos profesionales para este servicio en ${zip}. Déjenos su correo y le avisamos en cuanto haya uno: no se le cobra nada hasta entonces.` : `We don’t have a pro for this service in ${zip} yet. Leave your email and we’ll tell you as soon as one is available — nothing is charged until then.`}</p>
       <WaitlistForm service={service} zip={zip} locale={locale} />
@@ -79,6 +81,7 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
   const day = data.days.find((x) => x.date === date);
   return (
     <div className="space-y-4">
+      {data.mode === "request" && <p className="rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{locale === "es" ? "Estamos sumando profesionales en su zona. Elija el día y la hora: le confirmamos su profesional antes de la visita y, si no podemos atenderlo, le devolvemos todo." : "We're adding pros in your area. Pick a day and time — we'll confirm your pro before the visit, and if we can't make it, you get a full refund."}</p>}
       {data.mode === "live" && !data.days.some((x) => !x.closed && x.level !== "full") && <p className="rounded-xl bg-amber-50 p-3 text-sm">{locale === "es" ? "No hay horarios disponibles antes de su fecha. Elija una opción más adelante en “¿Para cuándo lo necesita?”, o llámenos y trataremos de acomodarlo." : "No open slots before your date. Choose a later “When do you need it?” option, or call us and we’ll try to fit you in."}</p>}
       <div>
         <div className="grid grid-cols-7 gap-1 text-center text-[13px] font-semibold uppercase tracking-wide text-ink-soft">{WEEKDAYS[locale === "es" ? "es" : "en"].map((w) => <div key={w}>{w}</div>)}</div>

@@ -32,6 +32,7 @@
  * UPDATED : 2026-10-11_0451 UTC — dispatchers don't see the admin-only pages (Money, Market pricing, Website look, Go-live setup);
  *           those pages show "Admins only" (components/AdminOnly) and their APIs refuse dispatchers.
  * UPDATED : 2026-10-11_2242 UTC — 🧭 Dispatch (Operations) and 💳 Payments (Money; dispatchers see it too).
+ * UPDATED : 2026-10-12_0005 UTC — 💬 Texts (two-way texting) and 🗓️ Schedule (drag-and-drop) in Operations.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -47,6 +48,8 @@ const NAV: HubGroup[] = [
   { id: "ops", label: "Operations", links: [
     ["/hub", "📊", "Dashboard"],
     ["/hub/dispatch", "🧭", "Dispatch"],
+    ["/hub/schedule", "🗓️", "Schedule (drag & drop)"],
+    ["/hub/texts", "💬", "Texts"],
     ["/hub/jobs", "🗂️", "Jobs board"],
     ["/hub/roster", "📍", "Live roster"],
     ["/hub/coverage", "🛟", "Cancellations & coverage"],

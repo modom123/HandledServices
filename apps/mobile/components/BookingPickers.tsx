@@ -6,6 +6,8 @@
  *           days and arrival windows for the ZIP) and a typed number box. English / Spanish.
  * UPDATED : 2026-10-04_1934 UTC — service not open yet in the city (launch set) → "coming soon" + waitlist.
  * UPDATED : 2026-10-02_2255 UTC — no pros in the ZIP yet → waitlist sign-up (we tell them when it opens).
+ * UPDATED : 2026-10-12_0032 UTC — no pros in the ZIP yet: bookable when the Hub switch is on (openBooking); the waitlist
+ *           shows only when it's off.
  */
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -31,10 +33,10 @@ export function NumberBox({ value, min, max, unit, onChange }: { value: number; 
 export function Calendar({ service, zip, date, win, onChange, today = false, until, earliest = false }: { service: string; zip: string; date: string; win: TimeWindow; onChange: (d: string, w: TimeWindow) => void; today?: boolean; until?: string; earliest?: boolean }) {
   const { t, locale } = useI18n();
   const dl = locale === "es" ? "es-US" : "en-US";
-  const [data, setData] = useState<{ mode: string; days: DaySlots[]; market?: string | null } | null>(null);
+  const [data, setData] = useState<{ mode: string; days: DaySlots[]; market?: string | null; openBooking?: boolean } | null>(null);
   useEffect(() => {
     if (!/^\d{5}$/.test(zip)) return setData(null);
-    api<{ mode: string; days: DaySlots[]; market?: string | null }>(`/api/availability?service=${service}&zip=${zip}${today ? "&today=1" : ""}`).then((r) => {
+    api<{ mode: string; days: DaySlots[]; market?: string | null; openBooking?: boolean }>(`/api/availability?service=${service}&zip=${zip}${today ? "&today=1" : ""}`).then((r) => {
       if (!r.ok) return;
       const days = until ? r.data.days.filter((d) => d.date <= until) : r.data.days;
       setData({ ...r.data, days });
@@ -57,7 +59,7 @@ export function Calendar({ service, zip, date, win, onChange, today = false, unt
   return (
     <View style={{ marginBottom: 12 }}>
       {data.mode === "request" && <Text style={[s.p, { marginBottom: 8 }]}>{t("We're adding pros in your area — pick a time and we'll confirm within one business day.")}</Text>}
-      {data.mode === "request" && <Waitlist service={service} zip={zip} />}
+      {data.mode === "request" && data.openBooking === false && <Waitlist service={service} zip={zip} />}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
         {data.days.map((d) => {
           const dt = new Date(`${d.date}T12:00:00`);

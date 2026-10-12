@@ -6,6 +6,7 @@
  *           Mirrors the enums in supabase/migrations/20261001172300_init.sql.
  * UPDATED : 2026-10-05_1433 UTC — security category.
  * UPDATED : 2026-10-11_0608 UTC — CategoryId "business" (Business & Technology).
+ * UPDATED : 2026-10-12_0005 UTC — Contractor.zips_only (only offer jobs in the pro's ZIP list).
  */
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";
@@ -201,6 +202,8 @@ export interface Contractor {
   base_lng?: number | null;
   /** Furthest a pro will drive from base, miles. */
   service_radius_mi?: number | null;
+  /** Only offer jobs in service_zips (the pro's own ZIP list), whatever the distance. */
+  zips_only?: boolean | null;
   /** Weekdays (0 = Sun … 6 = Sat) and arrival windows the pro works. Null = any. */
   availability?: { days: number[]; windows: string[] } | null;
   /** Dates (YYYY-MM-DD) the pro is off. */

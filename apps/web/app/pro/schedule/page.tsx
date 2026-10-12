@@ -6,6 +6,7 @@
  *           and days off (take a day off or reopen it in one tap). Customers can only book you
  *           on days you're open, so keeping this current is how future work finds you.
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
+ * UPDATED : 2026-10-12_0005 UTC — 📅 sync jobs to Google / Apple / Outlook Calendar (secret feed link, regenerate).
  */
 import Link from "next/link";
 import { TIME_WINDOW_LABEL, getService, t as tr } from "@handled/core";
@@ -13,6 +14,8 @@ import { getLocale } from "@/lib/locale";
 import { getViewer } from "@/lib/auth";
 import { proSchedule } from "@/lib/roster";
 import { DayOffButton, OnCallToggle } from "@/components/Roster";
+import { CalendarSync } from "@/components/CalendarSync";
+import { calendarLinks } from "@/lib/pro-calendar";
 
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WD_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -23,7 +26,7 @@ export default async function ProSchedule() {
   const l = await getLocale();
   const es = l === "es";
   const t = (x: string) => tr(l, x);
-  const s = await proSchedule(v.contractorId, 35);
+  const [s, links] = await Promise.all([proSchedule(v.contractorId, 35), calendarLinks(v.contractorId).catch(() => null)]);
   if (!s) return null;
   const booked = s.days.reduce((sum, d) => sum + d.jobs.length, 0);
   const openDays = s.days.filter((d) => !d.off).length;
@@ -62,6 +65,7 @@ export default async function ProSchedule() {
         })}
       </div>
       <p className="text-xs text-ink-soft">{t("Green: you have work. Amber: full for the day. Grey: off. Days you don’t usually work are set in Setup → Work area & hours. Need to drop a booked job? Message support from the job.")}</p>
+      <CalendarSync initial={links} es={es} />
     </div>
   );
 }

@@ -40,6 +40,7 @@
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
  * UPDATED : 2026-10-07_1830 UTC — area pricing: the ZIP's service-area price level (regionFactor) goes into the price and the AI quote.
  * UPDATED : 2026-10-07_1900 UTC — pro offer texts show the expiry in the job's time zone (PT for Washington, ET for Michigan).
+ * UPDATED : 2026-10-12_0005 UTC — saved home profiles: home_id / access_info / save_home on bookings (entry details only for the assigned pro).
  * UPDATED : 2026-10-11_0608 UTC — remote services: no area price level, the booked ZIP isn't added to a service area, and the free site visit is a video consultation (customer email + pro offer wording).
  */
 import "server-only";
@@ -47,6 +48,7 @@ import { z } from "zod";
 import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
+  type HomeProfile,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
@@ -102,6 +104,12 @@ export const BookingSchema = z.object({
   preferred_pro_id: z.string().uuid().nullable().optional(),
   /** A crew member of that pro company — a request to the owner, who decides who goes. */
   requested_crew_member_id: z.string().uuid().nullable().optional(),
+  /** One of the signed-in customer's saved homes (My homes): its address, and entry details for the assigned pro only. */
+  home_id: z.string().uuid().nullable().optional(),
+  /** Entry details typed at booking (lockbox code, key, gate) — only the assigned pro sees them, never job offers. */
+  access_info: z.string().max(1000).nullable().optional(),
+  /** Save this address (and the entry details) to My homes. Signed-in customers only. */
+  save_home: z.boolean().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -129,7 +137,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, preferred_pro_id, requested_crew_member_id, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
   const { applyMeasurements, missingMeasurements } = await import("@handled/core");
@@ -142,6 +150,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     Object.assign(input, { address: biz.property.address, city: biz.property.city, state: biz.property.state, zip: biz.property.zip, customer_type: "commercial", company_name: biz.account.company, source: "business" });
     if (biz.property.access_notes) input.notes = [input.notes, `Access (${biz.property.name}): ${biz.property.access_notes}`].filter(Boolean).join("\n");
   }
+  // saved home (My homes): its address; pets / parking / preferences go in the notes (after pricing), entry details to access_info
+  const home = !biz ? await homeForBooking(customerId, home_id, access_info, save_home ? input : null) : null;
+  if (home?.address) Object.assign(input, home.address);
   // constraint-driven launch: only the city's launch services can be booked (others have a waitlist)
   const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
   if (!launch.open) throw new Error(launch.market
@@ -204,6 +215,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     .from("jobs")
     .insert({
       ...input,
+      notes: [input.notes, home?.notes].filter(Boolean).join("\n") || null,
+      // only sent when used, so bookings keep working before the saved-homes migration is run
+      ...(home?.id ? { home_id: home.id } : {}),
       customer_id: customerId,
       instructions,
       lat: loc?.lat ?? null,
@@ -239,6 +253,11 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     .single();
   if (error) throw new Error(error.message);
   let job = data as Job;
+  // entry details (lockbox, key) live in job_access: readable only by the assigned pro, the customer and staff
+  const access = home?.access ?? (access_info?.trim() || null);
+  if (access) await db().from("job_access").insert({ job_id: job.id, access_info: access.slice(0, 1500), updated_by: "booking" }).then(async ({ error: e }) => {
+    if (e) await raiseAlert("job_access", "warn", `Entry details for ${job.ref} not saved — run RUN_ONCE_LATEST_2026-10-12_0005.sql`, `Give these to the assigned pro by hand:\n${access}`, job.id);
+  });
   // the contracts accepted with this booking → the customer's "My contracts" (frozen copy of the text)
   await recordAcceptance(bookingContracts(job.service_slug, input.customer_type === "commercial"), {
     profileId: customerId, email: job.contact_email, signerName: job.contact_name, jobId: job.id, method: "booking", ip, locale: input.locale,
@@ -877,6 +896,28 @@ export async function sendDayBeforeReminders() {
     sent++;
   }
   return sent;
+}
+
+/**
+ * The saved home for a booking: only the signed-in customer's own (a wrong id is ignored). With `saveFrom`, the booking's
+ * address and typed entry details are saved as a new home first. Returns the address to book at, the notes every pro may
+ * see (pets, parking, preferences) and the entry details only the assigned pro sees.
+ */
+async function homeForBooking(customerId: string | null, homeId: string | null | undefined, typed: string | null | undefined, saveFrom: { address: string; city: string; state: string; zip: string } | null) {
+  if (!customerId) return null;
+  const { cleanHome, homeAccessText, homeNotesText } = await import("@handled/core");
+  let h: (HomeProfile & { id: string }) | null = null;
+  if (homeId) {
+    const { data } = await db().from("customer_homes").select("*").eq("id", homeId).eq("customer_id", customerId).maybeSingle();
+    h = data as (HomeProfile & { id: string }) | null;
+  } else if (saveFrom) {
+    const row = cleanHome({ ...saveFrom, label: "Home", entry_instructions: typed ?? null });
+    const { data } = await db().from("customer_homes").insert({ ...row, customer_id: customerId }).select("*").maybeSingle();
+    return data ? { id: (data as { id: string }).id, address: null, notes: null, access: typed?.trim() || null } : null;
+  }
+  if (!h) return null;
+  const access = [homeAccessText(h), typed?.trim() ? `This visit: ${typed.trim()}` : null].filter(Boolean).join("\n") || null;
+  return { id: h.id, address: { address: h.address, city: h.city, state: h.state, zip: h.zip }, notes: homeNotesText(h), access };
 }
 
 export async function raiseAlert(kind: string, severity: "info" | "warn" | "critical", title: string, body: string | null, jobId?: string | null) {

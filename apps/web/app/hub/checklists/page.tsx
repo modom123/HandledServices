@@ -41,7 +41,7 @@ export default async function HubChecklists({ searchParams }: { searchParams: Pr
         <div><h1 className="text-2xl font-bold">Checklists</h1><p className="text-sm text-ink-soft">Pick a checklist, then attach it to a job or email it to a pro. Every job still gets its service's checklist automatically — use this to swap in a different or custom one.</p></div>
         <div className="flex gap-2"><Link href="/hub/checklists?new=1" className="btn-primary">+ New checklist</Link></div>
       </div>
-      {!savedReady && <p className="rounded-xl bg-amber-50 p-3 text-sm print:hidden">To save your own checklists, run <code>supabase/setup/RUN_ONCE_LATEST_2026-10-11_2250.sql</code> in Supabase → SQL Editor once.</p>}
+      {!savedReady && <p className="rounded-xl bg-amber-50 p-3 text-sm print:hidden">To save your own checklists, run <code>supabase/setup/RUN_ONCE_LATEST_2026-10-12_0005.sql</code> in Supabase → SQL Editor once.</p>}
 
       {q.new ? (
         <section className="space-y-2"><h2 className="font-bold">New checklist</h2><ChecklistEditor services={services} /></section>

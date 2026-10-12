@@ -12,6 +12,7 @@
  *           offers, timeline, messages and every manual override.
  * UPDATED : 2026-10-11_2250 UTC — checklist box: use a different checklist (saved or built-in) or email it to a pro.
  * UPDATED : 2026-10-11_2242 UTC — "Notifications sent": every text, email and push about this job (notification log).
+ * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, editable), saved home link, and text the customer / pro from here.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -27,6 +28,8 @@ import { checklistState, checklistOptions } from "@/lib/checklists";
 import { ChecklistView, StaffInstructions } from "@/components/Checklist";
 import { JobChecklistTools } from "@/components/ChecklistManager";
 import { adminClient } from "@/lib/supabase/server";
+import { JobAccessEditor } from "@/components/JobAccessEditor";
+import { TextReply } from "@/components/TextsInbox";
 
 type AnyRec = Record<string, unknown>;
 
@@ -39,6 +42,11 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   const job = data as Job & { completion_photos: string[] };
   const s = getService(job.service_slug)!;
   const noticeRes = await adminClient().from("notification_log").select("id, channel, recipient, subject, preview, status, error, created_at").or(`job_ref.eq.${job.ref},job_id.eq.${job.id}`).order("created_at", { ascending: false }).limit(60);
+  const [{ data: entry }, { data: proContact }, { data: homeRow }] = await Promise.all([
+    adminClient().from("job_access").select("access_info, updated_by").eq("job_id", job.id).maybeSingle(),
+    job.contractor_id ? adminClient().from("contractors").select("business_name, phone").eq("id", job.contractor_id).maybeSingle() : Promise.resolve({ data: null }),
+    (job as { home_id?: string | null }).home_id ? adminClient().from("customer_homes").select("label").eq("id", (job as { home_id?: string | null }).home_id!).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
   const notices = noticeRes.error ? null : (noticeRes.data ?? []) as { id: string; channel: string; recipient: string; subject: string | null; preview: string | null; status: string; error: string | null; created_at: string }[];
   const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after, { data: expenses }] = await Promise.all([
     v.db.from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
@@ -138,6 +146,15 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           </>
         )}
         {job.contractor_id && ["assigned", "scheduled", "dispatched"].includes(job.status) && <NoShowButton jobId={job.id} />}
+        <div className="card space-y-2"><div className="font-semibold">🔒 Entry & keys {homeRow && <span className="text-xs font-normal text-ink-soft">· saved home “{(homeRow as { label: string }).label}”</span>}</div>
+          <JobAccessEditor jobId={job.id} initial={(entry as { access_info: string } | null)?.access_info ?? null} />
+          <p className="text-xs text-ink-soft">Shown only to the assigned pro while the job is assigned or in progress — never on offers.</p></div>
+        {(job.contact_phone || (proContact as { phone: string | null } | null)?.phone) && (
+          <div className="card space-y-2"><div className="font-semibold">💬 Text</div>
+            {job.contact_phone && <div><div className="text-xs text-ink-soft">Customer · {job.contact_name}</div><TextReply compact to={job.contact_phone} jobId={job.id} /></div>}
+            {(proContact as { phone: string | null } | null)?.phone && <div><div className="text-xs text-ink-soft">Pro · {(proContact as { business_name: string }).business_name}</div><TextReply compact to={(proContact as { phone: string }).phone} jobId={job.id} /></div>}
+            <p className="text-xs text-ink-soft">Texts are added to the messages below. Replies land in <Link className="underline" href="/hub/texts">Hub → Texts</Link>.</p></div>
+        )}
         <JobAdmin job={{ id: job.id, status: job.status, price_final: job.price_final, scheduled_date: job.scheduled_date, contractor_id: job.contractor_id, instructions: job.instructions }} pros={qualified} />
         <div className="card"><div className="font-semibold">Timeline</div>
           <ol className="mt-3 space-y-3 text-sm">{(events ?? []).map((e: AnyRec) => <li key={String(e.id)}><span className="text-xs text-ink-soft">{new Date(String(e.created_at)).toLocaleString()} · {String(e.actor)}</span><div>{String(e.message)}{!e.visible_to_customer && <span className="ml-1 text-xs text-ink-soft">(internal)</span>}</div></li>)}</ol></div>

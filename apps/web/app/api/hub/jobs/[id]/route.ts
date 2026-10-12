@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Staff: edit a job — status, firm price after site visit, date, assign a pro directly, approve QA.
  * UPDATED : 2026-10-11_2242 UTC — marking a job paid by hand is admins only (dispatchers can still send payment links and charge a saved card).
+ * UPDATED : 2026-10-12_0005 UTC — access_info: set or clear the job's entry details (job_access; assigned pro only).
  */
 import { z } from "zod";
 import { JOB_STATUSES, splitJob } from "@handled/core";
@@ -27,6 +28,7 @@ const Patch = z.object({
   charge_balance: z.boolean().optional(),
   note: z.string().max(2000).optional(),
   instructions: z.string().max(4000).nullable().optional(),
+  access_info: z.string().max(1500).nullable().optional(),
   cancel: z.object({ reason: z.enum(["customer", "late", "lockout", "ops", "weather", "pro"]), note: z.string().max(500).optional() }).optional(),
 });
 
@@ -36,12 +38,19 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return deny(400, "Invalid update");
-  const { approve_qa, note, mark_paid, send_payment_link, charge_balance, cancel, ...patch } = parsed.data;
+  const { approve_qa, note, mark_paid, send_payment_link, charge_balance, cancel, access_info, ...patch } = parsed.data;
   const db = adminClient();
   const { data: job } = await db.from("jobs").select("*").eq("id", id).single();
   if (!job) return deny(404, "Not found");
 
   const who = v!.fullName ?? v!.email;
+  if (access_info !== undefined) {
+    const text = access_info?.trim() || null;
+    const { error } = text ? await db.from("job_access").upsert({ job_id: id, access_info: text, updated_by: who, updated_at: new Date().toISOString() }) : await db.from("job_access").delete().eq("job_id", id);
+    if (error) return deny(500, /job_access/.test(error.message) ? "Run supabase/setup/RUN_ONCE_LATEST_2026-10-12_0005.sql in Supabase first" : error.message);
+    await addEvent(id, "human_touch", text ? "Entry details updated" : "Entry details removed", who, false);
+    if (!Object.keys(patch).length && !note) return Response.json({ ok: true });
+  }
   if (cancel || patch.status === "cancelled") {
     const r = await cancelJob(id, cancel?.reason ?? "ops", who, cancel?.note ?? note ?? "");
     return r.ok ? Response.json(r) : Response.json({ error: r.error }, { status: 409 });

@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-04_2204 UTC — "The customer asked for …" (crew member request) and "the customer favorited you".
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  * UPDATED : 2026-10-07_1900 UTC — "On my way" shows on the job's own local day (Pacific in Washington).
+ * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, from the customer's saved home) while the job is assigned / in progress.
  */
 import { notFound } from "next/navigation";
 import { TIME_WINDOW_LABEL, buildWorkOrder, getService, jobTimeZone, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
@@ -44,13 +45,16 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
   if (!data) notFound();
   const job = data as Job;
   const s = getService(job.service_slug)!;
-  const [photos, { data: msgs }, { data: me }, { data: expenses }, policy] = await Promise.all([
+  const [photos, { data: msgs }, { data: me }, { data: expenses }, policy, { data: entry }] = await Promise.all([
     signedUrls(job.photos),
     v.db.from("messages").select("id, sender_role, body, created_at").eq("job_id", id).order("created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
     v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
     getPolicy(),
+    // RLS: readable only while this pro is assigned and the job is assigned / in progress
+    v.db.from("job_access").select("access_info").eq("job_id", id).maybeSingle(),
   ]);
+  const accessInfo = ["assigned", "in_progress"].includes(job.status) ? (entry as { access_info: string } | null)?.access_info ?? null : null;
   const crew = ["assigned", "in_progress"].includes(job.status) ? await listCrew(v.contractorId!) : [];
   const asked = await crewRequest(job, v.contractorId);
   if (!job.checklist) job.checklist = await freezeChecklist(job);
@@ -85,8 +89,9 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
           {photos.length > 0 && <div className="mt-3 grid grid-cols-4 gap-2">{photos.map((u) => <a key={u} href={u} target="_blank"><img src={u} alt={t("Customer photo")} className="aspect-square rounded-lg object-cover" /></a>)}</div>}
         </div>
         {job.instructions && <p className="card bg-brand-tint text-sm text-brand-dark"><b>{t("Instructions:")}</b> {job.instructions}</p>}
+        {accessInfo && <div className="card border-amber-300 bg-amber-50 text-sm"><b>🔒 {es ? "Entrada y llaves" : "Entry & keys"}</b><p className="mt-1 whitespace-pre-wrap">{accessInfo}</p><p className="mt-1 text-xs text-ink-soft">{es ? "Solo para usted mientras tenga este trabajo. No lo comparta ni lo anote fuera de la app." : "For you only while this job is yours. Don't share it or write it down outside the app."}</p></div>}
         <ChecklistPanel jobId={job.id} checklist={cl.checklist} checks={cl.checks} es={es} locked={!["assigned", "in_progress"].includes(job.status)} />
-        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder(job, { reveal: true, locale: l })} /></div></details>
+        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder({ ...job, access_info: accessInfo }, { reveal: true, locale: l })} /></div></details>
         <JobThread jobId={job.id} userId={v.userId} as="pro" initial={msgs ?? []} locale={l} />
       </div>
       <div className="space-y-4">

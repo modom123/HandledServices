@@ -17,6 +17,7 @@
  *           is used as-is, so dispatch never stops.
  * UPDATED : 2026-10-07_1900 UTC — same-day checks use the job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
+ * UPDATED : 2026-10-12_0005 UTC — pro ZIP list: "only these ZIP codes" (zips_only), or listed ZIPs count even past the driving radius.
  */
 
 import { getService } from "./services.ts";
@@ -94,6 +95,19 @@ export function offDuty(c: Contractor, date: string | null | undefined, window?:
   return null;
 }
 
+/** Is a ZIP in a pro's list? Entries are 5-digit ZIPs or 3-digit areas written "481*". */
+export function zipCovered(list: string[] | null | undefined, zip: string | null | undefined): boolean {
+  if (!zip || !list?.length) return false;
+  return list.includes(zip) || list.includes(`${zip.slice(0, 3)}*`);
+}
+
+/** Parse what a pro typed ("48201, 48226 481*, 482") into a clean ZIP list (max 200). */
+export function parseZipList(text: string | null | undefined): string[] {
+  const out = (text ?? "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)
+    .map((x) => (/^\d{5}$/.test(x) ? x : /^\d{3}\*?$/.test(x) ? `${x.slice(0, 3)}*` : null)).filter(Boolean) as string[];
+  return [...new Set(out)].slice(0, 200);
+}
+
 export function eligible(c: Contractor, job: DispatchJob, today = new Date()): string | null {
   const svc = getService(job.service_slug);
   if (c.status !== "approved") return "not approved";
@@ -104,9 +118,13 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   const base = svc?.remote ? null : proDistance(c, job);
   const live = svc?.remote ? null : liveDistance(c, job, today);
   const miles = base != null && live != null ? Math.min(base, live) : base ?? live;
-  if (svc?.remote) { /* any location */ } else if (miles != null) {
-    if (miles > (c.service_radius_mi ?? 25)) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
-  } else if (c.service_zips.length && !c.service_zips.includes(job.zip) && !c.service_zips.includes(job.zip.slice(0, 3) + "*"))
+  // the pro's ZIP list: with "only these ZIP codes" it is the whole area; otherwise listed ZIPs count even past the radius
+  const listed = zipCovered(c.service_zips, job.zip);
+  if (svc?.remote) { /* any location */ } else if (c.zips_only && c.service_zips.length) {
+    if (!listed) return "outside the pro's ZIP codes";
+  } else if (miles != null) {
+    if (miles > (c.service_radius_mi ?? 25) && !listed) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
+  } else if (c.service_zips.length && !listed)
     return "outside service area";
   if (!c.insured_until || new Date(c.insured_until) < today) return "insurance expired";
   if (!c.background_checked) return "background check pending";
