@@ -6,12 +6,16 @@
  *           backups (#1–#3), offers out, payment state and when we last contacted anyone about it; jobs that need a
  *           dispatcher (no pro inside 6 hours, unpaid, no backups, pro running late) are pulled to the top. Each row has
  *           one-click actions (components/DispatchActions). Staff (admins and dispatchers).
+ * UPDATED : 2026-10-12_0032 UTC — switch: "Take bookings where no pro covers the area yet" (admins change it).
  */
 import Link from "next/link";
 import { TIME_WINDOW_LABEL, dispatchFlags, getService, localDate, money, paymentState, type BoardJobInput, type TimeWindow } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Badge, fmtDate } from "@/components/ui";
 import { DispatchActions } from "@/components/DispatchActions";
+import { BookingSwitch } from "@/components/BookingSwitch";
+import { bookingWithoutPro } from "@/lib/booking-settings";
+import { getViewer, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dispatch" };
@@ -95,12 +99,17 @@ export default async function Dispatch({ searchParams }: { searchParams: Promise
     </table></div>
   );
 
+  const [viewer, openArea, { data: noProAlerts }] = await Promise.all([
+    getViewer(), bookingWithoutPro(),
+    db.from("ops_alerts").select("job_id, jobs!inner(status, contractor_id)").eq("kind", "no_pro_area").eq("resolved", false).is("jobs.contractor_id", null).not("jobs.status", "in", "(cancelled,completed)").limit(200),
+  ]);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-2xl font-bold">Dispatch</h1><p className="text-sm text-ink-soft">Every job, its pro, backups, offers and payment — and what needs you now. Offers expire and move on by themselves every 10 minutes; use the buttons to step in.</p></div>
         <div className="flex gap-1">{TABS.map(([k, label]) => <Link key={k} href={`?tab=${k}`} className={`rounded-full border px-3 py-1 text-sm ${tab === k ? "border-brand bg-brand text-white" : "border-line"}`}>{label}</Link>)}</div>
       </div>
+      <BookingSwitch on={openArea} canChange={isAdmin(viewer)} waiting={new Set(((noProAlerts ?? []) as { job_id: string }[]).map((a) => a.job_id)).size} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {[["Jobs", rows.filter((r) => r.j.scheduled_date && r.j.scheduled_date >= from && r.j.scheduled_date <= to).length, "slate"], ["No pro inside 6h", count("no_pro_soon"), "red"], ["No pro yet", count("no_pro"), "amber"], ["Unpaid / balance due", count("unpaid") + count("balance"), "amber"], ["No backups", count("no_backups"), "amber"]].map(([label, n, tone]) => (
           <div key={label as string} className={`card ${Number(n) && tone === "red" ? "border-rose-300 bg-rose-50" : ""}`}><div className="text-xs text-ink-soft">{label}</div><div className="text-2xl font-bold">{n}</div></div>
