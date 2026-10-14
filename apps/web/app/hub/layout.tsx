@@ -15,7 +15,7 @@
  * UPDATED : 2026-10-05_0221 UTC — Checklists (library) in the nav.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards in the nav.
  * UPDATED : 2026-10-05_0434 UTC — Team (who has Hub access) in the nav; clearer "staff only" message.
- * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
+ * PURPOSE : Mastermind (Handled Hub) shell — staff only (role dispatcher or admin).
  * UPDATED : 2026-10-05_1441 UTC — 🏛️ Gov contracts (SAM.gov).
  * UPDATED : 2026-10-05_1954 UTC — 📝 Bids (bid engine).
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (Handled Talent recruiting agency).
@@ -34,6 +34,8 @@
  * UPDATED : 2026-10-11_2242 UTC — 🧭 Dispatch (Operations) and 💳 Payments (Money; dispatchers see it too).
  * UPDATED : 2026-10-12_0121 UTC — "Find by ID" box (H-, C-, B-, P-, S-) and the signed-in staff member's S- number.
  * UPDATED : 2026-10-12_0005 UTC — 💬 Texts (two-way texting) and 🗓️ Schedule (drag-and-drop) in Operations.
+ * UPDATED : 2026-10-14_2330 UTC — renamed "Mastermind" (the Handled hub; IEBC's hub is separate). ☀️ Daily Briefing is its own
+ *           page; 📊 Dashboard is stats and insights with drill-down history (/hub/stats/[metric]).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -44,10 +46,11 @@ import { NotConfigured } from "@/components/ui";
 import { HubNav, type HubGroup } from "@/components/HubNav";
 import { adminClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Handled Hub" };
+export const metadata = { title: { default: "Mastermind", template: "%s · Mastermind" } };
 
 const NAV: HubGroup[] = [
   { id: "ops", label: "Operations", links: [
+    ["/hub/briefing", "☀️", "Daily Briefing"],
     ["/hub", "📊", "Dashboard"],
     ["/hub/dispatch", "🧭", "Dispatch"],
     ["/hub/schedule", "🗓️", "Schedule (drag & drop)"],
@@ -129,7 +132,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
-        <Link href="/home" className="flex items-center gap-2 px-2">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/handled-lockup-light.png" alt={BRAND.name} width={891} height={240} className="h-8 w-auto" /> <span className="text-xs font-normal text-white/50">Hub</span></Link>
+        <Link href="/home" className="flex items-center gap-2 px-2">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/handled-lockup-light.png" alt={BRAND.name} width={891} height={240} className="h-8 w-auto" /> <span className="text-xs font-normal text-white/50">Mastermind</span></Link>
         <form action="/hub/find" className="mt-4 px-1"><input name="q" aria-label="Find by ID" placeholder="Find ID: H-, C-, B-, P-, S-" className="w-full rounded-lg border-0 bg-white/10 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:bg-white/20 focus:outline-none" /></form>
         <HubNav groups={navFor(isAdmin(v))} />
         <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}{staffNo ? ` · ${staffNo}` : ""}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
