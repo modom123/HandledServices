@@ -2,13 +2,11 @@
  * FILE    : apps/web/lib/dashboard.ts
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-14_2330 UTC
- * UPDATED : 2026-10-15_0010 UTC — roster metric (every pro on file) for the Pros & recruiting tiles.
  * PURPOSE : Shared pieces for the Mastermind Dashboard (app/hub/page.tsx) and its drill-down history pages
  *           (app/hub/stats/[metric]/page.tsx): the metric list, date ranges and small math helpers.
  */
 
 export const METRICS = {
-  roster: { title: "Pro roster", icon: "🧰", blurb: "Every pro on file — status, trades, rating, jobs done, background check and insurance. Active pros first." },
   revenue: { title: "Revenue & take", icon: "💵", blurb: "Completed jobs — what the customer paid, what the pro earned and what we kept." },
   payments: { title: "Payments", icon: "💳", blurb: "Every card payment, deposit and refund recorded against a job." },
   payouts: { title: "Pro payouts", icon: "🧰", blurb: "Money sent (or waiting to be sent) to pros." },
@@ -20,7 +18,7 @@ export const METRICS = {
 } as const;
 export type MetricKey = keyof typeof METRICS;
 /** Metrics that show the current state rather than a period (no date filter). */
-export const LIVE_METRICS: readonly MetricKey[] = ["open", "roster"];
+export const LIVE_METRICS: readonly MetricKey[] = ["open"];
 export const isMetric = (k: string): k is MetricKey => k in METRICS;
 
 export const RANGES = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days", ytd: "Year to date", all: "All time" } as const;

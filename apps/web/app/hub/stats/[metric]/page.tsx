@@ -5,11 +5,10 @@
  * PURPOSE : Mastermind → Dashboard drill-down. Each Dashboard tile opens here: totals for the chosen period
  *           (7 / 30 / 90 days, year to date, all time) and every past record behind the number, newest first,
  *           each linking to its job.
- * UPDATED : 2026-10-15_0010 UTC — Pro roster: every pro on file, active first, with insurance and background status.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TRADES, getService, money } from "@handled/core";
+import { getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty, fmtDate } from "@/components/ui";
 import { LIVE_METRICS, METRICS, RANGES, isMetric, isRange, rangeStart, sum, type MetricKey, type RangeKey } from "@/lib/dashboard";
@@ -23,7 +22,7 @@ type Tone = "slate" | "green" | "amber" | "red" | "brand";
 
 const jobLink = (j: { id: string; ref: string } | null | undefined) => (j ? <Link className="font-semibold text-brand underline" href={`/hub/jobs/${j.id}`}>{j.ref}</Link> : "—");
 const svc = (slug: string) => getService(slug)?.name ?? slug;
-const tone = (s: string): Tone => (["paid", "completed", "approved", "active"].includes(s) ? "green" : ["failed", "rejected", "cancelled"].includes(s) ? "red" : ["pending", "held", "new", "refunded"].includes(s) ? "amber" : "slate");
+const tone = (s: string): Tone => (["paid", "completed", "approved"].includes(s) ? "green" : ["failed", "rejected", "cancelled"].includes(s) ? "red" : ["pending", "held", "new", "refunded"].includes(s) ? "amber" : "slate");
 const badge = (s: string | null | undefined) => (s ? <Badge tone={tone(s)}>{s.replace(/_/g, " ")}</Badge> : "—");
 
 type Db = NonNullable<Awaited<ReturnType<typeof getViewer>>>["db"];
@@ -31,21 +30,6 @@ type Db = NonNullable<Awaited<ReturnType<typeof getViewer>>>["db"];
 async function load(db: Db, m: MetricKey, since: string | null): Promise<Result> {
   const gte = <Q extends { gte: (c: string, v: string) => Q }>(q: Q, col: string) => (since ? q.gte(col, since) : q);
   switch (m) {
-    case "roster": {
-      // Current state: every pro on file. Active first, then by rating.
-      const { data } = await db.from("contractors").select("id, business_name, contact_name, trades, status, rating, jobs_completed, background_status, background_checked, insured_until, created_at").order("rating", { ascending: false }).limit(LIMIT);
-      const order = ["approved", "vetting", "applied", "suspended"];
-      const r = (data ?? []).sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
-      const today = new Date().toISOString().slice(0, 10), in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-      const active = r.filter((c) => c.status === "approved");
-      const trade = (t: string) => TRADES.find((x) => x.id === t)?.label ?? t;
-      const ins = (d: string | null) => (!d ? "—" : d < today ? <span key="i" className="font-semibold text-rose-600">Expired {fmtDate(d)}</span> : d <= in30 ? <span key="i" className="font-semibold text-amber-700">{fmtDate(d)}</span> : fmtDate(d));
-      return {
-        totals: [["Active", String(active.length)], ["In setup", String(r.filter((c) => c.status === "vetting" || c.status === "applied").length)], ["Suspended", String(r.filter((c) => c.status === "suspended").length)], ["Avg rating", active.length ? `${(sum(active.map((c) => c.rating)) / active.length).toFixed(1)} ★` : "—"], ["Jobs done", String(sum(active.map((c) => c.jobs_completed)))], ["Insurance ≤ 30 days", String(active.filter((c) => c.insured_until && c.insured_until <= in30).length)]],
-        head: ["Pro", "Trades", "Status", "Rating", "Jobs done", "Background", "Insured until", "Joined"],
-        rows: r.map((c) => ({ key: c.id, cells: [<Link key="p" className="font-semibold text-brand underline" href={`/hub/pros/${c.id}`}>{c.business_name}</Link>, (c.trades ?? []).map(trade).join(", ") || "—", badge(c.status === "approved" ? "active" : c.status), `${Number(c.rating).toFixed(1)} ★`, String(c.jobs_completed), c.background_status ?? (c.background_checked ? "clear" : "—"), ins(c.insured_until), fmtDate(c.created_at)] })),
-      };
-    }
     case "revenue": {
       const { data } = await gte(db.from("jobs").select("id, ref, service_slug, contact_name, price_final, contractor_payout, completed_at").eq("status", "completed"), "completed_at").order("completed_at", { ascending: false }).limit(LIMIT);
       const r = data ?? [];

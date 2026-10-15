@@ -7,12 +7,14 @@
  * UPDATED : 2026-10-06_0748 UTC — Tier & progress column (current tier, what's left for the next one) and Pro Rewards
  *           points (available / pending) for every pro, so progress can be tracked at a glance.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) next to each pro.
+ * UPDATED : 2026-10-15_0100 UTC — "Pro roster" (Mastermind → Pros tab). The applications queue moved out — it duplicated
+ *           Recruiting, which reviews, interviews, invites and declines; this page links there with the count.
  */
+import Link from "next/link";
 import { TRADES, nextTierProgress, proTier, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/auth";
-import { Badge, Empty } from "@/components/ui";
-import { ApplicationButtons } from "@/components/HubActions";
+import { Badge } from "@/components/ui";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const tradeLabel = (id: string) => TRADES.find((t) => t.id === id)?.label ?? id;
@@ -21,35 +23,19 @@ export default async function Pros() {
   const v = await getViewer();
   if (!v) return null;
   const [{ data: apps }, { data: pros }] = await Promise.all([
-    v.db.from("contractor_applications").select("*").in("status", ["new", "reviewing"]).order("created_at", { ascending: false }),
+    v.db.from("contractor_applications").select("id").in("status", ["new", "reviewing"]).order("created_at", { ascending: false }),
     v.db.from("contractors").select("*").order("status").order("rating", { ascending: false }),
   ]);
   const { data: bals } = await adminClient().from("reward_balances").select("contractor_id, available, pending");
   const points = new Map(((bals ?? []) as Rec[]).map((b) => [b.contractor_id as string, b]));
   const soon = new Date(Date.now() + 30 * 86400000);
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 className="text-2xl font-bold">Pro roster</h1><p className="text-sm text-ink-soft">Every pro on file — performance, tier, points, insurance and status.</p></div>
+        <Link href="/hub/recruiting" className="btn-ghost">🧲 {(apps ?? []).length} application{(apps ?? []).length === 1 ? "" : "s"} to review in Recruiting →</Link>
+      </div>
       <section>
-        <h1 className="mb-4 text-2xl font-bold">Applications</h1>
-        {!(apps ?? []).length && <Empty>No new applications. Share /pros to recruit.</Empty>}
-        <div className="grid gap-3 lg:grid-cols-2">
-          {(apps ?? []).map((a: Rec) => (
-            <div key={a.id} className="card space-y-2 text-sm">
-              <div className="flex items-start justify-between gap-2"><div><div className="font-semibold">{a.business_name}</div><div className="text-ink-soft">{a.contact_name} · {a.email} · {a.phone}</div></div>
-                {a.ai_screen && <Badge tone={a.ai_screen.recommendation === "decline" ? "red" : a.ai_screen.recommendation === "interview" ? "amber" : "green"}>AI {a.ai_screen.score} · {a.ai_screen.recommendation.replaceAll("_", " ")}</Badge>}</div>
-              <div>{(a.trades as string[]).map(tradeLabel).join(", ")} · {a.years_experience ?? "?"} yrs · crew {a.crew_size ?? "?"} · {a.insured ? "insured" : "not insured"}</div>
-              {a.message && <p className="text-ink-soft">“{a.message}”</p>}
-              {(a.specialties?.length || a.coverages_held?.length || a.equipment) ? <div className="text-xs text-ink-soft">{a.specialties?.length ? `Specialties: ${(a.specialties as string[]).join(", ")}` : ""}{a.coverages_held?.length ? ` · Carries: ${(a.coverages_held as string[]).join(", ")}` : ""}{a.equipment ? ` · Equipment: ${a.equipment}` : ""}</div> : null}
-              {a.references_text && <div className="text-xs text-ink-soft">References: {a.references_text}</div>}
-              {a.work_links && <div className="break-all text-xs text-ink-soft">Work: {a.work_links}</div>}
-              {a.ai_screen && <div className="rounded-xl bg-paper p-3 text-xs"><b>Strengths:</b> {a.ai_screen.strengths.join("; ")}<br /><b>Concerns:</b> {a.ai_screen.concerns.join("; ") || "none"}<br /><b>Verify:</b> {a.ai_screen.verify.join("; ")}</div>}
-              <ApplicationButtons id={a.id} />
-            </div>
-          ))}
-        </div>
-      </section>
-      <section>
-        <h2 className="mb-4 text-xl font-bold">Network</h2>
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Pro</th><th className="p-3">Trades</th><th className="p-3">Rating</th><th className="p-3">Jobs</th><th className="p-3">Accept / on-time</th><th className="p-3">Tier & progress</th><th className="p-3">Reward points</th><th className="p-3">Insurance</th><th className="p-3">Status</th></tr></thead>

@@ -148,13 +148,13 @@ export default async function HubDashboard() {
 
   const groups: [string, Tile[]][] = [
     ["🧰 Pros & recruiting", [
-      { label: "Active pros", value: String(activePros.length), hint: `+${act.cur.length} activated this month · ${roster.length} on file`, trend: { text: trendLabel(pctChange(act.cur.length, act.prev.length), `activations ${vsMonth}`), good: up(pctChange(act.cur.length, act.prev.length)) }, href: stat("roster") },
+      { label: "Active pros", value: String(activePros.length), hint: `+${act.cur.length} activated this month · ${roster.length} on file`, trend: { text: trendLabel(pctChange(act.cur.length, act.prev.length), `activations ${vsMonth}`), good: up(pctChange(act.cur.length, act.prev.length)) }, href: "/hub/pros" },
       { label: "Candidates in pipeline", value: String(inPipeline), hint: needDecision ? `${needDecision} need a decision from you` : "nobody waiting on a decision", href: "/hub/recruiting", alert: needDecision > 0 },
       { label: "New applications (month)", value: String(appSplit.cur.length), hint: `${newApps} not reviewed yet`, trend: { text: trendLabel(pctChange(appSplit.cur.length, appSplit.prev.length), vsMonth), good: up(pctChange(appSplit.cur.length, appSplit.prev.length)) }, href: stat("applications") },
       { label: "Jobs no pro could take (30 days)", value: String(noProJobs), hint: noProJobs ? "see where to recruit" : "every job found a pro", href: "/hub/gaps", alert: noProJobs > 0 },
       { label: "Pro leads in outreach", value: String(leadsOut), hint: `${leadsReplied} replied · ${leadsApplied} applied · ${leads.length} found`, href: "/hub/leads" },
       { label: "Applicant → active (90 days)", value: conversion === null ? "—" : `${conversion}%`, hint: `${recent.filter((r) => r.stage === "active").length} of ${recent.length} applicants now active`, href: "/hub/recruiting?stage=active" },
-      { label: "Insurance expiring (30 days)", value: String(insExpiring), hint: insExpired ? `${insExpired} already expired` : "active pros only", href: stat("roster"), alert: insExpired > 0 },
+      { label: "Insurance expiring (30 days)", value: String(insExpiring), hint: insExpired ? `${insExpired} already expired` : "active pros only", href: "/hub/pros", alert: insExpired > 0 },
       { label: "Dropped off (month)", value: String(droppedMonth), hint: "pros who stopped mid-setup or left", href: "/hub/recruiting?stage=dropped", alert: droppedMonth > 0 },
     ]],
     ["Money", [
@@ -180,7 +180,7 @@ export default async function HubDashboard() {
   if (needDecision) insights.push({ tone: "warn", text: `${needDecision} pro candidate${needDecision === 1 ? " is" : "s are"} waiting on your decision (screened or interviewed).`, href: "/hub/recruiting" });
   const appPct = pctChange(appSplit.cur.length, appSplit.prev.length);
   if (appPct !== null) insights.push({ tone: appPct >= 0 ? "good" : "warn", text: `Pro applications are ${appPct >= 0 ? "up" : "down"} ${Math.abs(appPct)}% vs the same days last month (${appSplit.cur.length} vs ${appSplit.prev.length}).`, href: stat("applications") });
-  if (insExpiring) insights.push({ tone: "warn", text: `${insExpiring} active pro${insExpiring === 1 ? "'s" : "s'"} insurance expires within 30 days${insExpired ? ` (${insExpired} already expired)` : ""}.`, href: stat("roster") });
+  if (insExpiring) insights.push({ tone: "warn", text: `${insExpiring} active pro${insExpiring === 1 ? "'s" : "s'"} insurance expires within 30 days${insExpired ? ` (${insExpired} already expired)` : ""}.`, href: "/hub/pros" });
   const revPct = pctChange(revenue, revenuePrev);
   if (revPct !== null) insights.push({ tone: revPct >= 0 ? "good" : "warn", text: `Revenue is ${revPct >= 0 ? "up" : "down"} ${Math.abs(revPct)}% compared with the same days last month (${money(revenue)} vs ${money(revenuePrev)}).`, href: stat("revenue") });
   const bySvc = new Map<string, number>();
