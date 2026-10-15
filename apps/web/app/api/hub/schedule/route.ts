@@ -6,9 +6,10 @@
  *           moves a job to a pro (or back to "Unassigned") and / or another time window or day. Same rules as the job page:
  *           no pro on unpaid work. The new pro gets a push + text with the job; a pro taken off the job is told too.
  *           Customers are not texted automatically — tell them in the job's messages if their window changed.
+ * UPDATED : 2026-10-15_0300 UTC — a "pay after" job with its 25% in can be given a pro (clearedForWork).
  */
 import { z } from "zod";
-import { BRAND, TIME_WINDOW_LABEL, getService, type TimeWindow } from "@handled/core";
+import { BRAND, TIME_WINDOW_LABEL, clearedForWork, getService, type TimeWindow } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent } from "@/lib/jobs";
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   const date = d.scheduled_date ?? job.scheduled_date;
   const timeChanged = job.time_window !== d.time_window || date !== job.scheduled_date;
   if (!proChanged && !timeChanged) return Response.json({ ok: true, unchanged: true });
-  if (d.contractor_id && proChanged && !job.paid_at && !job.remedy && !job.billed_on_terms && job.status !== "site_visit")
+  if (d.contractor_id && proChanged && !clearedForWork(job) && job.status !== "site_visit")
     return deny(409, `Collect payment for ${job.ref} before assigning a pro`);
 
   const update: Record<string, unknown> = { time_window: d.time_window, scheduled_date: date };

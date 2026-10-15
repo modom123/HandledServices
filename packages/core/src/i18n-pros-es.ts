@@ -370,7 +370,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "You quote, chase and negotiate.": "Usted cotiza, da seguimiento y negocia.",
   "You quote.": "Usted cotiza.",
   "Getting paid": "Cobro",
-  "The customer prepays us; you're paid weekly.": "El cliente nos paga por adelantado; a usted le pagamos cada semana.",
+  "The customer pays us, not you; you're paid weekly.": "El cliente nos paga a nosotros, no a usted; a usted le pagamos cada semana.",
   "You invoice and collect.": "Usted factura y cobra.",
   "Office work": "Trabajo de oficina",
   "Scheduling, reminders, support and reviews handled.": "Agenda, recordatorios, soporte y reseñas: resueltos.",
