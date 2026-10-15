@@ -5,12 +5,14 @@
  * PURPOSE : Mastermind → Daily Briefing: what needs attention today — the AI morning brief, open alerts, today's
  *           schedule and the queues waiting on a person (jobs without a pro, QA, IEBC approvals, new pro applications).
  *           Moved off the Dashboard, which is now stats and insights only (app/hub/page.tsx).
+ * UPDATED : 2026-10-15_0010 UTC — pro candidates waiting on a decision (screened or interviewed) lead the queues.
  */
 import Link from "next/link";
 import { getService, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty, StatusBadge } from "@/components/ui";
 import { ResolveAlert } from "@/components/HubActions";
+import { pipeline } from "@/lib/recruiting";
 
 export const metadata = { title: "Daily Briefing" };
 
@@ -20,13 +22,15 @@ export default async function Briefing() {
   const v = await getViewer();
   if (!v) return null;
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: todays }, { data: alerts }, { data: open }, { count: apps }, { count: iebcPending }] = await Promise.all([
+  const [{ data: todays }, { data: alerts }, { data: open }, { count: apps }, { count: iebcPending }, funnel] = await Promise.all([
     v.db.from("jobs").select("*").eq("scheduled_date", today).order("time_window"),
     v.db.from("ops_alerts").select("*").eq("resolved", false).order("created_at", { ascending: false }).limit(25),
     v.db.from("jobs").select("status, contractor_id").not("status", "in", "(completed,cancelled)"),
     v.db.from("contractor_applications").select("id", { count: "exact", head: true }).eq("status", "new"),
     v.db.from("agent_actions").select("id", { count: "exact", head: true }).eq("status", "pending_approval"),
+    pipeline(),
   ]);
+  const decide = funnel.filter((r) => r.stage === "screened" || r.stage === "interviewed").length;
   const unassigned = (open ?? []).filter((j) => !j.contractor_id && ["scheduled", "dispatched"].includes(j.status)).length;
   const qa = (open ?? []).filter((j) => j.status === "qa_review").length;
   const brief = (alerts ?? []).find((a: Alert) => a.kind === "daily_brief") as Alert | undefined;
@@ -34,12 +38,13 @@ export default async function Briefing() {
   const jobs = (todays ?? []) as Job[];
 
   const queues: [string, number, string, boolean][] = [
+    ["🧲 Pro candidates to decide", decide, "/hub/recruiting", decide > 0],
     ["🧰 Jobs need a pro", unassigned, "/hub/dispatch", unassigned > 0],
     ["🔍 Awaiting QA", qa, "/hub/jobs", qa > 0],
     ["🤖 IEBC actions to approve", iebcPending ?? 0, "/hub/workforce", (iebcPending ?? 0) > 0],
-    ["🧲 New pro applications", apps ?? 0, "/hub/pros", false],
+    ["📨 New pro applications", apps ?? 0, "/hub/recruiting?stage=applied", false],
   ];
-  const waiting = unassigned + qa + (iebcPending ?? 0) + rest.length;
+  const waiting = decide + unassigned + qa + (iebcPending ?? 0) + rest.length;
 
   return (
     <div className="space-y-8">
@@ -51,7 +56,7 @@ export default async function Briefing() {
         <div className="flex gap-2"><Link href="/hub" className="btn-ghost">📊 Dashboard</Link><Link href="/hub/assistant" className="btn-dark">✨ Ask the AI assistant</Link></div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {queues.map(([label, n, href, hot]) => (
           <Link key={label} href={href} className="card flex items-center justify-between gap-3 p-4 hover:border-brand">
             <span className="text-sm font-semibold">{label}</span>
