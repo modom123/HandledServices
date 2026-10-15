@@ -12,6 +12,7 @@
  *                                   once paid (markPaid "offer_raise") the job is re-offered at the
  *                                   higher pay, or assigned to the pro whose counter they took
  *             nudgeLowOffers      — no pro yet after a while → suggest raising, from real counters
+ * UPDATED : 2026-10-15_0300 UTC — offer nudges also cover "pay after" jobs with their 25% in.
  */
 import "server-only";
 import { BRAND, MARKET_BOUNDS, clampFactor, getService, marketFactor, money, priceForPayout, serviceText, type Job, type PriceSignal } from "@handled/core";
@@ -154,7 +155,7 @@ export async function afterRaisePaid(job: Job & { pending_counter_offer?: string
 /** No pro yet: suggest a higher offer, from real counters (else our suggestion). Once per job. */
 export async function nudgeLowOffers() {
   const now = Date.now();
-  const { data } = await db().from("jobs").select("*").is("contractor_id", null).eq("status", "dispatched").is("offer_nudged_at", null).not("paid_at", "is", null).limit(300);
+  const { data } = await db().from("jobs").select("*").is("contractor_id", null).eq("status", "dispatched").is("offer_nudged_at", null).or("paid_at.not.is.null,and(payment_plan.eq.after,deposit_paid_at.not.is.null)").limit(300);
   let nudged = 0;
   for (const job of (data ?? []) as (Job & { suggested_price: number | null; customer_offer: number | null })[]) {
     const waitH = job.priority === "urgent" || job.urgency === "asap" ? 2 : 12;

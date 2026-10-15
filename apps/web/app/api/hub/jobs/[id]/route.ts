@@ -5,9 +5,10 @@
  * PURPOSE : Staff: edit a job — status, firm price after site visit, date, assign a pro directly, approve QA.
  * UPDATED : 2026-10-11_2242 UTC — marking a job paid by hand is admins only (dispatchers can still send payment links and charge a saved card).
  * UPDATED : 2026-10-12_0005 UTC — access_info: set or clear the job's entry details (job_access; assigned pro only).
+ * UPDATED : 2026-10-15_0300 UTC — a "pay after" job with its 25% in can be given a pro (clearedForWork).
  */
 import { z } from "zod";
-import { JOB_STATUSES, splitJob } from "@handled/core";
+import { JOB_STATUSES, clearedForWork, splitJob } from "@handled/core";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addEvent, finalizeJob, markPaid, sendPaymentLink } from "@/lib/jobs";
@@ -74,8 +75,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const url = await sendPaymentLink(job);
     return url ? Response.json({ ok: true, url }) : Response.json({ error: "Stripe isn't configured — collect payment and use Mark paid" }, { status: 503 });
   }
-  // Paid upfront: nobody can put a pro on unpaid work (free site visits and remedy jobs excepted).
-  if (patch.contractor_id && !job.paid_at && !job.remedy && !job.billed_on_terms && job.status !== "site_visit")
+  // Nobody can put a pro on unpaid work: paid in full, on account, a remedy, or a "pay after" job with its 25% in (free site visits excepted).
+  if (patch.contractor_id && !clearedForWork(job) && job.status !== "site_visit")
     return deny(409, "Collect payment before assigning a pro");
   if (approve_qa) {
     await addEvent(id, "human_touch", "QA approved manually", who, false);

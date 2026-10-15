@@ -7,6 +7,8 @@
  * UPDATED : 2026-10-05_1433 UTC — security category.
  * UPDATED : 2026-10-11_0608 UTC — CategoryId "business" (Business & Technology).
  * UPDATED : 2026-10-12_0005 UTC — Contractor.zips_only (only offer jobs in the pro's ZIP list).
+ * UPDATED : 2026-10-15_0300 UTC — Job: payment_plan "after" (25% now, balance after the job), balance_charge_at, balance_attempts,
+ *           balance_hold_intent, pay_in_full_discount.
  */
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";
@@ -124,10 +126,17 @@ export interface Job {
   plan_id: string | null;
   instructions?: string | null;
   paid_at: string | null;
-  payment_plan?: "full" | "deposit";
+  payment_plan?: "full" | "deposit" | "after";
   deposit_amount?: number | null;
   deposit_paid_at?: string | null;
   balance_due_date?: string | null;
+  /** "after" plan: when to try the balance again after a failed charge; null otherwise. */
+  balance_charge_at?: string | null;
+  balance_attempts?: number | null;
+  /** "after" plan: uncaptured authorization holding the balance on the card (placed when the pro starts). */
+  balance_hold_intent?: string | null;
+  /** Pay-in-full saving taken off the price (our share). */
+  pay_in_full_discount?: number | null;
   amount_paid: number;
   amount_refunded: number;
   stripe_payment_intent: string | null;

@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-07_1900 UTC — same-day dates use the ZIP's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0032 UTC — openBooking: when no pro covers the ZIP ("request"), customers can still book if the
  *           Hub switch "Take bookings where no pro covers the area yet" is on (lib/booking-settings).
+ * UPDATED : 2026-10-15_0300 UTC — booked demand counts "pay after" jobs with their 25% in.
  */
 import { BRAND, buildAvailability, localDate, timeZoneForZip, getService, type BookedJob, type Contractor } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
       db.from("jobs").select("contractor_id, scheduled_date, time_window").gte("scheduled_date", from).lte("scheduled_date", to).not("contractor_id", "is", null).neq("status", "cancelled"),
       // paid work in this area and trade that doesn't have a pro yet
       db.from("jobs").select("contractor_id, scheduled_date, time_window").gte("scheduled_date", from).lte("scheduled_date", to).is("contractor_id", null)
-        .not("paid_at", "is", null).in("status", ["scheduled", "dispatched"]).in("service_slug", sameTrade).like("zip", `${zip.slice(0, 3)}%`),
+        .or("paid_at.not.is.null,and(payment_plan.eq.after,deposit_paid_at.not.is.null)").in("status", ["scheduled", "dispatched"]).in("service_slug", sameTrade).like("zip", `${zip.slice(0, 3)}%`),
     ]);
     contractors = (pros ?? []) as Contractor[];
     loc = await zipCentroid(zip);

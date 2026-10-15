@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-05_0439 UTC — events addendum covers Event Security (licensed agencies, unarmed by default, de-escalation, incident reports).
  * UPDATED : 2026-10-05_1433 UTC — addendum-security (standing posts, patrols, fire watch).
  * UPDATED : 2026-10-07_2000 UTC — Business Services Agreement v2 — Washington: Washington law and local courts for Washington sites, Washington sales tax note (routine janitorial excluded; special clean-ups taxable), and the pro's freedom to work stated in the non-solicitation section.
+ * UPDATED : 2026-10-15_0300 UTC — payment terms: book now, pay after (25% at booking; a hold when the pro starts; the rest charged when the job is complete) or pay in full with 5% off.
  */
 import {
   AI_MAX_CUT,
@@ -30,6 +31,8 @@ import {
   BOOKING_FEE,
   BRAND,
   DEPOSIT,
+  BOOK_NOW,
+  PAY_IN_FULL,
   DISCOUNT_FLOOR,
   HANDLED_PLUS,
   LATE_CANCEL_FEE,
@@ -280,7 +283,7 @@ export const SERVICE_AGREEMENT: Contract = {
   appliesTo: "Every booking. You accept it when you book and pay, and it prints on your invoice.",
   summary: [
     `You book and pay ${BRAND.name}. We schedule, manage and guarantee the job. An independent, insured, background-checked pro does the work. Please don't pay your pro directly.`,
-    `We suggest a price based on what pros near you actually accept. You may offer a different price within limits, but a lower offer may take longer or may not be taken. You pay upfront, and the price includes a flat ${FEE} booking fee.`,
+    `We suggest a price based on what pros near you actually accept. You may offer a different price within limits, but a lower offer may take longer or may not be taken. You pay ${pct(BOOK_NOW.share)} when you book and the rest when the job is done, or everything when you book for ${pct(PAY_IN_FULL.discount)} off. The price includes a flat ${FEE} booking fee.`,
     "Until a pro accepts, you may raise your offer, and a pro may counter with a higher price. Paying more is always your choice, and we only charge the difference. Extra work only happens after you approve and pay for it.",
     `Cancel or move your booking free up to 24 hours before your arrival window. Inside 24 hours, or if your pro can't get in, we keep a ${money(LATE_CANCEL_FEE)} fee and refund the rest.`,
     `Not right? Tell us within ${BRAND.guaranteeDays} days with photos. We send the pro back free, give you a free service, or refund you.`,
@@ -308,7 +311,7 @@ export const SERVICE_AGREEMENT: Contract = {
     ["Price", p(
       ul(
         `Suggested price: before you book, we show a suggested price. It is based on the details and photos you give us, our standard rates, and what pros in your area have actually accepted for similar jobs lately. What pros accept can move the suggested price up or down, but only within set limits (no more than ${MARKET_DOWN} lower or ${MARKET_UP} higher than our standard price).`,
-        `Name your price: you may book at the suggested price or offer a different price, from ${OFFER_LOW} of the suggested price up to ${OFFER_HIGH} the suggested price. Pros choose whether to take a job at the price offered. A lower offer may take longer to be taken, or may not be taken at all, and we tell you before you book when an offer is low. Whatever price you choose, you pay it upfront, the same way.`,
+        `Name your price: you may book at the suggested price or offer a different price, from ${OFFER_LOW} of the suggested price up to ${OFFER_HIGH} the suggested price. Pros choose whether to take a job at the price offered. A lower offer may take longer to be taken, or may not be taken at all, and we tell you before you book when an offer is low. Whatever price you choose, you pay it the same way.`,
         `Booking fee: every booking includes a flat ${FEE} booking fee (for recurring plans, on each visit). It is already included in the price we show you and is listed on your invoice. ${BRAND.name} keeps it to run booking, payments and support. It is not part of your pro's pay, and promo codes, ${HANDLED_PLUS.name} savings and other discounts don't reduce it. There is no booking fee on free redos or complimentary services.`,
         "Upfront price: you see the full price before you book. It includes labor, the materials listed and the booking fee. The price on your invoice (your offer, plus any raise or counteroffer you accepted) is the price you pay for that scope.",
         `Priority fee: jobs that start within ${RUSH_HOURS} hours of booking have a ${pct(RUSH_SURCHARGE)} priority (rush) fee, shown before you book. ${HANDLED_PLUS.name} members don't pay it.`,
@@ -329,7 +332,14 @@ export const SERVICE_AGREEMENT: Contract = {
       "The price you end up paying (your offer, plus any raise or counteroffer you accepted) becomes the price on your invoice. Refunds, cancellations and our guarantee apply to that total.",
     )],
     ["Payment", p(
-      "The full price is paid upfront to schedule the work, unless a deposit applies (see below). Payments are processed by Stripe. You can pay by card, and larger jobs may be paid by bank transfer (ACH) where we offer it.",
+      "For most jobs you choose how to pay when you book:",
+      ul(
+        `Book now, pay after: ${pct(BOOK_NOW.share)} of the price (at least ${money(BOOK_NOW.minimum)}) when you book, to schedule the work. Your card is saved. When your pro starts the work, we place a hold on that card for the rest of the price. A hold is not a charge: it reserves the amount, and your bank may show it as pending. When the job is complete and has passed our photo check, we charge the rest. If we don't use all of the hold, your bank releases the unused part.`,
+        `Pay in full: the whole price when you book, with ${pct(PAY_IN_FULL.discount)} off. The saving comes out of our share, never your pro's pay. When other discounts already apply, the saving may be smaller so that the total discount stays within our share. Your invoice shows the saving.`,
+      ),
+      "Events and jobs that need a site visit use the deposit terms below. Payments are processed by Stripe. You can pay by card, and larger jobs may be paid by bank transfer (ACH) where we offer it.",
+      `By booking with "book now, pay after", you authorize us to place the hold and to charge the rest of the price to your saved card when the job is complete. If the hold or the charge doesn't go through, we will tell you and send you a payment link, and we may try your card again, up to ${BOOK_NOW.maxAttempts} times over the following days. You agree to pay the rest within 7 days of the job being complete.`,
+      "If something isn't right, tell us in the app before or after the charge. Our guarantee (a redo, a free extra service or a refund) applies the same way however you paid. If you cancel, the cancellation terms apply to what you have paid, and any hold is released.",
       "If you raise your offer or accept a pro's counteroffer, we charge only the difference, to your saved card or through a payment link we send you.",
       `How your price is shared: from the price you pay, ${BRAND.name} keeps the booking fee and a commission, and your pro is paid the rest. Promo codes and ${HANDLED_PLUS.name} savings come out of our share, never your pro's pay.`,
       "Your pro is only paid by us. Please don't pay your pro in cash or any other way.",

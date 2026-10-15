@@ -42,6 +42,7 @@
  * UPDATED : 2026-10-12_1540 UTC — Twilio check names what's missing (Account SID AC…, Auth Token or API key SK…, number / Messaging Service).
  * UPDATED : 2026-10-12_1525 UTC — migration 64: Handled Talent flat fee per hire (RUN_ONCE_LATEST_2026-10-12_1525.sql covers 56–64).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
+ * UPDATED : 2026-10-15_0300 UTC — migration 65: book now, pay after (ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -184,6 +185,7 @@ export async function readiness(): Promise<Check[]> {
     ["62 pro calendar feed + pro ZIP codes", () => db.from("contractors").select("calendar_token, zips_only").limit(1)],
     ["63 ID numbers (C-, B-, P-, S-)", () => db.from("customer_ids").select("customer_no").limit(1)],
     ["64 Handled Talent flat fee per hire", () => db.from("talent_searches").select("flat_fee").limit(1)],
+    ["65 book now, pay after (25% + balance after the job)", () => db.from("jobs").select("balance_charge_at, balance_hold_intent, pay_in_full_discount").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
