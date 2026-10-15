@@ -6,6 +6,8 @@
  *           section (Pros, Jobs, Clients, Money, Growth, AI team, Settings); the pages inside a section show as tabs
  *           across the top (components/HubNav → SectionTabs). Add a page here and it appears in both places.
  *           Shared by the server layout and the client nav, so no server-only imports.
+ * UPDATED : 2026-10-15_0200 UTC — four merges, each one tab with a two-way switch (components/ViewSwitch): Roster + Network
+ *           health, Bids + Gov contracts, AI agents + IEBC Workforce, Market pricing + Pricing accuracy (/hub/pricing).
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -30,7 +32,6 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/recruiting", "Recruiting"],
     ["/hub/leads", "Pro leads"],
     ["/hub/gaps", "Supply gaps"],
-    ["/hub/network", "Network health"],
     ["/hub/pro-program", "Pro Program"],
     ["/hub/rewards", "Rewards"],
   ] },
@@ -43,11 +44,10 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/texts", "Texts"],
     ["/hub/checklists", "Checklists"],
   ] },
-  { id: "clients", icon: "👥", label: "Clients", also: ["/hub/business"], links: [
+  { id: "clients", icon: "👥", label: "Clients", also: ["/hub/business", "/hub/gov"], links: [
     ["/hub/customers", "Customers & B2B"],
     ["/hub/biz-leads", "Business leads"],
-    ["/hub/bids", "Bids"],
-    ["/hub/gov", "Gov contracts"],
+    ["/hub/bids", "Bids & contracts"],
     ["/hub/partners", "Referral partners"],
     ["/hub/loyalty", "Points"],
     ["/hub/email", "Email"],
@@ -62,15 +62,13 @@ export const HUB_SECTIONS: readonly HubSection[] = [
   { id: "growth", icon: "📈", label: "Growth & pricing", links: [
     ["/hub/growth", "Growth"],
     ["/hub/cities", "City scorecard"],
-    ["/hub/market", "Market pricing"],
-    ["/hub/pricing-accuracy", "Pricing accuracy"],
+    ["/hub/pricing", "Pricing"],
     ["/hub/site", "Website look"],
     ["/hub/talent", "Talent agency"],
   ] },
   { id: "ai", icon: "🤖", label: "AI team", links: [
-    ["/hub/agents", "AI agents"],
+    ["/hub/agents", "AI agents & IEBC"],
     ["/hub/assistant", "AI assistant"],
-    ["/hub/workforce", "IEBC Workforce"],
   ] },
   { id: "settings", icon: "⚙️", label: "Settings", links: [
     ["/hub/team", "Team"],
@@ -80,7 +78,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
 ];
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
-export const ADMIN_PAGES = new Set(["/hub/finance", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/market", "/hub/site", "/hub/setup"]);
+export const ADMIN_PAGES = new Set(["/hub/finance", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);

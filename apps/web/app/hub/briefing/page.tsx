@@ -41,7 +41,7 @@ export default async function Briefing() {
     ["🧲 Pro candidates to decide", decide, "/hub/recruiting", decide > 0],
     ["🧰 Jobs need a pro", unassigned, "/hub/dispatch", unassigned > 0],
     ["🔍 Awaiting QA", qa, "/hub/jobs", qa > 0],
-    ["🤖 IEBC actions to approve", iebcPending ?? 0, "/hub/workforce", (iebcPending ?? 0) > 0],
+    ["🤖 IEBC actions to approve", iebcPending ?? 0, "/hub/agents?view=workforce", (iebcPending ?? 0) > 0],
     ["📨 New pro applications", apps ?? 0, "/hub/recruiting?stage=applied", false],
   ];
   const waiting = decide + unassigned + qa + (iebcPending ?? 0) + rest.length;
