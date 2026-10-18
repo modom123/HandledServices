@@ -185,7 +185,7 @@ export async function readiness(): Promise<Check[]> {
     ["62 pro calendar feed + pro ZIP codes", () => db.from("contractors").select("calendar_token, zips_only").limit(1)],
     ["63 ID numbers (C-, B-, P-, S-)", () => db.from("customer_ids").select("customer_no").limit(1)],
     ["64 Handled Talent flat fee per hire", () => db.from("talent_searches").select("flat_fee").limit(1)],
-    ["65 pro resume & profile photo", () => db.from("contractors").select("resume_uploaded_at, photo_uploaded_at, upload_reminders").limit(1)],
+    ["65 pro resume & photo, signing for a business", () => db.from("contractors").select("resume_uploaded_at, photo_uploaded_at, upload_reminders, agreement_signed_for").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

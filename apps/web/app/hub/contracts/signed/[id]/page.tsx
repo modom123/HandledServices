@@ -5,11 +5,12 @@
  * PURPOSE : Hub → one signed contract: the frozen copy, plus the evidence of acceptance
  *           (who, email, booking, method, time, IP, device, SHA-256 fingerprint).
  * UPDATED : 2026-10-03_0051 UTC — language accepted; view the Spanish copy they saw.
+ * UPDATED : 2026-10-18_0415 UTC — "Signed for" (business and the signer's title) when a pro signed for their business.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { contractHash } from "@/lib/contracts";
-import { acceptance, signedCopy } from "@/lib/contracts/records";
+import { acceptance, signedCopy, signerLabel } from "@/lib/contracts/records";
 import { ContractView } from "@/components/ContractView";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function HubSigned({ params, searchParams }: { params: Prom
       <Link href={`/hub/contracts?q=${encodeURIComponent(a.email ?? a.signer_name ?? "")}`} className="text-sm text-brand print:hidden">← Everything this person signed</Link>
       <dl className="mt-4 grid gap-x-6 gap-y-1 rounded-xl bg-paper p-4 text-sm sm:grid-cols-2">
         <div><dt className="inline text-ink-soft">Signer: </dt><dd className="inline">{a.signer_name ?? "—"}</dd></div>
+        {a.on_behalf_of && <div><dt className="inline text-ink-soft">Signed for: </dt><dd className="inline">{a.on_behalf_of}{a.signer_title ? ` (as ${a.signer_title})` : ""}</dd></div>}
         <div><dt className="inline text-ink-soft">Email: </dt><dd className="inline">{a.email ?? "—"}</dd></div>
         <div><dt className="inline text-ink-soft">Who: </dt><dd className="inline">{a.contractor_id ? <Link className="text-brand underline" href={`/hub/pros/${a.contractor_id}`}>Pro record</Link> : a.audience}</dd></div>
         <div><dt className="inline text-ink-soft">Booking: </dt><dd className="inline">{a.job_id ? <Link className="text-brand underline" href={`/hub/jobs/${a.job_id}`}>{a.jobs?.ref ?? "open"}</Link> : "—"}</dd></div>
@@ -34,7 +36,7 @@ export default async function HubSigned({ params, searchParams }: { params: Prom
       </dl>
       <div className="mt-6"><ContractView title={c.title} version={a.version} appliesTo={c.appliesTo} summary={c.summary} sections={c.sections} lang={c.lang} translated={c.translated}
         otherLangHref={a.sections.es ? `/hub/contracts/signed/${a.id}?lang=${c.lang === "es" ? "en" : "es"}` : undefined}
-        signed={{ by: a.signer_name, at: a.accepted_at, method: a.method, hash: a.content_hash, job: a.jobs?.ref, locale: a.locale }} /></div>
+        signed={{ by: signerLabel(a, c.lang), at: a.accepted_at, method: a.method, hash: a.content_hash, job: a.jobs?.ref, locale: a.locale }} /></div>
     </div>
   );
 }

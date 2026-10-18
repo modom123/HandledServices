@@ -7,6 +7,7 @@
  *           earnings, job sheet, offer page, work order, pro actions and their error messages.
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step.
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo steps.
+ * UPDATED : 2026-10-18_0415 UTC — LLC tax classifications; signing the agreement for a business.
  */
 export const ES_PRO_PORTAL: Record<string, string> = {
   // shell
@@ -63,6 +64,13 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Photos must be JPG, PNG, WEBP or HEIC": "Las fotos deben ser JPG, PNG, WEBP o HEIC",
   "Photos must be under 8 MB": "Las fotos deben pesar menos de 8 MB",
   "Documents must be under 10 MB": "Los documentos deben pesar menos de 10 MB",
+  "LLC (single-member or taxed as a partnership)": "LLC (de un solo miembro o que tributa como sociedad)",
+  "LLC taxed as an S corporation": "LLC que tributa como corporación S",
+  "LLC taxed as a C corporation": "LLC que tributa como corporación C",
+  "Signing for a business? Its legal name": "¿Firma en nombre de una empresa? Su nombre legal",
+  "Your title there (Owner, President…)": "Su cargo en la empresa (dueño, presidente…)",
+  "Have an LLC or corporation? Sign for it so the agreement is with your company. Leave the business blank if you work under your own name.": "¿Tiene una LLC o corporación? Firme en su nombre para que el acuerdo sea con su empresa. Deje la empresa en blanco si trabaja a su propio nombre.",
+  "Add your title at the business (for example Owner)": "Agregue su cargo en la empresa (por ejemplo, dueño)",
   "A quick photo of your ID and a selfie (or a short video call with us)": "Una foto rápida de su identificación y una selfie (o una breve videollamada con nosotros)",
   "Verify my ID": "Verificar mi identificación",
   "Take a photo of your driver's license, state ID or passport and a selfie. It takes about 2 minutes on your phone. We only keep the result.": "Tome una foto de su licencia de conducir, identificación estatal o pasaporte y una selfie. Toma unos 2 minutos en su teléfono. Solo guardamos el resultado.",

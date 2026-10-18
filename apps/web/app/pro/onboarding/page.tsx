@@ -12,9 +12,10 @@
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (Stripe Identity or a video call).
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
+ * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
  */
 import { VerifyId } from "@/components/VerifyId";
-import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -63,7 +64,7 @@ export default async function Onboarding() {
           <Field label={t("Legal name (as on your tax return)")} name="legal_name" defaultValue={pro.legal_name ?? ""} required />
           <div><label className="label">{t("Tax classification")}</label>
             <select name="entity_type" className="input" defaultValue={pro.entity_type ?? "individual"}>
-              <option value="individual">{t("Individual / sole proprietor")}</option><option value="llc">LLC</option><option value="s_corp">{t("S corporation")}</option>
+              <option value="individual">{t("Individual / sole proprietor")}</option><option value="llc">{t("LLC (single-member or taxed as a partnership)")}</option><option value="llc_s_corp">{t("LLC taxed as an S corporation")}</option><option value="llc_c_corp">{t("LLC taxed as a C corporation")}</option><option value="s_corp">{t("S corporation")}</option>
               <option value="c_corp">{t("C corporation")}</option><option value="partnership">{t("Partnership")}</option></select></div>
           <Field label={t("Last 4 of SSN / EIN")} name="tin_last4" inputMode="numeric" maxLength={4} pattern="\d{4}" required />
           <Field label={t("Street address")} name="address_line" defaultValue={pro.address_line ?? ""} required />
@@ -88,6 +89,12 @@ export default async function Onboarding() {
         </div>
         <StepForm step="agreement" cta={t("Sign agreement")} locale={l}>
           <Field label={t("Type your full name to sign")} name="signer_name" required />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t("Signing for a business? Its legal name")} name="signed_for" maxLength={160}
+              defaultValue={BUSINESS_ENTITY_TYPES.includes(pro.entity_type as never) ? (pro as { agreement_signed_for?: string | null }).agreement_signed_for ?? pro.business_name ?? "" : ""} />
+            <Field label={t("Your title there (Owner, President…)")} name="signer_title" maxLength={80} defaultValue={(pro as { agreement_signer_title?: string | null }).agreement_signer_title ?? ""} />
+          </div>
+          <p className="text-xs text-ink-soft">{t("Have an LLC or corporation? Sign for it so the agreement is with your company. Leave the business blank if you work under your own name.")}</p>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="agree" value="true" required /> {t("I have read and agree to the Independent Contractor Agreement and the documents listed above.")}</label>
         </StepForm>
       </div>

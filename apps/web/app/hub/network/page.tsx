@@ -5,9 +5,10 @@
  * PURPOSE : Pro Network — the workforce as the company's core asset: size and coverage,
  *           value generated, quality, retention, hiring funnel, compliance risk, and the
  *           year-end 1099 worksheet.
+ * UPDATED : 2026-10-18_0415 UTC — 1099 table: how many forms to file; corporations marked "not needed" (form1099()).
  */
 import Link from "next/link";
-import { TRADES, money, necThreshold, onboardingChecklist, type Contractor } from "@handled/core";
+import { TRADES, form1099, money, necThreshold, onboardingChecklist, type Contractor } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty, Stat } from "@/components/ui";
 
@@ -83,13 +84,13 @@ export default async function Network() {
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-bold">1099 — {year} <span className="text-sm font-normal text-ink-soft">1099-NEC required at {money(threshold)}+ (confirm with your accountant)</span></h2>
+          <h2 className="font-bold">1099 — {year} <span className="text-sm font-normal text-ink-soft">1099-NEC required at {money(threshold)}+, not for corporations (confirm with your accountant) · <b>{((tax ?? []) as Rec[]).filter((r) => form1099(r.entity_type, Number(r.paid_total ?? 0), year) === "file").length} to file</b></span></h2>
           <a className="btn-ghost" href={`/api/hub/1099?year=${year}`}>Download 1099 worksheet (CSV)</a>
         </div>
         <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Pro</th><th className="p-3">Legal name / entity</th><th className="p-3">TIN</th><th className="p-3">W-9</th><th className="p-3">Paid (net)</th><th className="p-3">Owed</th><th className="p-3">1099-NEC</th></tr></thead>
           <tbody>{((tax ?? []) as Rec[]).map((r) => { const paid = Number(r.paid_total ?? 0); return (
-            <tr key={r.contractor_id} className="border-t border-line"><td className="p-3 font-medium">{r.business_name}</td><td className="p-3">{r.legal_name ?? "—"} · {r.entity_type ?? "—"}</td><td className="p-3">•••{r.tin_last4 ?? "—"}</td><td className="p-3">{r.w9_received_at ? <Badge tone="green">on file</Badge> : <Badge tone="red">missing</Badge>}</td><td className="p-3">{money(paid)}</td><td className="p-3">{money(Number(r.owed_total ?? 0))}</td><td className="p-3">{paid >= threshold ? (["c_corp", "s_corp"].includes(r.entity_type) ? "corp — usually exempt" : <Badge tone="brand">required</Badge>) : "—"}</td></tr>
+            <tr key={r.contractor_id} className="border-t border-line"><td className="p-3 font-medium">{r.business_name}</td><td className="p-3">{r.legal_name ?? "—"} · {r.entity_type ?? "—"}</td><td className="p-3">•••{r.tin_last4 ?? "—"}</td><td className="p-3">{r.w9_received_at ? <Badge tone="green">on file</Badge> : <Badge tone="red">missing</Badge>}</td><td className="p-3">{money(paid)}</td><td className="p-3">{money(Number(r.owed_total ?? 0))}</td><td className="p-3">{{ file: <Badge tone="brand">required</Badge>, exempt: "not needed (corporation)", under: "—" }[form1099(r.entity_type, paid, year)]}</td></tr>
           ); })}{!(tax ?? []).length && <tr><td className="p-3 text-ink-soft">No payouts yet this year.</td></tr>}</tbody>
         </table></div>
       </section>

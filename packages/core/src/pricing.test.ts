@@ -185,6 +185,17 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
 });
 
+test("1099-NEC: corporations (and LLCs taxed as one) are exempt", async () => {
+  const { form1099 } = await import("./compliance.ts");
+  assert.equal(form1099("individual", 2500, 2026), "file");
+  assert.equal(form1099("llc", 2500, 2026), "file", "single-member / partnership LLC gets one");
+  assert.equal(form1099("partnership", 2500, 2026), "file");
+  assert.equal(form1099(null, 2500, 2026), "file", "unknown classification: treat as reportable");
+  assert.equal(form1099("individual", 1999, 2026), "under");
+  assert.equal(form1099("individual", 700, 2025), "file", "$600 threshold through 2025");
+  for (const corp of ["s_corp", "c_corp", "llc_s_corp", "llc_c_corp"]) assert.equal(form1099(corp, 50000, 2026), "exempt", corp);
+});
+
 test("missing uploads: which ones, and when live pros are reminded", async () => {
   const { missingUploads, uploadReminderDue, UPLOAD_REMINDER_MAX } = await import("./compliance.ts");
   assert.deepEqual(missingUploads({ resume_uploaded_at: null, photo_uploaded_at: null }), ["resume", "photo"]);

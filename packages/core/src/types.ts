@@ -7,7 +7,9 @@
  * UPDATED : 2026-10-05_1433 UTC — security category.
  * UPDATED : 2026-10-11_0608 UTC — CategoryId "business" (Business & Technology).
  * UPDATED : 2026-10-12_0005 UTC — Contractor.zips_only (only offer jobs in the pro's ZIP list).
+ * UPDATED : 2026-10-18_0415 UTC — Contractor.entity_type uses EntityType (adds LLCs taxed as S/C corporations).
  */
+import type { EntityType } from "./compliance.ts";
 
 export type Role = "customer" | "pro" | "dispatcher" | "admin";
 
@@ -171,7 +173,7 @@ export interface Contractor {
   notes: string | null;
   // 1099 / onboarding (independent contractor — never an employee)
   legal_name?: string | null;
-  entity_type?: "individual" | "sole_prop" | "llc" | "s_corp" | "c_corp" | "partnership" | null;
+  entity_type?: EntityType | null;
   tin_last4?: string | null;
   address_line?: string | null;
   city?: string | null;

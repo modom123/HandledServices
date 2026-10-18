@@ -15,6 +15,8 @@
  * UPDATED : 2026-10-12_0005 UTC — work-area detail shows "only ZIPs …" when the pro limits offers to their ZIP list.
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo steps; missingUploads() and uploadReminderDue() for the
  *           "missing uploads" reminders to pros who are already live.
+ * UPDATED : 2026-10-18_0415 UTC — W-9 tax classifications incl. LLCs taxed as S/C corporations; form1099() decides
+ *           who gets a 1099-NEC (corporations are exempt); BUSINESS_ENTITY_TYPES for signing on a business's behalf.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -27,6 +29,24 @@ export const LATE_CANCEL_FEE = 49;
 
 /** Trades whose services legally require a licensed tradesperson. */
 export const LICENSED_TRADES: string[] = [...new Set(SERVICES.filter((s) => s.licensed).flatMap((s) => s.trades.filter((t) => t !== "handyman")))];
+
+/** W-9 federal tax classification (line 3). An LLC is listed by how it's taxed. */
+export const ENTITY_TYPES = ["individual", "sole_prop", "llc", "llc_s_corp", "llc_c_corp", "s_corp", "c_corp", "partnership"] as const;
+export type EntityType = (typeof ENTITY_TYPES)[number];
+/** Taxed as a corporation: no 1099-NEC for their service payments. */
+export const CORPORATE_ENTITY_TYPES: readonly EntityType[] = ["s_corp", "c_corp", "llc_s_corp", "llc_c_corp"];
+/** A company (not a person): the agreement is signed by someone on its behalf. */
+export const BUSINESS_ENTITY_TYPES: readonly EntityType[] = ["llc", "llc_s_corp", "llc_c_corp", "s_corp", "c_corp", "partnership"];
+
+/**
+ * 1099-NEC for a pro's year: "file" (at or over the threshold), "under" (below it), or "exempt"
+ * (taxed as a corporation: S/C corps and LLCs that elected either). Unknown classification → treated as reportable.
+ * Exceptions (e.g. attorneys' fees, medical payments) don't apply to Handled's trades; your accountant confirms each January.
+ */
+export function form1099(entityType: string | null | undefined, total: number, taxYear: number): "file" | "under" | "exempt" {
+  if (CORPORATE_ENTITY_TYPES.includes(entityType as EntityType)) return "exempt";
+  return total >= necThreshold(taxYear) ? "file" : "under";
+}
 
 /**
  * Form 1099-NEC reporting threshold by tax year. $600 through 2025; the 2025 tax law
