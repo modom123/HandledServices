@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-04_2204 UTC — Your pro: ★ favorite the pro (and the crew member who came), "Book again with …".
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (what's included and, once the pro starts, what's done) and special requests.
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: 25% to book, then "remaining — charged automatically when the job is done".
  */
 import { notFound, redirect } from "next/navigation";
 import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job } from "@handled/core";
@@ -54,8 +55,8 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</div>
         </div>
         {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && (
-          <PayNow jobId={job.id} amount={money(job.payment_plan === "deposit" && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
-            label={job.payment_plan === "deposit" && !job.deposit_paid_at ? (es ? "de depósito" : "deposit") : job.deposit_paid_at ? (es ? `saldo${job.balance_due_date ? ` (se cobra automáticamente el ${job.balance_due_date})` : ""}` : `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}`) : ""} locale={l} />
+          <PayNow jobId={job.id} amount={money((job.payment_plan === "deposit" || job.payment_plan === "after") && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
+            label={job.payment_plan === "after" && !job.deposit_paid_at ? (es ? "(25%) para reservar" : "(25%) to book") : job.payment_plan === "after" ? (es ? "restante — se cobra automáticamente cuando el trabajo esté terminado, o páguelo ahora" : "remaining — charged automatically when the job is done, or pay it now") : job.payment_plan === "deposit" && !job.deposit_paid_at ? (es ? "de depósito" : "deposit") : job.deposit_paid_at ? (es ? `saldo${job.balance_due_date ? ` (se cobra automáticamente el ${job.balance_due_date})` : ""}` : `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}`) : ""} locale={l} />
         )}
         {(job.paid_at || job.deposit_paid_at) && !job.contractor_id && !job.remedy && ["dispatched", "scheduled"].includes(job.status) && <MarketPanel jobId={job.id} price={Number(job.price_final)} suggested={job.suggested_price ?? null} locale={l} />}
         <TrackPro jobId={job.id} locale={l} />

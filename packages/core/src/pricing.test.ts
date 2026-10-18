@@ -288,6 +288,41 @@ test("deposits: big tickets only, sensible amounts, balance due before the job",
   assert.equal(depositPolicy("tree-removal", 300, "2026-11-01", now).amount, 100, "minimum deposit");
 });
 
+test("book now, pay after: 25% (at least $25) for everyday jobs; events and site-visit work keep the deposit", async () => {
+  const { bookNowPolicy, payInFullSaving, nextBalanceTry, clearedForWork, BOOK_NOW } = await import("./pricing.ts");
+  assert.deepEqual(bookNowPolicy("house-cleaning", 200), { allowed: true, amount: 50, balance: 150 });
+  assert.equal(bookNowPolicy("house-cleaning", 80).amount, 25, "minimum $25");
+  assert.equal(bookNowPolicy("handyman", 1200).amount, 300, "$1,000+ everyday jobs pay after too");
+  assert.equal(bookNowPolicy("house-cleaning", 20).amount, 19, "never the whole price");
+  assert.equal(bookNowPolicy("house-cleaning", 1).allowed, false, "a $1 job pays in full");
+  assert.equal(bookNowPolicy("catering", 1920).allowed, false, "events keep the deposit");
+  assert.equal(bookNowPolicy("bathroom-remodel", 20000).allowed, false, "site-visit work keeps the deposit");
+  assert.equal(bookNowPolicy("house-cleaning", null).allowed, false);
+  assert.equal(payInFullSaving(200, 40), 10, "5% off");
+  assert.equal(payInFullSaving(200, 6.9), 6, "capped by what's left of our share");
+  assert.equal(payInFullSaving(200, 0), 0);
+  assert.equal(nextBalanceTry("2026-10-15T10:00:00.000Z"), new Date(Date.parse("2026-10-15T10:00:00.000Z") + BOOK_NOW.retryHours * 3600000).toISOString(), "a failed balance is retried a day later");
+  assert.equal(clearedForWork({ payment_plan: "after", deposit_paid_at: "2026-10-15" }), true, "25% in clears a pay-after job");
+  assert.equal(clearedForWork({ payment_plan: "deposit", deposit_paid_at: "2026-10-15" }), false, "a deposit job still needs the balance before work");
+  assert.equal(clearedForWork({ payment_plan: "after" }), false, "nothing paid yet");
+  assert.equal(clearedForWork({ paid_at: "2026-10-15" }), true);
+  assert.equal(clearedForWork({ billed_on_terms: true }), true);
+  const { resolvePlan } = await import("./pricing.ts");
+  assert.equal(resolvePlan("after", false, true), "after");
+  assert.equal(resolvePlan("after", true, false), "deposit", "events and site-visit work fall back to the deposit");
+  assert.equal(resolvePlan("deposit", false, true), "after", "an old app asking for a deposit on an everyday job gets pay-after");
+  assert.equal(resolvePlan("after", false, false), "full", "tiny jobs pay in full");
+  assert.equal(resolvePlan("full", true, true), "full");
+});
+
+test("payment state: pay-after jobs read as booked; a failed balance is red", async () => {
+  const { paymentState } = await import("./dispatch-board.ts");
+  const base = { scheduled_date: "2026-10-20", time_window: "morning", zip: "48201", status: "assigned", contractor_id: "p", price_final: 200, paid_at: null, deposit_paid_at: "2026-10-15", payment_plan: "after" };
+  assert.equal(paymentState(base).key, "after");
+  assert.equal(paymentState({ ...base, balance_attempts: 1 }).key, "balance_failed");
+  assert.equal(paymentState({ ...base, payment_plan: "deposit" }).key, "balance");
+});
+
 test("pro tiers: earned from live stats; boosts never push our take below 15%", async () => {
   const { PRO_TIERS, proTier, tierPayout, nextTierProgress, samplePayouts } = await import("./pro-program.ts");
   const { splitJob, TAKE_MIN } = await import("./pricing.ts");

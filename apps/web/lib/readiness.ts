@@ -42,6 +42,7 @@
  * UPDATED : 2026-10-12_1540 UTC — Twilio check names what's missing (Account SID AC…, Auth Token or API key SK…, number / Messaging Service).
  * UPDATED : 2026-10-12_1525 UTC — migration 64: Handled Talent flat fee per hire (RUN_ONCE_LATEST_2026-10-12_1525.sql covers 56–64).
  * UPDATED : 2026-10-11_2242 UTC — migration 58: notification log (ADD_NOTIFICATION_LOG_*.sql).
+ * UPDATED : 2026-10-15_0300 UTC — migration 65: book now, pay after (ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql).
  * UPDATED : 2026-10-18_0248 UTC — migration 65: pro resume & profile photo (ADD_PRO_RESUME_PHOTO_2026-10-18_0248.sql).
  * UPDATED : 2026-10-18_0415 UTC — migrations listed by file (failing ones name the file to run), 20 more probed; a Webhooks
  *           section (Stripe, Twilio, and new checks that Checkr results and Instantly events actually arrive).
@@ -198,6 +199,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261012000500_dispatch_gaps", "texts inbox, saved homes, pro calendar feed, pro ZIPs", () => db.from("contractors").select("calendar_token, zips_only").limit(1)],
     ["20261012012100_id_numbers", "ID numbers (C-, B-, P-, S-)", () => db.from("customer_ids").select("customer_no").limit(1)],
     ["20261012152500_talent_flat_fee", "Handled Talent flat fee per hire", () => db.from("talent_searches").select("flat_fee").limit(1)],
+    ["20261015030000_book_now_pay_after", "book now, pay after (25% + balance after the job; or run supabase/setup/ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql)", () => db.from("jobs").select("balance_charge_at, balance_hold_intent, pay_in_full_discount").limit(1)],
     ["20261018024800_pro_resume_photo", "pro resume & photo, signing for a business (or run supabase/setup/ADD_PRO_RESUME_PHOTO_2026-10-18_0248.sql)", () => db.from("contractors").select("resume_uploaded_at, photo_uploaded_at, upload_reminders, agreement_signed_for").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
