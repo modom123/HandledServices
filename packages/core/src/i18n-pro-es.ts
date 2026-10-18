@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal): shell, home, tiers & benefits, calendar,
  *           earnings, job sheet, offer page, work order, pro actions and their error messages.
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step.
+ * UPDATED : 2026-10-18_0248 UTC — resume and profile photo steps.
  */
 export const ES_PRO_PORTAL: Record<string, string> = {
   // shell
@@ -46,6 +47,22 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Workers' comp (or no-employees statement)": "Seguro de accidentes laborales (o declaración de no tener empleados)",
   "Trade license verified": "Licencia del oficio verificada",
   "Photo ID verified": "Identificación con foto verificada",
+  "Resume uploaded": "Currículum subido",
+  "Profile photo uploaded": "Foto de perfil subida",
+  "Your work history and experience (PDF or Word)": "Su historial laboral y experiencia (PDF o Word)",
+  "A clear, friendly photo of your face": "Una foto clara y amable de su cara",
+  "Upload resume": "Subir currículum",
+  "Upload photo": "Subir foto",
+  "Your resume (PDF or Word, up to 10 MB)": "Su currículum (PDF o Word, hasta 10 MB)",
+  "No resume? A one-page list of your past jobs, with dates, works too.": "¿No tiene currículum? También sirve una página con sus trabajos anteriores y las fechas.",
+  "Profile photo (JPG, PNG, WEBP or HEIC, up to 8 MB)": "Foto de perfil (JPG, PNG, WEBP o HEIC, hasta 8 MB)",
+  "A recent, well-lit photo of just you: no sunglasses, hats or group photos.": "Una foto reciente y con buena luz solo de usted: sin lentes de sol, gorras ni fotos en grupo.",
+  "Attach your resume": "Adjunte su currículum",
+  "Attach your photo": "Adjunte su foto",
+  "Upload your resume as a PDF or Word document": "Suba su currículum en PDF o en Word",
+  "Photos must be JPG, PNG, WEBP or HEIC": "Las fotos deben ser JPG, PNG, WEBP o HEIC",
+  "Photos must be under 8 MB": "Las fotos deben pesar menos de 8 MB",
+  "Documents must be under 10 MB": "Los documentos deben pesar menos de 10 MB",
   "A quick photo of your ID and a selfie (or a short video call with us)": "Una foto rápida de su identificación y una selfie (o una breve videollamada con nosotros)",
   "Verify my ID": "Verificar mi identificación",
   "Take a photo of your driver's license, state ID or passport and a selfie. It takes about 2 minutes on your phone. We only keep the result.": "Tome una foto de su licencia de conducir, identificación estatal o pasaporte y una selfie. Toma unos 2 minutos en su teléfono. Solo guardamos el resultado.",

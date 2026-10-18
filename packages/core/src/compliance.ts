@@ -13,6 +13,8 @@
  * UPDATED : 2026-10-06_2010 UTC — work-area step needs the pro's place of business (street address), not just a ZIP.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  * UPDATED : 2026-10-12_0005 UTC — work-area detail shows "only ZIPs …" when the pro limits offers to their ZIP list.
+ * UPDATED : 2026-10-18_0248 UTC — resume and profile photo steps; missingUploads() and uploadReminderDue() for the
+ *           "missing uploads" reminders to pros who are already live.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -59,10 +61,12 @@ export interface ComplianceInput {
   zips_only?: boolean | null;
   /** Photo ID matched to a selfie (Stripe Identity) or checked by staff on a video call. */
   id_verified_at?: string | null;
+  resume_uploaded_at?: string | null;
+  photo_uploaded_at?: string | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "specialties" | "area" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
+  key: "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -80,6 +84,8 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
     { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
+    { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
+    { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) },
   ];
   // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement
@@ -104,4 +110,22 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },
   );
   return { steps, complete: steps.every((s) => s.done), licenseRequired };
+}
+
+export type UploadKey = "resume" | "photo";
+
+/** Resume / profile photo the pro still has to upload. */
+export function missingUploads(c: Pick<ComplianceInput, "resume_uploaded_at" | "photo_uploaded_at">): UploadKey[] {
+  return [...(c.resume_uploaded_at ? [] : ["resume" as const]), ...(c.photo_uploaded_at ? [] : ["photo" as const])];
+}
+
+/** Days between "missing uploads" reminders to live pros, and how many they get at most. */
+export const UPLOAD_REMINDER_EVERY_DAYS = 4;
+export const UPLOAD_REMINDER_MAX = 3;
+
+/** A live pro missing uploads: is a reminder due now? First one right away, then every few days, then stop. */
+export function uploadReminderDue(sent: number, lastAt: string | null | undefined, now = new Date()): boolean {
+  if (sent >= UPLOAD_REMINDER_MAX) return false;
+  if (!lastAt) return true;
+  return (now.getTime() - new Date(lastAt).getTime()) / 86400000 >= UPLOAD_REMINDER_EVERY_DAYS;
 }

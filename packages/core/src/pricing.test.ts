@@ -168,11 +168,14 @@ test("onboarding blocks activation until every step is done", async () => {
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01" };
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
+  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "needs a resume");
+  assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
@@ -180,6 +183,18 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, true, "residential cleaners need no bond (bond only for large commercial jobs)");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
+});
+
+test("missing uploads: which ones, and when live pros are reminded", async () => {
+  const { missingUploads, uploadReminderDue, UPLOAD_REMINDER_MAX } = await import("./compliance.ts");
+  assert.deepEqual(missingUploads({ resume_uploaded_at: null, photo_uploaded_at: null }), ["resume", "photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: null }), ["photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" }), []);
+  const now = new Date("2026-10-18T13:00:00Z");
+  assert.equal(uploadReminderDue(0, null, now), true, "first reminder right away");
+  assert.equal(uploadReminderDue(1, "2026-10-16T13:00:00Z", now), false, "not two days later");
+  assert.equal(uploadReminderDue(1, "2026-10-14T13:00:00Z", now), true, "again after four days");
+  assert.equal(uploadReminderDue(UPLOAD_REMINDER_MAX, "2026-09-01T13:00:00Z", now), false, "then stop");
 });
 
 test("square footage drives the price wherever it's asked", async () => {

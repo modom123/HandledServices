@@ -21,13 +21,15 @@
  *           Only the last 4 of the TIN is stored in the database; the W-9 itself is a
  *           private file staff can open.
  * UPDATED : 2026-10-12_0005 UTC — area step: the ZIP codes the pro wants to cover and "only these ZIP codes".
+ * UPDATED : 2026-10-18_0248 UTC — resume (PDF or Word) and photo (profile photo) steps: step, file. Saved to the private
+ *           pro-docs bucket as contractor_documents kinds 'resume' / 'photo' (staff open them in Hub → Pros).
  */
 import { after } from "next/server";
 import { z } from "zod";
 import { AGREEMENT_VERSION, COVERAGES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { uploadDoc } from "@/lib/photos";
+import { UPLOAD_TYPES, uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
 import { geocodeAddress } from "@/lib/geo";
 import { afterOnboardingStep, docName, logRecruiting } from "@/lib/recruiting";
@@ -47,6 +49,8 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
   z.object({ step: z.literal("specialties") }),
+  z.object({ step: z.literal("resume") }),
+  z.object({ step: z.literal("photo") }),
   z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
@@ -100,6 +104,15 @@ export async function POST(req: Request) {
     const picked = form.getAll("specialties").map(String).filter((x) => allowed.has(x));
     if (!picked.length) return deny(400, "Pick at least one specialty");
     await db.from("contractors").update({ specialties: [...new Set(picked)] }).eq("id", id);
+    return done();
+  }
+  if (b.step === "resume" || b.step === "photo") {
+    if (!(file instanceof File && file.size)) return deny(400, b.step === "resume" ? "Attach your resume" : "Attach your photo");
+    let filePath: string;
+    try { filePath = await uploadDoc(file, `${id}/${b.step}`, UPLOAD_TYPES[b.step]); } catch (e) { return deny(400, e instanceof Error ? e.message : "Upload failed"); }
+    const at = new Date().toISOString();
+    await db.from("contractor_documents").insert({ contractor_id: id, kind: b.step, storage_path: filePath, status: "verified", verified_by: "pro upload", verified_at: at });
+    await db.from("contractors").update(b.step === "resume" ? { resume_uploaded_at: at } : { photo_uploaded_at: at }).eq("id", id);
     return done();
   }
   if (b.step === "coverage" && b.exempt) {
