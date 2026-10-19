@@ -13,6 +13,11 @@
  *             recruitingSweep()      — daily: setup reminders, stuck applicants, drop-offs
  * UPDATED : 2026-10-05_0246 UTC — screening interview: unless the screen says decline, the applicant gets the AI interview
  *           link first (Hub → Recruiting settings); a person decides after it (lib/interviews.ts).
+ * UPDATED : 2026-10-19_1304 UTC — daily sweep closes the onboarding gaps:
+ *           · pros added by staff or SQL (never invited) get the welcome email + one-click link, and the reminder clock starts;
+ *           · a document step counts as "waiting on us" only while that document is uploaded and pending — a pro who
+ *             never uploaded insurance (or whose upload was rejected) keeps getting reminders;
+ *           · documents waiting on staff: warn after 24h, critical (emails ops) after 72h, once each.
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
@@ -262,14 +267,31 @@ export async function activatePro(contractorId: string, actor: string) {
 export async function recruitingSweep(now = new Date()) {
   const s = await getRecruitingSettings();
   let reminded = 0, dropped = 0, activated = 0, stuck = 0;
+  let welcomed = 0, docsOverdue = 0;
   const { data: pros } = await db().from("contractors").select("*").eq("status", "vetting").is("dropped_at", null);
+  const ids = ((pros ?? []) as { id: string }[]).map((c) => c.id);
+  // documents uploaded and waiting for staff: contractor → kinds pending
+  const { data: pendingDocs } = ids.length ? await db().from("contractor_documents").select("id, contractor_id, kind, created_at").eq("status", "pending").in("contractor_id", ids) : { data: [] };
+  const pendingKinds = new Map<string, Set<string>>();
+  for (const d of (pendingDocs ?? []) as { contractor_id: string; kind: string }[]) pendingKinds.set(d.contractor_id, (pendingKinds.get(d.contractor_id) ?? new Set()).add(d.kind));
   for (const c of (pros ?? []) as (Contractor & { invited_at: string | null; created_at: string; onboarding_reminders: number })[]) {
     if (await maybeActivate(c.id)) { activated++; continue; }
-    const invited = c.invited_at ?? c.created_at;
+    // added by staff or a setup script, never invited → welcome email with the one-click link; reminders count from now
+    if (!c.invited_at) {
+      await nudgePro(c.id, `Welcome to ${BRAND.name} — your pro account is ready. Sign in with ${c.email} to finish setup; every document is uploaded right in the checklist.`, "welcome");
+      await db().from("contractors").update({ invited_at: now.toISOString(), onboarding_reminders: 0 }).eq("id", c.id);
+      await logRecruiting("invited", { contractorId: c.id }, "welcome email (added without an application)");
+      welcomed++;
+      continue;
+    }
+    const invited = c.invited_at;
     const due = reminderDue(s, invited, c.onboarding_reminders, now);
     const left = onboardingChecklist(c as never).steps.filter((x) => !x.done);
-    // waiting only on us (documents being verified / background running) → no nagging the pro
-    const onUs = left.every((x) => ["coi", "license", "background"].includes(x.key) || x.key.startsWith("coverage:"));
+    // waiting only on us (an uploaded document being verified / background running) → no nagging the pro;
+    // a document never uploaded, or rejected, is still the pro's to do
+    const waiting = pendingKinds.get(c.id) ?? new Set<string>();
+    const docKind = (key: string) => (key.startsWith("coverage:") ? key.slice(9) : key);
+    const onUs = left.every((x) => x.key === "background" || (["coi", "license"].includes(x.key) || x.key.startsWith("coverage:")) && waiting.has(docKind(x.key)));
     if (due !== null && !onUs) {
       const link = await signInUrl(c.email);
       const n = due + 1;
@@ -296,6 +318,19 @@ export async function recruitingSweep(now = new Date()) {
       dropped++;
     }
   }
+  // documents waiting on staff: warn after 24h, critical (emails ops) after 72h — once each per document
+  for (const d of (pendingDocs ?? []) as { id: string; contractor_id: string; kind: string; created_at: string }[]) {
+    const hours = (now.getTime() - new Date(d.created_at).getTime()) / 3600000;
+    const level = hours >= 72 ? "doc_overdue_72h" : hours >= 24 ? "doc_overdue_24h" : null;
+    if (!level) continue;
+    const { data: told } = await db().from("recruiting_events").select("id").eq("contractor_id", d.contractor_id).eq("kind", level).eq("note", d.id).limit(1);
+    if (told?.length) continue;
+    const pro = ((pros ?? []) as Contractor[]).find((c) => c.id === d.contractor_id);
+    await raiseAlert("pro_document", level === "doc_overdue_72h" ? "critical" : "warn", `Verify ${docName(d.kind, "en")} for ${pro?.business_name ?? "a pro"} — waiting ${Math.floor(hours)}h`,
+      `Uploaded ${d.created_at.slice(0, 10)}. Open Hub → Pros → ${pro?.business_name ?? d.contractor_id}, check the AI reading, then Verify or Reject: ${siteUrl()}/hub/pros/${d.contractor_id}`);
+    await logRecruiting(level, { contractorId: d.contractor_id }, d.id);
+    docsOverdue++;
+  }
   // applications waiting on a staff decision too long
   const cutoff = new Date(now.getTime() - s.decisionHours * 3600000).toISOString();
   const { data: waiting } = await db().from("contractor_applications").select("id, business_name, created_at").in("stage", ["applied", "screened"]).lt("created_at", cutoff);
@@ -306,7 +341,7 @@ export async function recruitingSweep(now = new Date()) {
     await logRecruiting("decision_overdue", { applicationId: a.id });
     stuck++;
   }
-  return { reminded, dropped, activated, stuck };
+  return { reminded, dropped, activated, stuck, welcomed, docsOverdue };
 }
 
 /** Pipeline rows for the Hub. */
