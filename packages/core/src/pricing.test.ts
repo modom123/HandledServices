@@ -182,6 +182,30 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
 });
 
+test("insurance-optional work: no COI needed to activate or to get those jobs", async () => {
+  const { onboardingChecklist, insuranceRequired, AGREEMENT_VERSION } = await import("./compliance.ts");
+  assert.equal(insuranceRequired(["web_design"]), false);
+  assert.equal(insuranceRequired(["errands"]), false);
+  assert.equal(insuranceRequired(["errands", "hauling"]), true, "one insured trade means a COI is needed");
+  assert.equal(insuranceRequired(["pet_care"]), true, "pet care keeps its liability policy (care, custody & control)");
+  assert.equal(insuranceRequired(["no_such_trade"]), true, "unknown trades default to required");
+  const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
+  const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
+    agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
+    specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01" };
+  assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
+  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, false, "cleaners still need a COI");
+  const base: Contractor = {
+    id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design", "hauling"],
+    service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
+    insured_until: null, license_number: null, background_checked: true, daily_capacity: 3, notes: null, coverage: { auto: "2099-01-01" },
+  };
+  assert.equal(rankContractors([base], { service_slug: "website-design", zip: "48201", scheduled_date: null }).length, 1, "no COI: still offered remote work");
+  assert.equal(rankContractors([base], { service_slug: "junk-removal", zip: "48201", scheduled_date: null }).length, 0, "no COI: no junk removal");
+});
+
 test("square footage drives the price wherever it's asked", async () => {
   for (const svc of SERVICES) {
     const q = svc.questions.find((x) => x.type === "number" && /sq ?ft/i.test(x.unit ?? ""));

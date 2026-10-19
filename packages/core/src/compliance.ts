@@ -13,6 +13,8 @@
  * UPDATED : 2026-10-06_2010 UTC — work-area step needs the pro's place of business (street address), not just a ZIP.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  * UPDATED : 2026-10-12_0005 UTC — work-area detail shows "only ZIPs …" when the pro limits offers to their ZIP list.
+ * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
+ *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -68,6 +70,17 @@ export interface Step {
   detail: string;
   /** Expires within 30 days — renew before it lapses. */
   expiring?: boolean;
+  /** Not needed for this pro's work: shown, never blocks activation. */
+  optional?: boolean;
+}
+
+/**
+ * Does this pro need a general liability certificate? Yes when any service their trades can take requires it
+ * (or their trades match no service at all); no when every one of those services is insuranceOptional.
+ */
+export function insuranceRequired(trades: string[]): boolean {
+  const theirs = SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)));
+  return !theirs.length || theirs.some((s) => !s.insuranceOptional);
 }
 
 const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
@@ -80,7 +93,9 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
     { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
-    { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) },
+    insuranceRequired(c.trades)
+      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
+      : { key: "coi", label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : "Not required for your work (remote work, errands, courier, assistant)" },
   ];
   // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement
   const required = requiredCoverages(c.trades);

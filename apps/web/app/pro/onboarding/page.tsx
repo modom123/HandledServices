@@ -10,6 +10,7 @@
  * PURPOSE : Pro onboarding checklist. Every step is required before activation; offers
  *           stop automatically if insurance or a license expires.
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (Stripe Identity or a video call).
+ * UPDATED : 2026-10-19_1320 UTC — optional insurance step (insurance-optional work): marked optional, upload still offered.
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  */
 import { VerifyId } from "@/components/VerifyId";
@@ -204,9 +205,9 @@ export default async function Onboarding() {
       </details>
       {steps.map((s) => (
         <div key={s.key} id={`step-${s.key}`} className={`card scroll-mt-24 ${s.done ? "border-brand/40" : ""}`}>
-          <div className="flex items-center justify-between gap-2"><div className="font-semibold">{s.done ? "✅" : "⬜"} {stepLabel(s)}</div>{s.expiring && <Badge tone="amber">{t("expires soon")}</Badge>}</div>
+          <div className="flex items-center justify-between gap-2"><div className="font-semibold">{s.done ? "✅" : "⬜"} {stepLabel(s)}</div>{s.expiring && <Badge tone="amber">{t("expires soon")}</Badge>}{s.optional && <Badge>{es ? "opcional" : "optional"}</Badge>}</div>
           <div className="text-sm text-ink-soft">{stepDetail(s.detail)}</div>
-          {(!s.done || s.expiring || s.key === "area") && body(s.key)}
+          {(!s.done || s.expiring || s.key === "area" || s.optional) && body(s.key)}
         </div>
       ))}
     </div>

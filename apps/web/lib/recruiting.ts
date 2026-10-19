@@ -357,6 +357,7 @@ export async function renewalSweep(now = new Date()) {
     const expiry = (key: string): string | null => key === "coi" ? (c.insured_until as string | null) : key === "license" ? (c.license_expires as string | null)
       : key.startsWith("coverage:") && coverage[key.slice(9)] !== "exempt" ? coverage[key.slice(9)] ?? null : null;
     for (const s of steps) {
+      if (s.optional) continue; // not required for their work: an expiring optional certificate pauses nothing
       const date = expiry(s.key);
       if (!date) continue;
       const days = Math.ceil((new Date(`${date}T23:59:59`).getTime() - now.getTime()) / 86400000);
