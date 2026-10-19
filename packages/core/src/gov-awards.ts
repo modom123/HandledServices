@@ -11,11 +11,15 @@
  *             recompeteFit       — 0–100: our NAICS, Michigan / metro Detroit, months until the contract ends
  *                                  (3–18 months out is the sweet spot), set-aside we can claim
  *             incumbents         — who holds the work, by NAICS: contracts, total value, soonest end date
- *             awardSearchQueries — the query strings (the API key is added server-side, never stored)
- *           SAM.gov API: GET https://api.sam.gov/contract-awards/v1/search — limit ≤ 100 per page, offset, naicsCode
- *           (several codes joined with "~" = OR, so one call covers every code), dateSigned=[MM/dd/yyyy,MM/dd/yyyy],
- *           q = free text. Only the first 400,000 records are returned. The same key and daily call limit as the
- *           Opportunities API. Place of performance is filtered on our side.
+ *             awardSearchQuery   — the query string for one page (the API key is added server-side, never stored)
+ *             nextAwardOffset    — works out whether SAM's `offset` counts pages or records from the first two pages
+ *           SAM.gov API (OpenAPI spec "Contract Award API" 1.0): GET https://api.sam.gov/contract-awards/v1/search —
+ *           limit (default 10, max 100), offset (spec default 1), naicsCode (several joined with "~" = OR, so one call
+ *           covers every code), dateSigned=[MM/dd/yyyy,MM/dd/yyyy], placeOfPerformStateCode, awardeeUniqueEntityId,
+ *           q = free text. Response: { totalRecords, limit, offset, awardSummary[{ contractId, coreData,
+ *           awardDetails }] }. Only the first 400,000 records are returned. Same key and daily limit as Opportunities.
+ * UPDATED : 2026-10-19_2105 UTC — checked against the published OpenAPI spec: exact field paths first (name lookup
+ *           as the fallback), server-side state filter, SAM date formats, page-or-record offset detection.
  */
 import { GOV_NAICS_BY_CODE, METRO_CITIES, SET_ASIDES, samDate, servicesForNaics } from "./gov-contracts.ts";
 
@@ -85,7 +89,17 @@ function codeName(v: unknown): { code: string | null; name: string | null } {
   if (isObj(v)) return { code: str(v.code), name: str(v.name) ?? str(v.description) };
   return { code: str(v), name: null };
 }
-const date = (v: unknown) => { const s = str(v); if (!s) return null; const d = new Date(s); return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10); };
+/** SAM dates come as YYYY-MM-DD (often with a time) or MM/DD/YYYY: keep the calendar date as written. */
+function date(v: unknown): string | null {
+  const s = str(v);
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
 
 /** One record from the Contract Awards search response (`awardSummary[]`) → our row. Null when there's no PIID. */
 export function parseSamAward(r: Raw): GovAward | null {
@@ -93,15 +107,21 @@ export function parseSamAward(r: Raw): GovAward | null {
   const piid = str(at(cid, "piid")) ?? str(find(r, ["piid"]));
   if (!piid) return null;
   const idv = str(at(cid, "referencedIDVPiid")) ?? str(find(r, ["referencedIDVPiid", "referencedIdvPiid"]));
-  const contracting = find(r, ["contractingInformation"]) ?? r;
-  const awardeeTree = find(r, ["awardeeData", "awardee"]) ?? r;
-  const loc = find(awardeeTree, ["awardeeLocation", "physicalAddress", "address"]);
-  const pop = find(r, ["placeOfPerformance", "principalPlaceOfPerformance"]);
-  const naics = codeName(find(r, ["principalNaics", "naics", "naicsCode"]));
-  const psc = codeName(find(r, ["productOrService", "productOrServiceCode", "psc"]));
-  const sa = codeName(find(r, ["typeOfSetAside"]));
-  const total = find(r, ["totalContractDollars"]);
-  const dollars = find(r, ["dollars"]);
+  // exact paths from the OpenAPI spec first; a name search through the record if SAM moves something
+  const contracting = at(r, "coreData.federalOrganization.contractingInformation") ?? find(r, ["contractingInformation"]) ?? r;
+  const awardeeTree = at(r, "awardDetails.awardeeData") ?? find(r, ["awardeeData"]) ?? r;
+  const header = at(awardeeTree, "awardeeHeader");
+  const ueiInfo = at(awardeeTree, "awardeeUEIInformation");
+  const loc = at(awardeeTree, "awardeeLocation") ?? find(awardeeTree, ["awardeeLocation"]);
+  const pop = at(r, "coreData.principalPlaceOfPerformance") ?? find(r, ["principalPlaceOfPerformance", "placeOfPerformance"]);
+  const psi = at(r, "awardDetails.productOrServiceInformation") ?? at(r, "coreData.productOrServiceInformation");
+  const comp = at(r, "awardDetails.competitionInformation") ?? at(r, "coreData.competitionInformation");
+  const dates = at(r, "awardDetails.dates");
+  const naics = codeName(at(psi, "principalNaics") ?? find(r, ["principalNaics", "naicsCode"]));
+  const psc = codeName(at(psi, "productOrService") ?? find(r, ["productOrService"]));
+  const sa = codeName(at(comp, "typeOfSetAside") ?? find(r, ["typeOfSetAside"]));
+  const total = at(r, "awardDetails.totalContractDollars") ?? find(r, ["totalContractDollars"]);
+  const dollars = at(r, "awardDetails.dollars") ?? find(r, ["dollars"]);
   const placeCity = find(pop, ["city"]);
   const placeState = find(pop, ["state", "stateCode"]);
   return {
@@ -112,8 +132,8 @@ export function parseSamAward(r: Raw): GovAward | null {
     agency: codeName(find(contracting, ["contractingDepartment", "department"])).name,
     subtier: codeName(find(contracting, ["contractingSubtier", "subtier"])).name ?? codeName(at(cid, "subtier")).name,
     office: codeName(find(contracting, ["contractingOffice", "office"])).name,
-    awardee: str(find(awardeeTree, ["awardeeName", "legalBusinessName", "vendorName"])),
-    awardee_uei: str(find(awardeeTree, ["uniqueEntityId", "awardeeUniqueEntityId", "uei"])),
+    awardee: str(at(header, "awardeeName")) ?? str(at(header, "legalBusinessName")) ?? str(find(awardeeTree, ["awardeeName", "legalBusinessName"])),
+    awardee_uei: str(at(ueiInfo, "uniqueEntityId")) ?? str(find(awardeeTree, ["uniqueEntityId"])),
     awardee_city: codeName(find(loc, ["city"])).name ?? codeName(find(loc, ["city"])).code,
     awardee_state: codeName(find(loc, ["state", "stateCode"])).code,
     naics: naics.code && /^\d{6}$/.test(naics.code) ? naics.code : null,
@@ -122,18 +142,18 @@ export function parseSamAward(r: Raw): GovAward | null {
     psc_title: psc.name,
     set_aside_code: sa.code,
     set_aside: sa.name,
-    description: str(find(r, ["descriptionOfContractRequirement", "description"]))?.slice(0, 2000) ?? null,
-    solicitation_id: str(find(r, ["solicitationIdentifier", "solicitationId", "solicitationID"])),
-    offers_received: num(find(r, ["numberOfOffersReceived"])),
-    date_signed: date(find(r, ["dateSigned"])),
-    pop_start: date(find(r, ["periodOfPerformanceStartDate", "effectiveDate"])),
-    current_end: date(find(r, ["currentCompletionDate"])),
-    ultimate_end: date(find(r, ["ultimateCompletionDate"])),
+    description: str(at(psi, "descriptionOfContractRequirement") ?? find(r, ["descriptionOfContractRequirement"]))?.slice(0, 2000) ?? null,
+    solicitation_id: str(at(r, "coreData.solicitationId") ?? find(r, ["solicitationId", "solicitationID"])),
+    offers_received: num(at(comp, "numberOfOffersReceived") ?? find(r, ["numberOfOffersReceived"])),
+    date_signed: date(at(dates, "dateSigned") ?? find(r, ["dateSigned"])),
+    pop_start: date(at(dates, "periodOfPerformanceStartDate") ?? find(r, ["periodOfPerformanceStartDate"])),
+    current_end: date(at(dates, "currentCompletionDate") ?? find(r, ["currentCompletionDate"])),
+    ultimate_end: date(at(dates, "ultimateCompletionDate") ?? find(r, ["ultimateCompletionDate"])),
     obligated: num(at(total, "totalActionObligation")) ?? num(at(dollars, "actionObligation")) ?? num(find(r, ["totalActionObligation", "actionObligation"])),
     total_value: num(at(total, "totalBaseAndAllOptionsValue")) ?? num(at(dollars, "baseAndAllOptionsValue")) ?? num(find(r, ["totalBaseAndAllOptionsValue", "baseAndAllOptionsValue"])),
     pop_city: codeName(placeCity).name ?? codeName(placeCity).code,
     pop_state: codeName(placeState).code?.toUpperCase().slice(0, 2) ?? null,
-    pop_zip: str(find(pop, ["zip", "zipCode", "zip5"])),
+    pop_zip: str(find(pop, ["zipCode", "zip"]))?.slice(0, 5) ?? null,
   };
 }
 
@@ -227,22 +247,36 @@ export function incumbents(rows: GovAward[], now = new Date()): Incumbent[] {
   return [...by.values()].sort((a, b) => b.total_value - a.total_value || b.contracts - a.contracts);
 }
 
-export interface AwardSearch { naics?: string[]; keywords?: string | null; monthsBack?: number; awardeeUei?: string | null; pages?: number; now?: Date }
+export interface AwardSearch { naics?: string[]; state?: string | null; keywords?: string | null; monthsBack?: number; awardeeUei?: string | null; now?: Date }
 export const AWARDS_PAGE_SIZE = 100;
 
 /**
- * Query strings (without the API key), one per page. Every NAICS code goes in one call (joined with "~"), so a
- * search costs `pages` calls at most — callers stop early when a page comes back short.
+ * The query string for one page (without the API key). Every NAICS code goes in the same call (joined with "~"),
+ * and the state is filtered by SAM (placeOfPerformStateCode), so a search costs one call per page of 100.
  */
-export function awardSearchQueries(s: AwardSearch): string[] {
+export function awardSearchQuery(s: AwardSearch, offset: number): string {
   const now = s.now ?? new Date();
   const months = Math.min(60, Math.max(1, Math.round(s.monthsBack ?? 24)));
   const from = new Date(now); from.setUTCMonth(from.getUTCMonth() - months);
-  const base: Record<string, string> = { dateSigned: `[${samDate(from)},${samDate(now)}]`, limit: String(AWARDS_PAGE_SIZE) };
+  const q: Record<string, string> = { dateSigned: `[${samDate(from)},${samDate(now)}]`, limit: String(AWARDS_PAGE_SIZE), offset: String(Math.max(0, Math.round(offset))) };
   const codes = [...new Set((s.naics ?? []).filter((c) => /^\d{6}$/.test(c)))].slice(0, 100);
-  if (codes.length) base.naicsCode = codes.join("~");
-  if (s.keywords?.trim()) base.q = s.keywords.trim().slice(0, 100);
-  if (s.awardeeUei && /^[A-Z0-9]{12}$/i.test(s.awardeeUei.trim())) base.awardeeUniqueEntityId = s.awardeeUei.trim().toUpperCase();
-  const pages = Math.min(20, Math.max(1, Math.round(s.pages ?? 3)));
-  return Array.from({ length: pages }, (_, i) => new URLSearchParams({ ...base, offset: String(i * AWARDS_PAGE_SIZE) }).toString());
+  if (codes.length) q.naicsCode = codes.join("~");
+  if (s.state && /^[A-Za-z]{2}$/.test(s.state.trim())) q.placeOfPerformStateCode = s.state.trim().toUpperCase();
+  if (s.keywords?.trim()) q.q = s.keywords.trim().slice(0, 100);
+  if (s.awardeeUei && /^[A-Z0-9]{12}$/i.test(s.awardeeUei.trim())) q.awardeeUniqueEntityId = s.awardeeUei.trim().toUpperCase();
+  return new URLSearchParams(q).toString();
+}
+
+export type AwardOffsetMode = "page" | "record";
+
+/**
+ * The offset for the next call. The spec doesn't say whether `offset` counts pages or records, so we start as pages
+ * (0, 1, 2…) and check the second page: if it brought back almost nothing new (records 1–100 instead of 101–200),
+ * SAM counts records, and the next offset is how many we've seen. If it repeated page one exactly (pages start at
+ * 1), the page count simply carries on.
+ */
+export function nextAwardOffset(o: { calls: number; mode: AwardOffsetMode; seen: number; newOnLastPage: number; lastPageSize: number }): { offset: number; mode: AwardOffsetMode } {
+  let mode = o.mode;
+  if (o.calls === 2 && mode === "page" && o.lastPageSize >= AWARDS_PAGE_SIZE && o.newOnLastPage > 0 && o.newOnLastPage <= 2) mode = "record";
+  return { offset: mode === "record" ? o.seen : o.calls, mode };
 }

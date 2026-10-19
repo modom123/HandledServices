@@ -39,7 +39,7 @@ Supabase → SQL Editor → paste `supabase/setup/ADD_GOV_CONTRACT_AWARDS_2026-1
 ## 3. Search awards
 In Hub → Gov contracts → **Awards & recompetes**:
 1. **Pick the NAICS codes.** They all go in one call, joined as `naicsCode=561720~561730`.
-2. **Set the state** (MI). Only contracts performed there are kept.
+2. **Set the state** (MI). SAM returns only contracts performed there.
 3. **Set "signed in the last" months.** 24 is a good start; most service contracts run 1 base year plus 4 option years.
 4. **Set pages of 100.** Each page is one call. Keep it at 1–2 on a personal key.
 5. Optional: **keywords** (free text, the `q` parameter) or an **awardee UEI** (one company's contracts).
@@ -63,10 +63,19 @@ In Hub → Gov contracts → **Awards & recompetes**:
 Use **Watch** / **Ignore** to sort leads. **Who holds this work now** lists incumbents by total value. Big ones are also subcontracting prospects.
 
 ## What the API does (for whoever maintains this)
-- `GET https://api.sam.gov/contract-awards/v1/search?api_key=…`
-- **Paging:** `limit` (default 10, max 100) and `offset`. Only the first 400,000 records are returned.
-- **Filters used:** `naicsCode` (`~` = OR, `!` = NOT), `dateSigned=[MM/dd/yyyy,MM/dd/yyyy]`, `q` (free text) and `awardeeUniqueEntityId`.
-- **Response:** `totalRecords`, `limit`, `offset`, `awardSummary[]`. Each award has `contractId` (piid, modificationNumber, …), `coreData` (agency, NAICS, PSC, set-aside, place of performance), and `awardDetails` (dates, dollars, awardee).
-- The parser (`packages/core/src/gov-awards.ts`) finds fields by name, so small changes in nesting don't break it. The full raw record is kept in `gov_awards.raw`.
-- **Place of performance is filtered on our side.** If you confirm a server-side state filter in the docs, add it in `awardSearchQueries` to save calls.
+Checked against GSA's published OpenAPI spec ("Contract Award API", version 1.0).
+- `GET https://api.sam.gov/contract-awards/v1/search?api_key=…`. There's also `/contract-awards/v1/download` for large extracts (`format=csv`), which we don't use.
+- **Paging:** `limit` (default 10, max 100) and `offset` (the spec's default is 1). The spec doesn't say whether `offset` counts pages or records. The code starts with page numbers and checks the second page: if it comes back shifted by one record, it switches to record offsets (`nextAwardOffset`). Only the first 400,000 records are returned.
+- **Filters used:**
+  - `naicsCode` (`~` = OR, `!` = NOT)
+  - `dateSigned=[MM/dd/yyyy,MM/dd/yyyy]`
+  - `placeOfPerformStateCode`. The state is filtered by SAM, so no calls are wasted on other states.
+  - `q` (free text) and `awardeeUniqueEntityId`
+- **Other filters in the spec**, for later: `typeOfSetAsideCode`, `contractingDepartmentCode`, `contractingSubtierCode`, `productOrServiceCode`, `ultimateCompletionDate`, `currentCompletionDate`, `fiscalYear`, `piid`, `awardeeLegalBusinessName`.
+- **Response:** `totalRecords`, `limit`, `offset`, `piidAggregation`, and `awardSummary[]`. Each award has:
+  - `contractId`: piid, modificationNumber, referencedIDVPiid
+  - `coreData`: federalOrganization.contractingInformation, principalPlaceOfPerformance, solicitationId
+  - `awardDetails`: dates, dollars, totalContractDollars, productOrServiceInformation (principalNaics, productOrService, descriptionOfContractRequirement), competitionInformation (typeOfSetAside, numberOfOffersReceived), and awardeeData (awardeeHeader, awardeeUEIInformation, awardeeLocation)
+- The parser (`packages/core/src/gov-awards.ts`) reads those exact paths first and falls back to finding fields by name. The full raw record is kept in `gov_awards.raw`.
+- **Still to confirm on the first live call:** the `dateSigned` range format and how `offset` counts.
 - Docs: https://open.gsa.gov/api/contract-awards/. Alpha (test) host: `api-alpha.sam.gov`, with a key from alpha.sam.gov.

@@ -16,10 +16,12 @@
  * UPDATED : 2026-10-19_2015 UTC — Contract Awards API: runAwardSearch (who holds our kind of work, its value and end
  *           date → recompete leads), setAwardStatus, and a weekly awards run (Mondays) when switched on. Same key and
  *           call budget as opportunities.
+ * UPDATED : 2026-10-19_2105 UTC — per the OpenAPI spec: state filtered by SAM (placeOfPerformStateCode); offset
+ *           page-or-record detection; one record per transaction counted when paging.
  */
 import "server-only";
 import { z } from "zod";
-import { AWARDS_PAGE_SIZE, BRAND, GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, awardSearchQueries, govFit, mergeAwards, parseSamAward, parseSamOpportunity, recompeteFit, samSearchQueries, tradesForNaics, type GovAward, type GovOpportunity } from "@handled/core";
+import { AWARDS_PAGE_SIZE, BRAND, GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, awardSearchQuery, govFit, nextAwardOffset, mergeAwards, parseSamAward, parseSamOpportunity, recompeteFit, samSearchQueries, tradesForNaics, type GovAward, type GovOpportunity } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { sendEmail } from "./notify";
 import { aiEnabled, structured } from "./ai/client";
@@ -104,26 +106,38 @@ export interface AwardRunResult { calls: number; found: number; kept: number; ad
  */
 export async function runAwardSearch(search: { naics: string[]; state: string | null; keywords: string | null; months_back: number; pages: number; awardee_uei?: string | null }, actor = "system"): Promise<AwardRunResult> {
   const s = await getGovSettings();
-  const queries = awardSearchQueries({ naics: search.naics, keywords: search.keywords, monthsBack: search.months_back, pages: search.pages, awardeeUei: search.awardee_uei ?? null });
+  const params = { naics: search.naics, state: search.state, keywords: search.keywords, monthsBack: search.months_back, awardeeUei: search.awardee_uei ?? null };
+  const pages = Math.min(20, Math.max(1, Math.round(search.pages)));
   let left = Math.max(0, s.daily_call_budget - (await callsToday()));
   const out: AwardRunResult = { calls: 0, found: 0, kept: 0, added: 0, errors: [], budgetLeft: left };
   const raw = new Map<string, Record<string, unknown>>();
   const parsed: GovAward[] = [];
-  for (const q of queries) {
+  const seenTx = new Set<string>(); // one per transaction (base award or modification), to page correctly
+  let paging = { offset: 0, mode: "page" as "page" | "record" };
+  for (let call = 0; call < pages; call++) {
     if (left <= 0) { out.errors.push("Today's SAM.gov call budget is used up — the rest of the pages were skipped"); break; }
     left--; out.calls++;
+    const q = awardSearchQuery(params, paging.offset);
     const r = await samGet(`${SAM_AWARDS}?${q}`, "awards", q, actor);
     if (!r.ok) { out.errors.push(r.error); break; }
     const page = Array.isArray(r.json.awardSummary) ? (r.json.awardSummary as Record<string, unknown>[]) : [];
-    const before = parsed.length;
-    for (const x of page) { const a = parseSamAward(x); if (a) { parsed.push(a); raw.set(a.award_key, x); } }
-    out.found += page.length;
+    let fresh = 0;
+    for (const x of page) {
+      const tx = JSON.stringify(x.contractId ?? x);
+      if (seenTx.has(tx)) continue;
+      seenTx.add(tx); fresh++;
+      const a = parseSamAward(x);
+      if (a) { parsed.push(a); raw.set(a.award_key, x); }
+    }
+    out.found += fresh;
     const total = Number(r.json.totalRecords ?? NaN);
-    if (page.length < AWARDS_PAGE_SIZE || parsed.length === before || (Number.isFinite(total) && out.found >= total)) break;
+    if (page.length < AWARDS_PAGE_SIZE || (Number.isFinite(total) && seenTx.size >= total)) break;
+    if (fresh === 0 && out.calls > 2) break; // nothing new past the offset check: stop rather than burn calls
+    paging = nextAwardOffset({ calls: out.calls, mode: paging.mode, seen: seenTx.size, newOnLastPage: fresh, lastPageSize: page.length });
   }
   out.budgetLeft = left;
   const state = search.state?.toUpperCase() || null;
-  const rows = mergeAwards(parsed).filter((a) => !state || a.pop_state === state);
+  const rows = mergeAwards(parsed).filter((a) => !state || !a.pop_state || a.pop_state === state); // SAM filters the state; this is a backstop
   out.kept = rows.length;
   if (!rows.length) return out;
   const { data: seen } = await db().from("gov_awards").select("award_key").in("award_key", rows.map((a) => a.award_key));

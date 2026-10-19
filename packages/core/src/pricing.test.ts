@@ -1766,17 +1766,18 @@ test("talent: flat fee per hire by the role's pay, same 80/20 split", async () =
 });
 
 test("gov awards: Contract Awards records parse, modifications merge, recompetes ending soon in metro Detroit score highest", async () => {
-  const { parseSamAward, mergeAwards, recompeteFit, incumbents, awardSearchQueries } = await import("./gov-awards.ts");
+  const { parseSamAward, mergeAwards, recompeteFit, incumbents, awardSearchQuery, nextAwardOffset } = await import("./gov-awards.ts");
   const rec = (mod: string, signed: string, end: string, value: string) => ({
     contractId: { subtier: { code: "4740", name: "Public Buildings Service" }, piid: "47PF0025C0001", modificationNumber: mod },
     coreData: {
       federalOrganization: { contractingInformation: { contractingDepartment: { code: "4700", name: "General Services Administration" }, contractingOffice: { code: "47PF00", name: "PBS R5" } } },
       productOrServiceInformation: { principalNaics: [{ code: "561720", name: "Janitorial Services" }], productOrService: { code: "S201", name: "Custodial janitorial services" } },
       competitionInformation: { typeOfSetAside: { code: "SBA", name: "Small Business Set Aside - Total" }, numberOfOffersReceived: "1" },
-      placeOfPerformance: { city: { code: "22000", name: "Detroit" }, state: { code: "MI", name: "Michigan" }, zip: "48226" },
+      principalPlaceOfPerformance: { city: { code: "22000", name: "Detroit" }, state: { code: "MI", name: "Michigan" }, zipCode: "482261234" },
+      solicitationId: "47PF0024R0009",
     },
     awardDetails: {
-      dates: { dateSigned: signed, periodOfPerformanceStartDate: "2025-01-01", currentCompletionDate: end, ultimateCompletionDate: end },
+      dates: { dateSigned: `${signed} 00:00:00`, periodOfPerformanceStartDate: "2025-01-01", currentCompletionDate: end, ultimateCompletionDate: end },
       dollars: { actionObligation: "100000.00", baseAndAllOptionsValue: value },
       productOrServiceInformation: { descriptionOfContractRequirement: "Custodial services, McNamara Federal Building" },
       awardeeData: { awardeeHeader: { awardeeName: "Acme Facility Services LLC" }, awardeeUEIInformation: { uniqueEntityId: "ABCDEFGH1234" }, awardeeLocation: { city: "Southfield", state: { code: "MI" } } },
@@ -1807,12 +1808,19 @@ test("gov awards: Contract Awards records parse, modifications merge, recompetes
   assert.ok(recompeteFit({ ...m, pop_state: "TX", pop_city: "Austin" }, { now }).score < soon.score);
   assert.ok(recompeteFit({ ...m, set_aside_code: "8A", set_aside: "8(a)" }, { now }).score < soon.score);
   assert.equal(incumbents([m], now)[0].awardee, "Acme Facility Services LLC");
-  const qs = awardSearchQueries({ naics: ["561720", "561730", "bad"], monthsBack: 12, pages: 2, now });
-  assert.equal(qs.length, 2);
-  const q = new URLSearchParams(qs[1]);
+  assert.equal(m.pop_zip, "48226");
+  assert.equal(m.solicitation_id, "47PF0024R0009");
+  const qs = awardSearchQuery({ naics: ["561720", "561730", "bad"], state: "mi", monthsBack: 12, now }, 1);
+  const q = new URLSearchParams(qs);
   assert.equal(q.get("naicsCode"), "561720~561730");
+  assert.equal(q.get("placeOfPerformStateCode"), "MI");
   assert.equal(q.get("dateSigned"), "[10/19/2025,10/19/2026]");
   assert.equal(q.get("limit"), "100");
-  assert.equal(q.get("offset"), "100");
-  assert.ok(!qs[0].includes("api_key"));
+  assert.equal(q.get("offset"), "1");
+  assert.ok(!qs.includes("api_key"));
+  // offset counts pages unless page two came back shifted by one record
+  assert.deepEqual(nextAwardOffset({ calls: 1, mode: "page", seen: 100, newOnLastPage: 100, lastPageSize: 100 }), { offset: 1, mode: "page" });
+  assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 200, newOnLastPage: 100, lastPageSize: 100 }), { offset: 2, mode: "page" });
+  assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 101, newOnLastPage: 1, lastPageSize: 100 }), { offset: 101, mode: "record" });
+  assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 100, newOnLastPage: 0, lastPageSize: 100 }), { offset: 2, mode: "page" }, "pages start at 1");
 });
