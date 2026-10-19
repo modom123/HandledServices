@@ -18,6 +18,9 @@
  *           · a document step counts as "waiting on us" only while that document is uploaded and pending — a pro who
  *             never uploaded insurance (or whose upload was rejected) keeps getting reminders;
  *           · documents waiting on staff: warn after 24h, critical (emails ops) after 72h, once each.
+ * UPDATED : 2026-10-19_1308 UTC — renewalSweep(): active pros hear 30 and 7 days before insurance, a required coverage or
+ *           a trade license expires, and on the day it lapses (offers pause then — dispatch eligible()); ops is alerted at 7 days
+ *           and on expiry. Once per document per expiry date.
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
@@ -342,6 +345,47 @@ export async function recruitingSweep(now = new Date()) {
     stuck++;
   }
   return { reminded, dropped, activated, stuck, welcomed, docsOverdue };
+}
+
+/** Daily: active pros' insurance, coverages and licenses — remind 30 and 7 days ahead and on the day it lapses. */
+export async function renewalSweep(now = new Date()) {
+  let reminded = 0, expired = 0;
+  const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
+  for (const c of (pros ?? []) as (Contractor & Record<string, unknown>)[]) {
+    const steps = onboardingChecklist(c as never).steps;
+    const coverage = (c.coverage ?? {}) as Record<string, string>;
+    const expiry = (key: string): string | null => key === "coi" ? (c.insured_until as string | null) : key === "license" ? (c.license_expires as string | null)
+      : key.startsWith("coverage:") && coverage[key.slice(9)] !== "exempt" ? coverage[key.slice(9)] ?? null : null;
+    for (const s of steps) {
+      const date = expiry(s.key);
+      if (!date) continue;
+      const days = Math.ceil((new Date(`${date}T23:59:59`).getTime() - now.getTime()) / 86400000);
+      const level = days < 0 ? "renewal_expired" : days <= 7 ? "renewal_7" : days <= 30 ? "renewal_30" : null;
+      if (!level) continue;
+      const mark = `${s.key}:${date}`;
+      const { data: told } = await db().from("recruiting_events").select("id").eq("contractor_id", c.id).eq("kind", level).eq("note", mark).limit(1);
+      if (told?.length) continue;
+      const link = await signInUrl(String(c.email));
+      const lapsed = level === "renewal_expired";
+      const en = lapsed ? `Your ${s.label.replace(/ verified$/, "")} expired on ${date}, so job offers are paused. Upload the renewal and offers restart as soon as we verify it.`
+        : `Your ${s.label.replace(/ verified$/, "")} expires on ${date} (${days} day${days === 1 ? "" : "s"}). Upload the renewal now so your job offers don't pause.`;
+      const es = lapsed ? `Su ${stepLabel(s, "es").replace(/ verificad[oa]$/, "")} venció el ${date}, así que las ofertas de trabajo están en pausa. Suba la renovación y las ofertas vuelven en cuanto la verifiquemos.`
+        : `Su ${stepLabel(s, "es").replace(/ verificad[oa]$/, "")} vence el ${date} (${days} día${days === 1 ? "" : "s"}). Suba la renovación ahora para que sus ofertas no se pausen.`;
+      await notify(c.profile_id as string | null, {
+        title: lapsed ? "Offers paused: document expired" : "Renew your document", body: en, data: { type: "onboarding" },
+        email: { to: String(c.email), subject: lapsed ? `Offers paused — your ${s.label.replace(/ verified$/, "")} expired` : `Renewal due ${date}: ${s.label.replace(/ verified$/, "")}`,
+          text: `Hi ${first(c.contact_name)},\n\n${en}\n\nUpload it here (one click signs you in):\n${link}\n\n— ${BRAND.name}` },
+        locale: await appLocale(c as never),
+        es: { title: lapsed ? "Ofertas en pausa: documento vencido" : "Renueve su documento", body: es,
+          subject: lapsed ? "Ofertas en pausa: su documento venció" : `Renovación antes del ${date}`, text: `Hola ${first(c.contact_name)}:\n\n${es}\n\nSúbalo aquí (un clic inicia su sesión):\n${link}\n\n— ${BRAND.name}` },
+      });
+      if (level !== "renewal_30") await raiseAlert("insurance", lapsed ? "critical" : "warn", `${c.business_name}: ${s.label.replace(/ verified$/, "")} ${lapsed ? "expired" : "expires"} ${date}`,
+        `${lapsed ? "Offers are paused until the renewal is verified." : `${days} day(s) left — the pro has been reminded.`} Hub → Pros: ${siteUrl()}/hub/pros/${c.id}`);
+      await logRecruiting(level, { contractorId: c.id }, mark);
+      if (lapsed) expired++; else reminded++;
+    }
+  }
+  return { reminded, expired };
 }
 
 /** Pipeline rows for the Hub. */
