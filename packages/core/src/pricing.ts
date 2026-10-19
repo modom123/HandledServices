@@ -27,6 +27,8 @@
  * UPDATED : 2026-10-07_1830 UTC — area pricing: EstimateInput.region (markets.price_multiplier, e.g. Seattle area 1.25, rest of
  *           Washington 1.20) raises the price and the minimum; the pro's pay follows the price.
  * UPDATED : 2026-10-11_0608 UTC — priceHint: remote services show their starting price ("From $1,620") instead of "Free on-site quote".
+ * UPDATED : 2026-10-15_0300 UTC — book now, pay after: BOOK_NOW (25% at booking; the balance is held on the card when the pro
+ *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -362,6 +364,57 @@ export function depositPolicy(slug: string, price: number | null | undefined, sc
   const share = events ? DEPOSIT.eventShare : DEPOSIT.share;
   const amount = Math.min(Math.round(price) - 1, Math.max(DEPOSIT.minimum, Math.round(price * share)));
   return { allowed: amount > 0, amount, balance: Math.round(price) - amount, balanceDue, share };
+}
+
+/**
+ * Book now, pay the rest when it's done — the default for everyday jobs (not events or site-visit work,
+ * which keep the deposit above). 25% at booking (at least $25) locks in the date and saves the card.
+ * When the pro starts work the balance is held on that card (an authorization, not a charge: the money
+ * is guaranteed and a declined card shows up while the pro is still there). When the job is complete
+ * and passes the photo check, the hold is captured. If there's no hold (declined, expired), the saved
+ * card is charged instead; a failure is retried daily up to `maxAttempts` times with a payment link.
+ */
+export const BOOK_NOW = { share: 0.25, minimum: 25, maxAttempts: 3, retryHours: 24 } as const;
+
+/** Pay the whole price at booking instead: 5% off, out of our share (the pro's pay never changes). */
+export const PAY_IN_FULL = { discount: 0.05 } as const;
+
+export type PaymentPlan = "full" | "deposit" | "after";
+
+/** The 25%-now plan for a job, or not allowed (events and site-visit work use the deposit; tiny jobs pay in full). */
+export function bookNowPolicy(slug: string, price: number | null | undefined) {
+  const svc = getService(slug);
+  const none = { allowed: false, amount: 0, balance: 0 };
+  if (!svc || !price || price <= 0 || svc.siteVisit || svc.category === "events") return none;
+  const p = Math.round(price);
+  const amount = Math.min(p - 1, Math.max(BOOK_NOW.minimum, Math.round(p * BOOK_NOW.share)));
+  return amount > 0 && amount < p ? { allowed: true, amount, balance: p - amount } : none;
+}
+
+/**
+ * The 5% pay-in-full saving, capped so it fits inside our share after any other discount on the job
+ * (`room` is what's left there — growth.capDiscount minus promos, Plus and account pilots).
+ */
+export function payInFullSaving(price: number | null | undefined, room: number): number {
+  if (!price || price <= 0) return 0;
+  return Math.max(0, Math.min(Math.round(price * PAY_IN_FULL.discount), Math.floor(room)));
+}
+
+/** When to try a failed "pay after" balance again: `retryHours` after the last attempt. */
+export const nextBalanceTry = (from: Date | string = new Date()) => new Date(new Date(from).getTime() + BOOK_NOW.retryHours * 3600000).toISOString();
+
+/**
+ * The plan a booking actually gets, from what the customer picked and what the job allows. Booking screens and the
+ * server both use it: "after" falls back to the deposit (events, site-visit work), "deposit" to "after", else full.
+ */
+export function resolvePlan(want: PaymentPlan, depositAllowed: boolean, afterAllowed: boolean): PaymentPlan {
+  const w = want === "deposit" && !depositAllowed ? "after" : want === "after" && !afterAllowed ? "deposit" : want;
+  return w === "deposit" && depositAllowed ? "deposit" : w === "after" && afterAllowed ? "after" : "full";
+}
+
+/** Is the job cleared for a pro to be assigned and start? Paid in full, on account, a free redo, or a "pay after" job with its 25% in. */
+export function clearedForWork(j: { paid_at?: string | null; billed_on_terms?: boolean | null; remedy?: string | null; payment_plan?: string | null; deposit_paid_at?: string | null }): boolean {
+  return Boolean(j.paid_at || j.billed_on_terms || j.remedy || (j.payment_plan === "after" && j.deposit_paid_at));
 }
 
 /** Market factors stay within these bounds (a guardrail on what the data can do to a price). */

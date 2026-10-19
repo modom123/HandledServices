@@ -13,18 +13,41 @@
  * UPDATED : 2026-10-06_2010 UTC — work-area step needs the pro's place of business (street address), not just a ZIP.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  * UPDATED : 2026-10-12_0005 UTC — work-area detail shows "only ZIPs …" when the pro limits offers to their ZIP list.
+ * UPDATED : 2026-10-15_0300 UTC — SERVICE_AGREEMENT_VERSION v8: book now, pay after, or pay in full for 5% off.
+ * UPDATED : 2026-10-18_0248 UTC — resume and profile photo steps; missingUploads() and uploadReminderDue() for the
+ *           "missing uploads" reminders to pros who are already live.
+ * UPDATED : 2026-10-18_0415 UTC — W-9 tax classifications incl. LLCs taxed as S/C corporations; form1099() decides
+ *           who gets a 1099-NEC (corporations are exempt); BUSINESS_ENTITY_TYPES for signing on a business's behalf.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
 export const AGREEMENT_VERSION = "2026-10-v9"; // v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v7"; // v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v8"; // v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 
 /** Trades whose services legally require a licensed tradesperson. */
 export const LICENSED_TRADES: string[] = [...new Set(SERVICES.filter((s) => s.licensed).flatMap((s) => s.trades.filter((t) => t !== "handyman")))];
+
+/** W-9 federal tax classification (line 3). An LLC is listed by how it's taxed. */
+export const ENTITY_TYPES = ["individual", "sole_prop", "llc", "llc_s_corp", "llc_c_corp", "s_corp", "c_corp", "partnership"] as const;
+export type EntityType = (typeof ENTITY_TYPES)[number];
+/** Taxed as a corporation: no 1099-NEC for their service payments. */
+export const CORPORATE_ENTITY_TYPES: readonly EntityType[] = ["s_corp", "c_corp", "llc_s_corp", "llc_c_corp"];
+/** A company (not a person): the agreement is signed by someone on its behalf. */
+export const BUSINESS_ENTITY_TYPES: readonly EntityType[] = ["llc", "llc_s_corp", "llc_c_corp", "s_corp", "c_corp", "partnership"];
+
+/**
+ * 1099-NEC for a pro's year: "file" (at or over the threshold), "under" (below it), or "exempt"
+ * (taxed as a corporation: S/C corps and LLCs that elected either). Unknown classification → treated as reportable.
+ * Exceptions (e.g. attorneys' fees, medical payments) don't apply to Handled's trades; your accountant confirms each January.
+ */
+export function form1099(entityType: string | null | undefined, total: number, taxYear: number): "file" | "under" | "exempt" {
+  if (CORPORATE_ENTITY_TYPES.includes(entityType as EntityType)) return "exempt";
+  return total >= necThreshold(taxYear) ? "file" : "under";
+}
 
 /**
  * Form 1099-NEC reporting threshold by tax year. $600 through 2025; the 2025 tax law
@@ -59,10 +82,12 @@ export interface ComplianceInput {
   zips_only?: boolean | null;
   /** Photo ID matched to a selfie (Stripe Identity) or checked by staff on a video call. */
   id_verified_at?: string | null;
+  resume_uploaded_at?: string | null;
+  photo_uploaded_at?: string | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "specialties" | "area" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
+  key: "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -80,6 +105,8 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
     { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
+    { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
+    { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) },
   ];
   // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement
@@ -104,4 +131,22 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },
   );
   return { steps, complete: steps.every((s) => s.done), licenseRequired };
+}
+
+export type UploadKey = "resume" | "photo";
+
+/** Resume / profile photo the pro still has to upload. */
+export function missingUploads(c: Pick<ComplianceInput, "resume_uploaded_at" | "photo_uploaded_at">): UploadKey[] {
+  return [...(c.resume_uploaded_at ? [] : ["resume" as const]), ...(c.photo_uploaded_at ? [] : ["photo" as const])];
+}
+
+/** Days between "missing uploads" reminders to live pros, and how many they get at most. */
+export const UPLOAD_REMINDER_EVERY_DAYS = 4;
+export const UPLOAD_REMINDER_MAX = 3;
+
+/** A live pro missing uploads: is a reminder due now? First one right away, then every few days, then stop. */
+export function uploadReminderDue(sent: number, lastAt: string | null | undefined, now = new Date()): boolean {
+  if (sent >= UPLOAD_REMINDER_MAX) return false;
+  if (!lastAt) return true;
+  return (now.getTime() - new Date(lastAt).getTime()) / 86400000 >= UPLOAD_REMINDER_EVERY_DAYS;
 }

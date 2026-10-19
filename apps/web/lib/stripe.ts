@@ -18,6 +18,8 @@
  * UPDATED : 2026-10-07_1610 UTC — permanent pay links (/pay/<id> re-opens an expired Checkout); a job's deposit / balance /
  *           full payment reuses its open link instead of making a second one; availableBalance() for payout runs.
  * PURPOSE : Stripe payments.
+ * UPDATED : 2026-10-15_0300 UTC — book now, pay after: the first checkout on a "pay after" job is the 25% ("to book");
+ *           holdOnSavedCard / captureHold / releaseHold put the balance on hold when the pro starts and take it when the job is done.
  */
 import "server-only";
 import Stripe from "stripe";
@@ -110,11 +112,14 @@ export async function openCheckoutSession(row: PaymentRow, job: Job | null, o: {
     metadata: meta,
     success_url: `${siteUrl()}${o.successPath ?? successPathFor(row.kind, job)}`,
     cancel_url: `${siteUrl()}${job ? `/book/confirmed?ref=${job.ref}&unpaid=1` : "/"}`,
-    custom_text: { submit: { message: row.kind === "deposit" ? `Deposit to lock in your date. ${BRAND.promise}` : BRAND.promise } },
+    custom_text: { submit: { message: row.kind === "deposit" ? (job?.payment_plan === "after" ? `25% now locks in your date. The rest is charged to this card when the job is done. ${BRAND.promise}` : `Deposit to lock in your date. ${BRAND.promise}`) : BRAND.promise } },
   });
   await db.from("payments").update({ stripe_session_id: session.id, link_url: payLink(row.id) }).eq("id", row.id);
   return session;
 }
+
+/** The first payment on a deposit or "pay after" job is the deposit / 25%, not the whole price. */
+export const depositDue = (job: Job) => (job.payment_plan === "deposit" || job.payment_plan === "after") && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0;
 
 /** What the customer owes now on a job under its payment plan. */
 export function amountDue(job: Job, kind: "deposit" | "full" | "balance" = "full") {
@@ -129,14 +134,14 @@ export function amountDue(job: Job, kind: "deposit" | "full" | "balance" = "full
  */
 export async function paymentCheckoutUrl(job: Job): Promise<string | null> {
   const svc = getService(job.service_slug);
-  const deposit = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0;
+  const deposit = depositDue(job);
   const amount = amountDue(job, deposit ? "deposit" : "full");
   if (!amount) return null;
   const kind: ChargeKind = deposit ? "deposit" : Number(job.amount_paid ?? 0) > 0 ? "balance" : "upfront";
-  const label = kind === "deposit" ? " — deposit" : kind === "balance" ? " — balance" : "";
+  const label = kind === "deposit" ? (job.payment_plan === "after" ? " — 25% to book" : " — deposit") : kind === "balance" ? " — balance" : "";
   const r = await createCheckout({
     amount, kind, job, name: `${svc?.name ?? "Service"}${label} — ${job.ref}`,
-    description: `${job.address}, ${job.city}${kind === "deposit" && job.balance_due_date ? ` · balance due ${job.balance_due_date}` : ""}`,
+    description: `${job.address}, ${job.city}${kind === "deposit" ? (job.payment_plan === "after" ? " · the rest is charged when the job is done" : job.balance_due_date ? ` · balance due ${job.balance_due_date}` : "") : ""}`,
     customerEmail: job.contact_email, customerName: job.contact_name,
   });
   return r?.url ?? null;
@@ -160,7 +165,7 @@ export type PaymentSheet =
 export async function createPaymentSheet(job: Job): Promise<PaymentSheet> {
   const s = getStripe();
   if (!s) return { mode: "none" };
-  const deposit = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0;
+  const deposit = depositDue(job);
   const amount = amountDue(job, deposit ? "deposit" : "full");
   if (!amount) return { mode: "none" };
   if (process.env.STRIPE_TAX === "on" || !stripePublishableKey()) {
@@ -169,7 +174,7 @@ export async function createPaymentSheet(job: Job): Promise<PaymentSheet> {
   }
   const kind: ChargeKind = deposit ? "deposit" : Number(job.amount_paid ?? 0) > 0 ? "balance" : "upfront";
   const svc = getService(job.service_slug);
-  const name = `${svc?.name ?? "Service"}${kind === "deposit" ? " — deposit" : kind === "balance" ? " — balance" : ""} — ${job.ref}`;
+  const name = `${svc?.name ?? "Service"}${kind === "deposit" ? (job.payment_plan === "after" ? " — 25% to book" : " — deposit") : kind === "balance" ? " — balance" : ""} — ${job.ref}`;
   const db = adminClient();
   let customer = job.stripe_customer_id ?? null;
   if (!customer) {
@@ -214,6 +219,53 @@ export async function chargeSavedCard(job: Job, amount = Number(job.price_final 
   } catch {
     return 0;
   }
+}
+
+/**
+ * "Pay after" jobs: hold the balance on the saved card when the pro starts (an authorization — the customer sees a
+ * pending amount, nothing is charged). Captured with captureHold() when the job is complete; released if cancelled.
+ */
+export async function holdOnSavedCard(job: Job, amount: number): Promise<{ id: string } | { error: string }> {
+  const s = getStripe();
+  if (!s) return { error: "Stripe isn't configured" };
+  if (!job.stripe_customer_id || !job.stripe_payment_method) return { error: "No saved card" };
+  if (!(amount > 0)) return { error: "Nothing to hold" };
+  try {
+    const pi = await s.paymentIntents.create({
+      amount: cents(amount), currency: "usd", customer: job.stripe_customer_id, payment_method: job.stripe_payment_method,
+      capture_method: "manual", off_session: true, confirm: true,
+      description: `${BRAND.name} ${job.ref} — ${getService(job.service_slug)?.name} (balance, charged when the job is done)`,
+      metadata: { job_id: job.id, kind: "balance_hold" },
+    }, { idempotencyKey: `job-${job.id}-hold-${cents(amount)}` });
+    return pi.status === "requires_capture" ? { id: pi.id } : { error: `Card returned ${pi.status}` };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Take up to `amount` from a hold. Returns what was captured (0 if the hold expired or failed). */
+export async function captureHold(job: Job, intentId: string, amount: number): Promise<number> {
+  const s = getStripe();
+  if (!s || !(amount > 0)) return 0;
+  try {
+    const pi = await s.paymentIntents.retrieve(intentId);
+    if (pi.status !== "requires_capture") return 0;
+    const take = Math.min(cents(amount), pi.amount_capturable);
+    const done = await s.paymentIntents.capture(intentId, { amount_to_capture: take }, { idempotencyKey: `job-${job.id}-capture-${intentId}` });
+    if (done.status !== "succeeded") return 0;
+    const got = take / 100;
+    await adminClient().from("payments").insert({ job_id: job.id, kind: "balance", amount: got, status: "paid", paid_at: new Date().toISOString(), stripe_session_id: intentId, stripe_payment_intent_id: intentId, description: "Balance (held when the pro started)" });
+    return got;
+  } catch {
+    return 0;
+  }
+}
+
+/** Let go of a hold (job cancelled, or paid another way). */
+export async function releaseHold(intentId: string | null | undefined) {
+  const s = getStripe();
+  if (!s || !intentId) return;
+  await s.paymentIntents.cancel(intentId).catch(() => null);
 }
 
 /** Refund part or all of a job's payment back to the customer's card. */

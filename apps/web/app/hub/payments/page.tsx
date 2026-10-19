@@ -6,6 +6,7 @@
  *           payments, open business invoices (overdue first) and recent refunds. Money out — pro payouts pending,
  *           approved and held, and what was paid in the last 30 days. Staff can send a payment link or charge a saved card
  *           for a balance (components/DispatchActions); refunds and payout decisions stay with admins (Hub → Finance).
+ * UPDATED : 2026-10-15_0300 UTC — "pay after": balance failed after the job (tile + list); 25%-paid jobs before the job aren't "owed".
  */
 import Link from "next/link";
 import { getService, money, paymentState, type BoardJobInput } from "@handled/core";
@@ -24,7 +25,7 @@ export default async function Payments() {
   const admin = isAdmin(await getViewer());
   const db = adminClient();
   const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
-  const cols = "id, ref, service_slug, status, scheduled_date, time_window, zip, contractor_id, price_final, paid_at, deposit_paid_at, billed_on_terms, amount_paid, amount_refunded, remedy, contact_name, contact_email, created_at, updated_at";
+  const cols = "id, ref, service_slug, status, scheduled_date, time_window, zip, contractor_id, price_final, paid_at, deposit_paid_at, payment_plan, balance_attempts, billed_on_terms, amount_paid, amount_refunded, remedy, contact_name, contact_email, created_at, updated_at";
   const [{ data: owed }, { data: refunds }, { data: failed }, { data: invoices }, { data: payouts }, { data: paidOut }] = await Promise.all([
     db.from("jobs").select(cols).is("paid_at", null).eq("billed_on_terms", false).is("remedy", null).not("status", "in", "(cancelled,site_visit)").gt("price_final", 0).order("created_at").limit(300),
     db.from("jobs").select(cols).gt("amount_refunded", 0).gte("updated_at", since30).order("updated_at", { ascending: false }).limit(50),
@@ -36,6 +37,7 @@ export default async function Payments() {
   const jobs = (owed ?? []) as unknown as J[];
   const unpaid = jobs.filter((j) => paymentState(j).key === "unpaid");
   const balance = jobs.filter((j) => paymentState(j).key === "balance");
+  const failedAfter = jobs.filter((j) => paymentState(j).key === "balance_failed");
   const due = (j: J) => Math.max(0, Number(j.price_final ?? 0) - Number(j.amount_paid ?? 0));
   const inv = (invoices ?? []) as unknown as { id: string; number: string; total: number; amount_paid: number; due_date: string; issued_on: string; payment_url: string | null; reminders_sent: number; business_accounts: { company: string } | null }[];
   const today = new Date().toISOString().slice(0, 10);
@@ -44,6 +46,7 @@ export default async function Payments() {
   const tiles: [string, string, string, boolean][] = [
     ["Unpaid jobs", money(sum(unpaid.map(due))), `${unpaid.length} job${unpaid.length === 1 ? "" : "s"}`, unpaid.length > 0],
     ["Balances due", money(sum(balance.map(due))), `${balance.length} after a deposit`, false],
+    ["Balance failed after the job", money(sum(failedAfter.map(due))), `${failedAfter.length} job${failedAfter.length === 1 ? "" : "s"} — retried daily`, failedAfter.length > 0],
     ["Open invoices", money(sum(inv.map((i) => Number(i.total) - Number(i.amount_paid)))), `${inv.filter((i) => i.due_date < today).length} overdue`, inv.some((i) => i.due_date < today)],
     ["Failed payments (30 days)", String((failed ?? []).length), "card declined or expired", (failed ?? []).length > 0],
     ["Payouts owed to pros", money(sum(po.filter((p) => p.status !== "held").map((p) => Number(p.amount)))), `${po.filter((p) => p.status === "held").length} held`, false],
@@ -73,6 +76,7 @@ export default async function Payments() {
       </div>
 
       <section className="card"><h2 className="mb-2 font-bold">Unpaid jobs</h2>{unpaid.length ? <JobTable list={unpaid} kind="unpaid" /> : <p className="text-sm text-ink-soft">Every priced job is paid.</p>}</section>
+      {failedAfter.length > 0 && <section className="card"><h2 className="mb-2 font-bold">Job done — balance charge failed</h2><p className="mb-2 text-xs text-ink-soft">25% was paid at booking; the card didn&apos;t take the rest. A payment link went out and the card is retried daily (3 tries). The pro is paid as usual — collecting this is on us.</p><JobTable list={failedAfter} kind="balance" /></section>}
       <section className="card"><h2 className="mb-2 font-bold">Deposit paid — balance due</h2>{balance.length ? <JobTable list={balance} kind="balance" /> : <p className="text-sm text-ink-soft">No balances waiting.</p>}</section>
 
       <section className="card"><h2 className="mb-2 font-bold">Failed payments <span className="text-sm font-normal text-ink-soft">last 30 days</span></h2>

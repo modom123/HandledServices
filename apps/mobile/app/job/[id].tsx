@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-06_0708 UTC — Pay now opens Apple Pay / Google Pay / card in the app (Stripe PaymentSheet).
  * UPDATED : 2026-10-06_0708 UTC — live map of the pro on the way (🚗 → 🏠), refreshing every 15 s.
  * UPDATED : 2026-10-06_2120 UTC — "Confirming your backup pro" while a handed-back job is being re-covered.
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the 25% is what's due first; after it, "the rest is charged when the job is done".
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
@@ -110,7 +111,7 @@ export default function Booking() {
   if (!job) return <Loading label={t("Loading…")} />;
   const svc = getService(job.service_slug);
   const unpaid = !job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled";
-  const depositDue = job.payment_plan === "deposit" && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0 && job.deposit_amount;
+  const depositDue = (job.payment_plan === "deposit" || job.payment_plan === "after") && !job.deposit_paid_at && Number(job.amount_paid ?? 0) === 0 && job.deposit_amount;
   const due = depositDue ? Number(job.deposit_amount) : Math.max(0, Number(job.price_final ?? 0) - Number(job.amount_paid ?? 0));
 
   async function savePhotos() {
@@ -187,7 +188,7 @@ export default function Booking() {
       <Card style={{ marginTop: 6 }}>
         <Text style={s.label}>{t("Price")}</Text>
         <Text style={{ fontSize: 24, fontWeight: "800", color: C.ink }}>{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</Text>
-        <Text style={s.p}>{job.remedy ? t("No charge") : job.paid_at ? `${t("Paid")} ${money(job.amount_paid)}` : job.deposit_paid_at ? (es ? `Depósito pagado ${money(job.amount_paid)} · saldo ${money(due)} pendiente${job.balance_due_date ? ` ${job.balance_due_date}` : ""}` : `Deposit paid ${money(job.amount_paid)} · balance ${money(due)} due${job.balance_due_date ? ` ${job.balance_due_date}` : ""}`) : job.price_final ? t("Payment due — your pro is dispatched once paid") : t("Firm price after the free site visit")}</Text>
+        <Text style={s.p}>{job.remedy ? t("No charge") : job.paid_at ? `${t("Paid")} ${money(job.amount_paid)}` : job.deposit_paid_at && job.payment_plan === "after" ? (es ? `25% pagado (${money(job.amount_paid)}) · el resto, ${money(due)}, se cobra cuando el trabajo esté terminado` : `25% paid (${money(job.amount_paid)}) · the rest, ${money(due)}, is charged when the job is done`) : job.deposit_paid_at ? (es ? `Depósito pagado ${money(job.amount_paid)} · saldo ${money(due)} pendiente${job.balance_due_date ? ` ${job.balance_due_date}` : ""}` : `Deposit paid ${money(job.amount_paid)} · balance ${money(due)} due${job.balance_due_date ? ` ${job.balance_due_date}` : ""}`) : job.price_final ? t("Payment due — your pro is dispatched once paid") : t("Firm price after the free site visit")}</Text>
         {unpaid ? <Button title={depositDue ? (es ? `Pagar depósito de ${money(due)}` : `Pay ${money(due)} deposit`) : job.deposit_paid_at ? (es ? `Pagar saldo ${money(due)}` : `Pay balance ${money(due)}`) : `${t("Pay")} ${money(due)}`} onPress={pay} style={{ marginTop: 10 }} /> : null}
         <Pressable onPress={() => Linking.openURL(`${API_URL}/invoice/${id}`)}><Text style={[s.p, { color: C.brand, fontWeight: "700", marginTop: 10 }]}>{t("Invoice & service agreement")} →</Text></Pressable>
       </Card>

@@ -11,9 +11,11 @@
  *           stop automatically if insurance or a license expires.
  * UPDATED : 2026-10-04_1934 UTC — photo ID verification step (Stripe Identity or a video call).
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
+ * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
+ * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
  */
 import { VerifyId } from "@/components/VerifyId";
-import { COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -49,6 +51,7 @@ export default async function Onboarding() {
     if ((m = d.match(/^(\d+) selected$/))) return `${m[1]} seleccionadas`;
     if ((m = d.match(/^From (\S+), up to (\d+) mi · (.*)$/))) return `Desde ${m[1]}, hasta ${m[2]} mi · ${m[3] === "any day" ? "cualquier día" : m[3].replace(/(\d+) days a week/, "$1 días a la semana")}`;
     if ((m = d.match(/^Valid until (.+)$/))) return `Válido hasta ${m[1]}`;
+    if ((m = d.match(/^Uploaded (.+)$/))) return `Subido el ${m[1]}`;
     if ((m = d.match(/^Current version (.+)$/))) return `Versión actual ${m[1]}`;
     if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled named as additional insured$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional`;
     if ((m = d.match(/^#(.+) · until (.+)$/))) return `#${m[1]} · hasta ${m[2]}`;
@@ -61,7 +64,7 @@ export default async function Onboarding() {
           <Field label={t("Legal name (as on your tax return)")} name="legal_name" defaultValue={pro.legal_name ?? ""} required />
           <div><label className="label">{t("Tax classification")}</label>
             <select name="entity_type" className="input" defaultValue={pro.entity_type ?? "individual"}>
-              <option value="individual">{t("Individual / sole proprietor")}</option><option value="llc">LLC</option><option value="s_corp">{t("S corporation")}</option>
+              <option value="individual">{t("Individual / sole proprietor")}</option><option value="llc">{t("LLC (single-member or taxed as a partnership)")}</option><option value="llc_s_corp">{t("LLC taxed as an S corporation")}</option><option value="llc_c_corp">{t("LLC taxed as a C corporation")}</option><option value="s_corp">{t("S corporation")}</option>
               <option value="c_corp">{t("C corporation")}</option><option value="partnership">{t("Partnership")}</option></select></div>
           <Field label={t("Last 4 of SSN / EIN")} name="tin_last4" inputMode="numeric" maxLength={4} pattern="\d{4}" required />
           <Field label={t("Street address")} name="address_line" defaultValue={pro.address_line ?? ""} required />
@@ -86,9 +89,27 @@ export default async function Onboarding() {
         </div>
         <StepForm step="agreement" cta={t("Sign agreement")} locale={l}>
           <Field label={t("Type your full name to sign")} name="signer_name" required />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t("Signing for a business? Its legal name")} name="signed_for" maxLength={160}
+              defaultValue={BUSINESS_ENTITY_TYPES.includes(pro.entity_type as never) ? (pro as { agreement_signed_for?: string | null }).agreement_signed_for ?? pro.business_name ?? "" : ""} />
+            <Field label={t("Your title there (Owner, President…)")} name="signer_title" maxLength={80} defaultValue={(pro as { agreement_signer_title?: string | null }).agreement_signer_title ?? ""} />
+          </div>
+          <p className="text-xs text-ink-soft">{t("Have an LLC or corporation? Sign for it so the agreement is with your company. Leave the business blank if you work under your own name.")}</p>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="agree" value="true" required /> {t("I have read and agree to the Independent Contractor Agreement and the documents listed above.")}</label>
         </StepForm>
       </div>
+    );
+    if (key === "resume") return (
+      <StepForm step="resume" cta={t("Upload resume")} locale={l}>
+        <Field label={t("Your resume (PDF or Word, up to 10 MB)")} name="file" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required />
+        <p className="text-xs text-ink-soft">{t("No resume? A one-page list of your past jobs, with dates, works too.")}</p>
+      </StepForm>
+    );
+    if (key === "photo") return (
+      <StepForm step="photo" cta={t("Upload photo")} locale={l}>
+        <Field label={t("Profile photo (JPG, PNG, WEBP or HEIC, up to 8 MB)")} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" required />
+        <p className="text-xs text-ink-soft">{t("A recent, well-lit photo of just you: no sunglasses, hats or group photos.")}</p>
+      </StepForm>
     );
     if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{t("Certificate received — we’re verifying it.")}</p> : (
       <StepForm step="coi" cta={t("Upload certificate")} locale={l}>
@@ -206,7 +227,7 @@ export default async function Onboarding() {
         <div key={s.key} id={`step-${s.key}`} className={`card scroll-mt-24 ${s.done ? "border-brand/40" : ""}`}>
           <div className="flex items-center justify-between gap-2"><div className="font-semibold">{s.done ? "✅" : "⬜"} {stepLabel(s)}</div>{s.expiring && <Badge tone="amber">{t("expires soon")}</Badge>}</div>
           <div className="text-sm text-ink-soft">{stepDetail(s.detail)}</div>
-          {(!s.done || s.expiring || s.key === "area") && body(s.key)}
+          {(!s.done || s.expiring || ["area", "resume", "photo"].includes(s.key)) && body(s.key)}
         </div>
       ))}
     </div>
