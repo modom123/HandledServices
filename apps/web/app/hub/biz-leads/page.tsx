@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-05_2141 UTC — every lead opens its own page with the full note history; latest note shown in the lists.
  * UPDATED : 2026-10-07_2030 UTC — job-posting leads show the posted pay and state.
  * UPDATED : 2026-10-19_2330 UTC — today's Deal hunter plan (AI) at the top.
+ * UPDATED : 2026-10-19_2345 UTC — the Instantly banner names exactly which Vercel variable is missing.
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
@@ -28,6 +29,8 @@ export default async function BizLeads() {
   const [s, { data }, { data: dealPlan }] = await Promise.all([getBizLeadSettings(), db.from("biz_leads").select("*").order("score", { ascending: false }).limit(2000),
     db.from("ops_alerts").select("title, body, created_at").eq("kind", "deal_plan").order("created_at", { ascending: false }).limit(1).maybeSingle()]);
   const everyone = (data ?? []) as Lead[];
+  // which setting is missing, by name only (never the values)
+  const missingInstantly = ["INSTANTLY_API_KEY", "INSTANTLY_BIZ_CAMPAIGN_ID", "BUSINESS_POSTAL_ADDRESS"].filter((k) => !process.env[k]?.trim());
   // teaming partners are tracked here but kept out of the sales funnel, call list and stats
   const partners = everyone.filter((l) => (l.segment as string) === BIZ_PARTNER_SEGMENT);
   const leads = everyone.filter((l) => (l.segment as string) !== BIZ_PARTNER_SEGMENT);
@@ -53,7 +56,7 @@ export default async function BizLeads() {
         <h1 className="text-2xl font-bold">Business leads</h1>
         <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send a 3-email sequence with a pilot offer through Instantly’s business campaign. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
         {dealPlan && <details className="card mt-3" open={Date.now() - new Date(dealPlan.created_at).getTime() < 86400000}><summary className="cursor-pointer font-semibold">🎯 {dealPlan.title} <span className="text-xs font-normal text-ink-soft">({new Date(dealPlan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" })}, Deal hunter)</span></summary><pre className="mt-2 whitespace-pre-wrap text-sm">{dealPlan.body}</pre></details>}
-        {!instantlyBizReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Sending isn’t set up: create a second Instantly campaign (steps {"{{subject_1}}/{{body_1}}"} … 3) and set INSTANTLY_BIZ_CAMPAIGN_ID in Vercel (plus INSTANTLY_API_KEY and BUSINESS_POSTAL_ADDRESS).</p>}
+        {!instantlyBizReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Instantly isn’t connected yet. Missing in Vercel (Production): <b>{missingInstantly.join(", ")}</b>. Add {missingInstantly.length === 1 ? "it" : "them"} in Vercel → your project → Settings → Environment Variables, then <b>redeploy</b> (new variables only reach the site after a redeploy). The campaign id for 1ST OUTREACH DETROIT is <code>3de836a0-4845-4350-80af-db9725831b43</code>.</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-6">
         <Stat label="Found" value={leads.length} />
