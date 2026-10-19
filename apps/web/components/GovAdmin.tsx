@@ -4,6 +4,7 @@
  * CREATED : 2026-10-05_1441 UTC
  * PURPOSE : Hub → Gov contracts controls: the saved daily SAM.gov search (and run a search now), pipeline status and
  *           notes per notice, full text + AI bid brief, and asking matching pros whether they want the work.
+ * UPDATED : 2026-10-19_2015 UTC — GovAwardsForm (Contract Awards search + the Monday awards run) and AwardStatus.
  */
 "use client";
 
@@ -168,6 +169,67 @@ export function GovPros({ id, pros }: { id: string; pros: GovProRow[] }) {
         {msg && <span className="text-ink-soft">{msg}</span>}
       </div>
       <p className="text-xs text-ink-soft">The email says it isn’t an offer of work yet, asks yes/no, capacity, their rate and whether they’re a small business, and explains that a win becomes a written subcontract they can accept or decline.</p>
+    </div>
+  );
+}
+
+export interface GovAwardsState { naics: string[]; state: string | null; awards_enabled: boolean; awards_months_back: number; awards_pages: number }
+
+/** Contract Awards search: who already holds our kind of work and when it ends. One call per page of 100. */
+export function GovAwardsForm({ s, ready, callsLeft }: { s: GovAwardsState; ready: boolean; callsLeft: number }) {
+  const router = useRouter();
+  const [f, setF] = useState(s);
+  const [keywords, setKeywords] = useState("");
+  const [uei, setUei] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <div className="label">Work (NAICS codes) — all codes go in one call</div>
+        <div className="flex flex-wrap gap-2">
+          {GOV_NAICS.map((n) => (
+            <button key={n.code} type="button" onClick={() => setF({ ...f, naics: toggle(f.naics, n.code) })} className={`rounded-full border px-3 py-1 text-xs ${f.naics.includes(n.code) ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{n.code} · {n.title}</button>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-5">
+        <div><label className="label">State (place of work)</label><input className="input" maxLength={2} value={f.state ?? ""} onChange={(e) => setF({ ...f, state: e.target.value.toUpperCase() || null })} placeholder="MI" /></div>
+        <div><label className="label">Signed in the last (months)</label><input className="input" type="number" min={1} max={60} value={f.awards_months_back} onChange={(e) => setF({ ...f, awards_months_back: Number(e.target.value) || 24 })} /></div>
+        <div><label className="label">Pages of 100 (1 call each)</label><input className="input" type="number" min={1} max={20} value={f.awards_pages} onChange={(e) => setF({ ...f, awards_pages: Number(e.target.value) || 2 })} /></div>
+        <div><label className="label">Keywords (optional)</label><input className="input" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="e.g. custodial" /></div>
+        <div><label className="label">Awardee UEI (optional)</label><input className="input" maxLength={12} value={uei} onChange={(e) => setUei(e.target.value.toUpperCase())} placeholder="12 characters" /></div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
+        <label className="flex items-center gap-2"><input type="checkbox" checked={f.awards_enabled} onChange={(e) => setF({ ...f, awards_enabled: e.target.checked })} /> Refresh awards every Monday morning</label>
+        <button className="btn-ghost" disabled={busy} onClick={async () => {
+          setBusy(true); setMsg("");
+          const r = await post({ action: "award_settings", awards_enabled: f.awards_enabled, awards_months_back: f.awards_months_back, awards_pages: f.awards_pages });
+          setBusy(false); setMsg(r.ok ? "Saved. The Monday run uses the NAICS codes and state from the opportunities search." : String(r.error ?? "Failed")); router.refresh();
+        }}>Save</button>
+        <button className="btn-primary" disabled={busy || !ready || callsLeft < 1 || !f.naics.length} onClick={async () => {
+          setBusy(true); setMsg("Searching SAM.gov contract awards…");
+          const r = await post({ action: "awards", naics: f.naics, state: f.state, keywords: keywords || null, months_back: f.awards_months_back, pages: f.awards_pages, awardee_uei: uei || null });
+          setBusy(false);
+          const res = r.result as { calls: number; found: number; kept: number; added: number; errors: string[] } | undefined;
+          setMsg(r.ok && res ? `${res.found} award records → ${res.kept} contracts${f.state ? ` in ${f.state}` : ""}, ${res.added} new · ${res.calls} call${res.calls === 1 ? "" : "s"} used${res.errors.length ? ` · ${res.errors[0]}` : ""}` : String(r.error ?? "Failed"));
+          router.refresh();
+        }}>Search awards (up to {f.awards_pages} call{f.awards_pages === 1 ? "" : "s"})</button>
+        <span className="text-xs text-ink-soft">{callsLeft} call{callsLeft === 1 ? "" : "s"} left today</span>
+      </div>
+      {msg && <p className="text-ink-soft">{msg}</p>}
+    </div>
+  );
+}
+
+/** Watch / ignore a recompete lead. */
+export function AwardStatus({ awardKey, status }: { awardKey: string; status: string }) {
+  const router = useRouter();
+  return (
+    <div className="flex gap-1">
+      {(["watching", "ignored", "new"] as const).filter((x) => x !== status).map((x) => (
+        <button key={x} className="rounded-full border border-line px-2 py-0.5 text-xs" onClick={async () => { await post({ action: "award_status", award_key: awardKey, status: x }); router.refresh(); }}>{x === "watching" ? "Watch" : x === "ignored" ? "Ignore" : "Reset"}</button>
+      ))}
     </div>
   );
 }

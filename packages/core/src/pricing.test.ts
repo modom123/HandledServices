@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
+ * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -1762,4 +1763,56 @@ test("talent: flat fee per hire by the role's pay, same 80/20 split", async () =
   assert.equal(flatFeeFor(180_000), null, "above the last tier: contingency or retained");
   assert.deepEqual(flatPlacementFee(5_000), { fee: 5_000, recruiterPay: 4_000, platform: 1_000 });
   for (const t of FLAT_FEE_TIERS) assert.ok(t.fee < placementFee(t.maxSalary).fee, `${t.id}: flat is cheaper than contingency at the top of the tier`);
+});
+
+test("gov awards: Contract Awards records parse, modifications merge, recompetes ending soon in metro Detroit score highest", async () => {
+  const { parseSamAward, mergeAwards, recompeteFit, incumbents, awardSearchQueries } = await import("./gov-awards.ts");
+  const rec = (mod: string, signed: string, end: string, value: string) => ({
+    contractId: { subtier: { code: "4740", name: "Public Buildings Service" }, piid: "47PF0025C0001", modificationNumber: mod },
+    coreData: {
+      federalOrganization: { contractingInformation: { contractingDepartment: { code: "4700", name: "General Services Administration" }, contractingOffice: { code: "47PF00", name: "PBS R5" } } },
+      productOrServiceInformation: { principalNaics: [{ code: "561720", name: "Janitorial Services" }], productOrService: { code: "S201", name: "Custodial janitorial services" } },
+      competitionInformation: { typeOfSetAside: { code: "SBA", name: "Small Business Set Aside - Total" }, numberOfOffersReceived: "1" },
+      placeOfPerformance: { city: { code: "22000", name: "Detroit" }, state: { code: "MI", name: "Michigan" }, zip: "48226" },
+    },
+    awardDetails: {
+      dates: { dateSigned: signed, periodOfPerformanceStartDate: "2025-01-01", currentCompletionDate: end, ultimateCompletionDate: end },
+      dollars: { actionObligation: "100000.00", baseAndAllOptionsValue: value },
+      productOrServiceInformation: { descriptionOfContractRequirement: "Custodial services, McNamara Federal Building" },
+      awardeeData: { awardeeHeader: { awardeeName: "Acme Facility Services LLC" }, awardeeUEIInformation: { uniqueEntityId: "ABCDEFGH1234" }, awardeeLocation: { city: "Southfield", state: { code: "MI" } } },
+    },
+  });
+  const a = parseSamAward(rec("0", "2024-12-15", "2026-12-31", "500000"))!;
+  assert.equal(a.piid, "47PF0025C0001");
+  assert.equal(a.agency, "General Services Administration");
+  assert.equal(a.office, "PBS R5");
+  assert.equal(a.awardee, "Acme Facility Services LLC");
+  assert.equal(a.awardee_uei, "ABCDEFGH1234");
+  assert.equal(a.naics, "561720");
+  assert.equal(a.set_aside_code, "SBA");
+  assert.equal(a.pop_state, "MI");
+  assert.equal(a.pop_city, "Detroit");
+  assert.equal(a.offers_received, 1);
+  assert.equal(a.total_value, 500000);
+  assert.equal(parseSamAward({ foo: 1 }), null);
+  const [m, ...rest] = mergeAwards([a, parseSamAward(rec("P00001", "2025-11-01", "2027-06-30", "650000"))!]);
+  assert.equal(rest.length, 0, "one row per contract");
+  assert.equal(m.ultimate_end, "2027-06-30");
+  assert.equal(m.total_value, 650000);
+  assert.equal(m.date_signed, "2024-12-15");
+  const now = new Date("2026-10-19T12:00:00Z");
+  const soon = recompeteFit(m, { now });
+  assert.ok(soon.score >= 80, `metro Detroit janitorial ending in ~8 months: ${soon.score}`);
+  assert.ok(recompeteFit({ ...m, ultimate_end: "2031-01-01", current_end: null }, { now }).score < soon.score);
+  assert.ok(recompeteFit({ ...m, pop_state: "TX", pop_city: "Austin" }, { now }).score < soon.score);
+  assert.ok(recompeteFit({ ...m, set_aside_code: "8A", set_aside: "8(a)" }, { now }).score < soon.score);
+  assert.equal(incumbents([m], now)[0].awardee, "Acme Facility Services LLC");
+  const qs = awardSearchQueries({ naics: ["561720", "561730", "bad"], monthsBack: 12, pages: 2, now });
+  assert.equal(qs.length, 2);
+  const q = new URLSearchParams(qs[1]);
+  assert.equal(q.get("naicsCode"), "561720~561730");
+  assert.equal(q.get("dateSigned"), "[10/19/2025,10/19/2026]");
+  assert.equal(q.get("limit"), "100");
+  assert.equal(q.get("offset"), "100");
+  assert.ok(!qs[0].includes("api_key"));
 });

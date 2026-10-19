@@ -5,6 +5,7 @@
  * PURPOSE : Handled Hub → Gov contracts: federal contract opportunities from SAM.gov for work our pros do. The saved
  *           daily search and "search now" (inside the daily call budget), the pipeline (new → reviewing → bidding →
  *           submitted → won / lost, or passed), best fits first with deadlines, and the bid checklist.
+ * UPDATED : 2026-10-19_2015 UTC — link to Awards & recompetes (Contract Awards API).
  */
 import Link from "next/link";
 import { GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SET_ASIDES } from "@handled/core";
@@ -64,7 +65,10 @@ export default async function GovContracts({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Government contracts</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">Government contracts</h1>
+          <Link href="/hub/gov/awards" className="btn-ghost text-sm">Awards &amp; recompetes →</Link>
+        </div>
         <p className="max-w-3xl text-sm text-ink-soft">Federal contract opportunities from SAM.gov for the work our pros do: janitorial, grounds and snow, security, hauling, moves, trades, couriers, rides and catering. Every notice is scored for fit (our NAICS codes, Michigan and metro Detroit, set-asides we can claim, time to respond). Open one to read it, get an AI bid brief, and ask matching pros whether they want the work before you bid.</p>
         {!govReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Searching isn’t set up: sign in at SAM.gov → your Workspace → profile → <b>Public API Key</b> → copy it into Vercel as <code>SAM_API_KEY</code> (type it there, never in chat or email). A personal key allows about 10 calls a day; once Handled is registered in SAM.gov and your account has a role at the entity, it’s about 1,000.</p>}
       </div>

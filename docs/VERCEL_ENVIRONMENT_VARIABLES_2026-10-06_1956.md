@@ -74,7 +74,7 @@ GitHub (for the 10-minute cron): repo → Settings → Secrets and variables →
 | `GOOGLE_PLACES_API_KEY` 🔒 | Google Cloud → APIs → Places API (pro + business lead finders) |
 | `INSTANTLY_API_KEY` 🔒, `INSTANTLY_CAMPAIGN_ID`, `INSTANTLY_BIZ_CAMPAIGN_ID`, `INSTANTLY_WEBHOOK_SECRET` 🔒 | instantly.ai (outreach from a separate domain) |
 | `BUSINESS_POSTAL_ADDRESS` | your mailing address (required in marketing emails) |
-| `SAM_API_KEY` 🔒 | sam.gov → profile → Public API Key (government contracts) |
+| `SAM_API_KEY` 🔒 | sam.gov → Workspace → Profile → Public API Key (government contract opportunities + awards; expires every 90 days) — see GOV_CONTRACT_AWARDS_SETUP_2026-10-19_2015.md |
 | `CHECKR_API_KEY` 🔒, `CHECKR_PACKAGE` | checkr.com (background checks) |
 | `IEBC_API_KEY` 🔒, `IEBC_ALLOWED_ORIGIN` | IEBC MasterHub connection |
 

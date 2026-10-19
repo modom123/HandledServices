@@ -13,10 +13,13 @@
  *             govEngine        — the daily run (Vercel cron) when switched on
  *           Every SAM.gov call is logged and counted against the daily call budget (a personal key allows ~10 a day).
  *           The API key (SAM_API_KEY) is added at call time and never stored or logged.
+ * UPDATED : 2026-10-19_2015 UTC — Contract Awards API: runAwardSearch (who holds our kind of work, its value and end
+ *           date → recompete leads), setAwardStatus, and a weekly awards run (Mondays) when switched on. Same key and
+ *           call budget as opportunities.
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, govFit, parseSamOpportunity, samSearchQueries, tradesForNaics, type GovOpportunity } from "@handled/core";
+import { AWARDS_PAGE_SIZE, BRAND, GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, awardSearchQueries, govFit, mergeAwards, parseSamAward, parseSamOpportunity, recompeteFit, samSearchQueries, tradesForNaics, type GovAward, type GovOpportunity } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { sendEmail } from "./notify";
 import { aiEnabled, structured } from "./ai/client";
@@ -24,16 +27,18 @@ import { aiEnabled, structured } from "./ai/client";
 const db = () => adminClient();
 const SAM_SEARCH = "https://api.sam.gov/opportunities/v2/search";
 const SAM_DESC = "https://api.sam.gov/prod/opportunities/v1/noticedesc";
+const SAM_AWARDS = "https://api.sam.gov/contract-awards/v1/search";
 
 export const govReady = () => Boolean(process.env.SAM_API_KEY?.trim());
 
 export interface GovSettings {
   enabled: boolean; naics: string[]; state: string | null; keywords: string | null; ptypes: string[];
   days_back: number; daily_call_budget: number; certifications: string[]; last_run_at: string | null; last_result: unknown;
+  awards_enabled: boolean; awards_months_back: number; awards_pages: number;
 }
 export async function getGovSettings(): Promise<GovSettings> {
   const { data } = await db().from("gov_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, naics: ["561720", "561730", "561790", "561612", "562111", "484210"], state: "MI", keywords: null, ptypes: ["o", "k", "p", "r"], days_back: 7, daily_call_budget: 8, certifications: [], last_run_at: null, last_result: null, ...(data ?? {}) } as GovSettings;
+  return { enabled: false, naics: ["561720", "561730", "561790", "561612", "562111", "484210"], state: "MI", keywords: null, ptypes: ["o", "k", "p", "r"], days_back: 7, daily_call_budget: 8, certifications: [], last_run_at: null, last_result: null, awards_enabled: false, awards_months_back: 24, awards_pages: 2, ...(data ?? {}) } as GovSettings;
 }
 
 /** SAM.gov calls made since midnight UTC (SAM resets its daily limit on UTC days). */
@@ -43,14 +48,14 @@ export async function callsToday(): Promise<number> {
   return count ?? 0;
 }
 
-async function samGet(url: string, kind: "search" | "description", query: string, actor: string): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false; error: string }> {
+async function samGet(url: string, kind: "search" | "description" | "awards", query: string, actor: string): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false; error: string }> {
   const key = process.env.SAM_API_KEY?.trim();
   if (!key) return { ok: false, error: "SAM_API_KEY isn't set in Vercel" };
   try {
     const res = await fetch(`${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(key)}`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30000), cache: "no-store" });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     const err = res.ok ? null : res.status === 429 ? "SAM.gov daily limit reached for this key — try again tomorrow" : String((json.error as Record<string, unknown>)?.message ?? json.message ?? json.errorMessage ?? `SAM.gov error ${res.status}`);
-    await db().from("gov_api_calls").insert({ kind, query, ok: !err, records: Array.isArray(json.opportunitiesData) ? json.opportunitiesData.length : null, error: err, actor });
+    await db().from("gov_api_calls").insert({ kind, query, ok: !err, records: Array.isArray(json.opportunitiesData) ? json.opportunitiesData.length : Array.isArray(json.awardSummary) ? json.awardSummary.length : null, error: err, actor });
     return err ? { ok: false, error: err } : { ok: true, json };
   } catch (e) {
     await db().from("gov_api_calls").insert({ kind, query, ok: false, error: String(e).slice(0, 300), actor });
@@ -90,12 +95,61 @@ export async function runGovSearch(search: { naics: string[]; state: string | nu
   return out;
 }
 
-/** The daily run (cron): the saved search, when switched on and the key is set. */
+export interface AwardRunResult { calls: number; found: number; kept: number; added: number; errors: string[]; budgetLeft: number }
+
+/**
+ * Search the Contract Awards API (all NAICS codes in one call per page), merge modifications into one row per
+ * contract, keep the ones performed in `state` (when set), score them as recompete leads and cache them.
+ * Our status and notes are never overwritten. Stops at the daily call budget or when a page comes back short.
+ */
+export async function runAwardSearch(search: { naics: string[]; state: string | null; keywords: string | null; months_back: number; pages: number; awardee_uei?: string | null }, actor = "system"): Promise<AwardRunResult> {
+  const s = await getGovSettings();
+  const queries = awardSearchQueries({ naics: search.naics, keywords: search.keywords, monthsBack: search.months_back, pages: search.pages, awardeeUei: search.awardee_uei ?? null });
+  let left = Math.max(0, s.daily_call_budget - (await callsToday()));
+  const out: AwardRunResult = { calls: 0, found: 0, kept: 0, added: 0, errors: [], budgetLeft: left };
+  const raw = new Map<string, Record<string, unknown>>();
+  const parsed: GovAward[] = [];
+  for (const q of queries) {
+    if (left <= 0) { out.errors.push("Today's SAM.gov call budget is used up — the rest of the pages were skipped"); break; }
+    left--; out.calls++;
+    const r = await samGet(`${SAM_AWARDS}?${q}`, "awards", q, actor);
+    if (!r.ok) { out.errors.push(r.error); break; }
+    const page = Array.isArray(r.json.awardSummary) ? (r.json.awardSummary as Record<string, unknown>[]) : [];
+    const before = parsed.length;
+    for (const x of page) { const a = parseSamAward(x); if (a) { parsed.push(a); raw.set(a.award_key, x); } }
+    out.found += page.length;
+    const total = Number(r.json.totalRecords ?? NaN);
+    if (page.length < AWARDS_PAGE_SIZE || parsed.length === before || (Number.isFinite(total) && out.found >= total)) break;
+  }
+  out.budgetLeft = left;
+  const state = search.state?.toUpperCase() || null;
+  const rows = mergeAwards(parsed).filter((a) => !state || a.pop_state === state);
+  out.kept = rows.length;
+  if (!rows.length) return out;
+  const { data: seen } = await db().from("gov_awards").select("award_key").in("award_key", rows.map((a) => a.award_key));
+  const known = new Set((seen ?? []).map((x) => x.award_key as string));
+  out.added = rows.filter((a) => !known.has(a.award_key)).length;
+  const upserts = rows.map((a) => {
+    const fit = recompeteFit(a, { homeState: state ?? "MI", certifications: s.certifications });
+    return { ...a, fit_score: fit.score, fit, services: fit.services, raw: raw.get(a.award_key) ?? null, updated_at: new Date().toISOString() };
+  });
+  const { error } = await db().from("gov_awards").upsert(upserts, { onConflict: "award_key" });
+  if (error) out.errors.push(error.message);
+  return out;
+}
+
+export async function setAwardStatus(awardKey: string, patch: { status?: string; notes?: string | null }) {
+  await db().from("gov_awards").update({ ...patch, updated_at: new Date().toISOString() }).eq("award_key", awardKey);
+}
+
+/** The daily run (cron): the saved opportunities search when switched on, plus the awards search on Mondays. */
 export async function govEngine() {
   const s = await getGovSettings();
-  if (!s.enabled) return { skipped: "off" };
+  if (!s.enabled && !s.awards_enabled) return { skipped: "off" };
   if (!govReady()) return { skipped: "no SAM_API_KEY" };
-  const r = await runGovSearch(s, "engine");
+  const r: { opportunities?: GovRunResult; awards?: AwardRunResult } = {};
+  if (s.enabled) r.opportunities = await runGovSearch(s, "engine");
+  if (s.awards_enabled && new Date().getUTCDay() === 1) r.awards = await runAwardSearch({ naics: s.naics, state: s.state, keywords: null, months_back: s.awards_months_back, pages: s.awards_pages }, "engine");
   await db().from("gov_settings").update({ last_run_at: new Date().toISOString(), last_result: r }).eq("id", 1);
   return r;
 }
