@@ -46,6 +46,9 @@
  * UPDATED : 2026-10-18_0248 UTC — migration 65: pro resume & profile photo (ADD_PRO_RESUME_PHOTO_2026-10-18_0248.sql).
  * UPDATED : 2026-10-18_0415 UTC — migrations listed by file (failing ones name the file to run), 20 more probed; a Webhooks
  *           section (Stripe, Twilio, and new checks that Checkr results and Instantly events actually arrive).
+ * UPDATED : 2026-10-18_1501 UTC — site URL loses its trailing slash (no more "//api/stripe/webhook" in fixes);
+ *           with duplicate webhook endpoints, events are checked on the one at the exact site address and the
+ *           duplicate warning names which endpoint(s) to delete.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -66,7 +69,7 @@ export async function readiness(): Promise<Check[]> {
     c.push({ group, label, status: ok === true ? "ok" : ok === "warn" ? "warn" : "fail", detail, fix: ok === true ? undefined : fix });
 
   // ── Environment
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/+$/, "");
   add("Website & Vercel", "Site URL", site.startsWith("https://") && !site.includes("localhost") ? true : false, site ? (site.includes("localhost") ? `${site} — email links would point to localhost; using ${siteUrlNow()} for now` : site) : `not set — using ${siteUrlNow()} for now`, "Vercel → Settings → Environment Variables → NEXT_PUBLIC_SITE_URL = https://your-domain (used in every email link)");
   add("Website & Vercel", "Support email & phone", !BRAND_PLACEHOLDERS, BRAND_PLACEHOLDERS ? "still the placeholder support@handled.example / (555)" : "set", "Set NEXT_PUBLIC_SUPPORT_EMAIL and NEXT_PUBLIC_SUPPORT_PHONE in Vercel (and EXPO_PUBLIC_… for the app)");
   add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Google Business Profile → Ask for reviews → copy the link → set NEXT_PUBLIC_GOOGLE_REVIEW_URL in Vercel and EXPO_PUBLIC_GOOGLE_REVIEW_URL for the app");
@@ -293,7 +296,9 @@ async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
   try {
     const { data: hooks } = await stripe.webhookEndpoints.list({ limit: 100 });
     const ours = hooks.filter((h) => host(h.url) === host(want));
-    const live = ours.find((h) => h.status === "enabled");
+    // prefer the endpoint at the exact site address (www vs. bare domain): a redirect in front of the other never delivers
+    const exact = (h: Stripe.WebhookEndpoint) => h.url.replace(/\/$/, "") === want;
+    const live = ours.find((h) => h.status === "enabled" && exact(h)) ?? ours.find((h) => h.status === "enabled");
     if (!live) {
       const elsewhere = hooks.filter((h) => h.url.includes("/api/stripe/webhook")).map((h) => `${h.url} (${h.status})`);
       add("Webhooks", "Stripe: endpoint", false, ours.length ? `${want} is disabled` : `no endpoint for ${want}${elsewhere.length ? ` — found ${elsewhere.join(", ")}` : ""}`,
@@ -304,7 +309,9 @@ async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
       add("Webhooks", "Stripe: events", missing.length ? (missing.includes("checkout.session.completed") ? false : "warn") : true,
         missing.length ? `missing ${missing.length}: ${missing.map((e) => `${e} (${STRIPE_WEBHOOK_EVENTS[e]})`).join("; ")}` : "every event the app uses",
         `Stripe → Developers → Webhooks → ${live.url} → Update details → add: ${missing.join(", ")}`);
-      if (ours.length > 1) add("Webhooks", "Stripe: duplicate endpoints", "warn", `${ours.length} endpoints point at ${want} — each has its own signing secret, so only one can match STRIPE_WEBHOOK_SECRET`, "Delete the extra endpoints in Stripe → Developers → Webhooks");
+      const extra = ours.filter((h) => h.id !== live.id);
+      if (extra.length) add("Webhooks", "Stripe: duplicate endpoints", "warn", `${ours.length} endpoints point at ${want} — each has its own signing secret, so only one can match STRIPE_WEBHOOK_SECRET`,
+        `Keep ${live.url}; delete ${extra.map((h) => h.url).join(", ")} in Stripe → Developers → Webhooks`);
     }
   } catch (e) {
     add("Webhooks", "Stripe: endpoint", "warn", `couldn't list endpoints: ${e instanceof Error ? e.message : e}`, "Check it by hand in Stripe → Developers → Webhooks");
