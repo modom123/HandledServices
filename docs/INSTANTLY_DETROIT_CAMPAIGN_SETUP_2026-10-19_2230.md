@@ -7,7 +7,7 @@ PURPOSE : Wire the Instantly campaign "1ST OUTREACH DETROIT" (3de836a0-4845-4350
 -->
 # Instantly "1ST OUTREACH DETROIT" → AI agents + CRM
 
-**Campaign ID:** `3de836a0-4845-4350-80af-db9725831b43`
+**Campaign ID:** `3de836a0-4845-4350-80af-db9725831b43` · **Email copy:** `docs/INSTANTLY_DETROIT_CAMPAIGN_COPY_2026-10-19_2300.md`
 
 ## How it flows
 
