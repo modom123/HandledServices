@@ -13,6 +13,7 @@
  *           first pick of offers. Every boost is clamped so our take never drops below
  *           TAKE_MIN (15%), so better pay for the best pros can never make a job lose money.
  * UPDATED : 2026-10-05_0418 UTC — promise: Handled Pro Rewards.
+ * UPDATED : 2026-10-19_1323 UTC — MAX_TRADES 3 → 5 (owner request): a pro can offer up to 5 trades.
  */
 import { TAKE_MIN, estimate, money, splitJob } from "./pricing.ts";
 import { defaultAnswers, getService } from "./services.ts";
@@ -90,8 +91,8 @@ export function tierPayout(price: number | null | undefined, basePayout: number 
 }
 
 /** One-time bonus for referring a pro, paid after their 10th completed job (from our take). */
-/** A pro picks up to this many trades (focus = better quality and ratings; owner rule 2026-10-07). */
-export const MAX_TRADES = 3;
+/** A pro picks up to this many trades (focus = better quality and ratings; owner rule 2026-10-07: 3, raised to 5 on 2026-10-19). */
+export const MAX_TRADES = 5;
 
 export const PRO_REFERRAL = { bonus: 150, afterJobs: 10 };
 
