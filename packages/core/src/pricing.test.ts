@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
+ * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -1317,7 +1318,7 @@ test("security: event budget sets aside licensed guards when alcohol is served; 
 
 test("gov contracts: SAM.gov records parse, NAICS map to our services, fit scores Michigan open work highest", async () => {
   const { parseSamOpportunity, govFit, samSearchQueries, servicesForNaics, GOV_NAICS } = await import("./gov-contracts.ts");
-  for (const n of GOV_NAICS) assert.ok(servicesForNaics(n.code).length > 0, `NAICS ${n.code} maps to no catalog service`);
+  for (const n of GOV_NAICS) assert.ok(n.subcontracted || servicesForNaics(n.code).length > 0, `NAICS ${n.code} maps to no catalog service`);
   const raw = {
     noticeId: "abc123", title: "Janitorial Services — Detroit Federal Building", solicitationNumber: "47PF0026Q0001", fullParentPathName: "GENERAL SERVICES ADMINISTRATION.PUBLIC BUILDINGS SERVICE.PBS R5",
     postedDate: "2026-10-01", type: "Combined Synopsis/Solicitation", typeOfSetAside: "SBA", typeOfSetAsideDescription: "Total Small Business Set-Aside (FAR 19.5)",
@@ -1823,4 +1824,46 @@ test("gov awards: Contract Awards records parse, modifications merge, recompetes
   assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 200, newOnLastPage: 100, lastPageSize: 100 }), { offset: 2, mode: "page" });
   assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 101, newOnLastPage: 1, lastPageSize: 100 }), { offset: 101, mode: "record" });
   assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 100, newOnLastPage: 0, lastPageSize: 100 }), { offset: 2, mode: "page" }, "pages start at 1");
+});
+
+test("gov subcontracting: large primes with a plan and time left rank first; AI automation is remote; roofing is subcontracted work", async () => {
+  const { parseSamAward, subFit, primeTargets, subPitch, hasSubPlan } = await import("./gov-awards.ts");
+  const { GOV_FOCUS, offeredNaics, remoteNaics, govFit, GOV_NAICS } = await import("./gov-contracts.ts");
+  const { SERVICE_BY_SLUG } = await import("./services.ts");
+  assert.deepEqual([...GOV_FOCUS].sort(), ["236118", "236220", "238150", "238320", "541511", "541512", "541519", "561730", "561740"]);
+  assert.ok(offeredNaics("238150") && offeredNaics("236220"));
+  for (const n of GOV_NAICS) for (const slug of n.slugs) assert.ok(SERVICE_BY_SLUG[slug], `${n.code} → ${slug} is in the catalog`);
+  assert.ok(offeredNaics("238160") && offeredNaics("541511") && offeredNaics("561720") && !offeredNaics("999999"));
+  assert.ok(remoteNaics("541512") && !remoteNaics("561730"));
+  const rec = (naics: string, size: string, plan: string, end: string, state = "MI", city = "Detroit") => ({
+    contractId: { piid: `P-${naics}-${size}-${state}`, modificationNumber: "0" },
+    coreData: { principalPlaceOfPerformance: { city: { name: city }, state: { code: state } } },
+    awardDetails: {
+      dates: { dateSigned: "2025-01-15", ultimateCompletionDate: end },
+      totalContractDollars: { totalBaseAndAllOptionsValue: "2400000" },
+      productOrServiceInformation: { principalNaics: [{ code: naics, name: "x" }] },
+      preferenceProgramsInformation: { contractingOfficerBusinessSizeDetermination: [{ code: "O" === size ? "O" : "S", name: size === "O" ? "Other Than Small Business" : "Small Business" }], subcontractPlan: { code: plan ? "C" : "B", name: plan || "Plan Not Required" } },
+      awardeeData: { awardeeHeader: { awardeeName: `Prime ${size}` }, awardeeUEIInformation: { uniqueEntityId: size === "O" ? "LARGE0000001" : "SMALL0000001" }, awardeeLocation: { streetAddress1: "1 Main St", city: "Troy", state: { code: "MI" }, zip: "48084", phoneNumber: "2485550100" } },
+    },
+  });
+  const now = new Date("2026-10-19T12:00:00Z");
+  const big = parseSamAward(rec("561730", "O", "Plan Required - Incentive Not Included", "2028-09-30"))!;
+  const small = parseSamAward(rec("561730", "S", "", "2028-09-30"))!;
+  assert.equal(big.awardee_size, "O");
+  assert.ok(hasSubPlan(big) && !hasSubPlan(small));
+  assert.equal(big.awardee_phone, "2485550100");
+  assert.equal(big.awardee_address, "1 Main St, Troy, MI 48084");
+  const bigFit = subFit(big, { now });
+  assert.ok(bigFit.score >= 85, `large local grounds prime with a plan: ${bigFit.score}`);
+  assert.ok(subFit(small, { now }).score < bigFit.score);
+  assert.ok(subFit({ ...big, ultimate_end: "2026-01-01" }, { now }).score <= 10, "ended contracts don't rank");
+  const ai = parseSamAward(rec("541511", "O", "Plan Required - Incentive Not Included", "2028-09-30", "VA", "Arlington"))!;
+  assert.ok(subFit(ai, { now }).reasons.some((r) => r.includes("Remote")), "AI work out of state still fits");
+  assert.ok(govFit({ notice_id: "n", title: "AI", solicitation_number: null, agency: null, office: null, notice_type: "Solicitation", ptype: "o", set_aside_code: null, set_aside: null, naics: "541512", psc: null, posted_date: null, response_deadline: null, archive_date: null, active: true, pop_city: "Arlington", pop_state: "VA", pop_zip: null, ui_link: null, description_url: null, contacts: [], award_amount: null, awardee: null }, { now }).score >= 80);
+  const targets = primeTargets([{ ...small, sub_score: subFit(small, { now }).score }, { ...big, sub_score: bigFit.score }], now);
+  assert.equal(targets[0].awardee, "Prime O");
+  assert.ok(targets[0].sub_plan);
+  const pitch = subPitch(targets[0], { company: "Handled", city: "Detroit" });
+  assert.match(pitch, /subcontractor/);
+  assert.match(pitch, /subcontracting goals/);
 });

@@ -20,8 +20,11 @@
  *           awardDetails }] }. Only the first 400,000 records are returned. Same key and daily limit as Opportunities.
  * UPDATED : 2026-10-19_2105 UTC — checked against the published OpenAPI spec: exact field paths first (name lookup
  *           as the fallback), server-side state filter, SAM date formats, page-or-record offset detection.
+ * UPDATED : 2026-10-19_2140 UTC — subcontracting: the prime's size (contracting officer's determination), its
+ *           subcontracting plan, phone and address; subFit (how good a prime is to subcontract under, now) and
+ *           primeTargets (one row per prime to call, best first) with a call / email pitch (subPitch).
  */
-import { GOV_NAICS_BY_CODE, METRO_CITIES, SET_ASIDES, samDate, servicesForNaics } from "./gov-contracts.ts";
+import { GOV_NAICS_BY_CODE, METRO_CITIES, SET_ASIDES, offeredNaics, remoteNaics, samDate, servicesForNaics } from "./gov-contracts.ts";
 
 export interface GovAward {
   award_key: string;
@@ -35,6 +38,12 @@ export interface GovAward {
   awardee_uei: string | null;
   awardee_city: string | null;
   awardee_state: string | null;
+  awardee_phone: string | null;
+  awardee_address: string | null;
+  /** Contracting officer's size call for this award: "S" small business, "O" other than small. */
+  awardee_size: string | null;
+  /** Small-business subcontracting plan on this award (FAR 19.7), as SAM describes it. */
+  subcontract_plan: string | null;
   naics: string | null;
   naics_title: string | null;
   psc: string | null;
@@ -122,6 +131,12 @@ export function parseSamAward(r: Raw): GovAward | null {
   const sa = codeName(at(comp, "typeOfSetAside") ?? find(r, ["typeOfSetAside"]));
   const total = at(r, "awardDetails.totalContractDollars") ?? find(r, ["totalContractDollars"]);
   const dollars = at(r, "awardDetails.dollars") ?? find(r, ["dollars"]);
+  const prefs = at(r, "awardDetails.preferenceProgramsInformation") ?? at(r, "coreData.preferenceProgramsInformation") ?? find(r, ["preferenceProgramsInformation"]);
+  const size = codeName(at(prefs, "contractingOfficerBusinessSizeDetermination"));
+  const plan = codeName(at(prefs, "subcontractPlan"));
+  const street = [str(at(loc, "streetAddress1")), str(at(loc, "streetAddress2"))].filter(Boolean).join(", ");
+  const locState = codeName(find(loc, ["state", "stateCode"])).code;
+  const locCity = codeName(find(loc, ["city"])).name ?? codeName(find(loc, ["city"])).code;
   const placeCity = find(pop, ["city"]);
   const placeState = find(pop, ["state", "stateCode"]);
   return {
@@ -134,8 +149,12 @@ export function parseSamAward(r: Raw): GovAward | null {
     office: codeName(find(contracting, ["contractingOffice", "office"])).name,
     awardee: str(at(header, "awardeeName")) ?? str(at(header, "legalBusinessName")) ?? str(find(awardeeTree, ["awardeeName", "legalBusinessName"])),
     awardee_uei: str(at(ueiInfo, "uniqueEntityId")) ?? str(find(awardeeTree, ["uniqueEntityId"])),
-    awardee_city: codeName(find(loc, ["city"])).name ?? codeName(find(loc, ["city"])).code,
-    awardee_state: codeName(find(loc, ["state", "stateCode"])).code,
+    awardee_city: locCity,
+    awardee_state: locState,
+    awardee_phone: str(at(loc, "phoneNumber")),
+    awardee_address: [street, locCity, [locState, str(at(loc, "zip"))?.slice(0, 5)].filter(Boolean).join(" ")].filter(Boolean).join(", ") || null,
+    awardee_size: size.code?.toUpperCase().slice(0, 1) ?? (size.name ? (/other than/i.test(size.name) ? "O" : /small/i.test(size.name) ? "S" : null) : null),
+    subcontract_plan: plan.name ?? plan.code,
     naics: naics.code && /^\d{6}$/.test(naics.code) ? naics.code : null,
     naics_title: naics.name,
     psc: psc.code,
@@ -202,10 +221,11 @@ export function recompeteFit(a: GovAward, opts: { homeState?: string; now?: Date
   const reasons: string[] = [];
   const flags: string[] = [];
   let score = 0;
-  if (services.length) { score += 35; reasons.push(`NAICS ${a.naics}: ${GOV_NAICS_BY_CODE[a.naics!].title}`); }
+  if (offeredNaics(a.naics)) { score += 35; reasons.push(`NAICS ${a.naics}: ${GOV_NAICS_BY_CODE[a.naics!].title}`); }
   else flags.push(`NAICS ${a.naics ?? "—"} isn't work we offer yet`);
   const city = (a.pop_city ?? "").toLowerCase();
-  if (a.pop_state === home) {
+  if (remoteNaics(a.naics)) { score += 35; reasons.push("Remote work: we can deliver it from anywhere"); }
+  else if (a.pop_state === home) {
     score += 20; reasons.push(`In ${home}`);
     if (METRO_CITIES.some((c) => city.includes(c))) { score += 15; reasons.push(`Metro Detroit (${a.pop_city})`); }
   } else if (a.pop_state) flags.push(`Work is in ${a.pop_state}${a.pop_city ? ` (${a.pop_city})` : ""}`);
@@ -279,4 +299,95 @@ export function nextAwardOffset(o: { calls: number; mode: AwardOffsetMode; seen:
   let mode = o.mode;
   if (o.calls === 2 && mode === "page" && o.lastPageSize >= AWARDS_PAGE_SIZE && o.newOnLastPage > 0 && o.newOnLastPage <= 2) mode = "record";
   return { offset: mode === "record" ? o.seen : o.calls, mode };
+}
+
+/**
+ * The award carries a small-business subcontracting plan (FAR 19.7) — the prime has goals for using small businesses.
+ * SAM's values: Plan Not Included – No Subcontracting Possibilities, Plan Not Required, Plan Required – Incentive (Not)
+ * Included, Plan Required (Pre 2004), Individual / Commercial / DoD Comprehensive Subcontract Plan.
+ */
+export const hasSubPlan = (a: Pick<GovAward, "subcontract_plan">) => Boolean(a.subcontract_plan && /required|individual|commercial|comprehensive/i.test(a.subcontract_plan) && !/not required|plan not included/i.test(a.subcontract_plan));
+
+export interface SubFit { score: number; months: number | null; reasons: string[]; flags: string[] }
+
+/**
+ * How good this contract is for us to subcontract under, now (0–100). The prime is doing the work today; what
+ * matters is our trade, the place, a big business that has to give small businesses a share (a subcontracting
+ * plan), and enough time left on the contract to bring us in.
+ */
+export function subFit(a: GovAward, opts: { homeState?: string; now?: Date } = {}): SubFit {
+  const home = (opts.homeState ?? "MI").toUpperCase();
+  const months = monthsToEnd(a, opts.now);
+  const reasons: string[] = [];
+  const flags: string[] = [];
+  let score = 0;
+  if (offeredNaics(a.naics)) { score += 20; reasons.push(`${GOV_NAICS_BY_CODE[a.naics!].title} (NAICS ${a.naics})`); }
+  else flags.push(`NAICS ${a.naics ?? "—"} isn't work we do yet`);
+  if (remoteNaics(a.naics)) { score += 30; reasons.push("Remote work: we can deliver it from anywhere"); }
+  else if (a.pop_state === home) {
+    score += 20; reasons.push(`Work is in ${home}`);
+    if (METRO_CITIES.some((c) => (a.pop_city ?? "").toLowerCase().includes(c))) { score += 10; reasons.push(`Metro Detroit (${a.pop_city})`); }
+  } else if (a.pop_state) flags.push(`Work is in ${a.pop_state}`);
+  if (a.awardee_size === "O") { score += 20; reasons.push("Large business prime: it counts small-business subcontracts toward its goals"); }
+  else if (a.awardee_size === "S") { score += 5; reasons.push("Small-business prime: may need local crews to cover sites or surge work"); }
+  if (hasSubPlan(a)) { score += 15; reasons.push("Has a small-business subcontracting plan"); }
+  if (months == null) flags.push("No end date listed");
+  else if (months < 0) flags.push("Contract has ended");
+  else if (months >= 6) { score += 15; reasons.push(`${months} months left on the contract`); }
+  else { score += 5; flags.push(`Only ${months} months left: pitch the prime for the re-bid instead`); }
+  if (a.naics?.startsWith("23")) flags.push("Construction: Davis-Bacon wages with weekly certified payrolls, and the prime may require payment and performance bonds from subs");
+  const sa = a.set_aside_code ? SET_ASIDES[a.set_aside_code] : undefined;
+  if (sa) flags.push(`${sa.label}: the prime may only pass a limited share of the work to subcontractors that aren't similarly situated (FAR 52.219-14) — a small subcontractor is easier for them`);
+  if (a.total_value != null && a.total_value >= 750_000) { score += 5; reasons.push(`Worth ${usd(a.total_value)} with options`); }
+  if (months != null && months < 0) score = Math.min(score, 10); // the prime is done: nothing to subcontract on
+  return { score: Math.max(0, Math.min(100, score)), months, reasons, flags };
+}
+
+export interface PrimeTarget {
+  awardee: string; uei: string | null; size: string | null; phone: string | null; address: string | null;
+  contracts: number; active_value: number; sub_plan: boolean; naics: string[]; agencies: string[]; places: string[];
+  best_score: number; next_end: string | null; keys: string[];
+}
+
+/** One row per prime contractor with active work we could subcontract on, best target first. */
+export function primeTargets(rows: (GovAward & { sub_score?: number | null })[], now = new Date()): PrimeTarget[] {
+  const by = new Map<string, PrimeTarget>();
+  for (const r of rows) {
+    if (!r.awardee) continue;
+    const m = monthsToEnd(r, now);
+    if (m != null && m < 0) continue;
+    const k = r.awardee_uei ?? r.awardee.toLowerCase();
+    const t = by.get(k) ?? { awardee: r.awardee, uei: r.awardee_uei, size: r.awardee_size, phone: r.awardee_phone, address: r.awardee_address, contracts: 0, active_value: 0, sub_plan: false, naics: [], agencies: [], places: [], best_score: 0, next_end: null, keys: [] };
+    t.contracts++;
+    t.active_value += r.total_value ?? 0;
+    t.sub_plan ||= hasSubPlan(r);
+    t.size ??= r.awardee_size; t.phone ??= r.awardee_phone; t.address ??= r.awardee_address;
+    for (const [list, v] of [[t.naics, r.naics], [t.agencies, r.subtier ?? r.agency], [t.places, [r.pop_city, r.pop_state].filter(Boolean).join(", ")]] as const) if (v && !list.includes(v)) list.push(v);
+    t.best_score = Math.max(t.best_score, r.sub_score ?? 0);
+    const end = r.ultimate_end ?? r.current_end;
+    if (end && (!t.next_end || end < t.next_end)) t.next_end = end;
+    t.keys.push(r.award_key);
+    by.set(k, t);
+  }
+  return [...by.values()].sort((a, b) => b.best_score - a.best_score || b.active_value - a.active_value);
+}
+
+/** A short call / email opener for a prime's small-business liaison or project manager. Plain text, no promises. */
+export function subPitch(t: PrimeTarget, from: { company: string; city?: string; trades?: string[] }): string {
+  const trades = (t.naics.map((c) => GOV_NAICS_BY_CODE[c]?.title.toLowerCase()).filter(Boolean) as string[]);
+  const work = trades.length ? trades.join(", ") : (from.trades ?? []).join(", ");
+  return [
+    `Subject: Local ${work || "facility services"} subcontractor for your ${t.agencies[0] ?? "federal"} work${t.places[0] ? ` in ${t.places[0]}` : ""}`,
+    "",
+    "Hello,",
+    "",
+    `I'm with ${from.company}${from.city ? ` in ${from.city}` : ""}. We see ${t.awardee} holds federal ${work || "facility"} work${t.places.length ? ` in ${t.places.slice(0, 3).join("; ")}` : ""}. We're a small business with vetted local crews for ${work || "this work"}, and we'd like to support you as a subcontractor: covering sites, surge and weather work, or backup when your team is stretched.`,
+    "",
+    t.sub_plan ? "If you're tracking small-business subcontracting goals on these contracts, we can help you meet them." : "If you use small-business subcontractors, we'd like to be on your list.",
+    "",
+    "Who handles subcontractor onboarding for these contracts? I can send our capability statement, insurance certificates and references.",
+    "",
+    "Thank you,",
+    from.company,
+  ].join("\n");
 }

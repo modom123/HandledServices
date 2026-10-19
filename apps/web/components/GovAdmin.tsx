@@ -5,12 +5,13 @@
  * PURPOSE : Hub → Gov contracts controls: the saved daily SAM.gov search (and run a search now), pipeline status and
  *           notes per notice, full text + AI bid brief, and asking matching pros whether they want the work.
  * UPDATED : 2026-10-19_2015 UTC — GovAwardsForm (Contract Awards search + the Monday awards run) and AwardStatus.
+ * UPDATED : 2026-10-19_2140 UTC — focus codes first (landscaping, painting, AI automation), awards_naics saved, CopyText.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GOV_NAICS, SAM_NOTICE_TYPES, SET_ASIDES } from "@handled/core";
+import { GOV_NAICS, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SET_ASIDES } from "@handled/core";
 
 async function post(body: unknown): Promise<{ ok: boolean; [k: string]: unknown }> {
   const r = await fetch("/api/hub/gov", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -173,7 +174,7 @@ export function GovPros({ id, pros }: { id: string; pros: GovProRow[] }) {
   );
 }
 
-export interface GovAwardsState { naics: string[]; state: string | null; awards_enabled: boolean; awards_months_back: number; awards_pages: number }
+export interface GovAwardsState { awards_naics: string[]; state: string | null; awards_enabled: boolean; awards_months_back: number; awards_pages: number }
 
 /** Contract Awards search: who already holds our kind of work and when it ends. One call per page of 100. */
 export function GovAwardsForm({ s, ready, callsLeft }: { s: GovAwardsState; ready: boolean; callsLeft: number }) {
@@ -186,12 +187,13 @@ export function GovAwardsForm({ s, ready, callsLeft }: { s: GovAwardsState; read
   return (
     <div className="space-y-4 text-sm">
       <div>
-        <div className="label">Work (NAICS codes) — all codes go in one call</div>
+        <div className="label">Work (NAICS codes) — all codes go in one call. ★ = our focus</div>
         <div className="flex flex-wrap gap-2">
-          {GOV_NAICS.map((n) => (
-            <button key={n.code} type="button" onClick={() => setF({ ...f, naics: toggle(f.naics, n.code) })} className={`rounded-full border px-3 py-1 text-xs ${f.naics.includes(n.code) ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{n.code} · {n.title}</button>
+          {[...GOV_NAICS].sort((a, b) => Number(Boolean(b.focus)) - Number(Boolean(a.focus))).map((n) => (
+            <button key={n.code} type="button" onClick={() => setF({ ...f, awards_naics: toggle(f.awards_naics, n.code) })} className={`rounded-full border px-3 py-1 text-xs ${f.awards_naics.includes(n.code) ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{n.focus ? "★ " : ""}{n.code} · {n.title}</button>
           ))}
         </div>
+        {f.state && f.awards_naics.some((c) => GOV_NAICS_BY_CODE[c]?.remote) && <p className="mt-1 text-xs text-ink-soft">AI automation is remote work: clear the state to see contracts nationwide (search those codes on their own so local trades stay in your state).</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-5">
         <div><label className="label">State (place of work)</label><input className="input" maxLength={2} value={f.state ?? ""} onChange={(e) => setF({ ...f, state: e.target.value.toUpperCase() || null })} placeholder="MI" /></div>
@@ -204,12 +206,12 @@ export function GovAwardsForm({ s, ready, callsLeft }: { s: GovAwardsState; read
         <label className="flex items-center gap-2"><input type="checkbox" checked={f.awards_enabled} onChange={(e) => setF({ ...f, awards_enabled: e.target.checked })} /> Refresh awards every Monday morning</label>
         <button className="btn-ghost" disabled={busy} onClick={async () => {
           setBusy(true); setMsg("");
-          const r = await post({ action: "award_settings", awards_enabled: f.awards_enabled, awards_months_back: f.awards_months_back, awards_pages: f.awards_pages });
-          setBusy(false); setMsg(r.ok ? "Saved. The Monday run uses the NAICS codes and state from the opportunities search." : String(r.error ?? "Failed")); router.refresh();
+          const r = await post({ action: "award_settings", awards_enabled: f.awards_enabled, awards_months_back: f.awards_months_back, awards_pages: f.awards_pages, awards_naics: f.awards_naics });
+          setBusy(false); setMsg(r.ok ? "Saved. The Monday run uses these codes and the state from the opportunities search." : String(r.error ?? "Failed")); router.refresh();
         }}>Save</button>
-        <button className="btn-primary" disabled={busy || !ready || callsLeft < 1 || !f.naics.length} onClick={async () => {
+        <button className="btn-primary" disabled={busy || !ready || callsLeft < 1 || !f.awards_naics.length} onClick={async () => {
           setBusy(true); setMsg("Searching SAM.gov contract awards…");
-          const r = await post({ action: "awards", naics: f.naics, state: f.state, keywords: keywords || null, months_back: f.awards_months_back, pages: f.awards_pages, awardee_uei: uei || null });
+          const r = await post({ action: "awards", naics: f.awards_naics, state: f.state, keywords: keywords || null, months_back: f.awards_months_back, pages: f.awards_pages, awardee_uei: uei || null });
           setBusy(false);
           const res = r.result as { calls: number; found: number; kept: number; added: number; errors: string[] } | undefined;
           setMsg(r.ok && res ? `${res.found} award records → ${res.kept} contracts${f.state ? ` in ${f.state}` : ""}, ${res.added} new · ${res.calls} call${res.calls === 1 ? "" : "s"} used${res.errors.length ? ` · ${res.errors[0]}` : ""}` : String(r.error ?? "Failed"));
@@ -230,6 +232,17 @@ export function AwardStatus({ awardKey, status }: { awardKey: string; status: st
       {(["watching", "ignored", "new"] as const).filter((x) => x !== status).map((x) => (
         <button key={x} className="rounded-full border border-line px-2 py-0.5 text-xs" onClick={async () => { await post({ action: "award_status", award_key: awardKey, status: x }); router.refresh(); }}>{x === "watching" ? "Watch" : x === "ignored" ? "Ignore" : "Reset"}</button>
       ))}
+    </div>
+  );
+}
+
+/** A block of text with a copy button (call / email pitch for a prime). */
+export function CopyText({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div className="space-y-1">
+      <pre className="whitespace-pre-wrap rounded-lg bg-paper p-3 text-xs">{text}</pre>
+      <button className="btn-ghost text-xs" onClick={async () => { try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 2000); } catch { /* clipboard blocked: select the text instead */ } }}>{done ? "Copied" : "Copy"}</button>
     </div>
   );
 }

@@ -12,7 +12,7 @@
  *             { action: "interest", notice_id, contractor_id, status, note? }  — record a pro's answer
  * UPDATED : 2026-10-19_2015 UTC — Contract Awards API:
  *             { action: "awards", naics[], state, keywords, months_back, pages, awardee_uei? }  — search awards now
- *             { action: "award_settings", awards_enabled, awards_months_back, awards_pages }  — the Monday awards run
+ *             { action: "award_settings", awards_enabled, awards_months_back, awards_pages, awards_naics[] }  — the Monday awards run
  *             { action: "award_status", award_key, status?, notes? }  — watch / ignore a recompete lead
  */
 import { z } from "zod";
@@ -36,7 +36,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ask_pros"), notice_id: id, contractor_ids: z.array(z.string().uuid()).min(1).max(50) }),
   z.object({ action: z.literal("interest"), notice_id: id, contractor_id: z.string().uuid(), status: z.enum(["asked", "interested", "not_interested"]), note: z.string().max(1000).nullable().optional() }),
   z.object({ action: z.literal("awards"), naics, state, keywords, months_back: z.number().int().min(1).max(60), pages: z.number().int().min(1).max(20), awardee_uei: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{12}$/).nullable().optional().or(z.literal("").transform(() => null)) }),
-  z.object({ action: z.literal("award_settings"), awards_enabled: z.boolean(), awards_months_back: z.number().int().min(1).max(60), awards_pages: z.number().int().min(1).max(20) }),
+  z.object({ action: z.literal("award_settings"), awards_enabled: z.boolean(), awards_months_back: z.number().int().min(1).max(60), awards_pages: z.number().int().min(1).max(20), awards_naics: naics.min(1) }),
   z.object({ action: z.literal("award_status"), award_key: z.string().trim().min(1).max(200), status: z.enum(["new", "watching", "ignored"]).optional(), notes: z.string().max(5000).nullable().optional() }),
 ]);
 

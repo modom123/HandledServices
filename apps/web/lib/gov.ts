@@ -18,10 +18,12 @@
  *           call budget as opportunities.
  * UPDATED : 2026-10-19_2105 UTC — per the OpenAPI spec: state filtered by SAM (placeOfPerformStateCode); offset
  *           page-or-record detection; one record per transaction counted when paging.
+ * UPDATED : 2026-10-19_2140 UTC — subcontracting: subFit score on every award; awards_naics (default the focus:
+ *           landscaping, painting, AI automation) for the awards search and the Monday run.
  */
 import "server-only";
 import { z } from "zod";
-import { AWARDS_PAGE_SIZE, BRAND, GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, awardSearchQuery, govFit, nextAwardOffset, mergeAwards, parseSamAward, parseSamOpportunity, recompeteFit, samSearchQueries, tradesForNaics, type GovAward, type GovOpportunity } from "@handled/core";
+import { AWARDS_PAGE_SIZE, BRAND, GOV_BID_CHECKLIST, GOV_FOCUS, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, awardSearchQuery, govFit, nextAwardOffset, mergeAwards, parseSamAward, parseSamOpportunity, recompeteFit, samSearchQueries, subFit, tradesForNaics, type GovAward, type GovOpportunity } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { sendEmail } from "./notify";
 import { aiEnabled, structured } from "./ai/client";
@@ -36,11 +38,11 @@ export const govReady = () => Boolean(process.env.SAM_API_KEY?.trim());
 export interface GovSettings {
   enabled: boolean; naics: string[]; state: string | null; keywords: string | null; ptypes: string[];
   days_back: number; daily_call_budget: number; certifications: string[]; last_run_at: string | null; last_result: unknown;
-  awards_enabled: boolean; awards_months_back: number; awards_pages: number;
+  awards_enabled: boolean; awards_months_back: number; awards_pages: number; awards_naics: string[];
 }
 export async function getGovSettings(): Promise<GovSettings> {
   const { data } = await db().from("gov_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, naics: ["561720", "561730", "561790", "561612", "562111", "484210"], state: "MI", keywords: null, ptypes: ["o", "k", "p", "r"], days_back: 7, daily_call_budget: 8, certifications: [], last_run_at: null, last_result: null, awards_enabled: false, awards_months_back: 24, awards_pages: 2, ...(data ?? {}) } as GovSettings;
+  return { enabled: false, naics: GOV_FOCUS, state: "MI", keywords: null, ptypes: ["o", "k", "p", "r"], days_back: 7, daily_call_budget: 8, certifications: [], last_run_at: null, last_result: null, awards_enabled: false, awards_months_back: 24, awards_pages: 2, awards_naics: GOV_FOCUS, ...(data ?? {}) } as GovSettings;
 }
 
 /** SAM.gov calls made since midnight UTC (SAM resets its daily limit on UTC days). */
@@ -145,7 +147,8 @@ export async function runAwardSearch(search: { naics: string[]; state: string | 
   out.added = rows.filter((a) => !known.has(a.award_key)).length;
   const upserts = rows.map((a) => {
     const fit = recompeteFit(a, { homeState: state ?? "MI", certifications: s.certifications });
-    return { ...a, fit_score: fit.score, fit, services: fit.services, raw: raw.get(a.award_key) ?? null, updated_at: new Date().toISOString() };
+    const sub = subFit(a, { homeState: state ?? "MI" });
+    return { ...a, fit_score: fit.score, fit, services: fit.services, sub_score: sub.score, sub_fit: sub, raw: raw.get(a.award_key) ?? null, updated_at: new Date().toISOString() };
   });
   const { error } = await db().from("gov_awards").upsert(upserts, { onConflict: "award_key" });
   if (error) out.errors.push(error.message);
@@ -163,7 +166,7 @@ export async function govEngine() {
   if (!govReady()) return { skipped: "no SAM_API_KEY" };
   const r: { opportunities?: GovRunResult; awards?: AwardRunResult } = {};
   if (s.enabled) r.opportunities = await runGovSearch(s, "engine");
-  if (s.awards_enabled && new Date().getUTCDay() === 1) r.awards = await runAwardSearch({ naics: s.naics, state: s.state, keywords: null, months_back: s.awards_months_back, pages: s.awards_pages }, "engine");
+  if (s.awards_enabled && new Date().getUTCDay() === 1) r.awards = await runAwardSearch({ naics: s.awards_naics, state: s.state, keywords: null, months_back: s.awards_months_back, pages: s.awards_pages }, "engine");
   await db().from("gov_settings").update({ last_run_at: new Date().toISOString(), last_result: r }).eq("id", 1);
   return r;
 }

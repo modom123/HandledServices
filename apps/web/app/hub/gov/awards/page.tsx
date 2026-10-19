@@ -6,17 +6,20 @@
  *           Awards API) for the work our pros do. Best recompete leads first (ending in 3–18 months, in Michigan /
  *           metro Detroit, our NAICS), who the incumbents are, and what the work is worth — so we're ready before
  *           the follow-on solicitation posts.
+ * UPDATED : 2026-10-19_2140 UTC — Subcontract targets first: primes doing our focus work now (landscaping, painting,
+ *           AI automation), best to subcontract under (large business + subcontracting plan + time left + local or
+ *           remote), with phone, address and a copy-ready pitch.
  */
 import Link from "next/link";
-import { GOV_NAICS_BY_CODE, SET_ASIDES, incumbents, monthsToEnd, type GovAward } from "@handled/core";
+import { BRAND, GOV_NAICS_BY_CODE, SET_ASIDES, incumbents, monthsToEnd, primeTargets, subPitch, type GovAward } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { callsToday, getGovSettings, govReady } from "@/lib/gov";
 import { Stat } from "@/components/ui";
-import { AwardStatus, GovAwardsForm } from "@/components/GovAdmin";
+import { AwardStatus, CopyText, GovAwardsForm } from "@/components/GovAdmin";
 
 export const dynamic = "force-dynamic";
 
-type Row = GovAward & { fit_score: number; fit: { flags?: string[]; reasons?: string[] } | null; status: string };
+type Row = GovAward & { fit_score: number; fit: { flags?: string[]; reasons?: string[] } | null; sub_score: number; sub_fit: { flags?: string[]; reasons?: string[] } | null; status: string };
 
 const money = (n: number | null) => (n == null ? "—" : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${Math.round(n)}`);
 const day = (d: string | null) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—");
@@ -32,6 +35,8 @@ export default async function GovAwards({ searchParams }: { searchParams: Promis
   const ending = (r: Row) => { const m = monthsToEnd(r); return m != null && m >= 0 && m <= 18; };
   const list = rows.filter((r) => (status ? r.status === status : r.status === "new"));
   const inc = incumbents(rows.filter((r) => r.status !== "ignored")).slice(0, 15);
+  const primes = primeTargets(rows.filter((r) => r.status !== "ignored")).slice(0, 25);
+  const sizeLabel = (x: string | null) => (x === "O" ? "Large business" : x === "S" ? "Small business" : "Size not listed");
   const tab = (href: string, label: string, on: boolean) => <Link href={href} className={`rounded-full border px-3 py-1 text-xs ${on ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{label}</Link>;
   return (
     <div className="space-y-6">
@@ -42,14 +47,47 @@ export default async function GovAwards({ searchParams }: { searchParams: Promis
         {!govReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Set <code>SAM_API_KEY</code> in Vercel first (the same key as opportunities — see Gov contracts).</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="Contracts cached" value={rows.length} />
+        <Stat label="Primes to call" value={primes.filter((p) => p.best_score >= 50).length} hint="subcontract score 50+" />
         <Stat label="Ending ≤ 18 months" value={rows.filter((r) => r.status !== "ignored" && ending(r)).length} hint="recompete window" />
         <Stat label="Good leads (60+)" value={rows.filter((r) => r.status === "new" && r.fit_score >= 60).length} />
         <Stat label="Watching" value={rows.filter((r) => r.status === "watching").length} />
       </div>
       <section className="card">
         <h2 className="mb-3 text-lg font-bold">Search contract awards</h2>
-        <GovAwardsForm s={{ naics: s.naics, state: s.state, awards_enabled: s.awards_enabled, awards_months_back: s.awards_months_back, awards_pages: s.awards_pages }} ready={govReady()} callsLeft={Math.max(0, s.daily_call_budget - used)} />
+        <GovAwardsForm s={{ awards_naics: s.awards_naics, state: s.state, awards_enabled: s.awards_enabled, awards_months_back: s.awards_months_back, awards_pages: s.awards_pages }} ready={govReady()} callsLeft={Math.max(0, s.daily_call_budget - used)} />
+      </section>
+      <section>
+        <h2 className="text-lg font-bold">Subcontract targets</h2>
+        <p className="mb-2 max-w-3xl text-sm text-ink-soft">Prime contractors doing our focus work right now. Best first: large businesses (they count small-business subcontracts toward their goals), with a subcontracting plan, time left on the contract, and work in Michigan, or remote for AI automation. Call the prime’s small-business liaison or project manager. Have our SAM.gov registration, capability statement and insurance certificates ready.</p>
+        {primes.length ? (
+          <div className="space-y-3">
+            {primes.map((t) => (
+              <details key={t.uei ?? t.awardee} className="card">
+                <summary className="flex cursor-pointer flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <span className={`mr-2 inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${t.best_score >= 70 ? "bg-green-100 text-green-800" : t.best_score >= 45 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{t.best_score}</span>
+                    <b>{t.awardee}</b> <span className="text-xs text-ink-soft">{sizeLabel(t.size)}{t.sub_plan ? " · has a subcontracting plan" : ""}</span>
+                    <div className="text-xs text-ink-soft">{t.contracts} active contract{t.contracts === 1 ? "" : "s"} · {money(t.active_value)} · {t.naics.map((c) => GOV_NAICS_BY_CODE[c]?.title ?? c).join(", ")} · {t.agencies.slice(0, 2).join(", ")}</div>
+                    <div className="text-xs text-ink-soft">{t.places.slice(0, 3).join("; ")}{t.next_end ? ` · next ends ${day(t.next_end)}` : ""}</div>
+                  </div>
+                  <div className="text-right text-xs">{t.phone && <a className="text-brand hover:underline" href={`tel:${t.phone.replace(/[^\d+]/g, "")}`}>{t.phone}</a>}<div className="text-ink-soft">{t.address ?? ""}</div><div className="text-ink-soft">{t.uei ? `UEI ${t.uei}` : ""}</div></div>
+                </summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="text-xs">
+                    <div className="font-semibold">Their contracts</div>
+                    <ul className="mt-1 list-disc space-y-1 pl-4">
+                      {rows.filter((r) => t.keys.includes(r.award_key)).map((r) => (
+                        <li key={r.award_key}>{r.description ?? r.psc_title ?? r.award_key} <span className="text-ink-soft">({r.award_key} · {[r.pop_city, r.pop_state].filter(Boolean).join(", ") || "—"} · ends {day(r.ultimate_end ?? r.current_end)})</span>{r.sub_fit?.flags?.[0] && <div className="text-amber-800">⚠ {r.sub_fit.flags[0]}</div>}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-ink-soft">Look them up on SAM.gov (Entity Information → search the UEI) for their small-business liaison and contacts.</p>
+                  </div>
+                  <div><div className="mb-1 text-xs font-semibold">Pitch (call or email)</div><CopyText text={subPitch(t, { company: BRAND.name, city: "Detroit" })} /></div>
+                </div>
+              </details>
+            ))}
+          </div>
+        ) : <p className="text-sm text-ink-soft">No active primes yet. Search awards above (★ focus codes are picked for you).</p>}
       </section>
       <section>
         <div className="mb-2 flex flex-wrap items-center gap-2">

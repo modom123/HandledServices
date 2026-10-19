@@ -4,6 +4,8 @@ PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-10-19_2015 UTC
 PURPOSE : How to get the SAM.gov API key into Vercel and use Hub → Gov contracts → Awards & recompetes
           (SAM.gov Contract Awards API, https://open.gsa.gov/api/contract-awards/).
+UPDATED : 2026-10-19_2140 UTC — subcontracting under primes; focus codes (landscaping, painting, AI automation,
+          window installation, carpet cleaning, construction).
 -->
 # Government contract awards (SAM.gov): setup
 
@@ -61,6 +63,46 @@ In Hub → Gov contracts → **Awards & recompetes**:
 | Certification set-aside we don't hold | −15 |
 
 Use **Watch** / **Ignore** to sort leads. **Who holds this work now** lists incumbents by total value. Big ones are also subcontracting prospects.
+
+## 4. Subcontracting under primes (the main goal)
+**Subcontract targets** (top of the Awards page) lists prime contractors doing our focus work **right now**, best first.
+
+Focus codes (★, picked by default):
+
+| Work | NAICS | How we deliver it |
+|---|---|---|
+| Landscaping | 561730 | Our pros |
+| Painting | 238320 | Our pros |
+| Carpet cleaning | 561740 | Our pros |
+| Construction | 236220 commercial building, 236118 remodeling | Our pros; Davis-Bacon wages and bonds apply |
+| Window installation | 238150 glass & glazing | Subcontracted pros (no catalog service yet) |
+| AI automation | 541511, 541512, 541519 | Remote, so the state doesn't matter |
+
+Custodial (561720) and roofing (238160) are still selectable.
+
+**Subcontract score (0–100):**
+
+| Factor | Points |
+|---|---|
+| Our work | +20 |
+| Michigan (or remote AI work) | +20 (+30 for remote AI work) |
+| Metro Detroit | +10 more |
+| Large-business prime | +20 |
+| Has a subcontracting plan | +15 |
+| 6+ months left on the contract | +15 |
+| Worth $750K+ | +5 |
+
+Ended contracts score 10 at most. Large primes over $750K usually have to file a small-business subcontracting plan (FAR 19.7) and report against it, so they look for small subs.
+
+**How to work a target:**
+1. Open the prime. You'll see its contracts, phone, address and UEI, plus a pitch you can copy.
+2. Look up the UEI on SAM.gov (Entity Information) for its small-business liaison.
+3. Call or email with the pitch. Send the capability statement, insurance certificates and references.
+4. Before any subcontract: the wage determination (SCA / Davis-Bacon) flows down to us and our pros, and on a small-business set-aside the prime has limits on subcontracting (FAR 52.219-14). Check both with counsel.
+
+**AI automation:** clear the state and search the 5415xx codes on their own to see primes nationwide. Keep the trades in MI.
+
+**Database:** run `supabase/setup/ADD_GOV_SUBCONTRACTING_2026-10-19_2140.sql` once, after the awards file.
 
 ## What the API does (for whoever maintains this)
 Checked against GSA's published OpenAPI spec ("Contract Award API", version 1.0).
