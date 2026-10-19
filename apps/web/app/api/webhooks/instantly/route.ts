@@ -7,10 +7,13 @@
  *           email sent, link clicked, reply received, lead unsubscribed, email bounced.
  * UPDATED : 2026-10-04_1934 UTC — business sales engine events too (handled_biz_lead_id, else by email).
  *           Tolerant of payload shape: reads event_type / lead_email / custom variables.
+ * UPDATED : 2026-10-19_2230 UTC — events from the business campaign (campaign_id = INSTANTLY_BIZ_CAMPAIGN_ID, e.g.
+ *           1ST OUTREACH DETROIT) go to the business CRM even for leads uploaded straight into Instantly (created on
+ *           the spot), and replies are read by the AI sales agent.
  */
 import { onInstantlyEvent } from "@/lib/leads";
 import { onBizInstantlyEvent } from "@/lib/biz-leads";
-import { validWebhookSecret } from "@/lib/instantly";
+import { isBizCampaign, validWebhookSecret } from "@/lib/instantly";
 
 export async function POST(req: Request) {
   if (!validWebhookSecret(new URL(req.url).searchParams.get("secret") ?? req.headers.get("x-webhook-secret"))) return new Response("Unauthorized", { status: 401 });
@@ -25,6 +28,11 @@ export async function POST(req: Request) {
   // business sales engine leads carry handled_biz_lead_id; pro leads handled_lead_id
   const bizId = String(vars.handled_biz_lead_id ?? b.handled_biz_lead_id ?? "") || null;
   if (bizId) return Response.json({ ok: true, handled: await onBizInstantlyEvent({ type, email, leadId: bizId, text }) });
+  if (isBizCampaign(b.campaign_id ?? b.campaign)) {
+    const s = (...keys: string[]) => { for (const k of keys) { const v = b[k] ?? vars[k]; if (typeof v === "string" && v.trim()) return v.trim(); } return null; };
+    const lead = { first_name: s("firstName", "first_name"), last_name: s("lastName", "last_name"), company_name: s("companyName", "company_name"), phone: s("phone"), website: s("website") };
+    return Response.json({ ok: true, handled: await onBizInstantlyEvent({ type, email, text, fromBizCampaign: true, lead }) });
+  }
   const handled = await onInstantlyEvent({
     type, email,
     leadId: String(vars.handled_lead_id ?? b.handled_lead_id ?? "") || null,

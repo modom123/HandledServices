@@ -14,6 +14,7 @@
  *           Top priorities (owner, 2026-10-06): onboard pros and win new jobs.
  *           Every agent has STANDING TASKS (below, with targets) plus tasks staff assign in Hub → AI agents (agent_tasks),
  *           which missionPrompt(kind, assigned) adds to its instructions on every run.
+ * UPDATED : 2026-10-19_2230 UTC — sales_reply agent: reads replies to the Instantly business campaign and drafts answers.
  */
 import { BRAND } from "./brand.ts";
 import { GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "./city-scorecard.ts";
@@ -100,6 +101,9 @@ export const AGENTS: AgentRole[] = [
   { kind: "doc_check", name: "Document checker", does: "Reads insurance, licenses and IDs uploaded by pros", trigger: "Every document upload", gate: true,
     tasks: ["Check every upload the same minute; flag expired or mismatched documents", "Read dates and names exactly as printed"],
     drives: "Fast, accurate checks get pros working sooner and keep customers and the company protected." },
+  { kind: "sales_reply", name: "Sales reply agent", does: "Reads every reply to the Instantly business campaign (e.g. 1ST OUTREACH DETROIT), sorts it (interested, question, not now, no, unsubscribe, out of office), stops mail for no's and drafts the answer for the team", trigger: "Every reply (Instantly webhook)",
+    tasks: ["Read every business reply within minutes and alert the team on every interested lead or question the same day", "Draft a short, honest answer that moves the lead to a walkthrough, a call or the business sign-up link — no invented prices or promises", "Honor every unsubscribe or 'not interested' at once: stop the sequence and never email them again"],
+    drives: "Warm business replies are the fastest path to recurring B2B revenue: no reply waits, every interested business gets a next step, and no's are respected." },
   { kind: "gov_bid_summary", name: "Gov contract scout", does: "Reads government notices and recommends bid / maybe / pass", trigger: "Weekdays 13:10 UTC (Vercel cron)",
     tasks: ["Summarize every new matching notice each weekday", "Recommend 'bid' on every cleaning, janitorial and facility notice in or near Metro Detroit we can staff", "Surface deadlines at least 10 days out"],
     drives: "Public contracts are recurring revenue at scale: find every bid we can win and staff in or near Metro Detroit, and flag deadlines early." },

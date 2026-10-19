@@ -1471,7 +1471,8 @@ test("every AI agent runs with the $100M mission, the two priorities and its tas
   const used = new Set<string>();
   // AI calls only (structured / logRun) — not ops_alerts rows, which also have a kind
   for (const f of readdirSync(dir)) for (const line of readFileSync(new URL(f, dir), "utf8").split("\n")) if (!line.includes("ops_alerts")) for (const m of line.matchAll(/kind: "([a-z_]+)"/g)) used.add(m[1]);
-  for (const f of ["../gov.ts", "../bids.ts"]) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/kind: "((?:gov|bid)_[a-z_]+)"/g)) used.add(m[1]);
+  for (const f of ["../gov.ts", "../bids.ts", "../biz-leads.ts"]) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/kind: "((?:gov|bid|sales)_[a-z_]+)"/g)) used.add(m[1]);
+  assert.ok(used.has("sales_reply"), "the Instantly reply agent is wired up");
   for (const k of used) assert.ok(AGENTS.some((a) => a.kind === k), `agent ${k} has no role in mission.ts`);
   for (const a of AGENTS) {
     const p = missionPrompt(a.kind, ["Get 10 bookings"]);
