@@ -20,6 +20,9 @@
  *           against them), window installation (238150), carpet cleaning (561740) and construction (236220
  *           commercial building, 236118 remodeling). Roofing 238160 and window installation are subcontracted work
  *           (no catalog service yet). offeredNaics(), remoteNaics().
+ * UPDATED : 2026-10-19_2330 UTC — stateWide search (one call for the whole state, filtered to our codes on our side, plus
+ *           one nationwide call per remote code) so the daily search fits a 10-call key; pickBidCandidates — the day's
+ *           5 best notices we can still respond to (open, biddable, 5+ days left, good fit).
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -238,7 +241,9 @@ export function samDate(d: Date): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}/${d.getUTCFullYear()}`;
 }
 
-export interface GovSearch { naics?: string[]; state?: string | null; keywords?: string | null; ptypes?: string[]; setAside?: string | null; daysBack?: number; limit?: number; offset?: number; now?: Date }
+export interface GovSearch { naics?: string[]; state?: string | null; keywords?: string | null; ptypes?: string[]; setAside?: string | null; daysBack?: number; limit?: number; offset?: number; now?: Date;
+  /** One call for every notice in the state (filter to our codes after), plus one nationwide call per remote code. */
+  stateWide?: boolean }
 
 /**
  * Query strings for one search (without the API key). SAM takes one NAICS code per call, so a search across
@@ -258,8 +263,33 @@ export function samSearchQueries(s: GovSearch): string[] {
   if (s.ptypes?.length) base.ptype = s.ptypes.filter((p) => p in SAM_NOTICE_TYPES).join(",");
   if (s.setAside && s.setAside in SET_ASIDES) base.typeOfSetAside = s.setAside;
   const codes = (s.naics ?? []).filter((c) => /^\d{6}$/.test(c));
+  if (s.stateWide && base.state && codes.length) {
+    const local = codes.filter((c) => !remoteNaics(c));
+    const { state: _st, ...national } = base;
+    const list = [
+      ...(local.length ? [{ ...base, limit: "1000" }] : []),
+      ...codes.filter((c) => remoteNaics(c)).map((ncode) => ({ ...national, ncode })),
+    ];
+    return list.map((q) => new URLSearchParams(q).toString());
+  }
   const list = codes.length ? codes.map((ncode) => ({ ...base, ncode })) : [base];
   return list.map((q) => new URLSearchParams(q).toString());
+}
+
+export interface BidCandidate { notice_id: string; status: string; fit_score: number; response_deadline: string | null; active: boolean; ptype: string | null; naics: string | null; picked_at?: string | null }
+
+/**
+ * The day's best notices to propose on: new, open, a type we can respond to (solicitation, combined, presolicitation,
+ * sources sought), work we do, at least `minDays` to respond, fit `minScore`+. Best fit first, then soonest due.
+ */
+export function pickBidCandidates<T extends BidCandidate>(rows: T[], o: { n?: number; now?: Date; minDays?: number; minScore?: number } = {}): T[] {
+  const now = (o.now ?? new Date()).getTime();
+  const minMs = (o.minDays ?? 5) * 86400000;
+  return rows
+    .filter((r) => r.status === "new" && !r.picked_at && r.active && ["o", "k", "p", "r"].includes(r.ptype ?? "") && offeredNaics(r.naics) && r.fit_score >= (o.minScore ?? 55))
+    .filter((r) => !r.response_deadline || new Date(r.response_deadline).getTime() - now >= minMs)
+    .sort((a, b) => b.fit_score - a.fit_score || (a.response_deadline ?? "9999").localeCompare(b.response_deadline ?? "9999"))
+    .slice(0, o.n ?? 5);
 }
 
 /** What has to be true before we bid on a government contract. Flags for counsel / a contracts adviser. */

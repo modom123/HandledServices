@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
+ * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -1867,4 +1868,30 @@ test("gov subcontracting: large primes with a plan and time left rank first; AI 
   const pitch = subPitch(targets[0], { company: "Handled", city: "Detroit" });
   assert.match(pitch, /subcontractor/);
   assert.match(pitch, /subcontracting goals/);
+});
+
+test("gov bid desk: picks the 5 best open notices we can still answer; one state-wide call covers the local codes", async () => {
+  const { pickBidCandidates, samSearchQueries } = await import("./gov-contracts.ts");
+  const now = new Date("2026-10-19T12:00:00Z");
+  const day = (d: number) => new Date(now.getTime() + d * 86400000).toISOString();
+  const base = { status: "new", active: true, ptype: "o", naics: "561730", picked_at: null };
+  const rows = [
+    { ...base, notice_id: "a", fit_score: 90, response_deadline: day(20) },
+    { ...base, notice_id: "b", fit_score: 90, response_deadline: day(8) },
+    { ...base, notice_id: "late", fit_score: 99, response_deadline: day(2) },
+    { ...base, notice_id: "award", fit_score: 99, response_deadline: day(20), ptype: "a" },
+    { ...base, notice_id: "low", fit_score: 40, response_deadline: day(20) },
+    { ...base, notice_id: "taken", fit_score: 95, response_deadline: day(20), picked_at: day(0) },
+    { ...base, notice_id: "notours", fit_score: 80, response_deadline: day(20), naics: "999999" },
+    { ...base, notice_id: "ai", fit_score: 85, response_deadline: null, naics: "541512", ptype: "r" },
+    { ...base, notice_id: "c", fit_score: 70, response_deadline: day(30) },
+    { ...base, notice_id: "d", fit_score: 65, response_deadline: day(30) },
+    { ...base, notice_id: "e", fit_score: 60, response_deadline: day(30) },
+  ];
+  assert.deepEqual(pickBidCandidates(rows, { now }).map((r) => r.notice_id), ["b", "a", "ai", "c", "d"]);
+  const qs = samSearchQueries({ naics: ["561730", "238320", "541511", "541512"], state: "MI", ptypes: ["o", "k"], daysBack: 7, now, stateWide: true });
+  assert.equal(qs.length, 3, "one state-wide call + one per remote AI code");
+  const [local, ...remote] = qs.map((q) => new URLSearchParams(q));
+  assert.equal(local.get("state"), "MI"); assert.equal(local.get("ncode"), null); assert.equal(local.get("limit"), "1000");
+  for (const r of remote) { assert.equal(r.get("state"), null); assert.match(r.get("ncode") ?? "", /^5415/); }
 });

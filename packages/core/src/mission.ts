@@ -15,6 +15,7 @@
  *           Every agent has STANDING TASKS (below, with targets) plus tasks staff assign in Hub → AI agents (agent_tasks),
  *           which missionPrompt(kind, assigned) adds to its instructions on every run.
  * UPDATED : 2026-10-19_2230 UTC — sales_reply agent: reads replies to the Instantly business campaign and drafts answers.
+ * UPDATED : 2026-10-19_2330 UTC — deal_hunter agent; the gov contract scout picks the day's bids (AI bid desk).
  */
 import { BRAND } from "./brand.ts";
 import { GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "./city-scorecard.ts";
@@ -101,11 +102,14 @@ export const AGENTS: AgentRole[] = [
   { kind: "doc_check", name: "Document checker", does: "Reads insurance, licenses and IDs uploaded by pros", trigger: "Every document upload", gate: true,
     tasks: ["Check every upload the same minute; flag expired or mismatched documents", "Read dates and names exactly as printed"],
     drives: "Fast, accurate checks get pros working sooner and keep customers and the company protected." },
+  { kind: "deal_hunter", name: "Deal hunter", does: "Goes after business every morning: puts the best federal primes on the call list as teaming partners, moves warm clicks to calls, and writes the 10 actions most likely to close deals today, each with a ready-to-use script", trigger: "Daily 12:00 UTC, after the growth plan (Vercel cron)",
+    tasks: ["Every morning: the 10 best deal actions with scripts — hot replies first, then warm clicks and the call list, then government bids", "Add up to 5 federal primes a day to the call list as subcontracting targets", "Move every lead who clicked but didn't reply in 3 days to the call list", "Name new kinds of Detroit businesses for the sales engine when the pipeline runs thin"],
+    drives: "Revenue comes from deals someone actually goes after: every warm lead gets a next step today, and the pipeline never runs dry." },
   { kind: "sales_reply", name: "Sales reply agent", does: "Reads every reply to the Instantly business campaign (e.g. 1ST OUTREACH DETROIT), sorts it (interested, question, not now, no, unsubscribe, out of office), stops mail for no's and drafts the answer for the team", trigger: "Every reply (Instantly webhook)",
     tasks: ["Read every business reply within minutes and alert the team on every interested lead or question the same day", "Draft a short, honest answer that moves the lead to a walkthrough, a call or the business sign-up link — no invented prices or promises", "Honor every unsubscribe or 'not interested' at once: stop the sequence and never email them again"],
     drives: "Warm business replies are the fastest path to recurring B2B revenue: no reply waits, every interested business gets a next step, and no's are respected." },
   { kind: "gov_bid_summary", name: "Gov contract scout", does: "Reads government notices and recommends bid / maybe / pass", trigger: "Weekdays 13:10 UTC (Vercel cron)",
-    tasks: ["Summarize every new matching notice each weekday", "Recommend 'bid' on every cleaning, janitorial and facility notice in or near Metro Detroit we can staff", "Surface deadlines at least 10 days out"],
+    tasks: ["Pick the 5 best notices each weekday we can still respond to (5+ days left) and open a draft bid for each", "Summarize every pick with a bid / maybe / pass and the reason", "Recommend 'bid' on landscaping, painting, carpet cleaning, construction, window installation and facility notices in or near Metro Detroit we can staff, and on AI automation work anywhere", "Surface deadlines at least 10 days out"],
     drives: "Public contracts are recurring revenue at scale: find every bid we can win and staff in or near Metro Detroit, and flag deadlines early." },
   { kind: "bid_read", name: "Bid compliance reader & deal-maker", does: "Builds the compliance matrix from a solicitation and its addenda, captures every measurement, and prices to win", trigger: "Staff upload bid documents", gate: true,
     tasks: ["List every requirement, form, date and attachment — zero misses", "Treat addenda as overriding the original",

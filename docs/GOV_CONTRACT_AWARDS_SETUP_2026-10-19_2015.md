@@ -6,6 +6,7 @@ PURPOSE : How to get the SAM.gov API key into Vercel and use Hub → Gov contrac
           (SAM.gov Contract Awards API, https://open.gsa.gov/api/contract-awards/).
 UPDATED : 2026-10-19_2140 UTC — subcontracting under primes; focus codes (landscaping, painting, AI automation,
           window installation, carpet cleaning, construction).
+UPDATED : 2026-10-19_2330 UTC — AI bid desk (5 bids a day) and the Deal hunter agent.
 -->
 # Government contract awards (SAM.gov): setup
 
@@ -103,6 +104,30 @@ Ended contracts score 10 at most. Large primes over $750K usually have to file a
 **AI automation:** clear the state and search the 5415xx codes on their own to see primes nationwide. Keep the trades in MI.
 
 **Database:** run `supabase/setup/ADD_GOV_SUBCONTRACTING_2026-10-19_2140.sql` once, after the awards file.
+
+## 5. AI bid desk: 5 bids a day
+Every weekday after the morning search (13:10 UTC), with **Run this search every weekday morning** ticked:
+1. **Search.** One state-wide Michigan call covers every local focus code, plus one nationwide call per AI automation code, about 4 calls.
+2. **Pick.** The bid desk picks the **5 best notices you can still answer**:
+   - new and open;
+   - a solicitation, combined synopsis, presolicitation or sources sought;
+   - our work, fit 55+, and at least 5 days to respond.
+3. **Brief.** It writes the AI bid brief for each, about 5 more calls. Any it rates **pass** are set aside, and it picks the next best.
+4. **Draft bid.** It opens a **draft bid** for each pick in Hub → Bids and sends an alert: "Today's 5 government bids to work".
+5. **Your turn.** Download each solicitation and its attachments from SAM.gov and upload them to the bid. The AI builds the compliance matrix and price lines. Then ask pros for prices, review, and submit before the deadline.
+
+- **Change the count:** "AI bid desk: bids to pick per day" in Gov contracts. 0 turns it off.
+- **Run it now:** "Pick today's bids now".
+- **Call budget:** the daily budget went from 8 to 10, which a personal key allows. Once Handled has an entity role in SAM.gov (about 1,000 calls a day), raise it.
+
+## 6. Deal hunter (AI agent, every morning)
+Runs after the growth plan (12:00 UTC):
+- **Primes:** adds up to 5 federal primes a day (subcontract score 60+) to **Hub → Business leads → Teaming partners** with phone, address and the pitch. Status: call.
+- **Warm clicks:** moves every lead who clicked our email but didn't reply in 3 days to the call list.
+- **Today's deal plan:** writes the 10 actions most likely to close business today, each with a ready-to-use call script or message. Hot replies come first, then clicks and calls, then government bids. It also names new kinds of Detroit businesses to go after and what the owner needs to unblock. The plan sits at the top of Hub → Business leads, in the morning brief email, and on each lead's history.
+- **It never sends email or texts itself.** People make the calls. Cold email goes through the sales engine and Instantly, within their daily limits and opt-outs.
+
+**Database:** run `supabase/setup/ADD_GOV_DAILY_PICKS_2026-10-19_2330.sql` once.
 
 ## What the API does (for whoever maintains this)
 Checked against GSA's published OpenAPI spec ("Contract Award API", version 1.0).

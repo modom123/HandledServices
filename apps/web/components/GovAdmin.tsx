@@ -6,6 +6,7 @@
  *           notes per notice, full text + AI bid brief, and asking matching pros whether they want the work.
  * UPDATED : 2026-10-19_2015 UTC — GovAwardsForm (Contract Awards search + the Monday awards run) and AwardStatus.
  * UPDATED : 2026-10-19_2140 UTC — focus codes first (landscaping, painting, AI automation), awards_naics saved, CopyText.
+ * UPDATED : 2026-10-19_2330 UTC — AI bid desk: bids to pick per day, "Pick today's bids now".
  */
 "use client";
 
@@ -19,7 +20,7 @@ async function post(body: unknown): Promise<{ ok: boolean; [k: string]: unknown 
   return { ...j, ok: r.ok && j.ok !== false, error: j.error };
 }
 
-export interface GovSearchState { enabled: boolean; naics: string[]; state: string | null; keywords: string | null; ptypes: string[]; days_back: number; daily_call_budget: number; certifications: string[] }
+export interface GovSearchState { enabled: boolean; naics: string[]; state: string | null; keywords: string | null; ptypes: string[]; days_back: number; daily_call_budget: number; certifications: string[]; daily_picks: number }
 
 const toggle = (list: string[], x: string) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
 
@@ -45,6 +46,7 @@ export function GovSearchForm({ s, ready, callsLeft }: { s: GovSearchState; read
         <div><label className="label">State (place of work)</label><input className="input" maxLength={2} value={f.state ?? ""} onChange={(e) => setF({ ...f, state: e.target.value.toUpperCase() || null })} placeholder="MI" /></div>
         <div><label className="label">Title keywords</label><input className="input" value={f.keywords ?? ""} onChange={(e) => setF({ ...f, keywords: e.target.value })} placeholder="e.g. janitorial, snow" /></div>
         <div><label className="label">Posted in the last (days)</label><input className="input" type="number" min={1} max={364} value={f.days_back} onChange={(e) => setF({ ...f, days_back: Number(e.target.value) || 7 })} /></div>
+        <div><label className="label">AI bid desk: bids to pick per day</label><input className="input" type="number" min={0} max={20} value={f.daily_picks} onChange={(e) => setF({ ...f, daily_picks: Math.max(0, Number(e.target.value) || 0) })} /></div>
         <div><label className="label">Daily SAM.gov call budget</label><input className="input" type="number" min={1} max={1000} value={f.daily_call_budget} onChange={(e) => setF({ ...f, daily_call_budget: Number(e.target.value) || 8 })} /></div>
       </div>
       <div>
@@ -82,6 +84,14 @@ export function GovSearchForm({ s, ready, callsLeft }: { s: GovSearchState; read
           setMsg(r.ok && res ? `${res.found} found, ${res.added} new · ${res.calls} call${res.calls === 1 ? "" : "s"} used${res.skipped ? ` · ${res.skipped} code(s) skipped: budget used up` : ""}${res.errors.length ? ` · ${res.errors[0]}` : ""}` : String(r.error ?? "Failed"));
           router.refresh();
         }}>Search now ({calls} call{calls === 1 ? "" : "s"})</button>
+        <button className="btn-ghost" disabled={busy || !ready} onClick={async () => {
+          setBusy(true); setMsg("The AI bid desk is picking today's bids…");
+          const r = await post({ action: "pick_now" });
+          setBusy(false);
+          const res = r.result as { picked: unknown[]; passed: number; errors: string[] } | undefined;
+          setMsg(r.ok && res ? `${res.picked.length} bid${res.picked.length === 1 ? "" : "s"} picked and opened in Hub → Bids${res.passed ? ` · ${res.passed} set aside as pass` : ""}${res.errors[0] ? ` · ${res.errors[0]}` : ""}` : String(r.error ?? "Failed"));
+          router.refresh();
+        }}>Pick today's bids now</button>
         <span className="text-xs text-ink-soft">{callsLeft} call{callsLeft === 1 ? "" : "s"} left today</span>
       </div>
       {msg && <p className="text-ink-soft">{msg}</p>}

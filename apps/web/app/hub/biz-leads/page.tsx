@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-05_2134 UTC — Teaming partners (public bids) section; partners kept out of the funnel, call list and stats.
  * UPDATED : 2026-10-05_2141 UTC — every lead opens its own page with the full note history; latest note shown in the lists.
  * UPDATED : 2026-10-07_2030 UTC — job-posting leads show the posted pay and state.
+ * UPDATED : 2026-10-19_2330 UTC — today's Deal hunter plan (AI) at the top.
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
@@ -24,7 +25,8 @@ type Lead = { id: string; business_name: string; segment: BizSegment; city: stri
 
 export default async function BizLeads() {
   const db = adminClient();
-  const [s, { data }] = await Promise.all([getBizLeadSettings(), db.from("biz_leads").select("*").order("score", { ascending: false }).limit(2000)]);
+  const [s, { data }, { data: dealPlan }] = await Promise.all([getBizLeadSettings(), db.from("biz_leads").select("*").order("score", { ascending: false }).limit(2000),
+    db.from("ops_alerts").select("title, body, created_at").eq("kind", "deal_plan").order("created_at", { ascending: false }).limit(1).maybeSingle()]);
   const everyone = (data ?? []) as Lead[];
   // teaming partners are tracked here but kept out of the sales funnel, call list and stats
   const partners = everyone.filter((l) => (l.segment as string) === BIZ_PARTNER_SEGMENT);
@@ -50,6 +52,7 @@ export default async function BizLeads() {
       <div>
         <h1 className="text-2xl font-bold">Business leads</h1>
         <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send a 3-email sequence with a pilot offer through Instantly’s business campaign. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
+        {dealPlan && <details className="card mt-3" open={Date.now() - new Date(dealPlan.created_at).getTime() < 86400000}><summary className="cursor-pointer font-semibold">🎯 {dealPlan.title} <span className="text-xs font-normal text-ink-soft">({new Date(dealPlan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" })}, Deal hunter)</span></summary><pre className="mt-2 whitespace-pre-wrap text-sm">{dealPlan.body}</pre></details>}
         {!instantlyBizReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Sending isn’t set up: create a second Instantly campaign (steps {"{{subject_1}}/{{body_1}}"} … 3) and set INSTANTLY_BIZ_CAMPAIGN_ID in Vercel (plus INSTANTLY_API_KEY and BUSINESS_POSTAL_ADDRESS).</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-6">

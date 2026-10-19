@@ -14,12 +14,13 @@
  *             { action: "awards", naics[], state, keywords, months_back, pages, awardee_uei? }  — search awards now
  *             { action: "award_settings", awards_enabled, awards_months_back, awards_pages, awards_naics[] }  — the Monday awards run
  *             { action: "award_status", award_key, status?, notes? }  — watch / ignore a recompete lead
+ * UPDATED : 2026-10-19_2330 UTC — settings take daily_picks; { action: "pick_now" } runs the AI bid desk's daily picks now.
  */
 import { z } from "zod";
 import { SAM_NOTICE_TYPES, SET_ASIDES } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { aiBidSummary, askPros, govReady, loadDescription, runAwardSearch, runGovSearch, setAwardStatus, setGovStatus, setProInterest } from "@/lib/gov";
+import { aiBidSummary, askPros, getGovSettings, govDailyPicks, govReady, loadDescription, runAwardSearch, runGovSearch, setAwardStatus, setGovStatus, setProInterest } from "@/lib/gov";
 
 const naics = z.array(z.string().regex(/^\d{6}$/)).max(20);
 const ptypes = z.array(z.string().refine((p) => p in SAM_NOTICE_TYPES)).max(9);
@@ -28,7 +29,8 @@ const keywords = z.string().trim().max(100).nullable().optional();
 const id = z.string().trim().min(1).max(120);
 
 const Body = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("settings"), enabled: z.boolean(), naics, state, keywords, ptypes, days_back: z.number().int().min(1).max(364), daily_call_budget: z.number().int().min(1).max(1000), certifications: z.array(z.string().refine((c) => c in SET_ASIDES)).max(16) }),
+  z.object({ action: z.literal("settings"), enabled: z.boolean(), naics, state, keywords, ptypes, days_back: z.number().int().min(1).max(364), daily_call_budget: z.number().int().min(1).max(1000), certifications: z.array(z.string().refine((c) => c in SET_ASIDES)).max(16), daily_picks: z.number().int().min(0).max(20).optional() }),
+  z.object({ action: z.literal("pick_now") }),
   z.object({ action: z.literal("search"), naics, state, keywords, ptypes, days_back: z.number().int().min(1).max(364), set_aside: z.string().refine((c) => c in SET_ASIDES).nullable().optional() }),
   z.object({ action: z.literal("describe"), notice_id: id }),
   z.object({ action: z.literal("summarize"), notice_id: id }),
@@ -76,6 +78,10 @@ export async function POST(req: Request) {
     case "interest":
       await setProInterest(d.notice_id, d.contractor_id, d.status, d.note ?? null);
       return Response.json({ ok: true });
+    case "pick_now": {
+      if (!govReady()) return deny(400, "Set SAM_API_KEY in Vercel first (see Gov contracts → setup)");
+      return Response.json({ ok: true, result: await govDailyPicks((await getGovSettings()).daily_picks || 5, "AI bid desk") });
+    }
     case "awards": {
       if (!govReady()) return deny(400, "Set SAM_API_KEY in Vercel first (see Gov contracts → setup)");
       const r = await runAwardSearch({ naics: d.naics, state: d.state, keywords: d.keywords ?? null, months_back: d.months_back, pages: d.pages, awardee_uei: d.awardee_uei ?? null }, actor);
