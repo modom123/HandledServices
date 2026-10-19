@@ -31,7 +31,7 @@ export default async function GovNotice({ params }: { params: Promise<{ id: stri
   const samLink = `https://sam.gov/opp/${encodeURIComponent(o.notice_id)}/view`;
   return (
     <div className="space-y-6">
-      <Link href="/hub/gov" className="text-sm text-brand">← Government contracts</Link>
+      <Link href="/hub/bids?view=gov" className="text-sm text-brand">← Federal opportunities</Link>
       <div>
         <div className="text-xs text-ink-soft">{noticeTypeLabel(o.ptype, o.notice_type)}{o.solicitation_number ? ` · ${o.solicitation_number}` : ""}</div>
         <h1 className="text-2xl font-bold">{o.title}</h1>

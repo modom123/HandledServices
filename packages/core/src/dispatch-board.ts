@@ -7,6 +7,8 @@
  *             paymentState    — paid / deposit + balance due / unpaid / on account / refunded / free visit, with a tone
  *             dispatchFlags   — what needs a dispatcher: no pro (red inside 6 hours), unpaid, balance due, no backups
  *                               within 3 days, pro running late, offers out with nobody answering
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs (25% in, balance charged after the job) read as booked, not as a balance
+ *           problem; a failed balance charge after the job shows as "Balance failed".
  */
 import { localDate, localHour, timeZoneForZip } from "./roster.ts";
 
@@ -26,6 +28,8 @@ export interface BoardJobInput {
   amount_paid?: number | null;
   amount_refunded?: number | null;
   remedy?: string | null;
+  payment_plan?: string | null;
+  balance_attempts?: number | null;
 }
 
 export type Tone = "red" | "amber" | "green" | "slate" | "brand";
@@ -52,6 +56,9 @@ export function paymentState(j: BoardJobInput): { key: string; label: string; to
   if (j.billed_on_terms) return { key: "terms", label: "On account (monthly invoice)", tone: "brand" };
   if (j.paid_at && refunded > 0) return { key: "refunded", label: `Paid · $${refunded.toFixed(0)} refunded`, tone: "amber" };
   if (j.paid_at) return { key: "paid", label: "Paid", tone: "green" };
+  if (j.deposit_paid_at && j.payment_plan === "after") return Number(j.balance_attempts ?? 0) > 0
+    ? { key: "balance_failed", label: "Balance charge failed — link sent", tone: "red" }
+    : { key: "after", label: "25% paid · balance after the job", tone: "brand" };
   if (j.deposit_paid_at) return { key: "balance", label: "Deposit paid · balance due", tone: "amber" };
   if (j.status === "site_visit") return { key: "visit", label: "Free visit — no charge yet", tone: "slate" };
   if (!Number(j.price_final ?? 0)) return { key: "unpriced", label: "No price yet", tone: "slate" };

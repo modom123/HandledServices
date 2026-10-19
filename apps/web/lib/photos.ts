@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Private job-photo storage helpers (bucket: job-photos).
+ * UPDATED : 2026-10-18_0248 UTC — uploadDoc takes the allowed types (resumes: PDF or Word; profile photos: images).
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -28,12 +29,20 @@ export async function signedUrls(paths: string[], seconds = 3600): Promise<strin
 }
 
 const DOC_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic"];
+const WORD_TYPES: Record<string, string> = { "application/msword": "doc", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx" };
+/** Allowed types per kind of upload, and the message when the file isn't one of them. */
+export const UPLOAD_TYPES = {
+  doc: { types: DOC_TYPES, error: "Upload a PDF or photo" },
+  resume: { types: ["application/pdf", ...Object.keys(WORD_TYPES)], error: "Upload your resume as a PDF or Word document" },
+  photo: { types: TYPES, error: "Photos must be JPG, PNG, WEBP or HEIC" },
+};
 
-/** Private compliance documents (W-9, COI, licenses) — bucket pro-docs, staff-only access. */
-export async function uploadDoc(file: File, folder: string): Promise<string> {
-  if (!DOC_TYPES.includes(file.type)) throw new Error("Upload a PDF or photo");
+/** Private compliance documents (W-9, COI, licenses, resumes, profile photos) — bucket pro-docs, staff-only access. */
+export async function uploadDoc(file: File, folder: string, allowed = UPLOAD_TYPES.doc): Promise<string> {
+  if (!allowed.types.includes(file.type)) throw new Error(allowed.error);
   if (file.size > 10 * 1024 * 1024) throw new Error("Documents must be under 10 MB");
-  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+  if (allowed === UPLOAD_TYPES.photo && file.size > MAX_BYTES) throw new Error("Photos must be under 8 MB");
+  const ext = file.type === "application/pdf" ? "pdf" : WORD_TYPES[file.type] ?? file.type.split("/")[1];
   const path = `${folder}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
   const { error } = await adminClient().storage.from("pro-docs").upload(path, file, { contentType: file.type });
   if (error) throw new Error(error.message);

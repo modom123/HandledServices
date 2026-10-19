@@ -10,6 +10,7 @@
  *           where, exact scope, customer notes, ops instructions, required photos and the
  *           job terms they agree to when they accept. Before acceptance only the area is
  *           shown (Uber-style); the full address and customer contact unlock on accept.
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the pro can start once the 25% is in; their payout never waits on the customer.
  */
 import { AGREEMENT_VERSION } from "./compliance.ts";
 import { BRAND } from "./brand.ts";
@@ -50,6 +51,7 @@ const WO_ES: Record<string, string> = {
   "Arrive within the booked window. Running late? Message the customer in the app before the window starts.": "Llegue dentro del horario reservado. ¿Va con retraso? Envíe un mensaje al cliente en la app antes de que empiece el horario.",
   "Take before-and-after photos of every area you work on and upload them to complete the job.": "Tome fotos de antes y después de cada área en la que trabaje y súbalas para terminar el trabajo.",
   "The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\".": "El cliente pagó un depósito; cobramos el saldo antes de su fecha de inicio. No comience hasta que la app muestre \"Pagado en su totalidad\".",
+  "The customer paid 25% to book; we collect the rest when the job is done. You can start — your payout doesn't change and doesn't wait on the customer's payment.": "El cliente pagó el 25% para reservar; cobramos el resto cuando el trabajo esté terminado. Puede comenzar: su pago no cambia y no depende del pago del cliente.",
   "Out-of-scope work: stop and tell us — we send the customer a change order. Do only what's on this work order.": "Trabajo fuera del alcance: deténgase y avísenos; le enviamos al cliente una orden de cambio. Haga solo lo que está en esta orden de trabajo.",
   "Parts not included in the price: upload the receipt in the app. Small amounts are approved automatically; call us before a big purchase. You're reimbursed at cost once the customer pays.": "Piezas no incluidas en el precio: suba el recibo en la app. Los montos pequeños se aprueban automáticamente; llámenos antes de una compra grande. Se le reembolsa al costo cuando el cliente pague.",
   "Can't get in? Tap “Can't get in?” in the app and wait 15 minutes while we call the customer. A confirmed lockout earns show-up pay.": "¿No puede entrar? Toque “¿No puede entrar?” en la app y espere 15 minutos mientras llamamos al cliente. Un acceso denegado confirmado recibe pago por presentarse.",
@@ -83,6 +85,7 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     L("Arrive within the booked window. Running late? Message the customer in the app before the window starts."),
     L("Take before-and-after photos of every area you work on and upload them to complete the job."),
     ...(job.payment_plan === "deposit" && !job.paid_at ? [L("The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\".")] : []),
+    ...(job.payment_plan === "after" && !job.paid_at ? [L("The customer paid 25% to book; we collect the rest when the job is done. You can start — your payout doesn't change and doesn't wait on the customer's payment.")] : []),
     es ? "Marque la lista del trabajo mientras avanza; si algo no aplica, márquelo N/A con el motivo. Los puntos obligatorios deben quedar marcados para enviar el trabajo." : "Check off the job checklist as you go; mark anything that doesn't apply N/A with the reason. Required items must be checked before you submit the job.",
     L("Out-of-scope work: stop and tell us — we send the customer a change order. Do only what's on this work order."),
     L("Parts not included in the price: upload the receipt in the app. Small amounts are approved automatically; call us before a big purchase. You're reimbursed at cost once the customer pays."),

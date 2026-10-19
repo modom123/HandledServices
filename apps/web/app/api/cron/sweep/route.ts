@@ -19,12 +19,13 @@
  * UPDATED : 2026-10-07_0530 UTC — daily: Handled Points release / review bonuses / expiry (lib/loyalty).
  * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  * UPDATED : 2026-10-11_2242 UTC — prunes notification log rows older than 180 days.
+ * UPDATED : 2026-10-18_0248 UTC — live pros missing their resume or profile photo get a reminder (lib/recruiting).
  * UPDATED : 2026-10-19_1308 UTC — renewal reminders for active pros' insurance, coverages and licenses (lib/recruiting renewalSweep).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
 import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee, runWeeklyPayouts } from "@/lib/pro-benefits";
-import { recruitingSweep, renewalSweep } from "@/lib/recruiting";
+import { recruitingSweep, renewalSweep, uploadReminderSweep } from "@/lib/recruiting";
 import { clearStaleLocations } from "@/lib/roster";
 import { notifyWaitlist } from "@/lib/waitlist";
 import { sendBookingFollowups, sendQuoteFollowups } from "@/lib/reminders";
@@ -72,6 +73,7 @@ export async function GET(req: Request) {
   const balances = await collectBalances();
   const stipends = await grantStipends();
   const recruiting = await recruitingSweep(); // setup reminders, stuck applicants, drop-offs, auto-activation
+  const uploads = await uploadReminderSweep().catch((e) => { console.error("[upload reminders]", e); return null; }); // live pros missing resume / photo
   const renewals = await renewalSweep().catch((e) => { console.error("[renewals]", e); return null; }); // insurance / license expiring → remind pro, alert ops
   const locationsCleared = await clearStaleLocations(); // privacy: forget old phone locations
   const stats = await refreshProStats(); // acceptance + on-time → tiers and dispatch ranking
@@ -89,5 +91,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ renewals, noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ renewals, uploads, noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

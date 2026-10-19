@@ -18,6 +18,7 @@
  *           (full vetting steps fold out), promises + pay benefits merged into one checklist, tiers + rewards + fast
  *           track / crew / referral in one "Grow" section, a one-dropdown trade picker instead of 20+ expanders, a
  *           Handled-vs-lead-sites table, FAQ accordion. FAQ fixed: tiers never depend on accepting offers.
+ * UPDATED : 2026-10-15_0300 UTC — customers pay Handled (25% at booking, the rest when done); pros are paid weekly either way.
  */
 import { ApplyForm } from "@/components/forms";
 import { TradeRequirements, type TradeReq } from "@/components/TradeRequirements";
@@ -31,7 +32,7 @@ const COMPARE: [string, string, string][] = [
   ["What it costs you", "Nothing to join. We keep a share of each finished job.", "You pay for leads, whether you win the job or not."],
   ["Who finds the customer", "We do, and the job is already sold.", "You compete with other pros for each lead."],
   ["Price", "You see your pay before you accept. Too low? Counter with your number, or pass for free.", "You quote, chase and negotiate."],
-  ["Getting paid", "The customer prepays us; you're paid weekly.", "You invoice and collect."],
+  ["Getting paid", "The customer pays us, not you; you're paid weekly.", "You invoice and collect."],
   ["Office work", "Scheduling, reminders, support and reviews handled.", "Yours."],
   ["Unhappy customer", "Our team handles it with you.", "Yours."],
 ];

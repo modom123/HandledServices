@@ -4,11 +4,12 @@
  * CREATED : 2026-10-03_0040 UTC
  * PURPOSE : One contract the pro signed — the frozen copy, when, how, fingerprint. Own copies only.
  * UPDATED : 2026-10-03_0051 UTC — shown in the language they signed in; switch to the other.
+ * UPDATED : 2026-10-18_0415 UTC — signer shown with their title and business when they signed for one.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getViewer } from "@/lib/auth";
-import { acceptance, signedCopy } from "@/lib/contracts/records";
+import { acceptance, signedCopy, signerLabel } from "@/lib/contracts/records";
 import { ContractView } from "@/components/ContractView";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function ProSignedContract({ params, searchParams }: { para
       <Link href="/pro/contracts" className="text-sm text-brand print:hidden">← {c.lang === "es" ? "Mis contratos" : "My contracts"}</Link>
       <div className="mt-4"><ContractView title={c.title} version={a.version} appliesTo={c.appliesTo} summary={c.summary} sections={c.sections} lang={c.lang} translated={c.translated}
         otherLangHref={a.sections.es ? `/pro/contracts/${a.id}?lang=${c.lang === "es" ? "en" : "es"}` : undefined}
-        signed={{ by: a.signer_name, at: a.accepted_at, method: a.method, hash: a.content_hash, locale: a.locale }} /></div>
+        signed={{ by: signerLabel(a, c.lang), at: a.accepted_at, method: a.method, hash: a.content_hash, locale: a.locale }} /></div>
     </div>
   );
 }

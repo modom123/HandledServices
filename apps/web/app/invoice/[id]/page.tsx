@@ -7,6 +7,7 @@
  *           status and the full customer terms it was accepted under. Opens from the
  *           signed link in every email (no login), or for the signed-in customer / staff.
  *           Printable.
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" plan note; the pay-in-full 5% saving as its own line.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -41,7 +42,12 @@ export default async function Invoice({ params, searchParams }: { params: Promis
     ? [{ label: job.remedy === "redo" ? "Return visit to make it right" : "Complimentary service", amount: 0 }]
     : svc.siteVisit
       ? [{ label: `${svc.name} — firm quote after site visit`, amount: price }]
-      : [...base!.items, ...(Math.round(price) !== base!.point ? [{ label: "Adjustment after review of your notes & photos", amount: price - base!.point }] : [])];
+      : (() => {
+        // the pay-in-full saving gets its own line; the review adjustment is measured before it
+        const saving = Number(job.pay_in_full_discount ?? 0);
+        const before = price + saving;
+        return [...base!.items, ...(Math.round(before) !== base!.point ? [{ label: "Adjustment after review of your notes & photos", amount: before - base!.point }] : []), ...(saving ? [{ label: "Paid in full at booking — 5% off", amount: -saving }] : [])];
+      })();
   const due = job.remedy ? 0 : Math.max(0, price - Number(job.amount_paid ?? 0));
   const fmtD = (d: string | null) => (d ? new Date(d.length === 10 ? `${d}T12:00:00` : d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—");
 
@@ -85,10 +91,11 @@ export default async function Invoice({ params, searchParams }: { params: Promis
           {Number(job.amount_paid) > 0 && <tr><td className="py-1 text-ink-soft">Paid {fmtD(job.paid_at)}</td><td className="py-1 text-right">−{money(Number(job.amount_paid))}</td></tr>}
           {Number(job.amount_refunded) > 0 && <tr><td className="py-1 text-ink-soft">Refunded</td><td className="py-1 text-right">{money(Number(job.amount_refunded))}</td></tr>}
           <tr className="text-base font-bold"><td className="py-2">Balance due{due > 0 && job.balance_due_date ? ` by ${fmtD(job.balance_due_date)}` : ""}</td><td className="py-2 text-right">{money(due)}</td></tr>
+          {job.payment_plan === "after" && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">25% paid to book. The rest is charged to the same card when the job is done: we place a hold for it when your pro starts and charge it once the work is finished and the photos are in.</td></tr>}
           {job.payment_plan === "deposit" && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">Deposit plan: the balance is charged automatically to the card used for the deposit{job.balance_due_date ? ` on ${fmtD(job.balance_due_date)}` : ""}. Work begins once paid in full.</td></tr>}
         </tbody>
       </table>
-      {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Bookings</Link> or the link in your email. Your pro is dispatched as soon as payment clears.</p>}
+      {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Bookings</Link> or the link in your email. {job.payment_plan === "after" && job.deposit_paid_at ? "You don't need to do anything — the rest is charged automatically when the job is done." : "Your pro is dispatched as soon as payment clears."}</p>}
 
       <div className="border-t border-line pt-6">
         <h2 className="text-base font-bold">{SERVICE_AGREEMENT_TITLE}</h2>

@@ -13,6 +13,8 @@
  *             recruitingSweep()      — daily: setup reminders, stuck applicants, drop-offs
  * UPDATED : 2026-10-05_0246 UTC — screening interview: unless the screen says decline, the applicant gets the AI interview
  *           link first (Hub → Recruiting settings); a person decides after it (lib/interviews.ts).
+ * UPDATED : 2026-10-18_0248 UTC — resume and profile photo steps. Pros in setup see them in the normal setup reminders;
+ *           uploadReminderSweep() emails pros who are already live and still missing either one (a few reminders, then stops).
  * UPDATED : 2026-10-19_1304 UTC — daily sweep closes the onboarding gaps:
  *           · pros added by staff or SQL (never invited) get the welcome email + one-click link, and the reminder clock starts;
  *           · a document step counts as "waiting on us" only while that document is uploaded and pending — a pro who
@@ -23,7 +25,7 @@
  *           and on expiry. Once per document per expiry date.
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, STAGE_LABEL, autoInviteDecision, mergeRecruiting, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, type Contractor, type RecruitingSettings } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -65,6 +67,8 @@ const STEP_ES: Record<string, string> = {
   agreement: "Contrato de contratista independiente firmado",
   specialties: "Especialidades elegidas",
   area: "Zona de trabajo y horario",
+  resume: "Currículum subido",
+  photo: "Foto de perfil subida",
   coi: "Certificado de seguro (COI) verificado",
   license: "Licencia del oficio verificada",
   background: "Verificación de antecedentes aprobada",
@@ -387,6 +391,39 @@ export async function renewalSweep(now = new Date()) {
     }
   }
   return { reminded, expired };
+}
+
+/**
+ * Daily: live pros still missing their resume or profile photo (pros who were approved before these steps existed).
+ * They keep getting offers; the reminder goes out right away, then every few days, UPLOAD_REMINDER_MAX times at most.
+ */
+export async function uploadReminderSweep(now = new Date()) {
+  let reminded = 0;
+  const { data: pros } = await db().from("contractors").select("id, profile_id, application_id, contact_name, email, resume_uploaded_at, photo_uploaded_at, upload_reminders, last_upload_reminder_at")
+    .eq("status", "approved").is("dropped_at", null).lt("upload_reminders", UPLOAD_REMINDER_MAX).or("resume_uploaded_at.is.null,photo_uploaded_at.is.null");
+  for (const c of (pros ?? []) as { id: string; profile_id: string | null; application_id: string | null; contact_name: string; email: string; resume_uploaded_at: string | null; photo_uploaded_at: string | null; upload_reminders: number; last_upload_reminder_at: string | null }[]) {
+    const missing = missingUploads(c);
+    if (!missing.length || !uploadReminderDue(c.upload_reminders, c.last_upload_reminder_at, now)) continue;
+    const n = c.upload_reminders + 1, last = n === UPLOAD_REMINDER_MAX;
+    const link = await signInUrl(c.email);
+    const what = missing.map((k) => (k === "resume" ? "resume" : "profile photo")).join(" and ");
+    const queEs = missing.map((k) => (k === "resume" ? "su currículum" : "su foto de perfil")).join(" y ");
+    const how = missing.map((k) => (k === "resume" ? "• Resume: PDF or Word (a one-page list of your past jobs, with dates, works too)" : "• Profile photo: a recent, well-lit photo of just you")).join("\n");
+    const howEs = missing.map((k) => (k === "resume" ? "• Currículum: PDF o Word (también sirve una página con sus trabajos anteriores y las fechas)" : "• Foto de perfil: una foto reciente y con buena luz solo de usted")).join("\n");
+    await notify(c.profile_id, {
+      title: `Add your ${what}`, body: "Takes a minute from your phone. Your offers keep coming.", data: { type: "onboarding" },
+      email: { to: c.email, subject: last ? `Last reminder: add your ${what}` : n === 1 ? `Add your ${what} to your ${BRAND.name} profile` : `Reminder: your ${what} ${missing.length > 1 ? "are" : "is"} still missing`,
+        text: `Hi ${first(c.contact_name)},\n\nYour ${BRAND.name} profile is missing your ${what}. It takes about a minute from your phone:\n${how}\n\nOne click signs you in:\n${link}\n\nYou keep getting job offers in the meantime. Questions? Just reply.\n\n— ${BRAND.name}` },
+      locale: await appLocale(c),
+      es: { title: `Agregue ${queEs}`, body: "Toma un minuto desde su teléfono. Sus ofertas siguen llegando.",
+        subject: last ? `Último recordatorio: agregue ${queEs}` : n === 1 ? `Agregue ${queEs} a su perfil de ${BRAND.name}` : `Recordatorio: aún falta ${queEs}`,
+        text: `Hola ${first(c.contact_name)}:\n\nA su perfil de ${BRAND.name} le falta ${queEs}. Toma más o menos un minuto desde su teléfono:\n${howEs}\n\nUn clic inicia su sesión:\n${link}\n\nMientras tanto, sigue recibiendo ofertas de trabajo. ¿Preguntas? Solo responda.\n\n— ${BRAND.name}` },
+    });
+    await db().from("contractors").update({ upload_reminders: n, last_upload_reminder_at: now.toISOString() }).eq("id", c.id);
+    await logRecruiting("upload_reminder", { contractorId: c.id }, `#${n} · missing ${missing.join(", ")}`);
+    reminded++;
+  }
+  return { reminded };
 }
 
 /** Pipeline rows for the Hub. */

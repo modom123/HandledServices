@@ -15,7 +15,7 @@
  * UPDATED : 2026-10-05_0221 UTC — Checklists (library) in the nav.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards in the nav.
  * UPDATED : 2026-10-05_0434 UTC — Team (who has Hub access) in the nav; clearer "staff only" message.
- * PURPOSE : Handled Hub shell — staff only (role dispatcher or admin).
+ * PURPOSE : Mastermind (Handled Hub) shell — staff only (role dispatcher or admin).
  * UPDATED : 2026-10-05_1441 UTC — 🏛️ Gov contracts (SAM.gov).
  * UPDATED : 2026-10-05_1954 UTC — 📝 Bids (bid engine).
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (Handled Talent recruiting agency).
@@ -34,6 +34,10 @@
  * UPDATED : 2026-10-11_2242 UTC — 🧭 Dispatch (Operations) and 💳 Payments (Money; dispatchers see it too).
  * UPDATED : 2026-10-12_0121 UTC — "Find by ID" box (H-, C-, B-, P-, S-) and the signed-in staff member's S- number.
  * UPDATED : 2026-10-12_0005 UTC — 💬 Texts (two-way texting) and 🗓️ Schedule (drag-and-drop) in Operations.
+ * UPDATED : 2026-10-14_2330 UTC — renamed "Mastermind" (the Handled hub; IEBC's hub is separate). ☀️ Daily Briefing is its own
+ *           page; 📊 Dashboard is stats and insights with drill-down history (/hub/stats/[metric]).
+ * UPDATED : 2026-10-15_0100 UTC — declutter: sidebar is Briefing, Dashboard + one link per section (Pros, Jobs, Clients,
+ *           Money, Growth, AI team, Settings); each section's pages are tabs across the top. Map: lib/hub-sections.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -41,71 +45,11 @@ import { BRAND } from "@handled/core";
 import { getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { NotConfigured } from "@/components/ui";
-import { HubNav, type HubGroup } from "@/components/HubNav";
+import { HubNav, SectionTabs } from "@/components/HubNav";
+import { sectionsFor } from "@/lib/hub-sections";
 import { adminClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Handled Hub" };
-
-const NAV: HubGroup[] = [
-  { id: "ops", label: "Operations", links: [
-    ["/hub", "📊", "Dashboard"],
-    ["/hub/dispatch", "🧭", "Dispatch"],
-    ["/hub/schedule", "🗓️", "Schedule (drag & drop)"],
-    ["/hub/texts", "💬", "Texts"],
-    ["/hub/jobs", "🗂️", "Jobs board"],
-    ["/hub/roster", "📍", "Live roster"],
-    ["/hub/coverage", "🛟", "Cancellations & coverage"],
-    ["/hub/checklists", "✅", "Checklists"],
-    ["/hub/gaps", "🕳️", "Supply gaps"],
-  ] },
-  { id: "pros", label: "Pros", links: [
-    ["/hub/network", "💎", "Pro Network"],
-    ["/hub/pros", "🧰", "Hiring & pros"],
-    ["/hub/recruiting", "🧲", "Recruiting"],
-    ["/hub/leads", "🎯", "Pro leads"],
-    ["/hub/pro-program", "🏅", "Pro Program"],
-    ["/hub/rewards", "🎁", "Pro Rewards"],
-  ] },
-  { id: "sales", label: "Customers & sales", links: [
-    ["/hub/customers", "👥", "Customers & B2B"],
-    ["/hub/biz-leads", "🤝", "Business leads"],
-    ["/hub/partners", "💸", "Referral partners"],
-    ["/hub/loyalty", "🏅", "Handled Points"],
-    ["/hub/gov", "🏛️", "Gov contracts"],
-    ["/hub/bids", "📝", "Bids"],
-    ["/hub/talent", "🤝", "Talent (recruiting)"],
-    ["/hub/email", "✉️", "Email Center"],
-  ] },
-  { id: "money", label: "Money", links: [
-    ["/hub/payments", "💳", "Payments"],
-    ["/hub/finance", "💵", "Finance"],
-    ["/hub/accounting", "📒", "Accounting (Xero)"],
-    ["/hub/charges", "💳", "Quick Charge"],
-    ["/hub/factoring", "🏦", "Factoring"],
-  ] },
-  { id: "growth", label: "Growth & pricing", links: [
-    ["/hub/growth", "📈", "Growth"],
-    ["/hub/site", "🎨", "Website look"],
-    ["/hub/cities", "🏙️", "City scorecard"],
-    ["/hub/market", "⚖️", "Market pricing"],
-    ["/hub/pricing-accuracy", "📐", "Pricing accuracy"],
-  ] },
-  { id: "ai", label: "AI & IEBC", links: [
-    ["/hub/agents", "🤖", "AI agents"],
-    ["/hub/assistant", "✨", "AI assistant"],
-    ["/hub/workforce", "🏢", "IEBC Workforce"],
-  ] },
-  { id: "settings", label: "Settings", links: [
-    ["/hub/team", "👥", "Team"],
-    ["/hub/contracts", "📜", "Contract library"],
-    ["/hub/setup", "🚀", "Go-live setup"],
-  ] },
-];
-
-/** Pages only admins can open — hidden from dispatchers' menu (each page and its API check again). */
-const ADMIN_PAGES = new Set(["/hub/finance", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/market", "/hub/site", "/hub/setup"]);
-const navFor = (admin: boolean): HubGroup[] =>
-  admin ? NAV : NAV.map((g) => ({ ...g, links: g.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((g) => g.links.length);
+export const metadata = { title: { default: "Mastermind", template: "%s · Mastermind" } };
 
 export const dynamic = "force-dynamic";
 
@@ -126,15 +70,16 @@ export default async function HubLayout({ children }: { children: React.ReactNod
     );
   const { data: me } = await adminClient().from("profiles").select("staff_no").eq("id", v.userId).maybeSingle().then((r) => r, () => ({ data: null }));
   const staffNo = (me as { staff_no?: string | null } | null)?.staff_no ?? null;
+  const sections = sectionsFor(isAdmin(v));
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
-        <Link href="/home" className="flex items-center gap-2 px-2">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/handled-lockup-light.png" alt={BRAND.name} width={891} height={240} className="h-8 w-auto" /> <span className="text-xs font-normal text-white/50">Hub</span></Link>
+        <Link href="/home" className="flex items-center gap-2 px-2">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/handled-lockup-light.png" alt={BRAND.name} width={891} height={240} className="h-8 w-auto" /> <span className="text-xs font-normal text-white/50">Mastermind</span></Link>
         <form action="/hub/find" className="mt-4 px-1"><input name="q" aria-label="Find by ID" placeholder="Find ID: H-, C-, B-, P-, S-" className="w-full rounded-lg border-0 bg-white/10 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:bg-white/20 focus:outline-none" /></form>
-        <HubNav groups={navFor(isAdmin(v))} />
+        <HubNav sections={sections} />
         <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}{staffNo ? ` · ${staffNo}` : ""}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
       </aside>
-      <main className="min-w-0 bg-paper p-4 md:p-8">{children}</main>
+      <main className="min-w-0 bg-paper p-4 md:p-8"><SectionTabs sections={sections} />{children}</main>
     </div>
   );
 }

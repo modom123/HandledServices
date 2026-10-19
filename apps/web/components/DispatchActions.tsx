@@ -6,6 +6,7 @@
  *           offer to every nearby pro, line up backups, assign a pro, reschedule, send a payment link or charge the saved
  *           card for a balance. Each calls the existing staff API (dispatch, coverage, jobs/[id]), so the same rules apply
  *           (no pro on unpaid work, staff only).
+ * UPDATED : 2026-10-15_0300 UTC — payment link also for a "pay after" balance that failed.
  */
 "use client";
 
@@ -48,7 +49,7 @@ export function DispatchActions({ job, pros, payOnly = false }: { job: Row; pros
         {!payOnly && job.contractorId && job.standby < 3 && !["completed", "cancelled"].includes(job.status) && <button className={btn} disabled={busy} onClick={() => run("Asking backups", () => call("/api/hub/coverage", "POST", { action: "line_up", job_id: job.id }), (j) => `Asked ${j.asked ?? 0} pros to stand by`)}>Line up backups</button>}
         {!payOnly && !["completed", "cancelled"].includes(job.status) && <button className={btn} disabled={busy} onClick={() => setOpen(open === "assign" ? null : "assign")}>Assign…</button>}
         {!payOnly && !["completed", "cancelled"].includes(job.status) && <button className={btn} disabled={busy} onClick={() => setOpen(open === "reschedule" ? null : "reschedule")}>Reschedule…</button>}
-        {["unpaid", "balance"].includes(job.payment) && <button className={btn} disabled={busy} onClick={() => run("Sending payment link", () => call(`/api/hub/jobs/${job.id}`, "PATCH", { send_payment_link: true }), () => "Payment link sent")}>Send payment link</button>}
+        {["unpaid", "balance", "balance_failed"].includes(job.payment) && <button className={btn} disabled={busy} onClick={() => run("Sending payment link", () => call(`/api/hub/jobs/${job.id}`, "PATCH", { send_payment_link: true }), () => "Payment link sent")}>Send payment link</button>}
         {job.payment === "balance" && <button className={btn} disabled={busy} onClick={() => run("Charging saved card", () => call(`/api/hub/jobs/${job.id}`, "PATCH", { charge_balance: true }), () => "Balance charged")}>Charge saved card</button>}
       </div>
       {open === "assign" && (

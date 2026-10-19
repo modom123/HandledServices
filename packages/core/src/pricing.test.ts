@@ -168,11 +168,14 @@ test("onboarding blocks activation until every step is done", async () => {
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01" };
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
+  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "needs a resume");
+  assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
@@ -180,6 +183,29 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, true, "residential cleaners need no bond (bond only for large commercial jobs)");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
+});
+
+test("1099-NEC: corporations (and LLCs taxed as one) are exempt", async () => {
+  const { form1099 } = await import("./compliance.ts");
+  assert.equal(form1099("individual", 2500, 2026), "file");
+  assert.equal(form1099("llc", 2500, 2026), "file", "single-member / partnership LLC gets one");
+  assert.equal(form1099("partnership", 2500, 2026), "file");
+  assert.equal(form1099(null, 2500, 2026), "file", "unknown classification: treat as reportable");
+  assert.equal(form1099("individual", 1999, 2026), "under");
+  assert.equal(form1099("individual", 700, 2025), "file", "$600 threshold through 2025");
+  for (const corp of ["s_corp", "c_corp", "llc_s_corp", "llc_c_corp"]) assert.equal(form1099(corp, 50000, 2026), "exempt", corp);
+});
+
+test("missing uploads: which ones, and when live pros are reminded", async () => {
+  const { missingUploads, uploadReminderDue, UPLOAD_REMINDER_MAX } = await import("./compliance.ts");
+  assert.deepEqual(missingUploads({ resume_uploaded_at: null, photo_uploaded_at: null }), ["resume", "photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: null }), ["photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" }), []);
+  const now = new Date("2026-10-18T13:00:00Z");
+  assert.equal(uploadReminderDue(0, null, now), true, "first reminder right away");
+  assert.equal(uploadReminderDue(1, "2026-10-16T13:00:00Z", now), false, "not two days later");
+  assert.equal(uploadReminderDue(1, "2026-10-14T13:00:00Z", now), true, "again after four days");
+  assert.equal(uploadReminderDue(UPLOAD_REMINDER_MAX, "2026-09-01T13:00:00Z", now), false, "then stop");
 });
 
 test("insurance-optional work: no COI needed to activate or to get those jobs", async () => {
@@ -192,7 +218,8 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01" };
+    specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
   assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
@@ -284,6 +311,41 @@ test("deposits: big tickets only, sensible amounts, balance due before the job",
   assert.equal(depositPolicy("catering", 1920, "2026-10-05", now).allowed, false, "too close to the event — pay in full");
   assert.equal(depositPolicy("handyman", 1200, null, now).amount, 360, "$1,000+ qualifies");
   assert.equal(depositPolicy("tree-removal", 300, "2026-11-01", now).amount, 100, "minimum deposit");
+});
+
+test("book now, pay after: 25% (at least $25) for everyday jobs; events and site-visit work keep the deposit", async () => {
+  const { bookNowPolicy, payInFullSaving, nextBalanceTry, clearedForWork, BOOK_NOW } = await import("./pricing.ts");
+  assert.deepEqual(bookNowPolicy("house-cleaning", 200), { allowed: true, amount: 50, balance: 150 });
+  assert.equal(bookNowPolicy("house-cleaning", 80).amount, 25, "minimum $25");
+  assert.equal(bookNowPolicy("handyman", 1200).amount, 300, "$1,000+ everyday jobs pay after too");
+  assert.equal(bookNowPolicy("house-cleaning", 20).amount, 19, "never the whole price");
+  assert.equal(bookNowPolicy("house-cleaning", 1).allowed, false, "a $1 job pays in full");
+  assert.equal(bookNowPolicy("catering", 1920).allowed, false, "events keep the deposit");
+  assert.equal(bookNowPolicy("bathroom-remodel", 20000).allowed, false, "site-visit work keeps the deposit");
+  assert.equal(bookNowPolicy("house-cleaning", null).allowed, false);
+  assert.equal(payInFullSaving(200, 40), 10, "5% off");
+  assert.equal(payInFullSaving(200, 6.9), 6, "capped by what's left of our share");
+  assert.equal(payInFullSaving(200, 0), 0);
+  assert.equal(nextBalanceTry("2026-10-15T10:00:00.000Z"), new Date(Date.parse("2026-10-15T10:00:00.000Z") + BOOK_NOW.retryHours * 3600000).toISOString(), "a failed balance is retried a day later");
+  assert.equal(clearedForWork({ payment_plan: "after", deposit_paid_at: "2026-10-15" }), true, "25% in clears a pay-after job");
+  assert.equal(clearedForWork({ payment_plan: "deposit", deposit_paid_at: "2026-10-15" }), false, "a deposit job still needs the balance before work");
+  assert.equal(clearedForWork({ payment_plan: "after" }), false, "nothing paid yet");
+  assert.equal(clearedForWork({ paid_at: "2026-10-15" }), true);
+  assert.equal(clearedForWork({ billed_on_terms: true }), true);
+  const { resolvePlan } = await import("./pricing.ts");
+  assert.equal(resolvePlan("after", false, true), "after");
+  assert.equal(resolvePlan("after", true, false), "deposit", "events and site-visit work fall back to the deposit");
+  assert.equal(resolvePlan("deposit", false, true), "after", "an old app asking for a deposit on an everyday job gets pay-after");
+  assert.equal(resolvePlan("after", false, false), "full", "tiny jobs pay in full");
+  assert.equal(resolvePlan("full", true, true), "full");
+});
+
+test("payment state: pay-after jobs read as booked; a failed balance is red", async () => {
+  const { paymentState } = await import("./dispatch-board.ts");
+  const base = { scheduled_date: "2026-10-20", time_window: "morning", zip: "48201", status: "assigned", contractor_id: "p", price_final: 200, paid_at: null, deposit_paid_at: "2026-10-15", payment_plan: "after" };
+  assert.equal(paymentState(base).key, "after");
+  assert.equal(paymentState({ ...base, balance_attempts: 1 }).key, "balance_failed");
+  assert.equal(paymentState({ ...base, payment_plan: "deposit" }).key, "balance");
 });
 
 test("pro tiers: earned from live stats; boosts never push our take below 15%", async () => {
