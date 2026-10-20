@@ -42,6 +42,7 @@
  * UPDATED : 2026-10-07_1900 UTC — pro offer texts show the expiry in the job's time zone (PT for Washington, ET for Michigan).
  * UPDATED : 2026-10-12_0005 UTC — saved home profiles: home_id / access_info / save_home on bookings (entry details only for the assigned pro).
  * UPDATED : 2026-10-11_0608 UTC — remote services: no area price level, the booked ZIP isn't added to a service area, and the free site visit is a video consultation (customer email + pro offer wording).
+ * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  */
 import "server-only";
 import { z } from "zod";
@@ -278,6 +279,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
 export async function onBooked(job: Job, paymentUrl: string | null) {
+  // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
+  await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
   const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);

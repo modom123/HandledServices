@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
  * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
+ * UPDATED : 2026-10-20_0100 UTC — omnichannel: channel attribution, lead intake mapping, social slots and caption limits.
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -1931,4 +1932,37 @@ test("call desk: callbacks and warm leads first, outcomes schedule the next call
   assert.match(sc.opener, /Acme Offices/); assert.match(sc.opener, /email/); assert.match(sc.voicemail, /walkthrough/);
   assert.match(callScript({ business_name: "Big Prime", segment: "partner" }).opener, /subcontractor/);
   for (const t of [sc.opener, sc.close, sc.voicemail]) assert.ok(!/\$\d/.test(t), "no prices on the phone");
+});
+
+test("omnichannel: channels from first touch, any lead payload normalized, honest instant reply, social limits", async () => {
+  const { channelOf, normalizeIntake, speedToLeadText, socialSlots, fitCaption, guessService } = await import("./channels.ts");
+  assert.equal(channelOf({ gclid: "abc", utm_source: "facebook" }), "google_ads", "a paid click id wins");
+  assert.equal(channelOf({ utm_source: "facebook", utm_medium: "cpc" }), "meta_ads");
+  assert.equal(channelOf({ utm_source: "ig" }), "instagram");
+  assert.equal(channelOf({ ttclid: "x" }), "tiktok_ads");
+  assert.equal(channelOf({ referrer: "www.yelp.com" }), "yelp");
+  assert.equal(channelOf({ referrer: "www.google.com" }), "google");
+  assert.equal(channelOf({ source: "direct" }), "direct");
+  assert.equal(channelOf(null), "direct");
+  assert.equal(channelOf("linkedin"), "linkedin");
+  const meta = normalizeIntake({ field_data: [{ name: "full_name", values: ["Dana Ray"] }, { name: "email", values: ["DANA@Example.com"] }, { name: "phone_number", values: ["+1 313 555 0100"] }, { name: "what_do_you_need", values: ["Carpet cleaning for 3 rooms"] }], lead_id: "123" }, "instagram");
+  assert.equal(meta.name, "Dana Ray"); assert.equal(meta.email, "dana@example.com"); assert.equal(meta.phone, "+1 313 555 0100");
+  assert.equal(meta.channel, "instagram"); assert.equal(meta.external_id, "123"); assert.equal(meta.service_slug, "carpet-cleaning"); assert.equal(meta.sms_consent, false);
+  const google = normalizeIntake({ lead_id: "g1", user_column_data: [{ column_id: "FIRST_NAME", string_value: "Sam" }, { column_id: "LAST_NAME", string_value: "Lee" }, { column_id: "EMAIL", string_value: "sam@biz.com" }, { column_id: "COMPANY_NAME", string_value: "Lee Offices" }, { column_id: "POSTAL_CODE", string_value: "48226-1234" }], gclid: "GC" }, "google_ads");
+  assert.equal(google.name, "Sam Lee"); assert.equal(google.company, "Lee Offices"); assert.equal(google.zip, "48226"); assert.equal(google.attribution?.gclid, "GC"); assert.equal(google.channel, "google_ads");
+  const zap = normalizeIntake({ "First Name": "Kim", "Phone": "313-555-0199", "Message": "Need painting", "SMS Consent": "Yes", channel: "yelp" });
+  assert.equal(zap.name, "Kim"); assert.equal(zap.channel, "yelp"); assert.equal(zap.sms_consent, true); assert.equal(zap.email, null);
+  assert.equal(normalizeIntake({ email: "not-an-email", phone: "123" }).email, null);
+  assert.equal(normalizeIntake({ phone: "123" }).phone, null, "too short to call");
+  assert.equal(guessService("move out deep clean please"), "house-cleaning");
+  assert.equal(guessService("my lawn needs mowing"), "lawn-care");
+  assert.equal(guessService("hello"), null);
+  const t = speedToLeadText({ name: "Dana Ray", service_slug: "carpet-cleaning", company: null }, { siteUrl: "https://x.test", phone: "(313) 555-0100" });
+  assert.match(t.text, /Hi Dana/); assert.match(t.text, /book/); assert.ok(!/\$\d/.test(t.text), "no prices");
+  const monday = new Date("2026-10-19T00:00:00Z");
+  const fb = socialSlots(monday, "facebook", 3);
+  assert.equal(fb.length, 3); assert.equal(fb[0], "2026-10-19T17:00:00.000Z"); assert.equal(socialSlots(monday, "tiktok", 0).length, 0);
+  const cap = fitCaption("instagram", "x".repeat(3000), Array.from({ length: 40 }, (_, i) => `tag${i}`));
+  assert.ok(cap.length <= 2200); assert.equal((cap.match(/#/g) ?? []).length, 30);
+  assert.equal(fitCaption("facebook", "Hello", ["#Detroit", "detroit", "Detroit!"]), "Hello\n\n#Detroit #detroit");
 });

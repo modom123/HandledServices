@@ -34,6 +34,7 @@
  * UPDATED : 2026-10-11_2242 UTC — 🧭 Dispatch (Operations) and 💳 Payments (Money; dispatchers see it too).
  * UPDATED : 2026-10-12_0121 UTC — "Find by ID" box (H-, C-, B-, P-, S-) and the signed-in staff member's S- number.
  * UPDATED : 2026-10-12_0005 UTC — 💬 Texts (two-way texting) and 🗓️ Schedule (drag-and-drop) in Operations.
+ * UPDATED : 2026-10-20_0100 UTC — 📥 Lead inbox & channels, 📱 Social media.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -67,7 +68,9 @@ const NAV: HubGroup[] = [
     ["/hub/rewards", "🎁", "Pro Rewards"],
   ] },
   { id: "sales", label: "Customers & sales", links: [
+    ["/hub/inbox", "📥", "Lead inbox & channels"],
     ["/hub/customers", "👥", "Customers & B2B"],
+    ["/hub/social", "📱", "Social media"],
     ["/hub/biz-leads", "🤝", "Business leads"],
     ["/hub/partners", "💸", "Referral partners"],
     ["/hub/loyalty", "🏅", "Handled Points"],

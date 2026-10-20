@@ -16,6 +16,7 @@
  *           which missionPrompt(kind, assigned) adds to its instructions on every run.
  * UPDATED : 2026-10-19_2230 UTC — sales_reply agent: reads replies to the Instantly business campaign and drafts answers.
  * UPDATED : 2026-10-19_2330 UTC — deal_hunter agent; the gov contract scout picks the day's bids (AI bid desk).
+ * UPDATED : 2026-10-20_0100 UTC — speed_to_lead and social_writer agents (omnichannel).
  */
 import { BRAND } from "./brand.ts";
 import { GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "./city-scorecard.ts";
@@ -102,6 +103,12 @@ export const AGENTS: AgentRole[] = [
   { kind: "doc_check", name: "Document checker", does: "Reads insurance, licenses and IDs uploaded by pros", trigger: "Every document upload", gate: true,
     tasks: ["Check every upload the same minute; flag expired or mismatched documents", "Read dates and names exactly as printed"],
     drives: "Fast, accurate checks get pros working sooner and keep customers and the company protected." },
+  { kind: "speed_to_lead", name: "Speed-to-lead responder", does: "Answers every inbound lead from every channel (website, AI chat, Facebook / Instagram / TikTok / Google / LinkedIn lead forms, Yelp) within seconds: a short email, a text only when they agreed to texts, and a call note for the team", trigger: "Every new lead (Lead inbox)", external: true,
+    tasks: ["Reply to every lead within 1 minute, 24/7", "Show you understood what they asked, give the booking link and say a real person will call — never a price, date or promise", "Write the caller a one-line note with the first question to ask"],
+    drives: "The first business to answer usually wins the job: an instant, honest reply plus a fast call turns ad and social spend into bookings." },
+  { kind: "social_writer", name: "Social writer", does: "Writes the week's Facebook, Instagram and TikTok posts (caption, hashtags, photo or video idea) for staff to approve; Facebook and Instagram post themselves at their time", trigger: "Mondays 12:00 UTC (Vercel cron) and Hub → Social media", external: true,
+    tasks: ["A full week of posts every Monday: cleaning most often, then landscaping, painting, construction and AI automation", "Seasonal, local and useful (tips, behind the scenes, service spotlights), each with one clear call to action", "Never invent reviews, results, prices or offers — only offers the owner wrote in Themes"],
+    drives: "Steady, local, honest posts keep Handled in front of Detroit homeowners and businesses, so ads cost less and referrals come easier." },
   { kind: "deal_hunter", name: "Deal hunter", does: "Goes after business every morning: puts the best federal primes on the call list as teaming partners, moves warm clicks to calls, and writes the 10 actions most likely to close deals today, each with a ready-to-use script", trigger: "Daily 12:00 UTC, after the growth plan (Vercel cron)",
     tasks: ["Every morning: the 10 best deal actions with scripts — hot replies first, then warm clicks and the call list, then government bids", "Add up to 5 federal primes a day to the call list as subcontracting targets", "Move every lead who clicked but didn't reply in 3 days to the call list", "Name new kinds of Detroit businesses for the sales engine when the pipeline runs thin"],
     drives: "Revenue comes from deals someone actually goes after: every warm lead gets a next step today, and the pipeline never runs dry." },

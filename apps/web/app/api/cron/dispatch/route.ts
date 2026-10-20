@@ -9,10 +9,12 @@
  *           Vercel: Hobby only allows daily crons. Same CRON_SECRET bearer check.
  * UPDATED : 2026-10-06_1950 UTC — coverage sweep: fills backups #1–#3 for the next 3 days; flags jobs within 6h with no pro.
  * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
+ * UPDATED : 2026-10-20_0100 UTC — publishes approved social posts when their time comes (Facebook, Instagram).
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
 import { runEmailCenter } from "@/lib/email-center";
+import { publishDue } from "@/lib/social";
 import { cronAuthorized } from "@/lib/cron-auth";
 
 export const maxDuration = 120;
@@ -22,5 +24,6 @@ export async function GET(req: Request) {
   const dispatch = await redispatchExpired();
   const coverage = await coverageSweep().catch((e) => { console.error("[coverage]", e); return null; }); // backups #1–#3, uncovered jobs
   const email = await runEmailCenter().catch((e) => { console.error("[email center]", e); return null; });
-  return Response.json({ ...dispatch, coverage, email });
+  const social = await publishDue().catch((e) => { console.error("[social]", e); return null; }); // approved posts whose time has come
+  return Response.json({ ...dispatch, coverage, email, social });
 }

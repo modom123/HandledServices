@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-07_0220 UTC — modern look: Inter (body) and Plus Jakarta Sans (headings), self-hosted.
  * UPDATED : 2026-10-07_0240 UTC — data-theme on <html> picks one of the three looks (lib/theme.ts).
  * UPDATED : 2026-10-07_1640 UTC — metadataBase from lib/site-url (absolute URLs for social cards).
+ * UPDATED : 2026-10-20_0100 UTC — ad pixels (Meta, Google Ads, TikTok) when their ids are set (components/AdPixels).
  */
 import type { Metadata } from "next";
 import { BRAND } from "@handled/core";
@@ -15,6 +16,7 @@ import "@fontsource-variable/plus-jakarta-sans";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Attribution } from "@/components/Attribution";
+import { AdPixels } from "@/components/AdPixels";
 import { getLocale } from "@/lib/locale";
 import { getTheme } from "@/lib/theme";
 import { siteUrl } from "@/lib/site-url";
@@ -28,7 +30,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang={await getLocale()} data-theme={await getTheme()}>
-      <body>{children}<Attribution /><Analytics /></body>
+      <body>{children}<Attribution /><AdPixels /><Analytics /></body>
     </html>
   );
 }
