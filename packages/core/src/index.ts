@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-19_2015 UTC — gov-awards (SAM.gov Contract Awards API: recompetes and incumbents).
  * UPDATED : 2026-10-20_0015 UTC — call-desk (call queue, outcomes and scripts for Hub → Business leads → Call desk).
  * UPDATED : 2026-10-20_0100 UTC — channels (omnichannel lead intake, channel reporting, social calendar).
+ * UPDATED : 2026-10-20_0200 UTC — pro-rates (pros set their own prices; price choices; request-a-quote).
  */
 
 export * from "./types.ts";
@@ -57,6 +58,7 @@ export * from "./gov-contracts.ts";
 export * from "./gov-awards.ts";
 export * from "./call-desk.ts";
 export * from "./channels.ts";
+export * from "./pro-rates.ts";
 export * from "./bid-engine.ts";
 export * from "./talent.ts";
 export * from "./factoring.ts";

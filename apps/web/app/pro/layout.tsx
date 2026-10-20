@@ -11,6 +11,7 @@
  * PURPOSE : Pro portal shell. Pros mostly use the mobile app; this is the web twin.
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (recruiters: Handled Talent searches).
  * UPDATED : 2026-10-07_0205 UTC — menu as dropdowns (Work · Money · Account, same component as the website); ☰ on phones.
+ * UPDATED : 2026-10-20_0200 UTC — 🏷️ My prices (pros set their own price per service).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -45,6 +46,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
       { href: "/pro/crew", label: es ? "Mi equipo" : "My crew", icon: "👥" },
     ] },
     { id: "money", label: es ? "Dinero" : "Money", items: [
+      { href: "/pro/prices", label: es ? "Mis precios" : "My prices", icon: "🏷️", hint: es ? "Fije su propio precio" : "Set your own price" },
       { href: "/pro/earnings", label: t("Earnings"), icon: "💵", hint: es ? "Pagos, pago instantáneo, 1099" : "Payouts, instant pay, 1099" },
       { href: "/pro/rewards", label: es ? "Recompensas" : "Rewards", icon: "🎁" },
     ] },

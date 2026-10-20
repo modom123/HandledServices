@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
  * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
  * UPDATED : 2026-10-20_0100 UTC — omnichannel: channel attribution, lead intake mapping, social slots and caption limits.
+ * UPDATED : 2026-10-20_0200 UTC — marketplace: pro prices keep Handled's margin rules, ranking and labels, quotes.
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -1965,4 +1966,44 @@ test("omnichannel: channels from first touch, any lead payload normalized, hones
   const cap = fitCaption("instagram", "x".repeat(3000), Array.from({ length: 40 }, (_, i) => `tag${i}`));
   assert.ok(cap.length <= 2200); assert.equal((cap.match(/#/g) ?? []).length, 30);
   assert.equal(fitCaption("facebook", "Hello", ["#Detroit", "detroit", "Detroit!"]), "Hello\n\n#Detroit #detroit");
+});
+
+test("marketplace: pros price 80–175%, Handled's commission rules hold at every price, honest ranking, quotes", async () => {
+  const { proPrice, clampPct, rankProOffers, rateStats, quoteCustomerPrice, PRO_RATE_BAND } = await import("./pro-rates.ts");
+  const { splitJob, TAKE_MIN, TAKE_MAX } = await import("./pricing.ts");
+  assert.deepEqual([clampPct(10), clampPct(500), clampPct(120)], [PRO_RATE_BAND.min, PRO_RATE_BAND.max, 120]);
+  for (const suggested of [64, 150, 404, 1200, 5000]) {
+    const base = splitJob(suggested, "house-cleaning");
+    const same = proPrice(suggested, 100, "house-cleaning");
+    assert.ok(same.payout >= base.payout && Math.abs(same.price - suggested) <= 2, `100% ≈ Handled's price at ${suggested}: ${same.price}`);
+    let last = 0;
+    for (const pct of [80, 100, 125, 150, 175]) {
+      const p = proPrice(suggested, pct, "house-cleaning");
+      assert.ok(p.payout >= Math.floor((base.payout * pct) / 100), `pro is paid their rate (${pct}% at ${suggested})`);
+      const sp = splitJob(p.price, "house-cleaning");
+      assert.ok(sp.takeRate >= TAKE_MIN - 0.01 && sp.takeRate <= TAKE_MAX + 0.001, `take ${sp.takeRate} within the band at ${pct}% of ${suggested}`);
+      assert.ok(p.price >= last, "a higher % never costs the customer less"); last = p.price;
+    }
+  }
+  assert.equal(proPrice(100, 80, "house-cleaning", 250).price, 250, "the pro's minimum job wins");
+  const rows = [
+    { pro_id: "a", name: "Cheap & new", rating: 4.6, jobs_completed: 2, on_time_rate: 0.9, pct: 80, min_job: null },
+    { pro_id: "b", name: "Great", rating: 5, jobs_completed: 120, on_time_rate: 1, pct: 110, min_job: null },
+    { pro_id: "c", name: "Pricey", rating: 4.2, jobs_completed: 30, on_time_rate: 0.8, pct: 175, min_job: null },
+    { pro_id: "d", name: "Solid", rating: 4.9, jobs_completed: 60, on_time_rate: 0.97, pct: 95, min_job: null },
+  ];
+  const ranked = rankProOffers(rows, 200, "house-cleaning");
+  assert.equal(ranked.length, 3);
+  assert.ok(!ranked.some((r) => r.pro_id === "c"), "a pricey, lower-rated pro drops out");
+  assert.ok(ranked.find((r) => r.pro_id === "a")?.badges.includes("Best value"));
+  assert.ok(ranked.find((r) => r.pro_id === "a")?.badges.includes("New on Handled"));
+  assert.ok(ranked.find((r) => r.pro_id === "b")?.badges.includes("Top rated"));
+  assert.deepEqual(rankProOffers([], 200), []);
+  assert.deepEqual(rateStats([100, 120]), { count: 2, median: null, low: null, high: null }, "too few pros to show a market");
+  assert.equal(rateStats([90, 100, 110, 120, 150]).median, 110);
+  for (const pay of [50, 800, 12000]) {
+    const price = quoteCustomerPrice(pay, "home-remodel");
+    assert.ok(splitJob(price, "home-remodel").payout >= pay, `the quoting pro earns at least ${pay}`);
+    assert.ok(price > pay, "Handled's fee is added on top");
+  }
 });

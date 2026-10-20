@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-12_0121 UTC — "Find by ID" box (H-, C-, B-, P-, S-) and the signed-in staff member's S- number.
  * UPDATED : 2026-10-12_0005 UTC — 💬 Texts (two-way texting) and 🗓️ Schedule (drag-and-drop) in Operations.
  * UPDATED : 2026-10-20_0100 UTC — 📥 Lead inbox & channels, 📱 Social media.
+ * UPDATED : 2026-10-20_0200 UTC — 🏷️ Marketplace & quotes.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -71,6 +72,7 @@ const NAV: HubGroup[] = [
     ["/hub/inbox", "📥", "Lead inbox & channels"],
     ["/hub/customers", "👥", "Customers & B2B"],
     ["/hub/social", "📱", "Social media"],
+    ["/hub/quotes", "🏷️", "Marketplace & quotes"],
     ["/hub/biz-leads", "🤝", "Business leads"],
     ["/hub/partners", "💸", "Referral partners"],
     ["/hub/loyalty", "🏅", "Handled Points"],
