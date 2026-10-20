@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-07_2030 UTC — job-posting leads show the posted pay and state.
  * UPDATED : 2026-10-19_2330 UTC — today's Deal hunter plan (AI) at the top.
  * UPDATED : 2026-10-19_2345 UTC — the Instantly banner names exactly which Vercel variable is missing.
+ * UPDATED : 2026-10-20_0015 UTC — Call desk button.
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
@@ -53,7 +54,7 @@ export default async function BizLeads() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Business leads</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">Business leads</h1><Link href="/hub/biz-leads/calls" className="btn-primary text-sm">📞 Call desk</Link></div>
         <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send a 3-email sequence with a pilot offer through Instantly’s business campaign. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
         {dealPlan && <details className="card mt-3" open={Date.now() - new Date(dealPlan.created_at).getTime() < 86400000}><summary className="cursor-pointer font-semibold">🎯 {dealPlan.title} <span className="text-xs font-normal text-ink-soft">({new Date(dealPlan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" })}, Deal hunter)</span></summary><pre className="mt-2 whitespace-pre-wrap text-sm">{dealPlan.body}</pre></details>}
         {!instantlyBizReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Instantly isn’t connected yet. Missing in Vercel (Production): <b>{missingInstantly.join(", ")}</b>. Add {missingInstantly.length === 1 ? "it" : "them"} in Vercel → your project → Settings → Environment Variables, then <b>redeploy</b> (new variables only reach the site after a redeploy). The campaign id for 1ST OUTREACH DETROIT is <code>3de836a0-4845-4350-80af-db9725831b43</code>.</p>}

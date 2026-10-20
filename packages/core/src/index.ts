@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-12_0005 UTC — scheduling-gaps (texts, calendar feed, saved homes).
  * UPDATED : 2026-10-12_0138 UTC — stripe-setup (webhook events and key checks for Hub → Setup).
  * UPDATED : 2026-10-19_2015 UTC — gov-awards (SAM.gov Contract Awards API: recompetes and incumbents).
+ * UPDATED : 2026-10-20_0015 UTC — call-desk (call queue, outcomes and scripts for Hub → Business leads → Call desk).
  */
 
 export * from "./types.ts";
@@ -53,6 +54,7 @@ export * from "./interview.ts";
 export * from "./rewards.ts";
 export * from "./gov-contracts.ts";
 export * from "./gov-awards.ts";
+export * from "./call-desk.ts";
 export * from "./bid-engine.ts";
 export * from "./talent.ts";
 export * from "./factoring.ts";

@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
+ * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -1894,4 +1895,40 @@ test("gov bid desk: picks the 5 best open notices we can still answer; one state
   const [local, ...remote] = qs.map((q) => new URLSearchParams(q));
   assert.equal(local.get("state"), "MI"); assert.equal(local.get("ncode"), null); assert.equal(local.get("limit"), "1000");
   for (const r of remote) { assert.equal(r.get("state"), null); assert.match(r.get("ncode") ?? "", /^5415/); }
+});
+
+test("call desk: callbacks and warm leads first, outcomes schedule the next call, do-not-call is final", async () => {
+  const { callQueue, applyCallOutcome, callScript, MAX_CALL_ATTEMPTS } = await import("./call-desk.ts");
+  const now = new Date("2026-10-20T15:00:00Z"); // a Tuesday
+  const lead = (id: string, o: Record<string, unknown> = {}) => ({ id, business_name: id, segment: "facilities", status: "call", phone: "3135550100", score: 50, next_call_at: null, call_attempts: 0, last_called_at: null, ...o });
+  const q = callQueue([
+    lead("cold", { score: 90 }),
+    lead("partner", { segment: "partner" }),
+    lead("clicked", { status: "clicked" }),
+    lead("replied", { status: "replied" }),
+    lead("callback", { status: "emailing", next_call_at: "2026-10-20T14:00:00Z" }),
+    lead("later", { next_call_at: "2026-10-25T14:00:00Z" }),
+    lead("nophone", { phone: null }),
+    lead("dnc", { status: "do_not_contact" }),
+    lead("calledtoday", { last_called_at: "2026-10-20T13:00:00Z" }),
+    lead("tapped", { call_attempts: MAX_CALL_ATTEMPTS }),
+    lead("emailing", { status: "emailing" }),
+  ], now);
+  assert.deepEqual(q.map((x) => x.id), ["callback", "replied", "clicked", "partner", "cold"]);
+  const vm = applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "voicemail", now);
+  assert.equal(vm.call_attempts, 1); assert.equal(vm.status, "call"); assert.equal(vm.next_call_at, "2026-10-23T14:00:00.000Z", "3 business days");
+  const fri = applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "no_answer", new Date("2026-10-23T15:00:00Z"));
+  assert.equal(fri.next_call_at, "2026-10-27T14:00:00.000Z", "weekends skipped");
+  assert.equal(applyCallOutcome({ status: "call", call_attempts: MAX_CALL_ATTEMPTS - 1, phone: "x" }, "no_answer", now).next_call_at, null, "stops after the last attempt");
+  const yes = applyCallOutcome({ status: "call", call_attempts: 1, phone: "x" }, "interested", now);
+  assert.equal(yes.status, "replied"); assert.ok(yes.next_call_at);
+  const dnc = applyCallOutcome({ status: "clicked", call_attempts: 0, phone: "x" }, "do_not_call", now);
+  assert.equal(dnc.status, "do_not_contact"); assert.equal(dnc.next_call_at, null);
+  assert.equal(applyCallOutcome({ status: "do_not_contact", call_attempts: 0, phone: "x" }, "talked", now).status, "do_not_contact");
+  assert.equal(applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "wrong_number", now).phone, null);
+  assert.equal(applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "callback", now, new Date("2026-11-02T14:00:00Z")).next_call_at, "2026-11-02T14:00:00.000Z");
+  const sc = callScript({ business_name: "Acme Offices", segment: "facilities", reason: "clicked" });
+  assert.match(sc.opener, /Acme Offices/); assert.match(sc.opener, /email/); assert.match(sc.voicemail, /walkthrough/);
+  assert.match(callScript({ business_name: "Big Prime", segment: "partner" }).opener, /subcontractor/);
+  for (const t of [sc.opener, sc.close, sc.voicemail]) assert.ok(!/\$\d/.test(t), "no prices on the phone");
 });

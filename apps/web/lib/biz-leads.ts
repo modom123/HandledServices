@@ -30,10 +30,12 @@
  *             triageBizReply    — the AI sales agent reads every reply: interested / question / not now / not
  *                                 interested / unsubscribe / out of office; stops mail for no's, and puts a summary
  *                                 and a draft answer (for Unibox) in the alert and the lead's history.
+ * UPDATED : 2026-10-20_0015 UTC — logCall (Call desk): saves the outcome, sets when to call again, stops email for a
+ *           no / do-not-contact (Instantly block list), alerts the team on an interested business.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -421,6 +423,23 @@ export async function setBizLeadStatus(id: string, status: "call" | "not_interes
     if (data?.email) await blockInInstantly(data.email);
   }
   await event(id, `status:${status}`, note, actor);
+}
+
+/** A call from the Call desk: outcome, note, and (for 'callback') the day they asked us to call back. */
+export async function logCall(id: string, outcome: CallOutcome, note: string | null, callbackAt: string | null, actor: string): Promise<{ ok: boolean; error?: string; next_call_at?: string | null }> {
+  const { data: l } = await db().from("biz_leads").select("id, status, phone, email, business_name, call_attempts").eq("id", id).maybeSingle();
+  if (!l) return { ok: false, error: "Lead not found" };
+  const cb = callbackAt ? new Date(callbackAt) : null;
+  if (outcome === "callback" && (!cb || Number.isNaN(cb.getTime()) || cb.getTime() < Date.now() - 86400000)) return { ok: false, error: "Pick the callback date" };
+  const next = applyCallOutcome(l, outcome, new Date(), cb);
+  await db().from("biz_leads").update(next).eq("id", id);
+  await event(id, `call:${outcome}`, [CALL_OUTCOMES[outcome].label, note?.trim()].filter(Boolean).join(" — "), actor);
+  if ((outcome === "not_interested" || outcome === "do_not_call") && l.email) {
+    await blockInInstantly(l.email);
+    if (outcome === "do_not_call") await db().from("email_optouts").upsert({ email: l.email.toLowerCase() });
+  }
+  if (outcome === "interested") await raiseAlert("sales", "warn", `Interested on the phone: ${l.business_name}`, `${note?.trim() ? `"${note.trim().slice(0, 500)}"\n\n` : ""}Book the walkthrough and send the quote. Logged by ${actor}.`);
+  return { ok: true, next_call_at: next.next_call_at };
 }
 
 export async function purgeBizLeadDetails() {
