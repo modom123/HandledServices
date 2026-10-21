@@ -7,8 +7,10 @@
  *           only; your accountant (or Track1099 / Stripe Connect) completes filing from
  *           the W-9s on file.
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: fair market value of rewards delivered that year, added to the 1099 total.
+ * UPDATED : 2026-10-18_0415 UTC — "File 1099-NEC" column from form1099(): corporations and LLCs taxed as one are marked
+ *           exempt (no form), pros to file are listed first. Everyone paid stays on the sheet for your records.
  */
-import { necThreshold } from "@handled/core";
+import { form1099, necThreshold } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 
 const csv = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -22,13 +24,19 @@ export async function GET(req: Request) {
   const { data: rewards } = await v!.db.from("reward_redemptions").select("contractor_id, fmv_usd").eq("status", "delivered").eq("tax_year", year);
   const fmv = new Map<string, number>();
   for (const r of (rewards ?? []) as { contractor_id: string; fmv_usd: number }[]) fmv.set(r.contractor_id, (fmv.get(r.contractor_id) ?? 0) + Number(r.fmv_usd));
-  const rows = [["Tax year", "Business name", "Legal name", "Entity type", "TIN last 4", "Address", "City", "State", "ZIP", "W-9 on file", "Paid (net)", "Rewards (FMV)", "1099 total", "Still owed", "Payments", `Over $${threshold} (1099-NEC)`]];
+  const FILE = { file: "YES", under: "no (under threshold)", exempt: "no: corporation (exempt)" } as const;
+  const lines: { status: keyof typeof FILE; cells: (string | number)[] }[] = [];
+  const rows: (string | number)[][] = [["Tax year", "Business name", "Legal name", "Entity type", "TIN last 4", "Address", "City", "State", "ZIP", "W-9 on file", "Paid (net)", "Rewards (FMV)", "1099 total", "Still owed", "Payments", `File 1099-NEC ($${threshold}+)`]];
   for (const r of data ?? []) {
     const rw = fmv.get(r.contractor_id) ?? 0, total = Number(r.paid_total ?? 0) + rw;
-    rows.push([year, r.business_name, r.legal_name, r.entity_type, r.tin_last4, r.address_line, r.city, r.state, r.zip, r.w9_received_at ? "yes" : "MISSING",
+    const status = form1099(r.entity_type, total, year);
+    lines.push({ status, cells: [year, r.business_name, r.legal_name, r.entity_type, r.tin_last4, r.address_line, r.city, r.state, r.zip, r.w9_received_at ? "yes" : "MISSING",
       Number(r.paid_total ?? 0).toFixed(2), rw.toFixed(2), total.toFixed(2), Number(r.owed_total ?? 0).toFixed(2), r.payments,
-      total >= threshold ? (["c_corp", "s_corp"].includes(r.entity_type) ? "corp — usually exempt" : "YES") : "no"]);
+      FILE[status]] });
   }
+  // forms to file first, then under the threshold, then exempt corporations
+  const order = { file: 0, under: 1, exempt: 2 };
+  rows.push(...lines.sort((a, b) => order[a.status] - order[b.status]).map((x) => x.cells));
   return new Response(rows.map((r) => r.map(csv).join(",")).join("\n"), {
     headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="1099-worksheet-${year}_${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1_$2")}.csv"` },
   });

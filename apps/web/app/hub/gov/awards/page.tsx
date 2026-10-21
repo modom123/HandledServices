@@ -41,7 +41,7 @@ export default async function GovAwards({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/hub/gov" className="text-sm text-brand hover:underline">← Gov contracts</Link>
+        <Link href="/hub/bids?view=gov" className="text-sm text-brand hover:underline">← Gov contracts</Link>
         <h1 className="text-2xl font-bold">Awards &amp; recompetes</h1>
         <p className="max-w-3xl text-sm text-ink-soft">Federal contracts already awarded for the work our pros do (SAM.gov Contract Awards — the old FPDS data). Each one shows who holds it, what it’s worth and when it ends. Agencies usually post the follow-on 3–12 months before the end, so a contract ending in the next 18 months is a lead: learn the incumbent’s price, meet the contracting office, and watch for the sources-sought notice.</p>
         {!govReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Set <code>SAM_API_KEY</code> in Vercel first (the same key as opportunities — see Gov contracts).</p>}

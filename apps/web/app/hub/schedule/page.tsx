@@ -6,6 +6,7 @@
  *           card onto another pro or window to reassign or move it (on a phone: tap the card, then tap where it goes).
  *           Rows show pros booked that day plus approved pros who can do that day's open jobs (?all=1 for every pro).
  *           Same rules as everywhere: no pro on unpaid work; the new pro is notified (components/ScheduleBoard).
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs with their 25% in can be dragged to a pro.
  */
 import Link from "next/link";
 import { dayOff, getService, localDate, paymentState, type BoardJobInput } from "@handled/core";
@@ -27,7 +28,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
   const all = sp.all === "1";
   const db = adminClient();
   const [{ data: jobRows }, { data: proRows }] = await Promise.all([
-    db.from("jobs").select("id, ref, service_slug, status, scheduled_date, time_window, zip, city, contact_name, contractor_id, price_final, paid_at, deposit_paid_at, billed_on_terms, amount_paid, amount_refunded, remedy").eq("scheduled_date", date).neq("status", "cancelled").order("created_at").limit(400),
+    db.from("jobs").select("id, ref, service_slug, status, scheduled_date, time_window, zip, city, contact_name, contractor_id, price_final, paid_at, deposit_paid_at, payment_plan, balance_attempts, billed_on_terms, amount_paid, amount_refunded, remedy").eq("scheduled_date", date).neq("status", "cancelled").order("created_at").limit(400),
     db.from("contractors").select("id, business_name, trades, daily_capacity, time_off, availability").eq("status", "approved").order("business_name").limit(500),
   ]);
   const jobs = (jobRows ?? []) as unknown as J[];

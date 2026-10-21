@@ -7,6 +7,7 @@
  *           dispatcher (no pro inside 6 hours, unpaid, no backups, pro running late) are pulled to the top. Each row has
  *           one-click actions (components/DispatchActions). Staff (admins and dispatchers).
  * UPDATED : 2026-10-12_0032 UTC — switch: "Take bookings where no pro covers the area yet" (admins change it).
+ * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs with their 25% in read as booked (payment_plan in the query).
  */
 import Link from "next/link";
 import { TIME_WINDOW_LABEL, dispatchFlags, getService, localDate, money, paymentState, type BoardJobInput, type TimeWindow } from "@handled/core";
@@ -37,7 +38,7 @@ export default async function Dispatch({ searchParams }: { searchParams: Promise
   const today = localDate(new Date());
   const [from, to] = tab === "tomorrow" ? [addDays(today, 1), addDays(today, 1)] : tab === "week" ? [today, addDays(today, 6)] : [today, today];
   const db = adminClient();
-  const cols = "id, ref, service_slug, status, scheduled_date, time_window, zip, city, contact_name, contact_phone, contractor_id, price_final, paid_at, deposit_paid_at, billed_on_terms, amount_paid, amount_refunded, remedy, contractors(business_name, phone)";
+  const cols = "id, ref, service_slug, status, scheduled_date, time_window, zip, city, contact_name, contact_phone, contractor_id, price_final, paid_at, deposit_paid_at, payment_plan, balance_attempts, billed_on_terms, amount_paid, amount_refunded, remedy, contractors(business_name, phone)";
   const [{ data: inRange }, { data: loose }, { data: pros }] = await Promise.all([
     db.from("jobs").select(cols).gte("scheduled_date", from).lte("scheduled_date", to).neq("status", "cancelled").order("scheduled_date").limit(400),
     // past-due (still open) and not-yet-dated jobs always show, whatever the tab

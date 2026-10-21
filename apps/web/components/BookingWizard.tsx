@@ -20,6 +20,8 @@
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
  * UPDATED : 2026-10-07_1830 UTC — area price level from /api/market (region), so the price shown matches what the server charges.
  * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) say "free consultation" instead of "site visit".
+ * UPDATED : 2026-10-15_0300 UTC — pay choice: 25% now and the rest when the job is done (default), or in full now with 5% off;
+ *           events and site-visit work keep the deposit. The Pay button shows what is charged today.
  * UPDATED : 2026-10-12_0005 UTC — saved homes: pick one of My homes (address + entry details), "save this home", and an entry
  *           details box (lockbox, key, gate) that only the assigned pro sees.
  * UPDATED : 2026-10-20_0200 UTC — marketplace: "Choose your price" (pros' own upfront prices next to Handled's) and booking a request-a-quote at its locked price.
@@ -33,7 +35,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
 } from "@handled/core";
@@ -111,7 +113,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [plan, setPlan] = useState<"full" | "deposit">("full");
+  const [plan, setPlan] = useState<PaymentPlan>("after");
   const [urgency, setUrgency] = useState<Urgency | null>(URGENCY.some((u) => u.id === initialUrgency) ? (initialUrgency as Urgency) : null);
   const [promo, setPromo] = useState((initialPromo ?? "").toUpperCase());
   const [perks, setPerks] = useState<Perks | null>(null);
@@ -366,13 +368,27 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             </div>
             <SmsConsent es={es} purpose="booking" />
             {svc && !siteVisit && est && (() => {
+              // how they pay: 25% now and the rest when it's done (default), or in full now with 5% off; events and site-visit work offer a deposit
               const dp = depositPolicy(svc.slug, total, date);
-              if (!dp.allowed) return null;
+              const bn = bookNowPolicy(svc.slug, total);
+              const saving = payInFullSaving(total, Number.MAX_SAFE_INTEGER);
               const fmt = (d: string | null) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(es ? "es-US" : "en-US", { month: "short", day: "numeric" }) : t("before the job"));
+              const full = [
+                "full",
+                es ? `Pagar todo ahora · ${money(total - saving)}` : `Pay in full now · ${money(total - saving)}`,
+                saving ? (es ? `5% de descuento: ahorra ${money(saving)}. No hay nada más que pagar.` : `5% off — you save ${money(saving)}. Nothing more to pay.`) : t("Nothing more to pay."),
+              ] as const;
+              const options = bn.allowed
+                ? [["after", es ? `Pagar 25% ahora · ${money(bn.amount)}` : `Pay 25% now · ${money(bn.amount)}`, es ? `Asegura su fecha. El resto (${money(bn.balance)}) se cobra a la misma tarjeta cuando el trabajo esté terminado.` : `Locks your date. The rest (${money(bn.balance)}) is charged to the same card when the job is done.`] as const, full]
+                : dp.allowed
+                  ? [["deposit", `${t("Pay a deposit")} · ${money(dp.amount)}`, es ? `Asegura su fecha. ${money(dp.balance)} se cobra a la misma tarjeta el ${fmt(dp.balanceDue)}.` : `Locks your date. ${money(dp.balance)} is charged to the same card on ${fmt(dp.balanceDue)}.`] as const, full]
+                  : null;
+              if (!options) return null;
+              const current = resolvePlan(plan, dp.allowed, bn.allowed);
               return (
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {([["full", `${t("Pay in full")} · ${money(total)}`, t("Nothing more to pay.")], ["deposit", `${t("Pay a deposit")} · ${money(dp.amount)}`, es ? `Asegura su fecha. ${money(dp.balance)} se cobra a la misma tarjeta el ${fmt(dp.balanceDue)}.` : `Locks your date. ${money(dp.balance)} is charged to the same card on ${fmt(dp.balanceDue)}.`]] as const).map(([k, title, d]) => (
-                    <button key={k} type="button" onClick={() => setPlan(k)} className={`rounded-xl border p-3 text-left text-sm ${plan === k ? "border-brand bg-brand-tint" : "border-line bg-white"}`}>
+                  {options.map(([k, title, d]) => (
+                    <button key={k} type="button" onClick={() => setPlan(k)} className={`rounded-xl border p-3 text-left text-sm ${current === k ? "border-brand bg-brand-tint" : "border-line bg-white"}`}>
                       <div className="font-semibold">{title}</div><div className="text-xs text-ink-soft">{d}</div>
                     </button>
                   ))}
@@ -381,12 +397,19 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {t(siteVisit ? (svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : "I pay upfront; you pay the pro after the job is done and checked; free redo or refund if it’s not right.")}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Book free consultation" : "Book free site visit") : `${t("Pay")} ${est ? money(plan === "deposit" && depositPolicy(svc!.slug, total, date).allowed ? depositPolicy(svc!.slug, total, date).amount : perks ? perks.dueNow : total) : ""}${plan === "deposit" ? (es ? " de depósito" : " deposit") : ""} ${es ? "y reservar" : "& book"}`}</button>
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Book free consultation" : "Book free site visit") : (() => {
+                // what's charged today under the plan this booking actually gets
+                const dp = depositPolicy(svc!.slug, total, date), bn = bookNowPolicy(svc!.slug, total);
+                const p = resolvePlan(plan, dp.allowed, bn.allowed);
+                const now = p === "deposit" ? dp.amount : p === "after" ? bn.amount : Math.max(0, (perks ? perks.dueNow : total) - payInFullSaving(total, Number.MAX_SAFE_INTEGER));
+                const what = p === "deposit" ? (es ? " de depósito" : " deposit") : p === "after" ? (es ? " (25%)" : " (25%)") : "";
+                return `${t("Pay")} ${est ? money(now) : ""}${what} ${es ? "y reservar" : "& book"}`;
+              })()}</button>
             </div>
           </div>
         )}

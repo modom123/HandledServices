@@ -43,10 +43,15 @@ export async function intakeLead(raw: Record<string, unknown>, o: { channel?: st
     if (l.message) await db().from("leads").update({ message: l.message }).eq("id", recent.id);
     return { ok: true, id: recent.id, duplicate: true };
   }
-  const { data: row, error } = await db().from("leads").insert({
-    name: l.name, email: l.email, phone: l.phone, zip: l.zip, city: l.city, company: l.company, service_slug: l.service_slug, message: l.message,
-    source: l.channel, channel: l.channel, campaign: l.campaign, attribution: l.attribution, external_id: l.external_id, sms_consent: l.sms_consent, status: "new",
+  const base = { name: l.name, email: l.email, phone: l.phone, zip: l.zip, service_slug: l.service_slug, message: l.message, source: l.channel };
+  let { data: row, error } = await db().from("leads").insert({
+    ...base, city: l.city, company: l.company, channel: l.channel, campaign: l.campaign, attribution: l.attribution, external_id: l.external_id, sms_consent: l.sms_consent, status: "new",
   }).select("id").single();
+  // before the omnichannel migration is run: save the lead with the original columns so nobody is lost
+  if (error && /column|schema cache/i.test(error.message)) {
+    ({ data: row, error } = await db().from("leads").insert({ ...base, message: [l.company && `Company: ${l.company}`, l.message].filter(Boolean).join("\n") || null }).select("id").single());
+    if (row) { await raiseAlert("sales", "warn", `New lead — ${channelLabel(l.channel)}: ${l.name ?? l.email ?? l.phone}`, `Call them: ${l.phone ?? l.email}. (Run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql to turn on the Lead inbox and instant replies.)`); return { ok: true, id: row.id }; }
+  }
   if (error || !row) return { ok: false, error: error?.message ?? "Couldn't save the lead" };
   const bizId = l.company ? await toBusinessLead(l).catch(() => null) : null;
   if (bizId) await db().from("leads").update({ biz_lead_id: bizId }).eq("id", row.id);

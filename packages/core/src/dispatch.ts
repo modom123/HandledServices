@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-07_1900 UTC — same-day checks use the job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP list: "only these ZIP codes" (zips_only), or listed ZIPs count even past the driving radius.
+ * UPDATED : 2026-10-19_1320 UTC — insurance-optional services (Service.insuranceOptional) skip the general liability check.
  */
 
 import { getService } from "./services.ts";
@@ -126,7 +127,8 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
     if (miles > (c.service_radius_mi ?? 25) && !listed) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
   } else if (c.service_zips.length && !listed)
     return "outside service area";
-  if (!c.insured_until || new Date(c.insured_until) < today) return "insurance expired";
+  // general liability: every job except the insurance-optional ones (remote work, errands, courier, assistant)
+  if (!svc?.insuranceOptional && (!c.insured_until || new Date(c.insured_until) < today)) return "insurance expired";
   if (!c.background_checked) return "background check pending";
   if (svc) {
     const missing = requiredCoverages(svc.trades.filter((t) => c.trades.includes(t)), job).find((k) => !coverageValid(c.coverage, k, today));

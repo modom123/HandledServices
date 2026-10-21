@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-06_0841 UTC — national home-page copy (launching in Metro Detroit, expanding nationwide).
  * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
+ * UPDATED : 2026-10-15_0300 UTC — the brand promise: 25% books your pro, pay the rest when it's done.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -136,7 +137,7 @@ const ES: Record<string, string> = {
   "Within 14 days": "En 14 días",
   "Within 30 days": "En 30 días",
   "Any open date — often the best availability": "Cualquier fecha disponible — suele haber más disponibilidad",
-  "Pay upfront to lock in your pro. Not right? Free redo or your money back within 30 days.": "Pague por adelantado para asegurar a su profesional. ¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero en 30 días.",
+  "25% books your pro — pay the rest when it's done. Not right? Free redo or your money back within 30 days.": "Con el 25% reserva a su profesional; pague el resto cuando el trabajo esté terminado. ¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero en 30 días.",
   "No priority fees — same-day and next-day at the normal price": "Sin cargos de prioridad — mismo día y día siguiente al precio normal",
   "10% off every job (on top of plan discounts)": "10% de descuento en cada trabajo (además de los descuentos del plan)",
   "Members are offered first for same-day slots": "Los miembros tienen prioridad en horarios del mismo día",

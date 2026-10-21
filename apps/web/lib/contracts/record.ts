@@ -5,6 +5,7 @@
  * PURPOSE : Saves who accepted which contracts — with a frozen copy of the text and its hash —
  *           into contract_acceptances. Never blocks the booking or signing that triggered it.
  * UPDATED : 2026-10-03_0050 UTC — records the language read (locale) and keeps the Spanish text shown too.
+ * UPDATED : 2026-10-18_0415 UTC — onBehalfOf / signerTitle when a pro signs for their business.
  */
 import "server-only";
 import { adminClient } from "../supabase/server";
@@ -15,6 +16,9 @@ export interface AcceptanceContext {
   contractorId?: string | null;
   email?: string | null;
   signerName?: string | null;
+  /** Signing for a company: its legal name, and the signer's title there. */
+  onBehalfOf?: string | null;
+  signerTitle?: string | null;
   jobId?: string | null;
   method: "booking" | "signature" | "checkout" | "click";
   /** Language the person read the contract in. */
@@ -30,6 +34,8 @@ export async function recordAcceptance(contracts: Contract[], ctx: AcceptanceCon
     profile_id: ctx.profileId ?? null, contractor_id: ctx.contractorId ?? null, email: ctx.email?.trim().toLowerCase() ?? null,
     signer_name: ctx.signerName ?? null, job_id: ctx.jobId ?? null, method: ctx.method, ip: ctx.ip ?? null, user_agent: ctx.userAgent?.slice(0, 300) ?? null,
     locale: ctx.locale === "es" ? "es" : "en",
+    // only when signing for a business, so other signings never depend on these columns
+    ...(ctx.onBehalfOf ? { on_behalf_of: ctx.onBehalfOf, signer_title: ctx.signerTitle ?? null } : {}),
     // English is the governing text (hashed); the Spanish they saw is kept alongside
     sections: { appliesTo: c.appliesTo, summary: c.summary, sections: c.sections, ...(ctx.locale === "es" && spanishOf(c) ? { es: spanishOf(c) } : {}) }, content_hash: contractHash(c),
   }));

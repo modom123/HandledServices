@@ -5,6 +5,7 @@
  * PURPOSE : Reading signed contracts back: a customer's (by account or booking email), a pro's
  *           (by contractor record), or one signed copy — for My contracts and the Hub.
  * UPDATED : 2026-10-03_0050 UTC — language of acceptance and the Spanish copy.
+ * UPDATED : 2026-10-18_0415 UTC — signerLabel(): "Name, Title, for Business LLC" when a pro signed for their business.
  */
 import "server-only";
 import { adminClient } from "../supabase/server";
@@ -16,6 +17,8 @@ export interface AcceptanceRow {
   job_id: string | null; method: string; ip: string | null; user_agent: string | null;
   sections: { appliesTo?: string; summary?: string[]; sections: ContractSection[]; es?: { title: string; appliesTo: string; summary: string[]; sections: ContractSection[] } };
   locale?: string;
+  /** Signed for a business (pro agreement): its legal name and the signer's title. */
+  on_behalf_of?: string | null; signer_title?: string | null;
   content_hash: string; accepted_at: string;
   jobs?: { ref: string; service_slug: string } | null;
 }
@@ -45,4 +48,10 @@ export function signedCopy(a: AcceptanceRow, want: string | null | undefined) {
   const es = want === "es" && a.sections.es ? a.sections.es : null;
   if (es) return { title: es.title, appliesTo: es.appliesTo, summary: es.summary, sections: es.sections, lang: "es" as const, translated: true };
   return { title: a.title, appliesTo: a.sections.appliesTo, summary: a.sections.summary, sections: a.sections.sections, lang: want === "es" ? ("es" as const) : ("en" as const), translated: false };
+}
+
+/** Who signed, in words: "Dana Reyes, Owner, for Reyes Cleaning LLC" when signed for a business. */
+export function signerLabel(a: Pick<AcceptanceRow, "signer_name" | "on_behalf_of" | "signer_title">, lang: string | null | undefined = "en"): string | null {
+  if (!a.on_behalf_of) return a.signer_name;
+  return `${a.signer_name ?? "—"}${a.signer_title ? `, ${a.signer_title}` : ""}, ${lang === "es" ? "en nombre de" : "for"} ${a.on_behalf_of}`;
 }

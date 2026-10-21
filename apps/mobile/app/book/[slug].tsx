@@ -9,6 +9,7 @@
  * PURPOSE : Native booking flow — same questions & pricing engine as the website.
  * UPDATED : 2026-10-05_0449 UTC — Snap & post a job: photos, job details, notes and timeframe arrive filled in.
  * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (opens Event Security prefilled).
+ * UPDATED : 2026-10-15_0300 UTC — pay choice: 25% now and the rest when the job is done (default), or in full now with 5% off.
  * UPDATED : 2026-10-06_0645 UTC — built to finish on a phone: the price and the Pay & book button stay pinned at the bottom;
  *           the keyboard never covers a field; name, email, phone and address are remembered from the last booking
  *           (and the signed-in email fills in); the button names the next missing step and missing fields turn red;
@@ -21,7 +22,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
 import { payForJob } from "../../lib/pay";
@@ -87,7 +88,7 @@ function BookService({ slug: _slug }: { slug: string }) {
     });
     return () => { live = false; };
   }, [me?.email]);
-  const [plan, setPlan] = useState<"full" | "deposit">("full");
+  const [plan, setPlan] = useState<PaymentPlan>("after");
   // what pros in this area actually accept (learned) — the same factor the server prices with
   const [market, setMarket] = useState(1);
   const [region, setRegion] = useState(1); // the service area's price level (Seattle area +25%, rest of WA +20%)
@@ -108,7 +109,13 @@ function BookService({ slug: _slug }: { slug: string }) {
   const named = Boolean(offerChk?.ok && offerNum !== suggested);
   const listTotal = named ? offerNum : suggested;
   const dp = depositPolicy(svc.slug, listTotal, date);
-  const useDeposit = plan === "deposit" && dp.allowed && !svc.siteVisit && !sizeNeedsSiteVisit(svc.slug, answers);
+  const bn = bookNowPolicy(svc.slug, listTotal);
+  const quoteLater = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, answers));
+  // 25% now and the rest when it's done (default), in full now with 5% off, or a deposit (events, site-visit work)
+  const payPlan = quoteLater ? "full" : resolvePlan(plan, dp.allowed, bn.allowed);
+  const useDeposit = payPlan === "deposit";
+  const saving = payInFullSaving(listTotal, Number.MAX_SAFE_INTEGER);
+  const dueNow = payPlan === "deposit" ? dp.amount : payPlan === "after" ? bn.amount : listTotal - saving;
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
 
   const rule = photoRule(svc.slug);
@@ -165,7 +172,7 @@ function BookService({ slug: _slug }: { slug: string }) {
     setBusy(true);
     const r = await api<{ id: string; ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: useDeposit ? "deposit" : "full", quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: payPlan, quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
     });
     setBusy(false);
     if (!r.ok) { haptic("error"); return Alert.alert(t("Couldn't book"), t(r.data.error ?? "Please check the form")); }
@@ -191,7 +198,7 @@ function BookService({ slug: _slug }: { slug: string }) {
   if (!siteVisit && offerChk && !offerChk.ok) problems.push({ key: "offer", msg: t("Adjust your price offer") });
   if (!agreed) problems.push({ key: "agree", msg: t("Agree to the Service Agreement") });
   const errFor = (k: string) => (tried ? problems.find((x) => x.key === k)?.msg ?? null : null);
-  const payTitle = busy ? t("Checking your price…") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : (es ? `Pagar ${money(listTotal)} y reservar` : `Pay ${money(listTotal)} & book`);
+  const payTitle = busy ? t("Checking your price…") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : payPlan === "after" ? (es ? `Pagar ${money(dueNow)} (25%) y reservar` : `Pay ${money(dueNow)} (25%) & book`) : (es ? `Pagar ${money(dueNow)} y reservar` : `Pay ${money(dueNow)} & book`);
   function submit() {
     if (problems.length) {
       haptic("warning");
@@ -208,7 +215,7 @@ function BookService({ slug: _slug }: { slug: string }) {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View style={{ minWidth: 92 }}>
             <Text style={[s.label, { marginBottom: 0 }]}>{t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
-            <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }} accessibilityLiveRegion="polite">{siteVisit ? moneyRange(est.low, est.high) : money(useDeposit ? dp.amount : listTotal)}</Text>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }} accessibilityLiveRegion="polite">{siteVisit ? moneyRange(est.low, est.high) : money(dueNow)}</Text>
           </View>
           <Button title={problems.length ? problems[0].msg : payTitle} busy={busy} onPress={submit} kind={problems.length ? "dark" : "primary"} style={{ flex: 1 }} />
         </View>
@@ -313,13 +320,17 @@ function BookService({ slug: _slug }: { slug: string }) {
       <Field label={t("Full name")} value={f.contact_name} onChangeText={set("contact_name")} textContentType="name" autoComplete="name" error={errFor("contact_name")} />
       <Field label={t("Email")} value={f.contact_email} onChangeText={set("contact_email")} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" autoComplete="email" error={errFor("contact_email")} />
       <Field label={t("Mobile")} value={f.contact_phone} onChangeText={set("contact_phone")} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" error={errFor("contact_phone")} />
-      {dp.allowed && !siteVisit ? (
+      {(bn.allowed || dp.allowed) && !siteVisit ? (
         <>
           <Text style={s.h2}>{t("How would you like to pay?")}</Text>
           <View style={s.row}>
-            <Chip label={`${t("Pay in full")} · ${money(listTotal)}`} on={!useDeposit} onPress={() => setPlan("full")} />
-            <Chip label={`${t("Deposit")} · ${money(dp.amount)}`} on={useDeposit} onPress={() => setPlan("deposit")} />
+            {bn.allowed
+              ? <Chip label={es ? `25% ahora · ${money(bn.amount)}` : `25% now · ${money(bn.amount)}`} on={payPlan === "after"} onPress={() => setPlan("after")} />
+              : <Chip label={`${t("Deposit")} · ${money(dp.amount)}`} on={useDeposit} onPress={() => setPlan("deposit")} />}
+            <Chip label={es ? `Todo ahora · ${money(listTotal - saving)}` : `In full now · ${money(listTotal - saving)}`} on={payPlan === "full"} onPress={() => setPlan("full")} />
           </View>
+          {payPlan === "after" ? <Text style={s.p}>{es ? `Asegura su fecha. El resto (${money(bn.balance)}) se cobra a la misma tarjeta cuando el trabajo esté terminado.` : `Locks your date. The rest (${money(bn.balance)}) is charged to the same card when the job is done.`}</Text> : null}
+          {payPlan === "full" && saving ? <Text style={s.p}>{es ? `5% de descuento por pagar ahora: ahorra ${money(saving)}.` : `5% off for paying now — you save ${money(saving)}.`}</Text> : null}
           {useDeposit ? <Text style={s.p}>{es ? `Asegura su fecha y profesional. El saldo de ${money(dp.balance)} se cobra a la misma tarjeta${dp.balanceDue ? ` el ${dp.balanceDue}` : " antes de su fecha"}.` : `Locks in your date and pro. Balance of ${money(dp.balance)} is charged to the same card${dp.balanceDue ? ` on ${dp.balanceDue}` : " before your date"}.`}</Text> : null}
         </>
       ) : null}
