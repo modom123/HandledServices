@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-05_0130 UTC — "Add a business from a job posting" (job-posting letter by email, or print it).
  * UPDATED : 2026-10-05_2134 UTC — partner status options (no automated email).
  * UPDATED : 2026-10-07_2030 UTC — job-posting searches/day setting and "Find job postings now" (Adzuna, Michigan + Washington).
+ * UPDATED : 2026-10-19_2230 UTC — "Sync Instantly campaign" (leads uploaded in Instantly → this list).
  */
 "use client";
 
@@ -80,6 +81,12 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
       <div className="flex gap-2">
         <button className="btn-primary" onClick={async () => { const e = await post({ action: "settings", ...f }); setMsg(e ?? "Saved"); router.refresh(); }}>Save</button>
         <button className="btn-ghost" onClick={async () => { setMsg("Running…"); const e = await post({ action: "run" }); setMsg(e ?? "Done"); router.refresh(); }}>Run now</button>
+        <button className="btn-ghost" onClick={async () => {
+          setMsg("Pulling leads from the Instantly campaign…");
+          const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_instantly" }) });
+          const j = await r.json().catch(() => ({}));
+          setMsg(r.ok ? `Instantly: ${j.seen} leads checked, ${j.added} new in the CRM, ${j.updated} updated` : String(j.error ?? "Failed")); router.refresh();
+        }}>Sync Instantly campaign</button>
         <button className="btn-ghost" onClick={async () => { setMsg("Searching job boards…"); const e = await post({ action: "job_posts" }); setMsg(e ?? "Done — new job-posting leads are in the list"); router.refresh(); }}>Find job postings now</button>
         {msg && <span className="self-center text-ink-soft">{msg}</span>}
       </div>

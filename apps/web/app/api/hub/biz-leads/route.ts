@@ -10,12 +10,15 @@
  *           that posted a job for work we do (job-posting letter).
  * UPDATED : 2026-10-07_2030 UTC — { action: "job_posts" } finds job-posting leads now (Adzuna, Michigan + Washington); settings take job_posts_per_day.
  * UPDATED : 2026-10-11_0451 UTC — engine settings, runs and send-now outreach are admins only; dispatchers can log outcomes and add job posts without sending.
+ * UPDATED : 2026-10-19_2230 UTC — { action: "sync_instantly" } pulls every lead in the Instantly business campaign into the CRM.
+ * UPDATED : 2026-10-20_0015 UTC — Call desk: { action: "call", id, outcome, note?, callback_at? } (any staff); { action: "call_goal", call_goal } (admins).
  */
 import { z } from "zod";
-import { BIZ_SEGMENTS, BUSINESS_TERMS } from "@handled/core";
+import { BIZ_SEGMENTS, BUSINESS_TERMS, CALL_OUTCOMES } from "@handled/core";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { addJobPostLead, bizLeadEngine, setBizLeadStatus } from "@/lib/biz-leads";
+import { addJobPostLead, bizLeadEngine, logCall, setBizLeadStatus, syncBizCampaign } from "@/lib/biz-leads";
+import type { CallOutcome } from "@handled/core";
 import type { BizSegment } from "@handled/core";
 
 const Body = z.discriminatedUnion("action", [
@@ -24,6 +27,9 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("status"), id: z.string().uuid(), status: z.enum(["call", "not_interested", "do_not_contact", "replied", "queued"]), note: z.string().max(1000).nullable().optional() }),
   z.object({ action: z.literal("run") }),
   z.object({ action: z.literal("job_posts") }),
+  z.object({ action: z.literal("sync_instantly") }),
+  z.object({ action: z.literal("call"), id: z.string().uuid(), outcome: z.string().refine((x) => x in CALL_OUTCOMES), note: z.string().max(2000).nullable().optional(), callback_at: z.string().max(40).nullable().optional() }),
+  z.object({ action: z.literal("call_goal"), call_goal: z.number().int().min(0).max(500) }),
   z.object({ action: z.literal("add_job_post"), business_name: z.string().trim().min(2).max(160), job_title: z.string().trim().min(2).max(120), segment: z.string().refine((x) => x in BIZ_SEGMENTS),
     contact_name: z.string().trim().max(120).nullable().optional(), email: z.string().trim().email().nullable().optional().or(z.literal("")), phone: z.string().trim().max(30).nullable().optional(),
     website: z.string().trim().max(300).nullable().optional(), city: z.string().trim().max(80).nullable().optional(), posting_source: z.string().trim().max(60).nullable().optional(),
@@ -36,7 +42,9 @@ export async function POST(req: Request) {
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Check the request");
   const d = b.data;
+  if (d.action === "call") { const r = await logCall(d.id, d.outcome as CallOutcome, d.note ?? null, d.callback_at ?? null, v!.email ?? "staff"); return Response.json(r, { status: r.ok ? 200 : 400 }); }
   if (d.action !== "status" && !(d.action === "add_job_post" && !d.send_now) && !isAdmin(v)) return deny(403, ADMINS_ONLY);
+  if (d.action === "call_goal") { const { error } = await adminClient().from("biz_lead_settings").update({ call_goal: d.call_goal, updated_at: new Date().toISOString(), updated_by: v!.email }).eq("id", 1); return error ? deny(500, error.message) : Response.json({ ok: true }); }
   if (d.action === "settings") {
     const { action: _a, ...row } = d;
     const { error } = await adminClient().from("biz_lead_settings").upsert({ id: 1, ...row, updated_at: new Date().toISOString(), updated_by: v!.email });
@@ -54,6 +62,7 @@ export async function POST(req: Request) {
     const emails = await enrichBizLeads().catch(() => 0);
     return Response.json({ ok: true, result: { ...found, emailsFound: emails } });
   }
+  if (d.action === "sync_instantly") { const r = await syncBizCampaign(); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (d.action === "status") { await setBizLeadStatus(d.id, d.status, d.note ?? null, v!.email); return Response.json({ ok: true }); }
   return Response.json({ ok: true, result: await bizLeadEngine() });
 }

@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-11_2242 UTC — "Notifications sent": every text, email and push about this job (notification log).
  * UPDATED : 2026-10-12_0121 UTC — customer (C-), business client (B-) and pro (P-) IDs.
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, editable), saved home link, and text the customer / pro from here.
+ * UPDATED : 2026-10-15_0300 UTC — payment panel gets the "pay after" hold / retry fields.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -137,7 +138,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
       </div>
 
       <div className="space-y-6">
-        <PaymentPanel job={{ id: job.id, ref: job.ref, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status, payment_plan: job.payment_plan, deposit_amount: job.deposit_amount, deposit_paid_at: job.deposit_paid_at, balance_due_date: job.balance_due_date }} />
+        <PaymentPanel job={{ id: job.id, ref: job.ref, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status, payment_plan: job.payment_plan, deposit_amount: job.deposit_amount, deposit_paid_at: job.deposit_paid_at, balance_due_date: job.balance_due_date, balance_hold_intent: job.balance_hold_intent ?? null, balance_attempts: job.balance_attempts ?? 0, pay_in_full_discount: job.pay_in_full_discount ?? 0 }} />
         {(expenses ?? []).length > 0 && (
           <div className="card text-sm"><div className="font-semibold">Materials (at cost, billed to the customer)</div>
             {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string }) => (

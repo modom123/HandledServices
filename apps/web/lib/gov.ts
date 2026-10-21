@@ -13,27 +13,43 @@
  *             govEngine        — the daily run (Vercel cron) when switched on
  *           Every SAM.gov call is logged and counted against the daily call budget (a personal key allows ~10 a day).
  *           The API key (SAM_API_KEY) is added at call time and never stored or logged.
+ * UPDATED : 2026-10-19_2015 UTC — Contract Awards API: runAwardSearch (who holds our kind of work, its value and end
+ *           date → recompete leads), setAwardStatus, and a weekly awards run (Mondays) when switched on. Same key and
+ *           call budget as opportunities.
+ * UPDATED : 2026-10-19_2105 UTC — per the OpenAPI spec: state filtered by SAM (placeOfPerformStateCode); offset
+ *           page-or-record detection; one record per transaction counted when paging.
+ * UPDATED : 2026-10-19_2140 UTC — subcontracting: subFit score on every award; awards_naics (default the focus:
+ *           landscaping, painting, AI automation) for the awards search and the Monday run.
+ * UPDATED : 2026-10-19_2330 UTC — the daily search is state-wide when it covers several codes (one call for the state,
+ *           filtered to our codes, plus one nationwide call per remote AI code); govDailyPicks — the AI bid desk picks
+ *           the day's 5 best notices to propose on, writes the bid brief, opens a draft bid for each (Hub → Bids) and
+ *           alerts the team. Pass recommendations are set aside and the next best is picked.
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, govFit, parseSamOpportunity, samSearchQueries, tradesForNaics, type GovOpportunity } from "@handled/core";
+import { AWARDS_PAGE_SIZE, BRAND, GOV_BID_CHECKLIST, GOV_FOCUS, pickBidCandidates, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SERVICE_BY_SLUG, awardSearchQuery, govFit, nextAwardOffset, mergeAwards, parseSamAward, parseSamOpportunity, recompeteFit, samSearchQueries, subFit, tradesForNaics, type GovAward, type GovOpportunity } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { sendEmail } from "./notify";
+import { raiseAlert } from "./jobs";
 import { aiEnabled, structured } from "./ai/client";
 
 const db = () => adminClient();
 const SAM_SEARCH = "https://api.sam.gov/opportunities/v2/search";
 const SAM_DESC = "https://api.sam.gov/prod/opportunities/v1/noticedesc";
+const SAM_AWARDS = "https://api.sam.gov/contract-awards/v1/search";
 
 export const govReady = () => Boolean(process.env.SAM_API_KEY?.trim());
 
 export interface GovSettings {
   enabled: boolean; naics: string[]; state: string | null; keywords: string | null; ptypes: string[];
   days_back: number; daily_call_budget: number; certifications: string[]; last_run_at: string | null; last_result: unknown;
+  awards_enabled: boolean; awards_months_back: number; awards_pages: number; awards_naics: string[];
+  /** How many notices the AI bid desk picks each weekday to propose on (0 = off). */
+  daily_picks: number;
 }
 export async function getGovSettings(): Promise<GovSettings> {
   const { data } = await db().from("gov_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, naics: ["561720", "561730", "561790", "561612", "562111", "484210"], state: "MI", keywords: null, ptypes: ["o", "k", "p", "r"], days_back: 7, daily_call_budget: 8, certifications: [], last_run_at: null, last_result: null, ...(data ?? {}) } as GovSettings;
+  return { enabled: false, naics: GOV_FOCUS, state: "MI", keywords: null, ptypes: ["o", "k", "p", "r"], days_back: 7, daily_call_budget: 8, certifications: [], last_run_at: null, last_result: null, awards_enabled: false, awards_months_back: 24, awards_pages: 2, awards_naics: GOV_FOCUS, daily_picks: 5, ...(data ?? {}) } as GovSettings;
 }
 
 /** SAM.gov calls made since midnight UTC (SAM resets its daily limit on UTC days). */
@@ -43,14 +59,14 @@ export async function callsToday(): Promise<number> {
   return count ?? 0;
 }
 
-async function samGet(url: string, kind: "search" | "description", query: string, actor: string): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false; error: string }> {
+async function samGet(url: string, kind: "search" | "description" | "awards", query: string, actor: string): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false; error: string }> {
   const key = process.env.SAM_API_KEY?.trim();
   if (!key) return { ok: false, error: "SAM_API_KEY isn't set in Vercel" };
   try {
     const res = await fetch(`${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(key)}`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30000), cache: "no-store" });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     const err = res.ok ? null : res.status === 429 ? "SAM.gov daily limit reached for this key — try again tomorrow" : String((json.error as Record<string, unknown>)?.message ?? json.message ?? json.errorMessage ?? `SAM.gov error ${res.status}`);
-    await db().from("gov_api_calls").insert({ kind, query, ok: !err, records: Array.isArray(json.opportunitiesData) ? json.opportunitiesData.length : null, error: err, actor });
+    await db().from("gov_api_calls").insert({ kind, query, ok: !err, records: Array.isArray(json.opportunitiesData) ? json.opportunitiesData.length : Array.isArray(json.awardSummary) ? json.awardSummary.length : null, error: err, actor });
     return err ? { ok: false, error: err } : { ok: true, json };
   } catch (e) {
     await db().from("gov_api_calls").insert({ kind, query, ok: false, error: String(e).slice(0, 300), actor });
@@ -63,7 +79,10 @@ export interface GovRunResult { calls: number; found: number; added: number; ski
 /** Search SAM.gov, score and cache the notices. Stops when the day's call budget is used up. */
 export async function runGovSearch(search: { naics: string[]; state: string | null; keywords: string | null; ptypes: string[]; days_back: number; setAside?: string | null }, actor = "system"): Promise<GovRunResult> {
   const s = await getGovSettings();
-  const queries = samSearchQueries({ naics: search.naics, state: search.state, keywords: search.keywords, ptypes: search.ptypes, setAside: search.setAside ?? null, daysBack: search.days_back, limit: 200 });
+  // several codes in one state: one state-wide call (filtered to our codes below) instead of one call per code
+  const stateWide = Boolean(search.state && search.naics.length > 2);
+  const wanted = new Set(search.naics);
+  const queries = samSearchQueries({ naics: search.naics, state: search.state, keywords: search.keywords, ptypes: search.ptypes, setAside: search.setAside ?? null, daysBack: search.days_back, limit: 200, stateWide });
   let left = Math.max(0, s.daily_call_budget - (await callsToday()));
   const out: GovRunResult = { calls: 0, found: 0, added: 0, skipped: 0, errors: [], budgetLeft: left };
   for (const q of queries) {
@@ -72,7 +91,8 @@ export async function runGovSearch(search: { naics: string[]; state: string | nu
     const r = await samGet(`${SAM_SEARCH}?${q}`, "search", q, actor);
     if (!r.ok) { out.errors.push(r.error); if (/limit/i.test(r.error)) left = 0; continue; }
     const rows = (Array.isArray(r.json.opportunitiesData) ? r.json.opportunitiesData : []).map((x) => parseSamOpportunity(x as Record<string, unknown>)).filter((x): x is GovOpportunity => Boolean(x))
-      .filter((x, i, all) => all.findIndex((y) => y.notice_id === x.notice_id) === i); // one row per notice (a batch upsert can't touch a row twice)
+      .filter((x, i, all) => all.findIndex((y) => y.notice_id === x.notice_id) === i) // one row per notice (a batch upsert can't touch a row twice)
+      .filter((x) => !stateWide || (x.naics != null && wanted.has(x.naics)));
     out.found += rows.length;
     if (!rows.length) continue;
     const { data: seen } = await db().from("gov_opportunities").select("notice_id").in("notice_id", rows.map((x) => x.notice_id));
@@ -90,12 +110,112 @@ export async function runGovSearch(search: { naics: string[]; state: string | nu
   return out;
 }
 
-/** The daily run (cron): the saved search, when switched on and the key is set. */
+export interface AwardRunResult { calls: number; found: number; kept: number; added: number; errors: string[]; budgetLeft: number }
+
+/**
+ * Search the Contract Awards API (all NAICS codes in one call per page), merge modifications into one row per
+ * contract, keep the ones performed in `state` (when set), score them as recompete leads and cache them.
+ * Our status and notes are never overwritten. Stops at the daily call budget or when a page comes back short.
+ */
+export async function runAwardSearch(search: { naics: string[]; state: string | null; keywords: string | null; months_back: number; pages: number; awardee_uei?: string | null }, actor = "system"): Promise<AwardRunResult> {
+  const s = await getGovSettings();
+  const params = { naics: search.naics, state: search.state, keywords: search.keywords, monthsBack: search.months_back, awardeeUei: search.awardee_uei ?? null };
+  const pages = Math.min(20, Math.max(1, Math.round(search.pages)));
+  let left = Math.max(0, s.daily_call_budget - (await callsToday()));
+  const out: AwardRunResult = { calls: 0, found: 0, kept: 0, added: 0, errors: [], budgetLeft: left };
+  const raw = new Map<string, Record<string, unknown>>();
+  const parsed: GovAward[] = [];
+  const seenTx = new Set<string>(); // one per transaction (base award or modification), to page correctly
+  let paging = { offset: 0, mode: "page" as "page" | "record" };
+  for (let call = 0; call < pages; call++) {
+    if (left <= 0) { out.errors.push("Today's SAM.gov call budget is used up — the rest of the pages were skipped"); break; }
+    left--; out.calls++;
+    const q = awardSearchQuery(params, paging.offset);
+    const r = await samGet(`${SAM_AWARDS}?${q}`, "awards", q, actor);
+    if (!r.ok) { out.errors.push(r.error); break; }
+    const page = Array.isArray(r.json.awardSummary) ? (r.json.awardSummary as Record<string, unknown>[]) : [];
+    let fresh = 0;
+    for (const x of page) {
+      const tx = JSON.stringify(x.contractId ?? x);
+      if (seenTx.has(tx)) continue;
+      seenTx.add(tx); fresh++;
+      const a = parseSamAward(x);
+      if (a) { parsed.push(a); raw.set(a.award_key, x); }
+    }
+    out.found += fresh;
+    const total = Number(r.json.totalRecords ?? NaN);
+    if (page.length < AWARDS_PAGE_SIZE || (Number.isFinite(total) && seenTx.size >= total)) break;
+    if (fresh === 0 && out.calls > 2) break; // nothing new past the offset check: stop rather than burn calls
+    paging = nextAwardOffset({ calls: out.calls, mode: paging.mode, seen: seenTx.size, newOnLastPage: fresh, lastPageSize: page.length });
+  }
+  out.budgetLeft = left;
+  const state = search.state?.toUpperCase() || null;
+  const rows = mergeAwards(parsed).filter((a) => !state || !a.pop_state || a.pop_state === state); // SAM filters the state; this is a backstop
+  out.kept = rows.length;
+  if (!rows.length) return out;
+  const { data: seen } = await db().from("gov_awards").select("award_key").in("award_key", rows.map((a) => a.award_key));
+  const known = new Set((seen ?? []).map((x) => x.award_key as string));
+  out.added = rows.filter((a) => !known.has(a.award_key)).length;
+  const upserts = rows.map((a) => {
+    const fit = recompeteFit(a, { homeState: state ?? "MI", certifications: s.certifications });
+    const sub = subFit(a, { homeState: state ?? "MI" });
+    return { ...a, fit_score: fit.score, fit, services: fit.services, sub_score: sub.score, sub_fit: sub, raw: raw.get(a.award_key) ?? null, updated_at: new Date().toISOString() };
+  });
+  const { error } = await db().from("gov_awards").upsert(upserts, { onConflict: "award_key" });
+  if (error) out.errors.push(error.message);
+  return out;
+}
+
+export async function setAwardStatus(awardKey: string, patch: { status?: string; notes?: string | null }) {
+  await db().from("gov_awards").update({ ...patch, updated_at: new Date().toISOString() }).eq("award_key", awardKey);
+}
+
+export interface PickResult { picked: { notice_id: string; title: string; bid_id: string | null; recommendation: string | null }[]; passed: number; errors: string[] }
+
+/**
+ * The AI bid desk: pick the day's best notices to propose on (pickBidCandidates), read each one (AI bid brief — one
+ * SAM.gov call for the text, within the budget), set aside the ones it says to pass on, open a draft bid for the rest
+ * (Hub → Bids: compliance matrix, pricing, pro quotes) and alert the team with the list.
+ */
+export async function govDailyPicks(n = 5, actor = "AI bid desk"): Promise<PickResult> {
+  const out: PickResult = { picked: [], passed: 0, errors: [] };
+  if (n <= 0) return out;
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const { count: already } = await db().from("gov_opportunities").select("notice_id", { count: "exact", head: true }).gte("picked_at", today.toISOString());
+  const want = Math.max(0, n - (already ?? 0));
+  if (!want) return out;
+  const { data } = await db().from("gov_opportunities").select("notice_id, title, status, fit_score, response_deadline, active, ptype, naics, picked_at").eq("status", "new").is("picked_at", null).gte("fit_score", 55).order("fit_score", { ascending: false }).limit(300);
+  const candidates = pickBidCandidates((data ?? []) as (Parameters<typeof pickBidCandidates>[0][number] & { title: string })[], { n: want * 2 });
+  const { createBid } = await import("./bids");
+  for (const c of candidates) {
+    if (out.picked.length >= want) break;
+    const brief = aiEnabled() ? await aiBidSummary(c.notice_id, actor).catch(() => null) : null;
+    const rec = brief?.ok ? brief.summary!.recommendation : null;
+    if (rec === "pass") {
+      await db().from("gov_opportunities").update({ status: "passed", picked_at: new Date().toISOString(), notes: `AI bid desk: pass — ${brief!.summary!.reason}`.slice(0, 2000), updated_at: new Date().toISOString() }).eq("notice_id", c.notice_id);
+      out.passed++; continue;
+    }
+    if (brief && !brief.ok && brief.error) out.errors.push(brief.error);
+    const bid = await createBid({ notice_id: c.notice_id }, actor).catch((e) => ({ ok: false as const, error: String(e) }));
+    await db().from("gov_opportunities").update({ picked_at: new Date().toISOString(), owner: actor, status: bid.ok ? "bidding" : "reviewing", updated_at: new Date().toISOString() }).eq("notice_id", c.notice_id);
+    out.picked.push({ notice_id: c.notice_id, title: c.title, bid_id: bid.ok ? bid.id ?? null : null, recommendation: rec });
+  }
+  if (out.picked.length) {
+    const lines = out.picked.map((p, i) => `${i + 1}. ${p.title}${p.recommendation ? ` — AI: ${p.recommendation}` : " — AI brief pending (open the notice)"}${p.bid_id ? ` · Hub → Bids → /hub/bids/${p.bid_id}` : ""}`);
+    await raiseAlert("gov", "warn", `Today's ${out.picked.length} government bids to work`, `${lines.join("\n")}\n\nFor each: download the solicitation and attachments from SAM.gov, upload them to the bid (the AI builds the compliance matrix and price lines), ask pros for prices, then review and submit before the deadline.${out.passed ? `\n\n${out.passed} other notice(s) were set aside as 'pass' (see Gov contracts → Passed).` : ""}`);
+  }
+  return out;
+}
+
+/** The daily run (cron): the saved opportunities search when switched on, plus the awards search on Mondays. */
 export async function govEngine() {
   const s = await getGovSettings();
-  if (!s.enabled) return { skipped: "off" };
+  if (!s.enabled && !s.awards_enabled) return { skipped: "off" };
   if (!govReady()) return { skipped: "no SAM_API_KEY" };
-  const r = await runGovSearch(s, "engine");
+  const r: { opportunities?: GovRunResult; awards?: AwardRunResult; picks?: PickResult } = {};
+  if (s.enabled) r.opportunities = await runGovSearch(s, "engine");
+  if (s.enabled && s.daily_picks > 0) r.picks = await govDailyPicks(s.daily_picks).catch((e) => ({ picked: [], passed: 0, errors: [String(e)] }));
+  if (s.awards_enabled && new Date().getUTCDay() === 1) r.awards = await runAwardSearch({ naics: s.awards_naics, state: s.state, keywords: null, months_back: s.awards_months_back, pages: s.awards_pages }, "engine");
   await db().from("gov_settings").update({ last_run_at: new Date().toISOString(), last_result: r }).eq("id", 1);
   return r;
 }

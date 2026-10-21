@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-06_2105 UTC — real company contact: info@handledsvc.com · (313) 639-9373 (env vars still override).
  * PURPOSE : Single place to rename/rebrand the company. "Handled" is a working name —
  *           run a trademark search before launch and change it here.
+ * UPDATED : 2026-10-15_0300 UTC — promise: "25% books your pro — pay the rest when it's done."
  */
 
 // Contact details come from env so going live needs no code change:
@@ -44,6 +45,6 @@ export const BRAND = {
   closedWeekdays: [0] as number[],
   /** How far ahead customers can book on the calendar. */
   bookingHorizonDays: 45, // customers can book up to ~6 weeks out ("within a month" and beyond)
-  /** Paid upfront, always — made right with a free redo, a free extra service or a refund. */
-  promise: "Pay upfront to lock in your pro. Not right? Free redo or your money back within 30 days.",
+  /** 25% books the pro, the rest when it's done — made right with a free redo, a free extra service or a refund. */
+  promise: "25% books your pro — pay the rest when it's done. Not right? Free redo or your money back within 30 days.",
 } as const;

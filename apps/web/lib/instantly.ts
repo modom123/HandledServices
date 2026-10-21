@@ -12,12 +12,20 @@
  *             INSTANTLY_WEBHOOK_SECRET — any long random string, also put in the webhook URL (?secret=)
  *             INSTANTLY_BIZ_CAMPAIGN_ID — a second campaign for the business sales engine (same template style)
  * UPDATED : 2026-10-04_1934 UTC — a campaign per lead (pro recruiting vs business sales).
+ * UPDATED : 2026-10-19_2230 UTC — listCampaignLeads (pull every lead in the business campaign, including ones uploaded
+ *           straight into Instantly, into Hub → Business leads) and isBizCampaign (route webhook events by campaign).
+ * UPDATED : 2026-10-21_0130 UTC — listReceivedEmails: replies pulled from the API (Instantly's webhooks need its Hypergrowth
+ *           plan; the API works on every paid plan), so replies reach the CRM and the AI reply agent without webhooks.
  */
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 
 const BASE = "https://api.instantly.ai/api/v2";
 export const instantlyBizReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
+/** Pulling leads from the business campaign only needs the key and the campaign id. */
+export const instantlyBizSyncReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID);
+/** The webhook event belongs to the business campaign (e.g. 1ST OUTREACH DETROIT). */
+export const isBizCampaign = (id: unknown) => Boolean(typeof id === "string" && id && id === process.env.INSTANTLY_BIZ_CAMPAIGN_ID?.trim());
 export const instantlyReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
 
 async function call(path: string, body: unknown) {
@@ -57,6 +65,53 @@ export async function addLeadToCampaign(l: InstantlyLead): Promise<string | null
     skip_if_in_workspace: true,
   });
   return typeof j.id === "string" ? j.id : null;
+}
+
+export interface InstantlyCampaignLead {
+  id: string; email: string; first_name: string | null; last_name: string | null; company_name: string | null;
+  phone: string | null; website: string | null; replies: number; clicks: number; opens: number;
+  /** Instantly's interest flag: 1 interested, 0 neutral / not set, -1 not interested (and other negatives). */
+  interest: number | null;
+  variables: Record<string, unknown>;
+}
+
+/** One page (up to 100) of the leads in a campaign, and the cursor for the next page (null at the end). */
+export async function listCampaignLeads(campaign: string, startingAfter: string | null): Promise<{ leads: InstantlyCampaignLead[]; next: string | null }> {
+  const j = await call("/leads/list", { campaign, limit: 100, ...(startingAfter ? { starting_after: startingAfter } : {}) });
+  const items = Array.isArray(j.items) ? (j.items as Record<string, unknown>[]) : [];
+  const s = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const leads = items.filter((x) => s(x.email)?.includes("@")).map((x) => ({
+    id: String(x.id ?? ""), email: s(x.email)!.toLowerCase(), first_name: s(x.first_name), last_name: s(x.last_name), company_name: s(x.company_name),
+    phone: s(x.phone), website: s(x.website), replies: n(x.email_reply_count), clicks: n(x.email_click_count), opens: n(x.email_open_count),
+    interest: x.lt_interest_status == null ? null : n(x.lt_interest_status),
+    variables: (x.payload && typeof x.payload === "object" ? x.payload : {}) as Record<string, unknown>,
+  }));
+  return { leads, next: s(j.next_starting_after) };
+}
+
+export const instantlyWebhooksOn = () => Boolean(process.env.INSTANTLY_WEBHOOK_SECRET?.trim());
+
+export interface InstantlyReply { id: string; lead: string; text: string | null; subject: string | null; at: string | null }
+
+/** Replies received in a campaign, newest first (one page of up to 100) and the cursor for the next page. */
+export async function listReceivedEmails(campaign: string, startingAfter: string | null): Promise<{ replies: InstantlyReply[]; next: string | null }> {
+  const q = new URLSearchParams({ campaign_id: campaign, email_type: "received", limit: "100", ...(startingAfter ? { starting_after: startingAfter } : {}) });
+  const r = await fetch(`${BASE}/emails?${q}`, { headers: { Authorization: `Bearer ${process.env.INSTANTLY_API_KEY}` }, signal: AbortSignal.timeout(15000) });
+  const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!r.ok) throw new Error(`instantly /emails ${r.status}: ${JSON.stringify(j).slice(0, 300)}`);
+  const s = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const items = Array.isArray(j.items) ? (j.items as Record<string, unknown>[]) : [];
+  const replies = items.map((x) => {
+    const body = (x.body && typeof x.body === "object" ? x.body : {}) as Record<string, unknown>;
+    const html = s(body.html);
+    return {
+      id: String(x.id ?? ""), lead: (s(x.lead) ?? s(x.from_address_email) ?? "").toLowerCase(),
+      text: s(body.text) ?? (html ? html.replace(/<br\s*\/?>|<\/p>/gi, "\n").replace(/<[^>]+>/g, "").trim() : null) ?? s(x.content_preview),
+      subject: s(x.subject), at: s(x.timestamp_email) ?? s(x.timestamp_created),
+    };
+  }).filter((x) => x.id && x.lead.includes("@"));
+  return { replies, next: s(j.next_starting_after) };
 }
 
 /** Never email this address again from Instantly (applied, unsubscribed through us, or asked not to be contacted). */

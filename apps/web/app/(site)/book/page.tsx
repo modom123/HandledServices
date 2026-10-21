@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-04_2204 UTC — ?pro=<id>&crew=<id>: "Book again with …" (only a favorite or past pro of the signed-in customer).
  * UPDATED : 2026-10-05_0447 UTC — ?photos=&notes= from Snap & post a job (photos limited to our upload folder).
  * UPDATED : 2026-10-12_0005 UTC — signed-in customers pick one of My homes (?home=<id> preselects it).
+ * UPDATED : 2026-10-20_0200 UTC — ?quote=&bid=: book a request-a-quote at the pro's locked price.
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";
@@ -18,7 +19,8 @@ import { memberOf, openBalance, type Property } from "@/lib/business";
 import { adminClient } from "@/lib/supabase/server";
 import { termsDecision } from "@handled/core";
 import { bookingPreference } from "@/lib/favorites";
-import type { HomeChoice, PreferredPro } from "@/components/BookingWizard";
+import type { BookedQuote, HomeChoice, PreferredPro } from "@/components/BookingWizard";
+import { requestByToken } from "@/lib/quotes";
 
 /** ?pro=&crew=: the signed-in customer's favorite or past pro (anything else is ignored). */
 async function preferredPro(pro: string, crew?: string): Promise<PreferredPro | undefined> {
@@ -62,10 +64,21 @@ async function savedHomes(): Promise<{ signedIn: boolean; homes: HomeChoice[] }>
     .map((h) => ({ id: h.id, label: h.label, address: h.address, city: h.city, state: h.state, zip: h.zip, hasAccess: Boolean(h.entry_instructions || h.key_info || h.key_holder) })) };
 }
 
+/** ?quote=<request token>&bid=<id>: booking a request-a-quote at the pro's locked price (checked again at booking). */
+async function bookedQuote(token?: string, bid?: string): Promise<{ quote: BookedQuote; service: string } | undefined> {
+  if (!token || !bid) return undefined;
+  const r = await requestByToken(token).catch(() => null);
+  const q = r?.quotes.find((x) => x.id === bid && x.status === "quoted");
+  if (!r || !q?.price || !["open", "quoted"].includes(r.request.status)) return undefined;
+  return { quote: { request: token, bid, price: Number(q.price), pro: q.contractors?.business_name ?? "Your pro" }, service: r.request.service_slug };
+}
+
 export const metadata = { title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { service, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, ...rest } = await searchParams;
+  const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, ...rest } = await searchParams;
+  const quoted = await bookedQuote(quoteToken, bid);
+  const service = quoted?.service ?? svcParam;
   // from "Snap & post a job": the uploaded photos and the note come along
   const initialPhotos = (photos ?? "").split(",").filter((p) => /^booking\/[\w\-./]+$/.test(p) && !p.includes("..")).slice(0, 8);
   const business = property ? await businessBooking(property) : undefined;
@@ -77,7 +90,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   return (
     <div className="wrap py-12">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t(locale, "Get your price & book")}</h1>
-      <BookingWizard business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={notes?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
+      <BookingWizard quote={quoted?.quote ?? null} business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={notes?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
     </div>
   );
 }

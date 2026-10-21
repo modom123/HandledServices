@@ -42,12 +42,17 @@
  * UPDATED : 2026-10-07_1900 UTC — pro offer texts show the expiry in the job's time zone (PT for Washington, ET for Michigan).
  * UPDATED : 2026-10-12_0005 UTC — saved home profiles: home_id / access_info / save_home on bookings (entry details only for the assigned pro).
  * UPDATED : 2026-10-11_0608 UTC — remote services: no area price level, the booked ZIP isn't added to a service area, and the free site visit is a video consultation (customer email + pro offer wording).
+ * UPDATED : 2026-10-15_0300 UTC — book now, pay after: payment_plan "after" (25% at booking; the balance is held on the card when the
+ *           pro starts — holdBalance — and charged when the job is complete — chargeAfterBalance / collectBalances), pay in full = 5% off from our share (also on
+ *           recurring visits). A pro can be assigned and start once the 25% is in (clearedForWork); their payout never waits on the customer.
+ * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
+ * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  */
 import "server-only";
 import { z } from "zod";
 import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
-  neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, memberSaving, serviceText, t,
+  neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -58,7 +63,7 @@ import { aiQualityCheck } from "./ai/qa";
 import { signedUrls } from "./photos";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
-import { amountDue, chargeSavedCard, paymentCheckoutUrl } from "./stripe";
+import { amountDue, captureHold, chargeSavedCard, depositDue, holdOnSavedCard, paymentCheckoutUrl, releaseHold } from "./stripe";
 import { invoiceUrl, readQuoteToken } from "./invoice";
 import { syncCatalog } from "./catalog";
 import { sendSms } from "./sms";
@@ -84,7 +89,8 @@ export const BookingSchema = z.object({
   photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   source: z.enum(["web", "mobile", "business", "phone", "ai_chat"]).default("web"),
   accept_terms: z.literal(true, { message: "Please accept the Service Agreement" }),
-  payment_plan: z.enum(["full", "deposit"]).default("full"),
+  /** "after" = 25% now, the rest charged after the job; "full" = pay now, 5% off; "deposit" = events and site-visit work. */
+  payment_plan: z.enum(["full", "deposit", "after"]).default("full"),
   /** From /api/quote: books at exactly the price the customer saw. */
   quote_token: z.string().max(20000).nullable().optional(),
   /** How soon they need it and what they want to spend (tracked; budget never changes the price). */
@@ -92,6 +98,10 @@ export const BookingSchema = z.object({
   customer_budget: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
   /** Name your price: what the customer offers (total, booking fee included). Within OFFER_BOUNDS of our suggestion. */
   customer_offer: z.coerce.number().min(1).max(10_000_000).nullable().optional(),
+  /** Booked at a pro's own price (Hub marketplace): the pro and the all-in price the customer saw (checked again here). */
+  pro_choice: z.object({ pro_id: z.string().uuid(), price: z.coerce.number().min(1).max(10_000_000) }).nullable().optional(),
+  /** Booked from a request-a-quote: the request's token and the chosen pro's quote. */
+  quote_bid: z.object({ request: z.string().regex(/^[a-z0-9]{12,40}$/), bid: z.string().uuid() }).nullable().optional(),
   /** Promo code, gift card or referral code typed at checkout. */
   promo_code: z.string().max(40).nullable().optional(),
   /** First-touch marketing source (utm_*, referrer, landing page) for "where bookings come from". */
@@ -114,6 +124,7 @@ export const BookingSchema = z.object({
 export type BookingInput = z.infer<typeof BookingSchema>;
 
 const db = () => adminClient();
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 // ── Spanish helpers ──
 /** Spanish service name ("" when unknown). */
@@ -137,7 +148,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
   const { applyMeasurements, missingMeasurements } = await import("@handled/core");
@@ -160,6 +171,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     : "We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach your area.");
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
+  // request-a-quote: the pro's firm quote is the price (no site visit, no AI re-price)
+  const quoted = quote_bid ? await (await import("./quotes")).bookableQuoteBid(quote_bid.request, quote_bid.bid, svc.slug) : null;
+  if (quote_bid && !quoted) throw new Error("That quote isn't available any more — open your quotes link to pick another.");
   const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
   const region = await (await import("./launch")).regionFactor(input.zip, svc.slug); // area price level (Seattle area +25%, rest of WA +20%)
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush, market, region });
@@ -167,12 +181,12 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const q = readQuoteToken(quote_token);
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
     && JSON.stringify(q.photos) === JSON.stringify(input.photos) && (q.notes ?? null) === (input.notes?.trim() || null) && q.rush === rush;
-  const { ai } = svc.siteVisit
+  const { ai } = svc.siteVisit || quoted
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
-  const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
+  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
@@ -182,15 +196,21 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     instructions = `TWO VISITS. Drop off the ${input.answers.size ?? 15}-yard container on ${fmt(new Date(`${input.scheduled_date}T12:00:00`))} (${input.time_window}); pick it up on ${fmt(pickup)}. Use driveway boards. Upload the landfill weigh ticket as a receipt — any weight over the allowance is billed to the customer at cost.`;
   }
-  const suggested = siteVisit ? null : ai?.final_price ?? est.point;
+  const suggested = siteVisit ? null : quoted ? quoted.price : ai?.final_price ?? est.point;
+  // a pro's own price (their % of our suggestion), recomputed here so the customer pays exactly what they were shown
+  const proPick = !quoted && pro_choice && suggested
+    ? await (await import("./pro-prices")).chosenProPrice({ slug: svc.slug, proId: pro_choice.pro_id, suggested, zip: input.zip, date: input.scheduled_date, window: input.time_window, customerType: input.customer_type })
+    : null;
+  if (pro_choice && !quoted && suggested && !proPick) throw new Error("That pro can't take this job on that day — pick another price.");
+  if (proPick && proPick.price !== Math.round(pro_choice!.price)) throw new Error(`Prices just updated: ${proPick.name} is now ${money(proPick.price)} for this job. Check the price and book again.`);
   // Name your price: the customer's offer replaces our suggestion (within bounds); pros see the pay it makes and decide
   let offer: number | null = null;
-  if (suggested && customer_offer && Math.round(customer_offer) !== suggested) {
+  if (suggested && !proPick && !quoted && customer_offer && Math.round(customer_offer) !== suggested) {
     const chk = offerCheck(Math.round(customer_offer), suggested);
     if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.min)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
     offer = Math.round(customer_offer);
   }
-  const listPrice = offer ?? suggested;
+  const listPrice = proPick?.price ?? offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
   // Plus member saving and promo codes come out of our share (the pro's payout is set on the list price)
   const rushFee = rush && listPrice ? Math.round(listPrice - listPrice / (1 + RUSH_SURCHARGE)) : 0;
@@ -208,12 +228,22 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const decision = termsDecision(biz.account, await (await import("./business")).openBalance(biz.account.id), price);
     acct = { pilot, ...decision };
   }
-  const pref = await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
+  // the pro the customer chose (their price or their quote) gets the first look; otherwise favorites as before
+  const pick = quoted?.contractor_id ?? proPick?.pro_id ?? null;
+  const pref = pick ? { preferred_contractor_id: pick, requested_crew_member_id: null } : await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
+  // how they pay: 25% now and the rest after the job, a deposit (events, site-visit work), or in full now with 5% off
   const dep = price && !acct?.onTerms ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
-  const plan = payment_plan === "deposit" && dep?.allowed ? dep : null;
-  const { data, error } = await db()
-    .from("jobs")
-    .insert({
+  const after = price && !acct?.onTerms ? bookNowPolicy(svc.slug, price) : null;
+  const chosen = resolvePlan(payment_plan, Boolean(dep?.allowed), Boolean(after?.allowed));
+  const plan = chosen === "deposit" ? dep : null;
+  const later = chosen === "after" ? after : null;
+  let saving = 0;
+  if (price && listPrice && payout && !plan && !later && !acct?.onTerms) {
+    const room = capDiscount(listPrice, payout, Number.MAX_SAFE_INTEGER) - (ben?.promoAmount ?? 0) - (ben?.memberBenefit ?? 0) - (acct?.pilot ?? 0);
+    saving = payInFullSaving(price, room);
+    price = r2(price - saving);
+  }
+  const row: Record<string, unknown> = {
       ...input,
       notes: [input.notes, home?.notes].filter(Boolean).join("\n") || null,
       // only sent when used, so bookings keep working before the saved-homes migration is run
@@ -231,7 +261,10 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       estimate_high: ai?.high ?? est.high,
       price_final: price,
       contractor_payout: payout,
-      discount: (ben?.promoAmount ?? 0) + (acct?.pilot ?? 0),
+      // every saving from our share sits in discount, so price + discount + member_benefit is always the list price the pro's pay is set on
+      discount: (ben?.promoAmount ?? 0) + (acct?.pilot ?? 0) + saving,
+      // only sent when used, so bookings keep working before the book-now migration is run (see the fallback below)
+      ...(saving ? { pay_in_full_discount: saving } : {}),
       member_benefit: ben?.memberBenefit ?? 0,
       promo_code: ben?.promoCode && !ben.isGift && ben.promoAmount > 0 ? ben.promoCode : null,
       ai_quote: ai,
@@ -239,20 +272,28 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       urgency: input.urgency ?? null,
       needed_by: input.urgency ? neededBy(input.urgency) : input.scheduled_date ?? null,
       customer_budget: input.customer_budget || null,
-      payment_plan: plan ? "deposit" : "full",
-      deposit_amount: plan?.amount ?? null,
+      payment_plan: plan ? "deposit" : later ? "after" : "full",
+      deposit_amount: plan?.amount ?? later?.amount ?? null,
       balance_due_date: plan?.balanceDue ?? null,
       suggested_price: suggested,
       customer_offer: offer,
+      // only sent when used, so bookings keep working before the marketplace migration is run
+      ...(quoted ? { priced_by: "quote" } : proPick ? { priced_by: "pro_rate", pro_rate_pct: proPick.pct } : {}),
       booking_fee: listPrice ? bookingFeeOf(listPrice) : 0,
       terms_version: SERVICE_AGREEMENT_VERSION,
       terms_accepted_at: new Date().toISOString(),
       terms_accepted_ip: ip,
-    })
-    .select("*")
-    .single();
+    };
+  let { data, error } = await db().from("jobs").insert(row).select("*").single();
+  if (error && (later || saving) && /payment_plan|pay_in_full_discount|balance_/.test(error.message)) {
+    // the book-now migration hasn't been run yet: book the old way (full price, no saving) rather than fail the customer
+    await raiseAlert("setup", "critical", "Run ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql", `Booking fell back to pay-in-full without the 5% saving: ${error.message}`).catch(() => {});
+    const { pay_in_full_discount: _s, ...old } = row;
+    ({ data, error } = await db().from("jobs").insert({ ...old, payment_plan: "full", deposit_amount: null, price_final: r2(Number(row.price_final ?? 0) + saving) || row.price_final, discount: Number(row.discount ?? 0) - saving }).select("*").single());
+  }
   if (error) throw new Error(error.message);
   let job = data as Job;
+  if (quoted) await (await import("./quotes")).quoteBooked(quoted.request_id, quoted.id, job.id).catch((e) => console.error("[quotes]", e));
   // entry details (lockbox, key) live in job_access: readable only by the assigned pro, the customer and staff
   const access = home?.access ?? (access_info?.trim() || null);
   if (access) await db().from("job_access").insert({ job_id: job.id, access_info: access.slice(0, 1500), updated_by: "booking" }).then(async ({ error: e }) => {
@@ -278,6 +319,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
 export async function onBooked(job: Job, paymentUrl: string | null) {
+  // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
+  await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
   const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
@@ -362,26 +405,33 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   const { data } = await db().from("jobs").update(patch).eq("id", jobId).select("*").single();
   const paid = data as Job;
   const balance = Math.max(0, price - paidNow);
-  const label = p.kind === "change_order" ? "Change order paid" : full ? (firstPayment ? "Paid in full" : "Balance paid — paid in full") : "Deposit received";
-  const labelEs = p.kind === "change_order" ? "Trabajo adicional pagado" : full ? (firstPayment ? "Pagado por completo" : "Saldo pagado — pagado por completo") : "Depósito recibido";
-  const dueEs = paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "antes del trabajo";
+  const after = paid.payment_plan === "after";
+  // paid some other way (a link, staff charge) while a hold sat on the card: let the hold go
+  if (full && job.balance_hold_intent && p.via !== "card hold") {
+    await releaseHold(job.balance_hold_intent);
+    await db().from("jobs").update({ balance_hold_intent: null }).eq("id", jobId);
+  }
+  const label = p.kind === "change_order" ? "Change order paid" : full ? (firstPayment ? "Paid in full" : "Balance paid — paid in full") : after ? "25% received — you're booked" : "Deposit received";
+  const labelEs = p.kind === "change_order" ? "Trabajo adicional pagado" : full ? (firstPayment ? "Pagado por completo" : "Saldo pagado — pagado por completo") : after ? "25% recibido — su reserva está hecha" : "Depósito recibido";
+  const dueEs = after ? "cuando el trabajo esté terminado" : paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "antes del trabajo";
+  const dueEn = after ? "when the job is done" : paid.balance_due_date ?? "before the job";
   const svcNameEs = svcEs(job.service_slug);
-  await addEvent(jobId, "paid", `${label} — ${money(p.amount)}${!full ? ` · balance ${money(balance)} due ${paid.balance_due_date ?? "before the job"}` : ""}.`, p.via, true,
+  await addEvent(jobId, "paid", `${label} — ${money(p.amount)}${!full ? ` · balance ${money(balance)} due ${dueEn}` : ""}.`, p.via, true,
     `${labelEs} — ${money(p.amount)}${!full ? ` · saldo de ${money(balance)}, vence ${dueEs}` : ""}.`);
   if (firstPayment || full || p.kind === "change_order") await notify(paid.customer_id, {
-    title: full ? (firstPayment ? "Paid — you're locked in" : "Paid in full ✓") : "Deposit received — date locked in",
-    body: !full ? `Balance ${money(balance)} is charged to your card on ${paid.balance_due_date ?? "the day before"}.` : paid.contractor_id ? `Your ${svc?.name} is confirmed.` : `We're matching your ${svc?.name} with a vetted pro now.`,
+    title: full ? (firstPayment ? "Paid — you're locked in" : "Paid in full ✓") : after ? "25% received — you're booked" : "Deposit received — date locked in",
+    body: !full ? (after ? `The rest (${money(balance)}) is charged to your card when the job is done.` : `Balance ${money(balance)} is charged to your card on ${paid.balance_due_date ?? "the day before"}.`) : paid.contractor_id ? `Your ${svc?.name} is confirmed.` : `We're matching your ${svc?.name} with a vetted pro now.`,
     data: { type: "job", jobId: paid.id },
     sms: firstPayment ? { to: paid.contact_phone, body: `${BRAND.name}: ${label.toLowerCase()} for your ${svc?.name} (${paid.ref}). ${paid.contractor_id ? "Your pro is confirmed." : "We're matching a vetted pro now — we'll text you when it's covered."} ${siteUrl()}/account/jobs/${paid.id}` } : null,
     email: { to: paid.contact_email, subject: `${label} — ${svc?.name} (${paid.ref})`,
-      text: `Thanks! We received ${money(p.amount)}.${!full ? ` Your date is locked in. The balance of ${money(balance)} will be charged to the card you used on ${paid.balance_due_date ?? "the day before your job"}.` : ""} ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
+      text: `Thanks! We received ${money(p.amount)}.${!full ? (after ? ` Your date is locked in. You pay the rest (${money(balance)}) when the job is done: when your pro starts we place a hold for it on the card you used, and we charge it once the work is finished and the photos are in.` : ` Your date is locked in. The balance of ${money(balance)} will be charged to the card you used on ${paid.balance_due_date ?? "the day before your job"}.`) : ""} ${paid.contractor_id ? "Your pro is confirmed." : "We're matching you with a vetted pro now — you'll get a notification the moment your job is covered."}\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\nTrack it: ${siteUrl()}/account\n\n${BRAND.promise}` },
     locale: paid.locale,
     es: {
-      title: full ? (firstPayment ? "Pagado — su reserva está asegurada" : "Pagado por completo ✓") : "Depósito recibido — fecha asegurada",
-      body: !full ? `El saldo de ${money(balance)} se cobrará a su tarjeta ${paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "el día anterior"}.` : paid.contractor_id ? `Su ${svcNameEs} está confirmado.` : `Estamos asignando un profesional verificado para su ${svcNameEs}.`,
+      title: full ? (firstPayment ? "Pagado — su reserva está asegurada" : "Pagado por completo ✓") : after ? "25% recibido — su reserva está hecha" : "Depósito recibido — fecha asegurada",
+      body: !full ? (after ? `El resto (${money(balance)}) se cobra a su tarjeta cuando el trabajo esté terminado.` : `El saldo de ${money(balance)} se cobrará a su tarjeta ${paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "el día anterior"}.`) : paid.contractor_id ? `Su ${svcNameEs} está confirmado.` : `Estamos asignando un profesional verificado para su ${svcNameEs}.`,
       sms: `${BRAND.name}: ${labelEs.toLowerCase()} para su ${svcNameEs} (${paid.ref}). ${paid.contractor_id ? "Su profesional está confirmado." : "Estamos asignando un profesional verificado — le avisaremos por mensaje cuando esté cubierto."} ${siteUrl()}/account/jobs/${paid.id}`,
       subject: `${labelEs} — ${svcNameEs} (${paid.ref})`,
-      text: `¡Gracias! Recibimos ${money(p.amount)}.${!full ? ` Su fecha está asegurada. El saldo de ${money(balance)} se cobrará a la tarjeta que usó ${paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "el día antes de su trabajo"}.` : ""} ${paid.contractor_id ? "Su profesional está confirmado." : "Estamos asignándole un profesional verificado — recibirá una notificación en cuanto su trabajo esté cubierto."}\n\nFactura y acuerdo de servicio: ${invoiceUrl(paid.id)}\nSiga su reserva: ${siteUrl()}/account\n\n${PROMISE_ES}`,
+      text: `¡Gracias! Recibimos ${money(p.amount)}.${!full ? (after ? ` Su fecha está asegurada. Usted paga el resto (${money(balance)}) cuando el trabajo esté terminado: cuando su profesional comienza, reservamos ese monto en la tarjeta que usó, y lo cobramos cuando el trabajo esté listo y las fotos estén cargadas.` : ` Su fecha está asegurada. El saldo de ${money(balance)} se cobrará a la tarjeta que usó ${paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "el día antes de su trabajo"}.`) : ""} ${paid.contractor_id ? "Su profesional está confirmado." : "Estamos asignándole un profesional verificado — recibirá una notificación en cuanto su trabajo esté cubierto."}\n\nFactura y acuerdo de servicio: ${invoiceUrl(paid.id)}\nSiga su reserva: ${siteUrl()}/account\n\n${PROMISE_ES}`,
     },
   });
   if (p.kind === "change_order" && paid.contractor_id) {
@@ -402,9 +452,69 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   return paid;
 }
 
+/**
+ * "Pay after" job: the pro has started — hold the balance on the saved card (nothing is charged yet). A declined card is
+ * caught now, while the pro is there: the customer is asked to update it and dispatch is told. The work goes on either way
+ * (the 25% is in); the balance is then charged after the job, or collected with a payment link.
+ */
+export async function holdBalance(job: Job) {
+  if (job.payment_plan !== "after" || job.paid_at || job.balance_hold_intent) return;
+  const due = amountDue(job, "balance");
+  if (!due) return;
+  const r = await holdOnSavedCard(job, due);
+  if ("id" in r) {
+    await db().from("jobs").update({ balance_hold_intent: r.id }).eq("id", job.id);
+    await addEvent(job.id, "balance_hold", `${money(due)} held on your card for the rest of the job — charged when the work is done.`, "system", true,
+      `Se reservaron ${money(due)} en su tarjeta para el resto del trabajo; se cobran cuando el trabajo esté terminado.`);
+    return;
+  }
+  await addEvent(job.id, "balance_hold", `Couldn't hold the balance on the card: ${r.error}`, "system", false);
+  await notify(job.customer_id, {
+    title: "Please update your card", body: `We couldn't place the ${money(due)} balance for your ${getService(job.service_slug)?.name} on your card. Update it so we can finish up smoothly.`,
+    data: { type: "job", jobId: job.id },
+    sms: { to: job.contact_phone, body: `${BRAND.name}: your pro has started your ${getService(job.service_slug)?.name} (${job.ref}). We couldn't hold the ${money(due)} balance on your card — please update it: ${siteUrl()}/account/jobs/${job.id}` },
+    locale: job.locale,
+    es: { title: "Actualice su tarjeta", body: `No pudimos reservar el saldo de ${money(due)} de su ${svcEs(job.service_slug)} en su tarjeta. Actualícela para terminar sin problemas.`,
+      sms: `${BRAND.name}: su profesional comenzó su ${svcEs(job.service_slug)} (${job.ref}). No pudimos reservar el saldo de ${money(due)} en su tarjeta — actualícela: ${siteUrl()}/account/jobs/${job.id}` },
+  });
+  await raiseAlert("payment", "warn", `${job.ref}: balance hold failed at start (${money(due)})`, `${r.error}. The pro is working; the balance is charged when the job is done or collected with a payment link.`, job.id);
+}
+
+/**
+ * "Pay after" job: take the balance — capture the hold placed when the pro started, else charge the saved card. On
+ * failure: payment link, the customer told, dispatch alerted, and another try in a day (up to BOOK_NOW.maxAttempts).
+ */
+export async function chargeAfterBalance(job: Job): Promise<boolean> {
+  const due = amountDue(job, "balance");
+  if (!due || job.paid_at) return true;
+  const held = job.balance_hold_intent ? await captureHold(job, job.balance_hold_intent, due) : 0;
+  // a hold that couldn't be captured (expired, or the amount changed) is let go before charging the card instead
+  if (job.balance_hold_intent && !held) await releaseHold(job.balance_hold_intent);
+  const got = held + (held < due - 0.005 ? await chargeSavedCard(job, r2(due - held), "balance", `after-${Number(job.balance_attempts ?? 0)}`) : 0);
+  if (got > 0) await markPaid(job.id, { amount: r2(got), via: held ? "card hold" : "saved card", kind: "balance" });
+  if (got >= due - 0.005) {
+    await db().from("jobs").update({ balance_charge_at: null }).eq("id", job.id);
+    return true;
+  }
+  const attempts = Number(job.balance_attempts ?? 0) + 1;
+  const left = r2(due - got);
+  await db().from("jobs").update({ balance_attempts: attempts, balance_charge_at: attempts < BOOK_NOW.maxAttempts ? nextBalanceTry() : null, balance_hold_intent: null }).eq("id", job.id);
+  const fresh = (await getJob(job.id)) ?? job;
+  await sendPaymentLink(fresh);
+  await notify(job.customer_id, { title: "Balance due", body: `Your ${getService(job.service_slug)?.name} is done. Please pay the ${money(left)} balance — your card didn't go through.`, data: { type: "job", jobId: job.id },
+    locale: job.locale, es: { title: "Saldo pendiente", body: `Su ${svcEs(job.service_slug)} está terminado. Por favor pague el saldo de ${money(left)}: su tarjeta no pasó.` } });
+  await raiseAlert("payment", attempts >= BOOK_NOW.maxAttempts ? "critical" : "warn", `${job.ref}: balance ${money(left)} unpaid after the job (try ${attempts} of ${BOOK_NOW.maxAttempts})`,
+    attempts >= BOOK_NOW.maxAttempts ? "Automatic tries are done — collect by hand (call, or Hub → Payments → charge saved card / send link). The pro has been paid as usual." : "Payment link sent; we try the card again tomorrow. The pro has been paid as usual.", job.id);
+  return false;
+}
+
 /** Daily: charge balances that are due to the saved card; payment link + alert if that fails. */
 export async function collectBalances() {
   const today = new Date().toISOString().slice(0, 10);
+  // "pay after" jobs whose balance failed: try again (a day apart, up to BOOK_NOW.maxAttempts)
+  const { data: retry } = await db().from("jobs").select("*").eq("payment_plan", "after").eq("status", "completed").is("paid_at", null).lte("balance_charge_at", new Date().toISOString()).lt("balance_attempts", BOOK_NOW.maxAttempts);
+  let retried = 0;
+  for (const job of (retry ?? []) as Job[]) if (await chargeAfterBalance(job)) retried++;
   const { data } = await db().from("jobs").select("*").eq("payment_plan", "deposit").not("deposit_paid_at", "is", null).is("paid_at", null).lte("balance_due_date", today).neq("status", "cancelled");
   let charged = 0, linked = 0;
   for (const job of (data ?? []) as Job[]) {
@@ -418,23 +528,23 @@ export async function collectBalances() {
     await raiseAlert("payment", "warn", `${job.ref}: balance ${money(due)} unpaid`, "Saved card failed or missing — payment link sent. The pro can't start until it's paid.", job.id);
     linked++;
   }
-  return { charged, linked };
+  return { charged, linked, retried };
 }
 
 /** Fresh payment link (email + returned URL). */
 export async function sendPaymentLink(job: Job) {
   const url = await paymentCheckoutUrl(job);
-  const deposit = job.payment_plan === "deposit" && !job.deposit_paid_at && !Number(job.amount_paid);
+  const deposit = depositDue(job);
   const amt = amountDue(job, deposit ? "deposit" : "full");
   if (url && (await localeOf(job.customer_id, job.locale)) === "es") {
     const kindEs = deposit ? "depósito " : Number(job.amount_paid) ? "saldo " : "";
     await sendEmail(job.contact_email, `${BRAND.name}: pague ${kindEs ? `el ${kindEs}de ` : ""}${money(amt)} para ${job.ref}`,
-      `Su ${svcEs(job.service_slug)}: ${deposit ? `un depósito de ${money(amt)} asegura su fecha (saldo pendiente ${job.balance_due_date ? `el ${dayEs(job.balance_due_date)}` : "antes del trabajo"}).` : Number(job.amount_paid) ? `saldo restante de ${money(amt)}.` : `${money(amt)}, pagado por adelantado para asegurar a su profesional.`}\n\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\nPague de forma segura aquí: ${url}\n\n${PROMISE_ES}`);
+      `Su ${svcEs(job.service_slug)}: ${deposit ? (job.payment_plan === "after" ? `${money(amt)} (25%) asegura su fecha; el resto se cobra cuando el trabajo esté terminado.` : `un depósito de ${money(amt)} asegura su fecha (saldo pendiente ${job.balance_due_date ? `el ${dayEs(job.balance_due_date)}` : "antes del trabajo"}).`) : Number(job.amount_paid) ? `saldo restante de ${money(amt)}.` : `${money(amt)}, pagado por adelantado para asegurar a su profesional.`}\n\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\nPague de forma segura aquí: ${url}\n\n${PROMISE_ES}`);
     await sendSms(job.contact_phone, `${BRAND.name}: ${kindEs ? `${kindEs}de ` : ""}${money(amt)} pendiente para su ${svcEs(job.service_slug)} (${job.ref}). Pague de forma segura: ${url}`);
     return url;
   }
   if (url) await sendEmail(job.contact_email, `${BRAND.name}: pay ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}for ${job.ref}`,
-    `Your ${getService(job.service_slug)?.name}: ${deposit ? `a ${money(amt)} deposit locks in your date (balance due ${job.balance_due_date ?? "before the job"}).` : Number(job.amount_paid) ? `remaining balance ${money(amt)}.` : `${money(amt)}, paid upfront to lock in your pro.`}\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
+    `Your ${getService(job.service_slug)?.name}: ${deposit ? (job.payment_plan === "after" ? `${money(amt)} (25%) locks in your date; the rest is charged when the job is done.` : `a ${money(amt)} deposit locks in your date (balance due ${job.balance_due_date ?? "before the job"}).`) : Number(job.amount_paid) ? `remaining balance ${money(amt)}.` : `${money(amt)}, paid upfront to lock in your pro.`}\n\nInvoice & service agreement: ${invoiceUrl(job.id)}\nPay securely here: ${url}\n\n${BRAND.promise}`);
   if (url) await sendSms(job.contact_phone, `${BRAND.name}: ${money(amt)} ${deposit ? "deposit " : Number(job.amount_paid) ? "balance " : ""}due for your ${getService(job.service_slug)?.name} (${job.ref}). Pay securely: ${url}`);
   return url;
 }
@@ -707,7 +817,7 @@ export async function declineOffer(offerId: string, contractorId: string) {
 
 export async function startJob(jobId: string, contractorId: string): Promise<{ ok: boolean; error?: string }> {
   const pre = await getJob(jobId);
-  if (pre && !pre.paid_at && !pre.remedy && !pre.billed_on_terms) {
+  if (pre && !clearedForWork(pre)) {
     await raiseAlert("payment", "warn", `${pre.ref}: pro tried to start before the balance was paid`, null, jobId);
     return { ok: false, error: "The customer's balance isn't paid yet — don't start. We're collecting it now; you'll get a notification." };
   }
@@ -718,6 +828,8 @@ export async function startJob(jobId: string, contractorId: string): Promise<{ o
     .select("id").maybeSingle();
   if (data) {
     await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro", true, "Su profesional llegó y comenzó el trabajo.");
+    // "pay after": the balance goes on hold now and is charged when the job is done (a hiccup here never blocks the start)
+    if (pre?.payment_plan === "after" && !pre.paid_at) await holdBalance(pre).catch((e) => raiseAlert("payment", "warn", `${pre.ref}: balance hold error`, e instanceof Error ? e.message : String(e), jobId));
     const job = await getJob(jobId);
     if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId }, sms: { to: job.contact_phone, body: `${BRAND.name}: your pro has arrived and started on your ${getService(job.service_slug)?.name}.` },
       locale: job.locale, es: { title: "Su profesional llegó", body: `Comenzó el trabajo de su ${svcEs(job.service_slug)}.`, sms: `${BRAND.name}: su profesional llegó y comenzó con su ${svcEs(job.service_slug)}.` } });
@@ -776,13 +888,17 @@ export async function finalizeJob(jobId: string, summary?: string) {
   if (data) await (await import("./coverage")).releaseBackups(jobId).catch(() => null);
   const job = data as Job | null;
   if (!job) return;
-  // Paid upfront: the customer's money is already collected, so the pro's payout is approved now.
+  // The pro's payout is approved now. "Pay after" included: the balance is charged just below, and collecting it is our
+  // job, not the pro's — their pay never waits on the customer's card (pro agreement §3; the hold placed at start makes a
+  // failure rare).
   if (job.contractor_id && job.contractor_payout) {
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: job.paid_at || job.remedy || job.billed_on_terms ? "approved" : "held" });
+    const ready = Boolean(job.paid_at || job.remedy || job.billed_on_terms || job.payment_plan === "after");
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: ready ? "approved" : "held" });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
   await addEvent(job.id, "completed", summary ?? "Job complete. Thank you!", "system", true, summary ?? "Trabajo terminado. ¡Gracias!");
+  if (job.payment_plan === "after" && !job.paid_at && !job.remedy) await chargeAfterBalance(job).catch((e) => raiseAlert("payment", "warn", `${job.ref}: balance charge error`, e instanceof Error ? e.message : String(e), job.id));
   await notify(job.customer_id, {
     title: "Done ✓ — how did we do?",
     body: `${summary ?? "Your job is complete."} Tap to see photos and rate your pro.`,
@@ -833,21 +949,33 @@ async function scheduleNextVisit(job: Job) {
     await db().from("recurring_plans").update({ next_date: next }).eq("id", planId);
   }
   const { id: _id, ref: _ref, created_at: _c, updated_at: _u, ...rest } = job;
+  // the next visit is paid the way the first was: 25% now and the rest after the visit, or in full with 5% off
+  const nv = await nextVisitPrice(job);
+  const pay: Record<string, unknown> = { payment_plan: "full", deposit_amount: null, deposit_paid_at: null, balance_due_date: null, discount: 0 };
+  if ("balance_attempts" in job) Object.assign(pay, { balance_charge_at: null, balance_attempts: 0, balance_hold_intent: null, pay_in_full_discount: 0 });
+  const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
+  if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
+  else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {
+    const list = nv.price_final + nv.member_benefit;
+    const saving = payInFullSaving(nv.price_final, capDiscount(list, nv.contractor_payout, Number.MAX_SAFE_INTEGER) - nv.member_benefit);
+    if (saving) Object.assign(pay, { discount: saving, pay_in_full_discount: saving }), (nv.price_final = r2(nv.price_final - saving));
+  }
   const { data: nextJob } = await db().from("jobs").insert({
     ...rest, plan_id: planId, scheduled_date: next, status: "requested", completion_photos: [], ai_qa: null,
     started_at: null, completed_at: null, paid_at: null, amount_paid: 0, amount_refunded: 0, stripe_payment_intent: null,
     parent_job_id: null, remedy: null,
     // a promo applies to the first visit only; Plus saving is re-checked every visit
-    ...(await nextVisitPrice(job)), discount: 0, promo_code: null, tip_total: 0, en_route_at: null, disputed_at: null, attribution: null,
+    ...nv, ...pay, promo_code: null, tip_total: 0, en_route_at: null, disputed_at: null, attribution: null,
     // not pre-assigned: the visit is offered to the same pro first when it's paid (see dispatchJob)
     contractor_id: null,
   }).select("*").single();
   if (!nextJob) return;
-  // Paid upfront: charge the saved card now; the visit is dispatched only once paid.
-  if (await chargeSavedCard(nextJob as Job)) {
-    await markPaid(nextJob.id, { amount: Number(nextJob.price_final), via: "saved card" });
-    await addEvent(nextJob.id, "recurring", `Next ${job.frequency} visit booked and prepaid — offered to your pro first.`, "system", true,
-      `Próxima visita ${FREQ_ES[job.frequency] ?? job.frequency} reservada y prepagada — se ofrece primero a su profesional.`);
+  // charge the saved card now (the 25%, or the full price); the visit is dispatched only once that's in
+  const first = nextJob.payment_plan === "after" ? Number(nextJob.deposit_amount) : Number(nextJob.price_final);
+  if (await chargeSavedCard(nextJob as Job, first, nextJob.payment_plan === "after" ? "deposit" : "upfront")) {
+    await markPaid(nextJob.id, { amount: first, via: "saved card", kind: nextJob.payment_plan === "after" ? "deposit" : "upfront" });
+    await addEvent(nextJob.id, "recurring", nextJob.payment_plan === "after" ? `Next ${job.frequency} visit booked — 25% charged, the rest after the visit. Offered to your pro first.` : `Next ${job.frequency} visit booked and prepaid — offered to your pro first.`, "system", true,
+      nextJob.payment_plan === "after" ? `Próxima visita ${FREQ_ES[job.frequency] ?? job.frequency} reservada — se cobró el 25%, el resto después de la visita. Se ofrece primero a su profesional.` : `Próxima visita ${FREQ_ES[job.frequency] ?? job.frequency} reservada y prepagada — se ofrece primero a su profesional.`);
   } else {
     await sendPaymentLink(nextJob as Job);
     await raiseAlert("payment", "warn", `${nextJob.ref}: recurring visit unpaid`, "Saved card failed or missing — payment link emailed. Not dispatched until paid.", nextJob.id);

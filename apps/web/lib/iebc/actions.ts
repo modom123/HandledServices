@@ -11,10 +11,11 @@
  *           declares its scope (which department may use it), whether it writes, and
  *           its risk. The gateway (gateway.ts) enforces scopes + autonomy and logs
  *           everything to agent_actions.
+ * UPDATED : 2026-10-18_0415 UTC — read.tax_1099 flags each pro file / under / exempt (corporation).
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, JOB_STATUSES, money, necThreshold, onboardingChecklist, splitJob } from "@handled/core";
+import { BRAND, JOB_STATUSES, form1099, money, necThreshold, onboardingChecklist, splitJob } from "@handled/core";
 import { adminClient } from "../supabase/server";
 import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink, setStatus } from "../jobs";
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
@@ -315,9 +316,10 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   }),
   "read.tax_1099": def({
-    scope: "finance", write: false, risk: "low", description: "1099 totals by pro for a tax year with the reporting threshold.",
+    scope: "finance", write: false, risk: "low", description: "1099 totals by pro for a tax year with the reporting threshold; form_1099_nec says file / under / exempt (corporation).",
     params: z.object({ year: z.number().int().min(2025).max(2100) }),
-    run: async ({ year }) => ({ threshold: necThreshold(year), rows: (await db().from("contractor_1099").select("business_name, legal_name, entity_type, tin_last4, w9_received_at, paid_total, owed_total").eq("tax_year", year)).data }),
+    run: async ({ year }) => ({ threshold: necThreshold(year), rows: ((await db().from("contractor_1099").select("business_name, legal_name, entity_type, tin_last4, w9_received_at, paid_total, owed_total").eq("tax_year", year)).data ?? [])
+      .map((r: { entity_type: string | null; paid_total: number | null }) => ({ ...r, form_1099_nec: form1099(r.entity_type, Number(r.paid_total ?? 0), year) })) }),
   }),
   "recruiting.flag_expiring_insurance": def({
     scope: "recruiting", write: true, risk: "low", description: "Raise alerts for active pros whose insurance expires within N days.",

@@ -19,6 +19,7 @@
  *           (the rest carries to the next run), per the pro agreement.
  * UPDATED : 2026-10-07_1610 UTC — payouts: only the transfer decides success (a failure after money moved is reported, never undone, so nothing is paid twice); runs check the Stripe balance first; per-attempt idempotency keys; the instant fee is sent back when the instant payout fails.
  * UPDATED : 2026-10-07_1900 UTC — arrival windows (late cancellations, show-up pay) use the job's time zone.
+ * UPDATED : 2026-10-15_0300 UTC — cancelJob lets go of a "pay after" balance hold.
  */
 import "server-only";
 import {
@@ -91,6 +92,8 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
   if (["completed", "cancelled", "qa_review"].includes(job.status)) return { ok: false, error: `Job is ${job.status}` };
   if (job.status === "in_progress" && reason !== "lockout") return { ok: false, error: "Work has started — use a refund instead" };
   await (await import("./coverage")).releaseBackups(jobId).catch(() => null);
+  // "pay after": a balance held on the card when the pro started is let go (the late / lockout fee comes from what was paid)
+  if (job.balance_hold_intent) await (await import("./stripe")).releaseHold(job.balance_hold_intent);
   const why: CancelReason = reason === "customer" && isLate(job) ? "late" : reason;
   const paid = r2(Number(job.amount_paid ?? 0) - Number(job.amount_refunded ?? 0));
   const fee = ["late", "lockout"].includes(why) ? Math.min(LATE_CANCEL_FEE, Math.max(0, paid)) : 0;

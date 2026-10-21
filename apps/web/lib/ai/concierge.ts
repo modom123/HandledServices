@@ -8,6 +8,7 @@
  *           engine and captures leads. It never promises a price outside the engine.
  * UPDATED : 2026-10-06_0752 UTC — runs with the shared mission, standing and assigned tasks (kept internal: never told to customers).
  * UPDATED : 2026-10-07_1830 UTC — get_estimate takes the ZIP and applies the area price level.
+ * UPDATED : 2026-10-20_0100 UTC — save_lead goes through the Lead inbox (dedupe, instant reply, alert to call).
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -16,7 +17,6 @@ import { z } from "zod";
 import { BRAND, SERVICES, estimate, getService, moneyRange } from "@handled/core";
 import { FALLBACK, MODEL, aiEnabled, anthropic, logRun } from "./client";
 import { systemFor } from "./agent-tasks";
-import { adminClient } from "../supabase/server";
 
 const catalog = SERVICES.map((s) => `- ${s.slug}: ${s.name} — ${s.tagline} (from $${s.minimum}${s.siteVisit ? ", firm price after site visit" : ""})`).join("\n");
 
@@ -71,8 +71,9 @@ const tools = [
     }),
     run: async ({ when, budget, ...lead }) => {
       const extra = [when && `Needs it: ${when.replace("_", " ")}`, budget && `Budget: $${budget}`].filter(Boolean).join(" · ");
-      const { error } = await adminClient().from("leads").insert({ ...lead, message: extra ? `${lead.message}\n${extra}` : lead.message, source: "ai_chat" });
-      return error ? `Could not save: ${error.message}` : "Saved — a coordinator will reach out within 1 business hour.";
+      // through the Lead inbox: dedupe, instant reply, alert to call (channel: website AI chat)
+      const r = await (await import("../lead-intake")).intakeLead({ ...lead, message: extra ? `${lead.message}\n${extra}` : lead.message }, { channel: "ai_chat" });
+      return r.ok ? "Saved — a coordinator will reach out within 1 business hour." : `Could not save: ${r.error ?? "please leave a phone number or email"}`;
     },
   }),
 ];

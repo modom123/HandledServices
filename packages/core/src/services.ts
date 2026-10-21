@@ -47,6 +47,9 @@
  * UPDATED : 2026-10-11_2307 UTC — "We build": Website Design & Build is now Intelligent Websites (AI assistant built in,
  *           instant lead follow-up option; same slug), plus Business Operating System and Automated Business (68 services).
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal (certified remediation: containment, removal, HEPA, optional testing) and the mold trade.
+ * UPDATED : 2026-10-19_1320 UTC — insuranceOptional: services with no work on the customer's property with tools or equipment
+ *           (remote business work; errands, courier, personal assistant) don't need a general liability certificate, so pros
+ *           without one still get those jobs. Trade coverages (bond, business-use auto) still apply.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -156,6 +159,11 @@ export interface Service {
    * no area price level, and the free "site visit" is a video consultation. Staff or specialists anywhere can take it.
    */
   remote?: boolean;
+  /**
+   * General liability (COI) not required to take this job: no work on the customer's property with tools or equipment
+   * (remote business work; errands, courier, personal assistant). Trade coverages (bond, business-use auto) still apply.
+   */
+  insuranceOptional?: boolean;
   price: (a: Answers) => PriceResult;
 }
 
@@ -1950,6 +1958,7 @@ export const SERVICES: Service[] = [
   // ───────────────────────────── ERRANDS & ASSISTANT ─────────────────────────────
   {
     slug: "errands",
+    insuranceOptional: true,
     name: "Errands & Pickups",
     category: "errands",
     icon: "🛍️",
@@ -1978,6 +1987,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "courier",
+    insuranceOptional: true,
     name: "Same-Day Courier",
     category: "errands",
     icon: "📦",
@@ -2055,6 +2065,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "personal-assistant",
+    insuranceOptional: true,
     name: "Personal Assistant for the Day",
     category: "errands",
     icon: "🗂️",
@@ -2817,6 +2828,7 @@ export const SERVICES: Service[] = [
   // the firm price (siteVisit). onDemand: a consultation booked inside 48 hours is never a rush job.
   {
     slug: "website-design",
+    insuranceOptional: true,
     name: "Intelligent Websites",
     category: "business",
     icon: "🌐",
@@ -2869,6 +2881,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "business-operating-system",
+    insuranceOptional: true,
     name: "Business Operating System",
     category: "business",
     icon: "🧠",
@@ -2915,6 +2928,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "automated-business",
+    insuranceOptional: true,
     name: "Automated Business",
     category: "business",
     icon: "🚀",
@@ -2958,6 +2972,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "business-formation",
+    insuranceOptional: true,
     name: "Business Formation (LLC & Corporation)",
     category: "business",
     icon: "🏛️",
@@ -3017,6 +3032,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "business-consulting",
+    insuranceOptional: true,
     name: "Business Consulting",
     category: "business",
     icon: "📈",
@@ -3064,6 +3080,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "ai-automation",
+    insuranceOptional: true,
     name: "AI Automation",
     category: "business",
     icon: "⚙️",
@@ -3107,6 +3124,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "ai-agents",
+    insuranceOptional: true,
     name: "Custom AI Agents",
     category: "business",
     icon: "🤖",

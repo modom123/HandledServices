@@ -11,9 +11,14 @@
  * UPDATED : 2026-10-06_0752 UTC — Growth planner runs first every day (pace vs the $100M plan, bottleneck, today's agent
  *           tasks), then the brief reports the plan and progress on every open agent task.
  * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
+ * UPDATED : 2026-10-19_2330 UTC — the Deal hunter runs after the growth plan (primes and warm clicks to the call list, today's
+ *           deal plan); the brief includes it.
+ * UPDATED : 2026-10-20_0100 UTC — Mondays: the AI writes next week's social posts (Hub → Social media).
  */
 import { buildDailyBrief } from "@/lib/ai/brief";
 import { runGrowthPlanner } from "@/lib/ai/growth-planner";
+import { runDealHunter } from "@/lib/ai/deal-hunter";
+import { generateWeek, getSocialSettings, weekStart } from "@/lib/social";
 import { sendDayBeforeReminders } from "@/lib/jobs";
 import { sendSeasonalReminders } from "@/lib/reminders";
 import { standingSweep } from "@/lib/standing";
@@ -37,12 +42,15 @@ export async function GET(req: Request) {
   const pricing = monday ? await pricingAlert().catch((e) => { console.error("[pricing-accuracy]", e); return null; }) : null; // weekly
   const cities = monday ? await cityDigest().catch((e) => { console.error("[city-scorecard]", e); return null; }) : null; // weekly
   const growth = await runGrowthPlanner().catch((e) => { console.error("[growth-planner]", e); return null; }); // today's plan toward $100M
-  const brief = await buildDailyBrief(growth?.body ?? null);
+  // Mondays: the AI writes next week's social posts (drafts for approval unless auto-publish is on)
+  const social = monday && (await getSocialSettings()).enabled ? await generateWeek(weekStart(new Date(Date.now() + 7 * 86400000))).catch((e) => { console.error("[social]", e); return null; }) : null;
+  const deals = await runDealHunter().catch((e) => { console.error("[deal-hunter]", e); return null; }); // go get business: today's deal plan
+  const brief = await buildDailyBrief([growth?.body, deals?.body && `Deal plan:\n${deals.body}`].filter(Boolean).join("\n\n") || null);
   if (!brief) return Response.json({ ok: false, reason: "AI unavailable", reminders, seasonal, standing, market, pricing, cities, growth: growth && { assigned: growth.assigned, closed: growth.closed } });
-  const body = [growth ? `Growth plan:\n${growth.body}` : "", `Onboarding pros: ${brief.onboarding}`, `New jobs: ${brief.new_jobs}`, `Goal pace: ${brief.pace}`, `Agent tasks:\n- ${brief.agent_tasks.join("\n- ") || "none open"}`, `Yesterday:\n- ${brief.yesterday.join("\n- ")}`, `Today:\n- ${brief.today.join("\n- ")}`, `Risks:\n- ${brief.risks.join("\n- ")}`, `Actions:\n1. ${brief.actions.join("\n1. ")}`].filter(Boolean).join("\n\n");
+  const body = [growth ? `Growth plan:\n${growth.body}` : "", deals?.body ? `Deal plan:\n${deals.body}` : "", `Onboarding pros: ${brief.onboarding}`, `New jobs: ${brief.new_jobs}`, `Goal pace: ${brief.pace}`, `Agent tasks:\n- ${brief.agent_tasks.join("\n- ") || "none open"}`, `Yesterday:\n- ${brief.yesterday.join("\n- ")}`, `Today:\n- ${brief.today.join("\n- ")}`, `Risks:\n- ${brief.risks.join("\n- ")}`, `Actions:\n1. ${brief.actions.join("\n1. ")}`].filter(Boolean).join("\n\n");
   await adminClient().from("ops_alerts").insert({ kind: "daily_brief", severity: "info", title: brief.headline, body });
   if (opsEmail()) await sendEmail(opsEmail(), `${BRAND.name} brief: ${brief.headline}`, body);
-  return Response.json({ ok: true, brief, reminders, seasonal, standing, market, pricing, cities, growth: growth && { assigned: growth.assigned, closed: growth.closed } });
+  return Response.json({ ok: true, social, brief, reminders, seasonal, standing, market, pricing, cities, growth: growth && { assigned: growth.assigned, closed: growth.closed } });
 }
 
 /** Weekly: services the pricing-accuracy report says are off, with at least medium confidence. */

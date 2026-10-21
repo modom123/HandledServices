@@ -21,13 +21,17 @@
  *           Only the last 4 of the TIN is stored in the database; the W-9 itself is a
  *           private file staff can open.
  * UPDATED : 2026-10-12_0005 UTC — area step: the ZIP codes the pro wants to cover and "only these ZIP codes".
+ * UPDATED : 2026-10-18_0248 UTC — resume (PDF or Word) and photo (profile photo) steps: step, file. Saved to the private
+ *           pro-docs bucket as contractor_documents kinds 'resume' / 'photo' (staff open them in Hub → Pros).
+ * UPDATED : 2026-10-18_0415 UTC — w9: LLCs taxed as S/C corporations (llc_s_corp, llc_c_corp). agreement: signed_for (the
+ *           business's legal name, blank when signing as yourself) + signer_title — recorded on the pro and every signed copy.
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
+import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { uploadDoc } from "@/lib/photos";
+import { UPLOAD_TYPES, uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
 import { geocodeAddress } from "@/lib/geo";
 import { afterOnboardingStep, docName, logRecruiting } from "@/lib/recruiting";
@@ -41,12 +45,15 @@ import { localeOf } from "@/lib/push";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
-  z.object({ step: z.literal("w9"), legal_name: z.string().min(2).max(160), entity_type: z.enum(["individual", "sole_prop", "llc", "s_corp", "c_corp", "partnership"]),
+  z.object({ step: z.literal("w9"), legal_name: z.string().min(2).max(160), entity_type: z.enum(ENTITY_TYPES),
     tin_last4: z.string().regex(/^\d{4}$/), address_line: z.string().min(3).max(200), city: z.string().min(2).max(80), state: z.string().length(2), zip: z.string().regex(/^\d{5}$/) }),
   z.object({ step: z.literal("coi"), expires_on: date }),
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
-  z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true") }),
+  z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true"),
+    signed_for: z.string().trim().max(160).optional(), signer_title: z.string().trim().max(80).optional() }),
   z.object({ step: z.literal("specialties") }),
+  z.object({ step: z.literal("resume") }),
+  z.object({ step: z.literal("photo") }),
   z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
@@ -60,6 +67,7 @@ export async function POST(req: Request) {
   const fields = Object.fromEntries([...form.entries()].filter(([, val]) => typeof val === "string"));
   const parsed = Steps.safeParse(fields);
   if (!parsed.success) return deny(400, parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
+  if (parsed.data.step === "agreement" && parsed.data.signed_for && !parsed.data.signer_title) return deny(400, "Add your title at the business (for example Owner)");
   const file = form.get("file");
   const db = adminClient();
   const id = v.contractorId;
@@ -102,6 +110,15 @@ export async function POST(req: Request) {
     await db.from("contractors").update({ specialties: [...new Set(picked)] }).eq("id", id);
     return done();
   }
+  if (b.step === "resume" || b.step === "photo") {
+    if (!(file instanceof File && file.size)) return deny(400, b.step === "resume" ? "Attach your resume" : "Attach your photo");
+    let filePath: string;
+    try { filePath = await uploadDoc(file, `${id}/${b.step}`, UPLOAD_TYPES[b.step]); } catch (e) { return deny(400, e instanceof Error ? e.message : "Upload failed"); }
+    const at = new Date().toISOString();
+    await db.from("contractor_documents").insert({ contractor_id: id, kind: b.step, storage_path: filePath, status: "verified", verified_by: "pro upload", verified_at: at });
+    await db.from("contractors").update(b.step === "resume" ? { resume_uploaded_at: at } : { photo_uploaded_at: at }).eq("id", id);
+    return done();
+  }
   if (b.step === "coverage" && b.exempt) {
     if (b.coverage !== "workers_comp") return deny(400, "Only workers' comp has a no-employees statement");
     const { data: pro } = await db.from("contractors").select("trades, coverage").eq("id", id).single();
@@ -134,12 +151,14 @@ export async function POST(req: Request) {
     docId = (await db.from("contractor_documents").insert({ contractor_id: id, kind: b.coverage, storage_path: path, expires_on: b.expires_on, status: "pending", notes: COVERAGES[b.coverage].label }).select("id").single()).data?.id ?? null;
   } else if (b.step === "agreement") {
     const signedAt = new Date().toISOString();
-    await db.from("contractors").update({ agreement_version: AGREEMENT_VERSION, agreement_signed_at: signedAt, agreement_signer: b.signer_name }).eq("id", id);
+    // signing for a company: its legal name and the signer's title (blank business = signing as yourself)
+    const signedFor = b.signed_for || null, title = signedFor ? b.signer_title || null : null;
+    await db.from("contractors").update({ agreement_version: AGREEMENT_VERSION, agreement_signed_at: signedAt, agreement_signer: b.signer_name, agreement_signed_for: signedFor, agreement_signer_title: title }).eq("id", id);
     await db.from("contractor_documents").insert({ contractor_id: id, kind: "agreement", status: "verified", verified_by: "e-signature", verified_at: signedAt,
-      notes: `Signed v${AGREEMENT_VERSION} by "${b.signer_name}" · ip ${req.headers.get("x-forwarded-for") ?? "?"}` });
+      notes: `Signed v${AGREEMENT_VERSION} by "${b.signer_name}"${signedFor ? `, ${title}, for ${signedFor}` : ""} · ip ${req.headers.get("x-forwarded-for") ?? "?"}` });
     // one e-signature covers the whole set: agreement, policies, consents and the addenda for their trades
     const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
-    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
+    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, onBehalfOf: signedFor, signerTitle: title, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
   } else if (b.step === "payout") {
     await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id);
   }

@@ -17,6 +17,12 @@
  * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
+ * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
+ * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
+ * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
+ * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
+ * UPDATED : 2026-10-20_0100 UTC — omnichannel: channel attribution, lead intake mapping, social slots and caption limits.
+ * UPDATED : 2026-10-20_0200 UTC — marketplace: pro prices keep Handled's margin rules, ranking and labels, quotes.
  * UPDATED : 2026-10-06_0726 UTC — security: sign-in redirects, server fetches of outside websites, booking photo paths.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points (customer and business loyalty).
  * UPDATED : 2026-10-06_0740 UTC — real sliding pro share (no fixed payoutShare): typical-job take band, estimate share, the scale.
@@ -168,11 +174,14 @@ test("onboarding blocks activation until every step is done", async () => {
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
-    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01" };
+    specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
+  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "needs a resume");
+  assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
@@ -180,6 +189,54 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, true, "residential cleaners need no bond (bond only for large commercial jobs)");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future, coverage: { workers_comp: future } }).complete, true);
+});
+
+test("1099-NEC: corporations (and LLCs taxed as one) are exempt", async () => {
+  const { form1099 } = await import("./compliance.ts");
+  assert.equal(form1099("individual", 2500, 2026), "file");
+  assert.equal(form1099("llc", 2500, 2026), "file", "single-member / partnership LLC gets one");
+  assert.equal(form1099("partnership", 2500, 2026), "file");
+  assert.equal(form1099(null, 2500, 2026), "file", "unknown classification: treat as reportable");
+  assert.equal(form1099("individual", 1999, 2026), "under");
+  assert.equal(form1099("individual", 700, 2025), "file", "$600 threshold through 2025");
+  for (const corp of ["s_corp", "c_corp", "llc_s_corp", "llc_c_corp"]) assert.equal(form1099(corp, 50000, 2026), "exempt", corp);
+});
+
+test("missing uploads: which ones, and when live pros are reminded", async () => {
+  const { missingUploads, uploadReminderDue, UPLOAD_REMINDER_MAX } = await import("./compliance.ts");
+  assert.deepEqual(missingUploads({ resume_uploaded_at: null, photo_uploaded_at: null }), ["resume", "photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: null }), ["photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" }), []);
+  const now = new Date("2026-10-18T13:00:00Z");
+  assert.equal(uploadReminderDue(0, null, now), true, "first reminder right away");
+  assert.equal(uploadReminderDue(1, "2026-10-16T13:00:00Z", now), false, "not two days later");
+  assert.equal(uploadReminderDue(1, "2026-10-14T13:00:00Z", now), true, "again after four days");
+  assert.equal(uploadReminderDue(UPLOAD_REMINDER_MAX, "2026-09-01T13:00:00Z", now), false, "then stop");
+});
+
+test("insurance-optional work: no COI needed to activate or to get those jobs", async () => {
+  const { onboardingChecklist, insuranceRequired, AGREEMENT_VERSION } = await import("./compliance.ts");
+  assert.equal(insuranceRequired(["web_design"]), false);
+  assert.equal(insuranceRequired(["errands"]), false);
+  assert.equal(insuranceRequired(["errands", "hauling"]), true, "one insured trade means a COI is needed");
+  assert.equal(insuranceRequired(["pet_care"]), true, "pet care keeps its liability policy (care, custody & control)");
+  assert.equal(insuranceRequired(["no_such_trade"]), true, "unknown trades default to required");
+  const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
+  const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
+    agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
+    specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
+  assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
+  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, false, "cleaners still need a COI");
+  const base: Contractor = {
+    id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design", "hauling"],
+    service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
+    insured_until: null, license_number: null, background_checked: true, daily_capacity: 3, notes: null, coverage: { auto: "2099-01-01" },
+  };
+  assert.equal(rankContractors([base], { service_slug: "website-design", zip: "48201", scheduled_date: null }).length, 1, "no COI: still offered remote work");
+  assert.equal(rankContractors([base], { service_slug: "junk-removal", zip: "48201", scheduled_date: null }).length, 0, "no COI: no junk removal");
 });
 
 test("square footage drives the price wherever it's asked", async () => {
@@ -260,6 +317,41 @@ test("deposits: big tickets only, sensible amounts, balance due before the job",
   assert.equal(depositPolicy("catering", 1920, "2026-10-05", now).allowed, false, "too close to the event — pay in full");
   assert.equal(depositPolicy("handyman", 1200, null, now).amount, 360, "$1,000+ qualifies");
   assert.equal(depositPolicy("tree-removal", 300, "2026-11-01", now).amount, 100, "minimum deposit");
+});
+
+test("book now, pay after: 25% (at least $25) for everyday jobs; events and site-visit work keep the deposit", async () => {
+  const { bookNowPolicy, payInFullSaving, nextBalanceTry, clearedForWork, BOOK_NOW } = await import("./pricing.ts");
+  assert.deepEqual(bookNowPolicy("house-cleaning", 200), { allowed: true, amount: 50, balance: 150 });
+  assert.equal(bookNowPolicy("house-cleaning", 80).amount, 25, "minimum $25");
+  assert.equal(bookNowPolicy("handyman", 1200).amount, 300, "$1,000+ everyday jobs pay after too");
+  assert.equal(bookNowPolicy("house-cleaning", 20).amount, 19, "never the whole price");
+  assert.equal(bookNowPolicy("house-cleaning", 1).allowed, false, "a $1 job pays in full");
+  assert.equal(bookNowPolicy("catering", 1920).allowed, false, "events keep the deposit");
+  assert.equal(bookNowPolicy("bathroom-remodel", 20000).allowed, false, "site-visit work keeps the deposit");
+  assert.equal(bookNowPolicy("house-cleaning", null).allowed, false);
+  assert.equal(payInFullSaving(200, 40), 10, "5% off");
+  assert.equal(payInFullSaving(200, 6.9), 6, "capped by what's left of our share");
+  assert.equal(payInFullSaving(200, 0), 0);
+  assert.equal(nextBalanceTry("2026-10-15T10:00:00.000Z"), new Date(Date.parse("2026-10-15T10:00:00.000Z") + BOOK_NOW.retryHours * 3600000).toISOString(), "a failed balance is retried a day later");
+  assert.equal(clearedForWork({ payment_plan: "after", deposit_paid_at: "2026-10-15" }), true, "25% in clears a pay-after job");
+  assert.equal(clearedForWork({ payment_plan: "deposit", deposit_paid_at: "2026-10-15" }), false, "a deposit job still needs the balance before work");
+  assert.equal(clearedForWork({ payment_plan: "after" }), false, "nothing paid yet");
+  assert.equal(clearedForWork({ paid_at: "2026-10-15" }), true);
+  assert.equal(clearedForWork({ billed_on_terms: true }), true);
+  const { resolvePlan } = await import("./pricing.ts");
+  assert.equal(resolvePlan("after", false, true), "after");
+  assert.equal(resolvePlan("after", true, false), "deposit", "events and site-visit work fall back to the deposit");
+  assert.equal(resolvePlan("deposit", false, true), "after", "an old app asking for a deposit on an everyday job gets pay-after");
+  assert.equal(resolvePlan("after", false, false), "full", "tiny jobs pay in full");
+  assert.equal(resolvePlan("full", true, true), "full");
+});
+
+test("payment state: pay-after jobs read as booked; a failed balance is red", async () => {
+  const { paymentState } = await import("./dispatch-board.ts");
+  const base = { scheduled_date: "2026-10-20", time_window: "morning", zip: "48201", status: "assigned", contractor_id: "p", price_final: 200, paid_at: null, deposit_paid_at: "2026-10-15", payment_plan: "after" };
+  assert.equal(paymentState(base).key, "after");
+  assert.equal(paymentState({ ...base, balance_attempts: 1 }).key, "balance_failed");
+  assert.equal(paymentState({ ...base, payment_plan: "deposit" }).key, "balance");
 });
 
 test("pro tiers: earned from live stats; boosts never push our take below 15%", async () => {
@@ -1316,7 +1408,7 @@ test("security: event budget sets aside licensed guards when alcohol is served; 
 
 test("gov contracts: SAM.gov records parse, NAICS map to our services, fit scores Michigan open work highest", async () => {
   const { parseSamOpportunity, govFit, samSearchQueries, servicesForNaics, GOV_NAICS } = await import("./gov-contracts.ts");
-  for (const n of GOV_NAICS) assert.ok(servicesForNaics(n.code).length > 0, `NAICS ${n.code} maps to no catalog service`);
+  for (const n of GOV_NAICS) assert.ok(n.subcontracted || servicesForNaics(n.code).length > 0, `NAICS ${n.code} maps to no catalog service`);
   const raw = {
     noticeId: "abc123", title: "Janitorial Services — Detroit Federal Building", solicitationNumber: "47PF0026Q0001", fullParentPathName: "GENERAL SERVICES ADMINISTRATION.PUBLIC BUILDINGS SERVICE.PBS R5",
     postedDate: "2026-10-01", type: "Combined Synopsis/Solicitation", typeOfSetAside: "SBA", typeOfSetAsideDescription: "Total Small Business Set-Aside (FAR 19.5)",
@@ -1469,7 +1561,8 @@ test("every AI agent runs with the $100M mission, the two priorities and its tas
   const used = new Set<string>();
   // AI calls only (structured / logRun) — not ops_alerts rows, which also have a kind
   for (const f of readdirSync(dir)) for (const line of readFileSync(new URL(f, dir), "utf8").split("\n")) if (!line.includes("ops_alerts")) for (const m of line.matchAll(/kind: "([a-z_]+)"/g)) used.add(m[1]);
-  for (const f of ["../gov.ts", "../bids.ts"]) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/kind: "((?:gov|bid)_[a-z_]+)"/g)) used.add(m[1]);
+  for (const f of ["../gov.ts", "../bids.ts", "../biz-leads.ts"]) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/kind: "((?:gov|bid|sales)_[a-z_]+)"/g)) used.add(m[1]);
+  assert.ok(used.has("sales_reply"), "the Instantly reply agent is wired up");
   for (const k of used) assert.ok(AGENTS.some((a) => a.kind === k), `agent ${k} has no role in mission.ts`);
   for (const a of AGENTS) {
     const p = missionPrompt(a.kind, ["Get 10 bookings"]);
@@ -1762,4 +1855,241 @@ test("talent: flat fee per hire by the role's pay, same 80/20 split", async () =
   assert.equal(flatFeeFor(180_000), null, "above the last tier: contingency or retained");
   assert.deepEqual(flatPlacementFee(5_000), { fee: 5_000, recruiterPay: 4_000, platform: 1_000 });
   for (const t of FLAT_FEE_TIERS) assert.ok(t.fee < placementFee(t.maxSalary).fee, `${t.id}: flat is cheaper than contingency at the top of the tier`);
+});
+
+test("gov awards: Contract Awards records parse, modifications merge, recompetes ending soon in metro Detroit score highest", async () => {
+  const { parseSamAward, mergeAwards, recompeteFit, incumbents, awardSearchQuery, nextAwardOffset } = await import("./gov-awards.ts");
+  const rec = (mod: string, signed: string, end: string, value: string) => ({
+    contractId: { subtier: { code: "4740", name: "Public Buildings Service" }, piid: "47PF0025C0001", modificationNumber: mod },
+    coreData: {
+      federalOrganization: { contractingInformation: { contractingDepartment: { code: "4700", name: "General Services Administration" }, contractingOffice: { code: "47PF00", name: "PBS R5" } } },
+      productOrServiceInformation: { principalNaics: [{ code: "561720", name: "Janitorial Services" }], productOrService: { code: "S201", name: "Custodial janitorial services" } },
+      competitionInformation: { typeOfSetAside: { code: "SBA", name: "Small Business Set Aside - Total" }, numberOfOffersReceived: "1" },
+      principalPlaceOfPerformance: { city: { code: "22000", name: "Detroit" }, state: { code: "MI", name: "Michigan" }, zipCode: "482261234" },
+      solicitationId: "47PF0024R0009",
+    },
+    awardDetails: {
+      dates: { dateSigned: `${signed} 00:00:00`, periodOfPerformanceStartDate: "2025-01-01", currentCompletionDate: end, ultimateCompletionDate: end },
+      dollars: { actionObligation: "100000.00", baseAndAllOptionsValue: value },
+      productOrServiceInformation: { descriptionOfContractRequirement: "Custodial services, McNamara Federal Building" },
+      awardeeData: { awardeeHeader: { awardeeName: "Acme Facility Services LLC" }, awardeeUEIInformation: { uniqueEntityId: "ABCDEFGH1234" }, awardeeLocation: { city: "Southfield", state: { code: "MI" } } },
+    },
+  });
+  const a = parseSamAward(rec("0", "2024-12-15", "2026-12-31", "500000"))!;
+  assert.equal(a.piid, "47PF0025C0001");
+  assert.equal(a.agency, "General Services Administration");
+  assert.equal(a.office, "PBS R5");
+  assert.equal(a.awardee, "Acme Facility Services LLC");
+  assert.equal(a.awardee_uei, "ABCDEFGH1234");
+  assert.equal(a.naics, "561720");
+  assert.equal(a.set_aside_code, "SBA");
+  assert.equal(a.pop_state, "MI");
+  assert.equal(a.pop_city, "Detroit");
+  assert.equal(a.offers_received, 1);
+  assert.equal(a.total_value, 500000);
+  assert.equal(parseSamAward({ foo: 1 }), null);
+  const [m, ...rest] = mergeAwards([a, parseSamAward(rec("P00001", "2025-11-01", "2027-06-30", "650000"))!]);
+  assert.equal(rest.length, 0, "one row per contract");
+  assert.equal(m.ultimate_end, "2027-06-30");
+  assert.equal(m.total_value, 650000);
+  assert.equal(m.date_signed, "2024-12-15");
+  const now = new Date("2026-10-19T12:00:00Z");
+  const soon = recompeteFit(m, { now });
+  assert.ok(soon.score >= 80, `metro Detroit janitorial ending in ~8 months: ${soon.score}`);
+  assert.ok(recompeteFit({ ...m, ultimate_end: "2031-01-01", current_end: null }, { now }).score < soon.score);
+  assert.ok(recompeteFit({ ...m, pop_state: "TX", pop_city: "Austin" }, { now }).score < soon.score);
+  assert.ok(recompeteFit({ ...m, set_aside_code: "8A", set_aside: "8(a)" }, { now }).score < soon.score);
+  assert.equal(incumbents([m], now)[0].awardee, "Acme Facility Services LLC");
+  assert.equal(m.pop_zip, "48226");
+  assert.equal(m.solicitation_id, "47PF0024R0009");
+  const qs = awardSearchQuery({ naics: ["561720", "561730", "bad"], state: "mi", monthsBack: 12, now }, 1);
+  const q = new URLSearchParams(qs);
+  assert.equal(q.get("naicsCode"), "561720~561730");
+  assert.equal(q.get("placeOfPerformStateCode"), "MI");
+  assert.equal(q.get("dateSigned"), "[10/19/2025,10/19/2026]");
+  assert.equal(q.get("limit"), "100");
+  assert.equal(q.get("offset"), "1");
+  assert.ok(!qs.includes("api_key"));
+  // offset counts pages unless page two came back shifted by one record
+  assert.deepEqual(nextAwardOffset({ calls: 1, mode: "page", seen: 100, newOnLastPage: 100, lastPageSize: 100 }), { offset: 1, mode: "page" });
+  assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 200, newOnLastPage: 100, lastPageSize: 100 }), { offset: 2, mode: "page" });
+  assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 101, newOnLastPage: 1, lastPageSize: 100 }), { offset: 101, mode: "record" });
+  assert.deepEqual(nextAwardOffset({ calls: 2, mode: "page", seen: 100, newOnLastPage: 0, lastPageSize: 100 }), { offset: 2, mode: "page" }, "pages start at 1");
+});
+
+test("gov subcontracting: large primes with a plan and time left rank first; AI automation is remote; roofing is subcontracted work", async () => {
+  const { parseSamAward, subFit, primeTargets, subPitch, hasSubPlan } = await import("./gov-awards.ts");
+  const { GOV_FOCUS, offeredNaics, remoteNaics, govFit, GOV_NAICS } = await import("./gov-contracts.ts");
+  const { SERVICE_BY_SLUG } = await import("./services.ts");
+  assert.deepEqual([...GOV_FOCUS].sort(), ["236118", "236220", "238150", "238320", "541511", "541512", "541519", "561730", "561740"]);
+  assert.ok(offeredNaics("238150") && offeredNaics("236220"));
+  for (const n of GOV_NAICS) for (const slug of n.slugs) assert.ok(SERVICE_BY_SLUG[slug], `${n.code} → ${slug} is in the catalog`);
+  assert.ok(offeredNaics("238160") && offeredNaics("541511") && offeredNaics("561720") && !offeredNaics("999999"));
+  assert.ok(remoteNaics("541512") && !remoteNaics("561730"));
+  const rec = (naics: string, size: string, plan: string, end: string, state = "MI", city = "Detroit") => ({
+    contractId: { piid: `P-${naics}-${size}-${state}`, modificationNumber: "0" },
+    coreData: { principalPlaceOfPerformance: { city: { name: city }, state: { code: state } } },
+    awardDetails: {
+      dates: { dateSigned: "2025-01-15", ultimateCompletionDate: end },
+      totalContractDollars: { totalBaseAndAllOptionsValue: "2400000" },
+      productOrServiceInformation: { principalNaics: [{ code: naics, name: "x" }] },
+      preferenceProgramsInformation: { contractingOfficerBusinessSizeDetermination: [{ code: "O" === size ? "O" : "S", name: size === "O" ? "Other Than Small Business" : "Small Business" }], subcontractPlan: { code: plan ? "C" : "B", name: plan || "Plan Not Required" } },
+      awardeeData: { awardeeHeader: { awardeeName: `Prime ${size}` }, awardeeUEIInformation: { uniqueEntityId: size === "O" ? "LARGE0000001" : "SMALL0000001" }, awardeeLocation: { streetAddress1: "1 Main St", city: "Troy", state: { code: "MI" }, zip: "48084", phoneNumber: "2485550100" } },
+    },
+  });
+  const now = new Date("2026-10-19T12:00:00Z");
+  const big = parseSamAward(rec("561730", "O", "Plan Required - Incentive Not Included", "2028-09-30"))!;
+  const small = parseSamAward(rec("561730", "S", "", "2028-09-30"))!;
+  assert.equal(big.awardee_size, "O");
+  assert.ok(hasSubPlan(big) && !hasSubPlan(small));
+  assert.equal(big.awardee_phone, "2485550100");
+  assert.equal(big.awardee_address, "1 Main St, Troy, MI 48084");
+  const bigFit = subFit(big, { now });
+  assert.ok(bigFit.score >= 85, `large local grounds prime with a plan: ${bigFit.score}`);
+  assert.ok(subFit(small, { now }).score < bigFit.score);
+  assert.ok(subFit({ ...big, ultimate_end: "2026-01-01" }, { now }).score <= 10, "ended contracts don't rank");
+  const ai = parseSamAward(rec("541511", "O", "Plan Required - Incentive Not Included", "2028-09-30", "VA", "Arlington"))!;
+  assert.ok(subFit(ai, { now }).reasons.some((r) => r.includes("Remote")), "AI work out of state still fits");
+  assert.ok(govFit({ notice_id: "n", title: "AI", solicitation_number: null, agency: null, office: null, notice_type: "Solicitation", ptype: "o", set_aside_code: null, set_aside: null, naics: "541512", psc: null, posted_date: null, response_deadline: null, archive_date: null, active: true, pop_city: "Arlington", pop_state: "VA", pop_zip: null, ui_link: null, description_url: null, contacts: [], award_amount: null, awardee: null }, { now }).score >= 80);
+  const targets = primeTargets([{ ...small, sub_score: subFit(small, { now }).score }, { ...big, sub_score: bigFit.score }], now);
+  assert.equal(targets[0].awardee, "Prime O");
+  assert.ok(targets[0].sub_plan);
+  const pitch = subPitch(targets[0], { company: "Handled", city: "Detroit" });
+  assert.match(pitch, /subcontractor/);
+  assert.match(pitch, /subcontracting goals/);
+});
+
+test("gov bid desk: picks the 5 best open notices we can still answer; one state-wide call covers the local codes", async () => {
+  const { pickBidCandidates, samSearchQueries } = await import("./gov-contracts.ts");
+  const now = new Date("2026-10-19T12:00:00Z");
+  const day = (d: number) => new Date(now.getTime() + d * 86400000).toISOString();
+  const base = { status: "new", active: true, ptype: "o", naics: "561730", picked_at: null };
+  const rows = [
+    { ...base, notice_id: "a", fit_score: 90, response_deadline: day(20) },
+    { ...base, notice_id: "b", fit_score: 90, response_deadline: day(8) },
+    { ...base, notice_id: "late", fit_score: 99, response_deadline: day(2) },
+    { ...base, notice_id: "award", fit_score: 99, response_deadline: day(20), ptype: "a" },
+    { ...base, notice_id: "low", fit_score: 40, response_deadline: day(20) },
+    { ...base, notice_id: "taken", fit_score: 95, response_deadline: day(20), picked_at: day(0) },
+    { ...base, notice_id: "notours", fit_score: 80, response_deadline: day(20), naics: "999999" },
+    { ...base, notice_id: "ai", fit_score: 85, response_deadline: null, naics: "541512", ptype: "r" },
+    { ...base, notice_id: "c", fit_score: 70, response_deadline: day(30) },
+    { ...base, notice_id: "d", fit_score: 65, response_deadline: day(30) },
+    { ...base, notice_id: "e", fit_score: 60, response_deadline: day(30) },
+  ];
+  assert.deepEqual(pickBidCandidates(rows, { now }).map((r) => r.notice_id), ["b", "a", "ai", "c", "d"]);
+  const qs = samSearchQueries({ naics: ["561730", "238320", "541511", "541512"], state: "MI", ptypes: ["o", "k"], daysBack: 7, now, stateWide: true });
+  assert.equal(qs.length, 3, "one state-wide call + one per remote AI code");
+  const [local, ...remote] = qs.map((q) => new URLSearchParams(q));
+  assert.equal(local.get("state"), "MI"); assert.equal(local.get("ncode"), null); assert.equal(local.get("limit"), "1000");
+  for (const r of remote) { assert.equal(r.get("state"), null); assert.match(r.get("ncode") ?? "", /^5415/); }
+});
+
+test("call desk: callbacks and warm leads first, outcomes schedule the next call, do-not-call is final", async () => {
+  const { callQueue, applyCallOutcome, callScript, MAX_CALL_ATTEMPTS } = await import("./call-desk.ts");
+  const now = new Date("2026-10-20T15:00:00Z"); // a Tuesday
+  const lead = (id: string, o: Record<string, unknown> = {}) => ({ id, business_name: id, segment: "facilities", status: "call", phone: "3135550100", score: 50, next_call_at: null, call_attempts: 0, last_called_at: null, ...o });
+  const q = callQueue([
+    lead("cold", { score: 90 }),
+    lead("partner", { segment: "partner" }),
+    lead("clicked", { status: "clicked" }),
+    lead("replied", { status: "replied" }),
+    lead("callback", { status: "emailing", next_call_at: "2026-10-20T14:00:00Z" }),
+    lead("later", { next_call_at: "2026-10-25T14:00:00Z" }),
+    lead("nophone", { phone: null }),
+    lead("dnc", { status: "do_not_contact" }),
+    lead("calledtoday", { last_called_at: "2026-10-20T13:00:00Z" }),
+    lead("tapped", { call_attempts: MAX_CALL_ATTEMPTS }),
+    lead("emailing", { status: "emailing" }),
+  ], now);
+  assert.deepEqual(q.map((x) => x.id), ["callback", "replied", "clicked", "partner", "cold"]);
+  const vm = applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "voicemail", now);
+  assert.equal(vm.call_attempts, 1); assert.equal(vm.status, "call"); assert.equal(vm.next_call_at, "2026-10-23T14:00:00.000Z", "3 business days");
+  const fri = applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "no_answer", new Date("2026-10-23T15:00:00Z"));
+  assert.equal(fri.next_call_at, "2026-10-27T14:00:00.000Z", "weekends skipped");
+  assert.equal(applyCallOutcome({ status: "call", call_attempts: MAX_CALL_ATTEMPTS - 1, phone: "x" }, "no_answer", now).next_call_at, null, "stops after the last attempt");
+  const yes = applyCallOutcome({ status: "call", call_attempts: 1, phone: "x" }, "interested", now);
+  assert.equal(yes.status, "replied"); assert.ok(yes.next_call_at);
+  const dnc = applyCallOutcome({ status: "clicked", call_attempts: 0, phone: "x" }, "do_not_call", now);
+  assert.equal(dnc.status, "do_not_contact"); assert.equal(dnc.next_call_at, null);
+  assert.equal(applyCallOutcome({ status: "do_not_contact", call_attempts: 0, phone: "x" }, "talked", now).status, "do_not_contact");
+  assert.equal(applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "wrong_number", now).phone, null);
+  assert.equal(applyCallOutcome({ status: "call", call_attempts: 0, phone: "x" }, "callback", now, new Date("2026-11-02T14:00:00Z")).next_call_at, "2026-11-02T14:00:00.000Z");
+  const sc = callScript({ business_name: "Acme Offices", segment: "facilities", reason: "clicked" });
+  assert.match(sc.opener, /Acme Offices/); assert.match(sc.opener, /email/); assert.match(sc.voicemail, /walkthrough/);
+  assert.match(callScript({ business_name: "Big Prime", segment: "partner" }).opener, /subcontractor/);
+  for (const t of [sc.opener, sc.close, sc.voicemail]) assert.ok(!/\$\d/.test(t), "no prices on the phone");
+});
+
+test("omnichannel: channels from first touch, any lead payload normalized, honest instant reply, social limits", async () => {
+  const { channelOf, normalizeIntake, speedToLeadText, socialSlots, fitCaption, guessService } = await import("./channels.ts");
+  assert.equal(channelOf({ gclid: "abc", utm_source: "facebook" }), "google_ads", "a paid click id wins");
+  assert.equal(channelOf({ utm_source: "facebook", utm_medium: "cpc" }), "meta_ads");
+  assert.equal(channelOf({ utm_source: "ig" }), "instagram");
+  assert.equal(channelOf({ ttclid: "x" }), "tiktok_ads");
+  assert.equal(channelOf({ referrer: "www.yelp.com" }), "yelp");
+  assert.equal(channelOf({ referrer: "www.google.com" }), "google");
+  assert.equal(channelOf({ source: "direct" }), "direct");
+  assert.equal(channelOf(null), "direct");
+  assert.equal(channelOf("linkedin"), "linkedin");
+  const meta = normalizeIntake({ field_data: [{ name: "full_name", values: ["Dana Ray"] }, { name: "email", values: ["DANA@Example.com"] }, { name: "phone_number", values: ["+1 313 555 0100"] }, { name: "what_do_you_need", values: ["Carpet cleaning for 3 rooms"] }], lead_id: "123" }, "instagram");
+  assert.equal(meta.name, "Dana Ray"); assert.equal(meta.email, "dana@example.com"); assert.equal(meta.phone, "+1 313 555 0100");
+  assert.equal(meta.channel, "instagram"); assert.equal(meta.external_id, "123"); assert.equal(meta.service_slug, "carpet-cleaning"); assert.equal(meta.sms_consent, false);
+  const google = normalizeIntake({ lead_id: "g1", user_column_data: [{ column_id: "FIRST_NAME", string_value: "Sam" }, { column_id: "LAST_NAME", string_value: "Lee" }, { column_id: "EMAIL", string_value: "sam@biz.com" }, { column_id: "COMPANY_NAME", string_value: "Lee Offices" }, { column_id: "POSTAL_CODE", string_value: "48226-1234" }], gclid: "GC" }, "google_ads");
+  assert.equal(google.name, "Sam Lee"); assert.equal(google.company, "Lee Offices"); assert.equal(google.zip, "48226"); assert.equal(google.attribution?.gclid, "GC"); assert.equal(google.channel, "google_ads");
+  const zap = normalizeIntake({ "First Name": "Kim", "Phone": "313-555-0199", "Message": "Need painting", "SMS Consent": "Yes", channel: "yelp" });
+  assert.equal(zap.name, "Kim"); assert.equal(zap.channel, "yelp"); assert.equal(zap.sms_consent, true); assert.equal(zap.email, null);
+  assert.equal(normalizeIntake({ email: "not-an-email", phone: "123" }).email, null);
+  assert.equal(normalizeIntake({ phone: "123" }).phone, null, "too short to call");
+  assert.equal(guessService("move out deep clean please"), "house-cleaning");
+  assert.equal(guessService("my lawn needs mowing"), "lawn-care");
+  assert.equal(guessService("hello"), null);
+  const t = speedToLeadText({ name: "Dana Ray", service_slug: "carpet-cleaning", company: null }, { siteUrl: "https://x.test", phone: "(313) 555-0100" });
+  assert.match(t.text, /Hi Dana/); assert.match(t.text, /book/); assert.ok(!/\$\d/.test(t.text), "no prices");
+  const monday = new Date("2026-10-19T00:00:00Z");
+  const fb = socialSlots(monday, "facebook", 3);
+  assert.equal(fb.length, 3); assert.equal(fb[0], "2026-10-19T17:00:00.000Z"); assert.equal(socialSlots(monday, "tiktok", 0).length, 0);
+  const cap = fitCaption("instagram", "x".repeat(3000), Array.from({ length: 40 }, (_, i) => `tag${i}`));
+  assert.ok(cap.length <= 2200); assert.equal((cap.match(/#/g) ?? []).length, 30);
+  assert.equal(fitCaption("facebook", "Hello", ["#Detroit", "detroit", "Detroit!"]), "Hello\n\n#Detroit #detroit");
+});
+
+test("marketplace: pros price 80–175%, Handled's commission rules hold at every price, honest ranking, quotes", async () => {
+  const { proPrice, clampPct, rankProOffers, rateStats, quoteCustomerPrice, PRO_RATE_BAND } = await import("./pro-rates.ts");
+  const { splitJob, TAKE_MIN, TAKE_MAX } = await import("./pricing.ts");
+  assert.deepEqual([clampPct(10), clampPct(500), clampPct(120)], [PRO_RATE_BAND.min, PRO_RATE_BAND.max, 120]);
+  for (const suggested of [64, 150, 404, 1200, 5000]) {
+    const base = splitJob(suggested, "house-cleaning");
+    const same = proPrice(suggested, 100, "house-cleaning");
+    assert.ok(same.payout >= base.payout && Math.abs(same.price - suggested) <= 2, `100% ≈ Handled's price at ${suggested}: ${same.price}`);
+    let last = 0;
+    for (const pct of [80, 100, 125, 150, 175]) {
+      const p = proPrice(suggested, pct, "house-cleaning");
+      assert.ok(p.payout >= Math.floor((base.payout * pct) / 100), `pro is paid their rate (${pct}% at ${suggested})`);
+      const sp = splitJob(p.price, "house-cleaning");
+      assert.ok(sp.takeRate >= TAKE_MIN - 0.01 && sp.takeRate <= TAKE_MAX + 0.001, `take ${sp.takeRate} within the band at ${pct}% of ${suggested}`);
+      assert.ok(p.price >= last, "a higher % never costs the customer less"); last = p.price;
+    }
+  }
+  assert.equal(proPrice(100, 80, "house-cleaning", 250).price, 250, "the pro's minimum job wins");
+  const rows = [
+    { pro_id: "a", name: "Cheap & new", rating: 4.6, jobs_completed: 2, on_time_rate: 0.9, pct: 80, min_job: null },
+    { pro_id: "b", name: "Great", rating: 5, jobs_completed: 120, on_time_rate: 1, pct: 110, min_job: null },
+    { pro_id: "c", name: "Pricey", rating: 4.2, jobs_completed: 30, on_time_rate: 0.8, pct: 175, min_job: null },
+    { pro_id: "d", name: "Solid", rating: 4.9, jobs_completed: 60, on_time_rate: 0.97, pct: 95, min_job: null },
+  ];
+  const ranked = rankProOffers(rows, 200, "house-cleaning");
+  assert.equal(ranked.length, 3);
+  assert.ok(!ranked.some((r) => r.pro_id === "c"), "a pricey, lower-rated pro drops out");
+  assert.ok(ranked.find((r) => r.pro_id === "a")?.badges.includes("Best value"));
+  assert.ok(ranked.find((r) => r.pro_id === "a")?.badges.includes("New on Handled"));
+  assert.ok(ranked.find((r) => r.pro_id === "b")?.badges.includes("Top rated"));
+  assert.deepEqual(rankProOffers([], 200), []);
+  assert.deepEqual(rateStats([100, 120]), { count: 2, median: null, low: null, high: null }, "too few pros to show a market");
+  assert.equal(rateStats([90, 100, 110, 120, 150]).median, 110);
+  for (const pay of [50, 800, 12000]) {
+    const price = quoteCustomerPrice(pay, "home-remodel");
+    assert.ok(splitJob(price, "home-remodel").payout >= pay, `the quoting pro earns at least ${pay}`);
+    assert.ok(price > pay, "Handled's fee is added on top");
+  }
 });

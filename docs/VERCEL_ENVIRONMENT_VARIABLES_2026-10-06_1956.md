@@ -72,9 +72,10 @@ GitHub (for the 10-minute cron): repo → Settings → Secrets and variables →
 |---|---|
 | `GOOGLE_MAPS_API_KEY` 🔒 | Google Cloud → enable **Geocoding API** → API key. Exact distance from the customer's address to each pro's place of business (without it: ZIP centres) |
 | `GOOGLE_PLACES_API_KEY` 🔒 | Google Cloud → APIs → Places API (pro + business lead finders) |
-| `INSTANTLY_API_KEY` 🔒, `INSTANTLY_CAMPAIGN_ID`, `INSTANTLY_BIZ_CAMPAIGN_ID`, `INSTANTLY_WEBHOOK_SECRET` 🔒 | instantly.ai (outreach from a separate domain) |
+| `INSTANTLY_API_KEY` 🔒, `INSTANTLY_CAMPAIGN_ID`, `INSTANTLY_BIZ_CAMPAIGN_ID` (1ST OUTREACH DETROIT: `3de836a0-4845-4350-80af-db9725831b43`), `INSTANTLY_WEBHOOK_SECRET` 🔒 | instantly.ai (outreach from a separate domain) — see INSTANTLY_DETROIT_CAMPAIGN_SETUP_2026-10-19_2230.md |
 | `BUSINESS_POSTAL_ADDRESS` | your mailing address (required in marketing emails) |
-| `SAM_API_KEY` 🔒 | sam.gov → profile → Public API Key (government contracts) |
+| `LEAD_INTAKE_SECRET` 🔒, `META_APP_SECRET` 🔒, `META_VERIFY_TOKEN` 🔒, `META_PAGE_ACCESS_TOKEN` 🔒, `META_PAGE_ID`, `META_IG_USER_ID`, `GOOGLE_LEAD_FORM_KEY` 🔒, `NEXT_PUBLIC_META_PIXEL_ID`, `META_CAPI_TOKEN` 🔒, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_BOOKING_LABEL`, `NEXT_PUBLIC_GOOGLE_ADS_LEAD_LABEL`, `NEXT_PUBLIC_TIKTOK_PIXEL_ID`, `TIKTOK_EVENTS_TOKEN` 🔒, `GOOGLE_ADS_CONVERSION_NAME` | Omnichannel: lead intake, ad conversion tracking, social posting — see OMNICHANNEL_SETUP_2026-10-20_0100.md |
+| `SAM_API_KEY` 🔒 | sam.gov → Workspace → Profile → Public API Key (government contract opportunities + awards; expires every 90 days) — see GOV_CONTRACT_AWARDS_SETUP_2026-10-19_2015.md |
 | `CHECKR_API_KEY` 🔒, `CHECKR_PACKAGE` | checkr.com (background checks) |
 | `IEBC_API_KEY` 🔒, `IEBC_ALLOWED_ORIGIN` | IEBC MasterHub connection |
 

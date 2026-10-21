@@ -4,9 +4,11 @@
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Contact page: support email and phone, the business mailing address (BUSINESS_POSTAL_ADDRESS), service areas,
  *           and where to go for bookings, pros, businesses and partners.
+ * UPDATED : 2026-10-20_0100 UTC — "Get a quote — we'll call you" form (Lead inbox, speed to lead).
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";
+import { LeadForm } from "@/components/LeadForm";
 
 export const metadata = { title: "Contact us" };
 
@@ -16,6 +18,7 @@ export default function Contact() {
     <div className="wrap max-w-3xl py-14">
       <h1 className="text-3xl font-extrabold tracking-tight">Contact us</h1>
       <p className="mt-2 text-ink-soft">Real people answer. Most messages get a reply within one business day.</p>
+      <div className="mt-8"><LeadForm business /></div>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <div className="card"><div className="font-semibold">Email</div><a className="text-brand underline" href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a></div>
         <div className="card"><div className="font-semibold">Phone / text</div><a className="text-brand underline" href={`tel:${BRAND.supportPhone.replace(/[^\d+]/g, "")}`}>{BRAND.supportPhone}</a></div>

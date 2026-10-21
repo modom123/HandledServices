@@ -10,6 +10,7 @@
  *           TEMPLATES — not legal advice.
  * UPDATED : 2026-10-03_0152 UTC — market pricing (precio sugerido, "proponga su precio", cargo de reserva,
  *           contraofertas de profesionales, aumentar la oferta): mirrors customer.ts section for section.
+ * UPDATED : 2026-10-15_0300 UTC — términos de pago: reserve ahora, pague después (25% al reservar; reserva en la tarjeta cuando el profesional comienza; el resto se cobra al terminar) o pago completo con 5% de descuento.
  */
 import {
   AI_MAX_CUT,
@@ -17,6 +18,8 @@ import {
   BOOKING_FEE,
   BRAND,
   DEPOSIT,
+  BOOK_NOW,
+  PAY_IN_FULL,
   HANDLED_PLUS,
   LATE_CANCEL_FEE,
   MARKET_BOUNDS,
@@ -255,7 +258,7 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
   appliesTo: "Cada reserva. Usted lo acepta cuando reserva y paga, y aparece impreso en su factura.",
   summary: [
     `Usted reserva y le paga a ${BRAND.name}. Nosotros programamos, gestionamos y garantizamos el trabajo. Un profesional independiente, asegurado y con verificación de antecedentes hace el trabajo. Por favor, no le pague directamente a su profesional.`,
-    `Le sugerimos un precio basado en lo que los profesionales cerca de usted realmente aceptan. Puede ofrecer un precio diferente dentro de ciertos límites, pero una oferta más baja puede tardar más o puede no ser aceptada. Usted paga por adelantado, y el precio incluye un cargo de reserva fijo de ${FEE}.`,
+    `Le sugerimos un precio basado en lo que los profesionales cerca de usted realmente aceptan. Puede ofrecer un precio diferente dentro de ciertos límites, pero una oferta más baja puede tardar más o puede no ser aceptada. Usted paga el ${pct(BOOK_NOW.share)} al reservar y el resto cuando el trabajo esté terminado, o todo al reservar con un ${pct(PAY_IN_FULL.discount)} de descuento. El precio incluye un cargo de reserva fijo de ${FEE}.`,
     "Mientras ningún profesional acepte, usted puede aumentar su oferta, y un profesional puede hacer una contraoferta con un precio más alto. Pagar más siempre es su decisión, y solo le cobramos la diferencia. El trabajo adicional solo se hace después de que usted lo apruebe y lo pague.",
     `Cancele o cambie su reserva gratis hasta 24 horas antes de su horario de llegada. Con menos de 24 horas, o si su profesional no puede entrar, nos quedamos con un cargo de ${money(LATE_CANCEL_FEE)} y le reembolsamos el resto.`,
     `¿Algo no quedó bien? Avísenos dentro de ${BRAND.guaranteeDays} días con fotos. Enviamos al profesional de vuelta sin costo, le damos un servicio gratis o le hacemos un reembolso.`,
@@ -283,7 +286,7 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
     ["Precio", p(
       ul(
         `Precio sugerido: antes de reservar, le mostramos un precio sugerido. Se basa en los detalles y las fotos que usted nos da, en nuestras tarifas estándar y en lo que los profesionales de su zona han aceptado recientemente por trabajos similares. Lo que aceptan los profesionales puede subir o bajar el precio sugerido, pero solo dentro de límites fijos (no más de ${MARKET_DOWN} por debajo ni ${MARKET_UP} por encima de nuestro precio estándar).`,
-        `Proponga su precio: usted puede reservar al precio sugerido u ofrecer un precio diferente, desde el ${OFFER_LOW} del precio sugerido hasta ${OFFER_HIGH} el precio sugerido. Los profesionales deciden si aceptan un trabajo al precio ofrecido. Una oferta más baja puede tardar más en ser aceptada, o puede no ser aceptada nunca, y le avisamos antes de reservar cuando una oferta es baja. Sea cual sea el precio que elija, lo paga por adelantado, de la misma forma.`,
+        `Proponga su precio: usted puede reservar al precio sugerido u ofrecer un precio diferente, desde el ${OFFER_LOW} del precio sugerido hasta ${OFFER_HIGH} el precio sugerido. Los profesionales deciden si aceptan un trabajo al precio ofrecido. Una oferta más baja puede tardar más en ser aceptada, o puede no ser aceptada nunca, y le avisamos antes de reservar cuando una oferta es baja. Sea cual sea el precio que elija, lo paga de la misma forma.`,
         `Cargo de reserva: cada reserva incluye un cargo de reserva fijo de ${FEE} (en los planes recurrentes, en cada visita). Ya está incluido en el precio que le mostramos y aparece en su factura. ${BRAND.name} se lo queda para operar las reservas, los pagos y la atención al cliente. No forma parte del pago de su profesional, y los códigos promocionales, los ahorros de ${HANDLED_PLUS.name} y otros descuentos no lo reducen. No hay cargo de reserva en los trabajos rehechos gratis ni en los servicios de cortesía.`,
         "Precio por adelantado: usted ve el precio completo antes de reservar. Incluye la mano de obra, los materiales indicados y el cargo de reserva. El precio de su factura (su oferta, más cualquier aumento o contraoferta que usted haya aceptado) es el precio que usted paga por ese alcance.",
         `Cargo de prioridad: los trabajos que empiezan dentro de las ${RUSH_HOURS} horas siguientes a la reserva tienen un cargo de prioridad (urgencia) de ${pct(RUSH_SURCHARGE)}, que se muestra antes de reservar. Los miembros de ${HANDLED_PLUS.name} no lo pagan.`,
@@ -304,7 +307,14 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
       "El precio que usted termine pagando (su oferta, más cualquier aumento o contraoferta que haya aceptado) pasa a ser el precio de su factura. Los reembolsos, las cancelaciones y nuestra garantía se aplican a ese total.",
     )],
     ["Pago", p(
-      "El precio completo se paga por adelantado para programar el trabajo, a menos que se aplique un depósito (vea más abajo). Los pagos los procesa Stripe. Puede pagar con tarjeta, y los trabajos más grandes pueden pagarse por transferencia bancaria (ACH) donde la ofrezcamos.",
+      "En la mayoría de los trabajos, usted elige cómo pagar al reservar:",
+      ul(
+        `Reserve ahora, pague después: el ${pct(BOOK_NOW.share)} del precio (al menos ${money(BOOK_NOW.minimum)}) al reservar, para programar el trabajo. Su tarjeta queda guardada. Cuando su profesional comienza el trabajo, reservamos en esa tarjeta el resto del precio. Una reserva no es un cobro: aparta el monto, y su banco puede mostrarlo como pendiente. Cuando el trabajo está terminado y pasó nuestra revisión de fotos, cobramos el resto. Si no usamos toda la reserva, su banco libera la parte no usada.`,
+        `Pago completo: todo el precio al reservar, con un ${pct(PAY_IN_FULL.discount)} de descuento. El ahorro sale de nuestra parte, nunca del pago de su profesional. Si ya se aplican otros descuentos, el ahorro puede ser menor para que el descuento total quede dentro de nuestra parte. Su factura muestra el ahorro.`,
+      ),
+      "Los eventos y los trabajos que necesitan una visita al sitio usan los términos de depósito de más abajo. Los pagos los procesa Stripe. Puede pagar con tarjeta, y los trabajos más grandes pueden pagarse por transferencia bancaria (ACH) donde la ofrezcamos.",
+      `Al reservar con "reserve ahora, pague después", usted nos autoriza a hacer la reserva en su tarjeta y a cobrar el resto del precio a su tarjeta guardada cuando el trabajo esté terminado. Si la reserva o el cobro no se aprueban, se lo avisaremos y le enviaremos un enlace de pago, y podremos intentar cobrar su tarjeta de nuevo, hasta ${BOOK_NOW.maxAttempts} veces en los días siguientes. Usted acepta pagar el resto dentro de los 7 días después de terminado el trabajo.`,
+      "Si algo no está bien, avísenos en la app, antes o después del cobro. Nuestra garantía (rehacer el trabajo, un servicio adicional gratis o un reembolso) se aplica igual sin importar cómo pagó. Si cancela, los términos de cancelación se aplican a lo que usted ha pagado, y se libera cualquier reserva en su tarjeta.",
       "Si usted aumenta su oferta o acepta la contraoferta de un profesional, le cobramos solo la diferencia, a su tarjeta guardada o mediante un enlace de pago que le enviamos.",
       `Cómo se reparte su precio: del precio que usted paga, ${BRAND.name} se queda con el cargo de reserva y una comisión, y a su profesional se le paga el resto. Los códigos promocionales y los ahorros de ${HANDLED_PLUS.name} salen de nuestra parte, nunca del pago de su profesional.`,
       "A su profesional solo le pagamos nosotros. Por favor, no le pague a su profesional en efectivo ni de ninguna otra forma.",
