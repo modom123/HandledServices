@@ -24,6 +24,7 @@
  *           events and site-visit work keep the deposit. The Pay button shows what is charged today.
  * UPDATED : 2026-10-12_0005 UTC — saved homes: pick one of My homes (address + entry details), "save this home", and an entry
  *           details box (lockbox, key, gate) that only the assigned pro sees.
+ * UPDATED : 2026-10-20_0200 UTC — marketplace: "Choose your price" (pros' own upfront prices next to Handled's) and booking a request-a-quote at its locked price.
  */
 "use client";
 
@@ -36,7 +37,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint, missingMeasurements,
+  questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
 } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
@@ -69,10 +70,13 @@ export interface BusinessBooking { propertyId: string; propertyName: string; com
 /** "Book again with …" (?pro=&crew=): checked server-side against the customer's favorites and past pros. */
 export interface PreferredPro { proId: string; crewId: string | null; label: string; crewName: string | null }
 
+/** Booking a request-a-quote: the request's token, the chosen quote and its locked, all-in price. */
+export interface BookedQuote { request: string; bid: string; price: number; pro: string }
+
 /** One of the signed-in customer's saved homes (My homes). Entry details stay on the server. */
 export interface HomeChoice { id: string; label: string; address: string; city: string; state: string; zip: string; hasAccess: boolean }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false }: { initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null }: { quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -126,6 +130,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
   // Name your price ("" = our suggestion)
   const [offer, setOffer] = useState("");
+  // pros' own prices for this job (their % of our suggestion; core proPrice turns it into the all-in price)
+  const [proRows, setProRows] = useState<ProRateRow[]>([]);
+  const [choice, setChoice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!slug || quote || !/^\d{5}$/.test(form.zip)) { setProRows([]); return; }
+    fetch(`/api/pro-prices?service=${slug}&zip=${form.zip}${date ? `&date=${date}` : ""}&window=${win}`).then((r) => r.json()).then((j) => setProRows(Array.isArray(j.pros) ? j.pros : [])).catch(() => setProRows([]));
+  }, [slug, form.zip, date, win, quote]);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (homeId && ["address", "city", "state", "zip"].includes(k)) setHomeId(null); // a different address isn't the saved home any more
     setForm({ ...form, [k]: e.target.value });
@@ -150,12 +161,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     setQuoteToken(json.quote_token ?? null);
   }
   // the AI price check runs automatically before payment whenever there are photos or notes
-  const needsCheck = Boolean(svc && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notes.trim() || photos.length));
+  const needsCheck = Boolean(!quote && svc && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notes.trim() || photos.length));
   useEffect(() => {
     if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
   const bigJob = svc ? sizeNeedsSiteVisit(svc.slug, answers) : null;
-  const siteVisit = Boolean(svc?.siteVisit || bigJob || ai?.action === "site_visit");
+  const siteVisit = !quote && Boolean(svc?.siteVisit || bigJob || ai?.action === "site_visit");
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
   // required measurements (yard sq ft, weight, height…) must be filled in before the price step
@@ -167,7 +178,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn) }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn) }),
     });
     const json = await res.json();
     setBusy(false);
@@ -177,11 +188,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   }
 
   const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
-  const suggested = ai?.final_price ?? est?.point ?? 0;
+  const suggested = quote ? quote.price : ai?.final_price ?? est?.point ?? 0;
+  const proOffers = !siteVisit && !quote && suggested ? rankProOffers(proRows, suggested, slug) : [];
+  const picked = proOffers.find((o) => o.pro_id === choice) ?? null;
   const offerNum = Math.round(Number(offer) || 0);
   const offerChk = offerNum && suggested ? offerCheck(offerNum, suggested) : null;
-  const named = Boolean(offerChk?.ok && offerNum !== suggested);
-  const listTotal = named ? offerNum : suggested;
+  const named = Boolean(!quote && !picked && offerChk?.ok && offerNum !== suggested);
+  const listTotal = picked ? picked.price : named ? offerNum : suggested;
   // Plus member saving + promo / gift card, from the server (same rules as at booking)
   async function checkPerks(code = promo) {
     if (!svc || siteVisit || !listTotal) return setPerks(null);
@@ -406,7 +419,28 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         <aside className="card h-fit lg:sticky lg:top-24">
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
           <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
-          {!siteVisit && svc.slug !== "event-package" && (
+          {siteVisit && !svc.remote && <a href={`/quote-request?service=${svc.slug}`} className="mt-1 block text-sm text-brand underline">{es ? "O reciba hasta 3 cotizaciones firmes en 24 horas" : "Or get up to 3 firm quotes in 24 hours"}</a>}
+          {quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{es ? `Cotización firme de ${quote.pro}: ${money(quote.price)}, todo incluido. ${quote.pro} recibe el trabajo primero.` : `Firm quote from ${quote.pro}: ${money(quote.price)}, all-in. ${quote.pro} gets the job first.`}</p>}
+          {proOffers.length > 0 && (
+            <div className="mt-3 rounded-xl border border-line p-3 text-sm">
+              <div className="font-semibold">{es ? "Elija su precio" : "Choose your price"}</div>
+              <p className="mt-1 text-xs text-ink-soft">{es ? "Todos los precios son finales y por adelantado. Profesionales verificados fijan sus propios precios." : "Every price is final and upfront. Vetted pros set their own prices."}</p>
+              <div className="mt-2 space-y-2">
+                <button type="button" onClick={() => setChoice(null)} className={`w-full rounded-lg border p-2 text-left ${!picked ? "border-brand bg-brand-tint" : "border-line"}`}>
+                  <div className="flex justify-between font-semibold"><span>{es ? "Precio de Handled" : "Handled's price"}</span><span>{money(named ? offerNum : suggested)}</span></div>
+                  <div className="text-xs text-ink-soft">{es ? "Asignación más rápida: el primer profesional verificado disponible" : "Fastest match: the first available vetted pro"}</div>
+                </button>
+                {proOffers.map((o) => (
+                  <button key={o.pro_id} type="button" onClick={() => setChoice(o.pro_id)} className={`w-full rounded-lg border p-2 text-left ${picked?.pro_id === o.pro_id ? "border-brand bg-brand-tint" : "border-line"}`}>
+                    <div className="flex justify-between font-semibold"><span>{o.name}</span><span>{money(o.price)}</span></div>
+                    <div className="text-xs text-ink-soft">★ {Number(o.rating).toFixed(1)} · {o.jobs_completed} {es ? "trabajos" : "jobs"}{o.badges.length ? ` · ${o.badges.map((b) => t(b)).join(" · ")}` : ""}</div>
+                  </button>
+                ))}
+              </div>
+              {picked && <p className="mt-2 text-xs text-ink-soft">{es ? `${picked.name} recibe el trabajo primero por unas horas; si no puede, otro profesional verificado lo hace al mismo precio.` : `${picked.name} gets the first look for a few hours; if they can't, another vetted pro does it at the same price.`}</p>}
+            </div>
+          )}
+          {!siteVisit && !quote && !picked && svc.slug !== "event-package" && (
             <div className="mt-3 rounded-xl border border-line p-3 text-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold">{t("Name your price")}</span>

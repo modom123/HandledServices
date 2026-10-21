@@ -6,6 +6,8 @@
  *           daily search and "search now" (inside the daily call budget), the pipeline (new → reviewing → bidding →
  *           submitted → won / lost, or passed), best fits first with deadlines, and the bid checklist.
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Clients → Bids & contracts, "Find federal (SAM.gov)" view (was /hub/gov — now redirects).
+ * UPDATED : 2026-10-21_0030 UTC — link to Awards & recompetes (Contract Awards API, subcontract targets); "Today's bids" (the AI
+ *           bid desk's daily picks with their draft bids); bids-to-pick-per-day setting.
  */
 import Link from "next/link";
 import { GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SET_ASIDES } from "@handled/core";
@@ -14,7 +16,7 @@ import { callsToday, getGovSettings, govReady, noticeTypeLabel } from "@/lib/gov
 import { Stat } from "@/components/ui";
 import { GovSearchForm } from "@/components/GovAdmin";
 
-type Row = { notice_id: string; title: string; agency: string | null; office: string | null; ptype: string | null; notice_type: string | null; set_aside_code: string | null; set_aside: string | null; naics: string | null; response_deadline: string | null; pop_city: string | null; pop_state: string | null; fit_score: number; fit: { flags?: string[]; biddable?: boolean } | null; status: string; posted_date: string | null };
+type Row = { picked_at: string | null; owner: string | null; notice_id: string; title: string; agency: string | null; office: string | null; ptype: string | null; notice_type: string | null; set_aside_code: string | null; set_aside: string | null; naics: string | null; response_deadline: string | null; pop_city: string | null; pop_state: string | null; fit_score: number; fit: { flags?: string[]; biddable?: boolean } | null; status: string; posted_date: string | null };
 
 function due(d: string | null) {
   if (!d) return "—";
@@ -29,11 +31,13 @@ export default async function GovContracts({ searchParams }: { searchParams: Pro
   const [s, used, { data }] = await Promise.all([
     getGovSettings(),
     callsToday(),
-    db.from("gov_opportunities").select("notice_id, title, agency, office, ptype, notice_type, set_aside_code, set_aside, naics, response_deadline, pop_city, pop_state, fit_score, fit, status, posted_date").order("fit_score", { ascending: false }).order("response_deadline", { ascending: true, nullsFirst: false }).limit(1000),
+    db.from("gov_opportunities").select("picked_at, owner, notice_id, title, agency, office, ptype, notice_type, set_aside_code, set_aside, naics, response_deadline, pop_city, pop_state, fit_score, fit, status, posted_date").order("fit_score", { ascending: false }).order("response_deadline", { ascending: true, nullsFirst: false }).limit(1000),
   ]);
   const rows = (data ?? []) as Row[];
   const open = (r: Row) => !r.response_deadline || new Date(r.response_deadline).getTime() > Date.now();
-  const active = rows.filter((r) => ["reviewing", "bidding", "submitted"].includes(r.status));
+  const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+  const picksToday = rows.filter((r) => r.picked_at && new Date(r.picked_at) >= dayStart && r.status !== "passed");
+  const active = rows.filter((r) => ["reviewing", "bidding", "submitted"].includes(r.status) && !picksToday.includes(r));
   const list = rows.filter((r) => (status ? r.status === status : r.status === "new" && (all ? true : open(r) && r.fit?.biddable !== false)));
   const n = (st: string) => rows.filter((r) => r.status === st).length;
   const table = (items: Row[]) => (
@@ -63,7 +67,10 @@ export default async function GovContracts({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Government contracts</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">Government contracts</h1>
+          <Link href="/hub/gov/awards" className="btn-ghost text-sm">Awards, recompetes &amp; subcontract targets →</Link>
+        </div>
         <p className="max-w-3xl text-sm text-ink-soft">Federal contract opportunities from SAM.gov for the work our pros do: janitorial, grounds and snow, security, hauling, moves, trades, couriers, rides and catering. Every notice is scored for fit (our NAICS codes, Michigan and metro Detroit, set-asides we can claim, time to respond). Open one to read it, get an AI bid brief, and ask matching pros whether they want the work before you bid.</p>
         {!govReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Searching isn’t set up: sign in at SAM.gov → your Workspace → profile → <b>Public API Key</b> → copy it into Vercel as <code>SAM_API_KEY</code> (type it there, never in chat or email). A personal key allows about 10 calls a day; once Handled is registered in SAM.gov and your account has a role at the entity, it’s about 1,000.</p>}
       </div>
@@ -77,9 +84,10 @@ export default async function GovContracts({ searchParams }: { searchParams: Pro
       </div>
       <section className="card">
         <h2 className="mb-3 text-lg font-bold">Search SAM.gov</h2>
-        <GovSearchForm s={{ enabled: s.enabled, naics: s.naics, state: s.state, keywords: s.keywords, ptypes: s.ptypes, days_back: s.days_back, daily_call_budget: s.daily_call_budget, certifications: s.certifications }} ready={govReady()} callsLeft={Math.max(0, s.daily_call_budget - used)} />
+        <GovSearchForm s={{ enabled: s.enabled, naics: s.naics, state: s.state, keywords: s.keywords, ptypes: s.ptypes, days_back: s.days_back, daily_call_budget: s.daily_call_budget, certifications: s.certifications, daily_picks: s.daily_picks }} ready={govReady()} callsLeft={Math.max(0, s.daily_call_budget - used)} />
         {s.last_run_at && <p className="mt-2 text-xs text-ink-soft">Last daily run: {new Date(s.last_run_at).toLocaleString("en-US", { timeZone: "America/Detroit" })}</p>}
       </section>
+      {picksToday.length > 0 && <section><h2 className="mb-1 text-lg font-bold">Today’s bids (AI bid desk)</h2><p className="mb-2 text-sm text-ink-soft">Picked this morning: open, biddable, 5+ days to respond, best fit first. Each has a draft bid in <Link href="/hub/bids" className="text-brand underline">Our bids</Link>: upload the solicitation from SAM.gov and the AI builds the compliance matrix and price lines.</p>{table(picksToday)}</section>}
       {active.length > 0 && <section><h2 className="mb-2 text-lg font-bold">In progress</h2>{table(active)}</section>}
       <section>
         <div className="mb-2 flex flex-wrap items-center gap-2">

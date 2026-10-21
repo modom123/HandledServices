@@ -45,6 +45,8 @@
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: payment_plan "after" (25% at booking; the balance is held on the card when the
  *           pro starts — holdBalance — and charged when the job is complete — chargeAfterBalance / collectBalances), pay in full = 5% off from our share (also on
  *           recurring visits). A pro can be assigned and start once the 25% is in (clearedForWork); their payout never waits on the customer.
+ * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
+ * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  */
 import "server-only";
 import { z } from "zod";
@@ -96,6 +98,10 @@ export const BookingSchema = z.object({
   customer_budget: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
   /** Name your price: what the customer offers (total, booking fee included). Within OFFER_BOUNDS of our suggestion. */
   customer_offer: z.coerce.number().min(1).max(10_000_000).nullable().optional(),
+  /** Booked at a pro's own price (Hub marketplace): the pro and the all-in price the customer saw (checked again here). */
+  pro_choice: z.object({ pro_id: z.string().uuid(), price: z.coerce.number().min(1).max(10_000_000) }).nullable().optional(),
+  /** Booked from a request-a-quote: the request's token and the chosen pro's quote. */
+  quote_bid: z.object({ request: z.string().regex(/^[a-z0-9]{12,40}$/), bid: z.string().uuid() }).nullable().optional(),
   /** Promo code, gift card or referral code typed at checkout. */
   promo_code: z.string().max(40).nullable().optional(),
   /** First-touch marketing source (utm_*, referrer, landing page) for "where bookings come from". */
@@ -142,7 +148,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
   const { applyMeasurements, missingMeasurements } = await import("@handled/core");
@@ -165,6 +171,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     : "We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach your area.");
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
+  // request-a-quote: the pro's firm quote is the price (no site visit, no AI re-price)
+  const quoted = quote_bid ? await (await import("./quotes")).bookableQuoteBid(quote_bid.request, quote_bid.bid, svc.slug) : null;
+  if (quote_bid && !quoted) throw new Error("That quote isn't available any more — open your quotes link to pick another.");
   const market = await (await import("./market")).getMarketFactor(svc.slug, input.zip);
   const region = await (await import("./launch")).regionFactor(input.zip, svc.slug); // area price level (Seattle area +25%, rest of WA +20%)
   const est = estimate({ slug: svc.slug, answers: input.answers, frequency: input.frequency, rush, market, region });
@@ -172,12 +181,12 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const q = readQuoteToken(quote_token);
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
     && JSON.stringify(q.photos) === JSON.stringify(input.photos) && (q.notes ?? null) === (input.notes?.trim() || null) && q.rush === rush;
-  const { ai } = svc.siteVisit
+  const { ai } = svc.siteVisit || quoted
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
-  const siteVisit = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit);
+  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
@@ -187,15 +196,21 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     instructions = `TWO VISITS. Drop off the ${input.answers.size ?? 15}-yard container on ${fmt(new Date(`${input.scheduled_date}T12:00:00`))} (${input.time_window}); pick it up on ${fmt(pickup)}. Use driveway boards. Upload the landfill weigh ticket as a receipt — any weight over the allowance is billed to the customer at cost.`;
   }
-  const suggested = siteVisit ? null : ai?.final_price ?? est.point;
+  const suggested = siteVisit ? null : quoted ? quoted.price : ai?.final_price ?? est.point;
+  // a pro's own price (their % of our suggestion), recomputed here so the customer pays exactly what they were shown
+  const proPick = !quoted && pro_choice && suggested
+    ? await (await import("./pro-prices")).chosenProPrice({ slug: svc.slug, proId: pro_choice.pro_id, suggested, zip: input.zip, date: input.scheduled_date, window: input.time_window, customerType: input.customer_type })
+    : null;
+  if (pro_choice && !quoted && suggested && !proPick) throw new Error("That pro can't take this job on that day — pick another price.");
+  if (proPick && proPick.price !== Math.round(pro_choice!.price)) throw new Error(`Prices just updated: ${proPick.name} is now ${money(proPick.price)} for this job. Check the price and book again.`);
   // Name your price: the customer's offer replaces our suggestion (within bounds); pros see the pay it makes and decide
   let offer: number | null = null;
-  if (suggested && customer_offer && Math.round(customer_offer) !== suggested) {
+  if (suggested && !proPick && !quoted && customer_offer && Math.round(customer_offer) !== suggested) {
     const chk = offerCheck(Math.round(customer_offer), suggested);
     if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.min)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
     offer = Math.round(customer_offer);
   }
-  const listPrice = offer ?? suggested;
+  const listPrice = proPick?.price ?? offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
   // Plus member saving and promo codes come out of our share (the pro's payout is set on the list price)
   const rushFee = rush && listPrice ? Math.round(listPrice - listPrice / (1 + RUSH_SURCHARGE)) : 0;
@@ -213,7 +228,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const decision = termsDecision(biz.account, await (await import("./business")).openBalance(biz.account.id), price);
     acct = { pilot, ...decision };
   }
-  const pref = await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
+  // the pro the customer chose (their price or their quote) gets the first look; otherwise favorites as before
+  const pick = quoted?.contractor_id ?? proPick?.pro_id ?? null;
+  const pref = pick ? { preferred_contractor_id: pick, requested_crew_member_id: null } : await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
   // how they pay: 25% now and the rest after the job, a deposit (events, site-visit work), or in full now with 5% off
   const dep = price && !acct?.onTerms ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
   const after = price && !acct?.onTerms ? bookNowPolicy(svc.slug, price) : null;
@@ -260,6 +277,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       balance_due_date: plan?.balanceDue ?? null,
       suggested_price: suggested,
       customer_offer: offer,
+      // only sent when used, so bookings keep working before the marketplace migration is run
+      ...(quoted ? { priced_by: "quote" } : proPick ? { priced_by: "pro_rate", pro_rate_pct: proPick.pct } : {}),
       booking_fee: listPrice ? bookingFeeOf(listPrice) : 0,
       terms_version: SERVICE_AGREEMENT_VERSION,
       terms_accepted_at: new Date().toISOString(),
@@ -274,6 +293,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   }
   if (error) throw new Error(error.message);
   let job = data as Job;
+  if (quoted) await (await import("./quotes")).quoteBooked(quoted.request_id, quoted.id, job.id).catch((e) => console.error("[quotes]", e));
   // entry details (lockbox, key) live in job_access: readable only by the assigned pro, the customer and staff
   const access = home?.access ?? (access_info?.trim() || null);
   if (access) await db().from("job_access").insert({ job_id: job.id, access_info: access.slice(0, 1500), updated_by: "booking" }).then(async ({ error: e }) => {
@@ -299,6 +319,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
 export async function onBooked(job: Job, paymentUrl: string | null) {
+  // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
+  await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
   const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);

@@ -8,6 +8,8 @@
  *           Shared by the server layout and the client nav, so no server-only imports.
  * UPDATED : 2026-10-15_0200 UTC — four merges, each one tab with a two-way switch (components/ViewSwitch): Roster + Network
  *           health, Bids + Gov contracts, AI agents + IEBC Workforce, Market pricing + Pricing accuracy (/hub/pricing).
+ * UPDATED : 2026-10-21_0030 UTC — Lead inbox and Marketplace & quotes (Clients), Social media (Growth). The Call desk lives
+ *           under Business leads, Awards & recompetes under Gov contracts.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -45,9 +47,11 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/checklists", "Checklists"],
   ] },
   { id: "clients", icon: "👥", label: "Clients", also: ["/hub/business", "/hub/gov"], links: [
+    ["/hub/inbox", "Lead inbox"],
     ["/hub/customers", "Customers & B2B"],
     ["/hub/biz-leads", "Business leads"],
     ["/hub/bids", "Bids & contracts"],
+    ["/hub/quotes", "Marketplace & quotes"],
     ["/hub/partners", "Referral partners"],
     ["/hub/loyalty", "Points"],
     ["/hub/email", "Email"],
@@ -61,6 +65,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
   ] },
   { id: "growth", icon: "📈", label: "Growth & pricing", links: [
     ["/hub/growth", "Growth"],
+    ["/hub/social", "Social media"],
     ["/hub/cities", "City scorecard"],
     ["/hub/pricing", "Pricing"],
     ["/hub/site", "Website look"],

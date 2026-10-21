@@ -15,16 +15,33 @@
  *           allows about 10 calls a day (about 1,000 once the account has a role at a SAM-registered entity), so we
  *           cache every result and the daily run stays inside a call budget.
  *           Not legal advice: the bid checklist flags items for counsel and a government-contracts adviser.
+ * UPDATED : 2026-10-19_2140 UTC — GOV_FOCUS: landscaping, painting, AI automation (541511 / 541512 / 541519 →
+ *           our AI automation, AI agents and business operating system services; remote, so place doesn't count
+ *           against them), window installation (238150), carpet cleaning (561740) and construction (236220
+ *           commercial building, 236118 remodeling). Roofing 238160 and window installation are subcontracted work
+ *           (no catalog service yet). offeredNaics(), remoteNaics().
+ * UPDATED : 2026-10-19_2330 UTC — stateWide search (one call for the whole state, filtered to our codes on our side, plus
+ *           one nationwide call per remote code) so the daily search fits a 10-call key; pickBidCandidates — the day's
+ *           5 best notices we can still respond to (open, biddable, 5+ days left, good fit).
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
-export interface GovNaics { code: string; title: string; slugs: string[] }
+export interface GovNaics {
+  code: string; title: string; slugs: string[];
+  /** Where we're going after government work first. */
+  focus?: boolean;
+  /** Work we fill only with subcontracted pros (no catalog service yet). */
+  subcontracted?: boolean;
+  /** Can be done remotely: the place of performance doesn't matter. */
+  remote?: boolean;
+}
 
 /** NAICS codes agencies post work under, for services we already offer (2022 NAICS). */
 export const GOV_NAICS: GovNaics[] = [
   { code: "561720", title: "Janitorial services", slugs: ["house-cleaning", "window-cleaning"] },
-  { code: "561730", title: "Landscaping & grounds maintenance", slugs: ["lawn-care", "leaf-removal", "tree-removal"] },
-  { code: "561740", title: "Carpet & upholstery cleaning", slugs: ["carpet-cleaning"] },
+  { code: "561730", title: "Landscaping & grounds maintenance", slugs: ["lawn-care", "leaf-removal", "tree-removal"], focus: true },
+  { code: "238160", title: "Roofing", slugs: [], subcontracted: true },
+  { code: "561740", title: "Carpet & upholstery cleaning", slugs: ["carpet-cleaning"], focus: true },
   { code: "561790", title: "Other services to buildings (snow removal, power washing, gutters)", slugs: ["snow-removal", "power-washing", "gutter-cleaning"] },
   { code: "561612", title: "Security guards & patrol", slugs: ["security-guard", "event-security"] },
   { code: "561210", title: "Facilities support (multi-service)", slugs: ["handyman", "unit-turnover", "house-cleaning", "lawn-care"] },
@@ -32,8 +49,13 @@ export const GOV_NAICS: GovNaics[] = [
   { code: "484210", title: "Office & household moving", slugs: ["small-moves", "large-item-removal"] },
   { code: "238220", title: "Plumbing, heating & air conditioning", slugs: ["plumbing", "hvac-install", "water-heater"] },
   { code: "238210", title: "Electrical work", slugs: ["lighting-install", "camera-install"] },
-  { code: "238320", title: "Painting", slugs: ["interior-painting", "exterior-painting"] },
-  { code: "236118", title: "Residential remodeling", slugs: ["bathroom-remodel", "kitchen-remodel", "home-remodel"] },
+  { code: "238320", title: "Painting", slugs: ["interior-painting", "exterior-painting"], focus: true },
+  { code: "541511", title: "Custom computer programming (AI automation)", slugs: ["ai-automation", "ai-agents", "website-design"], focus: true, remote: true },
+  { code: "541512", title: "Computer systems design (AI systems)", slugs: ["ai-automation", "business-operating-system", "ai-agents"], focus: true, remote: true },
+  { code: "541519", title: "Other computer services (AI automation)", slugs: ["ai-automation"], focus: true, remote: true },
+  { code: "236118", title: "Residential remodeling", slugs: ["bathroom-remodel", "kitchen-remodel", "home-remodel"], focus: true },
+  { code: "236220", title: "Commercial & institutional building construction", slugs: ["home-remodel", "handyman"], focus: true },
+  { code: "238150", title: "Window installation (glass & glazing)", slugs: [], focus: true, subcontracted: true },
   { code: "492210", title: "Local couriers & delivery", slugs: ["courier", "medical-delivery"] },
   { code: "485320", title: "Limousine & car service", slugs: ["private-driver", "airport-transfer", "limousine"] },
   { code: "485510", title: "Charter bus", slugs: ["charter-bus", "event-shuttle"] },
@@ -42,6 +64,12 @@ export const GOV_NAICS: GovNaics[] = [
   { code: "811192", title: "Car washes & detailing", slugs: ["mobile-car-detailing"] },
 ];
 export const GOV_NAICS_BY_CODE: Record<string, GovNaics> = Object.fromEntries(GOV_NAICS.map((n) => [n.code, n]));
+/** Where we're going after government work first (and subcontracting under primes). */
+export const GOV_FOCUS = GOV_NAICS.filter((n) => n.focus).map((n) => n.code);
+/** Work we can deliver under this code: a catalog service, or a trade we fill with subcontracted pros. */
+export const offeredNaics = (code: string | null | undefined) => Boolean(code && (GOV_NAICS_BY_CODE[code]?.subcontracted || servicesForNaics(code).length));
+/** Remote work (AI automation): where the agency is doesn't matter. */
+export const remoteNaics = (code: string | null | undefined) => Boolean(code && GOV_NAICS_BY_CODE[code]?.remote);
 
 /** Services (that exist in the catalog) an opportunity's NAICS code points to. */
 export function servicesForNaics(code: string | null | undefined): string[] {
@@ -183,10 +211,11 @@ export function govFit(o: GovOpportunity, opts: { homeState?: string; now?: Date
   const flags: string[] = [];
   let score = 0;
   const biddable = Boolean(o.active && (!o.ptype || BIDDABLE_TYPES.includes(o.ptype)));
-  if (services.length) { score += 40; reasons.push(`NAICS ${o.naics}: ${GOV_NAICS_BY_CODE[o.naics!].title}`); }
+  if (offeredNaics(o.naics)) { score += 40; reasons.push(`NAICS ${o.naics}: ${GOV_NAICS_BY_CODE[o.naics!].title}`); }
   else flags.push(`NAICS ${o.naics ?? "—"} isn't work we offer yet`);
   const city = (o.pop_city ?? "").toLowerCase();
-  if (o.pop_state?.toUpperCase() === home) {
+  if (remoteNaics(o.naics)) { score += 40; reasons.push("Remote work: we can deliver it from anywhere"); }
+  else if (o.pop_state?.toUpperCase() === home) {
     score += 25; reasons.push(`In ${home}`);
     if (METRO_CITIES.some((c) => city.includes(c))) { score += 15; reasons.push(`Metro Detroit (${o.pop_city})`); }
   } else if (o.pop_state) flags.push(`Work is in ${o.pop_state}${o.pop_city ? ` (${o.pop_city})` : ""}: we'd need pros there`);
@@ -212,7 +241,9 @@ export function samDate(d: Date): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}/${d.getUTCFullYear()}`;
 }
 
-export interface GovSearch { naics?: string[]; state?: string | null; keywords?: string | null; ptypes?: string[]; setAside?: string | null; daysBack?: number; limit?: number; offset?: number; now?: Date }
+export interface GovSearch { naics?: string[]; state?: string | null; keywords?: string | null; ptypes?: string[]; setAside?: string | null; daysBack?: number; limit?: number; offset?: number; now?: Date;
+  /** One call for every notice in the state (filter to our codes after), plus one nationwide call per remote code. */
+  stateWide?: boolean }
 
 /**
  * Query strings for one search (without the API key). SAM takes one NAICS code per call, so a search across
@@ -232,8 +263,33 @@ export function samSearchQueries(s: GovSearch): string[] {
   if (s.ptypes?.length) base.ptype = s.ptypes.filter((p) => p in SAM_NOTICE_TYPES).join(",");
   if (s.setAside && s.setAside in SET_ASIDES) base.typeOfSetAside = s.setAside;
   const codes = (s.naics ?? []).filter((c) => /^\d{6}$/.test(c));
+  if (s.stateWide && base.state && codes.length) {
+    const local = codes.filter((c) => !remoteNaics(c));
+    const { state: _st, ...national } = base;
+    const list = [
+      ...(local.length ? [{ ...base, limit: "1000" }] : []),
+      ...codes.filter((c) => remoteNaics(c)).map((ncode) => ({ ...national, ncode })),
+    ];
+    return list.map((q) => new URLSearchParams(q).toString());
+  }
   const list = codes.length ? codes.map((ncode) => ({ ...base, ncode })) : [base];
   return list.map((q) => new URLSearchParams(q).toString());
+}
+
+export interface BidCandidate { notice_id: string; status: string; fit_score: number; response_deadline: string | null; active: boolean; ptype: string | null; naics: string | null; picked_at?: string | null }
+
+/**
+ * The day's best notices to propose on: new, open, a type we can respond to (solicitation, combined, presolicitation,
+ * sources sought), work we do, at least `minDays` to respond, fit `minScore`+. Best fit first, then soonest due.
+ */
+export function pickBidCandidates<T extends BidCandidate>(rows: T[], o: { n?: number; now?: Date; minDays?: number; minScore?: number } = {}): T[] {
+  const now = (o.now ?? new Date()).getTime();
+  const minMs = (o.minDays ?? 5) * 86400000;
+  return rows
+    .filter((r) => r.status === "new" && !r.picked_at && r.active && ["o", "k", "p", "r"].includes(r.ptype ?? "") && offeredNaics(r.naics) && r.fit_score >= (o.minScore ?? 55))
+    .filter((r) => !r.response_deadline || new Date(r.response_deadline).getTime() - now >= minMs)
+    .sort((a, b) => b.fit_score - a.fit_score || (a.response_deadline ?? "9999").localeCompare(b.response_deadline ?? "9999"))
+    .slice(0, o.n ?? 5);
 }
 
 /** What has to be true before we bid on a government contract. Flags for counsel / a contracts adviser. */
