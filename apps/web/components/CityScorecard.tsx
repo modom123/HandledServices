@@ -5,6 +5,7 @@
  * PURPOSE : The pieces of Hub → City scorecard: a city card (stage track, money tiles, progress to the
  *           next level, to-do list, every gate with 90-day and last-30-day status), meters and tiles.
  *           Status is always an icon + a word, never color alone.
+ * UPDATED : 2026-10-21_0200 UTC — explains pro-led rollout (services open where an approved pro covers them).
  */
 import { CITY_STAGE_LABEL, LAUNCH_SET_RECOMMENDED, SERVICES, TRADES, money, perMonth, type CityStage, type GateLevel, type GateResult } from "@handled/core";
 import type { CityCard } from "@/lib/city-scorecard";
@@ -78,7 +79,7 @@ export function City({ c }: { c: CityCard }) {
 
       <details>
         <summary className="cursor-pointer text-sm font-semibold">Open services: {m.launch_services?.length ? `${m.launch_services.length} of ${SERVICES.length} (launch set)` : `all ${SERVICES.length}`}</summary>
-        <p className="mt-1 text-xs text-ink-soft">Open a city with a few frequent, simple services so every booking gets a pro fast; everything else shows “coming soon” with a waitlist. Widen the list as the city’s gates pass.</p>
+        <p className="mt-1 text-xs text-ink-soft">Open a city with a few frequent, simple services so every booking gets a pro fast. Any other service opens on its own in the ZIPs where an approved pro covers it (pro-led rollout), and the people waiting for it there are told; everywhere else it shows “coming soon” with a waitlist. Widen the list as the city’s gates pass.</p>
         <div className="mt-2"><LaunchSet id={m.id} current={m.launch_services ?? null} recommended={[...LAUNCH_SET_RECOMMENDED]} services={SERVICES.map((s) => ({ slug: s.slug, name: s.name, icon: s.icon, category: s.category }))} /></div>
       </details>
       <details>
