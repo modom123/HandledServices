@@ -14,6 +14,8 @@
  * UPDATED : 2026-10-04_1934 UTC — a campaign per lead (pro recruiting vs business sales).
  * UPDATED : 2026-10-19_2230 UTC — listCampaignLeads (pull every lead in the business campaign, including ones uploaded
  *           straight into Instantly, into Hub → Business leads) and isBizCampaign (route webhook events by campaign).
+ * UPDATED : 2026-10-21_0130 UTC — listReceivedEmails: replies pulled from the API (Instantly's webhooks need its Hypergrowth
+ *           plan; the API works on every paid plan), so replies reach the CRM and the AI reply agent without webhooks.
  */
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
@@ -86,6 +88,30 @@ export async function listCampaignLeads(campaign: string, startingAfter: string 
     variables: (x.payload && typeof x.payload === "object" ? x.payload : {}) as Record<string, unknown>,
   }));
   return { leads, next: s(j.next_starting_after) };
+}
+
+export const instantlyWebhooksOn = () => Boolean(process.env.INSTANTLY_WEBHOOK_SECRET?.trim());
+
+export interface InstantlyReply { id: string; lead: string; text: string | null; subject: string | null; at: string | null }
+
+/** Replies received in a campaign, newest first (one page of up to 100) and the cursor for the next page. */
+export async function listReceivedEmails(campaign: string, startingAfter: string | null): Promise<{ replies: InstantlyReply[]; next: string | null }> {
+  const q = new URLSearchParams({ campaign_id: campaign, email_type: "received", limit: "100", ...(startingAfter ? { starting_after: startingAfter } : {}) });
+  const r = await fetch(`${BASE}/emails?${q}`, { headers: { Authorization: `Bearer ${process.env.INSTANTLY_API_KEY}` }, signal: AbortSignal.timeout(15000) });
+  const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!r.ok) throw new Error(`instantly /emails ${r.status}: ${JSON.stringify(j).slice(0, 300)}`);
+  const s = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const items = Array.isArray(j.items) ? (j.items as Record<string, unknown>[]) : [];
+  const replies = items.map((x) => {
+    const body = (x.body && typeof x.body === "object" ? x.body : {}) as Record<string, unknown>;
+    const html = s(body.html);
+    return {
+      id: String(x.id ?? ""), lead: (s(x.lead) ?? s(x.from_address_email) ?? "").toLowerCase(),
+      text: s(body.text) ?? (html ? html.replace(/<br\s*\/?>|<\/p>/gi, "\n").replace(/<[^>]+>/g, "").trim() : null) ?? s(x.content_preview),
+      subject: s(x.subject), at: s(x.timestamp_email) ?? s(x.timestamp_created),
+    };
+  }).filter((x) => x.id && x.lead.includes("@"));
+  return { replies, next: s(j.next_starting_after) };
 }
 
 /** Never email this address again from Instantly (applied, unsubscribed through us, or asked not to be contacted). */

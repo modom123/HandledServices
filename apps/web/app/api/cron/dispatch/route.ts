@@ -11,12 +11,15 @@
  * UPDATED : 2026-10-06_0726 UTC — security: cronAuthorized() (fails closed without a 16+ character CRON_SECRET, constant-time).
  * UPDATED : 2026-10-20_0100 UTC — publishes approved social posts when their time comes (Facebook, Instagram).
  * UPDATED : 2026-10-20_0200 UTC — request-a-quote sweep (expire 24-hour invites, ask the next pros).
+ * UPDATED : 2026-10-21_0130 UTC — Instantly replies pulled every 10 minutes and campaign leads hourly (no webhooks needed).
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
 import { runEmailCenter } from "@/lib/email-center";
 import { publishDue } from "@/lib/social";
 import { quoteSweep } from "@/lib/quotes";
+import { syncBizCampaign, syncBizReplies } from "@/lib/biz-leads";
+import { syncProReplies } from "@/lib/leads";
 import { cronAuthorized } from "@/lib/cron-auth";
 
 export const maxDuration = 120;
@@ -28,5 +31,11 @@ export async function GET(req: Request) {
   const email = await runEmailCenter().catch((e) => { console.error("[email center]", e); return null; });
   const social = await publishDue().catch((e) => { console.error("[social]", e); return null; }); // approved posts whose time has come
   const quotes = await quoteSweep().catch((e) => { console.error("[quotes]", e); return null; }); // 24-hour quote invites
-  return Response.json({ ...dispatch, coverage, email, social, quotes });
+  // Instantly without webhooks (they need its Hypergrowth plan): replies every 10 minutes, the campaign's leads hourly
+  const instantly = process.env.INSTANTLY_API_KEY ? {
+    biz: await syncBizReplies().catch((e) => ({ ok: false, error: String(e) })),
+    pros: await syncProReplies().catch((e) => ({ ok: false, error: String(e) })),
+    leads: new Date().getUTCMinutes() < 10 ? await syncBizCampaign(5).catch((e) => ({ ok: false, error: String(e) })) : null,
+  } : null;
+  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly });
 }

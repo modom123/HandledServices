@@ -2,6 +2,7 @@
 FILE    : docs/INSTANTLY_DETROIT_CAMPAIGN_SETUP_2026-10-19_2230.md
 PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-10-19_2230 UTC
+UPDATED : 2026-10-21_0130 UTC — replies pulled from the API every 10 minutes; the webhook (Hypergrowth plan) is optional.
 PURPOSE : Wire the Instantly campaign "1ST OUTREACH DETROIT" (3de836a0-4845-4350-80af-db9725831b43) to the AI agents
           and the CRM (Hub → Business leads).
 -->
@@ -34,7 +35,15 @@ The AI never sends anything on its own. It drafts, and a person sends.
 
 Type the 🔒 values into Vercel yourself. Then **redeploy**.
 
-## 2. Instantly webhook
+## 2. Replies without a webhook (no extra Instantly plan)
+Instantly's webhooks need its **Hypergrowth** plan (about $97/month). **You don't need them.**
+- **Replies:** every 10 minutes the app pulls new replies from Instantly's API, which every paid plan includes, and runs them through the AI reply agent.
+- **Leads:** the campaign's leads sync every hour.
+- **What you need:** `INSTANTLY_API_KEY` (an API v2 key with access to leads and emails) and `INSTANTLY_BIZ_CAMPAIGN_ID`.
+- **Leave `INSTANTLY_WEBHOOK_SECRET` empty.** If you set it, the app assumes webhooks deliver replies and stops pulling them.
+- **The 10-minute cron:** it runs from the GitHub Action "dispatch-cron". It needs the `CRON_SECRET` secret and the `HANDLED_URL` variable set in GitHub → Settings → Secrets and variables → Actions.
+
+## 2b. Instantly webhook (only if you're on Hypergrowth)
 In **Instantly → Settings → Integrations → Webhooks → Add webhook**:
 - **URL:** `https://YOUR-SITE/api/webhooks/instantly?secret=THE-SAME-INSTANTLY_WEBHOOK_SECRET`
 - **Campaign:** 1ST OUTREACH DETROIT (or all campaigns)
