@@ -27,6 +27,8 @@
  *                                 Instantly, becomes a business lead (source 'instantly'); replies / clicks / interest
  *                                 flags update the status. Runs daily (even with discovery off) and from the Hub.
  *             webhook events for an unknown address in that campaign create the lead first, so nothing is lost
+ *             syncBizReplies    — replies pulled from Instantly's API every 10 minutes when its webhooks aren't on
+ *                                 (they need Instantly's Hypergrowth plan); each new reply runs through the same path
  *             triageBizReply    — the AI sales agent reads every reply: interested / question / not now / not
  *                                 interested / unsubscribe / out of office; stops mail for no's, and puts a summary
  *                                 and a draft answer (for Unibox) in the alert and the lead's history.
@@ -41,7 +43,7 @@ import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
-import { addLeadToCampaign, blockInInstantly, instantlyBizReady, instantlyBizSyncReady, listCampaignLeads, type InstantlyCampaignLead } from "./instantly";
+import { addLeadToCampaign, blockInInstantly, instantlyBizReady, instantlyBizSyncReady, instantlyWebhooksOn, listCampaignLeads, listReceivedEmails, type InstantlyCampaignLead } from "./instantly";
 import { aiEnabled, structured } from "./ai/client";
 import { safeFetch } from "./safe-fetch";
 
@@ -322,6 +324,42 @@ export async function syncBizCampaign(maxPages = 20): Promise<{ ok: boolean; see
     return { ok: false, seen, added, updated, error: e instanceof Error ? e.message.slice(0, 300) : String(e) };
   }
   return { ok: true, seen, added, updated };
+}
+
+/**
+ * Replies from the business campaign, pulled from the API (newest first, stopping at the first one already handled).
+ * Each new reply goes through onBizInstantlyEvent: the lead is created if needed, the AI reads it, no's stop the
+ * sequence, interested ones alert the team. Skipped when Instantly's webhooks deliver replies instead.
+ */
+export async function syncBizReplies(maxPages = 3): Promise<{ ok: boolean; checked: number; new: number; error?: string }> {
+  const campaign = process.env.INSTANTLY_BIZ_CAMPAIGN_ID?.trim();
+  if (!instantlyBizSyncReady() || !campaign) return { ok: false, checked: 0, new: 0, error: "Set INSTANTLY_API_KEY and INSTANTLY_BIZ_CAMPAIGN_ID in Vercel" };
+  if (instantlyWebhooksOn()) return { ok: true, checked: 0, new: 0 }; // webhooks deliver them
+  let next: string | null = null, checked = 0, fresh = 0, firstRun: boolean | null = null;
+  try {
+    for (let page = 0; page < maxPages; page++) {
+      const r: { replies: { id: string; lead: string; text: string | null; at: string | null }[]; next: string | null } = await listReceivedEmails(campaign, next);
+      if (!r.replies.length) break;
+      const { data: seen } = await db().from("biz_lead_events").select("note").eq("kind", "instantly:reply_id").in("note", r.replies.map((x) => x.id));
+      const known = new Set((seen ?? []).map((x) => x.note as string));
+      const todo = r.replies.filter((x) => !known.has(x.id));
+      if (page === 0 && firstRun === null) firstRun = !(await db().from("biz_lead_events").select("id", { count: "exact", head: true }).eq("kind", "instantly:reply_id")).count;
+      // never act on stale replies: the last 48 hours on the first run, then up to 7 days back
+      const recent = (x: { at: string | null }) => x.at != null && Date.now() - Date.parse(x.at) < (firstRun ? 48 : 168) * 3600000;
+      checked += r.replies.length;
+      for (const x of todo.reverse()) { // oldest first
+        const handled = recent(x) ? await onBizInstantlyEvent({ type: "reply_received", email: x.lead, text: x.text, fromBizCampaign: true }).catch(() => false) : false;
+        const { data: lead } = await db().from("biz_leads").select("id").ilike("email", likeEmail(x.lead)).limit(1).maybeSingle();
+        if (lead) await event(lead.id, "instantly:reply_id", x.id, "instantly");
+        if (handled) fresh++;
+      }
+      if (todo.length < r.replies.length || !r.next) break; // reached replies handled before
+      next = r.next;
+    }
+  } catch (e) {
+    return { ok: false, checked, new: fresh, error: e instanceof Error ? e.message.slice(0, 300) : String(e) };
+  }
+  return { ok: true, checked, new: fresh };
 }
 
 const ReplyTriage = z.object({

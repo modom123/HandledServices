@@ -21,6 +21,8 @@
  *           (MARKETING_FOCUS.trades) when staff haven't picked trades. Supply gaps are still searched for every trade.
  * UPDATED : 2026-10-06_0726 UTC — security: business websites are read through safeFetch() (no internal / metadata addresses, redirects checked).
  * UPDATED : 2026-10-11_1625 UTC — no email on a pro's website → one Hunter.io domain search (lib/hunter, daily budget); the owner's name is saved too.
+ * UPDATED : 2026-10-21_0130 UTC — syncProReplies: replies pulled from Instantly's API when its webhooks aren't on (they need the
+ *           Hypergrowth plan), handled by onInstantlyEvent like a webhook reply.
  */
 import "server-only";
 import {
@@ -31,7 +33,7 @@ import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
 import { raiseAlert } from "./jobs";
-import { addLeadToCampaign, blockInInstantly, instantlyReady } from "./instantly";
+import { addLeadToCampaign, blockInInstantly, instantlyReady, instantlyWebhooksOn, listReceivedEmails } from "./instantly";
 import { safeFetch } from "./safe-fetch";
 
 const db = () => adminClient();
@@ -221,6 +223,33 @@ export async function sendLeadEmails(s: LeadSettings): Promise<{ sent: number; s
 }
 
 /** Instantly events (webhook): sent, opened/clicked, replied, unsubscribed, bounced. */
+/** Pro campaign replies from the API (newest first, stopping at ones already handled); skipped when webhooks deliver them. */
+export async function syncProReplies(maxPages = 2): Promise<{ ok: boolean; new: number; error?: string }> {
+  const campaign = process.env.INSTANTLY_CAMPAIGN_ID?.trim();
+  if (!process.env.INSTANTLY_API_KEY || !campaign || instantlyWebhooksOn()) return { ok: true, new: 0 };
+  let next: string | null = null, fresh = 0, firstRun: boolean | null = null;
+  try {
+    for (let page = 0; page < maxPages; page++) {
+      const r: { replies: { id: string; lead: string; text: string | null; at: string | null }[]; next: string | null } = await listReceivedEmails(campaign, next);
+      if (!r.replies.length) break;
+      const { data: seen } = await db().from("pro_lead_events").select("note").eq("kind", "instantly:reply_id").in("note", r.replies.map((x) => x.id));
+      const known = new Set((seen ?? []).map((x) => x.note as string));
+      const todo = r.replies.filter((x) => !known.has(x.id));
+      if (page === 0 && firstRun === null) firstRun = !(await db().from("pro_lead_events").select("id", { count: "exact", head: true }).eq("kind", "instantly:reply_id")).count;
+      // never act on stale replies: the last 48 hours on the first run, then up to 7 days back
+      const recent = (x: { at: string | null }) => x.at != null && Date.now() - Date.parse(x.at) < (firstRun ? 48 : 168) * 3600000;
+      for (const x of todo.reverse()) {
+        if (recent(x) && (await onInstantlyEvent({ type: "reply_received", email: x.lead, text: x.text }).catch(() => false))) fresh++;
+        const { data: lead } = await db().from("pro_leads").select("id").ilike("email", x.lead.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle();
+        if (lead) await event(lead.id, "instantly:reply_id", x.id, "instantly");
+      }
+      if (todo.length < r.replies.length || !r.next) break;
+      next = r.next;
+    }
+  } catch (e) { return { ok: false, new: fresh, error: e instanceof Error ? e.message.slice(0, 300) : String(e) }; }
+  return { ok: true, new: fresh };
+}
+
 export async function onInstantlyEvent(e: { type: string; email: string; leadId?: string | null; step?: number | null; text?: string | null }) {
   const email = e.email.trim().toLowerCase();
   const { data: lead } = e.leadId && /^[0-9a-f-]{36}$/.test(e.leadId)
