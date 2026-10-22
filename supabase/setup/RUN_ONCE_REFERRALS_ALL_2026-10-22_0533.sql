@@ -1,15 +1,15 @@
 -- ============================================================================
--- FILE    : supabase/setup/RUN_ONCE_REFERRALS_ALL_2026-10-22_0524.sql
+-- FILE    : supabase/setup/RUN_ONCE_REFERRALS_ALL_2026-10-22_0533.sql
 -- PROJECT : Handled (HandledServices) - AI-run home & business services
--- CREATED : 2026-10-22_0524 UTC
+-- CREATED : 2026-10-22_0533 UTC
 -- PURPOSE : ONE PASTE for every referral-program database change from 2026-10-22, in order:
 --             1. referral tickets (Standard Referral Ticket RT-1, photos, completeness)   - 20261022040000
 --             2. ticket invites (send a ticket after a phone call; pros & partners too)  - 20261022070000
 --             3. shared referral bonus (half Handled / half the pro on the job)          - 20261022090000
+--             4. one Handled account (new accounts link partner records; backfill)       - 20261022100000
 --           Supabase -> SQL Editor -> New query -> paste this whole file -> Run.
---           Safe to run more than once (every statement is "if not exists" / drop-and-recreate).
---           Needs the earlier Referral Partner Program tables (ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql), which
---           are already in place if Hub -> Partners works today.
+--           Safe to run more than once, and safe if you already ran an earlier copy (replaces RUN_ONCE_REFERRALS_ALL_2026-10-22_0524).
+--           Tested on Postgres 16 after rebuilding the database from every earlier migration.
 -- ============================================================================
 
 -- >>> migration 20261022040000_referral_tickets.sql
@@ -171,4 +171,38 @@ alter table public.payouts drop constraint if exists payouts_kind_check;
 alter table public.payouts add constraint payouts_kind_check
   check (kind in ('job','show_up','guarantee','stipend','materials','clawback','referral','tip','placement','referral_share'));
 
--- done: Hub -> Setup should now show referral tickets, ticket invites and the shared referral bonus as ready.
+-- >>> migration 20261022100000_one_handled_account.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261022100000_one_handled_account.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-22_1000 UTC
+-- PURPOSE : ONE HANDLED ACCOUNT for everything (book, refer, get paid, work as a pro). Everyone who joins the referral
+--           network gets a Handled account at sign-up (apps/web/lib/partners.ts ensureAccount), and a referral partner
+--           is paid only through a linked account. This keeps the database side in step:
+--             - handle_new_user(): a new account also links a referral partner record with the same email (as it
+--               already does for guest bookings and pro records)
+--             - backfill: existing partners linked to existing accounts by email
+--           Same function body as 20261001172300_init.sql plus one line. Safe to run twice.
+-- ============================================================================
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, email, full_name, phone)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone')
+  on conflict (id) do nothing;
+  -- link guest bookings made with this email before the account existed
+  update public.jobs set customer_id = new.id where customer_id is null and lower(contact_email) = lower(new.email);
+  -- link an approved contractor record with this email
+  update public.contractors set profile_id = new.id where profile_id is null and lower(email) = lower(new.email);
+  update public.profiles set role = 'pro' where id = new.id and exists (select 1 from public.contractors where profile_id = new.id);
+  -- link a referral partner record with this email (one Handled account: book, refer, get paid)
+  update public.referral_partners set profile_id = new.id where profile_id is null and lower(email) = lower(new.email);
+  return new;
+end $$;
+
+-- partners who joined before their account existed (or before this ran): link them now
+update public.referral_partners rp set profile_id = p.id
+  from public.profiles p
+ where rp.profile_id is null and p.email is not null and lower(p.email) = lower(rp.email);
+
+-- done: Hub -> Setup should show referral tickets, ticket invites and the shared referral bonus as ready.

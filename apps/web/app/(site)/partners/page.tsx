@@ -76,7 +76,7 @@ export default function Partners() {
         <div className="wrap grid gap-8 py-12 md:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold">Join in two minutes</h2>
-            <p className="mt-2 text-sm text-ink-soft">No fee, no quota. You get your link right away. Already a {BRAND.name} pro or client? <Link href="/partner" className="underline">Sign in and join in one tap</Link>.</p>
+            <p className="mt-2 text-sm text-ink-soft">No fee, no quota. Joining creates your free Handled account — one account to book services, send referrals and get paid — and you get your link right away. Already a {BRAND.name} pro or client? <Link href="/partner" className="underline">Sign in and join in one tap</Link>.</p>
             <div className="mt-4"><PartnerSignUp kinds={Object.entries(PARTNER_KINDS).filter(([k]) => k !== "pro")} /></div>
           </div>
           <div>

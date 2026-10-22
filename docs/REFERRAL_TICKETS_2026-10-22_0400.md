@@ -7,6 +7,7 @@
   UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1), photos, autofill, Handled Hub views, IEBC worker actions.
   UPDATED : 2026-10-22_0700 UTC — ticket invites: send the ticket to someone on the phone; filling it out signs them up.
   UPDATED : 2026-10-22_0800 UTC — pros and partners send ticket invites too, from their partner page.
+  UPDATED : 2026-10-22_1000 UTC — one Handled account for everyone (partners, customers, pros); payouts need it.
   UPDATED : 2026-10-22_0530 UTC — recruiting flyer PDF with a QR code (handledsvc.com/join), generic or personal.
 -->
 
@@ -142,6 +143,19 @@ customer = pro + referrer + Handled to the cent over 3,000 random jobs.
 | Lawn care every 2 weeks, ticket (15%) — per visit | $150.00 | $112.00 | $38.00 | $5.70 | $2.85 | $2.85 | $109.15 | $5.70 | $35.15 |
 | — over 12 months (26 visits) | $3,900.00 | $2,912.00 | $988.00 | $148.20 | $74.10 | $74.10 | $2,837.90 | $148.20 | $913.90 |
 | $10,000 roof (one time), ticket (20%) | $10,000.00 | $6,297.00 | $3,703.00 | $740.60 | $370.30 | $370.30 | $5,926.70 | $740.60 | $3,332.70 |
+
+## One Handled account for everyone
+
+Like one Amazon account for shopping, Prime and selling, one **Handled account** books services, sends referrals, gets
+paid, and works as a pro (`apps/web/lib/accounts.ts` `ensureAccount`):
+
+- **Joining the referral network** (sign-up page, flyer QR, ticket invite, one-tap join) creates the Handled account at
+  once, with name and phone, and links it to the partner record. The welcome email's one-tap sign-in opens it.
+- **Booking as a guest** creates or finds the customer's account and links the booking.
+- **New accounts link themselves** to an existing partner record, guest bookings and pro record with the same email (the
+  `handle_new_user` trigger; `ADD_ONE_HANDLED_ACCOUNT_2026-10-22_1000.sql` also backfills older partners).
+- **No account, no payout:** the Monday partner run pays only partners with a linked account. Anyone without one gets
+  a one-tap "activate your Handled account" email with their balance.
 
 ## Recruiting flyer with QR code
 

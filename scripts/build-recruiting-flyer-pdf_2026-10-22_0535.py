@@ -2,6 +2,7 @@
 # FILE    : scripts/build-recruiting-flyer-pdf_2026-10-22_0535.py
 # PROJECT : Handled (HandledServices) — AI-run home & business services
 # CREATED : 2026-10-22_0535 UTC
+# UPDATED : 2026-10-22_1000 UTC — joining creates your Handled account (one account to book, refer and get paid).
 # PURPOSE : The referral RECRUITING FLYER (one printable letter page): what a referrer earns, how it works, who it's for,
 #           and a QR code that opens the partner sign-up (handledsvc.com/join → /partners#join, tagged src=flyer).
 #           Referrer-facing: no Handled margins or pro shares. Dollar examples come from the pricing engine
@@ -60,14 +61,14 @@ c.setFillColor(GREEN_D); c.rect(0, H - 2.35 * inch, W, 2.35 * inch, stroke=0, fi
 c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 13); c.drawString(0.6 * inch, H - 0.55 * inch, "HANDLED  ·  PARTNER PROGRAM")
 c.setFont("Helvetica-Bold", 30); c.drawString(0.6 * inch, H - 1.1 * inch, "Get paid for sending")
 c.setFillColor(colors.HexColor("#f7d774")); c.drawString(0.6 * inch, H - 1.55 * inch, "us work.")
-para(f"Know someone who needs a roof, a lawn crew, a clean house or a new floor? Send them to Handled and earn a share of every job — paid to your bank every week.",
+para(f"Know someone who needs a roof, a lawn crew, a clean house or a new floor? Join the Handled network with one free account, send them to us, and earn a share of every job — paid to your bank every week.",
      0.6 * inch, H - 1.72 * inch, 4.6 * inch, size=10.5, color=colors.white)
 # QR card (top right)
 qx, qy, qs = W - 2.55 * inch, H - 2.2 * inch, 1.95 * inch
 c.setFillColor(colors.white); c.roundRect(qx - 0.12 * inch, qy - 0.32 * inch, qs + 0.24 * inch, qs + 0.5 * inch, 8, stroke=0, fill=1)
 w = QrCodeWidget(url); w.barLevel = "M"; b = w.getBounds(); dr = Drawing(qs, qs, transform=[qs / (b[2] - b[0]), 0, 0, qs / (b[3] - b[1]), 0, 0]); dr.add(w)
 renderPDF.draw(dr, c, qx, qy)
-c.setFillColor(GREEN_D); c.setFont("Helvetica-Bold", 9.5); c.drawCentredString(qx + qs / 2, qy - 0.2 * inch, "Scan to join — free")
+c.setFillColor(GREEN_D); c.setFont("Helvetica-Bold", 9.5); c.drawCentredString(qx + qs / 2, qy - 0.2 * inch, "Scan: free Handled account")
 
 # ── what you earn ──
 y = H - 2.75 * inch
@@ -93,7 +94,7 @@ y = para("Our fee is what’s left of the price after the pro is paid. Examples 
 # ── how it works ──
 y -= 0.25 * inch
 c.setFillColor(GREEN_D); c.setFont("Helvetica-Bold", 16); c.drawString(0.6 * inch, y, "How it works"); y -= 0.12 * inch
-steps = [("1", "Scan & join", "Free, about 2 minutes. You get your own link and partner page."),
+steps = [("1", "Scan & join", "Free, about 2 minutes. It creates your Handled account — one account to book services, send referrals and get paid."),
          ("2", "Send us work", "Fill out a referral ticket for a job, or share your link. We text or email them a ready-to-book price."),
          ("3", "We do the job", "Insured, background-checked pros. Photo proof when it’s done, and a free redo if anything’s missed."),
          ("4", "You get paid", f"Every Monday through Stripe, once a job is {R['holdDays']} days past completion. You’re told at every step.")]
@@ -119,14 +120,14 @@ c.setFillColor(TINT); c.setStrokeColor(GREEN); c.roundRect(0.6 * inch, y - 1.15 
 qs2 = 0.95 * inch
 w2 = QrCodeWidget(url); w2.barLevel = "M"; b2 = w2.getBounds(); dr2 = Drawing(qs2, qs2, transform=[qs2 / (b2[2] - b2[0]), 0, 0, qs2 / (b2[3] - b2[1]), 0, 0]); dr2.add(w2)
 renderPDF.draw(dr2, c, W - 0.6 * inch - qs2 - 0.12 * inch, y - 1.08 * inch)
-c.setFillColor(GREEN_D); c.setFont("Helvetica-Bold", 17); c.drawString(0.85 * inch, y - 0.38 * inch, "Join free: scan the code or visit")
+c.setFillColor(GREEN_D); c.setFont("Helvetica-Bold", 17); c.drawString(0.85 * inch, y - 0.38 * inch, "Join the Handled network — scan or visit")
 c.setFont("Helvetica-Bold", 15); c.setFillColor(INK); c.drawString(0.85 * inch, y - 0.66 * inch, shown)
 c.setFont("Helvetica", 9.5); c.setFillColor(GRAY)
 c.drawString(0.85 * inch, y - 0.92 * inch, ("Invited by " + a.name + "  ·  " if a.name else "") + "Questions? (313) 639-9373  ·  info@handledsvc.com")
 
 # ── small print ──
 para(f"Handled Partner Program. Earnings are a share of Handled’s fee on completed, paid jobs: {pc(R['jobOnce'])} on a one-time job and {pc(R['jobRecurring'])} on each visit of a recurring job sent on a referral ticket, "
-     f"or {pc(R['person'])} on jobs from a person you refer, for {R['months']} months. Paid weekly via Stripe after our {R['holdDays']}-day make-it-right window; balances under ${R['minPayout']} roll over. "
+     f"or {pc(R['person'])} on jobs from a person you refer, for {R['months']} months. Earnings are paid to your Handled account (free), weekly via Stripe after our {R['holdDays']}-day make-it-right window; balances under ${R['minPayout']} roll over. "
      f"People you refer must be new to Handled; a ticket must be one the customer asked you to send. Full terms at {site.replace('https://', '')}/partners. Flyer {STAMP} UTC.",
      0.6 * inch, 0.95 * inch, W - 1.2 * inch, size=6.5, color=GRAY)
 c.showPage(); c.save()

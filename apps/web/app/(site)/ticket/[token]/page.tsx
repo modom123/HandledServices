@@ -32,7 +32,7 @@ export default async function TicketInvitePage({ params }: { params: Promise<{ t
       <div>
         <h1 className="text-2xl font-bold">Hi {inv.name.split(" ")[0]} — thanks for the call 👋</h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Send us the job on this ticket and you join the {BRAND.name} network (free). You earn {pctLabel(P.jobOncePct)}% of our fee on a one-time job,
+          Send us the job on this ticket and you join the {BRAND.name} network with a free {BRAND.name} account — one account to book services, send referrals and get paid. You earn {pctLabel(P.jobOncePct)}% of our fee on a one-time job,
           {" "}{pctLabel(P.jobRecurringPct)}% on every visit of a recurring job for {P.months} months, and {pctLabel(P.pctOfTake)}% of everything from people you refer — paid to your bank every week.
           The bonus is shared by {BRAND.name} and the pro who does the job. No job right now? Just sign up below.
         </p>

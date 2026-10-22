@@ -28,6 +28,9 @@
  *           a "Your half of the referral bonus" line on their payout statement; syncProShare() moves it down with refunds
  *           and voids. The bonus is still worked out on the pro's full pay. jobs.referral_pct is set at attribution so the
  *           offer and work order show the pro their half before they accept.
+ * UPDATED : 2026-10-22_1000 UTC — ONE HANDLED ACCOUNT: signUp() (sign-up page, flyer QR, ticket invites) creates or finds the
+ *           person's Handled account right away and links it (lib/accounts ensureAccount); the welcome email says it's
+ *           one account to book, refer and get paid. Payouts go only to partners with a linked account.
  * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
  */
 import "server-only";
@@ -66,7 +69,7 @@ export async function signUp(o: {
 }): Promise<{ partner: Partner; existing: boolean }> {
   const email = lower(o.email);
   const { data: found } = await db().from("referral_partners").select("*").eq("email", email).maybeSingle();
-  if (found) { await sendWelcome(found as Partner, true); return { partner: found as Partner, existing: true }; }
+  if (found) { await linkAccount(found as Partner); await sendWelcome(found as Partner, true); return { partner: found as Partner, existing: true }; }
   let partner: Partner | null = null;
   for (let i = 0; i < 5 && !partner; i++) {
     const { data, error } = await db().from("referral_partners").insert({
@@ -79,16 +82,25 @@ export async function signUp(o: {
     else if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
   }
   if (!partner) throw new Error("Couldn't create a partner code — try again");
+  await linkAccount(partner); // one Handled account: made now, not at first sign-in
   await sendWelcome(partner, false);
   if (opsEmail()) await sendEmail(opsEmail(), `New referral partner: ${partner.name}${partner.company ? ` (${partner.company})` : ""}`, `${partner.kind} · ${email} · code ${partner.code}\n${partner.how ?? ""}\n\nHub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { partner, existing: false };
+}
+
+/** Make sure the partner has a Handled account and that it's linked (the same account books, refers and gets paid). */
+async function linkAccount(partner: Partner) {
+  if (partner.profile_id) return;
+  const { ensureAccount } = await import("./accounts");
+  const id = await ensureAccount({ email: partner.email, name: partner.name, phone: partner.phone });
+  if (id) { await db().from("referral_partners").update({ profile_id: id }).eq("id", partner.id).is("profile_id", null); partner.profile_id = id; }
 }
 
 /** The partner's code, link and a one-tap sign-in to their partner page (sent at sign-up, and again if they sign up twice). */
 async function sendWelcome(partner: Partner, again: boolean) {
   const { signInLink } = await import("./signin");
   const portal = await signInLink(partner.email, "/partner");
-  await sendEmail(partner.email, again ? `Your ${BRAND.name} partner link` : `Welcome to the ${BRAND.name} Partner Program`, `Hi ${partner.name.split(" ")[0]},\n\n${again ? "Here's your partner info again." : "You're in."} Your partner code is ${partner.code}.\n\nShare this link: ${partnerLink(partner.code)}\nShort link for cards and texts: ${siteUrl()}/r/${partner.code}\n\n${earnLine()} Paid weekly once each job is past our ${PARTNER_PROGRAM.holdDays}-day make-it-right window.\n\nYour partner page (send people, fill out referral tickets, track earnings, set up payouts): ${portal}\n\n— ${BRAND.name}`);
+  await sendEmail(partner.email, again ? `Your ${BRAND.name} partner link` : `Welcome to the ${BRAND.name} Partner Program`, `Hi ${partner.name.split(" ")[0]},\n\n${again ? "Here's your partner info again." : `You're in — welcome to the ${BRAND.name} network. Your free ${BRAND.name} account is ready: one account to book services, send referrals and get paid.`} Your partner code is ${partner.code}.\n\nShare this link: ${partnerLink(partner.code)}\nShort link for cards and texts: ${siteUrl()}/r/${partner.code}\n\n${earnLine()} Paid weekly once each job is past our ${PARTNER_PROGRAM.holdDays}-day make-it-right window.\n\nSign in to your ${BRAND.name} account (one tap, no password) — your partner page is where you send people, fill out referral tickets, track earnings and set up payouts: ${portal}\n\n— ${BRAND.name}`);
 }
 
 /** The signed-in person's partner record (by account, else by email — and link the account on first visit). */
@@ -473,6 +485,14 @@ export async function runPartnerPayouts(now = new Date()) {
     const { data: p } = await db().from("referral_partners").select("*").eq("id", pid).single();
     const partner = p as Partner;
     if (partner.status !== "active") continue;
+    // paid only through a Handled account: link it if we can, otherwise remind them to activate it
+    if (!partner.profile_id) await linkAccount(partner);
+    if (!partner.profile_id) {
+      waiting++;
+      const { signInLink } = await import("./signin");
+      await sendEmail(partner.email, `${money(amount)} is waiting — activate your ${BRAND.name} account`, `Hi ${partner.name.split(" ")[0]},\n\nYou have ${money(amount)} in ${BRAND.name} referral commissions. Referral earnings are paid to your ${BRAND.name} account — activate it with one tap, then set up payouts: ${await signInLink(partner.email, "/partner")}\n\n— ${BRAND.name}`).catch(() => {});
+      continue;
+    }
     const ready = s && partner.stripe_account_id ? Boolean((await s.accounts.retrieve(partner.stripe_account_id).catch(() => null))?.payouts_enabled) : false;
     if (!s || !ready) {
       waiting++;

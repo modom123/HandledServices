@@ -47,6 +47,7 @@
  *           recurring visits). A pro can be assigned and start once the 25% is in (clearedForWork); their payout never waits on the customer.
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
+ * UPDATED : 2026-10-22_1000 UTC — one Handled account: a guest booking creates (or finds) the customer's account and links the job.
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: ?ticket= bookings are credited to the referrer (attributeJob), carry the ticket's
  *           entry details, give a referring pro first look, and the referrer hears when a pro is assigned.
  */
@@ -326,6 +327,12 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 
 /** Step 2 (background) — notes, alerts, free site-visit dispatch, or payment follow-up. */
 export async function onBooked(job: Job, paymentUrl: string | null) {
+  // one Handled account for everyone: a guest booking gets the customer's account now (created, or found by email) and the
+  // job is linked to it — the same account books again, refers and gets paid
+  if (!job.customer_id) {
+    const id = await (await import("./accounts")).ensureAccount({ email: job.contact_email, name: job.contact_name, phone: job.contact_phone }).catch(() => null);
+    if (id) { await db().from("jobs").update({ customer_id: id }).eq("id", job.id).is("customer_id", null); job = { ...job, customer_id: id }; }
+  }
   // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
   await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
   const svc = getService(job.service_slug)!;

@@ -41,7 +41,7 @@ export function PartnerSignUp({ kinds }: { kinds: [string, string][] }) {
           <p className="mt-2 text-sm">Your partner code: <b className="font-mono text-base">{done.code}</b></p>
           <p className="mt-1 text-sm">Your link: <span className="select-all break-all font-mono">{done.link}</span></p>
           <CopyButton text={done.link ?? ""} />
-          <p className="mt-3 text-sm">We emailed you a link to your partner page, where you can send customers directly, track earnings and set up payouts.</p>
+          <p className="mt-3 text-sm">Your free Handled account is ready — one account to book services, send referrals and get paid. We emailed you a one-tap sign-in to your partner page, where you send jobs and people, track earnings and set up payouts.</p>
         </>
       )}
     </div>
