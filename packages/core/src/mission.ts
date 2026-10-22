@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-19_2230 UTC — sales_reply agent: reads replies to the Instantly business campaign and drafts answers.
  * UPDATED : 2026-10-19_2330 UTC — deal_hunter agent; the gov contract scout picks the day's bids (AI bid desk).
  * UPDATED : 2026-10-20_0100 UTC — speed_to_lead and social_writer agents (omnichannel).
+ * UPDATED : 2026-10-22_0400 UTC — referral_ticket agent: files referral tickets from pros, clients and partners.
  */
 import { BRAND } from "./brand.ts";
 import { GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "./city-scorecard.ts";
@@ -106,6 +107,9 @@ export const AGENTS: AgentRole[] = [
   { kind: "speed_to_lead", name: "Speed-to-lead responder", does: "Answers every inbound lead from every channel (website, AI chat, Facebook / Instagram / TikTok / Google / LinkedIn lead forms, Yelp) within seconds: a short email, a text only when they agreed to texts, and a call note for the team", trigger: "Every new lead (Lead inbox)", external: true,
     tasks: ["Reply to every lead within 1 minute, 24/7", "Show you understood what they asked, give the booking link and say a real person will call — never a price, date or promise", "Write the caller a one-line note with the first question to ask"],
     drives: "The first business to answer usually wins the job: an instant, honest reply plus a fast call turns ad and social spend into bookings." },
+  { kind: "referral_ticket", name: "Referral ticket clerk", does: "Files every referral ticket a pro, client or partner sends: the right service, how often, the pricing answers (rooms, sq ft, size), a plain summary for the customer and the pro, and what's still missing; unclear tickets go to staff review", trigger: "Every new referral ticket (partner page)", external: false,
+    tasks: ["File each ticket the moment it arrives so the customer's pre-filled booking link goes out right away", "Only use sizes and details the ticket states — never invent them; list what we still need as short questions", "Send anything unclear to staff review instead of guessing"],
+    drives: "Referred jobs close best when the customer gets a ready-to-book price while the recommendation is fresh, and every referral we book pays the person who sent it." },
   { kind: "social_writer", name: "Social writer", does: "Writes the week's Facebook, Instagram and TikTok posts (caption, hashtags, photo or video idea) for staff to approve; Facebook and Instagram post themselves at their time", trigger: "Mondays 12:00 UTC (Vercel cron) and Hub → Social media", external: true,
     tasks: ["A full week of posts every Monday: cleaning most often, then landscaping, painting, construction and AI automation", "Seasonal, local and useful (tips, behind the scenes, service spotlights), each with one clear call to action", "Never invent reviews, results, prices or offers — only offers the owner wrote in Themes"],
     drives: "Steady, local, honest posts keep Handled in front of Detroit homeowners and businesses, so ads cost less and referrals come easier." },

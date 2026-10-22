@@ -9,7 +9,7 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/pricing.test.ts"
+    "test": "node --experimental-strip-types --test src/pricing.test.ts src/partners.test.ts"
   },
   "devDependencies": {
     "typescript": "5.9.3"

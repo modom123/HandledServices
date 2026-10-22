@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (recruiters: Handled Talent searches).
  * UPDATED : 2026-10-07_0205 UTC — menu as dropdowns (Work · Money · Account, same component as the website); ☰ on phones.
  * UPDATED : 2026-10-20_0200 UTC — 🏷️ My prices (pros set their own price per service).
+ * UPDATED : 2026-10-22_0400 UTC — 🤝 Refer & earn (referral tickets and person referrals, paid to the same Stripe account).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -49,6 +50,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
       { href: "/pro/prices", label: es ? "Mis precios" : "My prices", icon: "🏷️", hint: es ? "Fije su propio precio" : "Set your own price" },
       { href: "/pro/earnings", label: t("Earnings"), icon: "💵", hint: es ? "Pagos, pago instantáneo, 1099" : "Payouts, instant pay, 1099" },
       { href: "/pro/rewards", label: es ? "Recompensas" : "Rewards", icon: "🎁" },
+      { href: "/partner", label: es ? "Recomiende y gane" : "Refer & earn", icon: "🤝", hint: es ? "20% por trabajo que nos envíe" : "20% on jobs you send us" },
     ] },
     { id: "account", label: es ? "Cuenta" : "Account", items: [
       { href: "/pro/onboarding", label: t("Setup & documents"), icon: "📋" },

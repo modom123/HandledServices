@@ -47,6 +47,8 @@
  *           recurring visits). A pro can be assigned and start once the 25% is in (clearedForWork); their payout never waits on the customer.
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
+ * UPDATED : 2026-10-22_0400 UTC — referral tickets: ?ticket= bookings are credited to the referrer (attributeJob), carry the ticket's
+ *           entry details, give a referring pro first look, and the referrer hears when a pro is assigned.
  */
 import "server-only";
 import { z } from "zod";
@@ -120,6 +122,8 @@ export const BookingSchema = z.object({
   access_info: z.string().max(1000).nullable().optional(),
   /** Save this address (and the entry details) to My homes. Signed-in customers only. */
   save_home: z.boolean().optional(),
+  /** Booked from a referral ticket's link (/book?ticket=…): the job is credited to the referrer. */
+  referral_ticket: z.string().regex(/^[a-z0-9]{16,40}$/).nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -148,8 +152,11 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, referral_ticket, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
+  // referral ticket: the referrer's entry details come along, and a referring pro who asked gets first look
+  const ticket = referral_ticket ? await (await import("./partners")).ticketByToken(referral_ticket).catch(() => null) : null;
+  if (ticket?.access_notes && !access_info?.trim()) access_info = ticket.access_notes;
   // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
   const { applyMeasurements, missingMeasurements } = await import("@handled/core");
   const missing = missingMeasurements(svc.questions, input.answers as never);
@@ -229,7 +236,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     acct = { pilot, ...decision };
   }
   // the pro the customer chose (their price or their quote) gets the first look; otherwise favorites as before
-  const pick = quoted?.contractor_id ?? proPick?.pro_id ?? null;
+  const pick = quoted?.contractor_id ?? proPick?.pro_id ?? ticket?.preferred_contractor_id ?? null;
   const pref = pick ? { preferred_contractor_id: pick, requested_crew_member_id: null } : await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
   // how they pay: 25% now and the rest after the job, a deposit (events, site-visit work), or in full now with 5% off
   const dep = price && !acct?.onTerms ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
@@ -311,8 +318,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   }
   if (ben?.isGift && ben.promoCode && (await redeemGift(job, ben.promoCode))) job = (await getJob(job.id)) ?? job;
   if (biz && acct?.pilot) await db().from("business_accounts").update({ pilot_jobs_left: Math.max(0, biz.account.pilot_jobs_left - 1) }).eq("id", biz.account.id);
-  // Referral Partner Program: credit the job to the customer's partner (existing referral, or a partner link for a new customer)
-  const partnerId = await (await import("./partners")).attributeJob(job).catch((e) => { console.error("[partners]", e); return null; });
+  // Referral Partner Program: credit the job to its referral ticket, else the customer's partner (existing referral, or a partner link for a new customer)
+  const partnerId = await (await import("./partners")).attributeJob(job, referral_ticket ?? null).catch((e) => { console.error("[partners]", e); return null; });
   if (partnerId) job = { ...job, partner_id: partnerId };
   return { job, estimate: est, ai, billing: acct ? { onTerms: job.billed_on_terms === true, reason: acct.reason, pilot: acct.pilot } : null };
 }
@@ -761,6 +768,7 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   await addEvent(job.id, "assigned", `Covered: ${pro?.business_name ?? "Your pro"} (${pro?.rating ?? "5.0"}★) is confirmed for ${when}.`, "system", true,
     `Cubierto: ${pro?.business_name ?? "Su profesional"} (${pro?.rating ?? "5.0"}★) está confirmado para ${whenEs}.`);
   await addEvent(job.id, "terms", `Pro accepted work order v${WORK_ORDER_VERSION}`, "pro", false);
+  if (job.referral_ticket_id) await (await import("./partners")).ticketAssigned(job, pro?.business_name ?? null).catch((e) => console.error("[tickets]", e));
   // customer: your job is covered
   await notify(job.customer_id, {
     title: changed ? "Your new pro is confirmed ✓" : "Your job is covered ✓",

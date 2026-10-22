@@ -2,6 +2,7 @@
   FILE    : README.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-01_1800 UTC
+  UPDATED : 2026-10-22_0400 UTC — referral tickets: pros, clients and anyone send a job (20% one-time / 15% recurring for 12 months).
   UPDATED : 2026-10-11_1603 UTC — 66 services: Business & Technology (websites, AI automation & agents, business formation,
             consulting) and Freight & Pallet Delivery with carrier partners such as 3 Lakes Logistics.
 -->
@@ -31,7 +32,7 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 | **Customer portal** | `/account` | Jobs, live timeline, completion photos, messages with the pro, reviews, recurring plans |
 | **Pro portal** | `/pro` (+ mobile Pro mode) | Offers with payout (accept/pass), schedule, start → photos → complete, earnings |
 | **Handled Hub** | `/hub` (staff only) | AI-driven-rate KPI, AI morning brief, alerts, jobs board, job control panel, pros & vetting, customers & B2B, finance & payouts, **IEBC Workforce**, AI assistant |
-| **Referral Partner Program** | `/partners`, `/partner`, `/hub/partners`, `lib/partners.ts` | Anyone signs up, shares a link (`/r/CODE`) or sends a customer, and earns 10% of our take on that customer's jobs for 12 months, paid Mondays via Stripe after the 30-day guarantee. Guide: [`docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md`](docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md) |
+| **Referral Partner Program** | `/partners`, `/partner`, `/hub/partners`, `lib/partners.ts` | Pros, clients and anyone earn: refer a person → 10% of our take on their jobs for 12 months; send a job on a **referral ticket** → 20% (one-time) or 15% on every visit for 12 months (recurring). AI files each ticket, the customer gets a pre-filled booking link, the paid job is broadcast and assigned, and pro / referrer / Handled are each paid (Mondays via Stripe after the 30-day guarantee). Guides: [`docs/REFERRAL_TICKETS_2026-10-22_0400.md`](docs/REFERRAL_TICKETS_2026-10-22_0400.md), [`docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md`](docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md) |
 | **Accounting (Xero + Stripe)** | `/hub/accounting`, `lib/accounting.ts` | Xero is the books: every finished day of Stripe activity is pushed each morning (sales, tips, gift cards, sales tax, fees, refunds, chargebacks, per-pro payout spends, payouts as bank transfers); business invoices on terms become Xero invoices with their payments. Guide: [`docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md`](docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md) |
 | **Invoice & Service Agreement** | `/invoice/[id]`, `/terms/service-agreement` | Every job's invoice carries the customer terms; accepted at booking (version, time and IP recorded); signed login-free link in every email; printable |
 | **Pro Network & 1099** | `/hub/network`, `/hub/pros/[id]`, `/pro/onboarding`, `/pro/earnings` | Pros as the core asset: onboarding (W-9, contractor agreement, COI, license, background, payout), work & payout ledger, value generated, blended ratings, year-end 1099 worksheet |

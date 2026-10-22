@@ -8,16 +8,22 @@
  *             • for 12 months from the first referral,
  *             • paid in the weekly Stripe run once the job is past the 30-day make-it-right window.
  *           It comes out of our share, never the pro's pay, so a referred job can never lose money.
+ * UPDATED : 2026-10-22_0400 UTC — referral tickets: pros, clients and anyone can send us one specific job. A one-time job
+ *           pays 20% of our take on that job; a recurring job 15% on every visit of that plan for 12 months.
+ *           moneySplit() shows who gets what on a job. Terms v2.
  */
 import { BRAND } from "./brand.ts";
 
 export const PARTNER_PROGRAM = {
-  pctOfTake: 0.1,          // 10% of what Handled keeps on the job
-  months: 12,              // every job from a referred customer pays for this long
+  pctOfTake: 0.1,          // refer a person: 10% of what Handled keeps on every job from them
+  jobOncePct: 0.2,         // refer a one-time job: 20% of what Handled keeps on that job
+  jobRecurringPct: 0.15,   // refer a recurring job: 15% on every visit of that plan
+  months: 12,              // a referred person, or a referred recurring job, pays for this long
+  ticketDays: 60,          // a referral ticket must be booked within this long
   holdDays: BRAND.guaranteeDays, // paid after the make-it-right window, so refunds come first
   minPayout: 25,           // smaller balances roll to the next weekly run (keeps Stripe fees sensible)
   cookieDays: 90,          // a click on a partner link counts for this long
-  termsVersion: "partner-v1",
+  termsVersion: "partner-v2",
 } as const;
 
 export const PARTNER_KINDS = {
@@ -31,6 +37,19 @@ export const PARTNER_KINDS = {
 } as const;
 export type PartnerKind = keyof typeof PARTNER_KINDS;
 
+/** What a commission was earned for: the customer (a referred person) or one specific referred job. */
+export const COMMISSION_BASIS = {
+  person: { label: "Referred customer", pct: PARTNER_PROGRAM.pctOfTake },
+  job_once: { label: "Referral ticket (one-time job)", pct: PARTNER_PROGRAM.jobOncePct },
+  job_recurring: { label: "Referral ticket (recurring job)", pct: PARTNER_PROGRAM.jobRecurringPct },
+} as const;
+export type CommissionBasis = keyof typeof COMMISSION_BASIS;
+
+/** A ticket pays by what the customer actually booked: one visit, or a recurring plan. */
+export function jobReferralBasis(frequency: string): Exclude<CommissionBasis, "person"> {
+  return frequency === "once" ? "job_once" : "job_recurring";
+}
+
 const cents = (n: number) => Math.round(n * 100);
 
 /** What Handled keeps on a job after the pro's payout and any refunds (never below 0). */
@@ -38,9 +57,10 @@ export function partnerTake(o: { price: number; payout: number; refunded?: numbe
   return Math.max(0, cents(o.price) - cents(o.payout) - cents(o.refunded ?? 0)) / 100;
 }
 
-/** The partner's commission on a job: 10% of our take, rounded down to the cent. */
-export function partnerCommission(o: { price: number; payout: number; refunded?: number }): number {
-  return Math.floor(cents(partnerTake(o)) * PARTNER_PROGRAM.pctOfTake) / 100;
+/** The partner's commission on a job: a share of our take (10% by default), rounded down to the cent. */
+export function partnerCommission(o: { price: number; payout: number; refunded?: number }, pct: number = PARTNER_PROGRAM.pctOfTake): number {
+  const rate = Math.min(0.5, Math.max(0, Number(pct) || 0)); // never more than half our take
+  return Math.floor(cents(partnerTake(o)) * rate + 1e-6) / 100; // + 1e-6: 0.15 isn't exact in binary, don't lose a cent to it
 }
 
 /** A partner code: letters from the name + 4 random characters, e.g. "JANE7K2Q". No look-alike characters. */
@@ -58,6 +78,30 @@ export function cleanPartnerCode(v: unknown): string | null {
   return /^[A-Z0-9]{4,16}$/.test(s) ? s : null;
 }
 
+/** A rate as a whole percent for copy ("15", never "15.000000000000002"). */
+export const pctLabel = (pct: number) => String(Math.round(pct * 1000) / 10);
+
+/** How long the customer has to book a referral ticket. */
+export function ticketExpiry(start: Date): Date {
+  return new Date(start.getTime() + PARTNER_PROGRAM.ticketDays * 86400000);
+}
+
+/** The customer's booking-link token for a ticket: 24 lower-case letters and digits (unguessable, URL-safe). */
+export function makeTicketToken(rand: () => number = Math.random): string {
+  const abc = "abcdefghijkmnpqrstuvwxyz23456789";
+  let t = "";
+  for (let i = 0; i < 24; i++) t += abc[Math.floor(rand() * abc.length)];
+  return t;
+}
+export const cleanTicketToken = (v: unknown): string | null => (/^[a-z0-9]{16,40}$/.test(String(v ?? "")) ? String(v) : null);
+
+/** Where the money on a referred job goes: the pro's payout, the referrer's commission, and what Handled keeps. */
+export function moneySplit(o: { price: number; payout: number; refunded?: number }, pct: number) {
+  const referrer = partnerCommission(o, pct);
+  const take = partnerTake(o);
+  return { customer: Math.round((o.price - (o.refunded ?? 0)) * 100) / 100, pro: Math.round(o.payout * 100) / 100, referrer, handled: Math.round((take - referrer) * 100) / 100 };
+}
+
 /** When a referral stops paying (12 months after it started). */
 export function partnerExpiry(start: Date): Date {
   const d = new Date(start);
@@ -69,7 +113,8 @@ export function partnerExpiry(start: Date): Date {
 export function partnerTerms(): string[] {
   const p = PARTNER_PROGRAM;
   return [
-    `You earn ${p.pctOfTake * 100}% of ${BRAND.name}'s fee (the job price minus what the pro is paid and any refunds) on every completed job from a customer you refer, for ${p.months} months from their first referral.`,
+    `Refer a person: you earn ${pctLabel(p.pctOfTake)}% of ${BRAND.name}'s fee (the job price minus what the pro is paid and any refunds) on every completed job from a customer you refer, for ${p.months} months from their first referral.`,
+    `Refer a job with a referral ticket: you earn ${pctLabel(p.jobOncePct)}% of ${BRAND.name}'s fee on a one-time job, or ${pctLabel(p.jobRecurringPct)}% on every visit of a recurring job (weekly, every two weeks, monthly or quarterly) for ${p.months} months from when it's booked. The customer must book from the link we send them (or with the email on the ticket) within ${p.ticketDays} days. Only send a ticket the customer asked you to send. A job pays one commission only, and a customer already referred by another partner can't be sent on a ticket.`,
     `A customer counts as yours when they book through your link (within ${p.cookieDays} days of clicking it) or after you send them to us from your partner page, and they are new to ${BRAND.name}. Each customer belongs to one partner: the first one.`,
     `Commissions are paid weekly through Stripe once the job is ${p.holdDays} days past completion (our make-it-right window). Balances under $${p.minPayout} carry over to the next week. Refunds and chargebacks reduce or cancel the commission on that job.`,
     "Referring yourself, your own household or your own business doesn't count. No spam, fake reviews, or promises about price or service that we didn't make. Breaking these rules ends the partnership and any unpaid commissions.",

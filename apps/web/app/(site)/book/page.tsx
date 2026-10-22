@@ -10,6 +10,8 @@
  * UPDATED : 2026-10-05_0447 UTC — ?photos=&notes= from Snap & post a job (photos limited to our upload folder).
  * UPDATED : 2026-10-12_0005 UTC — signed-in customers pick one of My homes (?home=<id> preselects it).
  * UPDATED : 2026-10-20_0200 UTC — ?quote=&bid=: book a request-a-quote at the pro's locked price.
+ * UPDATED : 2026-10-22_0400 UTC — ?ticket=<token>: a referral ticket's link — everything the referrer entered and the AI filed
+ *           (customer, address, service, pricing answers, how often, when, notes) is filled in; the booking credits the referrer.
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";
@@ -19,7 +21,8 @@ import { memberOf, openBalance, type Property } from "@/lib/business";
 import { adminClient } from "@/lib/supabase/server";
 import { termsDecision } from "@handled/core";
 import { bookingPreference } from "@/lib/favorites";
-import type { BookedQuote, HomeChoice, PreferredPro } from "@/components/BookingWizard";
+import type { BookedQuote, HomeChoice, PreferredPro, TicketPrefill } from "@/components/BookingWizard";
+import { ticketByToken } from "@/lib/partners";
 import { requestByToken } from "@/lib/quotes";
 
 /** ?pro=&crew=: the signed-in customer's favorite or past pro (anything else is ignored). */
@@ -73,12 +76,26 @@ async function bookedQuote(token?: string, bid?: string): Promise<{ quote: Booke
   return { quote: { request: token, bid, price: Number(q.price), pro: q.contractors?.business_name ?? "Your pro" }, service: r.request.service_slug };
 }
 
+/** ?ticket=<token>: an open referral ticket, as booking prefill (the token itself is the customer's private link). */
+async function ticketBooking(token?: string) {
+  const t = token ? await ticketByToken(token).catch(() => null) : null;
+  if (!t) return undefined;
+  const { data: p } = await adminClient().from("referral_partners").select("name, company").eq("id", t.partner_id).maybeSingle();
+  const prefill: TicketPrefill = {
+    token: t.token, from: p?.company || p?.name || "Someone you know",
+    contact: { name: t.customer_name, email: t.customer_email, phone: t.customer_phone ?? "", address: t.address ?? "", city: t.city ?? "", state: t.state ?? "", zip: t.zip ?? "", company: t.company_name ?? "" },
+  };
+  const notes = [t.ai_summary ?? t.description, t.missing_info.length ? `Still to confirm: ${t.missing_info.join(" ")}` : null].filter(Boolean).join("\n\n");
+  return { prefill, service: t.service_slug ?? undefined, answers: t.answers as Record<string, string | number | boolean>, frequency: t.frequency, urgency: t.urgency ?? undefined, budget: t.budget ? String(t.budget) : undefined, notes };
+}
+
 export const metadata = { title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, ...rest } = await searchParams;
+  const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, ticket: ticketToken, ...rest } = await searchParams;
   const quoted = await bookedQuote(quoteToken, bid);
-  const service = quoted?.service ?? svcParam;
+  const fromTicket = !quoted ? await ticketBooking(ticketToken) : undefined;
+  const service = quoted?.service ?? fromTicket?.service ?? svcParam;
   // from "Snap & post a job": the uploaded photos and the note come along
   const initialPhotos = (photos ?? "").split(",").filter((p) => /^booking\/[\w\-./]+$/.test(p) && !p.includes("..")).slice(0, 8);
   const business = property ? await businessBooking(property) : undefined;
@@ -86,11 +103,11 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   const locale = await getLocale();
   const saved = property ? { signedIn: true, homes: [] } : await savedHomes();
   // ?budget=5000&guests=50&event_type=birthday → pre-filled answers (only keys the service asks about)
-  const prefill = Object.fromEntries(Object.entries(rest).filter(([k, v]) => v !== undefined && !k.startsWith("utm_")).map(([k, v]) => [k, /^\d+(\.\d+)?$/.test(v!) ? Number(v) : v === "true" ? true : v === "false" ? false : v!]));
+  const prefill = fromTicket ? fromTicket.answers : Object.fromEntries(Object.entries(rest).filter(([k, v]) => v !== undefined && !k.startsWith("utm_")).map(([k, v]) => [k, /^\d+(\.\d+)?$/.test(v!) ? Number(v) : v === "true" ? true : v === "false" ? false : v!]));
   return (
     <div className="wrap py-12">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t(locale, "Get your price & book")}</h1>
-      <BookingWizard quote={quoted?.quote ?? null} business={business} initialService={service} prefill={prefill} initialUrgency={when} initialBudget={budget} initialPromo={promo} initialFrequency={frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={notes?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
+      <BookingWizard quote={quoted?.quote ?? null} ticket={fromTicket?.prefill ?? null} business={business} initialService={service} prefill={prefill} initialUrgency={fromTicket?.urgency ?? when} initialBudget={fromTicket?.budget ?? budget} initialPromo={promo} initialFrequency={fromTicket?.frequency ?? frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={(fromTicket?.notes ?? notes)?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
     </div>
   );
 }

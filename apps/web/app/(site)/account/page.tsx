@@ -14,10 +14,11 @@
  *           It switches to the normal bookings view after their first booking.
  * UPDATED : 2026-10-12_0005 UTC — 🏠 My homes: saved home profiles (entry, keys, pets, preferences) used by bookings.
  * UPDATED : 2026-10-12_0121 UTC — Customer ID (C-…) under the email.
+ * UPDATED : 2026-10-22_0400 UTC — "Earn cash for referrals" card → the partner page (referral tickets, person referrals).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { HANDLED_PLUS, LAUNCH_SET_RECOMMENDED, REFERRAL, getService, money, moneyRange, serviceText, t as tr, type Job, type Locale } from "@handled/core";
+import { HANDLED_PLUS, LAUNCH_SET_RECOMMENDED, PARTNER_PROGRAM, REFERRAL, getService, pctLabel, money, moneyRange, serviceText, t as tr, type Job, type Locale } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { activeMembership, ensureReferralCode } from "@/lib/growth";
 import { siteUrl } from "@/lib/notify";
@@ -158,6 +159,13 @@ async function AccountExtras({ userId, email, locale }: { userId: string; email:
           <div className="mt-3 flex flex-wrap items-center gap-2"><CopyLink url={link} locale={locale} /><span className="break-all text-xs text-ink-soft">{link}</span></div>
         </div>
       )}
+      <div className="card">
+        <div className="font-semibold">🤝 {es ? "Gane dinero recomendando" : "Earn cash for referrals"}</div>
+        <p className="mt-1 text-sm text-ink-soft">{es
+          ? `Envíenos un trabajo con un ticket de referido y gane el ${pctLabel(PARTNER_PROGRAM.jobOncePct)}% de nuestra tarifa (${pctLabel(PARTNER_PROGRAM.jobRecurringPct)}% en cada visita de un trabajo recurrente por ${PARTNER_PROGRAM.months} meses), o recomiende a una persona y gane el ${pctLabel(PARTNER_PROGRAM.pctOfTake)}% de cada trabajo suyo por ${PARTNER_PROGRAM.months} meses. Pagado semanalmente.`
+          : `Send us a job on a referral ticket and earn ${pctLabel(PARTNER_PROGRAM.jobOncePct)}% of our fee (${pctLabel(PARTNER_PROGRAM.jobRecurringPct)}% on every visit of a recurring job for ${PARTNER_PROGRAM.months} months), or refer a person and earn ${pctLabel(PARTNER_PROGRAM.pctOfTake)}% of every job they book for ${PARTNER_PROGRAM.months} months. Paid weekly.`}</p>
+        <Link href="/partner" className="btn-primary mt-3 inline-block">{es ? "Empezar a ganar" : "Start earning"}</Link>
+      </div>
       <LoyaltyCard account={{ profileId: userId, email }} es={es} />
       <div className="md:col-span-2"><LanguageToggle locale={locale} /></div>
       <div className="md:col-span-2"><DeleteAccount locale={locale} /></div>

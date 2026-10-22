@@ -25,6 +25,8 @@
  * UPDATED : 2026-10-12_0005 UTC — saved homes: pick one of My homes (address + entry details), "save this home", and an entry
  *           details box (lockbox, key, gate) that only the assigned pro sees.
  * UPDATED : 2026-10-20_0200 UTC — marketplace: "Choose your price" (pros' own upfront prices next to Handled's) and booking a request-a-quote at its locked price.
+ * UPDATED : 2026-10-22_0400 UTC — referral tickets: opens pre-filled from the ticket (contact, address, service, answers, how often) and
+ *           sends the ticket token with the booking so the referrer is credited.
  */
 "use client";
 
@@ -64,6 +66,9 @@ function readAttribution(): Record<string, string> | null {
 
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
+/** Booking from a referral ticket's link: who it's for and where, as the referrer entered it (all editable). */
+export interface TicketPrefill { token: string; from: string; contact: { name: string; email: string; phone: string; address: string; city: string; state: string; zip: string; company: string } }
+
 /** Booking for a business account's property: address and company come from the property. */
 export interface BusinessBooking { propertyId: string; propertyName: string; company: string; address: string; city: string; state: string; zip: string; billing: string; contact: { name: string; email: string; phone: string } }
 
@@ -76,7 +81,7 @@ export interface BookedQuote { request: string; bid: string; price: number; pro:
 /** One of the signed-in customer's saved homes (My homes). Entry details stay on the server. */
 export interface HomeChoice { id: string; label: string; address: string; city: string; state: string; zip: string; hasAccess: boolean }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null }: { quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null, ticket = null }: { ticket?: TicketPrefill | null; quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -100,7 +105,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [access, setAccess] = useState("");
   const [form, setForm] = useState(business
     ? { contact_name: business.contact.name, contact_email: business.contact.email, contact_phone: business.contact.phone, address: business.address, city: business.city, state: business.state, zip: business.zip, customer_type: "commercial", company_name: business.company }
-    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: "residential", company_name: "" });
+    : ticket
+      ? { contact_name: ticket.contact.name, contact_email: ticket.contact.email, contact_phone: ticket.contact.phone, address: ticket.contact.address, city: ticket.contact.city, state: ticket.contact.state || "MI", zip: ticket.contact.zip, customer_type: ticket.contact.company ? "commercial" : "residential", company_name: ticket.contact.company }
+      : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: "residential", company_name: "" });
   const pickHome = (h: HomeChoice | null) => {
     setHomeId(h?.id ?? null);
     if (h) { setSaveHome(false); setForm((f) => ({ ...f, address: h.address, city: h.city, state: h.state, zip: h.zip, customer_type: "residential" })); }
@@ -178,7 +185,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn) }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), referral_ticket: ticket?.token ?? null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -214,6 +221,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         {ask && <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">
           <span>★ {es ? `Se le ofrece primero a ${ask.label} por unas horas; si no puede, otro profesional verificado lo toma.` : `${ask.label} gets the first look for a few hours; if they can't, another vetted pro takes it.`}{ask.crewName ? (es ? ` Pidió a ${ask.crewName}; el dueño de la empresa decide quién va.` : ` You asked for ${ask.crewName}; the company owner decides who goes.`) : ""}</span>
           <button type="button" className="text-xs underline" onClick={() => setAsk(null)}>{es ? "Cualquier profesional" : "Any pro is fine"}</button></div>}
+        {ticket && !business && <div className="mb-4 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{es ? `${ticket.from} nos envió este trabajo. Llenamos lo que nos dijo: revise los detalles, vea su precio y elija una hora.` : `${ticket.from} sent us this job. We filled in what they told us — check the details, see your price and pick a time.`}</div>}
         {business && <div className="mb-4 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{business.company}</b> · {business.propertyName} ({business.address}, {business.city}) · {business.billing}</div>}
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
           {["Service", "Details", "When & where", "Review"].map((lbl, i) => (
