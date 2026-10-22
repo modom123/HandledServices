@@ -46,7 +46,7 @@ export default function Partners() {
         ].map(([pct, t, d]) => (
           <div key={t} className="card border-t-4 border-t-gold"><div className="text-3xl font-extrabold">{pct}<span className="text-base font-semibold text-ink-soft"> of our fee</span></div><h3 className="mt-1 font-bold">{t}</h3><p className="mt-1 text-sm text-ink-soft">{d}</p></div>
         ))}</div>
-        <p className="mt-2 text-xs text-ink-soft">Our fee is what&apos;s left after the pro is paid. Your commission comes out of our share — never the pro&apos;s pay. See the <Link href="/partners/referral-ticket" className="underline">Standard Referral Ticket</Link> — the information every job referral needs.</p>
+        <p className="mt-2 text-xs text-ink-soft">Our fee is what&apos;s left after the pro is paid. Your commission is shared: half comes from {BRAND.name} and half from the pro who does the job. See the <Link href="/partners/referral-ticket" className="underline">Standard Referral Ticket</Link> — the information every job referral needs.</p>
       </section>
 
       <section className="wrap grid gap-4 py-12 md:grid-cols-3">

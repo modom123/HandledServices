@@ -447,10 +447,10 @@ export const ACTIONS: Record<string, ActionDef> = {
     run: async ({ ticket_id, note }, ctx) => { await (await import("../partners")).ticketEvent(ticket_id, `${note} (${ctx.actor})`); return "noted"; },
   }),
   "finance.referral_commissions": def({
-    scope: "finance", write: false, risk: "low", description: "Referral commissions by partner: owed (pending), paid and voided, with the basis (person 10%, one-time job 20%, recurring job 15%). Paid Mondays via Stripe after the 30-day guarantee.",
+    scope: "finance", write: false, risk: "low", description: "Referral commissions by partner: owed (pending), paid and voided, with the basis (person 10%, one-time job 20%, recurring job 15%) and who carries it (handled_share / pro_share: shared half and half for jobs accepted from 2026-11-22 under agreement v10+). Paid Mondays via Stripe after the 30-day guarantee.",
     params: z.object({ status: z.enum(["pending", "paid", "void"]).optional() }),
     run: async ({ status }) => {
-      let q = db().from("partner_commissions").select("id, amount, take, status, eligible_at, paid_at, basis, pct, note, referral_partners(name, kind, code), jobs(ref, service_slug)").order("created_at", { ascending: false }).limit(500);
+      let q = db().from("partner_commissions").select("id, amount, take, status, eligible_at, paid_at, basis, pct, pro_share, handled_share, contractor_id, note, referral_partners(name, kind, code), jobs(ref, service_slug)").order("created_at", { ascending: false }).limit(500);
       if (status) q = q.eq("status", status);
       const { data } = await q;
       return { rates: Object.fromEntries(Object.entries(COMMISSION_BASIS).map(([k, v]) => [k, v.pct])), commissions: data };
@@ -460,6 +460,8 @@ export const ACTIONS: Record<string, ActionDef> = {
     scope: "finance", write: true, risk: "high", description: "Cancel an unpaid referral commission (fraud, self-referral, policy breach). Always waits for human approval.",
     params: z.object({ commission_id: z.string().uuid(), reason: z.string().min(3).max(300) }),
     run: async ({ commission_id, reason }, ctx) => {
+      const { data: open } = await db().from("partner_commissions").select("id").eq("id", commission_id).eq("status", "pending").maybeSingle();
+      if (open) await (await import("../partners")).syncProShare(commission_id, 0); // the pro's half goes back to them
       const { data } = await db().from("partner_commissions").update({ status: "void", amount: 0, note: `${reason} (${ctx.actor})` }).eq("id", commission_id).eq("status", "pending").select("id");
       return data?.length ? "voided" : "Not voided — already paid or voided.";
     },

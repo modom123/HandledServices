@@ -20,7 +20,10 @@ Pros, clients and anyone else in the partner program can get paid for sending Ha
 | **A recurring job** (referral ticket, weekly / every 2 weeks / monthly / quarterly) | **15%** of Handled's fee on every visit | 12 months from booking |
 
 **Handled's fee** ("job profit") = what the customer paid − what the pro is paid − refunds. The commission comes out of
-Handled's share, **never the pro's pay**. One job pays one commission.
+**Who pays the bonus (from jobs accepted 2026‑11‑22):** half from Handled's take, half from the pro who does the job.
+The bonus is worked out on the pro's full pay, the pro's half is rounded down to the cent, and it shows on the offer and
+work order before they accept. It's a separate line on the pro's payout statement, and it goes down with refunds. Before
+that date, or when no pro is on the job, Handled pays it all. See **Shared referral bonus** below. One job pays one commission.
 
 Rates live in one place: `PARTNER_PROGRAM` in `packages/core/src/partners.ts`.
 
@@ -112,6 +115,32 @@ a business lead), we send them their own referral ticket:
 
 The referrer is emailed at every step (booked, pro assigned, done and earned), and each ticket keeps a timeline on the
 partner page and in the Hub.
+
+## Shared referral bonus — half Handled, half the pro
+
+`REFERRAL_COST_SPLIT` in `packages/core/src/partners.ts`, with tests in `partners.test.ts`, checks
+customer = pro + referrer + Handled to the cent over 3,000 random jobs.
+
+- **Bonus** = rate × Handled's take, where take = price − the pro's **full** pay − refunds. The rate is 10% for a person,
+  15% for a recurring ticket and 20% for a one-time ticket. The pro's half never feeds back into the take.
+- **Pro's half** = half the bonus, rounded down to the cent. **Handled's half** = the rest, so Handled covers any odd cent.
+- **When:** jobs whose offer the pro accepts on/after **2026‑11‑22** (30 days' notice under the contractor agreement), by a pro
+  on agreement **v10+**. Otherwise, or when no pro is on the job, Handled pays the whole bonus.
+- **Shown before accepting:** the work order (v4) on the offer page, in the app and in the offer emails says, for example,
+  "the $24 referral bonus … $12 comes out of this payout (you receive $268)".
+- **Paid:** at completion the pro's half becomes a line on their statement ("Your half of the referral bonus — JOB‑REF",
+  payout kind `referral_share`), netted in the Monday payout like a clawback. If a refund lowers the bonus or staff void it,
+  `syncProShare` lowers or removes the line, or returns the difference if it was already netted.
+- **Switch on:** `supabase/setup/ADD_SHARED_REFERRAL_BONUS_2026-10-22_0900.sql`. Agreement v10 asks every pro to
+  re-sign before their next offer.
+
+### Worked examples (real pricing engine)
+
+| Job | Customer pays | Pro's full pay | Handled take | Bonus | Pro pays | Handled pays | Pro nets | Referrer | Handled nets |
+|---|---|---|---|---|---|---|---|---|---|
+| Lawn care every 2 weeks, ticket (15%) — per visit | $150.00 | $112.00 | $38.00 | $5.70 | $2.85 | $2.85 | $109.15 | $5.70 | $35.15 |
+| — over 12 months (26 visits) | $3,900.00 | $2,912.00 | $988.00 | $148.20 | $74.10 | $74.10 | $2,837.90 | $148.20 | $913.90 |
+| $10,000 one-time job, ticket (20%) | $10,000.00 | $6,297.00 | $3,703.00 | $740.60 | $370.30 | $370.30 | $5,926.70 | $740.60 | $3,332.70 |
 
 ## In the Handled Hub (MasterMind)
 

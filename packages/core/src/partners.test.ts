@@ -7,7 +7,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { COMMISSION_BASIS, PARTNER_PROGRAM, cleanTicketToken, jobReferralBasis, makeTicketToken, moneySplit, partnerCommission, partnerExpiry, partnerTake, partnerTerms, pctLabel, ticketExpiry } from "./partners.ts";
+import { COMMISSION_BASIS, PARTNER_PROGRAM, REFERRAL_COST_SPLIT, agreementNumber, proSharesReferral, referralCostShares, referralShareEstimate, cleanTicketToken, jobReferralBasis, makeTicketToken, moneySplit, partnerCommission, partnerExpiry, partnerTake, partnerTerms, pctLabel, ticketExpiry } from "./partners.ts";
 
 const job = { price: 400, payout: 280 }; // our take: $120
 
@@ -48,11 +48,11 @@ test("terms state every rate in plain numbers", () => {
   assert.equal(pctLabel(0.15), "15");
 });
 
-test("money split: customer = pro + referrer + Handled, and the pro's pay never moves", () => {
+test("money split before the shared bonus: Handled carries it all, the pro's pay doesn't move", () => {
   const m = moneySplit(job, 0.2);
-  assert.deepEqual(m, { customer: 400, pro: 280, referrer: 24, handled: 96 });
+  assert.equal(m.customer, 400); assert.equal(m.pro, 280); assert.equal(m.referrer, 24); assert.equal(m.handled, 96);
+  assert.equal(m.proShare, 0); assert.equal(m.handledShare, 24);
   assert.equal(m.pro + m.referrer + m.handled, m.customer);
-  assert.equal(moneySplit(job, 0.15).pro, 280);
 });
 
 test("ticket tokens are URL-safe and validated", () => {
@@ -96,4 +96,73 @@ test("standard ticket: missing basics, the service's required size and required 
 test("standard ticket: notes for the pro carry property, pets, parking and the wished date", () => {
   const n = ticketNotes({ ...good, details: { ...good.details, occupancy: "vacant", pets: "Two dogs, friendly", parking: "Driveway", preferred_date: "2026-11-02" } });
   for (const s of ["Property: House, empty.", "Pets: Two dogs, friendly.", "Parking: Driveway.", "2026-11-02"]) assert.ok(n.includes(s), s);
+});
+
+// ─── Shared referral bonus: half Handled, half the pro — added 2026-10-22_0900 UTC ───
+test("shared bonus: half from Handled's take, half from the pro's pay — worked examples", () => {
+  // $400 job, pro paid $280, Handled's take $120
+  const once = moneySplit(job, 0.2, true);   // one-time ticket: 20% of $120 = $24 → pro $12, Handled $12
+  assert.deepEqual([once.referrer, once.proShare, once.handledShare, once.pro, once.handled], [24, 12, 12, 268, 108]);
+  const rec = moneySplit(job, 0.15, true);   // recurring ticket: 15% of $120 = $18 → $9 / $9
+  assert.deepEqual([rec.referrer, rec.proShare, rec.handledShare, rec.pro, rec.handled], [18, 9, 9, 271, 111]);
+  const person = moneySplit(job, 0.1, true); // referred person: 10% of $120 = $12 → $6 / $6
+  assert.deepEqual([person.referrer, person.proShare, person.handledShare, person.pro, person.handled], [12, 6, 6, 274, 114]);
+  assert.deepEqual(REFERRAL_COST_SPLIT.pro + REFERRAL_COST_SPLIT.handled, 1);
+});
+
+test("shared bonus: odd cents go to Handled, shares always add up to the bonus exactly", () => {
+  assert.deepEqual(referralCostShares(10.01), { pro: 5, handled: 5.01 });
+  assert.deepEqual(referralCostShares(0.01), { pro: 0, handled: 0.01 });
+  assert.deepEqual(referralCostShares(24, false), { pro: 0, handled: 24 });
+  assert.deepEqual(referralCostShares(-3), { pro: 0, handled: 0 });
+  for (let c = 0; c <= 5000; c += 7) { const s = referralCostShares(c / 100); assert.equal(Math.round((s.pro + s.handled) * 100), c, `c=${c}`); assert.ok(s.pro <= s.handled); }
+});
+
+test("shared bonus: customer = pro + referrer + Handled to the cent, for any price, pay, refund and rate", () => {
+  let seed = 7; const rnd = () => ((seed = (seed * 48271) % 2147483647) / 2147483647);
+  for (let i = 0; i < 3000; i++) {
+    const price = Math.round(rnd() * 500000) / 100, payout = Math.round(price * (0.55 + rnd() * 0.3) * 100) / 100, refunded = rnd() < 0.2 ? Math.round(rnd() * price * 100) / 100 : 0;
+    for (const pct of [0.1, 0.15, 0.2]) for (const proPays of [true, false]) {
+      const m = moneySplit({ price, payout, refunded }, pct, proPays);
+      assert.equal(Math.round((m.pro + m.referrer + m.handled) * 100), Math.round(m.customer * 100), JSON.stringify({ price, payout, refunded, pct, proPays }));
+      assert.equal(Math.round((m.proShare + m.handledShare) * 100), Math.round(m.referrer * 100));
+      assert.ok(m.referrer <= m.take * pct + 0.005);            // the bonus is never more than the rate on our take
+      assert.ok(m.proShare <= m.referrer / 2 + 1e-9);           // the pro never carries more than half
+    }
+  }
+});
+
+test("shared bonus: the bonus is worked out on the pro's FULL pay (their half never feeds back in)", () => {
+  // if the pro's half were taken first, our take would look bigger and the bonus would grow — it must not
+  assert.equal(moneySplit(job, 0.2, true).referrer, moneySplit(job, 0.2, false).referrer);
+  assert.equal(referralShareEstimate({ price: 400, payout: 280 }, 0.2), 12);
+});
+
+test("shared bonus: refunds shrink the bonus and both halves with it", () => {
+  // $60 refunded comes out of our take first: take $60 → bonus $12 → pro $6, Handled $6 → Handled keeps $60 − $6 = $54
+  const m = moneySplit({ price: 400, payout: 280, refunded: 60 }, 0.2, true); // take $60 → bonus $12 → $6 / $6
+  assert.deepEqual([m.referrer, m.proShare, m.handledShare, m.pro, m.handled, m.customer], [12, 6, 6, 274, 54, 340]);
+  const gone = moneySplit({ price: 400, payout: 280, refunded: 200 }, 0.2, true); // take below zero → no bonus, no share
+  assert.deepEqual([gone.referrer, gone.proShare], [0, 0]);
+});
+
+test("shared bonus: only on jobs accepted from the effective date, under agreement v10 or later", () => {
+  const after = "2026-11-22T00:00:00Z", before = "2026-11-21T23:59:59Z";
+  assert.equal(agreementNumber("2026-10-v10"), 10); assert.equal(agreementNumber("2026-10-v9"), 9); assert.equal(agreementNumber(null), 0);
+  assert.equal(proSharesReferral({ acceptedAt: after, agreementVersion: "2026-10-v10" }), true);
+  assert.equal(proSharesReferral({ acceptedAt: after, agreementVersion: "2026-12-v11" }), true);
+  assert.equal(proSharesReferral({ acceptedAt: before, agreementVersion: "2026-10-v10" }), false); // accepted under the old terms
+  assert.equal(proSharesReferral({ acceptedAt: after, agreementVersion: "2026-10-v9" }), false);   // hasn't signed the new agreement
+  assert.equal(proSharesReferral({ acceptedAt: null, agreementVersion: "2026-10-v10" }), false);   // no accepted offer on record
+});
+
+test("shared bonus: the work order shows the pro their half before they accept (from the effective date only)", async () => {
+  const { buildWorkOrder } = await import("./workorder.ts");
+  const wjob = { ref: "H-1", service_slug: "lawn-care", answers: {}, notes: null, scheduled_date: null, time_window: "morning", address: "1 Main", city: "Detroit", state: "MI", zip: "48226", contact_name: "A", contact_phone: "1", company_name: null, contractor_payout: 280, price_final: 400, referral_pct: 0.2 } as never;
+  const after = buildWorkOrder(wjob, { reveal: false, now: new Date("2026-11-22T12:00:00Z") }).terms.join(" ");
+  assert.ok(after.includes("$24 referral bonus") && after.includes("$12 comes out of this payout") && after.includes("you receive $268"), after);
+  const before = buildWorkOrder(wjob, { reveal: false, now: new Date("2026-11-01T12:00:00Z") }).terms.join(" ");
+  assert.ok(!before.includes("referral bonus"));
+  const notReferred = buildWorkOrder({ ...(wjob as object), referral_pct: null } as never, { reveal: false, now: new Date("2026-12-01T12:00:00Z") }).terms.join(" ");
+  assert.ok(!notReferred.includes("referral bonus"));
 });

@@ -34,6 +34,9 @@
  */
 import {
   AGREEMENT_VERSION,
+  PARTNER_PROGRAM,
+  REFERRAL_COST_SPLIT,
+  pctLabel,
   BOOKING_FEE,
   BRAND,
   COMMISSION,
@@ -151,8 +154,8 @@ export const PRO_AGREEMENT: Contract = {
       p: `Your first ${PROBATION.jobs} jobs are probation jobs. They are limited to jobs with a price of ${money(PROBATION.maxJobPrice)} or less, and each one gets a human review of your completion photos and a follow-up call to the customer before the payout is approved. This is a one-time quality check on results; it adds a short delay to approval, not a cut to pay.`,
     },
     {
-      h: "10. Discounts, promotions and tips",
-      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout. Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
+      h: "10. Discounts, promotions, referral bonuses and tips",
+      p: `Discounts, promo codes, memberships, customer referral credits and gift cards never reduce your payout.\n\nReferral bonuses on referred jobs are shared. When a job comes to us through a referral (a referral ticket, or a customer someone referred to us), we pay the person who referred it a bonus of ${pctLabel(PARTNER_PROGRAM.jobOncePct)}%, ${pctLabel(PARTNER_PROGRAM.jobRecurringPct)}% or ${pctLabel(PARTNER_PROGRAM.pctOfTake)}% of OUR fee on that job (never of your pay). We pay half of that bonus and you pay the other half, out of your payout for that job: your half is half the bonus, rounded down to the cent. The bonus is worked out on your full pay, so your half never makes it bigger. Every referred offer and work order shows your half in dollars before you accept, and it appears as its own line ("Your half of the referral bonus") on your payout statement. If the customer is refunded, the bonus and your half go down with it; if the bonus is cancelled, your half is returned to you. This applies only to jobs you accept on or after ${new Date(REFERRAL_COST_SPLIT.effectiveFrom).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}; on jobs accepted before then, we pay the whole bonus. Refer a job yourself and you earn the bonus too.\n\nYour payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share. Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
     },
     {
       h: "11. Materials and parts",

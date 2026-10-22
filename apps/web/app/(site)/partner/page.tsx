@@ -61,6 +61,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   const services = SERVICES.map((s) => [s.slug, s.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   const T = ((tickets ?? []) as unknown as TicketRow[]);
+  const proShareByRef = new Map(((comms ?? []) as unknown as { pro_share?: number | null; jobs: { ref: string } | null }[]).filter((c) => c.jobs && Number(c.pro_share) > 0).map((c) => [c.jobs!.ref, Number(c.pro_share)]));
   // people this partner invited (their own referral ticket link) and what came of it
   const { data: invs, error: invErr } = await db.from("ticket_invites").select("id, name, status, job_hint, ticket_id, created_at, completed_at").eq("invited_by_partner_id", partner.id).order("created_at", { ascending: false }).limit(100);
   const INV = (invs ?? []) as { id: string; name: string; status: string; job_hint: string | null; ticket_id: string | null; created_at: string; completed_at: string | null }[];
@@ -110,7 +111,9 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
           <div className="space-y-3">{T.map((t) => {
             const j = t.jobs;
             const pct = t.basis ? COMMISSION_BASIS[t.basis].pct : null;
-            const split = j && pct && Number(j.price_final) > 0 ? moneySplit({ price: Number(j.price_final), payout: Number(j.contractor_payout ?? 0), refunded: Number(j.amount_refunded ?? 0) }, pct) : null;
+            // shared bonus: when the pro on this job carries half, the commission row recorded it
+            const proPays = Boolean(j && proShareByRef.get(j.ref));
+            const split = j && pct && Number(j.price_final) > 0 ? moneySplit({ price: Number(j.price_final), payout: Number(j.contractor_payout ?? 0), refunded: Number(j.amount_refunded ?? 0) }, pct, proPays) : null;
             const [label, tone] = STATUS[t.status];
             return (
               <div key={t.id} className="card text-sm">
@@ -119,7 +122,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
                   <Badge tone={tone}>{label}</Badge>
                 </div>
                 {t.ai_summary && <p className="mt-2 text-ink-soft">{t.ai_summary}</p>}
-                {split && <p className="mt-2 rounded-lg bg-paper p-2">Customer pays {money(split.customer)} → pro {money(split.pro)} · <b>you {money(split.referrer)}</b> ({pctLabel(pct!)}%{t.basis === "job_recurring" ? " per visit" : ""}) · Handled {money(split.handled)}</p>}
+                {split && <p className="mt-2 rounded-lg bg-paper p-2">Customer pays {money(split.customer)} → pro {money(split.pro)} · <b>you {money(split.referrer)}</b> ({pctLabel(pct!)}%{t.basis === "job_recurring" ? " per visit" : ""}) · Handled {money(split.handled)}{split.proShare > 0 ? <span className="text-ink-soft"> (your bonus is shared: {money(split.handledShare)} from Handled, {money(split.proShare)} from the pro)</span> : null}</p>}
                 <p className="mt-2 text-xs text-ink-soft">{t.status === "booked" && t.pays_until ? `Every visit pays you until ${t.pays_until.slice(0, 10)}. ` : ""}{["open", "needs_review"].includes(t.status) ? `The customer can book until ${t.expires_at.slice(0, 10)}. ` : ""}Sent {t.created_at.slice(0, 10)}.</p>
                 {t.events?.length > 0 && <details className="mt-1 text-xs"><summary className="cursor-pointer text-ink-soft">Timeline</summary><ul className="mt-1 space-y-0.5">{t.events.map((e, i) => <li key={i}>{e.at.slice(0, 10)} — {e.text}</li>)}</ul></details>}
               </div>

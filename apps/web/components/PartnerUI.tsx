@@ -362,7 +362,7 @@ export function ReferralTicket({ services, isPro, rates, invite, afterDone }: { 
       </fieldset>
 
       <fieldset className="space-y-2">{head("confirm")}
-        <p className="rounded-lg bg-paper p-3 text-xs text-ink-soft">You earn <b>{rates.once}%</b> of our fee on a one-time job, or <b>{rates.recurring}%</b> on every visit for {rates.months} months if they book it to repeat. Paid weekly once each job is past our make-it-right window. It never comes out of the pro&apos;s pay.</p>
+        <p className="rounded-lg bg-paper p-3 text-xs text-ink-soft">You earn <b>{rates.once}%</b> of our fee on a one-time job, or <b>{rates.recurring}%</b> on every visit for {rates.months} months if they book it to repeat. Paid weekly once each job is past our make-it-right window. The bonus is shared: half from Handled, half from the pro who does the job.</p>
         {isPro && <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.i_will_do_it} onChange={(e) => setF({ ...f, i_will_do_it: e.target.checked })} />I&apos;d like to do this job myself — offer it to me first (if I&apos;m qualified and free, I get first look; otherwise it goes to other pros).</label>}
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_consent} onChange={(e) => setF({ ...f, customer_consent: e.target.checked })} />The customer asked me to send this job to Handled. *</label>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_expects_contact} onChange={(e) => setF({ ...f, customer_expects_contact: e.target.checked })} />They know Handled will email, text or call them about it. *</label>

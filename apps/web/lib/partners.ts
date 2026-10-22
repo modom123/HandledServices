@@ -23,12 +23,17 @@
  * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): submitTicket() refuses a ticket missing what the
  *           standard requires (ticketCheck), keeps the referrer's own size answers over the AI's, stores the details,
  *           version and completeness score, and builds the job notes from the standard fields (ticketNotes).
+ * UPDATED : 2026-10-22_0900 UTC — SHARED referral bonus: half from Handled's take, half from the pro on the job. At
+ *           completion the pro's half (when proSharesReferral: accepted from the effective date under agreement v10+) becomes
+ *           a "Your half of the referral bonus" line on their payout statement; syncProShare() moves it down with refunds
+ *           and voids. The bonus is still worked out on the pro's full pay. jobs.referral_pct is set at attribution so the
+ *           offer and work order show the pro their half before they accept.
  * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import {
-  BRAND, COMMISSION_BASIS, PARTNER_PROGRAM, cleanPartnerCode, cleanTicketToken, getService, jobReferralBasis, makePartnerCode, makeTicketToken,
+  BRAND, COMMISSION_BASIS, proSharesReferral, referralCostShares, PARTNER_PROGRAM, cleanPartnerCode, cleanTicketToken, getService, jobReferralBasis, makePartnerCode, makeTicketToken,
   TICKET_STANDARD_VERSION, ticketCheck, ticketNotes, type TicketDetails, money, moneySplit, partnerCommission, partnerExpiry, partnerTake, pctLabel, ticketExpiry, type Answers, type CommissionBasis, type Job, type PartnerKind,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -279,6 +284,7 @@ async function attributeTicket(job: Job, token: string | null): Promise<string |
   if (!won?.length) return null; // claimed a moment ago by another booking
   // later visits of a recurring plan copy partner_id and referral_ticket_id from this job (scheduleNextVisit)
   await db().from("jobs").update({ partner_id: t.partner_id, referral_ticket_id: t.id }).eq("id", job.id);
+  await setReferralPct(job.id, COMMISSION_BASIS[basis].pct);
   const svc = getService(job.service_slug);
   const pct = COMMISSION_BASIS[basis].pct;
   await ticketEvent(t.id, `Booked: ${job.ref} — ${svc?.name}${job.frequency !== "once" ? ` (${job.frequency})` : ""}, ${money(Number(job.price_final ?? 0))}.`, {
@@ -337,11 +343,53 @@ export async function attributeJob(job: Job, ticketToken: string | null = null):
     if (error) return null; // someone else claimed this customer a moment ago
     partnerId = p.id;
   }
-  if (partnerId) await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id);
+  if (partnerId) {
+    await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id);
+    await setReferralPct(job.id, COMMISSION_BASIS.person.pct);
+  }
   return partnerId;
 }
 
 // ─── Commissions ─────────────────────────────────────────────────────────────
+
+/** The referral rate on a credited job, so the offer and work order can show the pro their half (own update: never blocks the credit). */
+async function setReferralPct(jobId: string, pct: number) {
+  await db().from("jobs").update({ referral_pct: pct }).eq("id", jobId).then(() => null, () => null);
+}
+
+/**
+ * Does the pro on this job carry half the bonus? Only with a pro on the job who accepted its offer from the effective date
+ * (the offer and work order showed them their half) under contractor agreement v10 or later.
+ */
+async function proPaysHalf(job: Job): Promise<boolean> {
+  if (!job.contractor_id) return false;
+  const [{ data: offer }, { data: pro }] = await Promise.all([
+    db().from("job_offers").select("responded_at").eq("job_id", job.id).eq("contractor_id", job.contractor_id).eq("status", "accepted").order("responded_at", { ascending: false }).limit(1).maybeSingle(),
+    db().from("contractors").select("agreement_version").eq("id", job.contractor_id).maybeSingle(),
+  ]);
+  return proSharesReferral({ acceptedAt: offer?.responded_at ?? null, agreementVersion: (pro as { agreement_version?: string | null } | null)?.agreement_version ?? null });
+}
+
+/**
+ * Keep the pro's half in step with the bonus (a refund shrank it, staff voided it). Not yet netted into a payout → the
+ * line is changed (or removed); already netted → the difference goes back to the pro as a positive line. Never raises it.
+ */
+export async function syncProShare(commissionId: string, bonusNow: number) {
+  const { data: c } = await db().from("partner_commissions").select("id, job_id, contractor_id, pro_share, pro_share_payout_id, jobs(ref)").eq("id", commissionId).maybeSingle().then((r) => r, () => ({ data: null }));
+  if (!c || !c.contractor_id || !(Number(c.pro_share) > 0)) return;
+  const was = Number(c.pro_share);
+  const want = Math.min(was, referralCostShares(bonusNow).pro);
+  if (want === was) return;
+  const ref = (c.jobs as unknown as { ref: string } | null)?.ref ?? "";
+  const { data: line } = c.pro_share_payout_id ? await db().from("payouts").select("id, status, paid_at").eq("id", c.pro_share_payout_id).maybeSingle() : { data: null };
+  if (line && line.status === "clawback" && !line.paid_at) {
+    if (want > 0) await db().from("payouts").update({ amount: -want, reason: `Your half of the referral bonus — ${ref} (reduced by a refund)` }).eq("id", line.id);
+    else await db().from("payouts").delete().eq("id", line.id);
+  } else {
+    await db().from("payouts").insert({ contractor_id: c.contractor_id, job_id: c.job_id, amount: Math.round((was - want) * 100) / 100, status: "approved", kind: "referral_share", reason: `Referral bonus on ${ref} ${want ? "reduced" : "cancelled"} — your half returned` });
+  }
+  await db().from("partner_commissions").update({ pro_share: want, handled_share: Math.round((bonusNow - want) * 100) / 100 }).eq("id", c.id);
+}
 
 /** Which rule pays on this job, or null when nothing does (outside its window, or not the ticket's job or plan). */
 async function commissionBasisFor(job: Job): Promise<CommissionBasis | null> {
@@ -362,20 +410,35 @@ export async function accrueCommission(job: Job) {
   if (!basis) return;
   const pct = COMMISSION_BASIS[basis].pct;
   const o = { price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) };
+  // the bonus is worked out on the pro's FULL pay (contractor_payout is never reduced); who carries it is decided below
   const amount = partnerCommission(o, pct);
   if (amount <= 0) return;
+  const proPays = await proPaysHalf(job);
+  const share = referralCostShares(amount, proPays);
   const done = job.completed_at ? new Date(job.completed_at) : new Date();
   const eligible = new Date(done.getTime() + PARTNER_PROGRAM.holdDays * 86400000);
   const { data: added } = await db().from("partner_commissions").upsert({
     partner_id: job.partner_id, job_id: job.id, take: partnerTake(o), amount, status: "pending", eligible_at: eligible.toISOString(),
     // person rows keep the column defaults, so they still record before the tickets migration is run
     ...(basis === "person" ? {} : { basis, pct }),
+    // the shared-bonus columns only when the pro carries half (so commissions still record before that migration is run)
+    ...(share.pro > 0 ? { pro_share: share.pro, handled_share: share.handled, contractor_id: job.contractor_id } : {}),
   }, { onConflict: "job_id", ignoreDuplicates: true }).select("id");
-  if (added?.length && job.referral_ticket_id) {
-    const m = moneySplit(o, pct);
+  if (!added?.length) return; // already recorded (completion ran twice)
+  if (share.pro > 0 && job.contractor_id) {
+    // the pro's half: its own line on their statement, netted in the weekly payout like a clawback
+    const { data: line, error } = await db().from("payouts").insert({
+      contractor_id: job.contractor_id, job_id: job.id, amount: -share.pro, status: "clawback", kind: "referral_share",
+      reason: `Your half of the referral bonus — ${job.ref} (${pctLabel(pct)}% of our fee = ${money(amount)}; ${BRAND.name} pays the other ${money(share.handled)})`,
+    }).select("id").single();
+    if (line) await db().from("partner_commissions").update({ pro_share_payout_id: line.id }).eq("id", added[0].id);
+    else await raiseAlert("partners", "critical", `${job.ref}: the pro's half of the referral bonus wasn't recorded`, `${error?.message ?? "insert failed"} — run ADD_SHARED_REFERRAL_BONUS_2026-10-22_0900.sql. Until then ${BRAND.name} is carrying the whole ${money(amount)}.`, job.id).catch(() => {});
+  }
+  if (job.referral_ticket_id) {
+    const m = moneySplit(o, pct, share.pro > 0);
     await ticketEvent(job.referral_ticket_id, `Done: ${job.ref}. Customer paid ${money(m.customer)} · pro ${money(m.pro)} · you ${money(m.referrer)} · ${BRAND.name} ${money(m.handled)}.`, {
       subject: `You earned ${money(amount)} — ${job.ref} is done`,
-      body: `The ${getService(job.service_slug)?.name.toLowerCase()} you sent us is complete (${job.ref}).\n\nWhere the money went: the customer paid ${money(m.customer)}, the pro is paid ${money(m.pro)}, your commission is ${money(m.referrer)} (${pctLabel(pct)}% of our fee), and ${BRAND.name} keeps ${money(m.handled)}.\n\nYour ${money(amount)} is paid in the Monday payout after ${eligible.toISOString().slice(0, 10)} (our ${PARTNER_PROGRAM.holdDays}-day make-it-right window).`,
+      body: `The ${getService(job.service_slug)?.name.toLowerCase()} you sent us is complete (${job.ref}).\n\nWhere the money went: the customer paid ${money(m.customer)}, the pro is paid ${money(m.pro)}, your commission is ${money(m.referrer)} (${pctLabel(pct)}% of our fee${m.proShare ? `, shared: ${money(m.handledShare)} from ${BRAND.name} and ${money(m.proShare)} from the pro` : ""}), and ${BRAND.name} keeps ${money(m.handled)}.\n\nYour ${money(amount)} is paid in the Monday payout after ${eligible.toISOString().slice(0, 10)} (our ${PARTNER_PROGRAM.holdDays}-day make-it-right window).`,
     }).catch(() => {});
   }
 }
@@ -397,8 +460,8 @@ export async function runPartnerPayouts(now = new Date()) {
     // refunds after completion come out of our take first → the commission follows it down (never up)
     const j = r.jobs;
     const now$ = j && j.status === "completed" && !j.remedy ? Math.min(Number(r.amount), partnerCommission({ price: Number(j.price_final), payout: Number(j.contractor_payout), refunded: Number(j.amount_refunded) }, r.pct != null ? Number(r.pct) : PARTNER_PROGRAM.pctOfTake)) : 0;
-    if (now$ <= 0) { await db().from("partner_commissions").update({ status: "void", amount: 0, note: "job refunded or cancelled" }).eq("id", r.id); voided++; continue; }
-    if (now$ !== Number(r.amount)) { await db().from("partner_commissions").update({ amount: now$, note: "reduced by a refund" }).eq("id", r.id); r.amount = now$; }
+    if (now$ <= 0) { await syncProShare(r.id, 0).catch(() => {}); await db().from("partner_commissions").update({ status: "void", amount: 0, note: "job refunded or cancelled" }).eq("id", r.id); voided++; continue; }
+    if (now$ !== Number(r.amount)) { await syncProShare(r.id, now$).catch(() => {}); await db().from("partner_commissions").update({ amount: now$, note: "reduced by a refund" }).eq("id", r.id); r.amount = now$; }
     byPartner.set(r.partner_id, [...(byPartner.get(r.partner_id) ?? []), r]);
   }
   let paid = 0, total = 0, waiting = 0;

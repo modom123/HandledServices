@@ -15,13 +15,14 @@
 import { AGREEMENT_VERSION } from "./compliance.ts";
 import { BRAND } from "./brand.ts";
 import { money } from "./pricing.ts";
+import { REFERRAL_COST_SPLIT, partnerCommission, pctLabel, referralCostShares } from "./partners.ts";
 import { getService } from "./services.ts";
 import { TIME_WINDOW_LABEL, type Job } from "./types.ts";
 import { serviceText, t as tr, type Locale } from "./i18n.ts";
 import { checklistText, resolveChecklist, type ChecklistExtra, type JobChecklist } from "./checklists.ts";
 
 /** Bump when the per-job terms below change. */
-export const WORK_ORDER_VERSION = "2026-10-v3"; // v3: job checklist
+export const WORK_ORDER_VERSION = "2026-10-v4"; // v4: referred jobs show the pro's half of the referral bonus; v3: job checklist
 
 export interface WorkOrder {
   version: string;
@@ -44,7 +45,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { price_final?: number | null; referral_pct?: number | null; instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
 
 /** Spanish for the fixed parts of a work order (pros who chose Spanish). */
 const WO_ES: Record<string, string> = {
@@ -63,7 +64,22 @@ const WO_ES: Record<string, string> = {
   "Start time": "Hora de inicio",
 };
 
-export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null }): WorkOrder {
+/**
+ * Referred job (from the shared-bonus effective date): the pro's half of the referral bonus, in dollars, before they
+ * accept. Worked out exactly as at completion — the bonus on the full pay, the pro's half rounded down.
+ */
+function referralLine(job: WorkOrderJob, payout: number | null | undefined, es: boolean, now = new Date()): string[] {
+  const pct = Number(job.referral_pct ?? 0), price = Number(job.price_final ?? 0), pay = Number(payout ?? 0);
+  if (!(pct > 0) || !(price > 0) || !(pay > 0) || now.getTime() < Date.parse(REFERRAL_COST_SPLIT.effectiveFrom)) return [];
+  const bonus = partnerCommission({ price, payout: pay }, pct);
+  const sh = referralCostShares(bonus);
+  if (!(sh.pro > 0)) return [];
+  return [es
+    ? `Trabajo referido: el bono de referido de ${money(bonus)} (${pctLabel(pct)}% de la tarifa de ${BRAND.name}) se comparte mitad y mitad — ${money(sh.pro)} sale de este pago (usted recibe ${money(Math.round((pay - sh.pro) * 100) / 100)}) y ${BRAND.name} paga los otros ${money(sh.handled)}. Si se reembolsa al cliente, su mitad baja también.`
+    : `Referred job: the ${money(bonus)} referral bonus (${pctLabel(pct)}% of ${BRAND.name}'s fee) is shared half and half — ${money(sh.pro)} comes out of this payout (you receive ${money(Math.round((pay - sh.pro) * 100) / 100)}) and ${BRAND.name} pays the other ${money(sh.handled)}. If the customer is refunded, your half goes down with it.`];
+}
+
+export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null; now?: Date }): WorkOrder {
   const es = opts.locale === "es";
   const L = (s: string) => (es ? WO_ES[s] ?? tr("es", s) : s);
   const svc = getService(job.service_slug);
@@ -82,6 +98,7 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
   const terms = [
     es ? `Pago ${payout ? money(payout) : "según la cotización final"} — se aprueba cuando el trabajo está completo y pasa la revisión de fotos, y se paga en el pago semanal. El cliente ya pagó; nunca cobre directamente.`
       : `Payout ${payout ? money(payout) : "per the firm quote"} — approved when the job is complete and passes photo review, paid on the weekly payout run. The customer has prepaid; never take payment directly.`,
+    ...referralLine(job, payout, es, opts.now),
     L("Arrive within the booked window. Running late? Message the customer in the app before the window starts."),
     L("Take before-and-after photos of every area you work on and upload them to complete the job."),
     ...(job.payment_plan === "deposit" && !job.paid_at ? [L("The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\".")] : []),

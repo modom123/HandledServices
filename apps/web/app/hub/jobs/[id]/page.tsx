@@ -64,7 +64,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   ]);
   const refBasis = ((refComm?.basis as string | undefined) ?? (refTicket ? (refTicket.basis as string | null) ?? jobReferralBasis(job.frequency) : job.partner_id ? "person" : null)) as CommissionBasis | null;
   const refPct = refComm?.pct != null ? Number(refComm.pct) : refBasis ? COMMISSION_BASIS[refBasis].pct : PARTNER_PROGRAM.pctOfTake;
-  const refSplit = job.partner_id && Number(job.price_final) > 0 ? moneySplit({ price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) }, refPct) : null;
+  const refSplit = job.partner_id && Number(job.price_final) > 0 ? moneySplit({ price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) }, refPct, Number(refComm?.pro_share ?? 0) > 0) : null;
   const clientNo = (clientRow as { client_no?: string | null } | null)?.client_no ?? null;
   const proNo = (proContact as { pro_no?: string | null } | null)?.pro_no ?? null;
   const notices = noticeRes.error ? null : (noticeRes.data ?? []) as { id: string; channel: string; recipient: string; subject: string | null; preview: string | null; status: string; error: string | null; created_at: string }[];
@@ -171,7 +171,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
             <p><b>{refPartner.name}</b> <span className="text-ink-soft">({refPartner.kind} · {refPartner.code})</span> · {refBasis ? COMMISSION_BASIS[refBasis].label : "Referral"} · {pctLabel(refPct)}% of our take</p>
             {refTicket?.ai_summary && <p className="text-xs text-ink-soft">Ticket: {refTicket.ai_summary}</p>}
             {refTicket?.pays_until && <p className="text-xs text-ink-soft">Every visit of this plan pays until {String(refTicket.pays_until).slice(0, 10)}.</p>}
-            {refSplit && <p>Customer {money(refSplit.customer)} → pro {money(refSplit.pro)} · referrer {money(refSplit.referrer)} · Handled {money(refSplit.handled)}</p>}
+            {refSplit && <p>Customer {money(refSplit.customer)} → pro {money(refSplit.pro)} · referrer {money(refSplit.referrer)} · Handled {money(refSplit.handled)} <span className="text-xs text-ink-soft">(bonus paid by Handled {money(refSplit.handledShare)}{refSplit.proShare ? ` + pro ${money(refSplit.proShare)}` : " — all of it (accepted before the shared bonus, or no pro)"})</span></p>}
             <p className="text-xs">{refComm ? `Commission ${money(Number(refComm.amount))}: ${refComm.status}${refComm.status === "pending" ? `, payable ${String(refComm.eligible_at).slice(0, 10)}` : refComm.paid_at ? ` ${String(refComm.paid_at).slice(0, 10)}` : ""}` : "Commission is recorded when the job is completed."} <Link href="/hub/partners" className="underline">Referrals & tickets →</Link></p>
           </div>
         )}

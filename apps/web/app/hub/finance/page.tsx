@@ -8,6 +8,7 @@
  * PURPOSE : Unit economics — revenue, payouts, gross margin by service; payout queue;
  *           AI cost tracking from ai_runs.
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-22_0900 UTC — shared referral bonus: our cost vs the pros' half.
  * UPDATED : 2026-10-22_0500 UTC — referral commissions (earned in the window, owed, paid) and take after commissions.
  */
 import { CARD_FEE, TAKE_MAX, TAKE_MIN, getService, money } from "@handled/core";
@@ -36,10 +37,11 @@ export default async function Finance() {
     v.db.from("pro_deductions").select("id, amount, reason, source, respond_by, pro_response, responded_at, created_at, contractors(business_name), jobs(ref)").eq("status", "proposed").order("respond_by"),
   ]);
   // referral commissions: earned on jobs completed in the window, still owed (all time), paid in the window
-  const { data: refComms } = await v.db.from("partner_commissions").select("amount, status, created_at, paid_at").or(`status.eq.pending,created_at.gte.${since},paid_at.gte.${since}`).limit(10000);
+  const { data: refComms } = await v.db.from("partner_commissions").select("*").or(`status.eq.pending,created_at.gte.${since},paid_at.gte.${since}`).limit(10000);
   const RC = (refComms ?? []) as Rec[];
   const refEarned = RC.filter((c) => c.status !== "void" && c.created_at >= since).reduce((t: number, c: Rec) => t + Number(c.amount), 0);
   const refOwed = RC.filter((c) => c.status === "pending").reduce((t: number, c: Rec) => t + Number(c.amount), 0);
+  const refProHalf = RC.filter((c) => c.status !== "void" && c.created_at >= since).reduce((t: number, c: Rec) => t + Number(c.pro_share ?? 0), 0); // shared bonus: pros' half
   const refPaid = RC.filter((c) => c.status === "paid" && (c.paid_at ?? "") >= since).reduce((t: number, c: Rec) => t + Number(c.amount), 0);
   const acc = new Map<string, { jobs: number; changed: number; extra: number; aiUp: number; aiDown: number; siteVisits: number }>();
   for (const j of (priced ?? []) as Rec[]) {
@@ -72,7 +74,7 @@ export default async function Finance() {
         <Stat label="Our take" value={money(take)} hint={tot.revenue ? `${Math.round((take / tot.revenue) * 100)}% avg take · band ${TAKE_MIN * 100}–${TAKE_MAX * 100}%` : `band ${TAKE_MIN * 100}–${TAKE_MAX * 100}%`} />
         <Stat label="Net after card fees" value={money(take - fees)} hint={`${money(fees)} est. processing · ${outOfBand} jobs outside band`} />
         <Stat label="Payouts owed" value={money(owed)} />
-        <Stat label="Referral commissions" value={money(refEarned)} hint={`take after referrals ${money(take - refEarned)} · ${money(refOwed)} owed · ${money(refPaid)} paid (Mondays)`} />
+        <Stat label="Referral commissions" value={money(refEarned)} hint={`our cost ${money(refEarned - refProHalf)} (pros carry ${money(refProHalf)}) · take after referrals ${money(take - (refEarned - refProHalf))} · ${money(refOwed)} owed · ${money(refPaid)} paid (Mondays)`} />
         <Stat label="AI cost" value={`$${aiCost.toFixed(2)}`} hint={`${runs?.length ?? 0} AI calls · ${tot.jobs ? `$${(aiCost / tot.jobs).toFixed(2)}/job` : ""}`} />
       </div>
       <div className="card overflow-x-auto p-0"><table className="w-full text-sm">

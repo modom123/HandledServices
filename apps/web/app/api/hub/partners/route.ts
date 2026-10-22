@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: approve & send, re-send, cancel.
  *             { action: "invite", name, email?, phone?, company?, kind?, job_hint?, via_email, via_sms, sms_consent, biz_lead_id? }
  *                                                       — send someone on the phone their referral ticket (they join the network)
+ * UPDATED : 2026-10-22_0900 UTC — voiding a commission returns the pro's half of the bonus (shared bonus).
  * UPDATED : 2026-10-22_0700 UTC — ticket invites (Hub → Referrals & tickets and the Call desk).
  */
 import { z } from "zod";
@@ -46,6 +47,10 @@ export async function POST(req: Request) {
   if (d.action === "status") ({ error } = await db.from("referral_partners").update({ status: d.status }).eq("id", d.id));
   if (d.action === "assign") ({ error } = await db.from("referral_customers").upsert({ partner_id: d.partner_id, customer_email: d.email.toLowerCase(), source: "staff", note: `assigned by ${v!.email}`, expires_at: partnerExpiry(new Date()).toISOString() }, { onConflict: "customer_email" }));
   if (d.action === "unassign") ({ error } = await db.from("referral_customers").delete().eq("customer_email", d.email.toLowerCase()));
+  if (d.action === "void") { // still unpaid → the pro's half goes back to them before it's voided
+    const { data: open } = await db.from("partner_commissions").select("id").eq("id", d.commission_id).eq("status", "pending").maybeSingle();
+    if (open) await (await import("@/lib/partners")).syncProShare(d.commission_id, 0).catch(() => {});
+  }
   if (d.action === "void") ({ error } = await db.from("partner_commissions").update({ status: "void", amount: 0, note: `${d.note} (${v!.email})` }).eq("id", d.commission_id).eq("status", "pending"));
   if (d.action === "invite") {
     const { action: _a, ...o } = d;

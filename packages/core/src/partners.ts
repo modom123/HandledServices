@@ -7,11 +7,16 @@
  *             • 10% of Handled's take (price − pro payout − refunds) on every completed job from that customer,
  *             • for 12 months from the first referral,
  *             • paid in the weekly Stripe run once the job is past the 30-day make-it-right window.
- *           It comes out of our share, never the pro's pay, so a referred job can never lose money.
+ *           Since 2026-10-22_0900 the bonus is shared half Handled / half the pro on the job (REFERRAL_COST_SPLIT below);
+ *           it's always a share of OUR take, so a referred job can never lose money.
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: pros, clients and anyone can send us one specific job. A one-time job
  *           pays 20% of our take on that job; a recurring job 15% on every visit of that plan for 12 months.
  *           moneySplit() shows who gets what on a job. Terms v2.
  * UPDATED : 2026-10-22_0700 UTC — inviteDays: a ticket invite sent after a phone call works for 30 days.
+ * UPDATED : 2026-10-22_0900 UTC — the referral bonus is SHARED: half from Handled's take, half from the pro who does the job
+ *           (REFERRAL_COST_SPLIT, referralCostShares). The bonus is still a share of Handled's take, worked out on the
+ *           pro's full pay, so the pro's half never feeds back into it. Applies to jobs accepted from the effective date
+ *           (30 days' notice) under agreement v10+; before that, or with no pro on the job, Handled carries all of it.
  */
 import { BRAND } from "./brand.ts";
 
@@ -80,6 +85,34 @@ export function cleanPartnerCode(v: unknown): string | null {
   return /^[A-Z0-9]{4,16}$/.test(s) ? s : null;
 }
 
+/**
+ * Who carries a referral bonus: half Handled (out of its take), half the pro who does the job (out of their payout).
+ * The pro's part starts with jobs accepted on/after `effectiveFrom` (30 days' notice under the contractor agreement) by a
+ * pro who signed agreement v`minAgreement` or later; until then Handled carries the whole bonus, as before.
+ */
+export const REFERRAL_COST_SPLIT = { pro: 0.5, handled: 0.5, effectiveFrom: "2026-11-22T00:00:00Z", minAgreement: 10 } as const;
+
+/** Split a referral bonus: the pro's half rounded DOWN to the cent, Handled covers the odd cent. Always sums exactly. */
+export function referralCostShares(commission: number, proPays = true): { pro: number; handled: number } {
+  const c = Math.max(0, Math.round(Number(commission || 0) * 100));
+  const pro = proPays ? Math.floor(c * REFERRAL_COST_SPLIT.pro + 1e-6) : 0;
+  return { pro: pro / 100, handled: (c - pro) / 100 };
+}
+
+/** The number in an agreement version like "2026-10-v10" (0 when unknown). */
+export const agreementNumber = (v: string | null | undefined) => Number(/-v(\d+)$/.exec(String(v ?? ""))?.[1] ?? 0);
+
+/** Does the pro on this job carry half the referral bonus? Accepted on/after the effective date, under agreement v10+. */
+export function proSharesReferral(o: { acceptedAt: string | Date | null | undefined; agreementVersion: string | null | undefined }): boolean {
+  if (!o.acceptedAt) return false; // never saw an offer with the share on it → Handled carries it
+  return new Date(o.acceptedAt).getTime() >= Date.parse(REFERRAL_COST_SPLIT.effectiveFrom) && agreementNumber(o.agreementVersion) >= REFERRAL_COST_SPLIT.minAgreement;
+}
+
+/** What the pro's half would be on a job (for the offer and work order, before it's accepted). */
+export function referralShareEstimate(o: { price: number; payout: number }, pct: number): number {
+  return referralCostShares(partnerCommission(o, pct)).pro;
+}
+
 /** A rate as a whole percent for copy ("15", never "15.000000000000002"). */
 export const pctLabel = (pct: number) => String(Math.round(pct * 1000) / 10);
 
@@ -97,11 +130,18 @@ export function makeTicketToken(rand: () => number = Math.random): string {
 }
 export const cleanTicketToken = (v: unknown): string | null => (/^[a-z0-9]{16,40}$/.test(String(v ?? "")) ? String(v) : null);
 
-/** Where the money on a referred job goes: the pro's payout, the referrer's commission, and what Handled keeps. */
-export function moneySplit(o: { price: number; payout: number; refunded?: number }, pct: number) {
+/**
+ * Where the money on a referred job goes. `payout` is the pro's FULL pay for the job (what the bonus is worked out on);
+ * with `proPays`, half the bonus comes out of it. Always: customer = pro + referrer + handled, to the cent.
+ */
+export function moneySplit(o: { price: number; payout: number; refunded?: number }, pct: number, proPays = false) {
   const referrer = partnerCommission(o, pct);
   const take = partnerTake(o);
-  return { customer: Math.round((o.price - (o.refunded ?? 0)) * 100) / 100, pro: Math.round(o.payout * 100) / 100, referrer, handled: Math.round((take - referrer) * 100) / 100 };
+  const share = referralCostShares(referrer, proPays);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const customer = r2(o.price - (o.refunded ?? 0));
+  const pro = r2(o.payout - share.pro);
+  return { customer, pro, referrer, handled: r2(customer - pro - referrer), proShare: share.pro, handledShare: share.handled, take };
 }
 
 /** When a referral stops paying (12 months after it started). */

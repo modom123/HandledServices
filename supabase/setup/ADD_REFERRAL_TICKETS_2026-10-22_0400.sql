@@ -11,7 +11,8 @@
 --           frequency and pricing answers, a summary and what's missing, linked to the referrer and the customer.
 --           The customer gets a pre-filled booking link; once they pay, the job is broadcast to pros and assigned
 --           like any other, and the money splits: pro payout, referrer commission, Handled's share.
---           Rates (packages/core/src/partners.ts), always a share of Handled's take, never the pro's pay:
+--           Rates (packages/core/src/partners.ts), always a share of Handled's take (since 2026-10-22_0900 the cost is
+--           shared half Handled / half the pro on the job - see 20261022090000_shared_referral_bonus.sql):
 --             refer a person          - 10% on every job from that customer for 12 months (existing)
 --             ticket, one-time job    - 20% on that job
 --             ticket, recurring job   - 15% on every visit of that plan for 12 months
