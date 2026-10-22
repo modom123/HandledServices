@@ -1,8 +1,8 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-22_0533.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-22_0629.sql   (generated — do not hand edit)
 -- PROJECT : Handled (HandledServices)
--- CREATED : 2026-10-22_0533 UTC
--- PURPOSE : One-paste setup for a NEW Supabase project: 80 migrations + production seed.
+-- CREATED : 2026-10-22_0629 UTC
+-- PURPOSE : One-paste setup for a NEW Supabase project: 81 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
 --             update public.profiles set role = 'admin' where email = 'YOU@YOURCOMPANY.COM';
@@ -4404,6 +4404,33 @@ end $$;
 update public.referral_partners rp set profile_id = p.id
   from public.profiles p
  where rp.profile_id is null and p.email is not null and lower(p.email) = lower(rp.email);
+
+
+-- >>> migration 20261022120000_background_check_over_time.sql
+-- ============================================================================
+-- FILE    : supabase/migrations/20261022120000_background_check_over_time.sql
+-- PROJECT : Handled (HandledServices) - AI-run home & business services
+-- CREATED : 2026-10-22_1200 UTC
+-- PURPOSE : Background check, PAID OVER TIME. Handled pays the screening provider (Checkr) when the check is ordered, so
+--           no one is held back by the cost. The pro repays it from completed jobs - a set amount per job, never more than
+--           a share of that job's pay - shown as its own line on the payout statement. Nothing is owed without jobs
+--           (no bills, no collections). Optional refund when the pro completes enough jobs early. Rules and amounts:
+--           Hub -> Pro Program -> 7 (packages/core/src/pro-policy.ts backgroundCheck). Yearly re-checks: Handled pays.
+--             contractors.background_fee          - what this pro's first check cost (set when it's ordered; null = Handled paid)
+--             contractors.background_fee_repaid   - repaid so far
+--             contractors.background_fee_refunded_at - refunded after enough early jobs
+--             payouts.kind 'background_check'     - a repayment (negative, netted like a clawback) or the refund (positive)
+--           Safe to run twice.
+-- ============================================================================
+alter table public.contractors add column if not exists background_fee numeric(10,2) check (background_fee is null or background_fee >= 0);
+alter table public.contractors add column if not exists background_fee_repaid numeric(10,2) not null default 0 check (background_fee_repaid >= 0);
+alter table public.contractors add column if not exists background_fee_refunded_at timestamptz;
+alter table public.contractors drop constraint if exists contractors_background_fee_check2;
+alter table public.contractors add constraint contractors_background_fee_check2 check (background_fee is null or background_fee_repaid <= background_fee) not valid;
+
+alter table public.payouts drop constraint if exists payouts_kind_check;
+alter table public.payouts add constraint payouts_kind_check
+  check (kind in ('job','show_up','guarantee','stipend','materials','clawback','referral','tip','placement','referral_share','background_check'));
 
 
 -- >>> seed.sql

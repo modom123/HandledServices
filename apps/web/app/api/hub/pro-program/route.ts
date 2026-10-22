@@ -3,6 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Staff: read and save the Pro Program policy — who qualifies for each benefit and its amounts.
+ * UPDATED : 2026-10-22_1200 UTC — 7. background check paid over time (fee capped at $150, at most 50% of a job's pay).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -22,6 +23,9 @@ const Policy = z.object({
   materials: z.object({ ...rule, autoApproveUpTo: money(1000), maxShareOfPrice: z.number().min(0.05).max(1), shoppingTrades: z.array(z.string().max(40)).max(40), shoppingMax: money(5000) }),
   guarantee: z.object({ ...rule, weeklyMinimum: money(5000), months: z.array(z.number().int().min(1).max(12)).max(12), minAcceptance: z.number().min(0).max(1),
     minDaysAvailable: z.number().int().min(0).max(7), weeklyBudget: money(100000) }),
+  // pros repay the background check from jobs: the fee is the provider's real price (Checkr packages are about $30–$90)
+  backgroundCheck: z.object({ ...rule, fee: money(150), perJob: z.number().min(1).max(50), maxShareOfPayout: z.number().min(0.05).max(0.5),
+    refundAfterJobs: z.number().int().min(0).max(500), refundWithinDays: z.number().int().min(7).max(365) }),
 });
 
 export async function GET(req: Request) {

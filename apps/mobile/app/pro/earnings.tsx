@@ -18,7 +18,7 @@ import { useI18n } from "../../lib/i18n";
 type Instant = { balance: number; fee: number; minAmount: number; feePct: number; allowed: boolean; reason: string | null; ready: boolean };
 type Payout = { id: string; amount: number; status: string; kind: string; method: string | null; instant_fee: number; reason: string | null; created_at: string; jobs: { ref: string } | null };
 
-const KIND: Record<string, string> = { job: "Job", show_up: "Show-up pay", guarantee: "Weekly minimum", stipend: "Insurance stipend", materials: "Materials", clawback: "Adjustment", referral_share: "Referral bonus (your half)" };
+const KIND: Record<string, string> = { job: "Job", show_up: "Show-up pay", guarantee: "Weekly minimum", stipend: "Insurance stipend", materials: "Materials", clawback: "Adjustment", referral_share: "Referral bonus (your half)", background_check: "Background check" };
 
 export default function Earnings() {
   const { t, locale } = useI18n();

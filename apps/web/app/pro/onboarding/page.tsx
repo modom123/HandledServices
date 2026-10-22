@@ -14,12 +14,13 @@
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
+ * UPDATED : 2026-10-22_1200 UTC — background check step says who pays: we pay Checkr now, repaid from jobs (no jobs, nothing owed).
  * UPDATED : 2026-10-22_0500 UTC — autofill: nothing they already gave us is asked twice. W-9 legal name from their application
  *           name, W-9 address ↔ place of business (whichever came first), signature from the W-9 legal name, the business
  *           name for a business entity; ZIP fills city and state (components/ProOnboarding ZipAutofill).
  */
 import { VerifyId } from "@/components/VerifyId";
-import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, money, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -38,7 +39,16 @@ export default async function Onboarding() {
     v.db.from("contractor_documents").select("kind, status, expires_on, created_at").order("created_at", { ascending: false }),
   ]);
   const pro = c as Contractor;
-  const partners = (await getPolicy()).insurance.partners.filter((x) => x.url || x.phone);
+  const policy = await getPolicy();
+  const partners = policy.insurance.partners.filter((x) => x.url || x.phone);
+  // background check paid over time: what this pro sees before the check starts (or their own fee once it's set)
+  const bc = policy.backgroundCheck;
+  const myFee = (pro as { background_fee?: number | null }).background_fee;
+  const fee = myFee != null ? Number(myFee) : bc.enabled && bc.fee > 0 ? bc.fee : null;
+  const repaid = Number((pro as { background_fee_repaid?: number | null }).background_fee_repaid ?? 0);
+  const feeNote = fee == null ? (es ? "Nosotros pagamos su verificación de antecedentes." : "We pay for your background check.")
+    : es ? `Nosotros pagamos a Checkr ahora (${money(fee)}). Usted lo devuelve con ${money(bc.perJob)} de cada trabajo completado (nunca más del ${Math.round(bc.maxShareOfPayout * 100)}% del pago de ese trabajo). Sin trabajos, no debe nada.${bc.refundAfterJobs > 0 ? ` Complete ${bc.refundAfterJobs} trabajos en sus primeros ${bc.refundWithinDays} días y se lo devolvemos completo.` : ""}${myFee != null && repaid > 0 ? ` Devuelto hasta ahora: ${money(repaid)}.` : ""}`
+    : `We pay Checkr now (${money(fee)}). You repay ${money(bc.perJob)} from each completed job (never more than ${Math.round(bc.maxShareOfPayout * 100)}% of that job's pay). No jobs, nothing owed.${bc.refundAfterJobs > 0 ? ` Complete ${bc.refundAfterJobs} jobs in your first ${bc.refundWithinDays} days and we refund all of it.` : ""}${myFee != null && repaid > 0 ? ` Repaid so far: ${money(repaid)} of ${money(fee)}.` : ""}`;
   const { steps, complete } = onboardingChecklist(pro as never);
   const latest = (kind: string) => (docs ?? []).find((d: { kind: string }) => d.kind === kind) as { status: string; expires_on: string | null } | undefined;
   const pending = (kind: string) => latest(kind)?.status === "pending";
@@ -191,7 +201,8 @@ export default async function Onboarding() {
     }
     if (key === "background") {
       const bs = (pro as Contractor & { background_status?: string | null }).background_status;
-      return <p className="mt-2 text-sm text-ink-soft">{t(pro.background_checked ? "Cleared." : bs === "invited" ? "Our screening provider (Checkr) emailed you a secure link — check your inbox and spam. It takes about 5 minutes, results in 1–3 business days." : bs === "pending" ? "In progress — usually 1–3 business days. We’ll notify you when it clears." : "Starts automatically as soon as your W-9 and agreement are in.")}</p>;
+      return <><p className="mt-2 text-sm text-ink-soft">{t(pro.background_checked ? "Cleared." : bs === "invited" ? "Our screening provider (Checkr) emailed you a secure link — check your inbox and spam. It takes about 5 minutes, results in 1–3 business days." : bs === "pending" ? "In progress — usually 1–3 business days. We’ll notify you when it clears." : "Starts automatically as soon as your W-9 and agreement are in.")}</p>
+        <p className="mt-1 rounded-lg bg-brand-tint p-2 text-xs text-brand-dark">💳 {feeNote}</p></>;
     }
     if (key === "payout") return (
       <StepForm step="payout" cta={t("Save payout method")} locale={l}>

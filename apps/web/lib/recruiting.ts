@@ -4,6 +4,7 @@
  * CREATED : 2026-10-02_0006 UTC
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * UPDATED : 2026-10-03_0121 UTC — orderBackgroundCheck(…, { recheck }) for the yearly re-check.
+ * UPDATED : 2026-10-22_1200 UTC — the first check's cost is recorded for repayment over time (lib/background-fee); re-checks are on us.
  * PURPOSE : Automated pro recruiting & onboarding. Every touch is logged to recruiting_events.
  *             onApplication()        — AI screen → invite automatically, or ask staff to decide
  *             inviteApplicant()      — pro record + welcome email with a one-click sign-in link
@@ -197,6 +198,7 @@ export async function orderBackgroundCheck(contractorId: string, opts: { recheck
     await db().from("contractors").update({ background_status: "pending" }).eq("id", contractorId);
     await raiseAlert("recruiting", "warn", `Order a background ${opts.recheck ? "re-check (yearly)" : "check"}: ${c.business_name}`, `${c.contact_name} · ${c.email}. Run it with your screening provider, then upload the report in Hub → Pros (or set CHECKR_API_KEY to automate).`);
     await logRecruiting("background_ordered", { contractorId }, "manual (no Checkr key)");
+    if (!opts.recheck) await (await import("./background-fee")).startBackgroundFee(contractorId).catch(() => {});
     return;
   }
   const auth = `Basic ${Buffer.from(`${key}:`).toString("base64")}`;
@@ -211,6 +213,7 @@ export async function orderBackgroundCheck(contractorId: string, opts: { recheck
     const cand = await post("candidates", { email: c.email, first_name: first, last_name: rest.join(" ") || first, phone: c.phone, zipcode: c.zip ?? c.base_zip ?? undefined, custom_id: c.id });
     await post("invitations", { candidate_id: cand.id, package: pkg, work_locations: [{ country: "US", state: c.state ?? "MI", city: c.city ?? undefined }] });
     await db().from("contractors").update({ background_provider_id: cand.id, background_status: "invited" }).eq("id", contractorId);
+    if (!opts.recheck) await (await import("./background-fee")).startBackgroundFee(contractorId).catch(() => {}); // first check: paid over time (yearly re-checks are on us)
     await logRecruiting("background_ordered", { contractorId }, `Checkr candidate ${cand.id}`);
     await notify(c.profile_id, { title: "Background check: check your email", body: "Checkr sent you a secure link to consent and finish your check.", data: { type: "onboarding" },
       email: { to: c.email, subject: "Your background check link (from Checkr)", text: `Next step: Checkr — our screening provider — has emailed you a secure link to consent and complete your background check. It usually takes 1–3 business days.\n\n— ${BRAND.name}` },

@@ -5,6 +5,7 @@
  * PURPOSE : Interactive controls for the Handled Hub.
  * UPDATED : 2026-10-05_0246 UTC — recruiting settings: screening interview first, auto-invite after an interview.
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
+ * UPDATED : 2026-10-22_1200 UTC — Pro Program 7: background check paid over time (fee, per job, max share, early-job refund).
  */
 "use client";
 
@@ -465,6 +466,10 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
           const months = p.guarantee.months as number[]; const on = months.includes(i + 1);
           return <button type="button" key={m} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set("guarantee", "months", on ? months.filter((x) => x !== i + 1) : [...months, i + 1].sort((a, b) => a - b))}>{m}</button>;
         })}</div></div>
+      </>)}
+      {section("backgroundCheck", "7 · Background check — paid over time", "We pay the screening provider (Checkr) when a pro’s first check is ordered, so the cost never holds anyone back. The pro repays it from completed jobs — this much per job, never more than the share of that job’s pay below — as its own line on their payout statement. Nothing is owed without jobs: no bills, no collections. Pros who complete enough jobs early get it all back. Yearly re-checks are on us. “Offered” off, or fee 0 = we pay, as before. ⚠ Enter Checkr’s real price for your package — never more. Some states limit charging workers for checks; confirm with counsel before switching on in a new state.", <>
+        {num("backgroundCheck", "fee", "Fee = Checkr’s price for your package ($)")}{num("backgroundCheck", "perJob", "Repaid per job ($)")}{num("backgroundCheck", "maxShareOfPayout", "Max share of a job’s pay (0.25 = 25%)", 0.05)}
+        {num("backgroundCheck", "refundAfterJobs", "Refund after this many jobs (0 = no refund)")}{num("backgroundCheck", "refundWithinDays", "…within this many days of going live")}
       </>)}
       {canEdit ? <button className="btn-primary" onClick={async () => { const r = await call("/api/hub/pro-program", "PUT", p); setMsg(r.ok ? "Saved — applies from now on" : r.json.error ?? "Failed"); router.refresh(); }}>Save Pro Program</button>
         : <p className="text-sm text-ink-soft">Only an admin can change these settings.</p>}

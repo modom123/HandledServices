@@ -190,3 +190,28 @@ test("security: pros can't ticket their own customers; existing customers go to 
   const unclear = ticketIntake({ existingCustomer: false, proServedSameService: false, proServedOtherService: false, clear: false });
   assert.ok(unclear.ok && unclear.status === "needs_review");
 });
+
+// ─── Background check paid over time — added 2026-10-22_1200 UTC ───
+test("background check: repaid in small amounts, never more than a share of a job's pay, never more than owed", async () => {
+  const { backgroundInstallment, PRO_POLICY_DEFAULTS } = await import("./pro-policy.ts");
+  const d = PRO_POLICY_DEFAULTS.backgroundCheck;
+  assert.equal(d.fee, 0); // off until the real Checkr price is entered → Handled pays
+  assert.deepEqual([d.perJob, d.maxShareOfPayout, d.refundAfterJobs, d.refundWithinDays], [10, 0.25, 25, 90]);
+  const k = { perJob: 10, maxShareOfPayout: 0.25 };
+  assert.equal(backgroundInstallment({ ...k, remaining: 45, payout: 112 }), 10);   // normal job: $10
+  assert.equal(backgroundInstallment({ ...k, remaining: 45, payout: 30 }), 7.5);   // small job: 25% of $30
+  assert.equal(backgroundInstallment({ ...k, remaining: 4.99, payout: 112 }), 4.99); // last bit
+  assert.equal(backgroundInstallment({ ...k, remaining: 0, payout: 112 }), 0);       // paid off
+  assert.equal(backgroundInstallment({ ...k, remaining: 45, payout: 0 }), 0);        // no pay, no deduction
+  // a $45 check over $112 jobs: 5 jobs, total exactly $45
+  let left = 45, n = 0; while (left > 0 && n < 50) { left = Math.round((left - backgroundInstallment({ ...k, remaining: left, payout: 112 })) * 100) / 100; n++; }
+  assert.deepEqual([left, n], [0, 5]);
+});
+
+test("background check: refunded in full after enough jobs in the window, once", async () => {
+  const { backgroundRefund } = await import("./pro-policy.ts");
+  assert.equal(backgroundRefund({ repaid: 45, jobsInWindow: 25, refundAfterJobs: 25, alreadyRefunded: false }), 45);
+  assert.equal(backgroundRefund({ repaid: 45, jobsInWindow: 24, refundAfterJobs: 25, alreadyRefunded: false }), 0);
+  assert.equal(backgroundRefund({ repaid: 45, jobsInWindow: 30, refundAfterJobs: 25, alreadyRefunded: true }), 0);
+  assert.equal(backgroundRefund({ repaid: 45, jobsInWindow: 30, refundAfterJobs: 0, alreadyRefunded: false }), 0); // refund offer off
+});

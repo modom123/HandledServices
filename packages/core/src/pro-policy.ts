@@ -14,6 +14,10 @@
  *             4. insurance      — partner brokers + a one-time insurance stipend
  *             5. materials      — parts reimbursed at cost with a receipt, billed to the customer
  *             6. guarantee      — weekly minimum for top pros in peak season
+ *             7. backgroundCheck — we pay the screening provider (Checkr) up front; the pro repays it in small amounts from
+ *                                 completed jobs, never more than a share of a job's pay; nothing is owed without jobs;
+ *                                 optional refund for pros who complete enough jobs early
+ * UPDATED : 2026-10-22_1200 UTC — 7. backgroundCheck (pay over time), backgroundInstallment(), backgroundRefund().
  */
 import { CARD_FEE, money } from "./pricing.ts";
 import { PRO_TIERS, proTier, type ProTierId } from "./pro-program.ts";
@@ -37,6 +41,13 @@ export interface ProPolicy {
   /** Shopping trades (errands) buy goods for the customer: capped in dollars, not as a share of the price. */
   materials: QualifyRule & { autoApproveUpTo: number; maxShareOfPrice: number; shoppingTrades: string[]; shoppingMax: number };
   guarantee: QualifyRule & { weeklyMinimum: number; months: number[]; minAcceptance: number; minDaysAvailable: number; weeklyBudget: number };
+  /**
+   * Background check, paid over time. `enabled` = pros repay it (off = Handled pays, as before). `fee` must be what the
+   * screening provider actually charges us for the package (0 = not set → Handled pays). Repaid `perJob` from each
+   * completed job's payout, never more than `maxShareOfPayout` of it. Refunded in full when the pro completes
+   * `refundAfterJobs` jobs within `refundWithinDays` of going live (0 jobs = no refund offer). Yearly re-checks: Handled.
+   */
+  backgroundCheck: QualifyRule & { fee: number; perJob: number; maxShareOfPayout: number; refundAfterJobs: number; refundWithinDays: number };
 }
 
 const rule = (r: Partial<QualifyRule> = {}): QualifyRule => ({ enabled: true, minTier: "pro", minJobs: 0, minRating: 0, trades: [], ...r });
@@ -51,7 +62,29 @@ export const PRO_POLICY_DEFAULTS: ProPolicy = {
   },
   materials: { ...rule({ trades: ["handyman", "plumbing", "electrical", "hvac", "low_voltage", "remodel", "gutters", "pressure_washing", "errands", "dumpster"] }), autoApproveUpTo: 75, maxShareOfPrice: 0.5, shoppingTrades: ["errands"], shoppingMax: 300 },
   guarantee: { ...rule({ enabled: false, minTier: "elite", trades: ["snow", "lawn", "cleaning"] }), weeklyMinimum: 800, months: [1, 2, 5, 6, 7, 12], minAcceptance: 0.9, minDaysAvailable: 5, weeklyBudget: 2000 },
+  // fee 0 until an admin enters the real Checkr package price in Hub → Pro Program (until then Handled pays, as before)
+  backgroundCheck: { ...rule(), fee: 0, perJob: 10, maxShareOfPayout: 0.25, refundAfterJobs: 25, refundWithinDays: 90 },
 };
+
+const c2 = (n: number) => Math.round(n * 100);
+
+/**
+ * This job's background-check repayment: the per-job amount, but never more than what's left, and never more than the
+ * set share of this job's payout (rounded down to the cent). 0 when nothing is owed.
+ */
+export function backgroundInstallment(o: { remaining: number; payout: number; perJob: number; maxShareOfPayout: number }): number {
+  const cap = Math.floor(c2(Math.max(0, o.payout)) * Math.min(1, Math.max(0, o.maxShareOfPayout)) + 1e-6);
+  return Math.max(0, Math.min(c2(Math.max(0, o.remaining)), c2(Math.max(0, o.perJob)), cap)) / 100;
+}
+
+/**
+ * Refund of the background check: everything the pro has repaid, once they've completed `refundAfterJobs` jobs within
+ * `refundWithinDays` of going live (counting only jobs finished inside that window). 0 otherwise, or if already refunded.
+ */
+export function backgroundRefund(o: { repaid: number; jobsInWindow: number; refundAfterJobs: number; alreadyRefunded: boolean }): number {
+  if (o.alreadyRefunded || o.refundAfterJobs <= 0 || o.jobsInWindow < o.refundAfterJobs) return 0;
+  return Math.max(0, c2(o.repaid)) / 100;
+}
 
 /** Merge saved Hub settings over the defaults, one benefit and one field at a time. */
 export function mergePolicy(saved: Partial<Record<keyof ProPolicy, Record<string, unknown>>> | null | undefined): ProPolicy {

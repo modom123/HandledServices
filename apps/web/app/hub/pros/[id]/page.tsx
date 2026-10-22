@@ -12,6 +12,7 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-10-22_1200 UTC — 🔎 background check: on us, or repaid so far / fee, or refunded.
  * UPDATED : 2026-10-22_0500 UTC — 🤝 Referrals: tickets this pro sent, jobs booked from them and referral commissions.
  */
 import Link from "next/link";
@@ -93,6 +94,8 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         <Stat label="Rating (60% customer · 40% us)" value={`${pro.rating} ★`} hint={`Customers ${custAvg}★ · us ${opsAvg}★ (quality ${aspect("quality")}, punctual ${aspect("punctuality")}, pro ${aspect("professionalism")}) · QA pass ${qa ?? "—"}% · ${sc.redos ?? 0} redos · ${money(Number(sc.refunds_on_their_jobs ?? 0))} refunded`} />
         <Stat label="Reliability" value={`${Math.round(pro.on_time_rate * 100)}% on time`} hint={`${Math.round(pro.acceptance_rate * 100)}% acceptance · last job ${sc.last_job_at ? fmtDate(sc.last_job_at) : "never"}`} />
         <Stat label={`Paid ${year} (1099)`} value={money(ytdPaid)} hint={`${money(owed)} owed · 1099-NEC at ${money(necThreshold(year))}+`} />
+        <Stat label="🔎 Background check" value={(pro as { background_fee?: number | null }).background_fee == null ? (pro.background_checked ? "Cleared · on us" : "On us") : `${money(Number((pro as { background_fee_repaid?: number }).background_fee_repaid ?? 0))} / ${money(Number((pro as { background_fee?: number }).background_fee))}`}
+          hint={(pro as { background_fee_refunded_at?: string | null }).background_fee_refunded_at ? "Refunded — earned it with early jobs" : (pro as { background_fee?: number | null }).background_fee == null ? "We paid the screening provider" : "Repaid from completed jobs (Pro Program → 7)"} />
         <Link href="/hub/partners" className="block"><Stat label="🤝 Referrals" value={refP ? money(refSum("paid") + refSum("pending")) : "Not joined"} hint={refP ? `${(refT ?? []).length} ticket(s) · ${((refT ?? []) as Rec[]).filter((t) => t.status === "booked").length} booked · ${money(refSum("pending"))} owed · code ${refP.code} (commissions are paid separately from job payouts)` : "Pro portal → Refer & earn"} /></Link>
       </div>
 

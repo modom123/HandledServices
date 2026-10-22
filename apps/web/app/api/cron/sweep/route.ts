@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-18_0248 UTC — live pros missing their resume or profile photo get a reminder (lib/recruiting).
  * UPDATED : 2026-10-22_0500 UTC — referral tickets not booked within 60 days expire (the referrer is told).
  * UPDATED : 2026-10-22_0700 UTC — ticket invites unused after 30 days expire.
+ * UPDATED : 2026-10-22_1200 UTC — background check refunds for pros who completed enough jobs in their first days.
  * UPDATED : 2026-10-19_1308 UTC — renewal reminders for active pros' insurance, coverages and licenses (lib/recruiting renewalSweep).
  */
 import { adminClient } from "@/lib/supabase/server";
@@ -92,8 +93,9 @@ export async function GET(req: Request) {
   const loyalty = await (await import("@/lib/loyalty")).releaseLoyalty().catch((e) => { console.error("[loyalty]", e); return null; });
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const ticketsExpired = await (await import("@/lib/partners")).expireTickets().catch((e) => { console.error("[tickets]", e); return 0; });
+  const backgroundRefunds = await (await import("@/lib/background-fee")).backgroundRefundSweep().catch((e) => { console.error("[background refunds]", e); return 0; }); // pros who earned their check back
   const invitesExpired = await (await import("@/lib/ticket-invites")).expireInvites().catch((e) => { console.error("[invites]", e); return 0; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ ticketsExpired, invitesExpired, renewals, uploads, noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ backgroundRefunds, ticketsExpired, invitesExpired, renewals, uploads, noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

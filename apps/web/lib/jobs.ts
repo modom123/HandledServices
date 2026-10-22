@@ -47,6 +47,7 @@
  *           recurring visits). A pro can be assigned and start once the 25% is in (clearedForWork); their payout never waits on the customer.
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
+ * UPDATED : 2026-10-22_1200 UTC — background check paid over time: each approved job payout takes the small repayment.
  * UPDATED : 2026-10-22_1000 UTC — one Handled account: a guest booking creates (or finds) the customer's account and links the job.
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: ?ticket= bookings are credited to the referrer (attributeJob), carry the ticket's
  *           entry details, give a referring pro first look, and the referrer hears when a pro is assigned.
@@ -909,6 +910,8 @@ export async function finalizeJob(jobId: string, summary?: string) {
   if (job.contractor_id && job.contractor_payout) {
     const ready = Boolean(job.paid_at || job.remedy || job.billed_on_terms || job.payment_plan === "after");
     await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: ready ? "approved" : "held" });
+    // background check paid over time: this job's small repayment, as its own line (Hub → Pro Program → 7)
+    await (await import("./background-fee")).takeBackgroundInstallment(job).catch((e) => console.error("[background fee]", e));
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
