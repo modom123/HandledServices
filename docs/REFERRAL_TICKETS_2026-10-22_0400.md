@@ -5,6 +5,7 @@
   PURPOSE : How the referral program pays pros, clients and partners: refer a person, or send a job on a referral ticket.
             What happens to a ticket from submission to payout, who gets paid what, and how to switch it on.
   UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1), photos, autofill, Handled Hub views, IEBC worker actions.
+  UPDATED : 2026-10-22_0700 UTC — ticket invites: send the ticket to someone on the phone; filling it out signs them up.
 -->
 
 # Referral program — referral tickets
@@ -51,6 +52,28 @@ The Hub shows the score so weak tickets stand out. The referrer's own size answe
 
 **Autofill:** a ZIP fills in city and state. A customer the referrer has sent before is filled in from the referrer's
 *own* earlier ticket (never anyone else's data).
+
+## Sending a ticket to someone on the phone (ticket invites)
+
+When we're on a call with someone who has a job for us, or could send us work (a contractor, a realtor, a customer,
+a business lead), we send them their own referral ticket:
+
+1. **Send.** Use **Hub → Referrals & tickets → 📞 Send a referral ticket**, or the **🎫 Send them a referral ticket**
+   section on any **Call desk** card (already filled in from the lead). An IEBC worker can also send one with
+   `sales.send_ticket_invite`, which always waits for a person to approve it. Enter their name, email and/or mobile, what
+   they are, and the job they mentioned. Send by **email**, by **text** (only if they said OK to a text on the call), or both.
+2. **They open their link** (`/ticket/<token>`, valid 30 days, no sign-in needed). The Standard Referral Ticket opens
+   with an **About you** section already filled in from the call, plus the job they mentioned as the description.
+3. **They send the job, or just join.** Submitting the ticket, or tapping **"No job right now — just sign me up"**:
+   - signs them up as a **referral partner**. They accept the partner terms, and the welcome email has their partner
+     link and a one-tap sign-in that creates their Handled account. They're now in the network.
+   - sends the ticket through the normal flow (AI filing → customer's booking link → dispatch → payouts).
+   - If the ticket needs a fix, they're still signed up, and can fix it and resend from the same link.
+4. **Become a pro too.** The thank-you screen offers **Apply as a pro**, which opens the pro application filled in with
+   their name, email, mobile and business.
+5. **We hear back.** The person who sent the invite gets an email, and an ops alert is raised. The Hub's invites list shows
+   *not opened → opened → joined / joined + sent a job*. The dashboard strip counts invites out and people joined.
+   Unused invites expire after 30 days.
 
 ## The referral ticket, start to finish
 
@@ -104,6 +127,8 @@ IEBC's AI workers see these in their action list automatically, by department:
 | `read.referral_tickets` | read | — |
 | `sales.send_referral_ticket` (approve & send the customer's link) | sales | low |
 | `sales.cancel_referral_ticket`, `sales.note_referral_ticket` | sales | low |
+| `read.ticket_invites` | read | — |
+| `sales.send_ticket_invite` (send the ticket to someone after a call) | sales | **high: always approved by a person** |
 | `finance.referral_commissions` | finance | — |
 | `finance.void_referral_commission` | finance | **high: always approved by a person** |
 
@@ -123,7 +148,9 @@ New tickets that need review also raise an ops alert, which workers already read
 1. Supabase → SQL Editor → paste **`supabase/setup/ADD_REFERRAL_TICKETS_2026-10-22_0400.sql`** → Run (safe to run twice;
    **run it again if you ran an earlier copy** — it adds photos and the standard-ticket fields). Hub → Setup checks it.
    Same as `supabase/migrations/20261022040000_referral_tickets.sql`.
-2. Deploy. Without `ANTHROPIC_API_KEY`, tickets still work: the referrer's chosen service is used, and unclear tickets go
+2. Then paste **`supabase/setup/ADD_TICKET_INVITES_2026-10-22_0700.sql`** → Run (ticket invites for phone calls).
+   Texts need Twilio set up (already used for job texts); without it, invites go by email.
+3. Deploy. Without `ANTHROPIC_API_KEY`, tickets still work: the referrer's chosen service is used, and unclear tickets go
    to staff review.
 
 Until the SQL is run, person referrals keep working exactly as before. The ticket form answers "Referral tickets aren't
@@ -138,6 +165,7 @@ switched on yet", and Hub → Partners shows the file to run.
 | The Standard Referral Ticket | `packages/core/src/referral-ticket.ts`, printable at `/partners/referral-ticket` |
 | AI filing | `apps/web/lib/ai/referral-ticket.ts` |
 | IEBC worker actions | `apps/web/lib/iebc/actions.ts` |
+| Ticket invites (phone calls) | `apps/web/lib/ticket-invites.ts`, `/ticket/[token]`, `/api/ticket-invite`, `components/PartnerUI.tsx` (`SendTicketInvite`), `components/CallDesk.tsx` |
 | ZIP autofill | `apps/web/app/api/zip/route.ts`, `lib/geo.ts` (`zipPlace`) |
 | Booking prefill & credit | `apps/web/app/(site)/book/page.tsx`, `components/BookingWizard.tsx`, `lib/jobs.ts` |
 | Partner page (ticket form, tickets, money split) | `apps/web/app/(site)/partner/page.tsx`, `components/PartnerUI.tsx` |

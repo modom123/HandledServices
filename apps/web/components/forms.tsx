@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-04_1934 UTC — BusinessForm passes the sales-engine lead token (pilot offer, credit).
  * UPDATED : 2026-10-06_0841 UTC — BusinessForm moved to ProposalForm.tsx (3-step Request for Proposal with scope of work).
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the pro application's mobile number.
+ * UPDATED : 2026-10-22_0700 UTC — ApplyForm prefill (from a phone-call ticket invite: name, email, mobile, business).
  */
 "use client";
 
@@ -52,7 +53,7 @@ function Chips({ options, value, onChange, max }: { options: { id: string; label
  * required — everything else is optional ("speeds up approval") and can be added in setup.
  * Where they came from (?ref= referral, ?src=, utm_*) is captured automatically.
  */
-export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
+export function ApplyForm({ locale = "en", prefill, source }: { locale?: Locale; prefill?: { name: string; email: string; phone: string; company: string } | null; source?: string }) {
   const es = locale === "es";
   const t = (s: string) => tr(locale, s);
   const { state, error, submit } = useSubmit("/api/applications");
@@ -77,15 +78,15 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
       submit({
         ...f, trades, insured, specialties: specialties.filter((s) => specialtyOptions.some((o) => o.id === s)), coverages_held: coverages,
         years_experience: f.years_experience || undefined, crew_size: f.crew_size || undefined,
-        source: f.source || q.get("src") || undefined, ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined, lead: q.get("lead") || undefined,
+        source: f.source || source || q.get("src") || undefined, ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined, lead: q.get("lead") || undefined,
       });
     }}>
       <p className="text-sm text-ink-soft">{t("Takes 2 minutes. Only the first part is required.")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className="label">{t("Business name (or your name)")}</label><input name="business_name" required className="input" autoComplete="organization" /></div>
-        <div><label className="label">{t("Your name")}</label><input name="contact_name" required className="input" autoComplete="name" /></div>
-        <div><label className="label">{t("Email")}</label><input name="email" type="email" required className="input" autoComplete="email" /></div>
-        <div><label className="label">{t("Mobile")}</label><input name="phone" type="tel" required className="input" autoComplete="tel" /></div>
+        <div><label className="label">{t("Business name (or your name)")}</label><input name="business_name" required className="input" autoComplete="organization" defaultValue={prefill?.company || prefill?.name || ""} /></div>
+        <div><label className="label">{t("Your name")}</label><input name="contact_name" required className="input" autoComplete="name" defaultValue={prefill?.name ?? ""} /></div>
+        <div><label className="label">{t("Email")}</label><input name="email" type="email" required className="input" autoComplete="email" defaultValue={prefill?.email ?? ""} /></div>
+        <div><label className="label">{t("Mobile")}</label><input name="phone" type="tel" required className="input" autoComplete="tel" defaultValue={prefill?.phone ?? ""} /></div>
       </div>
       <SmsConsent es={es} purpose="pro" />
       <div><label className="label">{t("What do you do?")} <span className="font-normal normal-case text-ink-soft">({es ? `hasta ${MAX_TRADES}` : `up to ${MAX_TRADES}`} · {trades.length}/{MAX_TRADES})</span></label><Chips options={tradeOptions} value={trades} onChange={setTrades} max={MAX_TRADES} />

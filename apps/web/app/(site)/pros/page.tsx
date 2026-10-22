@@ -19,6 +19,7 @@
  *           track / crew / referral in one "Grow" section, a one-dropdown trade picker instead of 20+ expanders, a
  *           Handled-vs-lead-sites table, FAQ accordion. FAQ fixed: tiers never depend on accepting offers.
  * UPDATED : 2026-10-15_0300 UTC — customers pay Handled (25% at booking, the rest when done); pros are paid weekly either way.
+ * UPDATED : 2026-10-22_0700 UTC — ?invite=<token>: the application opens filled in from a phone-call ticket invite.
  */
 import { ApplyForm } from "@/components/forms";
 import { TradeRequirements, type TradeReq } from "@/components/TradeRequirements";
@@ -62,7 +63,8 @@ function ruleTextEs(r: Benefit["rule"]): string {
   return bits.join(" · ");
 }
 
-export default async function ProsPage() {
+export default async function ProsPage({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {
+  const invite = await (await import("@/lib/ticket-invites")).invitePrefill((await searchParams).invite).catch(() => null);
   const l = await getLocale();
   const es = l === "es";
   const t = (s: string) => tr(l, s);
@@ -236,7 +238,7 @@ export default async function ProsPage() {
           <p className="mt-2 text-ink-soft">{t("We review every application within 2 business days. Don’t have every policy yet? Apply anyway; we’ll tell you exactly what you need and point you to brokers.")}</p>
           <ul className="mt-4 space-y-1 text-sm text-ink-soft">{STEPS.map(([h, b], i) => <li key={h}><b className="text-ink">{i + 1}. {h}</b> — {b}</li>)}</ul>
         </div>
-        <ApplyForm locale={l} />
+        <ApplyForm locale={l} prefill={invite} source={invite ? "referral_invite" : undefined} />
       </section>
     </div>
   );

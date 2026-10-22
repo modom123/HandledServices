@@ -110,12 +110,12 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 
 | Scope | Actions | Default agent(s) |
 |---|---|---|
-| `read` | `read.kpis`, `read.jobs`, `read.job`, `read.pros`, `read.alerts`, `read.applications`, `read.reviews`, `read.lapsed_customers`, `read.referral_tickets` | all |
+| `read` | `read.kpis`, `read.jobs`, `read.job`, `read.pros`, `read.alerts`, `read.applications`, `read.reviews`, `read.lapsed_customers`, `read.referral_tickets`, `read.ticket_invites` | all |
 | `ops` | `ops.dispatch_job`, `ops.set_job_status`*, `ops.add_job_note`, `ops.create_alert`, `ops.approve_qa`† | Arthur Vance (autonomous), Katerina Rostova |
 | `finance` | `finance.payout_queue`, `finance.set_job_price`†, `finance.mark_payout_paid`†, `finance.referral_commissions`, `finance.void_referral_commission`† | Eleanor Wei |
 | `recruiting` | `recruiting.pipeline`, `recruiting.history`, `recruiting.documents`, `recruiting.nudge_pro`, `recruiting.revive_pro`, `recruiting.add_note`, `recruiting.order_background_check`, `recruiting.decide_application`†, `recruiting.verify_document`†, `recruiting.activate_pro`†, `recruiting.flag_expiring_insurance` | Tyler Walsh (pipeline & follow-up, autonomous), Marcus Hill (documents & background checks, autonomous) |
 | `retention` | `retention.message_customer`, `retention.email_customer`† | Diego Martinez (autonomous) |
-| `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account`, `sales.send_referral_ticket`, `sales.cancel_referral_ticket`, `sales.note_referral_ticket` | Elena Markov, Clara Dubois (autonomous) |
+| `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account`, `sales.send_referral_ticket`, `sales.cancel_referral_ticket`, `sales.note_referral_ticket`, `sales.send_ticket_invite`† | Elena Markov, Clara Dubois (autonomous) |
 
 † high-risk: always waits for human approval. \* cancelling a job is high-risk.
 Autonomy: `suggest` / `approval` → every write is queued. `autonomous` → low-risk writes run immediately.

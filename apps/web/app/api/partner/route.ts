@@ -16,9 +16,8 @@
  *           for that customer (never anyone else's data; no entry details).
  */
 import { z } from "zod";
-import { BEST_TIMES, CONTACT_PREFS, OCCUPANCY, PROPERTY_TYPES, TICKET_RELATIONSHIPS, getService, isPhotoPath } from "@handled/core";
-
-const keys = <T extends Record<string, string>>(o: T) => Object.keys(o) as [keyof T & string, ...(keyof T & string)[]];
+import { getService } from "@handled/core";
+import { TicketFields, ticketError } from "@/lib/ticket-schema";
 import { deny, getViewer } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { adminClient } from "@/lib/supabase/server";
@@ -33,26 +32,7 @@ const Body = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("connect") }),
   z.object({ action: z.literal("join"), agree: z.literal(true) }),
-  z.object({
-    action: z.literal("ticket"),
-    customer_name: z.string().trim().min(2).max(120), customer_email: z.string().trim().email().max(254), customer_phone: z.string().trim().max(30).optional().nullable(),
-    company_name: z.string().trim().max(160).optional().nullable(),
-    address: z.string().trim().max(200).optional().nullable(), city: z.string().trim().max(80).optional().nullable(),
-    state: z.string().trim().max(2).optional().nullable(), zip: z.string().trim().regex(/^\d{5}$/, "5-digit ZIP"),
-    description: z.string().trim().min(10).max(3000), service_slug: z.string().max(80).optional().nullable(),
-    frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).optional().nullable(),
-    urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).optional().nullable(),
-    budget: z.coerce.number().min(0).max(10_000_000).optional().nullable(), access_notes: z.string().trim().max(1000).optional().nullable(),
-    customer_consent: z.literal(true), customer_expects_contact: z.literal(true), i_will_do_it: z.boolean().optional(),
-    photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
-    answers: z.record(z.string().max(60), z.union([z.string().max(200), z.number(), z.boolean()])).default({}),
-    details: z.object({
-      relationship: z.enum(keys(TICKET_RELATIONSHIPS)), preferred_contact: z.enum(keys(CONTACT_PREFS)), best_time: z.enum(keys(BEST_TIMES)).nullable().optional(),
-      property_type: z.enum(keys(PROPERTY_TYPES)), occupancy: z.enum(keys(OCCUPANCY)).nullable().optional(),
-      pets: z.string().trim().max(200).nullable().optional(), parking: z.string().trim().max(200).nullable().optional(),
-      preferred_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), decision_maker: z.boolean().nullable().optional(),
-    }),
-  }),
+  TicketFields.extend({ action: z.literal("ticket") }),
 ]);
 
 export async function GET(req: Request) {
@@ -73,10 +53,7 @@ export async function POST(req: Request) {
   const v = await getViewer(req);
   if (!v) return deny(401, "Sign in first");
   const b = Body.safeParse(await req.json().catch(() => null));
-  if (!b.success) {
-    const at = String(b.error.issues[0]?.path[0] ?? "");
-    return deny(400, ["customer_consent", "customer_expects_contact"].includes(at) ? "Only send a ticket the customer asked for, and who knows we'll contact them." : at === "details" ? "Fill in how you know them, how to reach them and the type of property." : "Check the form");
-  }
+  if (!b.success) return deny(400, ticketError(b.error));
   if (b.data.action === "join") {
     const p = await joinPartner(v, clientIp(req)).catch((e) => { console.error("[partners]", e); return null; });
     return p ? Response.json({ ok: true, code: p.code }) : deny(500, "Couldn't join — try again");

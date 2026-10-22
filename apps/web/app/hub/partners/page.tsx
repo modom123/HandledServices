@@ -8,6 +8,8 @@
  * UPDATED : 2026-10-22_0400 UTC — Referral tickets: every ticket with the AI's filing (service, summary, what's missing), its
  *           referrer, customer and job; approve & send the customer's link, re-send, cancel. Commission rate per row.
  * UPDATED : 2026-10-22_0500 UTC — ticket photos (thumbnails, signed links valid an hour).
+ * UPDATED : 2026-10-22_0700 UTC — 📞 send a referral ticket to someone on the phone (they join the network), and every invite
+ *           with what came of it (sent → opened → joined / sent a job).
  * UPDATED : 2026-10-22_0600 UTC — Standard Referral Ticket: completeness score, how the referrer knows them, contact
  *           preference, property, occupancy, pets, parking, wished date; link to the printable blank ticket.
  */
@@ -15,7 +17,7 @@ import { BEST_TIMES, CONTACT_PREFS, OCCUPANCY, PROPERTY_TYPES, TICKET_RELATIONSH
 import { adminClient } from "@/lib/supabase/server";
 import { signedUrls } from "@/lib/photos";
 import { Badge, Empty, Stat } from "@/components/ui";
-import { PartnerAssign, PartnerStatusButton, TicketActions, VoidCommission } from "@/components/PartnerUI";
+import { PartnerAssign, PartnerStatusButton, SendTicketInvite, TicketActions, VoidCommission } from "@/components/PartnerUI";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,9 @@ export default async function PartnersHub() {
     db.from("referral_tickets").select("id, photos, details, completeness, standard_version, partner_id, customer_name, customer_email, customer_id, zip, service_slug, frequency, status, ai_summary, missing_info, ai_confidence, description, preferred_contractor_id, created_at, jobs!referral_tickets_job_id_fkey(ref, status)").order("created_at", { ascending: false }).limit(300),
   ]);
   const TX = (tix ?? []) as unknown as T[];
+  const { data: invs, error: invErr } = await db.from("ticket_invites").select("id, name, email, phone, kind, job_hint, sent_by, via_email, via_sms, status, opened_at, completed_at, partner_id, ticket_id, created_at").order("created_at", { ascending: false }).limit(100);
+  const INV = (invs ?? []) as { id: string; name: string; email: string | null; phone: string | null; kind: string; job_hint: string | null; sent_by: string; via_email: boolean; via_sms: boolean; status: string; opened_at: string | null; completed_at: string | null; partner_id: string | null; ticket_id: string | null; created_at: string }[];
+  const kinds = Object.entries(PARTNER_KINDS) as [string, string][];
   // thumbnails for the open queue only (signing hundreds of booked tickets' photos would slow the page)
   const thumbs = new Map<string, string[]>(await Promise.all(TX.filter((t) => t.photos?.length && ["open", "needs_review"].includes(t.status)).map(async (t) => [t.id, await signedUrls(t.photos!)] as [string, string[]])));
   const services = SERVICES.map((s) => [s.slug, s.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
@@ -65,6 +70,25 @@ export default async function PartnersHub() {
         <Stat label="Commissions owed" value={money(tot.owed)} hint={`${pending.length} job(s)`} />
         <Stat label="Paid to partners" value={money(tot.paid)} />
       </div>
+
+      <section className="card space-y-2">
+        <h2 className="font-bold">📞 Send a referral ticket to someone on the phone</h2>
+        <p className="text-sm text-ink-soft">They get a personal link by email or text (text only if they say OK on the call). It opens the Standard Referral Ticket with their details filled in; sending it — or just joining — signs them up for the Handled network as a referral partner, with an option to apply as a pro.</p>
+        {invErr ? <p className="text-sm">Run <code>supabase/setup/ADD_TICKET_INVITES_2026-10-22_0700.sql</code> once to switch this on.</p> : <SendTicketInvite kinds={kinds} />}
+        {INV.length > 0 && (
+          <div className="overflow-x-auto"><table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="py-2 pr-3">Invited</th><th className="py-2 pr-3">Job mentioned</th><th className="py-2 pr-3">Sent</th><th className="py-2">What happened</th></tr></thead>
+            <tbody>{INV.map((i) => (
+              <tr key={i.id} className="border-t border-line align-top">
+                <td className="py-2 pr-3"><b>{i.name}</b><div className="text-xs text-ink-soft">{[PARTNER_KINDS[i.kind as PartnerKind] ?? i.kind, i.email, i.phone].filter(Boolean).join(" · ")}</div></td>
+                <td className="py-2 pr-3 text-xs">{i.job_hint ?? "—"}</td>
+                <td className="py-2 pr-3 text-xs">{i.created_at.slice(0, 10)} by {i.sent_by}<br />{[i.via_email && "email", i.via_sms && "text"].filter(Boolean).join(" + ")}</td>
+                <td className="py-2">{i.status === "completed" ? <Badge tone="green">{i.ticket_id ? "Joined + sent a job" : "Joined"}</Badge> : i.status === "opened" ? <Badge tone="brand">Opened {i.opened_at?.slice(0, 10)}</Badge> : i.status === "sent" ? <Badge tone="amber">Not opened yet</Badge> : <Badge>{i.status}</Badge>}{i.partner_id && i.status !== "completed" && <div className="text-xs text-ink-soft">joined; ticket needs a fix</div>}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        )}
+      </section>
 
       <section>
         <h2 className="mb-1 font-bold">Referral tickets</h2>

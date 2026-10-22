@@ -10,6 +10,8 @@
  * UPDATED : 2026-10-22_0500 UTC — autofill: a ZIP fills city and state; a customer you've sent before fills their details.
  * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): six sections for every referral, the service's own size
  *           questions and photo rules, a live completeness meter and "still needed" list (the same check the server runs).
+ * UPDATED : 2026-10-22_0700 UTC — invite mode (/ticket/<token>, sent after a phone call): "About you" filled in from the call,
+ *           partner terms, "just join" with no job; joining signs them up for the Handled network.
  */
 "use client";
 
@@ -190,9 +192,15 @@ function ServiceQuestion({ q, value, onChange }: { q: Question; value: Answers[s
  * and the "still needs" list come from the same check the server runs. The AI files it and the customer gets a
  * pre-filled booking link from you.
  */
-export function ReferralTicket({ services, isPro, rates }: { services: [string, string][]; isPro: boolean; rates: { once: string; recurring: string; months: number } }) {
+export type TicketInvite = { token: string; me: { name: string; email: string; phone: string; company: string; kind: string }; jobHint: string | null; kinds: [string, string][]; terms: string[] };
+
+export function ReferralTicket({ services, isPro, rates, invite, afterDone }: { services: [string, string][]; isPro: boolean; rates: { once: string; recurring: string; months: number }; invite?: TicketInvite; afterDone?: React.ReactNode }) {
   const router = useRouter();
-  const blank = { customer_name: "", customer_email: "", customer_phone: "", company_name: "", address: "", city: "", state: "MI", zip: "", service_slug: "", frequency: "once", urgency: "", budget: "", description: "", access_notes: "", customer_consent: false, customer_expects_contact: false, i_will_do_it: false };
+  const [me, setMe] = useState(invite?.me ?? { name: "", email: "", phone: "", company: "", kind: "other" });
+  const [agree, setAgree] = useState(false);
+  const [joinedOnly, setJoinedOnly] = useState(false);
+  const meOk = me.name.trim().length >= 2 && /\S+@\S+\.\S+/.test(me.email) && agree;
+  const blank = { customer_name: "", customer_email: "", customer_phone: "", company_name: "", address: "", city: "", state: "MI", zip: "", service_slug: "", frequency: "once", urgency: "", budget: "", description: invite?.jobHint ?? "", access_notes: "", customer_consent: false, customer_expects_contact: false, i_will_do_it: false };
   const blankD = { relationship: "", preferred_contact: "", best_time: "", property_type: "", occupancy: "", pets: "", parking: "", preferred_date: "", decision_maker: false };
   const [f, setF] = useState(blank);
   const [d, setD] = useState(blankD);
@@ -227,7 +235,7 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
   useEffect(() => { setAnswers({}); }, [f.service_slug]);
   // a customer you've sent before → their name, phone and address from your earlier ticket (empty fields only)
   const lookup = async () => {
-    if (!/\S+@\S+\.\S+/.test(f.customer_email)) return;
+    if (invite || !/\S+@\S+\.\S+/.test(f.customer_email)) return;
     const j = await fetch(`/api/partner?customer=${encodeURIComponent(f.customer_email)}`).then((r) => r.json()).catch(() => null) as { customer: Record<string, string | null> | null } | null;
     const c = j?.customer;
     if (!c) return;
@@ -238,25 +246,48 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
     setFilled("Filled in from your last referral for this customer — check it's still right.");
   };
   const reset = () => { setDone(null); setF(blank); setD(blankD); setAnswers({}); setPhotos([]); setFilled(null); zipFill.current = null; };
+  if (joinedOnly) return (
+    <div className="rounded-xl border border-brand bg-brand-tint p-4 text-sm">
+      <h3 className="font-bold">You&apos;re in the Handled network 🎉</h3>
+      <p className="mt-2">We emailed {me.email} your partner link and a one-tap sign-in to your partner page. Send us a job any time from there — you earn {rates.once}% on a one-time job and {rates.recurring}% on every visit of a recurring one.</p>
+      {afterDone}
+    </div>
+  );
   if (done) return (
     <div className="rounded-xl border border-brand bg-brand-tint p-4 text-sm">
+      {invite && <p className="mb-2 font-semibold">You&apos;re in the Handled network 🎉 — we emailed {me.email} your partner link and a one-tap sign-in.</p>}
       <h3 className="font-bold">Ticket received ✓</h3>
       {done.service && <p className="mt-1">Filed as <b>{done.service}</b>.</p>}
       {done.summary && <p className="mt-2">{done.summary}</p>}
       {done.missing.length > 0 && <p className="mt-2 text-ink-soft">We&apos;ll ask the customer: {done.missing.join(" ")}</p>}
       <p className="mt-2">{done.status === "open" ? "We emailed the customer a booking link with everything filled in. You'll hear from us when they book, when a pro is assigned and when it's done." : "Our team is reviewing it and will send the customer their booking link. You'll hear from us at every step."}</p>
-      <button className="btn-ghost mt-3" onClick={reset}>Send another ticket</button>
+      {invite ? afterDone : <button className="btn-ghost mt-3" onClick={reset}>Send another ticket</button>}
     </div>
   );
+  const sendInvite = async (withTicket: boolean) => {
+    if (!meOk) return setErr("Fill in your name and email and agree to the partner terms.");
+    if (withTicket && check.required.length) return setErr(`Still needed: ${check.required.join("; ")}.`);
+    setBusy(true); setErr(null);
+    const r = await post("/api/ticket-invite", { token: invite!.token, me: { ...me, phone: me.phone || null, company: me.company || null }, agree: true, ticket: withTicket ? ticketBody() : null });
+    setBusy(false);
+    if (!r.ok) return setErr(r.error);
+    const d = r.data as { ticket: { status: string; service: string | null; summary: string | null; missing: string[] } | null; ticketError: string | null };
+    if (!withTicket) return setJoinedOnly(true);
+    if (d.ticket) setDone(d.ticket); else setErr(`You're signed up ✓ — but the ticket needs a fix: ${d.ticketError ?? "check the form"}`);
+  };
+  function ticketBody() {
+    return { ...f, photos, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)), details, service_slug: f.service_slug || null, urgency: f.urgency || null, budget: Number(f.budget) > 0 ? Number(f.budget) : null, company_name: f.company_name || null, i_will_do_it: isPro && f.i_will_do_it };
+  }
   const opts = (o: Record<string, string>) => Object.entries(o).map(([v, l]) => <option key={v} value={v}>{l}</option>);
   const head = (id: string) => { const s = TICKET_SECTIONS.find((x) => x.id === id)!; return <legend className="mb-1 text-sm font-semibold">{s.title} <span className="font-normal text-ink-soft">— {s.why}</span></legend>; };
   const visible = svc ? svc.questions.filter((q) => questionVisible(q, answers, svc.questions)) : [];
   return (
     <form className="space-y-5" onSubmit={async (e) => {
       e.preventDefault();
+      if (invite) return sendInvite(true);
       if (check.required.length) return setErr(`Still needed: ${check.required.join("; ")}.`);
       setBusy(true); setErr(null);
-      const r = await post("/api/partner", { action: "ticket", ...f, photos, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)), details, service_slug: f.service_slug || null, urgency: f.urgency || null, budget: Number(f.budget) > 0 ? Number(f.budget) : null, company_name: f.company_name || null, i_will_do_it: isPro && f.i_will_do_it });
+      const r = await post("/api/partner", { action: "ticket", ...ticketBody() });
       setBusy(false);
       if (r.ok) { setDone(r.data as never); router.refresh(); } else setErr(r.error);
     }}>
@@ -265,6 +296,20 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
         <div className="mt-1 h-2 overflow-hidden rounded bg-line"><div className={`h-full ${check.required.length ? "bg-amber-500" : "bg-brand"}`} style={{ width: `${check.score}%` }} /></div>
         {check.required.length > 0 ? <p className="mt-1 text-amber-800">Still needed: {check.required.join(" · ")}</p> : check.recommended.length > 0 ? <p className="mt-1 text-ink-soft">Ready to send. Even better with: {check.recommended.slice(0, 4).join(" · ")}</p> : <p className="mt-1 text-brand-dark">Complete ✓</p>}
       </div>
+
+      {invite && (
+        <fieldset className="grid gap-3 rounded-xl border border-brand p-3 sm:grid-cols-2">
+          <legend className="px-1 text-sm font-semibold">About you <span className="font-normal text-ink-soft">— filled in from our call; this signs you up for the Handled network (free)</span></legend>
+          <label className="text-sm">Your name *<input className="input mt-1" value={me.name} onChange={(e) => setMe({ ...me, name: e.target.value })} /></label>
+          <label className="text-sm">Your email *<input className="input mt-1" type="email" value={me.email} onChange={(e) => setMe({ ...me, email: e.target.value })} /></label>
+          <label className="text-sm">Your mobile<input className="input mt-1" type="tel" value={me.phone} onChange={(e) => setMe({ ...me, phone: e.target.value })} /></label>
+          <label className="text-sm">Company (optional)<input className="input mt-1" value={me.company} onChange={(e) => setMe({ ...me, company: e.target.value })} /></label>
+          <label className="text-sm sm:col-span-2">I am a…<select className="input mt-1" value={me.kind} onChange={(e) => setMe({ ...me, kind: e.target.value })}>{invite.kinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+          <details className="text-xs text-ink-soft sm:col-span-2"><summary className="cursor-pointer">Partner terms</summary><ol className="mt-1 list-decimal space-y-1 pl-5">{invite.terms.map((t, i) => <li key={i}>{t}</li>)}</ol></details>
+          <label className="flex items-start gap-2 text-sm sm:col-span-2"><input type="checkbox" className="mt-1" checked={agree} onChange={(e) => setAgree(e.target.checked)} />I agree to the partner terms. *</label>
+          <div className="sm:col-span-2"><button type="button" className="btn-ghost text-sm" disabled={busy || !meOk} onClick={() => sendInvite(false)}>No job right now — just sign me up</button></div>
+        </fieldset>
+      )}
 
       <fieldset className="grid gap-3 sm:grid-cols-2">{head("referrer")}
         <label className="text-sm">How you know the customer *<select className="input mt-1" required value={d.relationship} onChange={setDet("relationship")}><option value="">Choose…</option>{opts(TICKET_RELATIONSHIPS)}</select></label>
@@ -321,7 +366,7 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_consent} onChange={(e) => setF({ ...f, customer_consent: e.target.checked })} />The customer asked me to send this job to Handled. *</label>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_expects_contact} onChange={(e) => setF({ ...f, customer_expects_contact: e.target.checked })} />They know Handled will email, text or call them about it. *</label>
       </fieldset>
-      <button className="btn-primary" disabled={busy || check.required.length > 0}>{busy ? "Filing your ticket…" : "Submit referral ticket"}</button>
+      <button className="btn-primary" disabled={busy || check.required.length > 0 || Boolean(invite && !meOk)}>{busy ? "Filing your ticket…" : invite ? "Send the job and join" : "Submit referral ticket"}</button>
       {err && <p className="text-sm text-rose-700">{err}</p>}
     </form>
   );
@@ -344,5 +389,43 @@ export function TicketActions({ id, status, service, services }: { id: string; s
       <button className="btn-primary px-3 py-1 text-xs" disabled={busy || !slug} onClick={() => run({ action: "ticket_send", service_slug: slug })}>{status === "needs_review" ? "Approve & send link" : "Re-send link"}</button>
       <button className="text-xs text-rose-700 underline" disabled={busy} onClick={() => run({ action: "ticket_cancel" }, "Cancel this ticket? The customer's link stops working.")}>Cancel</button>
     </div>
+  );
+}
+
+/**
+ * Hub → Referrals & tickets and the Call desk: send the person on the phone their referral ticket link. Text only with
+ * their OK on the call. Their name, email and phone fill the ticket; filling it out signs them up for the network.
+ */
+export function SendTicketInvite({ initial, kinds, bizLeadId, compact = false }: { initial?: { name?: string | null; email?: string | null; phone?: string | null; company?: string | null; kind?: string | null }; kinds: [string, string][]; bizLeadId?: string; compact?: boolean }) {
+  const router = useRouter();
+  const blank = { name: initial?.name ?? "", email: initial?.email ?? "", phone: initial?.phone ?? "", company: initial?.company ?? "", kind: initial?.kind ?? "other", job_hint: "", via_email: Boolean(initial?.email), via_sms: false, sms_consent: false };
+  const [f, setF] = useState(blank);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string; link?: string } | null>(null);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  return (
+    <form className="space-y-2 text-sm" onSubmit={async (e) => {
+      e.preventDefault(); setBusy(true); setMsg(null);
+      const r = await post("/api/hub/partners", { action: "invite", ...f, email: f.email || null, phone: f.phone || null, company: f.company || null, job_hint: f.job_hint || null, via_sms: f.via_sms && f.sms_consent, biz_lead_id: bizLeadId ?? null });
+      setBusy(false);
+      if (r.ok) { const sent = (r.data.sent as string[]) ?? []; setMsg({ ok: true, text: sent.length ? `Sent by ${sent.join(" and ")} ✓` : "Link made, but delivery failed — read it to them or copy it:", link: String(r.data.link ?? "") }); setF(blank); router.refresh(); }
+      else setMsg({ ok: false, text: r.error });
+    }}>
+      <div className={`grid gap-2 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+        <label>Their name<input className="input mt-1" required value={f.name} onChange={set("name")} /></label>
+        <label>Email<input className="input mt-1" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value, via_email: Boolean(e.target.value) })} /></label>
+        <label>Mobile<input className="input mt-1" type="tel" value={f.phone} onChange={set("phone")} /></label>
+        <label>Company<input className="input mt-1" value={f.company} onChange={set("company")} /></label>
+        <label>They are a…<select className="input mt-1" value={f.kind} onChange={set("kind")}>{kinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+        <label className={compact ? "sm:col-span-2" : ""}>Job they mentioned (starts the ticket)<input className="input mt-1" value={f.job_hint} onChange={set("job_hint")} placeholder="e.g. move-out clean for a client on the 15th" /></label>
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2"><input type="checkbox" checked={f.via_email} disabled={!f.email} onChange={(e) => setF({ ...f, via_email: e.target.checked })} />Email it</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={f.via_sms} disabled={!f.phone} onChange={(e) => setF({ ...f, via_sms: e.target.checked })} />Text it</label>
+        {f.via_sms && <label className="flex items-center gap-2 text-amber-800"><input type="checkbox" checked={f.sms_consent} onChange={(e) => setF({ ...f, sms_consent: e.target.checked })} />They said OK to a text on this call</label>}
+        <button className="btn-primary" disabled={busy || !f.name || (!f.via_email && !(f.via_sms && f.sms_consent))}>{busy ? "Sending…" : "🎫 Send referral ticket"}</button>
+      </div>
+      {msg && <p className={msg.ok ? "text-brand-dark" : "text-rose-700"}>{msg.text}{msg.link && <> <span className="select-all break-all font-mono text-xs">{msg.link}</span></>}</p>}
+    </form>
   );
 }

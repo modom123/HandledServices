@@ -11,9 +11,12 @@
  *             { action: "ticket_cancel", ticket_id }    — cancel a referral ticket (its link stops working)
  * UPDATED : 2026-10-11_0451 UTC — voiding a commission is admins only.
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: approve & send, re-send, cancel.
+ *             { action: "invite", name, email?, phone?, company?, kind?, job_hint?, via_email, via_sms, sms_consent, biz_lead_id? }
+ *                                                       — send someone on the phone their referral ticket (they join the network)
+ * UPDATED : 2026-10-22_0700 UTC — ticket invites (Hub → Referrals & tickets and the Call desk).
  */
 import { z } from "zod";
-import { getService, partnerExpiry } from "@handled/core";
+import { PARTNER_KINDS, getService, partnerExpiry, type PartnerKind } from "@handled/core";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 
@@ -24,6 +27,11 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("void"), commission_id: z.string().uuid(), note: z.string().trim().max(300) }),
   z.object({ action: z.literal("ticket_send"), ticket_id: z.string().uuid(), service_slug: z.string().refine((s) => Boolean(getService(s)), "Pick a service") }),
   z.object({ action: z.literal("ticket_cancel"), ticket_id: z.string().uuid() }),
+  z.object({
+    action: z.literal("invite"), name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(254).optional().nullable().or(z.literal("")),
+    phone: z.string().trim().max(30).optional().nullable(), company: z.string().trim().max(160).optional().nullable(), kind: z.string().refine((k) => k in PARTNER_KINDS).optional().nullable(),
+    job_hint: z.string().trim().max(500).optional().nullable(), via_email: z.boolean(), via_sms: z.boolean(), sms_consent: z.boolean(), biz_lead_id: z.string().uuid().optional().nullable(),
+  }),
 ]);
 
 export async function POST(req: Request) {
@@ -39,6 +47,11 @@ export async function POST(req: Request) {
   if (d.action === "assign") ({ error } = await db.from("referral_customers").upsert({ partner_id: d.partner_id, customer_email: d.email.toLowerCase(), source: "staff", note: `assigned by ${v!.email}`, expires_at: partnerExpiry(new Date()).toISOString() }, { onConflict: "customer_email" }));
   if (d.action === "unassign") ({ error } = await db.from("referral_customers").delete().eq("customer_email", d.email.toLowerCase()));
   if (d.action === "void") ({ error } = await db.from("partner_commissions").update({ status: "void", amount: 0, note: `${d.note} (${v!.email})` }).eq("id", d.commission_id).eq("status", "pending"));
+  if (d.action === "invite") {
+    const { action: _a, ...o } = d;
+    const r = await (await import("@/lib/ticket-invites")).sendInvite({ ...o, kind: (o.kind ?? null) as PartnerKind | null, sent_by: v!.email });
+    return r.ok ? Response.json({ ok: true, link: (await import("@/lib/ticket-invites")).inviteLink(r.invite), sent: r.sent }) : deny(400, r.error);
+  }
   if (d.action === "ticket_cancel") {
     ({ error } = await db.from("referral_tickets").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", d.ticket_id).in("status", ["open", "needs_review"]));
     if (!error) await (await import("@/lib/partners")).ticketEvent(d.ticket_id, `Cancelled by ${v!.email}.`);

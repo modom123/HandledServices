@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: pros, clients and anyone can send us one specific job. A one-time job
  *           pays 20% of our take on that job; a recurring job 15% on every visit of that plan for 12 months.
  *           moneySplit() shows who gets what on a job. Terms v2.
+ * UPDATED : 2026-10-22_0700 UTC — inviteDays: a ticket invite sent after a phone call works for 30 days.
  */
 import { BRAND } from "./brand.ts";
 
@@ -20,6 +21,7 @@ export const PARTNER_PROGRAM = {
   jobRecurringPct: 0.15,   // refer a recurring job: 15% on every visit of that plan
   months: 12,              // a referred person, or a referred recurring job, pays for this long
   ticketDays: 60,          // a referral ticket must be booked within this long
+  inviteDays: 30,          // a ticket invite (sent after a phone call) works this long
   holdDays: BRAND.guaranteeDays, // paid after the make-it-right window, so refunds come first
   minPayout: 25,           // smaller balances roll to the next weekly run (keeps Stripe fees sensible)
   cookieDays: 90,          // a click on a partner link counts for this long

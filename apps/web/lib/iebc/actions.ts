@@ -15,6 +15,8 @@
  * UPDATED : 2026-10-22_0500 UTC — referral program for IEBC workers: read.referral_tickets, sales.send_referral_ticket
  *           (approve & send the customer's pre-filled link), sales.cancel_referral_ticket, sales.note_referral_ticket,
  *           finance.referral_commissions and finance.void_referral_commission (high risk: always approved by a person).
+ * UPDATED : 2026-10-22_0700 UTC — sales.send_ticket_invite: send someone we spoke with their referral ticket (they join the
+ *           network). High risk — outreach to a person always waits for a human to approve.
  */
 import "server-only";
 import { z } from "zod";
@@ -409,6 +411,24 @@ export const ACTIONS: Record<string, ActionDef> = {
       await P.ticketEvent(ticket_id, `Approved by ${ctx.actor}.`);
       await P.sendTicketToCustomer(t as never);
       return "Booking link sent to the customer.";
+    },
+  }),
+  "read.ticket_invites": def({
+    scope: "read", write: false, risk: "low", description: "Referral ticket invites sent after phone calls: who, when, how (email / text), and what came of it (sent, opened, joined, sent a job, expired). Use it to follow up with people who haven't opened theirs.",
+    params: z.object({ status: z.enum(["sent", "opened", "completed", "expired", "cancelled"]).optional(), limit: z.number().int().min(1).max(100).default(30) }),
+    run: async ({ status, limit }) => {
+      let q = db().from("ticket_invites").select("id, name, email, phone, company, kind, job_hint, sent_by, via_email, via_sms, status, opened_at, completed_at, partner_id, ticket_id, expires_at, created_at").order("created_at", { ascending: false }).limit(limit);
+      if (status) q = q.eq("status", status);
+      const { data, error } = await q;
+      return error ? "Ticket invites aren't switched on yet (ADD_TICKET_INVITES_2026-10-22_0700.sql)." : data;
+    },
+  }),
+  "sales.send_ticket_invite": def({
+    scope: "sales", write: true, risk: "high", description: "After a phone call: send the person their personal referral ticket link by email and/or text (text only if they agreed on the call). Filling it out sends us the job and signs them up as a referral partner. Always waits for human approval.",
+    params: z.object({ name: z.string().min(2).max(120), email: z.string().email().optional(), phone: z.string().max(30).optional(), company: z.string().max(160).optional(), kind: z.enum(["realtor", "property_manager", "contractor", "business", "customer", "pro", "other"]).optional(), job_hint: z.string().max(500).optional(), via_email: z.boolean(), via_sms: z.boolean(), sms_consent: z.boolean() }),
+    run: async (p, ctx) => {
+      const r = await (await import("../ticket-invites")).sendInvite({ ...p, sent_by: ctx.actor });
+      return r.ok ? `Sent by ${r.sent.join(" and ") || "nothing (delivery failed)"}: ${(await import("../ticket-invites")).inviteLink(r.invite)}` : r.error;
     },
   }),
   "sales.cancel_referral_ticket": def({

@@ -4,12 +4,14 @@
  * CREATED : 2026-10-20_0015 UTC
  * PURPOSE : Hub → Business leads → Call desk: one card per call — tap to call, the script (or the Deal hunter's), a note,
  *           and one tap for the outcome (a callback date when they ask for one). Calls are made by a person.
+ * UPDATED : 2026-10-22_0700 UTC — 🎫 send them a referral ticket from the card (they join the referral network).
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CALL_OUTCOMES, QUEUE_REASON_LABEL, type CallOutcome, type CallScript, type QueueReason } from "@handled/core";
+import { SendTicketInvite } from "./PartnerUI";
+import { CALL_OUTCOMES, PARTNER_KINDS, QUEUE_REASON_LABEL, type CallOutcome, type CallScript, type QueueReason } from "@handled/core";
 
 export interface CallCard {
   id: string; business_name: string; contact_name: string | null; phone: string; city: string | null; segment_label: string;
@@ -56,6 +58,10 @@ function Card({ c, done, onDone }: { c: CallCard; done?: string; onDone: (msg: s
         </div>
         <a href={telHref(c.phone)} className="btn-primary whitespace-nowrap">📞 {c.phone}</a>
       </div>
+      <details>
+        <summary className="cursor-pointer text-xs font-semibold">🎫 Send them a referral ticket (they earn on jobs they send us, and join the network)</summary>
+        <div className="mt-2"><SendTicketInvite compact bizLeadId={c.id} kinds={Object.entries(PARTNER_KINDS) as [string, string][]} initial={{ name: c.contact_name ?? c.business_name, phone: c.phone, company: c.business_name, kind: "business" }} /></div>
+      </details>
       <details open={!c.attempts}>
         <summary className="cursor-pointer text-xs font-semibold">Script</summary>
         <div className="mt-2 space-y-2 rounded-lg bg-paper p-3">
