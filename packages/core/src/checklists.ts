@@ -451,6 +451,56 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
     ] }],
   }),
 
+  "tree-trimming": tpl({
+    service: "tree-trimming", version: 1, title: { en: "Tree trimming checklist", es: "Lista de poda de árboles" },
+    sections: [{ id: "trim", en: "Trimming", es: "Poda", items: [
+      i("plan", "Trees, cuts and clearances confirmed with the customer", "Árboles, cortes y despejes confirmados con el cliente", { required: true }),
+      i("lines", "Power lines checked; utility called if limbs touch lines", "Cables eléctricos revisados; compañía de luz llamada si las ramas tocan cables", { required: true }),
+      i("cuts", "Deadwood out; clean cuts at the branch collar (no topping)", "Ramas muertas fuera; cortes limpios en el collar de la rama (sin descopar)", { required: true, photo: true }),
+      i("shrubs", "Shrubs and hedges shaped", "Arbustos y setos formados", { when: { q: "shrubs", in: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] } }),
+      i("haul", "Branches and debris hauled; lawn raked and blown", "Ramas y escombros retirados; césped rastrillado y soplado", { required: true }),
+    ] }],
+  }),
+
+  roofing: tpl({
+    service: "roofing", version: 1, title: { en: "Roofing checklist", es: "Lista de techos" },
+    sections: [{ id: "roof", en: "Roof", es: "Techo", items: [
+      i("scope", "Scope, material and color confirmed with the customer in writing", "Alcance, material y color confirmados por escrito con el cliente", { required: true }),
+      i("permit", "Permit pulled where required", "Permiso tramitado donde se requiere", { when: { q: "work", in: ["replace"] }, required: true }),
+      i("protect", "Landscaping, siding and windows protected; fall protection in place", "Jardín, fachada y ventanas protegidos; protección contra caídas instalada", { required: true }),
+      i("deck", "Decking checked after tear-off; soft spots replaced (photos)", "Entablado revisado tras el retiro; partes blandas reemplazadas (fotos)", { when: { q: "work", in: ["replace"] }, required: true, photo: true }),
+      i("install", "Ice & water shield, underlayment, flashing and vents installed to manufacturer specs", "Barrera de hielo y agua, membrana, tapajuntas y ventilas instalados según el fabricante", { when: { q: "work", in: ["replace"] }, required: true, photo: true }),
+      i("repair", "Every booked leak or damaged area repaired and sealed", "Cada gotera o área dañada reservada reparada y sellada", { when: { q: "work", in: ["repair"] }, required: true, photo: true }),
+      i("report", "Inspection report with photos sent to the customer", "Informe de inspección con fotos enviado al cliente", { when: { q: "work", in: ["inspect"] }, required: true }),
+      i("sweep", "Debris hauled; magnetic nail sweep of drive, walks and yard", "Escombros retirados; barrido magnético de clavos en entrada, banquetas y jardín", { required: true }),
+    ] }],
+  }),
+
+  flooring: tpl({
+    service: "flooring", version: 1, title: { en: "Flooring checklist", es: "Lista de pisos" },
+    sections: [{ id: "floor", en: "Flooring", es: "Pisos", items: [
+      i("confirm", "Rooms, flooring and layout direction confirmed with the customer", "Cuartos, piso y dirección de colocación confirmados con el cliente", { required: true }),
+      i("acclimate", "Flooring acclimated per the manufacturer", "Piso aclimatado según el fabricante", { required: true }),
+      i("removal", "Old flooring removed and hauled away", "Piso viejo retirado y desechado", { when: { q: "remove", in: [true] }, required: true }),
+      i("subfloor", "Subfloor clean, flat and dry (photo before install)", "Contrapiso limpio, plano y seco (foto antes de instalar)", { required: true, photo: true }),
+      i("install", "Installed with expansion gaps; trim and transitions finished", "Instalado con juntas de dilatación; molduras y transiciones terminadas", { required: true, photo: true }),
+      i("stairs", "Stairs finished with nosing secure", "Escaleras terminadas con narices firmes", { when: { q: "stairs", in: Array.from({ length: 60 }, (_, k) => k + 1) } }),
+      i("clean", "Scraps hauled; floors swept and wiped", "Sobrantes retirados; pisos barridos y limpios", { required: true }),
+    ] }],
+  }),
+
+  paving: tpl({
+    service: "paving", version: 1, title: { en: "Paving checklist", es: "Lista de pavimentación" },
+    sections: [{ id: "pave", en: "Paving", es: "Pavimentación", items: [
+      i("layout", "Area, edges and drainage plan confirmed with the customer", "Área, bordes y drenaje confirmados con el cliente", { required: true }),
+      i("utilities", "MISS DIG / 811 called before any digging", "MISS DIG / 811 llamado antes de excavar", { when: { q: "work", in: ["replace"] }, required: true }),
+      i("base", "Old surface removed; gravel base graded and compacted (photo)", "Superficie vieja retirada; base de grava nivelada y compactada (foto)", { when: { q: "work", in: ["replace"] }, required: true, photo: true }),
+      i("surface", "Surface laid or sealed evenly; edges clean; water runs off", "Superficie colocada o sellada de forma pareja; bordes limpios; el agua escurre", { required: true, photo: true }),
+      i("repairs", "Every booked crack and pothole repaired", "Cada grieta y bache reservado reparado", { when: { q: "work", in: ["repair"] }, required: true }),
+      i("cure", "Customer told how long to stay off it; area taped off", "Se le dijo al cliente cuánto tiempo no usarlo; área acordonada", { required: true }),
+    ] }],
+  }),
+
   "junk-container": tpl({
     service: "junk-container", version: 1, title: { en: "Container drop-off & pickup checklist", es: "Lista de entrega y recolección de contenedor" },
     sections: [

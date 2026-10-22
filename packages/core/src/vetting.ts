@@ -117,7 +117,7 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
   },
   tree: {
     does: "Tree removal, trimming, stump grinding and storm cleanup.",
-    specialties: [{ id: "removal", label: "Removal", slug: "tree-removal" }, { id: "trimming", label: "Trimming & pruning" }, { id: "stump", label: "Stump grinding" }, { id: "storm", label: "Storm / emergency" }, { id: "crane", label: "Crane & near-structure removals" }],
+    specialties: [{ id: "removal", label: "Removal", slug: "tree-removal" }, { id: "trimming", label: "Trimming & pruning", slug: "tree-trimming" }, { id: "stump", label: "Stump grinding" }, { id: "storm", label: "Storm / emergency" }, { id: "crane", label: "Crane & near-structure removals" }],
     license: null, preferred: ["ISA Certified Arborist", "TCIA membership"], glMin: GL2, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees (nearly every tree crew does)" }],
     skillsCheck: "Equipment list (bucket truck, chipper, climbing gear), photos of complex removals, 3 references, safety-program attestation.",
   },
@@ -295,6 +295,26 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: "Michigan Residential Builder or Maintenance & Alteration Contractor license (LARA), required for residential work over $600",
     preferred: ["EPA RRP lead-safe certification (required for pre-1978 homes)"], glMin: GL1, requires: ["workers_comp"], conditional: [],
     skillsCheck: "License lookup on LARA, portfolio of 3 completed remodels, 3 client references, permit history.",
+  },
+  roofing: {
+    does: "Roof replacement (asphalt, metal, flat), leak and storm repairs, flashing, and roof inspections.",
+    specialties: [{ id: "replacement", label: "Full replacement", slug: "roofing" }, { id: "repair", label: "Leak & storm repair" }, { id: "metal", label: "Metal roofing" }, { id: "flat", label: "Flat / low-slope (EPDM, TPO)" }, { id: "insurance", label: "Insurance claim work" }],
+    license: "Michigan Residential Builder or Maintenance & Alteration Contractor license with roofing (LARA), required for residential work over $600; Washington: registered contractor (L&I)",
+    preferred: ["Manufacturer certification (e.g. GAF, Owens Corning, CertainTeed)", "OSHA 10 fall protection"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
+    skillsCheck: "License lookup, manufacturer certification, photos of 3 completed roofs, 3 client references, fall-protection plan.",
+  },
+  flooring: {
+    does: "Luxury vinyl, laminate, hardwood, tile and carpet installation, old-floor removal and subfloor prep.",
+    specialties: [{ id: "lvp", label: "Luxury vinyl & laminate", slug: "flooring" }, { id: "hardwood", label: "Hardwood (install & refinish)" }, { id: "tile", label: "Tile" }, { id: "carpet", label: "Carpet" }, { id: "stairs", label: "Stairs" }],
+    license: "Michigan Maintenance & Alteration Contractor license (carpentry / floor covering) or Residential Builder license (LARA), required for residential work over $600; Washington: registered contractor (L&I)",
+    preferred: ["EPA RRP lead-safe certification (pre-1978 homes)", "CFI or NWFA certification"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "License lookup, photos of 3 completed floors (incl. transitions and stairs), 2 client references.",
+  },
+  paving: {
+    does: "Asphalt and concrete driveways and lots, pavers, resurfacing, sealcoating, and crack and pothole repair.",
+    specialties: [{ id: "asphalt", label: "Asphalt driveways & lots", slug: "paving" }, { id: "concrete", label: "Concrete flatwork" }, { id: "pavers", label: "Pavers" }, { id: "sealcoat", label: "Sealcoating & striping" }, { id: "repair", label: "Crack & pothole repair" }],
+    license: null, preferred: ["MITA or NAPA membership"], glMin: GL2, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees (nearly every paving crew does)" }],
+    skillsCheck: "Equipment list (paver, roller, sealcoat rig), photos of 3 completed jobs, 3 references.",
   },
   painting: {
     does: "Interior and exterior painting of rooms, homes, offices and buildings; prep, patching and staining.",

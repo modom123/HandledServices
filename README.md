@@ -2,6 +2,8 @@
   FILE    : README.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-01_1800 UTC
+  UPDATED : 2026-10-22_1000 UTC — 73 services: Roofing, Flooring Installation, Paving & Driveways, Tree Trimming & Pruning added.
+  UPDATED : 2026-10-22_0900 UTC — shared referral bonus: half from Handled, half from the pro on the job (jobs accepted from 2026-11-22).
   UPDATED : 2026-10-22_0400 UTC — referral tickets: pros, clients and anyone send a job (20% one-time / 15% recurring for 12 months).
   UPDATED : 2026-10-11_1603 UTC — 66 services: Business & Technology (websites, AI automation & agents, business formation,
             consulting) and Freight & Pallet Delivery with carrier partners such as 3 Lakes Logistics.

@@ -7,6 +7,8 @@
  *           share of the price paid to the subcontractor, and whether a site visit is
  *           required before a firm quote. Prices are launch defaults for a mid-cost US
  *           metro — tune them per market in the ops hub (services table overrides).
+ * UPDATED : 2026-10-22_1000 UTC — Roofing, Flooring Installation, Paving & Driveways, Tree Trimming & Pruning (trades roofing,
+ *           flooring, paving).
  * UPDATED : 2026-10-02_0233 UTC — calculator audit: questions can be shown only when another
  *           answer applies (showIf, e.g. mini-split zones), and rides move up to a vehicle
  *           big enough for the passenger count, so the price rises as passengers are added.
@@ -1753,6 +1755,161 @@ export const SERVICES: Service[] = [
       return { items, base, hours: Math.max(8, (sqft / 120) * height * (b(a, "trim_only") ? 0.4 : 1)) };
     },
   },
+  // ─── added 2026-10-22_1000 UTC: roofing, flooring, paving, tree trimming ───
+  {
+    slug: "roofing",
+    name: "Roofing",
+    category: "repair_remodel",
+    icon: "🏠",
+    tagline: "Roof replacement and repairs by licensed, insured roofers.",
+    description: "Full roof replacement (tear-off, ice & water shield, underlayment, new shingles, metal or flat roofing, flashing and vents), leak and storm-damage repairs, and roof inspections. A licensed roofer inspects first and gives a firm written price before any work; manufacturer warranty on new roofs.",
+    includes: ["Licensed, insured roofers", "Free on-site inspection & firm written price", "Tear-off, haul-away & magnetic nail sweep", "Ice & water shield, underlayment, flashing & vents", "Manufacturer + workmanship warranty", "Before/after & drone or ladder photos"],
+    questions: [
+      { id: "work", label: "Type of work", type: "select", default: "replace", options: [{ value: "replace", label: "Full replacement" }, { value: "repair", label: "Leak / storm repair" }, { value: "inspect", label: "Inspection only" }] },
+      { id: "roof_sqft", label: "Roof size (sq ft of roof)", type: "number", min: 0, max: 30000, default: 0, unit: "sq ft", required: true, help: "Best guess: a house's footprint × about 1.2. A 1,500 sq ft ranch is roughly 1,800 sq ft of roof (18 'squares'). Inspection or repair: your house's footprint." },
+      { id: "material", label: "Material", type: "select", default: "asphalt", showIf: { id: "work", is: ["replace"] }, options: [{ value: "asphalt", label: "Asphalt shingles" }, { value: "metal", label: "Metal" }, { value: "flat", label: "Flat / low-slope (EPDM, TPO)" }] },
+      { id: "pitch", label: "How steep", type: "select", default: "standard", options: [{ value: "low", label: "Low (you could walk it easily)" }, { value: "standard", label: "Standard" }, { value: "steep", label: "Steep" }] },
+      { id: "stories", label: "Height", type: "select", default: "1", options: STORIES },
+      { id: "layers", label: "Old layers to tear off", type: "select", default: "1", showIf: { id: "work", is: ["replace"] }, options: [{ value: "1", label: "1 layer" }, { value: "2", label: "2 layers" }, { value: "3", label: "3 layers" }] },
+      { id: "repairs", label: "Leak / damaged areas to repair", type: "number", min: 0, max: 20, default: 1, help: "How many separate spots (a leak, missing shingles, a vent boot).", showIf: { id: "work", is: ["repair"] } },
+      { id: "chimney", label: "Chimney or skylight flashing", type: "toggle", default: false },
+    ],
+    minimum: 350,
+    spread: [0.9, 1.25],
+    siteVisit: true,
+    frequencies: ["once"],
+    trades: ["roofing"],
+    licensed: true,
+    notesHint: "Age of the roof, any leaks (where, how long), storm damage, insurance claim number if you have one",
+    price: (a) => {
+      const work = s(a, "work", "replace");
+      const sqft = n(a, "roof_sqft");
+      const height = { "1": 1, "2": 1.1, "3": 1.25 }[s(a, "stories", "1")] ?? 1;
+      const pitch = { low: 0.95, standard: 1, steep: 1.25 }[s(a, "pitch", "standard")] ?? 1;
+      const items: LineItem[] = [];
+      if (work === "inspect") items.push({ label: "Roof inspection & written report", amount: 250 });
+      else if (work === "repair") {
+        const spots = Math.max(1, n(a, "repairs", 1));
+        items.push({ label: `Repairs — ${spots} area${spots > 1 ? "s" : ""} × $425`, amount: Math.round(spots * 425 * height * pitch) });
+      } else {
+        const rate = { asphalt: 4.6, metal: 10.5, flat: 7.25 }[s(a, "material", "asphalt")] ?? 4.6;
+        items.push({ label: `New ${s(a, "material", "asphalt")} roof — ${sqft.toLocaleString("en-US")} sq ft (${Math.round(sqft / 100)} squares)`, amount: Math.round(sqft * rate * height * pitch) });
+        const extra = Number(s(a, "layers", "1")) - 1;
+        if (extra > 0) items.push({ label: `Extra tear-off — ${extra} more layer${extra > 1 ? "s" : ""}`, amount: Math.round(sqft * 0.75 * extra) });
+      }
+      if (b(a, "chimney")) items.push({ label: "Chimney / skylight flashing", amount: 650 });
+      return { items, base: sum(items), hours: work === "replace" ? Math.max(8, sqft / 180) : work === "repair" ? 3 * Math.max(1, n(a, "repairs", 1)) : 2 };
+    },
+  },
+  {
+    slug: "flooring",
+    name: "Flooring Installation",
+    category: "repair_remodel",
+    icon: "🪵",
+    tagline: "Luxury vinyl, laminate, hardwood, tile and carpet — installed.",
+    description: "New floors installed by licensed, insured installers: luxury vinyl plank, laminate, hardwood, tile and carpet. Old flooring removed and hauled away, subfloor prepped, trim and transitions finished. Bring your own flooring or let your pro supply standard-grade material.",
+    includes: ["Licensed, insured installers", "Remove & haul away old flooring", "Subfloor prep & leveling", "Trim, transitions & cleanup", "Workmanship warranty", "Before/after photos"],
+    questions: [
+      { id: "material", label: "Flooring", type: "select", default: "lvp", options: [{ value: "lvp", label: "Luxury vinyl plank (LVP)" }, { value: "laminate", label: "Laminate" }, { value: "hardwood", label: "Hardwood" }, { value: "tile", label: "Tile" }, { value: "carpet", label: "Carpet" }] },
+      { id: "sqft", label: "Floor area", type: "number", min: 0, max: 20000, default: 0, unit: "sq ft", required: true, help: "Length × width of each room, added up. A 12 × 15 bedroom is 180 sq ft." },
+      { id: "supply", label: "Material", type: "select", default: "pro", options: [{ value: "pro", label: "Pro supplies standard-grade flooring" }, { value: "own", label: "I have the flooring" }] },
+      { id: "remove", label: "Remove & haul away old flooring", type: "toggle", default: true },
+      { id: "stairs", label: "Stairs (steps)", type: "number", min: 0, max: 60, default: 0 },
+      { id: "subfloor", label: "Uneven or damaged subfloor", type: "toggle", default: false },
+    ],
+    minimum: 450,
+    spread: [0.95, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["flooring"],
+    licensed: true,
+    leadDays: 3,
+    price: (a) => {
+      const m = s(a, "material", "lvp");
+      const sqft = n(a, "sqft");
+      const labor = { lvp: 2.5, laminate: 2.25, hardwood: 5, tile: 7, carpet: 1.5 }[m] ?? 2.5;
+      const goods = { lvp: 3, laminate: 2.5, hardwood: 6.5, tile: 4, carpet: 3 }[m] ?? 3;
+      const items: LineItem[] = [{ label: `Install ${m === "lvp" ? "luxury vinyl plank" : m} — ${sqft.toLocaleString("en-US")} sq ft`, amount: Math.round(sqft * labor) }];
+      if (s(a, "supply", "pro") === "pro") items.push({ label: `Standard-grade ${m === "lvp" ? "LVP" : m} (+10% waste)`, amount: Math.round(sqft * 1.1 * goods) });
+      if (b(a, "remove")) items.push({ label: "Remove & haul away old flooring", amount: Math.round(sqft * 1.25) });
+      const steps = n(a, "stairs");
+      if (steps) items.push({ label: `Stairs — ${steps} × $${m === "tile" || m === "hardwood" ? 120 : 85}`, amount: steps * (m === "tile" || m === "hardwood" ? 120 : 85) });
+      if (b(a, "subfloor")) items.push({ label: "Subfloor repair & leveling", amount: Math.max(450, Math.round(sqft * 0.75)) });
+      return { items, base: sum(items), hours: Math.max(4, sqft / (m === "tile" ? 60 : m === "hardwood" ? 100 : 180) + steps * 0.5) };
+    },
+  },
+  {
+    slug: "paving",
+    name: "Paving & Driveways",
+    category: "outdoor",
+    icon: "🛣️",
+    tagline: "Asphalt and concrete driveways, sealcoating and repairs.",
+    description: "New and replacement asphalt or concrete driveways, paver driveways and walkways, asphalt resurfacing, sealcoating, and crack and pothole repair for homes and parking lots. Insured crews, compacted base, clean edges, and a firm price before work starts.",
+    includes: ["Insured paving crews", "Remove & haul away old surface", "Compacted gravel base", "Clean edges & proper drainage", "Workmanship warranty", "Before/after photos"],
+    questions: [
+      { id: "work", label: "Type of work", type: "select", default: "replace", options: [{ value: "replace", label: "New / replacement driveway or lot" }, { value: "overlay", label: "Resurface (asphalt overlay)" }, { value: "sealcoat", label: "Sealcoat" }, { value: "repair", label: "Crack & pothole repair" }] },
+      { id: "material", label: "Surface", type: "select", default: "asphalt", showIf: { id: "work", is: ["replace"] }, options: [{ value: "asphalt", label: "Asphalt" }, { value: "concrete", label: "Concrete" }, { value: "pavers", label: "Pavers" }] },
+      { id: "sqft", label: "Area", type: "number", min: 0, max: 200000, default: 0, unit: "sq ft", required: true, help: "Length × width. A 2-car driveway is about 20 × 30 = 600 sq ft." },
+      { id: "remove", label: "Remove the old surface", type: "toggle", default: true, showIf: { id: "work", is: ["replace"] } },
+      { id: "patches", label: "Cracks / potholes to repair", type: "number", min: 0, max: 100, default: 0 },
+      { id: "lot", label: "Commercial parking lot", type: "toggle", default: false },
+    ],
+    minimum: 300,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["paving"],
+    leadDays: 3,
+    price: (a) => {
+      const work = s(a, "work", "replace");
+      const m = s(a, "material", "asphalt");
+      const sqft = n(a, "sqft");
+      const items: LineItem[] = [];
+      if (work === "sealcoat") items.push({ label: `Sealcoat — ${sqft.toLocaleString("en-US")} sq ft`, amount: Math.round(sqft * 0.3) });
+      else if (work === "overlay") items.push({ label: `Asphalt resurface (1.5" overlay) — ${sqft.toLocaleString("en-US")} sq ft`, amount: Math.round(sqft * 3) });
+      else if (work === "replace") {
+        const rate = { asphalt: 5, concrete: 9, pavers: 18 }[m] ?? 5;
+        items.push({ label: `New ${m} — ${sqft.toLocaleString("en-US")} sq ft`, amount: Math.round(sqft * rate) });
+        if (b(a, "remove")) items.push({ label: "Remove & haul away the old surface", amount: Math.round(sqft * 2) });
+      }
+      const p = n(a, "patches");
+      if (p || work === "repair") items.push({ label: `Crack & pothole repair — ${Math.max(1, p)} × $175`, amount: Math.max(1, p) * 175 });
+      let base = sum(items);
+      if (b(a, "lot")) { const x = Math.round(base * 0.1); items.push({ label: "Commercial staging, striping layout & traffic control", amount: x }); base += x; }
+      return { items, base, hours: Math.max(3, work === "sealcoat" ? sqft / 800 : work === "repair" ? Math.max(1, p) * 0.75 : sqft / 120) };
+    },
+  },
+  {
+    slug: "tree-trimming",
+    name: "Tree Trimming & Pruning",
+    category: "outdoor",
+    icon: "✂️",
+    tagline: "Healthier, safer trees — trimmed by insured arborists.",
+    description: "Tree trimming and pruning by insured crews: deadwood removal, thinning, raising the canopy off the roof and driveway, and clearing limbs from the house — plus shrub and hedge shaping. Debris hauled away. Big trees and limbs near power lines get a free on-site look first.",
+    includes: ["Certificate of insurance on file", "Deadwood, thinning & clearance cuts", "Shrub & hedge shaping (optional)", "Haul-away of branches & debris", "Before/after photos"],
+    questions: [
+      { id: "height_ft", label: "Tree height (tallest tree)", type: "number", min: 0, max: 150, default: 0, unit: "ft", required: true, help: "Best guess is fine: a 2-story house is about 25 ft to the roof peak.", sets: { id: "height", tiers: [[29, "small"], [60, "medium"], [Infinity, "large"]] } },
+      { id: "height", label: "Tree height", type: "select", default: "medium", options: [{ value: "small", label: "Under 30 ft" }, { value: "medium", label: "30 – 60 ft" }, { value: "large", label: "Over 60 ft" }] },
+      { id: "trees", label: "Number of trees", type: "number", min: 1, max: 30, default: 1 },
+      { id: "near_structure", label: "Limbs over the house, lines or fence", type: "toggle", default: false },
+      { id: "shrubs", label: "Shrubs or hedges to shape", type: "number", min: 0, max: 50, default: 0 },
+    ],
+    minimum: 225,
+    spread: [0.85, 1.3],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["tree"],
+    price: (a) => {
+      const size = s(a, "height", "medium");
+      const per = { small: 225, medium: 425, large: 750 }[size] ?? 425;
+      const trees = n(a, "trees", 1);
+      const items: LineItem[] = [{ label: `Trim ${trees} ${size} tree${trees > 1 ? "s" : ""} × $${per}`, amount: trees * per }];
+      if (b(a, "near_structure")) items.push({ label: "Rigging near house, lines or fence", amount: Math.round(trees * per * 0.25) });
+      const sh = n(a, "shrubs");
+      if (sh) items.push({ label: `Shrubs & hedges — ${sh} × $45`, amount: sh * 45 });
+      return { items, base: sum(items), hours: Math.max(2, trees * ({ small: 1.5, medium: 3, large: 5 }[size] ?? 3) + sh * 0.25) };
+    },
+  },
   {
     slug: "foundation-repair",
     name: "Foundation Repair",
@@ -3203,6 +3360,9 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "foundation", label: "Foundation repair (licensed)" },
   { id: "mold", label: "Mold remediation (certified)" },
   { id: "remodel", label: "Remodeling / general contractor" },
+  { id: "roofing", label: "Roofing (licensed)" },
+  { id: "flooring", label: "Flooring installation" },
+  { id: "paving", label: "Paving, asphalt & concrete" },
   { id: "painting", label: "Painting (interior & exterior)" },
   { id: "plumbing", label: "Plumbing (licensed)" },
   { id: "electrical", label: "Electrical (licensed)" },

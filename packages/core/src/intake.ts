@@ -11,6 +11,7 @@
  *             • scopeChange()     — the pro on site finds more work → priced difference = change order
  *             • sizeNeedsSiteVisit() — jobs too big for an instant price (a commercial repaint, 15+
  *                                    rooms) always get a free site visit and a firm quote
+ * UPDATED : 2026-10-22_1000 UTC — roofing, flooring, paving, tree trimming: required photos and site-visit sizes.
  */
 import { AI_MAX_CUT, AI_MAX_RAISE, estimate, type Estimate } from "./pricing.ts";
 import { getService, type Answers } from "./services.ts";
@@ -56,6 +57,10 @@ const RULES: Record<string, PhotoRule> = {
   "garbage-disposal": R(1, "Under the sink, showing the disposal and pipes"),
   "interior-painting": R(2, "Each room or area, wide shot", "Any cracks, holes or water stains", "Ceilings and trim if included"),
   "exterior-painting": R(3, "Each side of the building", "Peeling or damaged areas up close", "Trim, doors and any deck"),
+  roofing: R(2, "The whole roof from the street (each side if you can)", "Any leak, stain or damaged area up close", "Inside: water stains on ceilings"),
+  flooring: R(2, "Each room, wide shot", "The current floor up close (and any soft or uneven spots)", "Stairs, if any"),
+  paving: R(2, "The whole driveway or lot", "Cracks, potholes or sunken areas up close"),
+  "tree-trimming": R(1, "Each tree, whole", "Limbs near the house, lines or fence"),
   "bathroom-remodel": R(3, "Each wall of the room", "Floor", "Anything you're keeping"),
   "kitchen-remodel": R(3, "Each wall of the kitchen", "Floor and ceiling", "Anything you're keeping"),
   "mold-removal": R(2, "The mold, wide shot showing how big", "Close-up of the growth", "Any leak or water stain nearby"),
@@ -145,6 +150,9 @@ const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "large-item-removal": (a) => (Number(a.heaviest ?? 0) > 1000 ? "An item over 1,000 lb" : Number(a.specialty ?? 0) > 2 ? "More than 2 specialty items" : null),
   "mold-removal": (a) => (Number(a.sqft ?? 0) > 100 ? "More than 100 sq ft of mold" : a.hvac === true || a.hvac === "true" ? "Mold in the furnace or ducts" : null),
   "junk-removal": (a) => (a.volume === "double" && a.kind === "heavy" ? "Two truckloads of heavy debris" : null),
+  flooring: (a) => (Number(a.sqft ?? 0) > 2500 ? "More than 2,500 sq ft of flooring" : null),
+  paving: (a) => (a.lot === true || a.lot === "true" ? "Commercial parking lot" : a.work === "replace" && Number(a.sqft ?? 0) > 3000 ? "New surface over 3,000 sq ft" : null),
+  "tree-trimming": (a) => (a.height === "large" ? "A tree over 60 ft" : a.near_structure === true || a.near_structure === "true" ? "Limbs over the house, lines or fence" : null),
 };
 
 /** Why this job needs a free site visit for a firm price (null = instant price is fine). */
