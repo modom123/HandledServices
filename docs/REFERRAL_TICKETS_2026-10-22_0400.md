@@ -7,6 +7,7 @@
   UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1), photos, autofill, Handled Hub views, IEBC worker actions.
   UPDATED : 2026-10-22_0700 UTC — ticket invites: send the ticket to someone on the phone; filling it out signs them up.
   UPDATED : 2026-10-22_0800 UTC — pros and partners send ticket invites too, from their partner page.
+  UPDATED : 2026-10-22_1100 UTC — fraud guards: existing customers only via the ticket link after review; pros can't ticket their own customers.
   UPDATED : 2026-10-22_1000 UTC — one Handled account for everyone (partners, customers, pros); payouts need it.
   UPDATED : 2026-10-22_0530 UTC — recruiting flyer PDF with a QR code (handledsvc.com/join), generic or personal.
 -->
@@ -198,6 +199,18 @@ IEBC's AI workers see these in their action list automatically, by department:
 New tickets that need review also raise an ops alert, which workers already read (`read.alerts`).
 
 ## Rules and guards
+
+**Fraud guards (security review, 2026-10-22).** A ticket has to bring Handled new work. It must never claim a booking
+that would have happened anyway:
+
+- **Existing customers** (who have already paid for a job) can be sent a ticket, but it goes to **staff review** first.
+  It earns only if the customer books **through the ticket's own link**, which is sent once staff approve it.
+- **No link, new customers only:** a booking that matches an open ticket only by email and service is credited only if
+  the customer had no paid job before the ticket was created. An existing customer's own rebooking is never credited.
+- **A pro's own customers:** a pro can't ticket a customer they did the same service for in the last 12 months (that
+  customer's next booking goes to them first anyway). Other services for that customer go to staff review.
+- The rules live in `packages/core/src/partners.ts` (`ticketIntake`, `ticketCredit`) with tests in `partners.test.ts`.
+
 
 - The customer must have asked for it (required checkbox). No ticket for yourself.
 - A customer already referred by **another** partner (inside their 12 months) can't be sent on a ticket. If a person

@@ -13,6 +13,9 @@
  *           pays 20% of our take on that job; a recurring job 15% on every visit of that plan for 12 months.
  *           moneySplit() shows who gets what on a job. Terms v2.
  * UPDATED : 2026-10-22_0700 UTC — inviteDays: a ticket invite sent after a phone call works for 30 days.
+ * UPDATED : 2026-10-22_1100 UTC — security (commission fraud): ticketIntake() and ticketCredit(). Existing customers earn a
+ *           ticket only through the ticket's own link, after staff review; a pro can't ticket a customer they served in
+ *           the last 12 months for the same service; the no-link email match credits NEW customers only.
  * UPDATED : 2026-10-22_0900 UTC — the referral bonus is SHARED: half from Handled's take, half from the pro who does the job
  *           (REFERRAL_COST_SPLIT, referralCostShares). The bonus is still a share of Handled's take, worked out on the
  *           pro's full pay, so the pro's half never feeds back into it. Applies to jobs accepted from the effective date
@@ -111,6 +114,31 @@ export function proSharesReferral(o: { acceptedAt: string | Date | null | undefi
 /** What the pro's half would be on a job (for the offer and work order, before it's accepted). */
 export function referralShareEstimate(o: { price: number; payout: number }, pct: number): number {
   return referralCostShares(partnerCommission(o, pct)).pro;
+}
+
+/** How long a pro's own customer stays theirs: no referral ticket for the same service within this many days. */
+export const PRO_OWN_CUSTOMER_DAYS = 365;
+
+/**
+ * Can this referral ticket be filed, and does it need staff review first? (Security: stops partners claiming bookings
+ * that would have happened anyway.)
+ *  - a pro who did the same service for this customer in the last 12 months → refused (that's their own repeat customer)
+ *  - an existing customer (already paid us for a job) → staff review before they get a link: it must be real new work
+ *  - otherwise → open when the AI filed it clearly, review when it didn't
+ */
+export function ticketIntake(o: { existingCustomer: boolean; proServedSameService: boolean; proServedOtherService: boolean; clear: boolean }):
+  { ok: false; error: string } | { ok: true; status: "open" | "needs_review"; reason: string | null } {
+  if (o.proServedSameService) return { ok: false, error: "You've done this service for this customer in the last 12 months — they're already your customer on Handled, so it can't be sent as a referral. Their next booking is offered to you first anyway." };
+  if (o.existingCustomer) return { ok: true, status: "needs_review", reason: o.proServedOtherService ? "Existing customer you've worked for — our team checks it's new work before sending their link." : "Existing Handled customer — our team checks it's new work before sending their link." };
+  return { ok: true, status: o.clear ? "open" : "needs_review", reason: o.clear ? null : "Service or details unclear — our team reviews it first." };
+}
+
+/**
+ * Does this booking earn the ticket's bonus? Through the ticket's own link: yes. Without the link (same email and service
+ * only): only when the customer is NEW — an existing customer's own rebooking is never credited to a ticket.
+ */
+export function ticketCredit(o: { viaLink: boolean; customerHadPaidJobBefore: boolean }): boolean {
+  return o.viaLink || !o.customerHadPaidJobBefore;
 }
 
 /** A rate as a whole percent for copy ("15", never "15.000000000000002"). */

@@ -166,3 +166,27 @@ test("shared bonus: the work order shows the pro their half before they accept (
   const notReferred = buildWorkOrder({ ...(wjob as object), referral_pct: null } as never, { reveal: false, now: new Date("2026-12-01T12:00:00Z") }).terms.join(" ");
   assert.ok(!notReferred.includes("referral bonus"));
 });
+
+// ─── Security: referral tickets can't claim bookings that would have happened anyway — added 2026-10-22_1100 UTC ───
+test("security: an existing customer's own rebooking is never credited to a ticket without its link", async () => {
+  const { ticketCredit } = await import("./partners.ts");
+  assert.equal(ticketCredit({ viaLink: false, customerHadPaidJobBefore: true }), false);  // organic rebooking → no bonus
+  assert.equal(ticketCredit({ viaLink: true, customerHadPaidJobBefore: true }), true);    // booked from the ticket link → bonus
+  assert.equal(ticketCredit({ viaLink: false, customerHadPaidJobBefore: false }), true);  // a new customer the ticket brought in
+  assert.equal(ticketCredit({ viaLink: true, customerHadPaidJobBefore: false }), true);
+});
+
+test("security: pros can't ticket their own customers; existing customers go to staff review", async () => {
+  const { ticketIntake, PRO_OWN_CUSTOMER_DAYS } = await import("./partners.ts");
+  assert.equal(PRO_OWN_CUSTOMER_DAYS, 365);
+  const own = ticketIntake({ existingCustomer: true, proServedSameService: true, proServedOtherService: false, clear: true });
+  assert.equal(own.ok, false);
+  const other = ticketIntake({ existingCustomer: true, proServedSameService: false, proServedOtherService: true, clear: true });
+  assert.ok(other.ok && other.status === "needs_review" && /new work/.test(other.reason ?? ""));
+  const existing = ticketIntake({ existingCustomer: true, proServedSameService: false, proServedOtherService: false, clear: true });
+  assert.ok(existing.ok && existing.status === "needs_review");
+  const fresh = ticketIntake({ existingCustomer: false, proServedSameService: false, proServedOtherService: false, clear: true });
+  assert.ok(fresh.ok && fresh.status === "open" && fresh.reason === null);
+  const unclear = ticketIntake({ existingCustomer: false, proServedSameService: false, proServedOtherService: false, clear: false });
+  assert.ok(unclear.ok && unclear.status === "needs_review");
+});

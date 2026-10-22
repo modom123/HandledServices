@@ -31,12 +31,16 @@
  * UPDATED : 2026-10-22_1000 UTC — ONE HANDLED ACCOUNT: signUp() (sign-up page, flyer QR, ticket invites) creates or finds the
  *           person's Handled account right away and links it (lib/accounts ensureAccount); the welcome email says it's
  *           one account to book, refer and get paid. Payouts go only to partners with a linked account.
+ * UPDATED : 2026-10-22_1100 UTC — security (commission fraud): tickets for existing customers go to staff review and earn only
+ *           through the ticket's own link; the no-link email match credits new customers only (core ticketCredit); a pro
+ *           can't ticket a customer they did the same service for in the last 12 months (core ticketIntake). Existing-
+ *           customer lookups escape "_" / "%" (ilike wildcards).
  * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import {
-  BRAND, COMMISSION_BASIS, proSharesReferral, referralCostShares, PARTNER_PROGRAM, cleanPartnerCode, cleanTicketToken, getService, jobReferralBasis, makePartnerCode, makeTicketToken,
+  BRAND, COMMISSION_BASIS, PRO_OWN_CUSTOMER_DAYS, ticketCredit, ticketIntake, proSharesReferral, referralCostShares, PARTNER_PROGRAM, cleanPartnerCode, cleanTicketToken, getService, jobReferralBasis, makePartnerCode, makeTicketToken,
   TICKET_STANDARD_VERSION, ticketCheck, ticketNotes, type TicketDetails, money, moneySplit, partnerCommission, partnerExpiry, partnerTake, pctLabel, ticketExpiry, type Answers, type CommissionBasis, type Job, type PartnerKind,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -135,9 +139,12 @@ export async function joinPartner(viewer: { userId: string; email: string; fullN
 // ─── Who a customer belongs to ───────────────────────────────────────────────
 
 /** Has this email already paid for a job with us (other than `exceptJob`)? Existing customers can't be referred. */
-async function isExistingCustomer(email: string, exceptJob?: string) {
-  let q = db().from("jobs").select("id", { count: "exact", head: true }).ilike("contact_email", email).not("paid_at", "is", null);
+const likeEmail = (e: string) => e.replace(/[\\%_]/g, (c) => `\\${c}`); // "_" and "%" in an email are ilike wildcards
+
+async function isExistingCustomer(email: string, exceptJob?: string, before?: string) {
+  let q = db().from("jobs").select("id", { count: "exact", head: true }).ilike("contact_email", likeEmail(email)).not("paid_at", "is", null);
   if (exceptJob) q = q.neq("id", exceptJob);
+  if (before) q = q.lt("paid_at", before); // paid before this moment (e.g. before a ticket was created)
   const { count } = await q;
   return (count ?? 0) > 0;
 }
@@ -231,6 +238,18 @@ export async function submitTicket(partner: Partner, input: TicketInput): Promis
     Promise.resolve(input.i_will_do_it && partner.contractor_id ? partner.contractor_id : null),
   ]);
   const clear = Boolean(f.service_slug) && f.confidence !== "low" && Boolean(input.zip);
+  // security: a ticket must bring us NEW work. A pro's own recent customer (same service) can't be ticketed; any existing
+  // customer goes to staff review and can only earn through the ticket's own link (see attributeTicket)
+  const since = new Date(Date.now() - PRO_OWN_CUSTOMER_DAYS * 86400000).toISOString();
+  const [existingCustomer, served] = await Promise.all([
+    isExistingCustomer(email),
+    partner.contractor_id
+      ? db().from("jobs").select("service_slug").eq("contractor_id", partner.contractor_id).ilike("contact_email", likeEmail(email)).gte("created_at", since).neq("status", "cancelled").limit(200).then((r) => (r.data ?? []) as { service_slug: string }[])
+      : Promise.resolve([] as { service_slug: string }[]),
+  ]);
+  const intake = ticketIntake({ existingCustomer, clear, proServedSameService: Boolean(f.service_slug) && served.some((j) => j.service_slug === f.service_slug), proServedOtherService: served.length > 0 });
+  if (!intake.ok) return { ok: false, error: intake.error };
+  const open = intake.status === "open";
   // the referrer's own size answers win over the AI's reading (they were there); the AI fills the rest
   const answers: Answers = f.service_slug === chosen ? { ...f.answers, ...(input.answers ?? {}) } : f.answers;
   const scored = ticketCheck({ ...input, service_slug: f.service_slug, answers });
@@ -244,16 +263,16 @@ export async function submitTicket(partner: Partner, input: TicketInput): Promis
       description: input.description.trim(), service_slug: f.service_slug, frequency: f.frequency, urgency: f.urgency ?? input.urgency ?? null, budget: input.budget ?? null,
       access_notes: input.access_notes || null, photos, customer_consent: true, preferred_contractor_id: proId,
       answers, ai_summary: f.summary, details: input.details ?? {}, standard_version: TICKET_STANDARD_VERSION, completeness: scored.score, missing_info: f.missing_info, ai_confidence: f.confidence,
-      status: clear ? "open" : "needs_review", expires_at: ticketExpiry(now).toISOString(),
-      events: [{ at: now.toISOString(), text: `Ticket from ${partner.name}. ${f.service_slug ? `Filed as ${getService(f.service_slug)!.name}${f.frequency !== "once" ? ` (${f.frequency})` : ""}.` : "Service unclear."}${photos.length ? ` ${photos.length} photo(s).` : ""}${clear ? "" : " Sent to our team to review."}` }],
+      status: intake.status, expires_at: ticketExpiry(now).toISOString(),
+      events: [{ at: now.toISOString(), text: `Ticket from ${partner.name}. ${f.service_slug ? `Filed as ${getService(f.service_slug)!.name}${f.frequency !== "once" ? ` (${f.frequency})` : ""}.` : "Service unclear."}${photos.length ? ` ${photos.length} photo(s).` : ""}${intake.reason ? ` ${intake.reason}` : ""}` }],
     }).select("*").single();
     if (data) ticket = data as Ticket;
     else if (error && !/duplicate|unique/i.test(error.message)) return { ok: false, error: /referral_tickets/.test(error.message) ? "Referral tickets aren't switched on yet — we're on it." : error.message };
   }
   if (!ticket) return { ok: false, error: "Couldn't save the ticket — try again." };
-  if (clear) await sendTicketToCustomer(ticket, partner);
-  await raiseAlert("referral_ticket", clear ? "info" : "warn", `Referral ticket from ${partner.name}: ${f.service_slug ? getService(f.service_slug)!.name : "service unclear"} for ${ticket.customer_name}`,
-    `${f.summary ?? input.description.slice(0, 500)}${f.missing_info.length ? `\n\nStill need: ${f.missing_info.join(" · ")}` : ""}\n\n${clear ? "Booking link sent to the customer." : "Review it in Hub → Partners → Referral tickets, then send the customer their link."}`).catch(() => {});
+  if (open) await sendTicketToCustomer(ticket, partner);
+  await raiseAlert("referral_ticket", open ? "info" : "warn", `Referral ticket from ${partner.name}: ${f.service_slug ? getService(f.service_slug)!.name : "service unclear"} for ${ticket.customer_name}${existingCustomer ? " (existing customer)" : ""}`,
+    `${f.summary ?? input.description.slice(0, 500)}${f.missing_info.length ? `\n\nStill need: ${f.missing_info.join(" · ")}` : ""}\n\n${open ? "Booking link sent to the customer." : `${intake.reason} Review it in Hub → Referrals & tickets, then send the customer their link (or cancel it).`}`).catch(() => {});
   return { ok: true, ticket };
 }
 
@@ -282,9 +301,12 @@ async function attributeTicket(job: Job, token: string | null): Promise<string |
   const live = () => db().from("referral_tickets").select("id, partner_id, created_at, referral_partners(email, status)").in("status", ["open", "needs_review"]).gt("expires_at", new Date().toISOString());
   const tok = cleanTicketToken(token);
   let { data, error } = tok ? await live().eq("token", tok).limit(1) : { data: null, error: null };
+  const viaLink = Boolean(!error && data?.length);
   if (!error && !data?.length) ({ data, error } = await live().eq("customer_email", email).eq("service_slug", job.service_slug).order("created_at", { ascending: true }).limit(1));
   if (error || !data?.length) return null; // none (or the tickets migration hasn't been run yet)
   const t = data[0] as unknown as { id: string; partner_id: string; created_at: string; referral_partners: { email: string; status: string } | null };
+  // security: without the ticket's own link, only a NEW customer is credited — an existing customer's own rebooking never is
+  if (!ticketCredit({ viaLink, customerHadPaidJobBefore: viaLink ? false : await isExistingCustomer(email, job.id, t.created_at) })) return null;
   if (t.referral_partners?.status !== "active" || t.referral_partners.email === email) return null;
   // a person referral made before this ticket keeps the customer: one commission per job, first claim wins
   const claim = await personClaim(email);
