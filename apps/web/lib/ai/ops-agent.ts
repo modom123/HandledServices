@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-06_0752 UTC — runs with the $100M mission and its tasks; new tools: growth_status (plan pace plus the
  *           onboarding and new-jobs funnels), list_agent_tasks, assign_agent_task and close_agent_task, so staff can
  *           say "have the concierge push move-out cleans this week" and it's assigned.
+ * UPDATED : 2026-10-22_0500 UTC — referral_tickets tool: the referral queue (needs review, waiting, booked) and commissions owed.
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -148,6 +149,19 @@ function tools(actor: string) {
       description: "Mark an agent task done or cancelled (by id from list_agent_tasks) when the staff member asks.",
       inputSchema: z.object({ id: z.string().uuid(), status: z.enum(["done", "cancelled"]), note: z.string().max(300).optional() }),
       run: async ({ id, status, note }) => { await closeTask(id, status, note ?? null, actor); return `Task ${status}`; },
+    }),
+    betaZodTool({
+      name: "referral_tickets",
+      description: "Referral tickets (jobs sent to us by pros, clients and partners) by status, with the referrer, customer, service and AI summary; plus referral commissions owed and paid.",
+      inputSchema: z.object({ status: z.enum(["needs_review", "open", "booked", "expired", "cancelled", "all"]).default("all"), limit: z.number().int().min(1).max(50).default(20) }),
+      run: async ({ status, limit }) => {
+        let q = db().from("referral_tickets").select("id, status, customer_name, service_slug, frequency, ai_summary, missing_info, created_at, referral_partners(name, kind), jobs!referral_tickets_job_id_fkey(ref, status)").order("created_at", { ascending: false }).limit(limit);
+        if (status !== "all") q = q.eq("status", status);
+        const [{ data: tickets, error }, { data: comms }] = await Promise.all([q, db().from("partner_commissions").select("amount, status")]);
+        if (error) return "Referral tickets aren't switched on yet (run ADD_REFERRAL_TICKETS_2026-10-22_0400.sql).";
+        const sum = (st: string) => ((comms ?? []) as { amount: number; status: string }[]).filter((c) => c.status === st).reduce((t, c) => t + Number(c.amount), 0);
+        return JSON.stringify({ tickets, commissions: { owed: sum("pending"), paid: sum("paid") } });
+      },
     }),
     betaZodTool({
       name: "create_alert",

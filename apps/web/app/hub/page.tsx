@@ -6,6 +6,8 @@
  *           button: click it for the full history behind the number (app/hub/stats/[metric]).
  * UPDATED : 2026-10-04_1934 UTC — AI-driven target follows the growth plan year (80% → 95%).
  * UPDATED : 2026-10-06_0324 UTC — Factoring partners strip (outreach status and quotes in).
+ * UPDATED : 2026-10-22_0500 UTC — 🤝 Referrals strip: tickets needing review, waiting on the customer, booked this month,
+ *           commissions owed and paid this month (→ Hub → Referrals & tickets).
  * UPDATED : 2026-10-14_2330 UTC — Stats and insights only. The AI morning brief, alerts and today's schedule moved to
  *           Daily Briefing (app/hub/briefing). Tiles compare month-to-date with the same days last month and open
  *           drill-down history pages.
@@ -76,6 +78,19 @@ export default async function HubDashboard() {
   const in30 = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
   const today = now.toISOString().slice(0, 10);
   const adb = adminClient();
+  const [{ data: tickets }, { data: comms }] = await Promise.all([
+    adb.from("referral_tickets").select("status, created_at, updated_at").or(`status.in.(open,needs_review),updated_at.gte.${monthStart}`).limit(5000).then((r) => r, () => ({ data: null })),
+    adb.from("partner_commissions").select("amount, status, paid_at").or(`status.eq.pending,paid_at.gte.${monthStart}`).limit(10000),
+  ]);
+  const TK = (tickets ?? []) as { status: string; updated_at: string }[];
+  const CM = (comms ?? []) as { amount: number; status: string; paid_at: string | null }[];
+  const refs = {
+    review: TK.filter((t) => t.status === "needs_review").length,
+    waiting: TK.filter((t) => t.status === "open").length,
+    booked: TK.filter((t) => t.status === "booked" && t.updated_at >= monthStart).length,
+    owed: sum(CM.filter((c) => c.status === "pending").map((c) => c.amount)),
+    paid: sum(CM.filter((c) => c.status === "paid" && (c.paid_at ?? "") >= monthStart).map((c) => c.amount)),
+  };
   const [funnel, { data: pros }, { data: activations }, { data: noProAlerts }, { data: proLeads }] = await Promise.all([
     pipeline(),
     v.db.from("contractors").select("status, insured_until, dropped_at").limit(10000),
@@ -237,6 +252,11 @@ export default async function HubDashboard() {
           )}
         </section>
       ))}
+
+      <Link href="/hub/partners" className={`card flex flex-wrap items-center justify-between gap-3 p-4 hover:border-brand ${refs.review ? "border-amber-400" : ""}`}>
+        <span className="text-sm font-semibold">🤝 Referrals <span className="font-normal text-ink-soft">· pros, clients and partners sending us work (20% / 15% / 10% of our take)</span></span>
+        <span className="text-xs text-ink-soft">{refs.review ? <b className="text-amber-700">{refs.review} ticket(s) need review · </b> : null}{refs.waiting} waiting on the customer · {refs.booked} booked this month · {money(refs.owed)} owed · {money(refs.paid)} paid this month →</span>
+      </Link>
 
       {F.length > 0 && (
         <Link href="/hub/factoring" className="card flex flex-wrap items-center justify-between gap-3 p-4 hover:border-brand">

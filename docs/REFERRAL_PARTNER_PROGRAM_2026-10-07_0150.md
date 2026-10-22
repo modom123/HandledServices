@@ -3,7 +3,13 @@
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-07_0150 UTC
   PURPOSE : How the Referral Partner Program works, how to turn it on, and how to recruit partners.
+  UPDATED : 2026-10-22_0500 UTC — referral tickets added (refer a job: 20% one-time / 15% recurring for 12 months, photos, AI
+            filing; open to pros and clients). See docs/REFERRAL_TICKETS_2026-10-22_0400.md.
 -->
+
+> **Update 2026-10-22:** besides referring a person (10%, below), partners — now including Handled pros and clients — can
+> send a specific job on a **referral ticket**: 20% of our fee on a one-time job, 15% on every visit of a recurring job for
+> 12 months. Full guide: [`REFERRAL_TICKETS_2026-10-22_0400.md`](REFERRAL_TICKETS_2026-10-22_0400.md).
 
 # Referral Partner Program
 

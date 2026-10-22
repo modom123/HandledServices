@@ -12,6 +12,7 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-10-22_0500 UTC — 🤝 Referrals: tickets this pro sent, jobs booked from them and referral commissions.
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -57,6 +58,13 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
   const ytdPaid = ((payouts ?? []) as Rec[]).filter((p) => ["paid", "clawback"].includes(p.status) && (p.paid_at ?? p.created_at).startsWith(String(year))).reduce((t, p) => t + Number(p.amount), 0);
   const owed = ((payouts ?? []) as Rec[]).filter((p) => ["approved", "pending"].includes(p.status)).reduce((t, p) => t + Number(p.amount), 0)
     + ((payouts ?? []) as Rec[]).filter((p) => p.status === "clawback" && !p.paid_at).reduce((t, p) => t + Number(p.amount), 0);
+  // the pro as a referrer (partner account linked by contractor_id, else by email)
+  const { data: refP } = await adminClient().from("referral_partners").select("id, code").or(`contractor_id.eq.${id},email.eq.${String(pro.email).toLowerCase()}`).limit(1).maybeSingle().then((r) => r, () => ({ data: null }));
+  const [{ data: refT }, { data: refC }] = refP ? await Promise.all([
+    adminClient().from("referral_tickets").select("status").eq("partner_id", refP.id).then((r) => r, () => ({ data: null })),
+    adminClient().from("partner_commissions").select("amount, status").eq("partner_id", refP.id),
+  ]) : [{ data: null }, { data: null }];
+  const refSum = (st: string) => ((refC ?? []) as Rec[]).filter((c) => c.status === st).reduce((t, c) => t + Number(c.amount), 0);
   const qa = Number(sc.qa_checked) ? Math.round((Number(sc.qa_passed) / Number(sc.qa_checked)) * 100) : null;
   return (
     <div className="space-y-6">
@@ -85,6 +93,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         <Stat label="Rating (60% customer · 40% us)" value={`${pro.rating} ★`} hint={`Customers ${custAvg}★ · us ${opsAvg}★ (quality ${aspect("quality")}, punctual ${aspect("punctuality")}, pro ${aspect("professionalism")}) · QA pass ${qa ?? "—"}% · ${sc.redos ?? 0} redos · ${money(Number(sc.refunds_on_their_jobs ?? 0))} refunded`} />
         <Stat label="Reliability" value={`${Math.round(pro.on_time_rate * 100)}% on time`} hint={`${Math.round(pro.acceptance_rate * 100)}% acceptance · last job ${sc.last_job_at ? fmtDate(sc.last_job_at) : "never"}`} />
         <Stat label={`Paid ${year} (1099)`} value={money(ytdPaid)} hint={`${money(owed)} owed · 1099-NEC at ${money(necThreshold(year))}+`} />
+        <Link href="/hub/partners" className="block"><Stat label="🤝 Referrals" value={refP ? money(refSum("paid") + refSum("pending")) : "Not joined"} hint={refP ? `${(refT ?? []).length} ticket(s) · ${((refT ?? []) as Rec[]).filter((t) => t.status === "booked").length} booked · ${money(refSum("pending"))} owed · code ${refP.code} (commissions are paid separately from job payouts)` : "Pro portal → Refer & earn"} /></Link>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">

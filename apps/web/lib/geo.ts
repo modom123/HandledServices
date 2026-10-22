@@ -8,6 +8,7 @@
  *           back to each pro's ZIP list, so nothing stops if the lookup is down.
  * UPDATED : 2026-10-06_2010 UTC — geocodeAddress(): exact street-address location (Google Geocoding) for jobs and pros'
  *           places of business, falling back to the ZIP centroid.
+ * UPDATED : 2026-10-22_0500 UTC — zipPlace(): ZIP → city and state for form autofill (same lookup and cache).
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -33,6 +34,15 @@ export async function zipCentroid(zip: string | null | undefined): Promise<{ lat
   } catch {
     return null;
   }
+}
+
+/** ZIP → city and state, for filling in forms (cached in zip_geo by the same free lookup). */
+export async function zipPlace(zip: string | null | undefined): Promise<{ city: string; state: string } | null> {
+  if (!zip || !/^\d{5}$/.test(zip)) return null;
+  const read = async () => (await adminClient().from("zip_geo").select("city, state").eq("zip", zip).maybeSingle()).data as { city: string | null; state: string | null } | null;
+  let row = await read();
+  if (!row?.city) { memo.delete(zip); await zipCentroid(zip); row = await read(); }
+  return row?.city && row.state ? { city: row.city, state: row.state } : null;
 }
 
 /**

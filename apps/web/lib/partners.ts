@@ -18,6 +18,8 @@
  *           20% of our take on a one-time job, 15% on every visit of a recurring plan for 12 months; each row records
  *           its basis and rate. The referrer hears at every step (ticketEvent). joinPartner(): one-tap join for pros
  *           and clients (pros reuse their Stripe payout account).
+ * UPDATED : 2026-10-22_0500 UTC — ticket photos: stored on the ticket, shown to the AI when it files it, carried into the
+ *           customer's pre-filled booking (no re-upload) and mentioned in their email.
  * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
  */
 import "server-only";
@@ -152,7 +154,7 @@ export type Ticket = {
   id: string; token: string; partner_id: string; customer_email: string; customer_name: string; customer_phone: string | null; customer_id: string | null;
   company_name: string | null; address: string | null; city: string | null; state: string | null; zip: string | null;
   description: string; service_slug: string | null; frequency: string; urgency: string | null; budget: number | null; access_notes: string | null;
-  customer_consent: boolean; preferred_contractor_id: string | null; answers: Answers; ai_summary: string | null; missing_info: string[];
+  photos: string[]; customer_consent: boolean; preferred_contractor_id: string | null; answers: Answers; ai_summary: string | null; missing_info: string[];
   ai_confidence: "high" | "medium" | "low" | null; status: "open" | "needs_review" | "booked" | "expired" | "cancelled"; basis: "job_once" | "job_recurring" | null;
   job_id: string | null; pays_until: string | null; expires_at: string; events: { at: string; text: string }[]; created_at: string;
 };
@@ -161,7 +163,7 @@ export type TicketInput = {
   customer_name: string; customer_email: string; customer_phone?: string | null; company_name?: string | null;
   address?: string | null; city?: string | null; state?: string | null; zip?: string | null;
   description: string; service_slug?: string | null; frequency?: string | null; urgency?: string | null; budget?: number | null; access_notes?: string | null;
-  customer_consent: boolean; i_will_do_it?: boolean;
+  photos?: string[]; customer_consent: boolean; i_will_do_it?: boolean;
 };
 
 /** The customer's personal booking link: the booking page opens with everything on the ticket filled in. */
@@ -198,7 +200,8 @@ export async function submitTicket(partner: Partner, input: TicketInput): Promis
   }
   // the AI files it: the right service, how often, the pricing answers, a summary and what's still missing
   const { fileTicket } = await import("./ai/referral-ticket");
-  const f = await fileTicket({ description: input.description, service_slug: chosen, frequency: input.frequency ?? null, urgency: input.urgency ?? null, budget: input.budget ?? null, zip: input.zip ?? null, customer_type: input.company_name ? "commercial" : "residential" });
+  const photos = (input.photos ?? []).slice(0, 8);
+  const f = await fileTicket({ photoUrls: photos.length ? await (await import("./photos")).signedUrls(photos, 600) : [], description: input.description, service_slug: chosen, frequency: input.frequency ?? null, urgency: input.urgency ?? null, budget: input.budget ?? null, zip: input.zip ?? null, customer_type: input.company_name ? "commercial" : "residential" });
   // the right person: the customer's Handled account (if they have one) and, for a pro who wants it, first look
   const [{ data: profile }, proId] = await Promise.all([
     db().from("profiles").select("id").ilike("email", email.replace(/[\\%_]/g, (c) => `\\${c}`)).limit(1).maybeSingle(), // escaped: "_" in an email is a wildcard to ilike
@@ -213,10 +216,10 @@ export async function submitTicket(partner: Partner, input: TicketInput): Promis
       customer_email: email, customer_name: input.customer_name.trim(), customer_phone: input.customer_phone || null, customer_id: profile?.id ?? null, company_name: input.company_name || null,
       address: input.address || null, city: input.city || null, state: input.state?.toUpperCase() || null, zip: input.zip || null,
       description: input.description.trim(), service_slug: f.service_slug, frequency: f.frequency, urgency: f.urgency ?? input.urgency ?? null, budget: input.budget ?? null,
-      access_notes: input.access_notes || null, customer_consent: true, preferred_contractor_id: proId,
+      access_notes: input.access_notes || null, photos, customer_consent: true, preferred_contractor_id: proId,
       answers: f.answers, ai_summary: f.summary, missing_info: f.missing_info, ai_confidence: f.confidence,
       status: clear ? "open" : "needs_review", expires_at: ticketExpiry(now).toISOString(),
-      events: [{ at: now.toISOString(), text: `Ticket from ${partner.name}. ${f.service_slug ? `Filed as ${getService(f.service_slug)!.name}${f.frequency !== "once" ? ` (${f.frequency})` : ""}.` : "Service unclear."}${clear ? "" : " Sent to our team to review."}` }],
+      events: [{ at: now.toISOString(), text: `Ticket from ${partner.name}. ${f.service_slug ? `Filed as ${getService(f.service_slug)!.name}${f.frequency !== "once" ? ` (${f.frequency})` : ""}.` : "Service unclear."}${photos.length ? ` ${photos.length} photo(s).` : ""}${clear ? "" : " Sent to our team to review."}` }],
     }).select("*").single();
     if (data) ticket = data as Ticket;
     else if (error && !/duplicate|unique/i.test(error.message)) return { ok: false, error: /referral_tickets/.test(error.message) ? "Referral tickets aren't switched on yet — we're on it." : error.message };
@@ -234,7 +237,7 @@ export async function sendTicketToCustomer(t: Ticket, partner?: Partner) {
   const svc = t.service_slug ? getService(t.service_slug) : null;
   const what = svc ? svc.name.toLowerCase() : "job";
   await sendEmail(t.customer_email, `${p.name} sent us your ${what} — your price is ready to confirm`,
-    `Hi ${t.customer_name.split(" ")[0]},\n\n${p.name}${p.company ? ` (${p.company})` : ""} asked ${BRAND.name} to take care of your ${what}. Here's what we have:\n\n${t.ai_summary ?? t.description}\n\nWe've filled in everything ${p.name.split(" ")[0]} told us. Open your link to check the details, see your upfront price and pick a time:\n${ticketLink(t)}\n${t.missing_info.length ? `\nA few things only you can tell us: ${t.missing_info.join(" ")}\n` : ""}\nInsured, background-checked local pros, photo proof when it's done, and a free redo if anything's missed. Questions? Just reply.\n\n— ${BRAND.name}`);
+    `Hi ${t.customer_name.split(" ")[0]},\n\n${p.name}${p.company ? ` (${p.company})` : ""} asked ${BRAND.name} to take care of your ${what}. Here's what we have:\n\n${t.ai_summary ?? t.description}\n\nWe've filled in everything ${p.name.split(" ")[0]} told us${t.photos?.length ? `, including the ${t.photos.length} photo${t.photos.length === 1 ? "" : "s"} they took` : ""}. Open your link to check the details, see your upfront price and pick a time:\n${ticketLink(t)}\n${t.missing_info.length ? `\nA few things only you can tell us: ${t.missing_info.join(" ")}\n` : ""}\nInsured, background-checked local pros, photo proof when it's done, and a free redo if anything's missed. Questions? Just reply.\n\n— ${BRAND.name}`);
   await ticketEvent(t.id, "Booking link sent to the customer.");
 }
 
@@ -274,6 +277,18 @@ async function attributeTicket(job: Job, token: string | null): Promise<string |
     body: `${job.contact_name} booked the ${svc?.name.toLowerCase()} you sent us (${job.ref}).${basis === "job_recurring" ? ` It's ${job.frequency}, so you earn ${pctLabel(pct)}% of our fee on every visit for ${P.months} months.` : ` You earn ${pctLabel(pct)}% of our fee when it's done.`} We'll tell you when a pro is assigned and when it's complete.`,
   });
   return t.partner_id;
+}
+
+/** Daily sweep: tickets the customer didn't book in time expire, and the referrer is told. */
+export async function expireTickets(now = new Date()): Promise<number> {
+  const { data } = await db().from("referral_tickets").update({ status: "expired", updated_at: now.toISOString() })
+    .in("status", ["open", "needs_review"]).lte("expires_at", now.toISOString()).select("id, customer_name, service_slug");
+  for (const t of (data ?? []) as { id: string; customer_name: string; service_slug: string | null }[])
+    await ticketEvent(t.id, "Expired: not booked within the window.", {
+      subject: `Your referral for ${t.customer_name.split(" ")[0]} expired`,
+      body: `${t.customer_name} didn't book the ${t.service_slug ? getService(t.service_slug)?.name.toLowerCase() : "job"} you sent us within ${P.ticketDays} days, so the ticket closed. If they still need it, send a new ticket from your partner page.`,
+    }).catch(() => {});
+  return data?.length ?? 0;
 }
 
 /** Offer accepted: the referrer hears their job is covered (first visit only; recurring visits aren't news). */

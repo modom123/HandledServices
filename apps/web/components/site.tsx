@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-07_0030 UTC — green, white and gold: white header with a gold top rule, gold-on-deep-green logo mark,
  *           gold rule above the footer.
  * UPDATED : 2026-10-07_0140 UTC — Partner Program in the For Business menu and the footer.
+ * UPDATED : 2026-10-22_0500 UTC — Partner Program hint: 20% per job you send us (referral tickets).
  * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
  * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
  * UPDATED : 2026-10-11_2307 UTC — For Business menu: Intelligent websites & automation (/technology).
@@ -54,7 +55,7 @@ export async function SiteHeader() {
         { href: "/business#industries", label: es ? "Industrias que atendemos" : "Who we serve", icon: "🏬" },
         { href: "/events", label: t("Parties & events"), icon: "🎉", hint: es ? "Eventos corporativos, una factura" : "Corporate events, one invoice" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
-        { href: "/partners", label: es ? "Programa de socios: gane por referir" : "Partner Program: earn on referrals", icon: "💸", hint: es ? "10% de nuestra tarifa por 12 meses" : "10% of our fee for 12 months" },
+        { href: "/partners", label: es ? "Programa de socios: gane por referir" : "Partner Program: earn on referrals", icon: "💸", hint: es ? "20% por trabajo que nos envíe, 10% por persona" : "20% per job you send us, 10% per person" },
       ],
       footer: { href: "/business#quote", label: es ? "Pida una propuesta →" : "Request a proposal →" },
     },

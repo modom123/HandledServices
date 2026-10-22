@@ -12,10 +12,13 @@
  *           its risk. The gateway (gateway.ts) enforces scopes + autonomy and logs
  *           everything to agent_actions.
  * UPDATED : 2026-10-18_0415 UTC — read.tax_1099 flags each pro file / under / exempt (corporation).
+ * UPDATED : 2026-10-22_0500 UTC — referral program for IEBC workers: read.referral_tickets, sales.send_referral_ticket
+ *           (approve & send the customer's pre-filled link), sales.cancel_referral_ticket, sales.note_referral_ticket,
+ *           finance.referral_commissions and finance.void_referral_commission (high risk: always approved by a person).
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, JOB_STATUSES, form1099, money, necThreshold, onboardingChecklist, splitJob } from "@handled/core";
+import { BRAND, COMMISSION_BASIS, JOB_STATUSES, SERVICES, form1099, money, necThreshold, onboardingChecklist, splitJob } from "@handled/core";
 import { adminClient } from "../supabase/server";
 import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink, setStatus } from "../jobs";
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
@@ -382,6 +385,64 @@ export const ACTIONS: Record<string, ActionDef> = {
     scope: "sales", write: true, risk: "low", description: "Record a new lead (residential or commercial).",
     params: z.object({ name: z.string(), email: z.string().email().optional(), phone: z.string().optional(), zip: z.string().optional(), service_slug: z.string().optional(), message: z.string().max(2000) }),
     run: async (p) => { await db().from("leads").insert({ ...p, source: "iebc" }); return "lead created"; },
+  }),
+  // ─── referral program (pros, clients and partners sending us work) ───
+  "read.referral_tickets": def({
+    scope: "read", write: false, risk: "low", description: "Referral tickets — jobs sent to us by pros, clients and partners — with the AI filing (service, frequency, summary, what's missing), the referrer, the customer and the booked job. Filter by status (needs_review = waiting on us).",
+    params: z.object({ status: z.enum(["needs_review", "open", "booked", "expired", "cancelled"]).optional(), limit: z.number().int().min(1).max(100).default(30) }),
+    run: async ({ status, limit }) => {
+      let q = db().from("referral_tickets").select("id, status, customer_name, customer_email, zip, service_slug, frequency, urgency, budget, description, ai_summary, missing_info, ai_confidence, photos, basis, pays_until, expires_at, created_at, events, referral_partners(name, kind, code), jobs!referral_tickets_job_id_fkey(ref, status, price_final)").order("created_at", { ascending: false }).limit(limit);
+      if (status) q = q.eq("status", status);
+      const { data, error } = await q;
+      if (error) return "Referral tickets aren't switched on yet (ADD_REFERRAL_TICKETS_2026-10-22_0400.sql).";
+      return (data ?? []).map((t: Record<string, unknown>) => ({ ...t, photos: (t.photos as string[] | null)?.length ?? 0 }));
+    },
+  }),
+  "sales.send_referral_ticket": def({
+    scope: "sales", write: true, risk: "low", description: "Approve a referral ticket (set the service if the AI wasn't sure) and email the customer their pre-filled booking link; also re-sends an open ticket's link. The referrer already confirmed the customer asked for it.",
+    params: z.object({ ticket_id: z.string().uuid(), service_slug: z.enum(SERVICES.map((x) => x.slug) as [string, ...string[]]) }),
+    run: async ({ ticket_id, service_slug }, ctx) => {
+      const { data: t } = await db().from("referral_tickets").update({ status: "open", service_slug, updated_at: new Date().toISOString() }).eq("id", ticket_id).in("status", ["open", "needs_review"]).select("*").maybeSingle();
+      if (!t) return "This ticket is already booked, expired or cancelled.";
+      if (!t.zip) return "The ticket has no ZIP — ask the referrer before sending.";
+      const P = await import("../partners");
+      await P.ticketEvent(ticket_id, `Approved by ${ctx.actor}.`);
+      await P.sendTicketToCustomer(t as never);
+      return "Booking link sent to the customer.";
+    },
+  }),
+  "sales.cancel_referral_ticket": def({
+    scope: "sales", write: true, risk: "low", description: "Cancel a referral ticket that isn't booked (duplicate, customer said no, out of area). The customer's link stops working.",
+    params: z.object({ ticket_id: z.string().uuid(), reason: z.string().max(300) }),
+    run: async ({ ticket_id, reason }, ctx) => {
+      const { data } = await db().from("referral_tickets").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", ticket_id).in("status", ["open", "needs_review"]).select("id");
+      if (!data?.length) return "Not cancelled — it's booked, expired or already cancelled.";
+      await (await import("../partners")).ticketEvent(ticket_id, `Cancelled by ${ctx.actor}: ${reason}`);
+      return "cancelled";
+    },
+  }),
+  "sales.note_referral_ticket": def({
+    scope: "sales", write: true, risk: "low", description: "Add a line to a referral ticket's timeline (calls with the customer, what's missing, follow-ups). The referrer sees the timeline on their partner page.",
+    params: z.object({ ticket_id: z.string().uuid(), note: z.string().min(2).max(500) }),
+    run: async ({ ticket_id, note }, ctx) => { await (await import("../partners")).ticketEvent(ticket_id, `${note} (${ctx.actor})`); return "noted"; },
+  }),
+  "finance.referral_commissions": def({
+    scope: "finance", write: false, risk: "low", description: "Referral commissions by partner: owed (pending), paid and voided, with the basis (person 10%, one-time job 20%, recurring job 15%). Paid Mondays via Stripe after the 30-day guarantee.",
+    params: z.object({ status: z.enum(["pending", "paid", "void"]).optional() }),
+    run: async ({ status }) => {
+      let q = db().from("partner_commissions").select("id, amount, take, status, eligible_at, paid_at, basis, pct, note, referral_partners(name, kind, code), jobs(ref, service_slug)").order("created_at", { ascending: false }).limit(500);
+      if (status) q = q.eq("status", status);
+      const { data } = await q;
+      return { rates: Object.fromEntries(Object.entries(COMMISSION_BASIS).map(([k, v]) => [k, v.pct])), commissions: data };
+    },
+  }),
+  "finance.void_referral_commission": def({
+    scope: "finance", write: true, risk: "high", description: "Cancel an unpaid referral commission (fraud, self-referral, policy breach). Always waits for human approval.",
+    params: z.object({ commission_id: z.string().uuid(), reason: z.string().min(3).max(300) }),
+    run: async ({ commission_id, reason }, ctx) => {
+      const { data } = await db().from("partner_commissions").update({ status: "void", amount: 0, note: `${reason} (${ctx.actor})` }).eq("id", commission_id).eq("status", "pending").select("id");
+      return data?.length ? "voided" : "Not voided — already paid or voided.";
+    },
   }),
   "sales.update_account": def({
     scope: "sales", write: true, risk: "low", description: "Update a commercial account's stage, monthly value or notes.",

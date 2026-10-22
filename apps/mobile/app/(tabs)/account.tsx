@@ -6,13 +6,14 @@
  * UPDATED : 2026-10-03_0042 UTC — My contracts (opens the signed copies on the website).
  * PURPOSE : Account — Handled Plus, give $25 / get $25 referral (share sheet), sign out, and
  *           delete my account (required by the App Store and Google Play).
+ * UPDATED : 2026-10-22_0500 UTC — "Earn cash for referrals" card: referral tickets and person referrals (opens the partner page).
  * UPDATED : 2026-10-06_0645 UTC — now a tab: signed out it offers Sign in (and the language), signed in it loads with a
  *           spinner and a Try again if the connection drops; sign-out refreshes the shared session.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Share, Text, View, ScrollView } from "react-native";
 import { router } from "expo-router";
-import { HANDLED_PLUS, REFERRAL, money } from "@handled/core";
+import { HANDLED_PLUS, PARTNER_PROGRAM, REFERRAL, money, pctLabel } from "@handled/core";
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { unregisterPush } from "../../lib/push";
 import { clearProfile } from "../../lib/profile";
@@ -96,6 +97,13 @@ export default function Account() {
           <Button title={t("Share my code")} onPress={() => Share.share({ message: es ? `Pruebe Handled — ${money(REFERRAL.friendOff)} de descuento en su primer trabajo con mi código ${me.referralCode}: ${me.referralLink}` : `Try Handled — ${money(REFERRAL.friendOff)} off your first job with my code ${me.referralCode}: ${me.referralLink}` })} style={{ marginTop: 10 }} />
         </Card>
       )}
+      <Card style={{ marginTop: 12 }}>
+        <Text style={s.b}>🤝 {es ? "Gane dinero recomendando" : "Earn cash for referrals"}</Text>
+        <Text style={s.p}>{es
+          ? `Envíenos un trabajo y gane el ${pctLabel(PARTNER_PROGRAM.jobOncePct)}% de nuestra tarifa (${pctLabel(PARTNER_PROGRAM.jobRecurringPct)}% en cada visita si se repite, por ${PARTNER_PROGRAM.months} meses), o recomiende a una persona y gane el ${pctLabel(PARTNER_PROGRAM.pctOfTake)}% de todo lo que reserve. Pagado semanalmente.`
+          : `Send us a job and earn ${pctLabel(PARTNER_PROGRAM.jobOncePct)}% of our fee (${pctLabel(PARTNER_PROGRAM.jobRecurringPct)}% on every visit if it repeats, for ${PARTNER_PROGRAM.months} months), or refer a person and earn ${pctLabel(PARTNER_PROGRAM.pctOfTake)}% of everything they book. Paid weekly.`}</Text>
+        <Button title={es ? "Empezar a ganar" : "Start earning"} onPress={() => Linking.openURL(`${API_URL}/partner`)} style={{ marginTop: 10 }} />
+      </Card>
       <View style={{ marginTop: 24, gap: 10 }}>
         <Button title={t("My contracts")} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/account/contracts`)} />
         <Button title={t("Sign out")} kind="ghost" onPress={signOut} />

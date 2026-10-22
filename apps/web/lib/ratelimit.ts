@@ -25,6 +25,7 @@ export const LIMITS = {
   booking: [20, 3600],
   form: [10, 3600],
   pro_prices: [120, 3600],
+  zip_lookup: [120, 3600],    // ZIP → city/state autofill on forms
   tip: [20, 3600],
   pay: [30, 3600],
   error_report: [30, 600],

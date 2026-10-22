@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-20_0200 UTC — ?quote=&bid=: book a request-a-quote at the pro's locked price.
  * UPDATED : 2026-10-22_0400 UTC — ?ticket=<token>: a referral ticket's link — everything the referrer entered and the AI filed
  *           (customer, address, service, pricing answers, how often, when, notes) is filled in; the booking credits the referrer.
+ * UPDATED : 2026-10-22_0500 UTC — the ticket's photos come along (from the database, so a pro's pro/… photo paths are kept).
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";
@@ -86,7 +87,7 @@ async function ticketBooking(token?: string) {
     contact: { name: t.customer_name, email: t.customer_email, phone: t.customer_phone ?? "", address: t.address ?? "", city: t.city ?? "", state: t.state ?? "", zip: t.zip ?? "", company: t.company_name ?? "" },
   };
   const notes = [t.ai_summary ?? t.description, t.missing_info.length ? `Still to confirm: ${t.missing_info.join(" ")}` : null].filter(Boolean).join("\n\n");
-  return { prefill, service: t.service_slug ?? undefined, answers: t.answers as Record<string, string | number | boolean>, frequency: t.frequency, urgency: t.urgency ?? undefined, budget: t.budget ? String(t.budget) : undefined, notes };
+  return { prefill, photos: (t.photos ?? []).slice(0, 8), service: t.service_slug ?? undefined, answers: t.answers as Record<string, string | number | boolean>, frequency: t.frequency, urgency: t.urgency ?? undefined, budget: t.budget ? String(t.budget) : undefined, notes };
 }
 
 export const metadata = { title: "Book a service" };
@@ -107,7 +108,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   return (
     <div className="wrap py-12">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t(locale, "Get your price & book")}</h1>
-      <BookingWizard quote={quoted?.quote ?? null} ticket={fromTicket?.prefill ?? null} business={business} initialService={service} prefill={prefill} initialUrgency={fromTicket?.urgency ?? when} initialBudget={fromTicket?.budget ?? budget} initialPromo={promo} initialFrequency={fromTicket?.frequency ?? frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={(fromTicket?.notes ?? notes)?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
+      <BookingWizard quote={quoted?.quote ?? null} ticket={fromTicket?.prefill ?? null} business={business} initialService={service} prefill={prefill} initialUrgency={fromTicket?.urgency ?? when} initialBudget={fromTicket?.budget ?? budget} initialPromo={promo} initialFrequency={fromTicket?.frequency ?? frequency} locale={locale} preferred={preferred} initialPhotos={fromTicket?.photos.length ? fromTicket.photos : initialPhotos} initialNotes={(fromTicket?.notes ?? notes)?.slice(0, 1500)} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
     </div>
   );
 }

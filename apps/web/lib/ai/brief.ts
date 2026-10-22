@@ -5,6 +5,7 @@
  * PURPOSE : Daily AI operations brief (Vercel cron, 12:00 UTC). Summarizes yesterday,
  *           today's schedule, risks and the top actions for the team. Saved as an
  *           ops alert and emailed to OPS_EMAIL.
+ * UPDATED : 2026-10-22_0500 UTC — referral tickets waiting for review or for the customer, and yesterday's referred bookings.
  * UPDATED : 2026-10-06_0752 UTC — measured against the $100M plan every day, onboarding and new jobs first: pace (revenue run-rate vs this plan year's
  *           target), today's Growth plan, and progress on every open agent task; actions ranked by impact on the goal.
  */
@@ -45,6 +46,7 @@ export async function buildDailyBrief(growthPlan: string | null = null): Promise
     openAgentTasks(true),
     loadFunnels().catch(() => null),
   ]);
+  const { data: refTickets } = await db.from("referral_tickets").select("status, service_slug, customer_name, ai_summary, updated_at, referral_partners(name, kind)").or(`status.in.(needs_review,open),updated_at.gte.${y}`).limit(50).then((r) => r, () => ({ data: null }));
   const pace = score?.pace;
   return structured({
     kind: "daily_brief",
@@ -55,7 +57,7 @@ export async function buildDailyBrief(growthPlan: string | null = null): Promise
       bookings_yesterday: created.data, schedule_today: todayJobs.data, open_pipeline: open.data,
       unresolved_alerts: alerts.data, new_pro_applications: apps.data, reviews_yesterday: reviews.data,
       plan_pace: pace ? { plan_year: pace.year, phase: pace.plan.phase, revenue_target: pace.plan.revenue, take_run_rate: Math.round(pace.takeRunRate), pace_pct: Math.round(pace.takePace * 100) } : "no data yet",
-      funnels, todays_growth_plan: growthPlan, open_agent_tasks: tasks.map((t) => ({ agent: t.agent, task: taskLine(t), by: t.created_by })),
+      referral_tickets: refTickets ?? "not switched on", funnels, todays_growth_plan: growthPlan, open_agent_tasks: tasks.map((t) => ({ agent: t.agent, task: taskLine(t), by: t.created_by })),
     }),
     effort: "medium",
   });

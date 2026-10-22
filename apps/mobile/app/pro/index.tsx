@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_2120 UTC — Your cancellations card (last 90 days: late, no-shows, short notice, free, excused).
  * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
+ * UPDATED : 2026-10-22_0500 UTC — 🤝 Refer & earn: referral tickets and person referrals (opens the partner page).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -98,6 +99,7 @@ export default function ProHome() {
     { icon: "📅", label: t("My calendar & days off"), go: () => router.push("/pro/schedule") },
     { icon: "👷", label: t("My crew"), go: () => router.push("/pro/crew") },
     { icon: "🎁", label: t("Rewards"), go: () => router.push("/pro/rewards") },
+    { icon: "🤝", label: locale === "es" ? "Recomiende y gane (20% por trabajo)" : "Refer & earn (20% per job)", go: () => Linking.openURL(`${API_URL}/partner`) },
     { icon: "📄", label: t("Setup & documents"), go: () => Linking.openURL(`${API_URL}/pro/onboarding`) },
     { icon: "✍️", label: t("My contracts"), go: () => Linking.openURL(`${API_URL}/pro/contracts`) },
   ];

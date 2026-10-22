@@ -2,6 +2,7 @@
 -- FILE    : supabase/setup/ADD_REFERRAL_TICKETS_2026-10-22_0400.sql
 -- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-22_0400 UTC
+-- UPDATED : 2026-10-22_0500 UTC - photos on the ticket (same private bucket and paths as booking photos).
 -- PURPOSE : One paste in Supabase → SQL Editor → Run (same as migrations/20261022040000_referral_tickets.sql).
 --           Referral program, part 2: REFERRAL TICKETS. Pros, clients and anyone in the partner program fill out a
 --           ticket for one job (customer, address, what's needed, how often, when). AI files it: the right service,
@@ -36,6 +37,7 @@ create table if not exists public.referral_tickets (
   urgency text check (urgency in ('asap','this_week','two_weeks','month','flexible')),
   budget numeric(12,2),
   access_notes text,
+  photos text[] not null default '{}',       -- job-photos bucket paths (booking/… or pro/…), max 8
   customer_consent boolean not null default false,  -- "the customer asked me to send this"
   preferred_contractor_id uuid references public.contractors(id) on delete set null,  -- a referring pro who wants first look
   -- what the AI made of it
@@ -53,6 +55,7 @@ create table if not exists public.referral_tickets (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table public.referral_tickets add column if not exists photos text[] not null default '{}';  -- for databases that ran the first version
 create index if not exists referral_tickets_match_idx on public.referral_tickets (customer_email, service_slug) where status in ('open','needs_review');
 create index if not exists referral_tickets_partner_idx on public.referral_tickets (partner_id, created_at desc);
 create index if not exists referral_tickets_status_idx on public.referral_tickets (status, created_at desc);

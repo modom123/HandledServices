@@ -7,13 +7,17 @@
  *             { action: "connect" }                                          — Stripe payout setup link
  *             { action: "join", agree: true }                                — a signed-in pro or client joins in one tap
  *             { action: "ticket", customer_*, address…, description, service_slug?, frequency?, urgency?, budget?,
- *               access_notes?, customer_consent: true, i_will_do_it? }       — a referral ticket (AI files it, customer gets a link)
+ *               access_notes?, photos?, customer_consent: true, i_will_do_it? } — a referral ticket (AI files it, customer gets a link)
  * UPDATED : 2026-10-22_0400 UTC — one-tap join for pros and clients; referral tickets.
+ * UPDATED : 2026-10-22_0500 UTC — referral ticket photos (paths from /api/uploads, up to 8).
+ * UPDATED : 2026-10-22_0500 UTC — GET ?customer=<email>: autofill a ticket from the referrer's OWN earlier tickets or referrals
+ *           for that customer (never anyone else's data; no entry details).
  */
 import { z } from "zod";
-import { getService } from "@handled/core";
+import { getService, isPhotoPath } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { adminClient } from "@/lib/supabase/server";
 import { joinPartner, partnerConnectUrl, partnerFor, referCustomer, submitTicket } from "@/lib/partners";
 
 export const maxDuration = 60; // the AI files a ticket before we answer
@@ -36,8 +40,23 @@ const Body = z.discriminatedUnion("action", [
     urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).optional().nullable(),
     budget: z.coerce.number().min(0).max(10_000_000).optional().nullable(), access_notes: z.string().trim().max(1000).optional().nullable(),
     customer_consent: z.literal(true), i_will_do_it: z.boolean().optional(),
+    photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   }),
 ]);
+
+export async function GET(req: Request) {
+  const v = await getViewer(req);
+  if (!v) return deny(401, "Sign in first");
+  const partner = await partnerFor(v);
+  if (!partner) return deny(403, "Not a partner");
+  const email = z.string().trim().toLowerCase().email().safeParse(new URL(req.url).searchParams.get("customer"));
+  if (!email.success) return Response.json({ customer: null });
+  const db = adminClient();
+  const { data: t } = await db.from("referral_tickets").select("customer_name, customer_phone, company_name, address, city, state, zip").eq("partner_id", partner.id).eq("customer_email", email.data).order("created_at", { ascending: false }).limit(1).then((r) => r, () => ({ data: null }));
+  if (t?.length) return Response.json({ customer: t[0] });
+  const { data: c } = await db.from("referral_customers").select("customer_name, customer_phone").eq("partner_id", partner.id).eq("customer_email", email.data).maybeSingle();
+  return Response.json({ customer: c ?? null });
+}
 
 export async function POST(req: Request) {
   const v = await getViewer(req);

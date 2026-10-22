@@ -6,6 +6,7 @@
  *           history — every note, call, email, meeting and text staff logged, plus their bookings, completions and
  *           reviews — newest first. Notes are append-only; a correction is a new note.
  * UPDATED : 2026-10-12_0121 UTC — customer ID (C-…) in the header.
+ * UPDATED : 2026-10-22_0500 UTC — 🤝 who referred this customer (person referral and referral tickets), and their own partner account.
  */
 import Link from "next/link";
 import { customerNo } from "@/lib/ids";
@@ -33,6 +34,12 @@ export default async function Customer({ params }: { params: Promise<{ email: st
   const spend = (jobs ?? []).filter((j) => j.status === "completed").reduce((s, j) => s + Number(j.price_final ?? 0), 0);
   const [items, cno] = await Promise.all([timeline("customer", customerSubjectId(email), email), customerNo(email)]);
   const notes = items.filter((i) => i.source === "note").length;
+  const [{ data: refBy }, { data: refTickets }, { data: asPartner }] = await Promise.all([
+    db.from("referral_customers").select("expires_at, source, referral_partners(name, kind)").eq("customer_email", email).maybeSingle(),
+    db.from("referral_tickets").select("status, service_slug, created_at, referral_partners(name, kind)").eq("customer_email", email).order("created_at", { ascending: false }).limit(20).then((r) => r, () => ({ data: null })),
+    db.from("referral_partners").select("code, status").eq("email", email).maybeSingle(),
+  ]);
+  const pn = (x: unknown) => (x as { name: string; kind: string } | null);
   return (
     <div className="space-y-5">
       <Link href="/hub/customers" className="text-sm text-brand">← Customers</Link>
@@ -41,6 +48,14 @@ export default async function Customer({ params }: { params: Promise<{ email: st
         <h1 className="text-2xl font-bold">{name} {cno && <span className="font-mono text-base font-normal text-ink-soft">{cno}</span>}</h1>
         <div className="text-sm text-ink-soft">{[latest?.contact_name !== name ? latest?.contact_name : null, email, latest?.contact_phone ?? profile?.phone].filter(Boolean).join(" · ")}{latest?.address ? ` · ${latest.address}, ${latest.city} ${latest.zip}` : ""}</div>
         <Link href={`/hub/contracts?q=${encodeURIComponent(email)}`} className="text-sm text-brand underline">Signed contracts</Link>
+        {(refBy || (refTickets ?? []).length > 0 || asPartner) && (
+          <div className="mt-2 space-y-0.5 text-sm">
+            {refBy && <div>🤝 Referred by <b>{pn(refBy.referral_partners)?.name}</b> ({pn(refBy.referral_partners)?.kind}) — 10% of our take on their jobs until {String(refBy.expires_at).slice(0, 10)}</div>}
+            {((refTickets ?? []) as { status: string; service_slug: string | null; created_at: string; referral_partners: unknown }[]).map((t, i) => <div key={i}>🎫 Referral ticket from <b>{pn(t.referral_partners)?.name}</b>: {t.service_slug ? getService(t.service_slug)?.name : "service to confirm"} · {t.status} · {t.created_at.slice(0, 10)}</div>)}
+            {asPartner && <div>💸 Also a referral partner (code {asPartner.code}, {asPartner.status})</div>}
+            <Link href="/hub/partners" className="text-brand underline">Referrals & tickets →</Link>
+          </div>
+        )}
       </div>
       <section className="card"><h2 className="mb-2 text-lg font-bold">Add to the history</h2><AddNote subjectType="customer" customerEmail={email} /></section>
       {!!(jobs ?? []).length && (

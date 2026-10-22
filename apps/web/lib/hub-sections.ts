@@ -52,7 +52,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/biz-leads", "Business leads"],
     ["/hub/bids", "Bids & contracts"],
     ["/hub/quotes", "Marketplace & quotes"],
-    ["/hub/partners", "Referral partners"],
+    ["/hub/partners", "Referrals & tickets"],
     ["/hub/loyalty", "Points"],
     ["/hub/email", "Email"],
   ] },

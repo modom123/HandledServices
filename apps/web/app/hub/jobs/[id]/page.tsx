@@ -15,12 +15,14 @@
  * UPDATED : 2026-10-12_0121 UTC — customer (C-), business client (B-) and pro (P-) IDs.
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, editable), saved home link, and text the customer / pro from here.
  * UPDATED : 2026-10-15_0300 UTC — payment panel gets the "pay after" hold / retry fields.
+ * UPDATED : 2026-10-22_0500 UTC — 🤝 Referral panel: who referred the job (ticket or person), the rate, the commission and its
+ *           status, and the money split customer → pro → referrer → Handled.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
 import { NoShowButton } from "@/components/Standing";
 import { notFound } from "next/navigation";
-import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
+import { COMMISSION_BASIS, PARTNER_PROGRAM, jobReferralBasis, type CommissionBasis, moneySplit, pctLabel, LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
@@ -54,6 +56,15 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
     customerNo(job.contact_email),
     job.business_account_id ? adminClient().from("business_accounts").select("*").eq("id", job.business_account_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  // referral: the partner credited with this job, its ticket (if any) and the commission row
+  const [{ data: refPartner }, { data: refTicket }, { data: refComm }] = await Promise.all([
+    job.partner_id ? adminClient().from("referral_partners").select("name, kind, code, email").eq("id", job.partner_id).maybeSingle() : Promise.resolve({ data: null }),
+    job.referral_ticket_id ? adminClient().from("referral_tickets").select("id, basis, ai_summary, job_id, pays_until, created_at").eq("id", job.referral_ticket_id).maybeSingle() : Promise.resolve({ data: null }),
+    job.partner_id ? adminClient().from("partner_commissions").select("*").eq("job_id", job.id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const refBasis = ((refComm?.basis as string | undefined) ?? (refTicket ? (refTicket.basis as string | null) ?? jobReferralBasis(job.frequency) : job.partner_id ? "person" : null)) as CommissionBasis | null;
+  const refPct = refComm?.pct != null ? Number(refComm.pct) : refBasis ? COMMISSION_BASIS[refBasis].pct : PARTNER_PROGRAM.pctOfTake;
+  const refSplit = job.partner_id && Number(job.price_final) > 0 ? moneySplit({ price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) }, refPct) : null;
   const clientNo = (clientRow as { client_no?: string | null } | null)?.client_no ?? null;
   const proNo = (proContact as { pro_no?: string | null } | null)?.pro_no ?? null;
   const notices = noticeRes.error ? null : (noticeRes.data ?? []) as { id: string; channel: string; recipient: string; subject: string | null; preview: string | null; status: string; error: string | null; created_at: string }[];
@@ -155,6 +166,15 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           </>
         )}
         {job.contractor_id && ["assigned", "scheduled", "dispatched"].includes(job.status) && <NoShowButton jobId={job.id} />}
+        {refPartner && (
+          <div className="card space-y-1 text-sm"><div className="font-semibold">🤝 Referral</div>
+            <p><b>{refPartner.name}</b> <span className="text-ink-soft">({refPartner.kind} · {refPartner.code})</span> · {refBasis ? COMMISSION_BASIS[refBasis].label : "Referral"} · {pctLabel(refPct)}% of our take</p>
+            {refTicket?.ai_summary && <p className="text-xs text-ink-soft">Ticket: {refTicket.ai_summary}</p>}
+            {refTicket?.pays_until && <p className="text-xs text-ink-soft">Every visit of this plan pays until {String(refTicket.pays_until).slice(0, 10)}.</p>}
+            {refSplit && <p>Customer {money(refSplit.customer)} → pro {money(refSplit.pro)} · referrer {money(refSplit.referrer)} · Handled {money(refSplit.handled)}</p>}
+            <p className="text-xs">{refComm ? `Commission ${money(Number(refComm.amount))}: ${refComm.status}${refComm.status === "pending" ? `, payable ${String(refComm.eligible_at).slice(0, 10)}` : refComm.paid_at ? ` ${String(refComm.paid_at).slice(0, 10)}` : ""}` : "Commission is recorded when the job is completed."} <Link href="/hub/partners" className="underline">Referrals & tickets →</Link></p>
+          </div>
+        )}
         <div className="card space-y-2"><div className="font-semibold">🔒 Entry & keys {homeRow && <span className="text-xs font-normal text-ink-soft">· saved home “{(homeRow as { label: string }).label}”</span>}</div>
           <JobAccessEditor jobId={job.id} initial={(entry as { access_info: string } | null)?.access_info ?? null} />
           <p className="text-xs text-ink-soft">Shown only to the assigned pro while the job is assigned or in progress — never on offers.</p></div>

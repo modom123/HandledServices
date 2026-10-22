@@ -14,6 +14,9 @@
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
+ * UPDATED : 2026-10-22_0500 UTC — autofill: nothing they already gave us is asked twice. W-9 legal name from their application
+ *           name, W-9 address ↔ place of business (whichever came first), signature from the W-9 legal name, the business
+ *           name for a business entity; ZIP fills city and state (components/ProOnboarding ZipAutofill).
  */
 import { VerifyId } from "@/components/VerifyId";
 import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
@@ -22,7 +25,7 @@ import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
 import { PRO_AGREEMENT, localized, proSigningSet } from "@/lib/contracts";
 import { Badge } from "@/components/ui";
-import { Field, StepForm } from "@/components/ProOnboarding";
+import { Field, StepForm, ZipAutofill } from "@/components/ProOnboarding";
 
 export default async function Onboarding() {
   const v = await getViewer();
@@ -62,15 +65,16 @@ export default async function Onboarding() {
     if (key === "w9") return (
       <StepForm step="w9" cta={t("Save W-9")} locale={l}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={t("Legal name (as on your tax return)")} name="legal_name" defaultValue={pro.legal_name ?? ""} required />
+          <Field label={t("Legal name (as on your tax return)")} name="legal_name" defaultValue={pro.legal_name ?? pro.contact_name ?? ""} required />
           <div><label className="label">{t("Tax classification")}</label>
             <select name="entity_type" className="input" defaultValue={pro.entity_type ?? "individual"}>
               <option value="individual">{t("Individual / sole proprietor")}</option><option value="llc">{t("LLC (single-member or taxed as a partnership)")}</option><option value="llc_s_corp">{t("LLC taxed as an S corporation")}</option><option value="llc_c_corp">{t("LLC taxed as a C corporation")}</option><option value="s_corp">{t("S corporation")}</option>
               <option value="c_corp">{t("C corporation")}</option><option value="partnership">{t("Partnership")}</option></select></div>
           <Field label={t("Last 4 of SSN / EIN")} name="tin_last4" inputMode="numeric" maxLength={4} pattern="\d{4}" required />
-          <Field label={t("Street address")} name="address_line" defaultValue={pro.address_line ?? ""} required />
-          <Field label={t("City")} name="city" defaultValue={pro.city ?? ""} required />
-          <div className="grid grid-cols-2 gap-2"><Field label={t("State")} name="state" maxLength={2} defaultValue={pro.state ?? "MI"} required /><Field label={t("ZIP")} name="zip" maxLength={5} defaultValue={pro.zip ?? ""} required /></div>
+          <Field label={t("Street address")} name="address_line" defaultValue={pro.address_line ?? (pro as { base_address?: string | null; base_city?: string | null; base_state?: string | null }).base_address ?? ""} required />
+          <Field label={t("City")} name="city" defaultValue={pro.city ?? (pro as { base_address?: string | null; base_city?: string | null; base_state?: string | null }).base_city ?? ""} required />
+          <div className="grid grid-cols-2 gap-2"><Field label={t("State")} name="state" maxLength={2} defaultValue={pro.state ?? (pro as { base_address?: string | null; base_city?: string | null; base_state?: string | null }).base_state ?? "MI"} required /><Field label={t("ZIP")} name="zip" maxLength={5} defaultValue={pro.zip ?? pro.base_zip ?? ""} required /></div>
+          <ZipAutofill zip="zip" city="city" state="state" />
         </div>
         <Field label={t("Signed IRS Form W-9 (PDF or photo)")} name="file" type="file" accept="application/pdf,image/*" required />
         <p className="text-xs text-ink-soft">{t("We store only the last 4 digits of your TIN. Your full W-9 is kept in encrypted private storage for 1099 filing.")}</p>
@@ -89,7 +93,7 @@ export default async function Onboarding() {
           <p className="mt-2 text-xs text-ink-soft">{t("Each one starts with a short plain-English version. Copies of everything you sign are saved in My contracts.")}</p>
         </div>
         <StepForm step="agreement" cta={t("Sign agreement")} locale={l}>
-          <Field label={t("Type your full name to sign")} name="signer_name" required />
+          <Field label={t("Type your full name to sign")} name="signer_name" defaultValue={pro.legal_name ?? pro.contact_name ?? ""} required />
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t("Signing for a business? Its legal name")} name="signed_for" maxLength={160}
               defaultValue={BUSINESS_ENTITY_TYPES.includes(pro.entity_type as never) ? (pro as { agreement_signed_for?: string | null }).agreement_signed_for ?? pro.business_name ?? "" : ""} />
@@ -129,10 +133,11 @@ export default async function Onboarding() {
         <StepForm step="area" cta={t("Save work area & hours")} locale={l}>
           <p className="text-sm text-ink-soft">{t("We only offer you jobs within your driving distance of your place of business, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t("Place of business — street address")} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} required />
-            <Field label={t("City")} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} required />
-            <Field label={t("State (2 letters)")} name="base_state" defaultValue={(pro as { base_state?: string | null }).base_state ?? "MI"} maxLength={2} pattern="[A-Za-z]{2}" required />
+            <Field label={t("Place of business — street address")} name="base_address" defaultValue={(pro as { base_address?: string | null; base_city?: string | null; base_state?: string | null }).base_address ?? pro.address_line ?? ""} required />
+            <Field label={t("City")} name="base_city" defaultValue={(pro as { base_address?: string | null; base_city?: string | null; base_state?: string | null }).base_city ?? pro.city ?? ""} required />
+            <Field label={t("State (2 letters)")} name="base_state" defaultValue={(pro as { base_address?: string | null; base_city?: string | null; base_state?: string | null }).base_state ?? pro.state ?? "MI"} maxLength={2} pattern="[A-Za-z]{2}" required />
             <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
+            <ZipAutofill zip="base_zip" city="base_city" state="base_state" />
             <Field label={t("How far you’ll drive (miles)")} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
             <Field label={t("Most jobs you want in one day")} name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
           </div>

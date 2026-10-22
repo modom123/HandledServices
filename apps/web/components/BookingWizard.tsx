@@ -27,6 +27,7 @@
  * UPDATED : 2026-10-20_0200 UTC — marketplace: "Choose your price" (pros' own upfront prices next to Handled's) and booking a request-a-quote at its locked price.
  * UPDATED : 2026-10-22_0400 UTC — referral tickets: opens pre-filled from the ticket (contact, address, service, answers, how often) and
  *           sends the ticket token with the booking so the referrer is credited.
+ * UPDATED : 2026-10-22_0500 UTC — the service ZIP fills in the city and state.
  */
 "use client";
 
@@ -134,6 +135,15 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const zip = /^\d{5}$/.test(form.zip) ? form.zip : "";
     fetch(`/api/market?service=${slug}${zip ? `&zip=${zip}` : ""}`).then((r) => r.json()).then((j) => { setMarket(Number(j.factor) || 1); setRegion(Number(j.region) || 1); }).catch(() => {});
   }, [slug, form.zip]);
+  // ZIP → city and state (only when empty, so a typed city is never replaced)
+  useEffect(() => {
+    if (!/^\d{5}$/.test(form.zip) || (form.city && form.state)) return;
+    let live = true;
+    fetch(`/api/zip?zip=${form.zip}`).then((r) => r.json()).then((j: { city: string | null; state: string | null }) => {
+      if (live && j.city && j.state) setForm((f) => ({ ...f, city: f.city || j.city!, state: f.city ? f.state : j.state! }));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [form.zip]); // eslint-disable-line react-hooks/exhaustive-deps
   const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
   // Name your price ("" = our suggestion)
   const [offer, setOffer] = useState("");

@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-22_0400 UTC — referral tickets for pros, clients and anyone: the ticket form, every ticket with its
  *           status, timeline and money split (customer → pro → you → Handled), commissions by type and rate, and a
  *           one-tap join for signed-in pros and clients.
+ * UPDATED : 2026-10-22_0500 UTC — photo count on each ticket.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -26,7 +27,7 @@ const STATUS: Record<Ticket["status"], [string, "green" | "amber" | "red" | "bra
   open: ["Waiting for the customer to book", "amber"], needs_review: ["Our team is reviewing it", "amber"], booked: ["Booked", "green"], expired: ["Expired (not booked)", undefined], cancelled: ["Cancelled", "red"],
 };
 
-type TicketRow = Pick<Ticket, "id" | "customer_name" | "service_slug" | "frequency" | "status" | "basis" | "ai_summary" | "events" | "created_at" | "expires_at" | "pays_until">
+type TicketRow = Pick<Ticket, "id" | "photos" | "customer_name" | "service_slug" | "frequency" | "status" | "basis" | "ai_summary" | "events" | "created_at" | "expires_at" | "pays_until">
   & { jobs: { ref: string; status: string; price_final: number | null; contractor_payout: number | null; amount_refunded: number | null } | null };
 
 export default async function PartnerHome({ searchParams }: { searchParams: Promise<{ connect?: string }> }) {
@@ -51,7 +52,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     payoutsReady(partner),
     db.from("referral_customers").select("customer_name, customer_email, service_slug, source, first_job_id, expires_at, created_at").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(200),
     db.from("partner_commissions").select("*, jobs(ref, service_slug, completed_at)").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(200),
-    db.from("referral_tickets").select("id, customer_name, service_slug, frequency, status, basis, ai_summary, events, created_at, expires_at, pays_until, jobs!referral_tickets_job_id_fkey(ref, status, price_final, contractor_payout, amount_refunded)").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(100).then((r) => r, () => ({ data: null })),
+    db.from("referral_tickets").select("id, photos, customer_name, service_slug, frequency, status, basis, ai_summary, events, created_at, expires_at, pays_until, jobs!referral_tickets_job_id_fkey(ref, status, price_final, contractor_payout, amount_refunded)").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(100).then((r) => r, () => ({ data: null })),
   ]);
   const link = partnerLink(partner.code), short = `${siteUrl()}/r/${partner.code}`;
   const services = SERVICES.map((s) => [s.slug, s.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
@@ -89,7 +90,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
             return (
               <div key={t.id} className="card text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div><b>{t.customer_name}</b> · {t.service_slug ? getService(t.service_slug)?.name : "Service to confirm"}{t.frequency !== "once" ? ` · ${t.frequency}` : ""}{j ? ` · ${j.ref}` : ""}</div>
+                  <div><b>{t.customer_name}</b> · {t.service_slug ? getService(t.service_slug)?.name : "Service to confirm"}{t.frequency !== "once" ? ` · ${t.frequency}` : ""}{j ? ` · ${j.ref}` : ""}{t.photos?.length ? ` · 📷 ${t.photos.length}` : ""}</div>
                   <Badge tone={tone}>{label}</Badge>
                 </div>
                 {t.ai_summary && <p className="mt-2 text-ink-soft">{t.ai_summary}</p>}

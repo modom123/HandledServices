@@ -6,11 +6,15 @@
  *           Stripe payout setup (/partner), and the staff controls in Hub → Partners.
  * UPDATED : 2026-10-22_0400 UTC — referral ticket form (pros, clients, anyone), one-tap join for signed-in pros and clients,
  *           and Hub ticket controls (send the customer their link, cancel).
+ * UPDATED : 2026-10-22_0500 UTC — photos on the referral ticket (camera / library / drag & drop, the service's photo tips).
+ * UPDATED : 2026-10-22_0500 UTC — autofill: a ZIP fills city and state; a customer you've sent before fills their details.
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { photoRule } from "@handled/core";
+import { PhotoPicker } from "./PhotoPicker";
 
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -179,6 +183,38 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
   const router = useRouter();
   const blank = { customer_name: "", customer_email: "", customer_phone: "", company_name: "", address: "", city: "", state: "MI", zip: "", service_slug: "", frequency: "once", urgency: "", budget: "", description: "", access_notes: "", customer_consent: false, i_will_do_it: false };
   const [f, setF] = useState(blank);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const rule = f.service_slug ? photoRule(f.service_slug) : null;
+  const [filled, setFilled] = useState<string | null>(null);
+  // ZIP → city and state (only fills what's empty or what we filled last time)
+  const zipFill = useRef<{ city: string; state: string } | null>(null);
+  useEffect(() => {
+    if (!/^\d{5}$/.test(f.zip)) return;
+    let live = true;
+    fetch(`/api/zip?zip=${f.zip}`).then((r) => r.json()).then((j: { city: string | null; state: string | null }) => {
+      if (!live || !j.city || !j.state) return;
+      setF((x) => {
+        const prev = zipFill.current;
+        const city = !x.city || x.city === prev?.city ? j.city! : x.city;
+        const state = !x.state || x.state === "MI" || x.state === prev?.state ? j.state! : x.state;
+        zipFill.current = { city: j.city!, state: j.state! };
+        return { ...x, city, state };
+      });
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [f.zip]);
+  // a customer you've sent before → their name, phone and address from your earlier ticket (empty fields only)
+  const lookup = async () => {
+    if (!/\S+@\S+\.\S+/.test(f.customer_email)) return;
+    const j = await fetch(`/api/partner?customer=${encodeURIComponent(f.customer_email)}`).then((r) => r.json()).catch(() => null) as { customer: Record<string, string | null> | null } | null;
+    const c = j?.customer;
+    if (!c) return;
+    setF((x) => ({ ...x,
+      customer_name: x.customer_name || c.customer_name || "", customer_phone: x.customer_phone || c.customer_phone || "", company_name: x.company_name || c.company_name || "",
+      address: x.address || c.address || "", city: x.city || c.city || "", state: c.state && (!x.state || x.state === "MI") ? c.state : x.state, zip: x.zip || c.zip || "",
+    }));
+    setFilled("Filled in from your last referral for this customer — check it's still right.");
+  };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<{ status: string; service: string | null; summary: string | null; missing: string[] } | null>(null);
@@ -190,20 +226,21 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
       {done.summary && <p className="mt-2">{done.summary}</p>}
       {done.missing.length > 0 && <p className="mt-2 text-ink-soft">We&apos;ll ask the customer: {done.missing.join(" ")}</p>}
       <p className="mt-2">{done.status === "open" ? "We emailed the customer a booking link with everything filled in. You'll hear from us when they book, when a pro is assigned and when it's done." : "Our team is reviewing it and will send the customer their booking link. You'll hear from us at every step."}</p>
-      <button className="btn-ghost mt-3" onClick={() => { setDone(null); setF(blank); }}>Send another ticket</button>
+      <button className="btn-ghost mt-3" onClick={() => { setDone(null); setF(blank); setPhotos([]); setFilled(null); zipFill.current = null; }}>Send another ticket</button>
     </div>
   );
   return (
     <form className="space-y-4" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setErr(null);
-      const r = await post("/api/partner", { action: "ticket", ...f, service_slug: f.service_slug || null, urgency: f.urgency || null, budget: Number(f.budget) > 0 ? Number(f.budget) : null, company_name: f.company_name || null, i_will_do_it: isPro && f.i_will_do_it });
+      const r = await post("/api/partner", { action: "ticket", ...f, photos, service_slug: f.service_slug || null, urgency: f.urgency || null, budget: Number(f.budget) > 0 ? Number(f.budget) : null, company_name: f.company_name || null, i_will_do_it: isPro && f.i_will_do_it });
       setBusy(false);
       if (r.ok) { setDone(r.data as never); router.refresh(); } else setErr(r.error);
     }}>
       <fieldset className="grid gap-3 sm:grid-cols-2">
         <legend className="mb-1 text-sm font-semibold">Who it&apos;s for</legend>
         <label className="text-sm">Customer&apos;s name<input className="input mt-1" required value={f.customer_name} onChange={set("customer_name")} /></label>
-        <label className="text-sm">Their email<input className="input mt-1" type="email" required value={f.customer_email} onChange={set("customer_email")} /></label>
+        <label className="text-sm">Their email<input className="input mt-1" type="email" required value={f.customer_email} onChange={set("customer_email")} onBlur={lookup} /></label>
+        {filled && <p className="text-xs text-brand-dark sm:col-span-2">{filled}</p>}
         <label className="text-sm">Their phone<input className="input mt-1" type="tel" value={f.customer_phone} onChange={set("customer_phone")} /></label>
         <label className="text-sm">Company (if it&apos;s a business)<input className="input mt-1" value={f.company_name} onChange={set("company_name")} /></label>
       </fieldset>
@@ -223,6 +260,11 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
         <label className="text-sm">When do they need it<select className="input mt-1" value={f.urgency} onChange={set("urgency")}>{WHEN.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
         <label className="text-sm">Their budget (optional)<input className="input mt-1" inputMode="decimal" value={f.budget} onChange={set("budget")} placeholder="$" /></label>
         <label className="text-sm sm:col-span-2">Describe the job<textarea className="input mt-1" rows={4} required minLength={10} value={f.description} onChange={set("description")} placeholder="Size, rooms, square feet, condition, anything special. e.g. 3-bed, 2-bath house, deep clean before move-out on the 15th, two dogs, carpets on the stairs" /></label>
+        <div className="text-sm sm:col-span-2">
+          <div>Photos of the job (optional, up to 8) — they help us price it right and the customer won&apos;t have to take them again</div>
+          {rule && rule.need !== "none" && <p className="mt-1 text-xs text-ink-soft">{rule.need === "required" ? `We need at least ${rule.min} for this service` : "Helpful"}: {rule.tips.join(" · ")}</p>}
+          <div className="mt-2"><PhotoPicker value={photos} onChange={setPhotos} onError={setErr} /></div>
+        </div>
         <label className="text-sm sm:col-span-2">Getting in (optional — only the assigned pro sees it)<input className="input mt-1" value={f.access_notes} onChange={set("access_notes")} placeholder="Gate code, lockbox, who'll be home" /></label>
       </fieldset>
       <p className="rounded-lg bg-paper p-3 text-xs text-ink-soft">You earn <b>{rates.once}%</b> of our fee on a one-time job, or <b>{rates.recurring}%</b> on every visit for {rates.months} months if they book it to repeat. Paid weekly once each job is past our make-it-right window. It never comes out of the pro&apos;s pay.</p>
