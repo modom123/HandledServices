@@ -2,6 +2,7 @@
 -- FILE    : supabase/setup/ADD_TICKET_INVITES_2026-10-22_0700.sql
 -- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-22_0700 UTC
+-- UPDATED : 2026-10-22_0800 UTC - pros and partners send invites too (invited_by_partner_id: who brought them into the network).
 -- PURPOSE : One paste in Supabase → SQL Editor → Run, AFTER ADD_REFERRAL_TICKETS_2026-10-22_0400.sql
 --           (same as migrations/20261022070000_ticket_invites.sql).
 --           Referral TICKET INVITES. Someone we speak with on the phone (a call desk lead, a customer, a contractor)
@@ -32,9 +33,12 @@ create table if not exists public.ticket_invites (
   partner_id uuid references public.referral_partners(id) on delete set null,
   ticket_id uuid references public.referral_tickets(id) on delete set null,
   biz_lead_id uuid,                           -- the Call desk lead it was sent from, if any
+  invited_by_partner_id uuid references public.referral_partners(id) on delete set null,  -- a pro or partner sent it (null = Handled staff / IEBC)
   expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
+alter table public.ticket_invites add column if not exists invited_by_partner_id uuid references public.referral_partners(id) on delete set null;  -- for databases that ran the first version
+create index if not exists ticket_invites_by_partner_idx on public.ticket_invites (invited_by_partner_id, created_at desc) where invited_by_partner_id is not null;
 create index if not exists ticket_invites_status_idx on public.ticket_invites (status, created_at desc);
 create index if not exists ticket_invites_email_idx on public.ticket_invites (email);
 

@@ -1,7 +1,7 @@
 -- ============================================================================
--- FILE    : supabase/setup/HANDLED_SETUP_2026-10-22_0436.sql   (generated — do not hand edit)
+-- FILE    : supabase/setup/HANDLED_SETUP_2026-10-22_0506.sql   (generated — do not hand edit)
 -- PROJECT : Handled (HandledServices)
--- CREATED : 2026-10-22_0436 UTC
+-- CREATED : 2026-10-22_0506 UTC
 -- PURPOSE : One-paste setup for a NEW Supabase project: 78 migrations + production seed.
 --           Supabase → SQL Editor → New query → paste this whole file → Run.
 --           Then sign in once on the website and run:
@@ -4296,6 +4296,7 @@ create policy staff_all on public.referral_tickets for all to authenticated usin
 -- FILE    : supabase/migrations/20261022070000_ticket_invites.sql
 -- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-22_0700 UTC
+-- UPDATED : 2026-10-22_0800 UTC - pros and partners send invites too (invited_by_partner_id: who brought them into the network).
 -- PURPOSE : Referral TICKET INVITES. Someone we speak with on the phone (a call desk lead, a customer, a contractor)
 --           gets a personal link by text and/or email. It opens the Standard Referral Ticket with their own details
 --           already filled in; submitting it sends us the job AND signs them up as a referral partner (their Handled
@@ -4324,9 +4325,12 @@ create table if not exists public.ticket_invites (
   partner_id uuid references public.referral_partners(id) on delete set null,
   ticket_id uuid references public.referral_tickets(id) on delete set null,
   biz_lead_id uuid,                           -- the Call desk lead it was sent from, if any
+  invited_by_partner_id uuid references public.referral_partners(id) on delete set null,  -- a pro or partner sent it (null = Handled staff / IEBC)
   expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
+alter table public.ticket_invites add column if not exists invited_by_partner_id uuid references public.referral_partners(id) on delete set null;  -- for databases that ran the first version
+create index if not exists ticket_invites_by_partner_idx on public.ticket_invites (invited_by_partner_id, created_at desc) where invited_by_partner_id is not null;
 create index if not exists ticket_invites_status_idx on public.ticket_invites (status, created_at desc);
 create index if not exists ticket_invites_email_idx on public.ticket_invites (email);
 

@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-22_0500 UTC — autofill: a ZIP fills city and state; a customer you've sent before fills their details.
  * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): six sections for every referral, the service's own size
  *           questions and photo rules, a live completeness meter and "still needed" list (the same check the server runs).
+ * UPDATED : 2026-10-22_0800 UTC — SendTicketInvite asPartner: pros and partners send invites from their partner page.
  * UPDATED : 2026-10-22_0700 UTC — invite mode (/ticket/<token>, sent after a phone call): "About you" filled in from the call,
  *           partner terms, "just join" with no job; joining signs them up for the Handled network.
  */
@@ -396,7 +397,7 @@ export function TicketActions({ id, status, service, services }: { id: string; s
  * Hub → Referrals & tickets and the Call desk: send the person on the phone their referral ticket link. Text only with
  * their OK on the call. Their name, email and phone fill the ticket; filling it out signs them up for the network.
  */
-export function SendTicketInvite({ initial, kinds, bizLeadId, compact = false }: { initial?: { name?: string | null; email?: string | null; phone?: string | null; company?: string | null; kind?: string | null }; kinds: [string, string][]; bizLeadId?: string; compact?: boolean }) {
+export function SendTicketInvite({ initial, kinds, bizLeadId, compact = false, asPartner = false }: { initial?: { name?: string | null; email?: string | null; phone?: string | null; company?: string | null; kind?: string | null }; kinds: [string, string][]; bizLeadId?: string; compact?: boolean; asPartner?: boolean }) {
   const router = useRouter();
   const blank = { name: initial?.name ?? "", email: initial?.email ?? "", phone: initial?.phone ?? "", company: initial?.company ?? "", kind: initial?.kind ?? "other", job_hint: "", via_email: Boolean(initial?.email), via_sms: false, sms_consent: false };
   const [f, setF] = useState(blank);
@@ -406,7 +407,8 @@ export function SendTicketInvite({ initial, kinds, bizLeadId, compact = false }:
   return (
     <form className="space-y-2 text-sm" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setMsg(null);
-      const r = await post("/api/hub/partners", { action: "invite", ...f, email: f.email || null, phone: f.phone || null, company: f.company || null, job_hint: f.job_hint || null, via_sms: f.via_sms && f.sms_consent, biz_lead_id: bizLeadId ?? null });
+      const body = { action: "invite", ...f, email: f.email || null, phone: f.phone || null, company: f.company || null, job_hint: f.job_hint || null, via_sms: f.via_sms && f.sms_consent };
+      const r = asPartner ? await post("/api/partner", body) : await post("/api/hub/partners", { ...body, biz_lead_id: bizLeadId ?? null });
       setBusy(false);
       if (r.ok) { const sent = (r.data.sent as string[]) ?? []; setMsg({ ok: true, text: sent.length ? `Sent by ${sent.join(" and ")} ✓` : "Link made, but delivery failed — read it to them or copy it:", link: String(r.data.link ?? "") }); setF(blank); router.refresh(); }
       else setMsg({ ok: false, text: r.error });
@@ -422,7 +424,7 @@ export function SendTicketInvite({ initial, kinds, bizLeadId, compact = false }:
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2"><input type="checkbox" checked={f.via_email} disabled={!f.email} onChange={(e) => setF({ ...f, via_email: e.target.checked })} />Email it</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={f.via_sms} disabled={!f.phone} onChange={(e) => setF({ ...f, via_sms: e.target.checked })} />Text it</label>
-        {f.via_sms && <label className="flex items-center gap-2 text-amber-800"><input type="checkbox" checked={f.sms_consent} onChange={(e) => setF({ ...f, sms_consent: e.target.checked })} />They said OK to a text on this call</label>}
+        {f.via_sms && <label className="flex items-center gap-2 text-amber-800"><input type="checkbox" checked={f.sms_consent} onChange={(e) => setF({ ...f, sms_consent: e.target.checked })} />{asPartner ? "They said it's OK for Handled to text them" : "They said OK to a text on this call"}</label>}
         <button className="btn-primary" disabled={busy || !f.name || (!f.via_email && !(f.via_sms && f.sms_consent))}>{busy ? "Sending…" : "🎫 Send referral ticket"}</button>
       </div>
       {msg && <p className={msg.ok ? "text-brand-dark" : "text-rose-700"}>{msg.text}{msg.link && <> <span className="select-all break-all font-mono text-xs">{msg.link}</span></>}</p>}

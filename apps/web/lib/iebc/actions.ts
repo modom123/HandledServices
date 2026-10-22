@@ -414,10 +414,10 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   }),
   "read.ticket_invites": def({
-    scope: "read", write: false, risk: "low", description: "Referral ticket invites sent after phone calls: who, when, how (email / text), and what came of it (sent, opened, joined, sent a job, expired). Use it to follow up with people who haven't opened theirs.",
+    scope: "read", write: false, risk: "low", description: "Referral ticket invites sent after phone calls — by Handled staff, IEBC workers, or pros and partners (invited_by_partner_id): who, when, how (email / text), and what came of it (sent, opened, joined, sent a job, expired). Use it to follow up with people who haven't opened theirs.",
     params: z.object({ status: z.enum(["sent", "opened", "completed", "expired", "cancelled"]).optional(), limit: z.number().int().min(1).max(100).default(30) }),
     run: async ({ status, limit }) => {
-      let q = db().from("ticket_invites").select("id, name, email, phone, company, kind, job_hint, sent_by, via_email, via_sms, status, opened_at, completed_at, partner_id, ticket_id, expires_at, created_at").order("created_at", { ascending: false }).limit(limit);
+      let q = db().from("ticket_invites").select("id, name, email, phone, company, kind, job_hint, sent_by, invited_by_partner_id, via_email, via_sms, status, opened_at, completed_at, partner_id, ticket_id, expires_at, created_at").order("created_at", { ascending: false }).limit(limit);
       if (status) q = q.eq("status", status);
       const { data, error } = await q;
       return error ? "Ticket invites aren't switched on yet (ADD_TICKET_INVITES_2026-10-22_0700.sql)." : data;

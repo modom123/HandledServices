@@ -9,16 +9,18 @@
  *           one-tap join for signed-in pros and clients.
  * UPDATED : 2026-10-22_0500 UTC — photo count on each ticket.
  * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket form, with a link to the printable blank ticket.
+ * UPDATED : 2026-10-22_0800 UTC — 📞 send a referral ticket to someone you talked with (they join the network), and the
+ *           people you've invited with what came of it.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { COMMISSION_BASIS, PARTNER_PROGRAM, SERVICES, getService, money, moneySplit, partnerTerms, pctLabel, type CommissionBasis } from "@handled/core";
+import { COMMISSION_BASIS, PARTNER_KINDS, PARTNER_PROGRAM, SERVICES, getService, money, moneySplit, partnerTerms, pctLabel, type CommissionBasis } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
 import { partnerFor, partnerLink, partnerStats, payoutsReady, type Ticket } from "@/lib/partners";
 import { Badge, Empty, Stat } from "@/components/ui";
-import { CopyButton, JoinPartner, PartnerPayoutButton, ReferCustomer, ReferralTicket } from "@/components/PartnerUI";
+import { CopyButton, JoinPartner, PartnerPayoutButton, ReferCustomer, ReferralTicket, SendTicketInvite } from "@/components/PartnerUI";
 
 export const metadata = { title: "Partner page" };
 export const dynamic = "force-dynamic";
@@ -59,6 +61,9 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   const services = SERVICES.map((s) => [s.slug, s.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   const T = ((tickets ?? []) as unknown as TicketRow[]);
+  // people this partner invited (their own referral ticket link) and what came of it
+  const { data: invs, error: invErr } = await db.from("ticket_invites").select("id, name, status, job_hint, ticket_id, created_at, completed_at").eq("invited_by_partner_id", partner.id).order("created_at", { ascending: false }).limit(100);
+  const INV = (invs ?? []) as { id: string; name: string; status: string; job_hint: string | null; ticket_id: string | null; created_at: string; completed_at: string | null }[];
   return (
     <div className="wrap space-y-6 py-10">
       <div>
@@ -79,6 +84,25 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
         <p className="mb-4 mt-1 text-sm text-ink-soft">Tell us everything about one job. Our AI files it (service, size, how often), we send the customer a booking link with it all filled in, and once they pay we send it to our pros. You hear from us when it&apos;s booked, assigned and done.</p>
         <ReferralTicket services={services} isPro={Boolean(partner.contractor_id ?? v.contractorId)} rates={{ once: pctLabel(P.jobOncePct), recurring: pctLabel(P.jobRecurringPct), months: P.months }} />
       </section>
+
+      {!invErr && (
+        <section className="card space-y-3">
+          <h2 className="font-bold">📞 Send a referral ticket to someone you talked with</h2>
+          <p className="text-sm text-ink-soft">Know someone who could send us work — a realtor, a property manager, a contractor, a neighbor with a job? We&apos;ll send them their own referral ticket, already filled in with what you tell us. When they fill it out they join the Handled network and earn on the jobs they send. You&apos;ll hear when they join.</p>
+          <SendTicketInvite asPartner kinds={Object.entries(PARTNER_KINDS).filter(([k]) => k !== "pro") as [string, string][]} />
+          {INV.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold">People you&apos;ve invited · {INV.filter((i) => i.status === "completed").length} joined</h3>
+              <ul className="mt-1 space-y-1 text-sm">{INV.map((i) => (
+                <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-1">
+                  <span><b>{i.name}</b>{i.job_hint ? <span className="text-ink-soft"> · {i.job_hint.slice(0, 80)}</span> : null}</span>
+                  {i.status === "completed" ? <Badge tone="green">{i.ticket_id ? "Joined + sent a job" : "Joined"}</Badge> : i.status === "opened" ? <Badge tone="brand">Opened</Badge> : i.status === "sent" ? <Badge tone="amber">Sent {i.created_at.slice(0, 10)}</Badge> : <Badge>{i.status}</Badge>}
+                </li>
+              ))}</ul>
+            </div>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 font-bold">Your referral tickets</h2>

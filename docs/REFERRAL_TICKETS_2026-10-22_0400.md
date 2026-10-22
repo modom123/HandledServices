@@ -6,6 +6,7 @@
             What happens to a ticket from submission to payout, who gets paid what, and how to switch it on.
   UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1), photos, autofill, Handled Hub views, IEBC worker actions.
   UPDATED : 2026-10-22_0700 UTC — ticket invites: send the ticket to someone on the phone; filling it out signs them up.
+  UPDATED : 2026-10-22_0800 UTC — pros and partners send ticket invites too, from their partner page.
 -->
 
 # Referral program — referral tickets
@@ -69,9 +70,14 @@ a business lead), we send them their own referral ticket:
      link and a one-tap sign-in that creates their Handled account. They're now in the network.
    - sends the ticket through the normal flow (AI filing → customer's booking link → dispatch → payouts).
    - If the ticket needs a fix, they're still signed up, and can fix it and resend from the same link.
-4. **Become a pro too.** The thank-you screen offers **Apply as a pro**, which opens the pro application filled in with
+4. **Pros and partners can send invites too.** On their partner page (Pro portal → Refer & earn, client account →
+   Earn cash for referrals), under **📞 Send a referral ticket to someone you talked with**. The message says who asked us
+   to send it. The sender is emailed when the person joins, and sees everyone they invited under *People you've invited*.
+   The person joins as their own referral partner and earns on the jobs *they* send. Limits: active partners only,
+   15 invites a day, not to themselves or to someone already in the network, and a text only if the person said OK.
+5. **Become a pro too.** The thank-you screen offers **Apply as a pro**, which opens the pro application filled in with
    their name, email, mobile and business.
-5. **We hear back.** The person who sent the invite gets an email, and an ops alert is raised. The Hub's invites list shows
+6. **We hear back.** The person who sent the invite gets an email, and an ops alert is raised. The Hub's invites list shows
    *not opened → opened → joined / joined + sent a job*. The dashboard strip counts invites out and people joined.
    Unused invites expire after 30 days.
 

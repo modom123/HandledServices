@@ -10,13 +10,16 @@
  *               access_notes?, photos?, customer_consent: true, i_will_do_it? } — a referral ticket (AI files it, customer gets a link)
  * UPDATED : 2026-10-22_0400 UTC — one-tap join for pros and clients; referral tickets.
  * UPDATED : 2026-10-22_0500 UTC — referral ticket photos (paths from /api/uploads, up to 8).
+ *             { action: "invite", name, email?, phone?, company?, kind?, job_hint?, via_email, via_sms, sms_consent }
+ *                                                                            — send someone you talked with their own referral ticket
+ * UPDATED : 2026-10-22_0800 UTC — pros and partners send ticket invites (they join the network; you see who you brought in).
  * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): details, the service's size answers and both
  *           confirmations; anything the standard requires that's missing comes back as a list (packages/core ticketCheck).
  * UPDATED : 2026-10-22_0500 UTC — GET ?customer=<email>: autofill a ticket from the referrer's OWN earlier tickets or referrals
  *           for that customer (never anyone else's data; no entry details).
  */
 import { z } from "zod";
-import { getService } from "@handled/core";
+import { PARTNER_KINDS, getService, type PartnerKind } from "@handled/core";
 import { TicketFields, ticketError } from "@/lib/ticket-schema";
 import { deny, getViewer } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
@@ -33,6 +36,11 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("connect") }),
   z.object({ action: z.literal("join"), agree: z.literal(true) }),
   TicketFields.extend({ action: z.literal("ticket") }),
+  z.object({
+    action: z.literal("invite"), name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(254).optional().nullable().or(z.literal("")),
+    phone: z.string().trim().max(30).optional().nullable(), company: z.string().trim().max(160).optional().nullable(), kind: z.string().refine((k) => k in PARTNER_KINDS).optional().nullable(),
+    job_hint: z.string().trim().max(500).optional().nullable(), via_email: z.boolean(), via_sms: z.boolean(), sms_consent: z.boolean(),
+  }),
 ]);
 
 export async function GET(req: Request) {
@@ -66,6 +74,12 @@ export async function POST(req: Request) {
   }
   const limited = await rateLimit(req, "form", `partner:${partner.id}`);
   if (limited) return limited;
+  if (b.data.action === "invite") {
+    const { action: _a, ...o } = b.data;
+    const T = await import("@/lib/ticket-invites");
+    const r = await T.sendInvite({ ...o, kind: (o.kind ?? null) as PartnerKind | null, sent_by: `${partner.name} <${partner.email}> (partner ${partner.code})`, from: partner });
+    return r.ok ? Response.json({ ok: true, link: T.inviteLink(r.invite), sent: r.sent }) : deny(400, r.error);
+  }
   if (b.data.action === "ticket") {
     const { action: _a, ...t } = b.data;
     const r = await submitTicket(partner, { ...t, service_slug: t.service_slug && getService(t.service_slug) ? t.service_slug : null });
