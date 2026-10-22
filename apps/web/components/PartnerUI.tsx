@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-22_0500 UTC — autofill: a ZIP fills city and state; a customer you've sent before fills their details.
  * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): six sections for every referral, the service's own size
  *           questions and photo rules, a live completeness meter and "still needed" list (the same check the server runs).
+ * UPDATED : 2026-10-22_0530 UTC — partner sign-up sends where they came from (?src=) and who recruited them (?by=) from the flyer QR.
  * UPDATED : 2026-10-22_0800 UTC — SendTicketInvite asPartner: pros and partners send invites from their partner page.
  * UPDATED : 2026-10-22_0700 UTC — invite mode (/ticket/<token>, sent after a phone call): "About you" filled in from the call,
  *           partner terms, "just join" with no job; joining signs them up for the Handled network.
@@ -49,7 +50,9 @@ export function PartnerSignUp({ kinds }: { kinds: [string, string][] }) {
   return (
     <form className="card space-y-3" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setErr(null);
-      const r = await post("/api/partners", f);
+      // where they came from (the flyer's QR: ?src=flyer) and who handed it out (a personal flyer: ?by=<partner code>)
+      const q = new URLSearchParams(window.location.search);
+      const r = await post("/api/partners", { ...f, src: q.get("src") || undefined, by: q.get("by") || undefined });
       setBusy(false);
       if (r.ok) setDone(r.data as never); else setErr(r.error);
     }}>

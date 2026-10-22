@@ -7,6 +7,7 @@
   UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1), photos, autofill, Handled Hub views, IEBC worker actions.
   UPDATED : 2026-10-22_0700 UTC — ticket invites: send the ticket to someone on the phone; filling it out signs them up.
   UPDATED : 2026-10-22_0800 UTC — pros and partners send ticket invites too, from their partner page.
+  UPDATED : 2026-10-22_0530 UTC — recruiting flyer PDF with a QR code (handledsvc.com/join), generic or personal.
 -->
 
 # Referral program — referral tickets
@@ -141,6 +142,19 @@ customer = pro + referrer + Handled to the cent over 3,000 random jobs.
 | Lawn care every 2 weeks, ticket (15%) — per visit | $150.00 | $112.00 | $38.00 | $5.70 | $2.85 | $2.85 | $109.15 | $5.70 | $35.15 |
 | — over 12 months (26 visits) | $3,900.00 | $2,912.00 | $988.00 | $148.20 | $74.10 | $74.10 | $2,837.90 | $148.20 | $913.90 |
 | $10,000 roof (one time), ticket (20%) | $10,000.00 | $6,297.00 | $3,703.00 | $740.60 | $370.30 | $370.30 | $5,926.70 | $740.60 | $3,332.70 |
+
+## Recruiting flyer with QR code
+
+`docs/HANDLED_REFERRAL_FLYER_<stamp>.pdf` is a one-page flyer for referrers. It covers what they earn (with dollar examples from
+the pricing engine), how it works, who it's for and the work we do. It doesn't show Handled's margins or the pro's share.
+Its QR code opens **handledsvc.com/join**, a permanent address (`apps/web/app/join/route.ts`) that forwards to the partner
+sign-up and tags it `src=flyer`. Because the printed code only ever points at `/join`, the destination can change without reprinting.
+
+- **Generic flyer:** `python3 scripts/build-recruiting-flyer-pdf_2026-10-22_0535.py`
+- **Personal flyer** for a pro or partner: add `--code THEIRCODE --name "Their Name"`. The QR opens `/join?by=THEIRCODE`,
+  the flyer says "Invited by …", the new partner's record notes who recruited them, and the recruiter is emailed when
+  someone joins.
+- Other options: `--src` (e.g. `event`, `doorhanger`, to track separate print runs) and `--site`.
 
 ## In the Handled Hub (MasterMind)
 

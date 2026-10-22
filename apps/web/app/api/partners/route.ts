@@ -4,9 +4,13 @@
  * CREATED : 2026-10-07_0120 UTC
  * PURPOSE : Public sign-up for the Referral Partner Program (/partners). POST { name, email, phone?, company?, kind, how?, agree }
  *           → partner code + link, welcome email with a sign-in link to the partner page. Rate-limited.
+ * UPDATED : 2026-10-22_0530 UTC — src (where they came from, e.g. the flyer QR) and by (a personal flyer's partner code:
+ *           they're credited in the partner record and emailed when someone joins).
  */
 import { z } from "zod";
-import { PARTNER_KINDS } from "@handled/core";
+import { BRAND, PARTNER_KINDS, cleanPartnerCode } from "@handled/core";
+import { adminClient } from "@/lib/supabase/server";
+import { sendEmail, siteUrl } from "@/lib/notify";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { partnerLink, signUp } from "@/lib/partners";
 
@@ -18,6 +22,8 @@ const Body = z.object({
   kind: z.string().refine((k) => k in PARTNER_KINDS),
   how: z.string().trim().max(1000).optional().nullable(),
   agree: z.literal(true),
+  src: z.string().regex(/^[a-z0-9_-]{1,30}$/).optional(),   // where they came from (flyer QR, etc.)
+  by: z.string().max(20).optional(),                       // a personal flyer: the partner who handed it out
 });
 
 export async function POST(req: Request) {
@@ -26,7 +32,14 @@ export async function POST(req: Request) {
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return Response.json({ error: "Fill in your name and email, and agree to the partner terms." }, { status: 400 });
   try {
-    const { partner, existing } = await signUp({ ...b.data, kind: b.data.kind as keyof typeof PARTNER_KINDS, ip: clientIp(req) });
+    const { src, by, ...form } = b.data;
+    // recruited from a personal flyer: credit the partner who handed it out (never yourself)
+    const code = cleanPartnerCode(by);
+    const { data: recruiter } = code ? await adminClient().from("referral_partners").select("id, name, email, status").eq("code", code).maybeSingle() : { data: null };
+    const tag = [src && `came from: ${src}`, recruiter && recruiter.email !== form.email.trim().toLowerCase() ? `recruited by ${recruiter.name} (${code})` : null].filter(Boolean).join(" · ");
+    const { partner, existing } = await signUp({ ...form, how: [form.how, tag && `[${tag}]`].filter(Boolean).join(" ") || null, kind: form.kind as keyof typeof PARTNER_KINDS, ip: clientIp(req) });
+    if (!existing && recruiter && recruiter.status === "active" && recruiter.email !== partner.email)
+      await sendEmail(recruiter.email, `${partner.name} joined from your flyer`, `Hi ${recruiter.name.split(" ")[0]},\n\n${partner.name} just joined the ${BRAND.name} network from the flyer you shared. Thanks for growing the network.\n\nYour partner page: ${siteUrl()}/partner\n\n— ${BRAND.name}`).catch(() => {});
     // an existing partner gets the same answer without their code (no account probing); their welcome email has it
     return Response.json(existing ? { ok: true, existing: true } : { ok: true, code: partner.code, link: partnerLink(partner.code) });
   } catch (e) {
