@@ -10,11 +10,15 @@
  *               access_notes?, photos?, customer_consent: true, i_will_do_it? } — a referral ticket (AI files it, customer gets a link)
  * UPDATED : 2026-10-22_0400 UTC — one-tap join for pros and clients; referral tickets.
  * UPDATED : 2026-10-22_0500 UTC — referral ticket photos (paths from /api/uploads, up to 8).
+ * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): details, the service's size answers and both
+ *           confirmations; anything the standard requires that's missing comes back as a list (packages/core ticketCheck).
  * UPDATED : 2026-10-22_0500 UTC — GET ?customer=<email>: autofill a ticket from the referrer's OWN earlier tickets or referrals
  *           for that customer (never anyone else's data; no entry details).
  */
 import { z } from "zod";
-import { getService, isPhotoPath } from "@handled/core";
+import { BEST_TIMES, CONTACT_PREFS, OCCUPANCY, PROPERTY_TYPES, TICKET_RELATIONSHIPS, getService, isPhotoPath } from "@handled/core";
+
+const keys = <T extends Record<string, string>>(o: T) => Object.keys(o) as [keyof T & string, ...(keyof T & string)[]];
 import { deny, getViewer } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { adminClient } from "@/lib/supabase/server";
@@ -39,8 +43,15 @@ const Body = z.discriminatedUnion("action", [
     frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).optional().nullable(),
     urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).optional().nullable(),
     budget: z.coerce.number().min(0).max(10_000_000).optional().nullable(), access_notes: z.string().trim().max(1000).optional().nullable(),
-    customer_consent: z.literal(true), i_will_do_it: z.boolean().optional(),
+    customer_consent: z.literal(true), customer_expects_contact: z.literal(true), i_will_do_it: z.boolean().optional(),
     photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
+    answers: z.record(z.string().max(60), z.union([z.string().max(200), z.number(), z.boolean()])).default({}),
+    details: z.object({
+      relationship: z.enum(keys(TICKET_RELATIONSHIPS)), preferred_contact: z.enum(keys(CONTACT_PREFS)), best_time: z.enum(keys(BEST_TIMES)).nullable().optional(),
+      property_type: z.enum(keys(PROPERTY_TYPES)), occupancy: z.enum(keys(OCCUPANCY)).nullable().optional(),
+      pets: z.string().trim().max(200).nullable().optional(), parking: z.string().trim().max(200).nullable().optional(),
+      preferred_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), decision_maker: z.boolean().nullable().optional(),
+    }),
   }),
 ]);
 
@@ -62,7 +73,10 @@ export async function POST(req: Request) {
   const v = await getViewer(req);
   if (!v) return deny(401, "Sign in first");
   const b = Body.safeParse(await req.json().catch(() => null));
-  if (!b.success) return deny(400, b.error.issues[0]?.path[0] === "customer_consent" ? "Only send a ticket the customer asked you to send." : "Check the form");
+  if (!b.success) {
+    const at = String(b.error.issues[0]?.path[0] ?? "");
+    return deny(400, ["customer_consent", "customer_expects_contact"].includes(at) ? "Only send a ticket the customer asked for, and who knows we'll contact them." : at === "details" ? "Fill in how you know them, how to reach them and the type of property." : "Check the form");
+  }
   if (b.data.action === "join") {
     const p = await joinPartner(v, clientIp(req)).catch((e) => { console.error("[partners]", e); return null; });
     return p ? Response.json({ ok: true, code: p.code }) : deny(500, "Couldn't join — try again");

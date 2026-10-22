@@ -62,3 +62,38 @@ test("ticket tokens are URL-safe and validated", () => {
   assert.equal(cleanTicketToken("../etc"), null);
   assert.equal(cleanTicketToken(undefined), null);
 });
+
+// ─── Standard Referral Ticket (RT-1) — added 2026-10-22_0600 UTC ───
+import { TICKET_SECTIONS, TICKET_STANDARD_VERSION, ticketCheck, ticketNotes } from "./referral-ticket.ts";
+
+const good = {
+  customer_name: "Dana Lee", customer_email: "dana@example.com", customer_phone: "(313) 555-0142", address: "123 Main St", city: "Detroit", state: "MI", zip: "48226",
+  service_slug: "lawn-care", description: "Front and back yard mowing and edging, about a quarter acre, weekly through fall.",
+  frequency: "weekly", urgency: "this_week", answers: { yard_sqft: 10000 }, photos: [] as string[],
+  details: { relationship: "my_customer", preferred_contact: "text", property_type: "house" } as const,
+  customer_consent: true, customer_expects_contact: true,
+};
+
+test("standard ticket: a complete ticket passes, with what would make it better", () => {
+  const c = ticketCheck(good);
+  assert.deepEqual(c.required, []);
+  assert.ok(c.recommended.some((r) => r.startsWith("Photos")));
+  assert.ok(c.score >= 70 && c.score < 100);
+  assert.equal(TICKET_STANDARD_VERSION, "RT-1");
+  assert.deepEqual(TICKET_SECTIONS.map((s) => s.id), ["referrer", "customer", "location", "job", "photos", "confirm"]);
+});
+
+test("standard ticket: missing basics, the service's required size and required photos block it", () => {
+  const c = ticketCheck({ ...good, customer_phone: "555", details: {}, answers: {}, description: "mow it", customer_expects_contact: false });
+  for (const r of ["Mobile phone", "How you know the customer", "Best way to reach them", "Type of property", "What needs doing (30+ characters)"]) assert.ok(c.required.includes(r), r);
+  assert.ok(c.required.some((r) => r.startsWith("Size:")));
+  const pw = ticketCheck({ ...good, service_slug: "power-washing", answers: { surface: "driveway", sqft: 800 } });
+  assert.ok(pw.required.some((r) => r.startsWith("2 photos")));
+  assert.deepEqual(ticketCheck({ ...good, service_slug: "power-washing", answers: { surface: "driveway", sqft: 800 }, photos: ["a", "b"] }).required, []);
+  assert.ok(c.score < ticketCheck(good).score);
+});
+
+test("standard ticket: notes for the pro carry property, pets, parking and the wished date", () => {
+  const n = ticketNotes({ ...good, details: { ...good.details, occupancy: "vacant", pets: "Two dogs, friendly", parking: "Driveway", preferred_date: "2026-11-02" } });
+  for (const s of ["Property: House, empty.", "Pets: Two dogs, friendly.", "Parking: Driveway.", "2026-11-02"]) assert.ok(n.includes(s), s);
+});

@@ -4,6 +4,7 @@
   CREATED : 2026-10-22_0400 UTC
   PURPOSE : How the referral program pays pros, clients and partners: refer a person, or send a job on a referral ticket.
             What happens to a ticket from submission to payout, who gets paid what, and how to switch it on.
+  UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1), photos, autofill, Handled Hub views, IEBC worker actions.
 -->
 
 # Referral program — referral tickets
@@ -28,12 +29,35 @@ Rates live in one place: `PARTNER_PROGRAM` in `packages/core/src/partners.ts`.
 - **Clients:** My account → **Earn cash for referrals** card (`/partner`). One tap to join, then Stripe payout setup once.
 - **Anyone else:** `/partners` sign-up form, then the partner page.
 
+## The Standard Referral Ticket (RT-1)
+
+Every referral uses the same ticket, whether it comes from a pro, a client, a partner, a phone call or an IEBC worker. It has the
+same sections every time, so each job arrives with what a pro needs. The single definition lives in
+`packages/core/src/referral-ticket.ts`. It drives the online form, the server check, the AI filing, the Hub review, the
+booking notes and the **printable blank ticket at `/partners/referral-ticket`**.
+
+| Section | Required | Recommended |
+|---|---|---|
+| 1. You and the customer | How you know them | — |
+| 2. Customer | Name, email, mobile (10 digits), best way to reach them | Best time, company, "can approve and pay" |
+| 3. Location | Street, city, state, ZIP, type of property | Occupied or empty, getting in, parking, pets |
+| 4. The job | Description (30+ characters), how often, when, **the service's required sizes** (e.g. lawn square feet) | Service (or the AI picks), the service's other detail questions, wished date, budget |
+| 5. Photos | **The service's required photos** (e.g. 2 for power washing) | Photos where the service recommends them |
+| 6. Confirm | The customer asked for it, and knows Handled will contact them | Pro: "I'd like to do it myself" |
+
+The form shows a live **completeness meter** with a "still needed" list, and won't submit until every required item is
+there. The server runs the same check (`ticketCheck`). Each ticket stores its standard version and a 0–100 score.
+The Hub shows the score so weak tickets stand out. The referrer's own size answers are kept over the AI's reading.
+
+**Autofill:** a ZIP fills in city and state. A customer the referrer has sent before is filled in from the referrer's
+*own* earlier ticket (never anyone else's data).
+
 ## The referral ticket, start to finish
 
-1. **Submit.** On `/partner` the referrer fills out the ticket: the customer (name, email, phone, company), where (address,
-   ZIP), the job (service or "let our AI pick", how often, when, budget, description), how to get in, and a box
-   confirming *the customer asked them to send it*. A pro can also tick **"I'd like to do this job myself."**
-2. **AI files it** (`apps/web/lib/ai/referral-ticket.ts`, agent `referral_ticket`). Claude picks the catalog service,
+1. **Submit.** On `/partner` (Pro portal → Refer & earn; client account → Earn cash for referrals; app → same) the
+   referrer fills out the Standard Referral Ticket above, including up to 8 photos. A pro can also tick **"I'd like to
+   do this job myself."**
+2. **AI files it** (`apps/web/lib/ai/referral-ticket.ts`, agent `referral_ticket`). Claude looks at the photos too, picks the catalog service,
    frequency, and the pricing answers that service asks (rooms, sq ft, size), writes a short summary, and lists what's
    missing. Every value is checked against the catalog, and nothing is invented. The ticket is saved in
    `referral_tickets` under the **referrer** (`partner_id`) and the **customer's Handled account** if they have one
@@ -60,6 +84,31 @@ Rates live in one place: `PARTNER_PROGRAM` in `packages/core/src/partners.ts`.
 The referrer is emailed at every step (booked, pro assigned, done and earned), and each ticket keeps a timeline on the
 partner page and in the Hub.
 
+## In the Handled Hub (MasterMind)
+
+- **Dashboard:** a 🤝 Referrals strip showing tickets needing review, waiting on the customer, booked this month, owed and paid.
+- **Referrals & tickets** (`/hub/partners`): the ticket queue with score, standard fields, AI summary, missing info and
+  photos. Actions: approve & send, re-send, cancel. Also partners, hand credits and the commission queue.
+- **Job control panel:** who referred the job, the rate, the commission and its status, and the money split.
+- **Pro record:** tickets the pro sent, booked jobs, and their referral earnings. **Customer record:** who referred them and their tickets.
+- **Finance:** referral commissions earned, owed and paid, and take after referrals.
+- **AI morning brief and ops assistant:** both include the ticket queue.
+- **Daily sweep:** expires tickets that weren't booked within 60 days and tells the referrer.
+
+## IEBC AI workers (Workforce API)
+
+IEBC's AI workers see these in their action list automatically, by department:
+
+| Action | Scope | Risk |
+|---|---|---|
+| `read.referral_tickets` | read | — |
+| `sales.send_referral_ticket` (approve & send the customer's link) | sales | low |
+| `sales.cancel_referral_ticket`, `sales.note_referral_ticket` | sales | low |
+| `finance.referral_commissions` | finance | — |
+| `finance.void_referral_commission` | finance | **high: always approved by a person** |
+
+New tickets that need review also raise an ops alert, which workers already read (`read.alerts`).
+
 ## Rules and guards
 
 - The customer must have asked for it (required checkbox). No ticket for yourself.
@@ -71,7 +120,8 @@ partner page and in the Hub.
 
 ## Switch it on
 
-1. Supabase → SQL Editor → paste **`supabase/setup/ADD_REFERRAL_TICKETS_2026-10-22_0400.sql`** → Run (safe to run twice).
+1. Supabase → SQL Editor → paste **`supabase/setup/ADD_REFERRAL_TICKETS_2026-10-22_0400.sql`** → Run (safe to run twice;
+   **run it again if you ran an earlier copy** — it adds photos and the standard-ticket fields). Hub → Setup checks it.
    Same as `supabase/migrations/20261022040000_referral_tickets.sql`.
 2. Deploy. Without `ANTHROPIC_API_KEY`, tickets still work: the referrer's chosen service is used, and unclear tickets go
    to staff review.
@@ -85,7 +135,10 @@ switched on yet", and Hub → Partners shows the file to run.
 |---|---|
 | Rates, money split, terms (v2) | `packages/core/src/partners.ts` (+ `partners.test.ts`) |
 | Tickets, join, attribution, commissions, payouts | `apps/web/lib/partners.ts` |
+| The Standard Referral Ticket | `packages/core/src/referral-ticket.ts`, printable at `/partners/referral-ticket` |
 | AI filing | `apps/web/lib/ai/referral-ticket.ts` |
+| IEBC worker actions | `apps/web/lib/iebc/actions.ts` |
+| ZIP autofill | `apps/web/app/api/zip/route.ts`, `lib/geo.ts` (`zipPlace`) |
 | Booking prefill & credit | `apps/web/app/(site)/book/page.tsx`, `components/BookingWizard.tsx`, `lib/jobs.ts` |
 | Partner page (ticket form, tickets, money split) | `apps/web/app/(site)/partner/page.tsx`, `components/PartnerUI.tsx` |
 | Hub queue (approve, re-send, cancel) | `apps/web/app/hub/partners/page.tsx`, `app/api/hub/partners/route.ts` |

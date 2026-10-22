@@ -40,13 +40,13 @@ export default function Partners() {
       <section className="wrap pt-12">
         <h2 className="text-2xl font-bold">Three ways to earn</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">{[
-          [`${pctLabel(P.jobOncePct)}%`, "A one-time job", "Fill out a referral ticket for one job — a move-out clean, a tree, a repaint. You earn on that job."],
+          [`${pctLabel(P.jobOncePct)}%`, "A one-time job", "Fill out the Standard Referral Ticket for one job — a move-out clean, a tree, a repaint. You earn on that job."],
           [`${pctLabel(P.jobRecurringPct)}%`, "A recurring job", `Weekly cleaning, monthly lawn care, quarterly gutters: you earn on every visit for ${P.months} months.`],
           [`${pctLabel(P.pctOfTake)}%`, "A person", `Share your link or send a customer. You earn on every job they book, anything, for ${P.months} months.`],
         ].map(([pct, t, d]) => (
           <div key={t} className="card border-t-4 border-t-gold"><div className="text-3xl font-extrabold">{pct}<span className="text-base font-semibold text-ink-soft"> of our fee</span></div><h3 className="mt-1 font-bold">{t}</h3><p className="mt-1 text-sm text-ink-soft">{d}</p></div>
         ))}</div>
-        <p className="mt-2 text-xs text-ink-soft">Our fee is what&apos;s left after the pro is paid. Your commission comes out of our share — never the pro&apos;s pay.</p>
+        <p className="mt-2 text-xs text-ink-soft">Our fee is what&apos;s left after the pro is paid. Your commission comes out of our share — never the pro&apos;s pay. See the <Link href="/partners/referral-ticket" className="underline">Standard Referral Ticket</Link> — the information every job referral needs.</p>
       </section>
 
       <section className="wrap grid gap-4 py-12 md:grid-cols-3">

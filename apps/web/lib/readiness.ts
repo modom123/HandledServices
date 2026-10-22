@@ -202,7 +202,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261006201000_pro_business_address", "pro place of business", () => db.from("contractors").select("base_address, base_city").limit(1)],
     ["20261006215500_xero_accounting", "Xero accounting", () => db.from("xero_sync_log").select("id").limit(1)],
     ["20261007010000_referral_partners", "referral partner program", () => db.from("partner_commissions").select("id").limit(1)],
-    ["20261022040000_referral_tickets", "referral tickets (refer a job: 20% / 15%, photos)", () => db.from("referral_tickets").select("id, photos").limit(1)],
+    ["20261022040000_referral_tickets", "referral tickets (Standard Referral Ticket RT-1, photos, 20% / 15%)", () => db.from("referral_tickets").select("id, photos, details, completeness").limit(1)],
     ["20261007023000_site_settings_grand_opening", "website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
     ["20261007030000_bid_measurements", "bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
     ["20261007040000_loyalty_points", "Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],

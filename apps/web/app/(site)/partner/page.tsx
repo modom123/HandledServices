@@ -8,6 +8,7 @@
  *           status, timeline and money split (customer → pro → you → Handled), commissions by type and rate, and a
  *           one-tap join for signed-in pros and clients.
  * UPDATED : 2026-10-22_0500 UTC — photo count on each ticket.
+ * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket form, with a link to the printable blank ticket.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -74,7 +75,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       </div>
 
       <section className="card">
-        <h2 className="font-bold">Referral ticket — send us a job</h2>
+        <h2 className="font-bold">Standard Referral Ticket — send us a job <Link href="/partners/referral-ticket" className="text-xs font-normal text-brand underline" target="_blank">printable blank ticket</Link></h2>
         <p className="mb-4 mt-1 text-sm text-ink-soft">Tell us everything about one job. Our AI files it (service, size, how often), we send the customer a booking link with it all filled in, and once they pay we send it to our pros. You hear from us when it&apos;s booked, assigned and done.</p>
         <ReferralTicket services={services} isPro={Boolean(partner.contractor_id ?? v.contractorId)} rates={{ once: pctLabel(P.jobOncePct), recurring: pctLabel(P.jobRecurringPct), months: P.months }} />
       </section>

@@ -3,6 +3,8 @@
 -- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-10-22_0400 UTC
 -- UPDATED : 2026-10-22_0500 UTC - photos on the ticket (same private bucket and paths as booking photos).
+-- UPDATED : 2026-10-22_0600 UTC - the Standard Referral Ticket (RT-1): details (relationship, contact preference, property,
+--           occupancy, pets, parking, preferred date, decision maker), standard_version and a 0-100 completeness score.
 -- PURPOSE : One paste in Supabase → SQL Editor → Run (same as migrations/20261022040000_referral_tickets.sql).
 --           Referral program, part 2: REFERRAL TICKETS. Pros, clients and anyone in the partner program fill out a
 --           ticket for one job (customer, address, what's needed, how often, when). AI files it: the right service,
@@ -56,6 +58,9 @@ create table if not exists public.referral_tickets (
   updated_at timestamptz not null default now()
 );
 alter table public.referral_tickets add column if not exists photos text[] not null default '{}';  -- for databases that ran the first version
+alter table public.referral_tickets add column if not exists details jsonb not null default '{}'::jsonb;  -- Standard Referral Ticket fields
+alter table public.referral_tickets add column if not exists standard_version text;
+alter table public.referral_tickets add column if not exists completeness int check (completeness between 0 and 100);
 create index if not exists referral_tickets_match_idx on public.referral_tickets (customer_email, service_slug) where status in ('open','needs_review');
 create index if not exists referral_tickets_partner_idx on public.referral_tickets (partner_id, created_at desc);
 create index if not exists referral_tickets_status_idx on public.referral_tickets (status, created_at desc);

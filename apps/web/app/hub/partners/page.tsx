@@ -8,8 +8,10 @@
  * UPDATED : 2026-10-22_0400 UTC — Referral tickets: every ticket with the AI's filing (service, summary, what's missing), its
  *           referrer, customer and job; approve & send the customer's link, re-send, cancel. Commission rate per row.
  * UPDATED : 2026-10-22_0500 UTC — ticket photos (thumbnails, signed links valid an hour).
+ * UPDATED : 2026-10-22_0600 UTC — Standard Referral Ticket: completeness score, how the referrer knows them, contact
+ *           preference, property, occupancy, pets, parking, wished date; link to the printable blank ticket.
  */
-import { COMMISSION_BASIS, PARTNER_KINDS, PARTNER_PROGRAM, SERVICES, getService, money, pctLabel, type CommissionBasis, type PartnerKind } from "@handled/core";
+import { BEST_TIMES, CONTACT_PREFS, OCCUPANCY, PROPERTY_TYPES, TICKET_RELATIONSHIPS, type TicketDetails, COMMISSION_BASIS, PARTNER_KINDS, PARTNER_PROGRAM, SERVICES, getService, money, pctLabel, type CommissionBasis, type PartnerKind } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { signedUrls } from "@/lib/photos";
 import { Badge, Empty, Stat } from "@/components/ui";
@@ -18,7 +20,7 @@ import { PartnerAssign, PartnerStatusButton, TicketActions, VoidCommission } fro
 export const dynamic = "force-dynamic";
 
 type P = { id: string; code: string; name: string; email: string; phone: string | null; company: string | null; kind: PartnerKind; status: "active" | "suspended"; stripe_account_id: string | null; created_at: string };
-type T = { photos?: string[]; id: string; partner_id: string; customer_name: string; customer_email: string; customer_id: string | null; zip: string | null; service_slug: string | null; frequency: string; status: string; ai_summary: string | null; missing_info: string[]; ai_confidence: string | null; description: string; preferred_contractor_id: string | null; created_at: string; jobs: { ref: string; status: string } | null };
+type T = { details?: Partial<TicketDetails>; completeness?: number | null; standard_version?: string | null; photos?: string[]; id: string; partner_id: string; customer_name: string; customer_email: string; customer_id: string | null; zip: string | null; service_slug: string | null; frequency: string; status: string; ai_summary: string | null; missing_info: string[]; ai_confidence: string | null; description: string; preferred_contractor_id: string | null; created_at: string; jobs: { ref: string; status: string } | null };
 type C = { basis?: CommissionBasis; pct?: number | null; id: string; partner_id: string; amount: number; take: number; status: string; eligible_at: string; paid_at: string | null; note: string | null; jobs: { ref: string; service_slug: string } | null };
 
 export default async function PartnersHub() {
@@ -31,7 +33,7 @@ export default async function PartnersHub() {
   const [{ data: custs }, { data: comms }, { data: tix, error: tixErr }] = await Promise.all([
     db.from("referral_customers").select("partner_id, first_job_id"),
     db.from("partner_commissions").select("*, jobs(ref, service_slug)").order("created_at", { ascending: false }).limit(1000),
-    db.from("referral_tickets").select("id, photos, partner_id, customer_name, customer_email, customer_id, zip, service_slug, frequency, status, ai_summary, missing_info, ai_confidence, description, preferred_contractor_id, created_at, jobs!referral_tickets_job_id_fkey(ref, status)").order("created_at", { ascending: false }).limit(300),
+    db.from("referral_tickets").select("id, photos, details, completeness, standard_version, partner_id, customer_name, customer_email, customer_id, zip, service_slug, frequency, status, ai_summary, missing_info, ai_confidence, description, preferred_contractor_id, created_at, jobs!referral_tickets_job_id_fkey(ref, status)").order("created_at", { ascending: false }).limit(300),
   ]);
   const TX = (tix ?? []) as unknown as T[];
   // thumbnails for the open queue only (signing hundreds of booked tickets' photos would slow the page)
@@ -66,14 +68,19 @@ export default async function PartnersHub() {
 
       <section>
         <h2 className="mb-1 font-bold">Referral tickets</h2>
-        <p className="mb-2 max-w-3xl text-sm text-ink-soft">A referrer sent us a job. The AI filed it; clear tickets already went to the customer as a pre-filled booking link. &ldquo;Needs review&rdquo; means the AI wasn&apos;t sure or the ZIP is missing — pick the service and send the link. Once the customer pays, the job is broadcast and assigned like any other.</p>
+        <p className="mb-2 max-w-3xl text-sm text-ink-soft">Every ticket uses the <a className="underline" href="/partners/referral-ticket" target="_blank">Standard Referral Ticket</a>. A referrer sent us a job. The AI filed it; clear tickets already went to the customer as a pre-filled booking link. &ldquo;Needs review&rdquo; means the AI wasn&apos;t sure or the ZIP is missing — pick the service and send the link. Once the customer pays, the job is broadcast and assigned like any other.</p>
         {tixErr ? <div className="card text-sm">Run <code>supabase/setup/ADD_REFERRAL_TICKETS_2026-10-22_0400.sql</code> once in Supabase → SQL Editor to switch on referral tickets.</div> : !TX.length ? <Empty>No referral tickets yet.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Referrer → customer</th><th className="p-3">Job (AI filing)</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead>
             <tbody>{TX.map((t) => (
               <tr key={t.id} className="border-t border-line align-top">
                 <td className="p-3"><div className="font-semibold">{name.get(t.partner_id) ?? "—"}</div><div className="text-xs text-ink-soft">→ {t.customer_name} · {t.customer_email}{t.customer_id ? " · has an account" : " · new"}{t.zip ? ` · ${t.zip}` : ""}</div>{t.preferred_contractor_id && <div className="text-xs text-brand">Referring pro asked for first look</div>}</td>
-                <td className="p-3 max-w-md"><div className="font-semibold">{t.service_slug ? getService(t.service_slug)?.name : "Service unclear"}{t.frequency !== "once" ? ` · ${t.frequency}` : ""} {t.ai_confidence && <span className="text-xs font-normal text-ink-soft">({t.ai_confidence} confidence)</span>}</div><p className="text-xs text-ink-soft">{t.ai_summary ?? t.description.slice(0, 300)}</p>{t.missing_info?.length > 0 && <p className="mt-1 text-xs">Missing: {t.missing_info.join(" · ")}</p>}
+                <td className="p-3 max-w-md">{t.completeness != null && <div className="mb-1"><Badge tone={t.completeness >= 85 ? "green" : t.completeness >= 70 ? "brand" : "amber"}>{t.standard_version ?? "RT"} · {t.completeness}% complete</Badge></div>}<div className="font-semibold">{t.service_slug ? getService(t.service_slug)?.name : "Service unclear"}{t.frequency !== "once" ? ` · ${t.frequency}` : ""} {t.ai_confidence && <span className="text-xs font-normal text-ink-soft">({t.ai_confidence} confidence)</span>}</div><p className="text-xs text-ink-soft">{t.ai_summary ?? t.description.slice(0, 300)}</p>{t.missing_info?.length > 0 && <p className="mt-1 text-xs">Missing: {t.missing_info.join(" · ")}</p>}
+                  {t.details && Object.keys(t.details).length > 0 && <p className="mt-1 text-xs text-ink-soft">{[
+                    t.details.relationship && TICKET_RELATIONSHIPS[t.details.relationship], t.details.preferred_contact && `prefers ${CONTACT_PREFS[t.details.preferred_contact].toLowerCase()}${t.details.best_time ? ` (${BEST_TIMES[t.details.best_time].toLowerCase()})` : ""}`,
+                    t.details.property_type && PROPERTY_TYPES[t.details.property_type], t.details.occupancy && OCCUPANCY[t.details.occupancy].split(" (")[0], t.details.pets && `pets: ${t.details.pets}`,
+                    t.details.parking && `parking: ${t.details.parking}`, t.details.preferred_date && `wants ~${t.details.preferred_date}`, t.details.decision_maker ? "decision maker" : null,
+                  ].filter(Boolean).join(" · ")}</p>}
                   {(thumbs.get(t.id) ?? []).length > 0 ? <div className="mt-2 flex flex-wrap gap-1">{thumbs.get(t.id)!.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt={`Ticket photo ${i + 1}`} className="h-12 w-12 rounded object-cover" /></a>)}</div> : t.photos?.length ? <p className="mt-1 text-xs text-ink-soft">📷 {t.photos.length} photo(s)</p> : null}</td>
                 <td className="p-3">{t.status === "booked" ? <Badge tone="green">Booked{t.jobs ? ` · ${t.jobs.ref}` : ""}</Badge> : t.status === "needs_review" ? <Badge tone="amber">Needs review</Badge> : t.status === "open" ? <Badge tone="brand">Link sent</Badge> : <Badge>{t.status}</Badge>}<div className="mt-1 text-xs text-ink-soft">{t.created_at.slice(0, 10)}</div></td>
                 <td className="p-3"><TicketActions id={t.id} status={t.status} service={t.service_slug} services={services} /></td>

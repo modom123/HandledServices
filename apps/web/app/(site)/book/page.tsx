@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-20_0200 UTC — ?quote=&bid=: book a request-a-quote at the pro's locked price.
  * UPDATED : 2026-10-22_0400 UTC — ?ticket=<token>: a referral ticket's link — everything the referrer entered and the AI filed
  *           (customer, address, service, pricing answers, how often, when, notes) is filled in; the booking credits the referrer.
+ * UPDATED : 2026-10-22_0600 UTC — notes from the Standard Referral Ticket (property, pets, parking, wished date).
  * UPDATED : 2026-10-22_0500 UTC — the ticket's photos come along (from the database, so a pro's pro/… photo paths are kept).
  */
 import { BookingWizard } from "@/components/BookingWizard";
@@ -24,6 +25,7 @@ import { termsDecision } from "@handled/core";
 import { bookingPreference } from "@/lib/favorites";
 import type { BookedQuote, HomeChoice, PreferredPro, TicketPrefill } from "@/components/BookingWizard";
 import { ticketByToken } from "@/lib/partners";
+import { ticketNotes } from "@handled/core";
 import { requestByToken } from "@/lib/quotes";
 
 /** ?pro=&crew=: the signed-in customer's favorite or past pro (anything else is ignored). */
@@ -86,7 +88,7 @@ async function ticketBooking(token?: string) {
     token: t.token, from: p?.company || p?.name || "Someone you know",
     contact: { name: t.customer_name, email: t.customer_email, phone: t.customer_phone ?? "", address: t.address ?? "", city: t.city ?? "", state: t.state ?? "", zip: t.zip ?? "", company: t.company_name ?? "" },
   };
-  const notes = [t.ai_summary ?? t.description, t.missing_info.length ? `Still to confirm: ${t.missing_info.join(" ")}` : null].filter(Boolean).join("\n\n");
+  const notes = [ticketNotes({ ...t, details: t.details ?? {} }), t.missing_info.length ? `Still to confirm: ${t.missing_info.join(" ")}` : null].filter(Boolean).join("\n\n");
   return { prefill, photos: (t.photos ?? []).slice(0, 8), service: t.service_slug ?? undefined, answers: t.answers as Record<string, string | number | boolean>, frequency: t.frequency, urgency: t.urgency ?? undefined, budget: t.budget ? String(t.budget) : undefined, notes };
 }
 

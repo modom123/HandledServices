@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-20_0015 UTC — call-desk (call queue, outcomes and scripts for Hub → Business leads → Call desk).
  * UPDATED : 2026-10-20_0100 UTC — channels (omnichannel lead intake, channel reporting, social calendar).
  * UPDATED : 2026-10-20_0200 UTC — pro-rates (pros set their own prices; price choices; request-a-quote).
+ * UPDATED : 2026-10-22_0600 UTC — referral-ticket (the Standard Referral Ticket RT-1: sections, ticketCheck, ticketNotes).
  */
 
 export * from "./types.ts";
@@ -66,5 +67,6 @@ export * from "./mission.ts";
 export * from "./rfp.ts";
 export * from "./coverage.ts";
 export * from "./partners.ts";
+export * from "./referral-ticket.ts";
 export * from "./loyalty.ts";
 export * from "./supabase-public.ts";

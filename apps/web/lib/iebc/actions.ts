@@ -388,10 +388,10 @@ export const ACTIONS: Record<string, ActionDef> = {
   }),
   // ─── referral program (pros, clients and partners sending us work) ───
   "read.referral_tickets": def({
-    scope: "read", write: false, risk: "low", description: "Referral tickets — jobs sent to us by pros, clients and partners — with the AI filing (service, frequency, summary, what's missing), the referrer, the customer and the booked job. Filter by status (needs_review = waiting on us).",
+    scope: "read", write: false, risk: "low", description: "Referral tickets (Standard Referral Ticket RT-1: details, 0–100 completeness) — jobs sent to us by pros, clients and partners — with the AI filing (service, frequency, summary, what's missing), the referrer, the customer and the booked job. Filter by status (needs_review = waiting on us).",
     params: z.object({ status: z.enum(["needs_review", "open", "booked", "expired", "cancelled"]).optional(), limit: z.number().int().min(1).max(100).default(30) }),
     run: async ({ status, limit }) => {
-      let q = db().from("referral_tickets").select("id, status, customer_name, customer_email, zip, service_slug, frequency, urgency, budget, description, ai_summary, missing_info, ai_confidence, photos, basis, pays_until, expires_at, created_at, events, referral_partners(name, kind, code), jobs!referral_tickets_job_id_fkey(ref, status, price_final)").order("created_at", { ascending: false }).limit(limit);
+      let q = db().from("referral_tickets").select("id, status, customer_name, customer_email, zip, service_slug, frequency, urgency, budget, description, ai_summary, missing_info, ai_confidence, photos, details, completeness, standard_version, basis, pays_until, expires_at, created_at, events, referral_partners(name, kind, code), jobs!referral_tickets_job_id_fkey(ref, status, price_final)").order("created_at", { ascending: false }).limit(limit);
       if (status) q = q.eq("status", status);
       const { data, error } = await q;
       if (error) return "Referral tickets aren't switched on yet (ADD_REFERRAL_TICKETS_2026-10-22_0400.sql).";

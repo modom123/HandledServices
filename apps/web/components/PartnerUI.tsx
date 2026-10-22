@@ -8,12 +8,14 @@
  *           and Hub ticket controls (send the customer their link, cancel).
  * UPDATED : 2026-10-22_0500 UTC — photos on the referral ticket (camera / library / drag & drop, the service's photo tips).
  * UPDATED : 2026-10-22_0500 UTC — autofill: a ZIP fills city and state; a customer you've sent before fills their details.
+ * UPDATED : 2026-10-22_0600 UTC — the Standard Referral Ticket (RT-1): six sections for every referral, the service's own size
+ *           questions and photo rules, a live completeness meter and "still needed" list (the same check the server runs).
  */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { photoRule } from "@handled/core";
+import { BEST_TIMES, CONTACT_PREFS, OCCUPANCY, PROPERTY_TYPES, TICKET_RELATIONSHIPS, TICKET_SECTIONS, TICKET_STANDARD_VERSION, getService, photoRule, questionVisible, ticketCheck, type Answers, type Question, type TicketDetails } from "@handled/core";
 import { PhotoPicker } from "./PhotoPicker";
 
 async function post(url: string, body: unknown) {
@@ -175,17 +177,37 @@ export function JoinPartner({ terms }: { terms: string[] }) {
   );
 }
 
+/** One question from the service catalog (the same size and detail questions the customer answers at booking). */
+function ServiceQuestion({ q, value, onChange }: { q: Question; value: Answers[string]; onChange: (v: string | number | boolean | undefined) => void }) {
+  if (q.type === "toggle") return <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />{q.label}</label>;
+  if (q.type === "select") return <label className="text-sm">{q.label}<select className="input mt-1" value={value === undefined ? "" : String(value)} onChange={(e) => onChange(e.target.value || undefined)}><option value="">Choose…</option>{q.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>;
+  return <label className="text-sm">{q.label}{q.unit ? ` (${q.unit})` : ""}{q.required ? " *" : ""}<input className="input mt-1" inputMode="decimal" value={value === undefined ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? undefined : Math.min(q.max, Math.max(q.min, Number(e.target.value) || 0)))} placeholder={q.help ?? ""} /></label>;
+}
+
 /**
- * The referral ticket: everything about one job, so we can price it, book it and send a pro without calling anyone.
- * The AI files it (service, how often, sizes) and the customer gets a pre-filled booking link from you.
+ * The Standard Referral Ticket (RT-1, packages/core/src/referral-ticket.ts): the same six sections for every referral,
+ * so each one arrives with what a pro needs. The service's own size questions and photo rules are built in; the meter
+ * and the "still needs" list come from the same check the server runs. The AI files it and the customer gets a
+ * pre-filled booking link from you.
  */
 export function ReferralTicket({ services, isPro, rates }: { services: [string, string][]; isPro: boolean; rates: { once: string; recurring: string; months: number } }) {
   const router = useRouter();
-  const blank = { customer_name: "", customer_email: "", customer_phone: "", company_name: "", address: "", city: "", state: "MI", zip: "", service_slug: "", frequency: "once", urgency: "", budget: "", description: "", access_notes: "", customer_consent: false, i_will_do_it: false };
+  const blank = { customer_name: "", customer_email: "", customer_phone: "", company_name: "", address: "", city: "", state: "MI", zip: "", service_slug: "", frequency: "once", urgency: "", budget: "", description: "", access_notes: "", customer_consent: false, customer_expects_contact: false, i_will_do_it: false };
+  const blankD = { relationship: "", preferred_contact: "", best_time: "", property_type: "", occupancy: "", pets: "", parking: "", preferred_date: "", decision_maker: false };
   const [f, setF] = useState(blank);
+  const [d, setD] = useState(blankD);
+  const [answers, setAnswers] = useState<Answers>({});
   const [photos, setPhotos] = useState<string[]>([]);
-  const rule = f.service_slug ? photoRule(f.service_slug) : null;
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<{ status: string; service: string | null; summary: string | null; missing: string[] } | null>(null);
   const [filled, setFilled] = useState<string | null>(null);
+  const svc = f.service_slug ? getService(f.service_slug) : null;
+  const rule = svc ? photoRule(svc.slug) : null;
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const setDet = (k: keyof typeof d) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setD({ ...d, [k]: e.target.value });
+  const details = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v === "" ? null : v])) as Partial<TicketDetails>;
+  const check = ticketCheck({ ...f, budget: Number(f.budget) || null, service_slug: f.service_slug || null, answers, photos, details });
   // ZIP → city and state (only fills what's empty or what we filled last time)
   const zipFill = useRef<{ city: string; state: string } | null>(null);
   useEffect(() => {
@@ -195,14 +217,14 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
       if (!live || !j.city || !j.state) return;
       setF((x) => {
         const prev = zipFill.current;
-        const city = !x.city || x.city === prev?.city ? j.city! : x.city;
-        const state = !x.state || x.state === "MI" || x.state === prev?.state ? j.state! : x.state;
         zipFill.current = { city: j.city!, state: j.state! };
-        return { ...x, city, state };
+        return { ...x, city: !x.city || x.city === prev?.city ? j.city! : x.city, state: !x.state || x.state === "MI" || x.state === prev?.state ? j.state! : x.state };
       });
     }).catch(() => {});
     return () => { live = false; };
   }, [f.zip]);
+  // a new service starts from its own questions
+  useEffect(() => { setAnswers({}); }, [f.service_slug]);
   // a customer you've sent before → their name, phone and address from your earlier ticket (empty fields only)
   const lookup = async () => {
     if (!/\S+@\S+\.\S+/.test(f.customer_email)) return;
@@ -215,10 +237,7 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
     }));
     setFilled("Filled in from your last referral for this customer — check it's still right.");
   };
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<{ status: string; service: string | null; summary: string | null; missing: string[] } | null>(null);
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const reset = () => { setDone(null); setF(blank); setD(blankD); setAnswers({}); setPhotos([]); setFilled(null); zipFill.current = null; };
   if (done) return (
     <div className="rounded-xl border border-brand bg-brand-tint p-4 text-sm">
       <h3 className="font-bold">Ticket received ✓</h3>
@@ -226,51 +245,83 @@ export function ReferralTicket({ services, isPro, rates }: { services: [string, 
       {done.summary && <p className="mt-2">{done.summary}</p>}
       {done.missing.length > 0 && <p className="mt-2 text-ink-soft">We&apos;ll ask the customer: {done.missing.join(" ")}</p>}
       <p className="mt-2">{done.status === "open" ? "We emailed the customer a booking link with everything filled in. You'll hear from us when they book, when a pro is assigned and when it's done." : "Our team is reviewing it and will send the customer their booking link. You'll hear from us at every step."}</p>
-      <button className="btn-ghost mt-3" onClick={() => { setDone(null); setF(blank); setPhotos([]); setFilled(null); zipFill.current = null; }}>Send another ticket</button>
+      <button className="btn-ghost mt-3" onClick={reset}>Send another ticket</button>
     </div>
   );
+  const opts = (o: Record<string, string>) => Object.entries(o).map(([v, l]) => <option key={v} value={v}>{l}</option>);
+  const head = (id: string) => { const s = TICKET_SECTIONS.find((x) => x.id === id)!; return <legend className="mb-1 text-sm font-semibold">{s.title} <span className="font-normal text-ink-soft">— {s.why}</span></legend>; };
+  const visible = svc ? svc.questions.filter((q) => questionVisible(q, answers, svc.questions)) : [];
   return (
-    <form className="space-y-4" onSubmit={async (e) => {
-      e.preventDefault(); setBusy(true); setErr(null);
-      const r = await post("/api/partner", { action: "ticket", ...f, photos, service_slug: f.service_slug || null, urgency: f.urgency || null, budget: Number(f.budget) > 0 ? Number(f.budget) : null, company_name: f.company_name || null, i_will_do_it: isPro && f.i_will_do_it });
+    <form className="space-y-5" onSubmit={async (e) => {
+      e.preventDefault();
+      if (check.required.length) return setErr(`Still needed: ${check.required.join("; ")}.`);
+      setBusy(true); setErr(null);
+      const r = await post("/api/partner", { action: "ticket", ...f, photos, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)), details, service_slug: f.service_slug || null, urgency: f.urgency || null, budget: Number(f.budget) > 0 ? Number(f.budget) : null, company_name: f.company_name || null, i_will_do_it: isPro && f.i_will_do_it });
       setBusy(false);
       if (r.ok) { setDone(r.data as never); router.refresh(); } else setErr(r.error);
     }}>
-      <fieldset className="grid gap-3 sm:grid-cols-2">
-        <legend className="mb-1 text-sm font-semibold">Who it&apos;s for</legend>
-        <label className="text-sm">Customer&apos;s name<input className="input mt-1" required value={f.customer_name} onChange={set("customer_name")} /></label>
-        <label className="text-sm">Their email<input className="input mt-1" type="email" required value={f.customer_email} onChange={set("customer_email")} onBlur={lookup} /></label>
+      <div className="sticky top-16 z-10 rounded-lg border border-line bg-paper-deep/95 p-3 text-xs backdrop-blur">
+        <div className="flex items-center justify-between gap-2"><b>Standard Referral Ticket {TICKET_STANDARD_VERSION}</b><span>{check.score}% complete</span></div>
+        <div className="mt-1 h-2 overflow-hidden rounded bg-line"><div className={`h-full ${check.required.length ? "bg-amber-500" : "bg-brand"}`} style={{ width: `${check.score}%` }} /></div>
+        {check.required.length > 0 ? <p className="mt-1 text-amber-800">Still needed: {check.required.join(" · ")}</p> : check.recommended.length > 0 ? <p className="mt-1 text-ink-soft">Ready to send. Even better with: {check.recommended.slice(0, 4).join(" · ")}</p> : <p className="mt-1 text-brand-dark">Complete ✓</p>}
+      </div>
+
+      <fieldset className="grid gap-3 sm:grid-cols-2">{head("referrer")}
+        <label className="text-sm">How you know the customer *<select className="input mt-1" required value={d.relationship} onChange={setDet("relationship")}><option value="">Choose…</option>{opts(TICKET_RELATIONSHIPS)}</select></label>
+      </fieldset>
+
+      <fieldset className="grid gap-3 sm:grid-cols-2">{head("customer")}
+        <label className="text-sm">Full name *<input className="input mt-1" required value={f.customer_name} onChange={set("customer_name")} /></label>
+        <label className="text-sm">Email *<input className="input mt-1" type="email" required value={f.customer_email} onChange={set("customer_email")} onBlur={lookup} /></label>
         {filled && <p className="text-xs text-brand-dark sm:col-span-2">{filled}</p>}
-        <label className="text-sm">Their phone<input className="input mt-1" type="tel" value={f.customer_phone} onChange={set("customer_phone")} /></label>
+        <label className="text-sm">Mobile phone *<input className="input mt-1" type="tel" required value={f.customer_phone} onChange={set("customer_phone")} /></label>
+        <label className="text-sm">Best way to reach them *<select className="input mt-1" required value={d.preferred_contact} onChange={setDet("preferred_contact")}><option value="">Choose…</option>{opts(CONTACT_PREFS)}</select></label>
+        <label className="text-sm">Best time to reach them<select className="input mt-1" value={d.best_time} onChange={setDet("best_time")}><option value="">Not sure</option>{opts(BEST_TIMES)}</select></label>
         <label className="text-sm">Company (if it&apos;s a business)<input className="input mt-1" value={f.company_name} onChange={set("company_name")} /></label>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" checked={d.decision_maker} onChange={(e) => setD({ ...d, decision_maker: e.target.checked })} />They can approve and pay for the work (owner, manager, or the person in charge)</label>
       </fieldset>
-      <fieldset className="grid gap-3 sm:grid-cols-4">
-        <legend className="mb-1 text-sm font-semibold">Where</legend>
-        <label className="text-sm sm:col-span-2">Street address<input className="input mt-1" value={f.address} onChange={set("address")} /></label>
-        <label className="text-sm">City<input className="input mt-1" value={f.city} onChange={set("city")} /></label>
+
+      <fieldset className="grid gap-3 sm:grid-cols-4">{head("location")}
+        <label className="text-sm sm:col-span-2">Street address *<input className="input mt-1" required value={f.address} onChange={set("address")} /></label>
+        <label className="text-sm">ZIP *<input className="input mt-1" inputMode="numeric" maxLength={5} required pattern="\d{5}" value={f.zip} onChange={set("zip")} /></label>
         <div className="grid grid-cols-2 gap-2">
-          <label className="text-sm">State<input className="input mt-1" maxLength={2} value={f.state} onChange={set("state")} /></label>
-          <label className="text-sm">ZIP<input className="input mt-1" inputMode="numeric" maxLength={5} required pattern="\d{5}" value={f.zip} onChange={set("zip")} /></label>
+          <label className="text-sm">City *<input className="input mt-1" required value={f.city} onChange={set("city")} /></label>
+          <label className="text-sm">State *<input className="input mt-1" maxLength={2} required value={f.state} onChange={set("state")} /></label>
         </div>
+        <label className="text-sm sm:col-span-2">Type of property *<select className="input mt-1" required value={d.property_type} onChange={setDet("property_type")}><option value="">Choose…</option>{opts(PROPERTY_TYPES)}</select></label>
+        <label className="text-sm sm:col-span-2">Occupied or empty<select className="input mt-1" value={d.occupancy} onChange={setDet("occupancy")}><option value="">Not sure</option>{opts(OCCUPANCY)}</select></label>
+        <label className="text-sm sm:col-span-2">Getting in (only the assigned pro sees it)<input className="input mt-1" value={f.access_notes} onChange={set("access_notes")} placeholder="Gate code, lockbox, who'll be home" /></label>
+        <label className="text-sm">Parking<input className="input mt-1" value={d.parking} onChange={setDet("parking")} placeholder="Driveway, street…" /></label>
+        <label className="text-sm">Pets<input className="input mt-1" value={d.pets} onChange={setDet("pets")} placeholder="None / two dogs…" /></label>
       </fieldset>
-      <fieldset className="grid gap-3 sm:grid-cols-2">
-        <legend className="mb-1 text-sm font-semibold">The job</legend>
-        <label className="text-sm">Service<select className="input mt-1" value={f.service_slug} onChange={set("service_slug")}><option value="">Not sure — let our AI pick</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select></label>
-        <label className="text-sm">How often<select className="input mt-1" value={f.frequency} onChange={set("frequency")}>{FREQS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-        <label className="text-sm">When do they need it<select className="input mt-1" value={f.urgency} onChange={set("urgency")}>{WHEN.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-        <label className="text-sm">Their budget (optional)<input className="input mt-1" inputMode="decimal" value={f.budget} onChange={set("budget")} placeholder="$" /></label>
-        <label className="text-sm sm:col-span-2">Describe the job<textarea className="input mt-1" rows={4} required minLength={10} value={f.description} onChange={set("description")} placeholder="Size, rooms, square feet, condition, anything special. e.g. 3-bed, 2-bath house, deep clean before move-out on the 15th, two dogs, carpets on the stairs" /></label>
-        <div className="text-sm sm:col-span-2">
-          <div>Photos of the job (optional, up to 8) — they help us price it right and the customer won&apos;t have to take them again</div>
-          {rule && rule.need !== "none" && <p className="mt-1 text-xs text-ink-soft">{rule.need === "required" ? `We need at least ${rule.min} for this service` : "Helpful"}: {rule.tips.join(" · ")}</p>}
-          <div className="mt-2"><PhotoPicker value={photos} onChange={setPhotos} onError={setErr} /></div>
-        </div>
-        <label className="text-sm sm:col-span-2">Getting in (optional — only the assigned pro sees it)<input className="input mt-1" value={f.access_notes} onChange={set("access_notes")} placeholder="Gate code, lockbox, who'll be home" /></label>
+
+      <fieldset className="grid gap-3 sm:grid-cols-2">{head("job")}
+        <label className="text-sm">Service *<select className="input mt-1" value={f.service_slug} onChange={set("service_slug")}><option value="">Not sure — let our AI pick</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select></label>
+        <label className="text-sm">How often *<select className="input mt-1" required value={f.frequency} onChange={set("frequency")}>{FREQS.filter(([v]) => !svc || svc.frequencies.includes(v as never)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+        <label className="text-sm sm:col-span-2">What needs doing * <span className="text-xs text-ink-soft">({f.description.trim().length}/30+ characters)</span><textarea className="input mt-1" rows={4} required minLength={30} value={f.description} onChange={set("description")} placeholder="Size, rooms, condition, anything special. e.g. 3-bed, 2-bath house, deep clean before move-out on the 15th, carpets on the stairs" /></label>
+        {visible.length > 0 && (
+          <div className="grid gap-3 rounded-lg border border-line p-3 sm:col-span-2 sm:grid-cols-2">
+            <div className="text-xs font-semibold text-ink-soft sm:col-span-2">{svc!.name}: size and details (the same questions the customer answers — fill in what you know)</div>
+            {visible.map((q) => <ServiceQuestion key={q.id} q={q} value={answers[q.id]} onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))} />)}
+          </div>
+        )}
+        <label className="text-sm">When they need it *<select className="input mt-1" required value={f.urgency} onChange={set("urgency")}>{WHEN.map(([v, l]) => <option key={v} value={v}>{v ? l : "Choose…"}</option>)}</select></label>
+        <label className="text-sm">A date they&apos;d like<input className="input mt-1" type="date" value={d.preferred_date} onChange={setDet("preferred_date")} /></label>
+        <label className="text-sm">Their budget<input className="input mt-1" inputMode="decimal" value={f.budget} onChange={set("budget")} placeholder="$" /></label>
       </fieldset>
-      <p className="rounded-lg bg-paper p-3 text-xs text-ink-soft">You earn <b>{rates.once}%</b> of our fee on a one-time job, or <b>{rates.recurring}%</b> on every visit for {rates.months} months if they book it to repeat. Paid weekly once each job is past our make-it-right window. It never comes out of the pro&apos;s pay.</p>
-      {isPro && <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.i_will_do_it} onChange={(e) => setF({ ...f, i_will_do_it: e.target.checked })} />I&apos;d like to do this job myself — offer it to me first (if I&apos;m qualified and free, I get first look; otherwise it goes to other pros).</label>}
-      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_consent} onChange={(e) => setF({ ...f, customer_consent: e.target.checked })} />The customer asked me to send this job to Handled and knows they&apos;ll hear from us.</label>
-      <button className="btn-primary" disabled={busy || !f.customer_consent}>{busy ? "Filing your ticket…" : "Submit referral ticket"}</button>
+
+      <fieldset className="text-sm">{head("photos")}
+        {rule && rule.need !== "none" && <p className="mb-2 text-xs text-ink-soft">{rule.need === "required" ? `Required for ${svc!.name}: at least ${rule.min}` : "Helpful"} — {rule.tips.join(" · ")}</p>}
+        <PhotoPicker value={photos} onChange={setPhotos} onError={setErr} />
+      </fieldset>
+
+      <fieldset className="space-y-2">{head("confirm")}
+        <p className="rounded-lg bg-paper p-3 text-xs text-ink-soft">You earn <b>{rates.once}%</b> of our fee on a one-time job, or <b>{rates.recurring}%</b> on every visit for {rates.months} months if they book it to repeat. Paid weekly once each job is past our make-it-right window. It never comes out of the pro&apos;s pay.</p>
+        {isPro && <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.i_will_do_it} onChange={(e) => setF({ ...f, i_will_do_it: e.target.checked })} />I&apos;d like to do this job myself — offer it to me first (if I&apos;m qualified and free, I get first look; otherwise it goes to other pros).</label>}
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_consent} onChange={(e) => setF({ ...f, customer_consent: e.target.checked })} />The customer asked me to send this job to Handled. *</label>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" required checked={f.customer_expects_contact} onChange={(e) => setF({ ...f, customer_expects_contact: e.target.checked })} />They know Handled will email, text or call them about it. *</label>
+      </fieldset>
+      <button className="btn-primary" disabled={busy || check.required.length > 0}>{busy ? "Filing your ticket…" : "Submit referral ticket"}</button>
       {err && <p className="text-sm text-rose-700">{err}</p>}
     </form>
   );
