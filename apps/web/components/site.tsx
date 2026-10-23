@@ -19,10 +19,12 @@
  * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
  * UPDATED : 2026-10-11_2307 UTC — For Business menu: Intelligent websites & automation (/technology).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
+ * UPDATED : 2026-10-23_1500 UTC — "Become a Pro" strip above the header on every page, phones included (recruiting pros
+ *           was only a menu entry and a tile at the bottom of the home page). It scrolls away; the header stays sticky.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
+import { BRAND, CATEGORIES, SERVICES, categoryText, earningsHeadline, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { LangSwitch } from "./LangSwitch";
 import { DesktopNav, MobileNav, type NavGroup } from "./SiteNav";
@@ -81,7 +83,20 @@ export async function SiteHeader() {
     },
   ];
   const snap = es ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job";
+  const keep = earningsHeadline().keepSmall;
   return (
+    <>
+    {/* recruiting strip: scrolls away, so the sticky header below keeps its 64px */}
+    <Link href="/pros" className="block bg-brand-deep text-white hover:bg-brand-dark">
+      <span className="wrap flex h-9 items-center justify-center gap-2 text-center text-[13px] font-semibold sm:text-sm">
+        <span aria-hidden>🧰</span>
+        <span className="truncate">
+          <span className="sm:hidden">{es ? "Profesionales: trabajos prepagados" : "Pros: get prepaid jobs"}</span>
+          <span className="hidden sm:inline">{es ? `¿Es profesional? Reciba trabajos prepagados cerca de usted, quédese hasta con el ${keep}% y cobre cada lunes.` : `Are you a pro? Get prepaid jobs near you, keep up to ${keep}%, paid every Monday.`}</span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-brand-deep">{es ? "Hágase Pro →" : "Become a Pro →"}</span>
+      </span>
+    </Link>
     <header className="site-header sticky top-0 z-30 border-b border-t-[3px] border-line border-t-gold bg-page/95 backdrop-blur">
       <div className="wrap flex h-16 items-center justify-between gap-2 sm:gap-4">
         <Logo />
@@ -96,6 +111,7 @@ export async function SiteHeader() {
         </div>
       </div>
     </header>
+    </>
   );
 }
 

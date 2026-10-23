@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-23_1030 UTC — category cards show 3 services each (uniform cards); "+ N more" opens the rest of that
  *           group in a dropdown over the page, so the cards keep their size; on
  *           phones (swipe row) it opens inside the card (native <details>, no script).
+ * UPDATED : 2026-10-23_1500 UTC — "Become a Pro" band (ProBand) above the partner band, so recruiting is near the top.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -35,6 +36,7 @@ import { getLocale } from "@/lib/locale";
 import { popularServices } from "@/lib/popular";
 import { WeBuild } from "@/components/home/WeBuild";
 import { PartnerBand } from "@/components/home/PartnerBand";
+import { ProBand } from "@/components/home/ProBand";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -107,7 +109,8 @@ export async function HomeClassic() {
         </div>
       </section>
 
-      {/* become a partner — Referral Partner Program, front and center */}
+      {/* become a pro (recruiting), then become a partner (Referral Partner Program), front and center */}
+      <ProBand es={es} />
       <PartnerBand es={es} />
 
       {/* browse by category */}

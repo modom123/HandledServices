@@ -7,6 +7,8 @@
  *           button opens one panel with the same sections as accordions plus the language switch (before, phones had
  *           no menu at all). Menu text arrives already translated from the server header. The phone panel is portaled
  *           to <body> so the header's backdrop blur can't clip it.
+ * UPDATED : 2026-10-23_1500 UTC — the phone panel opens just under the header wherever it is (the "Become a Pro" strip above
+ *           the header pushes it down until you scroll), instead of a fixed 64px from the top.
  */
 "use client";
 
@@ -37,7 +39,7 @@ export function DesktopNav({ groups }: { groups: NavGroup[] }) {
     <nav ref={box} className="hidden items-center gap-1 text-[15px] font-semibold text-ink md:flex" aria-label="Main">
       {groups.map((g) => (
         <div key={g.id} className="relative" onMouseEnter={() => hover(g.id)} onMouseLeave={() => hover(null)}>
-          <button type="button" aria-expanded={open === g.id} aria-haspopup="true" onClick={() => setOpen(open === g.id ? null : g.id)} className={`flex items-center gap-1 rounded-lg px-3 py-2 hover:text-brand ${open === g.id ? "text-brand" : ""}`}>
+          <button type="button" aria-expanded={open === g.id} aria-haspopup="true" onClick={() => setOpen(open === g.id ? null : g.id)} className={`flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-2 hover:text-brand ${open === g.id ? "text-brand" : ""}`}>
             {g.label}<span aria-hidden className={`text-xs transition ${open === g.id ? "rotate-180" : ""}`}>▾</span>
           </button>
           {open === g.id && (
@@ -68,6 +70,8 @@ function MenuLink({ it, strong }: { it: NavItem; strong?: boolean }) {
 export function MobileNav({ groups, lang, cta }: { groups: NavGroup[]; lang: ReactNode; cta: NavItem }) {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<string | null>(groups[0]?.id ?? null);
+  const [top, setTop] = useState(64);
+  const btn = useRef<HTMLButtonElement>(null);
   const path = usePathname();
   useEffect(() => setOpen(false), [path]);
   useEffect(() => {
@@ -80,12 +84,12 @@ export function MobileNav({ groups, lang, cta }: { groups: NavGroup[]; lang: Rea
   }, [open]);
   return (
     <div className="md:hidden">
-      <button type="button" aria-expanded={open} aria-controls="mobile-menu" aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen(!open)} className="grid h-9 w-9 place-items-center rounded-full border border-line bg-white text-lg">
+      <button ref={btn} type="button" aria-expanded={open} aria-controls="mobile-menu" aria-label={open ? "Close menu" : "Open menu"} onClick={() => { setTop(btn.current?.closest("header")?.getBoundingClientRect().bottom ?? 64); setOpen(!open); }} className="grid h-9 w-9 place-items-center rounded-full border border-line bg-white text-lg">
         {open ? "✕" : "☰"}
       </button>
       {/* portal: the header's backdrop blur would otherwise trap this fixed panel inside the 64px header */}
       {open && createPortal(
-        <div id="mobile-menu" className="fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto border-t border-line bg-paper px-4 pb-10 pt-2">
+        <div id="mobile-menu" style={{ top }} className="fixed inset-x-0 bottom-0 z-40 overflow-y-auto border-t border-line bg-paper px-4 pb-10 pt-2">
           {groups.map((g) => (
             <div key={g.id} className="border-b border-line">
               <button type="button" aria-expanded={section === g.id} onClick={() => setSection(section === g.id ? null : g.id)} className="flex w-full items-center justify-between py-4 text-left text-lg font-bold text-ink">
