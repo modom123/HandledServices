@@ -4,12 +4,13 @@
  * CREATED : 2026-10-23_0430 UTC
  * PURPOSE : "Become a partner" band on the home page (both layouts): the Referral Partner Program (/partners) — share a link
  *           or send a customer, earn 10% of our fee on their jobs for 12 months, paid Mondays. Colors follow the theme.
+ * UPDATED : 2026-10-23_1430 UTC — id="partner" so the home page's Become a Partner door scrolls here.
  */
 import Link from "next/link";
 
 export function PartnerBand({ es }: { es: boolean }) {
   return (
-    <section className="wrap py-10">
+    <section id="partner" className="wrap scroll-mt-24 py-10">
       <div className="relative overflow-hidden rounded-3xl bg-brand-deep px-6 py-10 text-white sm:px-10">
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gold/25 blur-3xl" />
         <div className="relative grid items-center gap-6 md:grid-cols-[1.4fr_1fr]">

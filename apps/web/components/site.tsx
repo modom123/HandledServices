@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
  * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
  * UPDATED : 2026-10-11_2307 UTC — For Business menu: Intelligent websites & automation (/technology).
+ * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  */
 import { AccountButton } from "./AccountButton";
@@ -73,6 +74,7 @@ export async function SiteHeader() {
     {
       id: "more", label: es ? "Más" : "More",
       items: [
+        { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐", hint: es ? "Su portal: clientes, profesionales, socios, equipo" : "Your portal: customers, pros, partners, team" },
         { href: "/plus", label: "Handled Plus", icon: "⭐", hint: es ? "10% de descuento en cada trabajo" : "10% off every job" },
         { href: "/gift-cards", label: t("Gift cards"), icon: "🎁" },
         { href: "/reviews", label: t("Customer reviews"), icon: "💬" },
