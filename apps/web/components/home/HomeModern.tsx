@@ -27,6 +27,8 @@
  * UPDATED : 2026-10-23_0430 UTC — the hero no longer leads with cleaning: it offers our 4 most popular services as big
  *           buttons (lib/popular.ts: approved pros who cover them + what people order), then "Everything else we offer",
  *           which now lists every other service in each category (none hidden), and a "Become a partner" band.
+ * UPDATED : 2026-10-23_1430 UTC — four big doors under the hero (components/home/HomeDoors): Services, Become a Pro (application),
+ *           Become a Partner (sign-up) and Handled Network (/network); each opens its page.
  * UPDATED : 2026-10-23_1030 UTC — category cards show 3 services each (uniform cards); "+ N more" opens the rest of that
  *           group in a dropdown over the page, so the cards keep their size; on
  *           phones (swipe row) it opens inside the card (native <details>, no script).
@@ -39,6 +41,7 @@ import { getLocale } from "@/lib/locale";
 import { popularServices } from "@/lib/popular";
 import { WeBuild } from "@/components/home/WeBuild";
 import { PartnerBand } from "@/components/home/PartnerBand";
+import { HomeDoors } from "@/components/home/HomeDoors";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -127,6 +130,9 @@ export async function HomeModern() {
         </div>
       </section>
 
+      {/* four doors: services, become a pro, become a partner, Handled Network */}
+      <HomeDoors es={es} servicesCount={SERVICES.length} />
+
       {/* most popular services: approved pros who cover them + what people order (lib/popular.ts) */}
       <section className="wrap -mt-2 pb-14">
         <div className="eyebrow">{es ? "Lo más popular" : "Most popular"}</div>
@@ -153,7 +159,7 @@ export async function HomeModern() {
       <PartnerBand es={es} />
 
       {/* browse by category */}
-      <section className="wrap reveal py-16">
+      <section id="services" className="wrap reveal scroll-mt-24 py-16">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div><div className="eyebrow">{SERVICES.length} {l === "es" ? "servicios" : "services"}</div><h2 className="mt-2 text-3xl font-bold sm:text-4xl">{es ? "Todo lo demás que ofrecemos" : "Everything else we offer"}</h2></div>
           <Link href="/services" className="text-sm font-semibold text-brand">{es ? `Los ${SERVICES.length} servicios` : `All ${SERVICES.length} services`} →</Link>
