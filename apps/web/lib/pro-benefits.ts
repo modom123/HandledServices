@@ -20,11 +20,15 @@
  * UPDATED : 2026-10-07_1610 UTC — payouts: only the transfer decides success (a failure after money moved is reported, never undone, so nothing is paid twice); runs check the Stripe balance first; per-attempt idempotency keys; the instant fee is sent back when the instant payout fails.
  * UPDATED : 2026-10-07_1900 UTC — arrival windows (late cancellations, show-up pay) use the job's time zone.
  * UPDATED : 2026-10-15_0300 UTC — cancelJob lets go of a "pay after" balance hold.
+ * UPDATED : 2026-10-23_2200 UTC — materials: receipts name the store (approved vendors can auto-approve, others go to staff);
+ *           every service that bills parts at cost allows receipts; the cap is the quote's materials estimate; with a
+ *           materials hold, approved receipts are charged from it at completion (billExpense otherwise); card swipes are
+ *           never reimbursed to the pro (our card paid); cancelJob lets go of the materials hold.
  */
 import "server-only";
 import {
   BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, clawbackPlan, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, serviceText, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
-  type Contractor, type Job, type ProPolicy, timeZoneForZip, zonedInstant } from "@handled/core";
+  type Contractor, type Job, type ProPolicy, timeZoneForZip, zonedInstant, billsMaterialsAtCost, materialsAllowance, matchVendor } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, getJob, raiseAlert } from "./jobs";
 import { localeOf, notify } from "./push";
@@ -94,6 +98,7 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
   await (await import("./coverage")).releaseBackups(jobId).catch(() => null);
   // "pay after": a balance held on the card when the pro started is let go (the late / lockout fee comes from what was paid)
   if (job.balance_hold_intent) await (await import("./stripe")).releaseHold(job.balance_hold_intent);
+  await (await import("./materials")).releaseMaterials(job).catch(() => null);
   const why: CancelReason = reason === "customer" && isLate(job) ? "late" : reason;
   const paid = r2(Number(job.amount_paid ?? 0) - Number(job.amount_refunded ?? 0));
   const fee = ["late", "lockout"].includes(why) ? Math.min(LATE_CANCEL_FEE, Math.max(0, paid)) : 0;
@@ -244,33 +249,57 @@ export async function cashOutNow(contractorId: string) {
 // ─── 5. Materials at cost ─────────────────────────────────────────────────────
 
 /** A pro submits a receipt for materials not included in the job price. */
-export async function submitExpense(jobId: string, contractorId: string, amount: number, description: string, receipt: File) {
+/**
+ * A receipt for materials the pro paid for. `vendor` is the store picked on the form (or written in): an approved vendor can be
+ * auto-approved under the limit; any other store always goes to staff.
+ */
+export async function submitExpense(jobId: string, contractorId: string, amount: number, description: string, receipt: File, vendor = "") {
   const job = await getJob(jobId);
   if (!job || job.contractor_id !== contractorId) return { ok: false, error: "Not your job" };
   if (!["assigned", "in_progress", "qa_review", "completed"].includes(job.status)) return { ok: false, error: "Materials can be added to active or just-finished jobs" };
   const policy = await getPolicy();
   const { data: pro } = await db().from("contractors").select("*").eq("id", contractorId).single();
   const trade = getService(job.service_slug)?.trades.find((t) => (pro?.trades ?? []).includes(t));
-  const no = pro ? whyNot(policy.materials, pro as Contractor, trade) : "pro not found";
+  // services that bill parts at cost always allow receipts, whatever trades the Hub's rule lists
+  const rule = billsMaterialsAtCost(job.service_slug) ? { ...policy.materials, trades: [] } : policy.materials;
+  const no = pro ? whyNot(rule, pro as Contractor, trade) : "pro not found";
   if (no) return { ok: false, error: `Materials reimbursement: ${no}. Materials for this job are included in your payout.` };
+  const approved = matchVendor(vendor, await (await import("./materials")).vendorList());
   const { data: prior } = await db().from("job_expenses").select("amount, status").eq("job_id", jobId).in("status", ["pending", "approved", "billed", "paid"]);
   const already = (prior ?? []).reduce((t: number, e: { amount: number }) => t + Number(e.amount), 0);
-  const decision = materialsDecision(policy, amount, Number(job.price_final ?? 0), already, trade);
-  if (decision === "over_cap") return { ok: false, error: trade && policy.materials.shoppingTrades.includes(trade) ? `Purchases over ${money(policy.materials.shoppingMax)} need the customer's OK first — call us.` : `That's more than ${Math.round(policy.materials.maxShareOfPrice * 100)}% of the job price in materials. Call us — we'll send the customer a change order first.` };
+  const decision = materialsDecision(policy, amount, Number(job.price_final ?? 0), already, trade, { allowance: Number(job.materials_high ?? 0) || null, approvedVendor: Boolean(approved) });
+  if (decision === "over_cap") return { ok: false, error: Number(job.materials_high ?? 0) > 0 ? `That's over the ${money(materialsAllowance(job, policy.materials.maxShareOfPrice))} materials estimate the customer approved. Call us — we'll get the customer's OK first.` : trade && policy.materials.shoppingTrades.includes(trade) ? `Purchases over ${money(policy.materials.shoppingMax)} need the customer's OK first — call us.` : `That's more than ${Math.round(policy.materials.maxShareOfPrice * 100)}% of the job price in materials. Call us — we'll send the customer a change order first.` };
   const path = await uploadDoc(receipt, `${contractorId}/receipts/${jobId}`);
-  const { data: exp } = await db().from("job_expenses").insert({ job_id: jobId, contractor_id: contractorId, amount, description, receipt_path: path }).select("id").single();
-  await addEvent(jobId, "materials", `Materials submitted: ${money(amount)} — ${description}`, "pro", false);
+  const store = approved?.name ?? (vendor.trim().slice(0, 120) || null);
+  const row = { job_id: jobId, contractor_id: contractorId, amount, description, receipt_path: path };
+  // vendor columns only sent when the materials migration is in (receipts keep working before it)
+  let { data: exp, error } = await db().from("job_expenses").insert({ ...row, source: "receipt", vendor_id: approved?.id ?? null, merchant_name: store }).select("id").single();
+  if (error && /source|vendor_id|merchant_name/.test(error.message)) ({ data: exp, error } = await db().from("job_expenses").insert(row).select("id").single());
+  if (error || !exp) return { ok: false, error: error?.message ?? "Couldn't save the receipt" };
+  await addEvent(jobId, "materials", `Materials submitted: ${money(amount)} — ${description}${store ? ` (${store}${approved ? "" : ", not an approved vendor"})` : ""}`, "pro", false);
   if (decision === "auto") return { ok: true, ...(await approveExpense(exp!.id, "auto-approved")) };
-  await raiseAlert("materials", "info", `${job.ref}: approve materials ${money(amount)}`, `${description}. Over the ${money(policy.materials.autoApproveUpTo)} auto-approve limit — open the job in the Hub.`, jobId);
+  await raiseAlert("materials", "info", `${job.ref}: approve materials ${money(amount)}`, `${description}. ${approved ? `Over the ${money(policy.materials.autoApproveUpTo)} auto-approve limit` : `Bought at ${store ?? "a store that isn't on the approved vendor list"}`} — open the job in the Hub.`, jobId);
   return { ok: true, status: "pending" };
 }
 
-/** Approve: bill the customer at cost (saved card, else a pay link). The pro is reimbursed once paid. */
+/**
+ * Approve a receipt. With a materials hold on the customer's card, it's charged from the hold when the job is complete
+ * (settleJobMaterials); otherwise it's billed now: saved card, else a pay link. The pro is reimbursed once it's paid.
+ */
 export async function approveExpense(expenseId: string, who: string) {
   const { data: e } = await db().from("job_expenses").select("*").eq("id", expenseId).single();
   if (!e || e.status !== "pending") return { status: e?.status ?? "missing" };
   const job = (await getJob(e.job_id))!;
   await db().from("job_expenses").update({ status: "approved", decided_by: who, decided_at: new Date().toISOString() }).eq("id", expenseId);
+  if (job.materials_hold_intent && !job.materials_settled_at) return { status: "approved" };
+  return billExpense(expenseId, who);
+}
+
+/** Bill an approved expense to the customer at cost: saved card (told first), else a pay link. */
+export async function billExpense(expenseId: string, who: string) {
+  const { data: e } = await db().from("job_expenses").select("*").eq("id", expenseId).single();
+  if (!e || e.status !== "approved") return { status: e?.status ?? "missing" };
+  const job = (await getJob(e.job_id))!;
   const canCharge = Boolean(job.stripe_customer_id && job.stripe_payment_method);
   // tell the customer before the card is charged (Service Agreement §3)
   const es = (await localeOf(job.customer_id, job.locale)) === "es";
@@ -294,6 +323,12 @@ export async function approveExpense(expenseId: string, who: string) {
 export async function reimburse(expenseId: string, paymentId: string | null) {
   const { data: e } = await db().from("job_expenses").select("*").eq("id", expenseId).single();
   if (!e || e.status === "paid") return;
+  // a materials-card swipe was paid with our card: the customer's payment covers it, nothing goes to the pro
+  if (e.source === "card") {
+    await db().from("job_expenses").update({ status: "paid", payment_id: paymentId ?? e.payment_id }).eq("id", expenseId);
+    await addEvent(e.job_id, "materials", `Materials ${money(Number(e.amount))} (materials card) paid by the customer`, "system", false);
+    return;
+  }
   const { data: payout } = await db().from("payouts").insert({ contractor_id: e.contractor_id, job_id: e.job_id, amount: e.amount, status: "approved", kind: "materials", reason: `Materials at cost: ${e.description}` }).select("id").single();
   await db().from("job_expenses").update({ status: "paid", payment_id: paymentId ?? e.payment_id, payout_id: payout?.id ?? null }).eq("id", expenseId);
   await addEvent(e.job_id, "materials", `Materials ${money(Number(e.amount))} paid by the customer; pro reimbursed`, "system", false);

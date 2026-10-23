@@ -20,6 +20,7 @@
  * PURPOSE : Stripe payments.
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: the first checkout on a "pay after" job is the 25% ("to book");
  *           holdOnSavedCard / captureHold / releaseHold put the balance on hold when the pro starts and take it when the job is done.
+ * UPDATED : 2026-10-23_2200 UTC — holds and captures for materials too (holdOnSavedCard / captureHold purpose "materials").
  */
 import "server-only";
 import Stripe from "stripe";
@@ -225,7 +226,7 @@ export async function chargeSavedCard(job: Job, amount = Number(job.price_final 
  * "Pay after" jobs: hold the balance on the saved card when the pro starts (an authorization — the customer sees a
  * pending amount, nothing is charged). Captured with captureHold() when the job is complete; released if cancelled.
  */
-export async function holdOnSavedCard(job: Job, amount: number): Promise<{ id: string } | { error: string }> {
+export async function holdOnSavedCard(job: Job, amount: number, purpose: "balance" | "materials" = "balance"): Promise<{ id: string } | { error: string }> {
   const s = getStripe();
   if (!s) return { error: "Stripe isn't configured" };
   if (!job.stripe_customer_id || !job.stripe_payment_method) return { error: "No saved card" };
@@ -234,9 +235,9 @@ export async function holdOnSavedCard(job: Job, amount: number): Promise<{ id: s
     const pi = await s.paymentIntents.create({
       amount: cents(amount), currency: "usd", customer: job.stripe_customer_id, payment_method: job.stripe_payment_method,
       capture_method: "manual", off_session: true, confirm: true,
-      description: `${BRAND.name} ${job.ref} — ${getService(job.service_slug)?.name} (balance, charged when the job is done)`,
-      metadata: { job_id: job.id, kind: "balance_hold" },
-    }, { idempotencyKey: `job-${job.id}-hold-${cents(amount)}` });
+      description: `${BRAND.name} ${job.ref} — ${getService(job.service_slug)?.name} (${purpose === "materials" ? "materials up to the estimate, only receipts are charged" : "balance, charged when the job is done"})`,
+      metadata: { job_id: job.id, kind: purpose === "materials" ? "materials_hold" : "balance_hold" },
+    }, { idempotencyKey: `job-${job.id}-${purpose === "materials" ? "materials-hold" : "hold"}-${cents(amount)}` });
     return pi.status === "requires_capture" ? { id: pi.id } : { error: `Card returned ${pi.status}` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
@@ -244,7 +245,7 @@ export async function holdOnSavedCard(job: Job, amount: number): Promise<{ id: s
 }
 
 /** Take up to `amount` from a hold. Returns what was captured (0 if the hold expired or failed). */
-export async function captureHold(job: Job, intentId: string, amount: number): Promise<number> {
+export async function captureHold(job: Job, intentId: string, amount: number, kind: "balance" | "materials" = "balance"): Promise<number> {
   const s = getStripe();
   if (!s || !(amount > 0)) return 0;
   try {
@@ -254,7 +255,7 @@ export async function captureHold(job: Job, intentId: string, amount: number): P
     const done = await s.paymentIntents.capture(intentId, { amount_to_capture: take }, { idempotencyKey: `job-${job.id}-capture-${intentId}` });
     if (done.status !== "succeeded") return 0;
     const got = take / 100;
-    await adminClient().from("payments").insert({ job_id: job.id, kind: "balance", amount: got, status: "paid", paid_at: new Date().toISOString(), stripe_session_id: intentId, stripe_payment_intent_id: intentId, description: "Balance (held when the pro started)" });
+    await adminClient().from("payments").insert({ job_id: job.id, kind, amount: got, status: "paid", paid_at: new Date().toISOString(), stripe_session_id: intentId, stripe_payment_intent_id: intentId, description: kind === "materials" ? "Materials at cost (from the hold placed when the pro started)" : "Balance (held when the pro started)" });
     return got;
   } catch {
     return 0;

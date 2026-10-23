@@ -137,6 +137,12 @@ export interface Job {
   balance_attempts?: number | null;
   /** "after" plan: uncaptured authorization holding the balance on the card (placed when the pro starts). */
   balance_hold_intent?: string | null;
+  /** At-cost materials range from the quote; the high end is held on the card when the pro starts. */
+  materials_low?: number | null;
+  materials_high?: number | null;
+  materials_note?: string | null;
+  materials_hold_intent?: string | null;
+  materials_settled_at?: string | null;
   /** Pay-in-full saving taken off the price (our share). */
   pay_in_full_discount?: number | null;
   amount_paid: number;
@@ -209,6 +215,14 @@ export interface Contractor {
   base_city?: string | null;
   base_state?: string | null;
   base_zip?: string | null;
+  /** Handled materials card (Stripe Issuing): cardholder, card, Authorized User Terms acceptance, and the job it spends on. */
+  stripe_cardholder_id?: string | null;
+  materials_card_id?: string | null;
+  materials_card_last4?: string | null;
+  materials_card_status?: string | null;
+  card_terms_accepted_at?: string | null;
+  card_terms_ip?: string | null;
+  card_job_id?: string | null;
   base_lat?: number | null;
   base_lng?: number | null;
   /** Furthest a pro will drive from base, miles. */

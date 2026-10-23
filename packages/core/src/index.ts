@@ -70,3 +70,4 @@ export * from "./partners.ts";
 export * from "./loyalty.ts";
 export * from "./supabase-public.ts";
 export * from "./ats.ts";
+export * from "./materials.ts";

@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-05_1433 UTC — addendum-security (standing posts, patrols, fire watch).
  * UPDATED : 2026-10-07_2000 UTC — Business Services Agreement v2 — Washington: Washington law and local courts for Washington sites, Washington sales tax note (routine janitorial excluded; special clean-ups taxable), and the pro's freedom to work stated in the non-solicitation section.
  * UPDATED : 2026-10-15_0300 UTC — payment terms: book now, pay after (25% at booking; a hold when the pro starts; the rest charged when the job is complete) or pay in full with 5% off.
+ * UPDATED : 2026-10-23_2200 UTC — materials (v9): the quote's materials estimate is held on the card when the pro starts and only receipts are charged; approved vendors / materials card.
  */
 import {
   AI_MAX_CUT,
@@ -355,8 +356,9 @@ export const SERVICE_AGREEMENT: Contract = {
       "Your invoice shows the deposit, the balance and the date it will be charged. By booking with a deposit, you authorize us to charge the balance to your saved card on that date.",
     )],
     ["Materials and parts", p(
-      "Prices include the materials listed. If your job needs parts or materials that aren't included, they are billed at cost, with no markup, against the store receipt.",
-      `We tell you before your card is charged. Purchases over ${MATERIALS_OK} need your OK first. You can always say no; your pro will then do what can be done without them.`,
+      "Prices include the materials listed. If your job needs parts or materials that aren't included, they are billed at cost, with no markup, against the store receipt. Pros buy them at our approved vendors, usually with a Handled materials card.",
+      "When a service bills parts at cost, your quote shows an estimated materials range. When your pro starts, we place a hold for the top of that range on your card (nothing is charged). When the job is done we charge only what the receipts add up to, and the rest of the hold is released. Anything over the estimate needs your OK first.",
+      `On other jobs, we tell you before your card is charged, and purchases over ${MATERIALS_OK} need your OK first. You can always say no; your pro will then do what can be done without them.`,
       "Receipts are saved to your job in the app. If you return an unused part we bought for you, you get what the store refunds us.",
     )],
     ["Taxes", p(

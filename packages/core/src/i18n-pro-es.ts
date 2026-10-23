@@ -102,7 +102,7 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Instant pay": "Pago inmediato",
   "Insurance help": "Ayuda con el seguro",
   "Materials reimbursed": "Reembolso de materiales",
-  "Parts, materials and errand shopping not included in the price are reimbursed at cost with a receipt.": "Las piezas, materiales y compras de mandados no incluidos en el precio se reembolsan al costo con recibo.",
+  "Parts, materials and errand shopping not included in the price go on your Handled materials card at approved vendors — no money out of your pocket. Paid yourself? You're reimbursed at cost with a receipt.": "Las piezas, materiales y compras de mandados que no están incluidos en el precio se pagan con su tarjeta de materiales de Handled en proveedores aprobados: sin sacar dinero de su bolsillo. ¿Pagó usted? Se le reembolsa al costo con el recibo.",
   "Guaranteed weekly minimum": "Mínimo semanal garantizado",
 
   // whyNot reasons

@@ -27,6 +27,7 @@
  * UPDATED : 2026-10-20_0200 UTC — marketplace: "Choose your price" (pros' own upfront prices next to Handled's) and booking a request-a-quote at its locked price.
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
+ * UPDATED : 2026-10-23_2200 UTC — the quote shows the at-cost materials estimate and how the card hold works.
  */
 "use client";
 
@@ -519,6 +520,14 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span>{!consult && <span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span>}</li>
             ))}
           </ul>
+          {est.materials && !consult && (
+            <div className="mt-3 rounded-xl border border-line p-3 text-sm">
+              <div className="flex justify-between gap-3 font-semibold"><span>{es ? "Materiales estimados (al costo)" : "Estimated materials (at cost)"}</span><span>{moneyRange(est.materials.low, est.materials.high)}</span></div>
+              <p className="mt-1 text-xs text-ink-soft">{t(est.materials.note)}. {es
+                ? `No está en el precio de arriba. Cuando su profesional comienza reservamos hasta ${money(est.materials.high)} en su tarjeta y solo cobramos lo que suman los recibos, sin recargo; el resto se libera. Si se necesita más, le pedimos su aprobación primero.`
+                : `Not in the price above. When your pro starts we hold up to ${money(est.materials.high)} on your card and charge only what the receipts add up to, with no markup; the rest is released. If more is needed, we ask you first.`}</p>
+            </div>
+          )}
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ {t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">

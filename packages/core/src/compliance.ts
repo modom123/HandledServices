@@ -20,13 +20,14 @@
  *           who gets a 1099-NEC (corporations are exempt); BUSINESS_ENTITY_TYPES for signing on a business's behalf.
  * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
  *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
+ * UPDATED : 2026-10-23_2200 UTC — SERVICE_AGREEMENT_VERSION v9 (materials estimate and hold, approved vendors). The pro agreement is unchanged.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
 export const AGREEMENT_VERSION = "2026-10-v9"; // v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v8"; // v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
+export const SERVICE_AGREEMENT_VERSION = "2026-10-v9"; // v9: materials estimate on the quote, held when the pro starts, only receipts charged; approved vendors / materials card; v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 

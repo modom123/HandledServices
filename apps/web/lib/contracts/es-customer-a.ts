@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (precio sugerido, "proponga su precio", cargo de reserva,
  *           contraofertas de profesionales, aumentar la oferta): mirrors customer.ts section for section.
  * UPDATED : 2026-10-15_0300 UTC — términos de pago: reserve ahora, pague después (25% al reservar; reserva en la tarjeta cuando el profesional comienza; el resto se cobra al terminar) o pago completo con 5% de descuento.
+ * UPDATED : 2026-10-23_2200 UTC — materiales (v9): el estimado de materiales de la cotización se reserva en la tarjeta cuando el profesional comienza y solo se cobran los recibos.
  */
 import {
   AI_MAX_CUT,
@@ -330,8 +331,9 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
       "Su factura muestra el depósito, el saldo y la fecha en que se cobrará. Al reservar con depósito, usted nos autoriza a cobrar el saldo a su tarjeta guardada en esa fecha.",
     )],
     ["Materiales y piezas", p(
-      "Los precios incluyen los materiales indicados. Si su trabajo necesita piezas o materiales que no están incluidos, se cobran al costo, sin recargo, según el recibo de la tienda.",
-      `Le avisamos antes de cobrar a su tarjeta. Las compras de más de ${MATERIALS_OK} necesitan primero su aprobación. Usted siempre puede decir que no; en ese caso, su profesional hará lo que se pueda hacer sin ellos.`,
+      "Los precios incluyen los materiales indicados. Si su trabajo necesita piezas o materiales que no están incluidos, se cobran al costo, sin recargo, según el recibo de la tienda. Los profesionales los compran en nuestros proveedores aprobados, normalmente con una tarjeta de materiales de Handled.",
+      "Cuando un servicio cobra las piezas al costo, su cotización muestra un rango estimado de materiales. Cuando su profesional comienza, reservamos en su tarjeta el monto más alto de ese rango (no se cobra nada). Al terminar el trabajo cobramos solo lo que suman los recibos y el resto de la reserva se libera. Cualquier monto por encima del estimado necesita primero su aprobación.",
+      `En otros trabajos le avisamos antes de cobrar a su tarjeta, y las compras de más de ${MATERIALS_OK} necesitan primero su aprobación. Usted siempre puede decir que no; en ese caso, su profesional hará lo que se pueda hacer sin ellos.`,
       "Los recibos se guardan en su trabajo dentro de la app. Si devuelve una pieza sin usar que compramos para usted, recibe lo que la tienda nos reembolse.",
     )],
     ["Impuestos", p(

@@ -2235,3 +2235,55 @@ test("Business & Technology is consultation-only", () => {
   assert.equal(consultOnly("house-cleaning"), false);
   assert.equal(priceHint("website-design"), "Free consultation");
 });
+
+test("materials: quote estimate, approved vendors, card swipes, settlement", async () => {
+  const { materialsEstimate, matchVendor, cardDecision, cardCategoriesFor, settleMaterials, materialsAllowance, vendorsForTrades, mergeVendors, billsMaterialsAtCost } = await import("./materials.ts");
+  const { materialsDecision, PRO_POLICY_DEFAULTS } = await import("./pro-policy.ts");
+  // estimates appear only where materials are billed at cost
+  assert.deepEqual(materialsEstimate("appliance-repair", { appliance: "fridge", job: "repair", count: 1 }), { low: 60, high: 350, note: "Replacement parts, quoted before ordering" });
+  assert.equal(materialsEstimate("interior-painting", {}), null, "paint is in the price");
+  assert.equal(materialsEstimate("errands", { shopping: false }), null);
+  assert.ok(materialsEstimate("handyman", { tasks: 3 })!.high >= 100);
+  assert.ok(estimate({ slug: "locksmith", answers: { service: "install", locks: 2 } }).materials!.high === 240, "the quote carries the range");
+  assert.equal(estimate({ slug: "house-cleaning", answers: {} }).materials, null);
+  for (const slug of ["handyman", "appliance-repair", "small-engine-repair", "locksmith"]) assert.ok(billsMaterialsAtCost(slug));
+  // vendor matching from card statement names
+  assert.equal(matchVendor("THE HOME DEPOT #2745")?.id, "home_depot");
+  assert.equal(matchVendor("LOWE'S #00123")?.id, "lowes");
+  assert.equal(matchVendor("MENARDS 3122 DEARBORN")?.id, "menards");
+  assert.equal(matchVendor("JOE'S BAR & GRILL"), null);
+  assert.equal(matchVendor("TARGETOPTICAL"), null, "whole words only");
+  const off = mergeVendors([{ id: "menards", name: "Menards", match: ["menards"], groups: ["building"], active: false }, { id: "local_lumber", name: "Detroit Lumber", match: ["detroit lumber"], groups: ["building"] }]);
+  assert.equal(matchVendor("MENARDS 3122", off), null, "turned off in the Hub");
+  assert.equal(matchVendor("DETROIT LUMBER CO", off)?.id, "local_lumber", "added in the Hub");
+  assert.ok(vendorsForTrades(["small_engine"]).some((v) => v.id === "autozone") && !vendorsForTrades(["small_engine"]).some((v) => v.id === "kroger"));
+  assert.ok(cardCategoriesFor(["plumbing"]).includes("plumbing_heating_equipment_and_supplies"));
+  assert.deepEqual(cardCategoriesFor(["cleaning"]), [], "trades that don't buy materials get no card");
+  // real-time decisions
+  const job = { id: "j", status: "in_progress", service_slug: "handyman" };
+  const swipe = { amount: 40, merchantName: "THE HOME DEPOT #2745", category: "home_supply_warehouse_stores", cardPresent: true, job, jobTrades: ["handyman"], spent: 0, allowance: 130 };
+  assert.equal(cardDecision(swipe).approved, true);
+  assert.equal(cardDecision({ ...swipe, job: { ...job, status: "assigned" } }).approved, false, "start the job first");
+  assert.equal(cardDecision({ ...swipe, merchantName: "SHELL OIL 123" }).approved, false, "not an approved vendor");
+  assert.equal(cardDecision({ ...swipe, merchantName: "KROGER #12", category: "grocery_stores_supermarkets" }).approved, false, "approved vendor, wrong trade");
+  assert.equal(cardDecision({ ...swipe, cardPresent: false }).approved, false, "online only at online suppliers");
+  assert.equal(cardDecision({ ...swipe, merchantName: "GRAINGER", category: "industrial_supplies", cardPresent: false }).approved, true);
+  assert.equal(cardDecision({ ...swipe, spent: 100 }).approved, false, "over the allowance");
+  // allowance, approvals and settlement
+  assert.equal(materialsAllowance({ materials_high: 130, price_final: 300 }, 0.5), 130);
+  assert.equal(materialsAllowance({ materials_high: null, price_final: 300 }, 0.5), 150);
+  const p = PRO_POLICY_DEFAULTS;
+  assert.equal(materialsDecision(p, 50, 300, 0, "handyman", { allowance: 130 }), "auto");
+  assert.equal(materialsDecision(p, 50, 300, 0, "handyman", { allowance: 130, approvedVendor: false }), "review", "unknown store → staff");
+  assert.equal(materialsDecision(p, 100, 300, 50, "handyman", { allowance: 130 }), "over_cap");
+  assert.deepEqual(settleMaterials(95.5, 130), { capture: 95.5, extra: 0 });
+  assert.deepEqual(settleMaterials(160, 130), { capture: 130, extra: 30 });
+  for (const t of ["appliance", "locksmith", "assembly", "small_engine"]) assert.ok(p.materials.trades.includes(t), `${t} can claim materials`);
+  // every materials note on a quote has Spanish
+  const { t: tr } = await import("./i18n.ts");
+  const { SERVICES, defaultAnswers } = await import("./services.ts");
+  for (const s of SERVICES) for (const extra of [{}, { service: "install", job: "install", shopping: true }, { service: "repair", shopping: true }]) {
+    const m = materialsEstimate(s.slug, { ...defaultAnswers(s), ...extra });
+    if (m) assert.notEqual(tr("es", m.note), m.note, `Spanish for "${m.note}"`);
+  }
+});
