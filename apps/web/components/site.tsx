@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
  * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
  * UPDATED : 2026-10-11_2307 UTC — For Business menu: Intelligent websites & automation (/technology).
+ * UPDATED : 2026-10-23_1500 UTC — the header's Become a partner button opens the sign-up form (/partners#join).
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  */
@@ -92,7 +93,7 @@ export async function SiteHeader() {
           <AccountButton es={es} />
           <span className="hidden sm:inline-flex"><LangSwitch locale={l} /></span>
           <Link href="/snap" title={snap} aria-label={snap} className="grid h-9 w-9 place-items-center rounded-full border border-line bg-white text-base hover:border-brand sm:h-10 sm:w-10 sm:text-lg">📸</Link>
-          <Link href="/partners" className="hidden whitespace-nowrap rounded-full border-2 border-gold px-4 py-1.5 text-sm font-bold text-gold-dark hover:bg-gold hover:text-white xl:inline-flex">💸 {es ? "Hágase socio" : "Become a partner"}</Link>
+          <Link href="/partners#join" className="hidden whitespace-nowrap rounded-full border-2 border-gold px-4 py-1.5 text-sm font-bold text-gold-dark hover:bg-gold hover:text-white xl:inline-flex">💸 {es ? "Hágase socio" : "Become a partner"}</Link>
           <Link href="/book" className="btn-primary whitespace-nowrap px-3.5 text-sm sm:px-5 sm:text-base">{t("Book now")}</Link>
           <MobileNav groups={groups} lang={<LangSwitch locale={l} />} cta={{ href: "/book", label: t("Book now") }} />
         </div>

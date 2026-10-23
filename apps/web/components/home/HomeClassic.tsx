@@ -25,8 +25,8 @@
  * UPDATED : 2026-10-23_0430 UTC — the hero no longer leads with cleaning: it offers our 4 most popular services as big
  *           buttons (lib/popular.ts: approved pros who cover them + what people order), then "Everything else we offer",
  *           which now lists every other service in each category (none hidden), and a "Become a partner" band.
- * UPDATED : 2026-10-23_1430 UTC — four big doors under the hero (components/home/HomeDoors): Services (#services), Become a Pro,
- *           Become a Partner (#partner) and Handled Network (/network).
+ * UPDATED : 2026-10-23_1430 UTC — four big doors under the hero (components/home/HomeDoors): Services, Become a Pro (application),
+ *           Become a Partner (sign-up) and Handled Network (/network); each opens its page.
  * UPDATED : 2026-10-23_1030 UTC — category cards show 3 services each (uniform cards); "+ N more" opens the rest of that
  *           group in a dropdown over the page, so the cards keep their size; on
  *           phones (swipe row) it opens inside the card (native <details>, no script).

@@ -5,6 +5,7 @@
  * PURPOSE : Public page for the Referral Partner Program: what partners earn (10% of our fee, 12 months, weekly via
  *           Stripe), who it's for, worked examples, sign-up form and the partner terms.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
+ * UPDATED : 2026-10-23_1500 UTC — #join clears the sticky header (the home page's Become a Partner button links straight here).
  */
 import Link from "next/link";
 import { BRAND, PARTNER_KINDS, PARTNER_PROGRAM, money, partnerCommission, partnerTerms } from "@handled/core";
@@ -58,7 +59,7 @@ export default function Partners() {
         ))}</div>
       </section>
 
-      <section id="join" className="border-t border-line bg-paper">
+      <section id="join" className="scroll-mt-20 border-t border-line bg-paper">
         <div className="wrap grid gap-8 py-12 md:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold">Join in two minutes</h2>
