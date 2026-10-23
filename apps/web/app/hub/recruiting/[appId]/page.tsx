@@ -9,6 +9,8 @@
  * UPDATED : 2026-10-23_1100 UTC — candidates from Indeed / imports: résumé (private link), the job they applied to, screener
  *           answers, who added them, and setting their trades.
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
+ * UPDATED : 2026-10-23_2300 UTC — upload or replace the résumé; Invite / Follow up / Decline at every stage before the invite.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,8 +20,9 @@ import { interviewsFor, interviewUrl } from "@/lib/interviews";
 import { aiEnabled } from "@/lib/ai/client";
 import { InterviewDecision, Scorecard, StartInterview } from "@/components/Interviews";
 import { RecruitingRowActions } from "@/components/HubActions";
-import { TradesEditor } from "@/components/RecruitingIntake";
+import { ResumeUpload, TradesEditor } from "@/components/RecruitingIntake";
 import { signedDocUrl } from "@/lib/photos";
+import { checklistOpts } from "@/lib/group-insurance";
 
 export const dynamic = "force-dynamic";
 const days = (iso: string | null | undefined) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : null);
@@ -41,7 +44,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
   const done = ivs.find((i) => i.status === "completed");
   const check = approvalChecklist({
     applied_at: app.created_at, ai_screen: app.ai_screen, interview: latest ? { status: latest.status, result: latest.result, mode: latest.mode } : null,
-    invited_at: app.invited_at, account_linked: Boolean(pro?.profile_id), onboarding: pro ? onboardingChecklist(pro as never).steps : [], approved: pro?.status === "approved", first_job_done: Boolean(firstJob?.length),
+    invited_at: app.invited_at, account_linked: Boolean(pro?.profile_id), onboarding: pro ? onboardingChecklist(pro as never, await checklistOpts()).steps : [], approved: pro?.status === "approved", first_job_done: Boolean(firstJob?.length),
   });
   const plan = interviewPlan((app.trades as string[]) ?? []);
   const human = ivs.find((i) => i.mode === "human" && i.status === "in_progress");
@@ -113,7 +116,10 @@ export default async function Candidate({ params, searchParams }: { params: Prom
             <h2 className="mb-1 font-bold">Application</h2>
             <div className="text-xs text-ink-soft">{app.years_experience ?? "?"} yrs · crew {app.crew_size ?? "?"} · {app.insured ? "insured" : "not insured yet"} · {app.has_vehicle ? "has a vehicle" : "no vehicle"}{app.license_number ? ` · license ${app.license_number}` : ""} · source: {app.source ?? "not given"}</div>
             {(extJob?.title || app.added_by) && <div className="mt-1 text-xs text-ink-soft">{extJob?.title ? <>Applied on {String(app.external_source ?? app.source)} for <b>{extJob.url ? <a className="underline" href={extJob.url} target="_blank" rel="noreferrer">{extJob.title}</a> : extJob.title}</b>{extJob.location ? ` (${extJob.location})` : ""}</> : null}{app.added_by ? ` · added by ${app.added_by}` : ""}</div>}
-            {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
+            <div className="flex flex-wrap items-center gap-3">
+              {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
+              <ResumeUpload appId={appId} has={Boolean(resumeUrl)} />
+            </div>
             {app.message && <p className="mt-1 whitespace-pre-line">“{app.message}”</p>}
             {screener && <details className="mt-1 text-xs"><summary className="cursor-pointer text-ink-soft">Screener answers</summary><pre className="mt-1 whitespace-pre-wrap break-words">{screener}</pre></details>}
             {skills.length > 0 && <div className="mt-1 text-xs"><b>Skills:</b> {skills.join(", ")}</div>}

@@ -19,6 +19,7 @@
  *           track / crew / referral in one "Grow" section, a one-dropdown trade picker instead of 20+ expanders, a
  *           Handled-vs-lead-sites table, FAQ accordion. FAQ fixed: tiers never depend on accepting offers.
  * UPDATED : 2026-10-15_0300 UTC — customers pay Handled (25% at booking, the rest when done); pros are paid weekly either way.
+ * UPDATED : 2026-10-23_2345 UTC — Handled group insurance offered on the sign-up page when the program is on.
  */
 import { ApplyForm } from "@/components/forms";
 import { TradeRequirements, type TradeReq } from "@/components/TradeRequirements";
@@ -166,6 +167,14 @@ export default async function ProsPage() {
             <div key={b.key} className="flex gap-3"><span className="mt-0.5">🛡️</span><div><div className="font-semibold">{t(b.title)}</div><p className="hidden text-sm text-ink-soft sm:block">{es ? benefitBodyEs(b, policy) : b.body} <span className="text-brand-dark">({es ? ruleTextEs(b.rule) : ruleText(b.rule)})</span></p></div></div>
           ))}
         </div>
+        {policy?.groupInsurance?.enabled && (
+          <div className="mt-5 rounded-xl border border-brand/40 bg-brand-tint p-4 text-sm">
+            <div className="font-semibold">🛡️ {es ? `Seguro colectivo de Handled: ${money(policy.groupInsurance.monthlyFee)} al mes` : `Handled group insurance: ${money(policy.groupInsurance.monthlyFee)} a month`}</div>
+            <p className="mt-1 text-ink-soft">{es
+              ? `Al inscribirse, se suma a nuestra póliza colectiva de responsabilidad civil general ($${(policy.groupInsurance.perOccurrence / 1e6).toFixed(0)}M por incidente). Para limpieza, jardinería, mudanzas pequeñas, armado de muebles, mascotas y oficios similares, es su seguro: no necesita comprar uno propio para empezar. Se descuenta de su pago${policy.groupInsurance.onlyMonthsWorked ? ", solo en los meses en que trabaja" : ""}.`
+              : `When you sign up you join our group general liability policy ($${(policy.groupInsurance.perOccurrence / 1e6).toFixed(0)}M per occurrence). For cleaning, lawn care, small moves, assembly, pet care and similar trades, it is your insurance: no policy of your own needed to start. Taken from your payout${policy.groupInsurance.onlyMonthsWorked ? ", only in months you work" : ""}.`}</p>
+          </div>
+        )}
         {policy?.insurance.partners.some((x) => x.url || x.phone) && (
           <p className="mt-4 text-sm text-ink-soft">{t("Need insurance?")} {policy.insurance.partners.filter((x) => x.url || x.phone).map((x) => `${x.name}${x.phone ? ` (${x.phone})` : ""}${x.code ? `, ${es ? "código" : "code"} ${x.code}` : ""}`).join(" · ")}</p>
         )}

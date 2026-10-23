@@ -4,11 +4,13 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Staff: update a pro — activate after insurance/background check, suspend, edit capacity/ZIPs.
  * UPDATED : 2026-10-11_0451 UTC — changing a pro's status or offboarding is admins only; dispatchers can still edit capacity, ZIPs, notes and compliance dates.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { onboardingChecklist } from "@handled/core";
+import { checklistOpts } from "@/lib/group-insurance";
 
 const Patch = z.object({
   status: z.enum(["applied", "vetting", "approved", "suspended"]).optional(),
@@ -32,7 +34,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (parsed.data.background_checked) update.background_checked_at = new Date().toISOString();
   if (parsed.data.status === "approved") {
     const { data: c } = await db.from("contractors").select("*").eq("id", id).single();
-    const { steps, complete } = onboardingChecklist({ ...c, ...update });
+    const { steps, complete } = onboardingChecklist({ ...c, ...update }, await checklistOpts());
     if (!complete) return deny(400, `Finish onboarding first: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
     if (!c.onboarded_at) update.onboarded_at = new Date().toISOString();
   }

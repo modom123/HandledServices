@@ -7,11 +7,13 @@
  *           year-end 1099 worksheet.
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Pros → Roster, "Health & 1099" view (was its own page, /hub/network — now redirects).
  * UPDATED : 2026-10-18_0415 UTC — 1099 table: how many forms to file; corporations marked "not needed" (form1099()).
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import Link from "next/link";
 import { TRADES, form1099, money, necThreshold, onboardingChecklist, type Contractor } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty, Stat } from "@/components/ui";
+import { checklistOpts } from "@/lib/group-insurance";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -31,8 +33,9 @@ export default async function Network() {
   const working = active.filter((p) => { const c = byId.get(p.id); return c?.last_job_at && new Date(c.last_job_at).getTime() > Date.now() - 30 * 86400000; });
   const take90 = ((cards ?? []) as Rec[]).reduce((t, c) => t + Number(c.take_90d ?? 0), 0);
   const ranked = [...active].sort((a, b) => Number(byId.get(b.id)?.take_90d ?? 0) - Number(byId.get(a.id)?.take_90d ?? 0));
+  const opts = await checklistOpts();
   const atRisk = list.filter((p) => p.status !== "suspended").map((p) => {
-    const ob = onboardingChecklist(p as never);
+    const ob = onboardingChecklist(p as never, opts);
     const c = byId.get(p.id);
     const issues = [
       ...ob.steps.filter((s) => s.expiring).map((s) => `${s.label} expiring`),

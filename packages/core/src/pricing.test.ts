@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
  * UPDATED : 2026-10-23_1100 UTC — recruiting intake (Indeed Apply, CSV import, trade detection) and consultation-only pricing.
+ * UPDATED : 2026-10-23_2345 UTC — group insurance (covered trades, enrollment step, monthly fee).
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
  * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
@@ -2234,4 +2235,78 @@ test("Business & Technology is consultation-only", () => {
   assert.equal(consultOnly("website-design"), true);
   assert.equal(consultOnly("house-cleaning"), false);
   assert.equal(priceHint("website-design"), "Free consultation");
+});
+
+test("materials: quote estimate, approved vendors, card swipes, settlement", async () => {
+  const { materialsEstimate, matchVendor, cardDecision, cardCategoriesFor, settleMaterials, materialsAllowance, vendorsForTrades, mergeVendors, billsMaterialsAtCost } = await import("./materials.ts");
+  const { materialsDecision, PRO_POLICY_DEFAULTS } = await import("./pro-policy.ts");
+  // estimates appear only where materials are billed at cost
+  assert.deepEqual(materialsEstimate("appliance-repair", { appliance: "fridge", job: "repair", count: 1 }), { low: 60, high: 350, note: "Replacement parts, quoted before ordering" });
+  assert.equal(materialsEstimate("interior-painting", {}), null, "paint is in the price");
+  assert.equal(materialsEstimate("errands", { shopping: false }), null);
+  assert.ok(materialsEstimate("handyman", { tasks: 3 })!.high >= 100);
+  assert.ok(estimate({ slug: "locksmith", answers: { service: "install", locks: 2 } }).materials!.high === 240, "the quote carries the range");
+  assert.equal(estimate({ slug: "house-cleaning", answers: {} }).materials, null);
+  for (const slug of ["handyman", "appliance-repair", "small-engine-repair", "locksmith"]) assert.ok(billsMaterialsAtCost(slug));
+  // vendor matching from card statement names
+  assert.equal(matchVendor("THE HOME DEPOT #2745")?.id, "home_depot");
+  assert.equal(matchVendor("LOWE'S #00123")?.id, "lowes");
+  assert.equal(matchVendor("MENARDS 3122 DEARBORN")?.id, "menards");
+  assert.equal(matchVendor("JOE'S BAR & GRILL"), null);
+  assert.equal(matchVendor("TARGETOPTICAL"), null, "whole words only");
+  const off = mergeVendors([{ id: "menards", name: "Menards", match: ["menards"], groups: ["building"], active: false }, { id: "local_lumber", name: "Detroit Lumber", match: ["detroit lumber"], groups: ["building"] }]);
+  assert.equal(matchVendor("MENARDS 3122", off), null, "turned off in the Hub");
+  assert.equal(matchVendor("DETROIT LUMBER CO", off)?.id, "local_lumber", "added in the Hub");
+  assert.ok(vendorsForTrades(["small_engine"]).some((v) => v.id === "autozone") && !vendorsForTrades(["small_engine"]).some((v) => v.id === "kroger"));
+  assert.ok(cardCategoriesFor(["plumbing"]).includes("plumbing_heating_equipment_and_supplies"));
+  assert.deepEqual(cardCategoriesFor(["cleaning"]), [], "trades that don't buy materials get no card");
+  // real-time decisions
+  const job = { id: "j", status: "in_progress", service_slug: "handyman" };
+  const swipe = { amount: 40, merchantName: "THE HOME DEPOT #2745", category: "home_supply_warehouse_stores", cardPresent: true, job, jobTrades: ["handyman"], spent: 0, allowance: 130 };
+  assert.equal(cardDecision(swipe).approved, true);
+  assert.equal(cardDecision({ ...swipe, job: { ...job, status: "assigned" } }).approved, false, "start the job first");
+  assert.equal(cardDecision({ ...swipe, merchantName: "SHELL OIL 123" }).approved, false, "not an approved vendor");
+  assert.equal(cardDecision({ ...swipe, merchantName: "KROGER #12", category: "grocery_stores_supermarkets" }).approved, false, "approved vendor, wrong trade");
+  assert.equal(cardDecision({ ...swipe, cardPresent: false }).approved, false, "online only at online suppliers");
+  assert.equal(cardDecision({ ...swipe, merchantName: "GRAINGER", category: "industrial_supplies", cardPresent: false }).approved, true);
+  assert.equal(cardDecision({ ...swipe, spent: 100 }).approved, false, "over the allowance");
+  // allowance, approvals and settlement
+  assert.equal(materialsAllowance({ materials_high: 130, price_final: 300 }, 0.5), 130);
+  assert.equal(materialsAllowance({ materials_high: null, price_final: 300 }, 0.5), 150);
+  const p = PRO_POLICY_DEFAULTS;
+  assert.equal(materialsDecision(p, 50, 300, 0, "handyman", { allowance: 130 }), "auto");
+  assert.equal(materialsDecision(p, 50, 300, 0, "handyman", { allowance: 130, approvedVendor: false }), "review", "unknown store → staff");
+  assert.equal(materialsDecision(p, 100, 300, 50, "handyman", { allowance: 130 }), "over_cap");
+  assert.deepEqual(settleMaterials(95.5, 130), { capture: 95.5, extra: 0 });
+  assert.deepEqual(settleMaterials(160, 130), { capture: 130, extra: 30 });
+  for (const t of ["appliance", "locksmith", "assembly", "small_engine"]) assert.ok(p.materials.trades.includes(t), `${t} can claim materials`);
+  // every materials note on a quote has Spanish
+  const { t: tr } = await import("./i18n.ts");
+  const { SERVICES, defaultAnswers } = await import("./services.ts");
+  for (const s of SERVICES) for (const extra of [{}, { service: "install", job: "install", shopping: true }, { service: "repair", shopping: true }]) {
+    const m = materialsEstimate(s.slug, { ...defaultAnswers(s), ...extra });
+    if (m) assert.notEqual(tr("es", m.note), m.note, `Spanish for "${m.note}"`);
+  }
+});
+
+test("group insurance: covered trades skip the COI, everyone signs, fee only in months worked", async () => {
+  const { GROUP_INSURANCE_DEFAULTS, GROUP_INSURANCE_VERSION, groupCovers, groupFeeDue, lastMonth, onboardingChecklist } = await import("./index.ts");
+  const g = { ...GROUP_INSURANCE_DEFAULTS, enabled: true };
+  assert.equal(groupCovers(g, ["cleaning", "lawn"]), true);
+  assert.equal(groupCovers(g, ["cleaning", "roofing"]), false); // roofing keeps its own certificate
+  assert.equal(groupCovers(g, ["web_design"]), false); // needs no insurance at all
+  const base = { status: "vetting", trades: ["cleaning"], legal_name: null, tin_last4: null, w9_received_at: null, agreement_version: null, agreement_signed_at: null, insured_until: null, license_number: null, license_expires: null, background_checked: false, payout_method: null };
+  const step = (c: object, o = {}) => onboardingChecklist(c as never, o).steps;
+  assert.equal(step(base).some((s) => s.key === "group_insurance"), false); // program off: unchanged
+  assert.equal(step(base, { group: g }).find((s) => s.key === "group_insurance")?.done, false);
+  const enrolled = { ...base, group_insurance_enrolled_at: "2026-10-01T00:00:00Z", group_insurance_version: GROUP_INSURANCE_VERSION };
+  assert.equal(step(enrolled, { group: g }).find((s) => s.key === "coi")?.done, true);
+  assert.equal(step({ ...enrolled, trades: ["roofing"] }, { group: g }).find((s) => s.key === "coi")?.done, false);
+  assert.equal(step({ ...enrolled, group_insurance_version: "old" }, { group: g }).find((s) => s.key === "coi")?.done, false);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 2, alreadyCharged: false }), 5);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 0, alreadyCharged: false }), 0);
+  assert.equal(groupFeeDue({ ...g, onlyMonthsWorked: false }, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 0, alreadyCharged: false }), 5);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-10-02", month: "2026-09", jobsPaidInMonth: 3, alreadyCharged: false }), 0);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 3, alreadyCharged: true }), 0);
+  assert.equal(lastMonth(new Date("2026-01-01T05:00:00Z")), "2025-12");
 });

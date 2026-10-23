@@ -13,9 +13,11 @@
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  * UPDATED : 2026-10-07_1900 UTC — "On my way" shows on the job's own local day (Pacific in Washington).
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, from the customer's saved home) while the job is assigned / in progress.
+ * UPDATED : 2026-10-23_2200 UTC — Handled materials card (where it works, card number, freeze), receipt photos for card
+ *           purchases, approved vendors on the receipt form, and what's left of the job's materials estimate.
  */
 import { notFound } from "next/navigation";
-import { TIME_WINDOW_LABEL, buildWorkOrder, getService, jobTimeZone, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
+import { billsMaterialsAtCost, cardCategoriesFor, materialsAllowance, vendorsForTrades, TIME_WINDOW_LABEL, buildWorkOrder, getService, jobTimeZone, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
 import { WorkOrderView } from "@/components/WorkOrderView";
@@ -23,6 +25,10 @@ import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { StatusBadge } from "@/components/ui";
 import { CompleteJob, LockoutReport, MaterialsForm, OnMyWay, ScopeChange, StartJob } from "@/components/ProActions";
+import { CardReceipt, MaterialsCard } from "@/components/MaterialsCard";
+import { vendorList } from "@/lib/materials";
+import { issuingReady } from "@/lib/issuing";
+import { stripePublishableKey } from "@/lib/stripe";
 import { ReleaseJob } from "@/components/Standing";
 import { JobThread } from "@/components/JobThread";
 import { CrewPicker } from "@/components/Crew";
@@ -49,7 +55,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
     signedUrls(job.photos),
     v.db.from("messages").select("id, sender_role, body, created_at").eq("job_id", id).order("created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
-    v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
+    v.db.from("job_expenses").select("*").eq("job_id", id).order("created_at"),
     getPolicy(),
     // RLS: readable only while this pro is assigned and the job is assigned / in progress
     v.db.from("job_access").select("access_info").eq("job_id", id).maybeSingle(),
@@ -60,7 +66,15 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
   if (!job.checklist) job.checklist = await freezeChecklist(job);
   const cl = await checklistState(job);
   const trade = s.trades.find((x) => (me?.trades ?? []).includes(x));
-  const noMaterials = me ? whyNot(policy.materials, me as Contractor, trade) : "pro not found";
+  // services that bill parts at cost always allow receipts, whatever trades the Hub's rule lists
+  const noMaterials = me ? whyNot(billsMaterialsAtCost(job.service_slug) ? { ...policy.materials, trades: [] } : policy.materials, me as Contractor, trade) : "pro not found";
+  const jobTrades = s.trades.filter((x) => (me?.trades ?? []).includes(x));
+  const vendorNames = vendorsForTrades(jobTrades, await vendorList()).map((x) => x.name);
+  type Exp = { id: string; amount: number; description: string; status: string; source?: string; receipt_path?: string | null; merchant_name?: string | null };
+  const exps = (expenses ?? []) as Exp[];
+  const spent = exps.filter((e) => ["pending", "approved", "billed", "paid"].includes(e.status)).reduce((tt, e) => tt + Number(e.amount), 0);
+  const left = Math.max(0, Math.round((materialsAllowance(job, policy.materials.maxShareOfPrice) - spent) * 100) / 100);
+  const usesCard = !noMaterials && cardCategoriesFor(jobTrades).length > 0;
   type Q = (typeof s.questions)[number];
   const answerText = (q: Q, v: unknown) => {
     if (!es || v == null) return String(v ?? "—");
@@ -105,10 +119,20 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {(job.status === "assigned" || job.status === "in_progress") && !job.remedy && <ScopeChange locale={l} jobId={job.id} slug={job.service_slug} booked={job.answers as Record<string, string | number | boolean>} frequency={job.frequency} />}
         {(job.status === "assigned" || job.status === "in_progress") && <LockoutReport locale={l} jobId={job.id} />}
         {job.status === "assigned" && <ReleaseJob jobId={job.id} es={l === "es"} notice={cancelNotice(cancelTier(hoursUntilWindow(job)), l === "es" ? "es" : "en")} />}
-        {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) && <MaterialsForm locale={l} jobId={job.id} allowed={!noMaterials} reason={noMaterials} />}
-        {(expenses ?? []).length > 0 && (
+        {usesCard && ["assigned", "in_progress"].includes(job.status) && (
+          <MaterialsCard locale={l} enabled={issuingReady()} card={me?.materials_card_id ? { id: me.materials_card_id, last4: me.materials_card_last4, status: me.materials_card_status } : null}
+            termsAccepted={Boolean(me?.card_terms_accepted_at)} onThisJob={me?.card_job_id === job.id} jobStarted={job.status === "in_progress"} vendors={vendorNames} left={left}
+            publishableKey={stripePublishableKey()} termsUrl={process.env.MATERIALS_CARD_TERMS_URL ?? "https://stripe.com/legal/issuing"} />
+        )}
+        {["assigned", "in_progress", "qa_review", "completed"].includes(job.status) && <MaterialsForm locale={l} jobId={job.id} allowed={!noMaterials} reason={noMaterials} vendors={vendorNames} left={noMaterials ? null : left} />}
+        {exps.length > 0 && (
           <div className="card text-sm"><div className="font-semibold">{t("Materials")}</div>
-            {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string }) => <div key={e.id} className="flex justify-between border-t border-line py-1"><span>{e.description}</span><span>{money(e.amount)} · {t(e.status)}</span></div>)}
+            {exps.map((e) => (
+              <div key={e.id} className="flex items-center justify-between gap-2 border-t border-line py-1">
+                <span>{e.source === "card" ? "💳 " : ""}{e.description}</span>
+                <span className="text-right">{money(e.amount)} · {t(e.status)}{e.source === "card" && !e.receipt_path && e.status !== "rejected" && <><br /><CardReceipt locale={l} jobId={job.id} expenseId={e.id} /></>}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>

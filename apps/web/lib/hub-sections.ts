@@ -35,6 +35,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/leads", "Pro leads"],
     ["/hub/gaps", "Supply gaps"],
     ["/hub/pro-program", "Pro Program"],
+    ["/hub/vendors", "Approved vendors"],
     ["/hub/rewards", "Rewards"],
   ] },
   { id: "jobs", icon: "🗂️", label: "Jobs", links: [

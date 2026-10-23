@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -29,6 +30,7 @@ import Link2 from "next/link";
 import { boardFor } from "@/lib/board";
 import { ClaimButton } from "@/components/JobBoard";
 import { balanceOf } from "@/lib/rewards";
+import { checklistOpts } from "@/lib/group-insurance";
 
 /** whyNot() reason in Spanish (fixed reasons from the catalog; the ones with numbers by pattern). */
 function whyNotText(l: string, no: string): string {
@@ -94,7 +96,7 @@ export default async function ProHome() {
   const month = new Date().toISOString().slice(0, 7);
   const earned = (payouts ?? []).filter((p: { created_at: string }) => p.created_at.startsWith(month)).reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0);
   type OfferRow = { id: string; payout: number; expires_at: string; jobs: { ref: string; service_slug: string; city: string; zip: string; scheduled_date: string | null; time_window: Job["time_window"]; notes: string | null } | null };
-  const setup = me ? onboardingChecklist(me) : null;
+  const setup = me ? onboardingChecklist(me, await checklistOpts()) : null;
   return (
     <div className="space-y-8">
       {me && (me as { standing?: string }).standing && (me as { standing?: string }).standing !== "good" && (() => {

@@ -31,10 +31,12 @@
  *           priceHint says "Free consultation" and the firm price is set on the call.
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: BOOK_NOW (25% at booking; the balance is held on the card when the pro
  *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
+ * UPDATED : 2026-10-23_2200 UTC — Estimate.materials: the at-cost materials range shown on the quote (materials.ts).
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
 import type { CustomerType, Frequency } from "./types.ts";
+import { materialsEstimate, type MaterialsRange } from "./materials.ts";
 
 export const RECURRING_DISCOUNT: Record<Frequency, number> = {
   once: 0,
@@ -208,6 +210,8 @@ export interface Estimate {
   market: number;
   /** Area price level that was applied. */
   region: number;
+  /** Parts or purchases billed at cost on top of the price (null when the price covers materials). */
+  materials: MaterialsRange | null;
 }
 
 export const roundTo = (v: number, step = 5) => Math.round(v / step) * step;
@@ -293,6 +297,7 @@ export function estimate(input: EstimateInput): Estimate {
     fee,
     market,
     region,
+    materials: materialsEstimate(service.slug, input.answers),
   };
 }
 

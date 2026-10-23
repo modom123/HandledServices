@@ -31,6 +31,9 @@
  * UPDATED : 2026-10-05_2034 UTC — pro-addendum-recruiter (Handled Talent: 20% of first-year salary, consent, ownership, fair hiring).
  * UPDATED : 2026-10-07_2000 UTC — Washington pros (RCW 49.62): customer clause limited to soliciting (accepting work a customer offers is allowed), Washington law and courts; agreement v8.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
+ * UPDATED : 2026-10-23_2200 UTC — trade addenda cover the trades added to the catalog on 2026-10-23 (building and repair trades
+ *           → licensed trades & home improvement; sprinklers, holiday lights, pools, paving, chimneys, pest and wildlife → outdoor
+ *           & heights; duct cleaning and laundry → home services). Addendum text unchanged, so no re-signing.
  */
 import {
   AGREEMENT_VERSION,
@@ -507,7 +510,10 @@ const addendum = (key: string, title: string, trades: string[], summary: string[
 
 /** Building trades: the state-licensed ones (from LICENSED_TRADES) plus related home-improvement trades. */
 const BUILDING = ["plumbing", "electrical", "hvac", "remodel", "painting"];
-const BUILDING_TRADES = [...new Set([...LICENSED_TRADES.filter((t) => BUILDING.includes(t)), "remodel", "painting", "low_voltage", "handyman"])];
+// building and home-repair trades (the 2026-10-23 catalog additions included) sign the licensed-trades addendum
+const BUILDING_TRADES = [...new Set([...LICENSED_TRADES.filter((t) => BUILDING.includes(t)), "remodel", "painting", "low_voltage", "handyman",
+  "roofing", "masonry", "concrete", "demolition", "fence_deck", "siding", "gutter_install", "windows_doors", "insulation", "flooring",
+  "foundation", "mold", "water_damage", "assembly", "appliance", "garage_door", "locksmith", "dock_door", "small_engine", "fire_safety", "inspection"])];
 
 export const PRO_ADDENDA: Contract[] = [
   addendum("pro-addendum-transportation", "Passenger Transportation", ["transportation"], [
@@ -783,7 +789,7 @@ export const PRO_ADDENDA: Contract[] = [
     },
   ]),
 
-  addendum("pro-addendum-outdoor-and-heights", "Outdoor Work, Trees, Snow & Heights", ["lawn", "tree", "snow", "gutters", "pressure_washing", "windows"], [
+  addendum("pro-addendum-outdoor-and-heights", "Outdoor Work, Trees, Snow & Heights", ["lawn", "tree", "snow", "gutters", "pressure_washing", "windows", "irrigation", "holiday_lights", "pool", "paving", "chimney_sweep", "pest", "nuisance_wildlife", "wildlife"], [
     "Use ladders and fall protection properly; you can always refuse unsafe heights.",
     "Tree work follows ANSI Z133 safety basics. Stay at least 10 feet from power lines — always.",
     "Call 811 before digging, staking or grinding stumps.",
@@ -812,7 +818,7 @@ export const PRO_ADDENDA: Contract[] = [
     },
   ]),
 
-  addendum("pro-addendum-home-services", "Cleaning, Carpet, Organizing & Auto Detailing", ["cleaning", "carpet", "organizing", "auto_detailing"], [
+  addendum("pro-addendum-home-services", "Cleaning, Carpet, Organizing & Auto Detailing", ["cleaning", "carpet", "organizing", "auto_detailing", "duct_cleaning", "laundry"], [
     "Use products per their label and safety data sheet (SDS); never mix chemicals.",
     "Handle customer belongings with care and report any breakage right away with photos.",
     "Never throw anything away without the customer's clear OK.",

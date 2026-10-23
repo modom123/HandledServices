@@ -5,12 +5,14 @@
  * PURPOSE : Pro actions: start job, complete with photos. (Offers are accepted on the
  *           offer page, which requires agreeing to the work order — see WorkOrderView.)
  * UPDATED : 2026-10-02_2225 UTC — Spanish (pro portal): every action takes a locale.
+ * UPDATED : 2026-10-23_2200 UTC — materials receipts name the store (approved vendors, or another store for staff review)
+ *           and show what's left of the job's materials estimate.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getService, questionVisible, scopeChange, t as tr, type Locale } from "@handled/core";
+import { getService, money, questionVisible, scopeChange, t as tr, type Locale } from "@handled/core";
 
 /** Pro taps "On my way" (today's job): shares location once and texts the customer a live link. */
 export function OnMyWay({ jobId, sent, locale = "en" }: { jobId: string; sent: boolean; locale?: Locale }) {
@@ -103,25 +105,38 @@ export function LockoutReport({ jobId, locale = "en" }: { jobId: string; locale?
   );
 }
 
-/** Materials not included in the price: upload the receipt; reimbursed at cost once the customer pays. */
-export function MaterialsForm({ jobId, allowed, reason, locale = "en" }: { jobId: string; allowed: boolean; reason: string | null; locale?: Locale }) {
+/**
+ * Materials not included in the price, paid by the pro: the receipt, the store (approved vendors first) and what it was for.
+ * Reimbursed at cost once the customer pays. Stores that aren't approved vendors always go to staff.
+ */
+export function MaterialsForm({ jobId, allowed, reason, vendors = [], left = null, locale = "en" }: { jobId: string; allowed: boolean; reason: string | null; vendors?: string[]; left?: number | null; locale?: Locale }) {
   const t = (s: string) => tr(locale, s);
+  const es = locale === "es";
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [store, setStore] = useState("");
   if (!allowed) return <p className="text-xs text-ink-soft">{t("Materials reimbursement:")} {reason ? t(reason) : ""}.</p>;
   return (
     <form className="card space-y-2 text-sm" onSubmit={async (e) => {
       e.preventDefault();
       setBusy(true);
-      const r = await fetch(`/api/pro/jobs/${jobId}/expenses`, { method: "POST", body: new FormData(e.currentTarget) });
+      const fd = new FormData(e.currentTarget);
+      if (store !== "__other") fd.set("vendor", store);
+      const r = await fetch(`/api/pro/jobs/${jobId}/expenses`, { method: "POST", body: fd });
       const j = await r.json().catch(() => ({}));
       setBusy(false);
       setMsg(t(r.ok ? (j.status === "pending" ? "Sent for approval." : "Approved — you’re reimbursed once the customer pays.") : j.error ?? "Failed"));
-      if (r.ok) { (e.target as HTMLFormElement).reset(); router.refresh(); }
+      if (r.ok) { (e.target as HTMLFormElement).reset(); setStore(""); router.refresh(); }
     }}>
       <div className="font-semibold">{t("Materials receipt")}</div>
-      <p className="text-xs text-ink-soft">{t("Parts not included in the price, at cost. Over the limit? Call us first — we’ll get the customer’s OK.")}</p>
+      <p className="text-xs text-ink-soft">{t("Parts not included in the price, at cost. Over the limit? Call us first — we’ll get the customer’s OK.")}{left != null ? (es ? ` Quedan ${money(left)} para materiales en este trabajo.` : ` ${money(left)} left for materials on this job.`) : ""}</p>
+      <select className="input" value={store} onChange={(e) => setStore(e.target.value)} required>
+        <option value="">{es ? "¿Dónde compró?" : "Where did you buy it?"}</option>
+        {vendors.map((v) => <option key={v} value={v}>{v}</option>)}
+        <option value="__other">{es ? "Otra tienda (la revisa el equipo)" : "Another store (staff reviews it)"}</option>
+      </select>
+      {store === "__other" && <input name="vendor" className="input" placeholder={es ? "Nombre de la tienda" : "Store name"} required />}
       <div className="grid grid-cols-2 gap-2">
         <input name="amount" type="number" step="0.01" min="0.01" className="input" placeholder={t("$ amount")} required />
         <input name="file" type="file" accept="image/*,application/pdf" className="input" required />

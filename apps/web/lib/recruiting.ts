@@ -23,6 +23,9 @@
  * UPDATED : 2026-10-19_1308 UTC — renewalSweep(): active pros hear 30 and 7 days before insurance, a required coverage or
  *           a trade license expires, and on the day it lapses (offers pause then — dispatch eligible()); ops is alerted at 7 days
  *           and on expiry. Once per document per expiry date.
+ * UPDATED : 2026-10-23_2300 UTC — followUpApplicant(): staff follow up before the invite (note + the interview link again);
+ *           a résumé on the application counts as the pro's "Resume uploaded" setup step when they're invited.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
@@ -31,6 +34,7 @@ import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
 import { raiseAlert } from "./jobs";
 import { aiScreenApplication } from "./ai/screen";
+import { checklistOpts } from "./group-insurance";
 
 const db = () => adminClient();
 
@@ -100,8 +104,8 @@ export async function proLocale(c: { profile_id?: string | null; application_id?
 }
 const first = (name: unknown) => String(name ?? "").split(" ")[0];
 
-function stepsList(c: Contractor, lang = "en") {
-  return onboardingChecklist(c as never).steps.filter((s) => !s.done).map((s) => `• ${stepLabel(s, lang)}`).join("\n");
+async function stepsList(c: Contractor, lang = "en") {
+  return onboardingChecklist(c as never, await checklistOpts()).steps.filter((s) => !s.done).map((s) => `• ${stepLabel(s, lang)}`).join("\n");
 }
 
 // ─── application → invite ────────────────────────────────────────────────────
@@ -150,13 +154,41 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   if (error || !pro) return { ok: false, error: error?.message ?? "Couldn't create the pro" };
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);
   await logRecruiting("invited", { applicationId: appId, contractorId: pro.id }, why || null, actor);
+  // a résumé that came with the application (Indeed, an import, or staff) covers the "Resume uploaded" setup step
+  if (app.resume_path && !pro.resume_uploaded_at) {
+    await db().from("contractor_documents").insert({ contractor_id: pro.id, kind: "resume", storage_path: app.resume_path, status: "verified", verified_by: "from application", verified_at: now }).then(() => null, () => null);
+    await db().from("contractors").update({ resume_uploaded_at: now }).eq("id", pro.id).then(() => null, () => null);
+    pro.resume_uploaded_at = now; // so the invite email doesn't list it as a step left
+  }
   const link = await signInUrl(pro.email);
   const lang = await localeOf(pro.profile_id, app.locale);
   if (lang === "es") await sendEmail(pro.email, `Tiene una invitación de ${BRAND.name}: termine su configuración en unos 15 minutos`,
-    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
+    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${await stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
   else await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
-    `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
+    `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${await stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
+}
+
+/**
+ * Staff follow up with someone who hasn't been invited yet: a personal note, plus the interview link again when they have
+ * an open AI interview (or an invitation to reply and ask questions when they don't).
+ */
+export async function followUpApplicant(appId: string, note: string | null | undefined, actor: string) {
+  const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
+  if (!app) return { ok: false, error: "Not found" };
+  if (["invited", "rejected", "withdrawn"].includes(app.stage)) return { ok: false, error: app.stage === "invited" ? "Already invited — use Nudge" : `Application is ${app.stage}` };
+  const { data: iv } = await db().from("pro_interviews").select("token, status, expires_at").eq("application_id", appId).in("status", ["invited", "in_progress"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const open = iv && (!iv.expires_at || new Date(iv.expires_at).getTime() > Date.now());
+  const url = open ? (await import("./interviews")).interviewUrl(iv!.token) : null;
+  const es = app.locale === "es";
+  const msg = note?.trim() ? `${note.trim()}\n\n` : "";
+  if (es) await sendEmail(app.email, `Seguimiento de su solicitud en ${BRAND.name}`,
+    `Hola ${first(app.contact_name)}:\n\n${msg}${url ? `Su entrevista corta (unos 15 minutos, desde su teléfono) sigue esperándole:\n${url}\n\nEs el siguiente paso para recibir su invitación.` : "Queremos seguir con su solicitud. Responda a este correo con cualquier pregunta o con el mejor momento para llamarle."}\n\n— ${BRAND.name}`);
+  else await sendEmail(app.email, `Following up on your ${BRAND.name} application`,
+    `Hi ${first(app.contact_name)},\n\n${msg}${url ? `Your short interview (about 15 minutes, from your phone) is still waiting for you:\n${url}\n\nIt's the next step to getting your invite.` : "We'd like to keep your application moving. Reply to this email with any questions, or the best time to call you."}\n\n— ${BRAND.name}`);
+  await db().from("contractor_applications").update({ last_contact_at: new Date().toISOString() }).eq("id", appId);
+  await logRecruiting("follow_up", { applicationId: appId }, [note?.trim() || null, url ? "interview link re-sent" : null].filter(Boolean).join(" · ") || null, actor);
+  return { ok: true, interviewLink: Boolean(url) };
 }
 
 export async function rejectApplicant(appId: string, actor: string, reason?: string) {
@@ -174,7 +206,7 @@ export async function afterOnboardingStep(contractorId: string, what: string, ac
   await logRecruiting("step", { contractorId }, what, actor);
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c) return;
-  const { steps } = onboardingChecklist(c as never);
+  const { steps } = onboardingChecklist(c as never, await checklistOpts());
   const done = (k: string) => steps.find((s) => s.key === k)?.done;
   // order the background check as soon as the W-9 and agreement are in (identity + consent)
   if (!c.background_checked && !c.background_status && done("w9") && done("agreement")) await orderBackgroundCheck(contractorId);
@@ -241,7 +273,7 @@ export async function maybeActivate(contractorId: string, actor = "auto-activate
   const settings = await getRecruitingSettings();
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c || c.status !== "vetting") return false;
-  const { complete } = onboardingChecklist(c as never);
+  const { complete } = onboardingChecklist(c as never, await checklistOpts());
   if (!complete) return false;
   if (!settings.autoActivate) {
     await raiseAlert("recruiting", "info", `Ready to activate: ${c.business_name}`, "Every step is done and verified. Activate in Hub → Pros.");
@@ -255,7 +287,7 @@ export async function activatePro(contractorId: string, actor: string) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c) throw new Error("No such pro");
   if (c.status === "approved") return true;
-  const { steps, complete } = onboardingChecklist(c as never);
+  const { steps, complete } = onboardingChecklist(c as never, await checklistOpts());
   if (!complete) throw new Error(`Setup incomplete: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
   const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
   if (!won) return true;
@@ -293,7 +325,7 @@ export async function recruitingSweep(now = new Date()) {
     }
     const invited = c.invited_at;
     const due = reminderDue(s, invited, c.onboarding_reminders, now);
-    const left = onboardingChecklist(c as never).steps.filter((x) => !x.done);
+    const left = onboardingChecklist(c as never, await checklistOpts()).steps.filter((x) => !x.done);
     // waiting only on us (an uploaded document being verified / background running) → no nagging the pro;
     // a document never uploaded, or rejected, is still the pro's to do
     const waiting = pendingKinds.get(c.id) ?? new Set<string>();
@@ -356,7 +388,7 @@ export async function renewalSweep(now = new Date()) {
   let reminded = 0, expired = 0;
   const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
   for (const c of (pros ?? []) as (Contractor & Record<string, unknown>)[]) {
-    const steps = onboardingChecklist(c as never).steps;
+    const steps = onboardingChecklist(c as never, await checklistOpts()).steps;
     const coverage = (c.coverage ?? {}) as Record<string, string>;
     const expiry = (key: string): string | null => key === "coi" ? (c.insured_until as string | null) : key === "license" ? (c.license_expires as string | null)
       : key.startsWith("coverage:") && coverage[key.slice(9)] !== "exempt" ? coverage[key.slice(9)] ?? null : null;
@@ -438,16 +470,17 @@ export async function pipeline() {
   const pending = new Map<string, number>();
   for (const d of docs ?? []) pending.set(d.contractor_id, (pending.get(d.contractor_id) ?? 0) + 1);
   const seen = new Set<string>();
+  const opts = await checklistOpts();
   const rows = ((apps ?? []) as Record<string, unknown>[]).map((a) => {
     const c = (a.contractor_id ? byId.get(String(a.contractor_id)) : byEmail.get(String(a.email).toLowerCase())) ?? null;
     if (c) seen.add(c.id);
-    const steps = c ? onboardingChecklist(c as never).steps : [];
+    const steps = c ? onboardingChecklist(c as never, opts).steps : [];
     const stage = pipelineStage({ appStage: String(a.stage), contractorStatus: c?.status ?? null, steps, pendingDocs: c ? pending.get(c.id) ?? 0 : 0, droppedAt: (c?.dropped_at as string | null) ?? null });
     return { app: a, pro: c, stage, label: STAGE_LABEL[stage], done: steps.filter((x) => x.done).length, total: steps.length, left: steps.filter((x) => !x.done).map((x) => x.label) };
   });
   // pros added directly (no application) still show up
   for (const c of byId.values()) if (!seen.has(c.id) && c.status !== "approved") {
-    const steps = onboardingChecklist(c as never).steps;
+    const steps = onboardingChecklist(c as never, opts).steps;
     const stage = pipelineStage({ contractorStatus: c.status, steps, pendingDocs: pending.get(c.id) ?? 0, droppedAt: (c.dropped_at as string | null) ?? null });
     rows.push({ app: { id: null, business_name: c.business_name, contact_name: c.contact_name, email: c.email, phone: c.phone, trades: c.trades, created_at: c.created_at, source: "added by staff" }, pro: c, stage, label: STAGE_LABEL[stage], done: steps.filter((x) => x.done).length, total: steps.length, left: steps.filter((x) => !x.done).map((x) => x.label) });
   }
@@ -460,7 +493,7 @@ export async function pipeline() {
 export async function nudgePro(contractorId: string, note: string | null | undefined, actor: string) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c) throw new Error("No such pro");
-  const left = onboardingChecklist(c as never).steps.filter((s) => !s.done);
+  const left = onboardingChecklist(c as never, await checklistOpts()).steps.filter((s) => !s.done);
   const link = await signInUrl(c.email);
   await notify(c.profile_id, { title: `Finish your ${BRAND.name} setup`, body: `${left.length} step(s) left`, data: { type: "onboarding" },
     email: { to: c.email, subject: "Quick note about your setup", text: `Hi ${String(c.contact_name).split(" ")[0]},\n\n${note ? `${note}\n\n` : ""}You're ${left.length} step${left.length === 1 ? "" : "s"} away from getting jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}\n\nOne click signs you in: ${link}\n\nReply if you need help.\n\n— ${BRAND.name}` },

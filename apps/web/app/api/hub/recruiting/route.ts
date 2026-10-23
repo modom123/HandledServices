@@ -3,17 +3,18 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-02_0006 UTC
  * PURPOSE : Staff actions on the recruiting pipeline and its automation settings.
- *             POST { action: "nudge" | "revive" | "note" | "background_clear" | "order_background", contractor_id?, application_id?, note? }
+ *             POST { action: "nudge" | "revive" | "note" | "background_clear" | "order_background" | "follow_up", contractor_id?, application_id?, note? }
+ *             follow_up = email someone not invited yet (application_id): the note, plus their interview link if one is open
  *             PUT  { autoInvite, minScore, interviewRequired, autoInviteAfterInterview, autoActivate, reminderDays, dropAfterDays, decisionHours }  (admin)
  * UPDATED : 2026-10-05_0246 UTC — screening interview settings.
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { afterOnboardingStep, logRecruiting, nudgePro, onBackgroundResult, orderBackgroundCheck, revivePro, saveRecruitingSettings } from "@/lib/recruiting";
+import { afterOnboardingStep, followUpApplicant, logRecruiting, nudgePro, onBackgroundResult, orderBackgroundCheck, revivePro, saveRecruitingSettings } from "@/lib/recruiting";
 
 const Action = z.object({
-  action: z.enum(["nudge", "revive", "note", "background_clear", "order_background"]),
+  action: z.enum(["nudge", "revive", "note", "background_clear", "order_background", "follow_up"]),
   contractor_id: z.string().uuid().optional(), application_id: z.string().uuid().optional(), note: z.string().max(1000).optional(),
 });
 
@@ -26,6 +27,11 @@ export async function POST(req: Request) {
   const { action, contractor_id: cid, application_id: aid, note } = p.data;
   const db = adminClient();
   if (action === "note") { await logRecruiting("note", { contractorId: cid, applicationId: aid }, note ?? "", who); return Response.json({ ok: true }); }
+  if (action === "follow_up") {
+    if (!aid) return deny(400, "application_id required");
+    const r = await followUpApplicant(aid, note, who);
+    return r.ok ? Response.json(r) : deny(409, r.error ?? "Couldn't send");
+  }
   if (!cid) return deny(400, "contractor_id required");
   const { data: c } = await db.from("contractors").select("*").eq("id", cid).single();
   if (!c) return deny(404, "Not found");

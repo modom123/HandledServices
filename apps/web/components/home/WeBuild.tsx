@@ -6,6 +6,7 @@
  *           services), with Handled itself as the proof. Used on both home page looks, the business page and /technology.
  *           English / Spanish.
  * UPDATED : 2026-10-23_1100 UTC — no prices on the pillars (Business & Technology is consultation-only); each card says Free consultation.
+ * UPDATED : 2026-10-23_2330 UTC — WeBuildLink: the home page shows one "Business & technology" button; the description is on /technology.
  */
 import Link from "next/link";
 
@@ -55,6 +56,24 @@ export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolea
         </div>
         {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en una consulta gratis por video." : "Every solution is different: scope and price are set on a free video consultation."}</p>}
       </div>
+    </section>
+  );
+}
+
+/** Home page: one button to the "We build" description on its own page (/technology), so home-service visitors aren't overloaded. */
+export function WeBuildLink({ es }: { es: boolean }) {
+  return (
+    <section className="border-y border-line bg-paper">
+      <Link href="/technology" className="wrap flex items-center justify-between gap-3 py-5 hover:text-brand">
+        <span className="flex items-center gap-3">
+          <span className="text-2xl">💼</span>
+          <span>
+            <span className="block font-bold">{es ? "¿Tiene un negocio? Negocios y tecnología" : "Own a business? Business & technology"}</span>
+            <span className="block text-sm text-ink-soft">{es ? "Sitios inteligentes, sistemas operativos, IA y automatización" : "Intelligent websites, operating systems, AI & automation"}</span>
+          </span>
+        </span>
+        <span className="btn-ghost shrink-0 px-4 py-2 text-sm">{es ? "Ver más →" : "Learn more →"}</span>
+      </Link>
     </section>
   );
 }

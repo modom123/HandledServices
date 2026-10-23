@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-20_0100 UTC — channels (omnichannel lead intake, channel reporting, social calendar).
  * UPDATED : 2026-10-20_0200 UTC — pro-rates (pros set their own prices; price choices; request-a-quote).
  * UPDATED : 2026-10-23_1100 UTC — ats (Indeed Apply + CSV candidate import parsing, trade detection).
+ * UPDATED : 2026-10-23_2345 UTC — group-insurance (Handled group general liability, monthly share from every pro).
  */
 
 export * from "./types.ts";
@@ -24,6 +25,7 @@ export * from "./workorder.ts";
 export * from "./pro-program.ts";
 export * from "./vetting.ts";
 export * from "./pro-policy.ts";
+export * from "./group-insurance.ts";
 export * from "./intake.ts";
 export * from "./recruiting.ts";
 export * from "./pro-stats.ts";
@@ -70,3 +72,4 @@ export * from "./partners.ts";
 export * from "./loyalty.ts";
 export * from "./supabase-public.ts";
 export * from "./ats.ts";
+export * from "./materials.ts";

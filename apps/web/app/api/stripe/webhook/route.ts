@@ -18,8 +18,11 @@
  * UPDATED : 2026-10-07_1545 UTC — a failure while applying a payment raises a critical Hub alert instead of being lost (the row is already paid, so Stripe retries were skipped as duplicates).
  *           (payments.stripe_payment_intent_id, tax_amount), so the daily Xero sync books tax as a liability, not revenue.
  * UPDATED : 2026-10-07_1610 UTC — paying a job twice refunds the extra automatically; charge.refunded records refunds made in the Stripe dashboard (job amount_refunded, gift cards turned off, ops told to review the pro payout).
+ * UPDATED : 2026-10-23_2200 UTC — Handled materials card (Stripe Issuing): issuing_authorization.request is answered in the
+ *           response body (approve / decline, lib/issuing.ts), issuing_transaction.created records the settled amount and
+ *           issuing_authorization.updated drops swipes that never settled. Add these three events to the webhook.
  */
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import { money } from "@handled/core";
 import { getStripe } from "@/lib/stripe";
 import { settleInvoice } from "@/lib/business";
@@ -40,6 +43,14 @@ export async function POST(req: Request) {
   } catch {
     return new Response("Bad signature", { status: 400 });
   }
+  // materials card swipe: Stripe waits ~2 seconds for our yes/no in the response body (real-time authorization)
+  if (event.type === "issuing_authorization.request") {
+    const { decideAuthorization } = await import("@/lib/issuing");
+    const d = await decideAuthorization(event.data.object as Stripe.Issuing.Authorization).catch(() => ({ approved: false }));
+    return new Response(JSON.stringify({ approved: d.approved }), { status: 200, headers: { "Content-Type": "application/json", "Stripe-Version": Stripe.API_VERSION } });
+  }
+  if (event.type === "issuing_transaction.created") await (await import("@/lib/issuing")).recordTransaction(event.data.object as Stripe.Issuing.Transaction);
+  if (event.type === "issuing_authorization.updated") await (await import("@/lib/issuing")).authorizationClosed(event.data.object as Stripe.Issuing.Authorization);
   if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const session = event.data.object;
     if (session.mode === "subscription" && session.subscription) {

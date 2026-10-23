@@ -14,11 +14,16 @@
  *             4. insurance      — partner brokers + a one-time insurance stipend
  *             5. materials      — parts reimbursed at cost with a receipt, billed to the customer
  *             6. guarantee      — weekly minimum for top pros in peak season
+ * UPDATED : 2026-10-23_2200 UTC — materials: more trades (assembly, small engine, appliance, locksmith, dock doors, organizing);
+ *           the cap is the materials estimate held on the customer's card; receipts from unapproved vendors go to staff;
+ *           the materials card at approved vendors (materials.ts).
+ * UPDATED : 2026-10-23_2345 UTC — groupInsurance: Handled group general liability, a small monthly share from every pro.
  */
 import { CARD_FEE, money } from "./pricing.ts";
 import { PRO_TIERS, proTier, type ProTierId } from "./pro-program.ts";
 import { LATE_CANCEL_FEE } from "./compliance.ts";
 import type { Contractor } from "./types.ts";
+import { GROUP_INSURANCE_DEFAULTS, type GroupInsurance } from "./group-insurance.ts";
 
 /** Who qualifies for a benefit. Empty trades = every trade. */
 export interface QualifyRule {
@@ -37,6 +42,8 @@ export interface ProPolicy {
   /** Shopping trades (errands) buy goods for the customer: capped in dollars, not as a share of the price. */
   materials: QualifyRule & { autoApproveUpTo: number; maxShareOfPrice: number; shoppingTrades: string[]; shoppingMax: number };
   guarantee: QualifyRule & { weeklyMinimum: number; months: number[]; minAcceptance: number; minDaysAvailable: number; weeklyBudget: number };
+  /** Group general liability: every pro pays a small monthly share (group-insurance.ts). Not a QualifyRule: it's for everyone. */
+  groupInsurance: GroupInsurance;
 }
 
 const rule = (r: Partial<QualifyRule> = {}): QualifyRule => ({ enabled: true, minTier: "pro", minJobs: 0, minRating: 0, trades: [], ...r });
@@ -49,8 +56,9 @@ export const PRO_POLICY_DEFAULTS: ProPolicy = {
     ...rule({ minJobs: 10, minRating: 4.6 }), stipend: 150, afterJobs: 10,
     partners: [{ name: "Your insurance partner (set in Hub → Pro Program)", url: "", phone: "", covers: "General liability, commercial auto, bonds, workers' comp", code: "" }],
   },
-  materials: { ...rule({ trades: ["handyman", "plumbing", "electrical", "hvac", "low_voltage", "remodel", "gutters", "pressure_washing", "errands", "dumpster"] }), autoApproveUpTo: 75, maxShareOfPrice: 0.5, shoppingTrades: ["errands"], shoppingMax: 300 },
+  materials: { ...rule({ trades: ["handyman", "assembly", "plumbing", "electrical", "hvac", "low_voltage", "remodel", "gutters", "pressure_washing", "errands", "dumpster", "small_engine", "appliance", "locksmith", "dock_door", "organizing"] }), autoApproveUpTo: 75, maxShareOfPrice: 0.5, shoppingTrades: ["errands"], shoppingMax: 300 },
   guarantee: { ...rule({ enabled: false, minTier: "elite", trades: ["snow", "lawn", "cleaning"] }), weeklyMinimum: 800, months: [1, 2, 5, 6, 7, 12], minAcceptance: 0.9, minDaysAvailable: 5, weeklyBudget: 2000 },
+  groupInsurance: GROUP_INSURANCE_DEFAULTS,
 };
 
 /** Merge saved Hub settings over the defaults, one benefit and one field at a time. */
@@ -105,10 +113,15 @@ export function instantPayFee(policy: ProPolicy, amount: number): number {
   return Math.round(Math.max(policy.instantPay.minFee, amount * policy.instantPay.feePct) * 100) / 100;
 }
 
-/** Materials: auto-approve, send to staff, or refuse (over the per-job cap). */
-export function materialsDecision(policy: ProPolicy, amount: number, jobPrice: number, alreadyApproved = 0, trade?: string): "auto" | "review" | "over_cap" {
-  const cap = trade && policy.materials.shoppingTrades.includes(trade) ? policy.materials.shoppingMax : jobPrice * policy.materials.maxShareOfPrice;
-  if (amount + alreadyApproved > cap) return "over_cap";
+/**
+ * Materials: auto-approve, send to staff, or refuse (over the per-job cap). The cap is the materials estimate held on the
+ * customer's card when there is one (`allowance`), else the shopping cap or a share of the price. A receipt from a store
+ * that isn't an approved vendor always goes to staff.
+ */
+export function materialsDecision(policy: ProPolicy, amount: number, jobPrice: number, alreadyApproved = 0, trade?: string, o: { allowance?: number | null; approvedVendor?: boolean } = {}): "auto" | "review" | "over_cap" {
+  const cap = o.allowance && o.allowance > 0 ? o.allowance : trade && policy.materials.shoppingTrades.includes(trade) ? policy.materials.shoppingMax : jobPrice * policy.materials.maxShareOfPrice;
+  if (amount + alreadyApproved > cap + 0.005) return "over_cap";
+  if (o.approvedVendor === false) return "review";
   return amount <= policy.materials.autoApproveUpTo ? "auto" : "review";
 }
 
@@ -128,7 +141,7 @@ export function benefitLines(p: ProPolicy) {
     { key: "showUpPay" as const, title: "Show-up pay", body: `Customer cancels late or you can't get in? You get up to ${money(p.showUpPay.amount)} for the trip.`, rule: p.showUpPay },
     { key: "instantPay" as const, title: "Instant pay", body: `Cash out approved payouts any time to your debit card (fee ${+(p.instantPay.feePct * 100).toFixed(2)}%), or wait for the free weekly run.`, rule: p.instantPay },
     { key: "insurance" as const, title: "Insurance help", body: `Fast quotes through our insurance partners, and a ${money(p.insurance.stipend)} insurance stipend after your ${p.insurance.afterJobs}th job.`, rule: p.insurance },
-    { key: "materials" as const, title: "Materials reimbursed", body: "Parts, materials and errand shopping not included in the price are reimbursed at cost with a receipt.", rule: p.materials },
+    { key: "materials" as const, title: "Materials reimbursed", body: "Parts, materials and errand shopping not included in the price go on your Handled materials card at approved vendors — no money out of your pocket. Paid yourself? You're reimbursed at cost with a receipt.", rule: p.materials },
     { key: "guarantee" as const, title: "Guaranteed weekly minimum", body: `In peak season, top pros who stay available are guaranteed ${money(p.guarantee.weeklyMinimum)} a week.`, rule: p.guarantee },
   ];
 }

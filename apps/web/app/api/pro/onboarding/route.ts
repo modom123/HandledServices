@@ -25,6 +25,8 @@
  *           pro-docs bucket as contractor_documents kinds 'resume' / 'photo' (staff open them in Hub → Pros).
  * UPDATED : 2026-10-18_0415 UTC — w9: LLCs taxed as S/C corporations (llc_s_corp, llc_c_corp). agreement: signed_for (the
  *           business's legal name, blank when signing as yourself) + signer_title — recorded on the pro and every signed copy.
+ * UPDATED : 2026-10-23_2345 UTC — group_insurance step: agree=true signs the Handled group insurance enrollment (monthly fee
+ *           from payouts); date, version and IP recorded.
  */
 import { after } from "next/server";
 import { z } from "zod";
@@ -42,6 +44,8 @@ import { siteUrl } from "@/lib/notify";
 import { proSigningSet } from "@/lib/contracts";
 import { recordAcceptance, requestMeta } from "@/lib/contracts/record";
 import { localeOf } from "@/lib/push";
+import { enrollGroupInsurance } from "@/lib/group-insurance";
+import { clientIp } from "@/lib/ratelimit";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
@@ -56,6 +60,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("photo") }),
   z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
+  z.object({ step: z.literal("group_insurance"), agree: z.literal("true") }),
   z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
 ]);
 
@@ -101,6 +106,10 @@ export async function POST(req: Request) {
     // separate so the rest still saves before the 2026-10-12 migration (zips_only) is run
     await db.from("contractors").update({ zips_only: b.zips_only === "on" && Boolean(typed?.length) }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
     return done({ located: Boolean(loc), exact: Boolean(loc?.exact) });
+  }
+  if (b.step === "group_insurance") {
+    const r = await enrollGroupInsurance(id, clientIp(req));
+    return r.ok ? done() : deny(409, r.error);
   }
   if (b.step === "specialties") {
     const { data: pro } = await db.from("contractors").select("trades").eq("id", id).single();

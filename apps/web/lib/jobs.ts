@@ -48,6 +48,8 @@
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
+ * UPDATED : 2026-10-23_2200 UTC — materials: the quote's at-cost materials range is saved on the job, held on the card when
+ *           the pro starts (and the pro's materials card points at the job), and settled from the hold when the job is done.
  */
 import "server-only";
 import { z } from "zod";
@@ -281,6 +283,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       // only sent when used, so bookings keep working before the marketplace migration is run
       ...(quoted ? { priced_by: "quote" } : proPick ? { priced_by: "pro_rate", pro_rate_pct: proPick.pct } : {}),
       booking_fee: listPrice ? bookingFeeOf(listPrice) : 0,
+      // at-cost materials range shown on the quote (only sent when there is one, so bookings work before the materials migration)
+      ...(est.materials ? { materials_low: est.materials.low, materials_high: est.materials.high, materials_note: est.materials.note } : {}),
       terms_version: SERVICE_AGREEMENT_VERSION,
       terms_accepted_at: new Date().toISOString(),
       terms_accepted_ip: ip,
@@ -291,6 +295,12 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     await raiseAlert("setup", "critical", "Run ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql", `Booking fell back to pay-in-full without the 5% saving: ${error.message}`).catch(() => {});
     const { pay_in_full_discount: _s, ...old } = row;
     ({ data, error } = await db().from("jobs").insert({ ...old, payment_plan: "full", deposit_amount: null, price_final: r2(Number(row.price_final ?? 0) + saving) || row.price_final, discount: Number(row.discount ?? 0) - saving }).select("*").single());
+  }
+  if (error && est.materials && /materials_/.test(error.message)) {
+    // the materials migration hasn't been run yet: book without the materials range rather than fail the customer
+    await raiseAlert("setup", "critical", "Run ADD_MATERIALS_CARDS_2026-10-23_2200.sql", `Booking saved without its materials estimate: ${error.message}`).catch(() => {});
+    const { materials_low: _l, materials_high: _h, materials_note: _n, ...old } = row;
+    ({ data, error } = await db().from("jobs").insert(old).select("*").single());
   }
   if (error) throw new Error(error.message);
   let job = data as Job;
@@ -831,6 +841,8 @@ export async function startJob(jobId: string, contractorId: string): Promise<{ o
     await addEvent(jobId, "started", "Your pro has arrived and started work.", "pro", true, "Su profesional llegó y comenzó el trabajo.");
     // "pay after": the balance goes on hold now and is charged when the job is done (a hiccup here never blocks the start)
     if (pre?.payment_plan === "after" && !pre.paid_at) await holdBalance(pre).catch((e) => raiseAlert("payment", "warn", `${pre.ref}: balance hold error`, e instanceof Error ? e.message : String(e), jobId));
+    // materials: the quote's estimate goes on hold and the pro's materials card spends on this job (never blocks the start)
+    if (pre) await (await import("./materials")).holdMaterials(pre).catch((e) => raiseAlert("materials", "warn", `${pre.ref}: materials hold error`, e instanceof Error ? e.message : String(e), jobId));
     const job = await getJob(jobId);
     if (job) await notify(job.customer_id, { title: "Your pro has arrived", body: `Work on your ${getService(job.service_slug)?.name} has started.`, data: { type: "job", jobId }, sms: { to: job.contact_phone, body: `${BRAND.name}: your pro has arrived and started on your ${getService(job.service_slug)?.name}.` },
       locale: job.locale, es: { title: "Su profesional llegó", body: `Comenzó el trabajo de su ${svcEs(job.service_slug)}.`, sms: `${BRAND.name}: su profesional llegó y comenzó con su ${svcEs(job.service_slug)}.` } });
@@ -900,6 +912,8 @@ export async function finalizeJob(jobId: string, summary?: string) {
   }
   await addEvent(job.id, "completed", summary ?? "Job complete. Thank you!", "system", true, summary ?? "Trabajo terminado. ¡Gracias!");
   if (job.payment_plan === "after" && !job.paid_at && !job.remedy) await chargeAfterBalance(job).catch((e) => raiseAlert("payment", "warn", `${job.ref}: balance charge error`, e instanceof Error ? e.message : String(e), job.id));
+  // materials at cost: approved receipts and card swipes are charged from the hold; the rest of it is let go
+  await (await import("./materials")).settleJobMaterials(job.id).catch((e) => raiseAlert("materials", "warn", `${job.ref}: materials settlement error`, e instanceof Error ? e.message : String(e), job.id));
   await notify(job.customer_id, {
     title: "Done ✓ — how did we do?",
     body: `${summary ?? "Your job is complete."} Tap to see photos and rate your pro.`,

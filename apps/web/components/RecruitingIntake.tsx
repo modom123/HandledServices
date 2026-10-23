@@ -8,6 +8,7 @@
  *           TradesEditor: set a candidate's trades on their page (Indeed / imported candidates whose job title didn't say).
  * UPDATED : 2026-10-23_1900 UTC — Skills: after picking trades, check off what the candidate does within each trade
  *           (lawn: mowing, edging, landscaping, shrubs, planting, sod…), on both the add form and the candidate page.
+ * UPDATED : 2026-10-23_2300 UTC — ResumeUpload: staff upload or replace a candidate's résumé on their page.
  */
 "use client";
 
@@ -162,5 +163,29 @@ export function TradesEditor({ appId, initial, initialSkills = [], trades }: { a
         setMsg(r.ok ? "Saved" : ((await r.json().catch(() => ({}))) as { error?: string }).error ?? "Failed"); router.refresh();
       }}>Save trades & skills</button> {msg && <span className="ml-2">{msg}</span>}
     </details>
+  );
+}
+
+/** Candidate page: upload or replace the résumé (POST api/hub/applications/[id]/resume). */
+export function ResumeUpload({ appId, has }: { appId: string; has: boolean }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <label className={`mt-1 inline-block cursor-pointer text-xs font-semibold text-brand underline ${busy ? "opacity-50" : ""}`}>
+      {busy ? "Uploading…" : has ? "Replace résumé" : "📎 Upload résumé"}
+      <input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf" className="hidden" disabled={busy} onChange={async (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        setBusy(true); setMsg("");
+        const fd = new FormData(); fd.append("file", f);
+        const r = await fetch(`/api/hub/applications/${appId}/resume`, { method: "POST", body: fd });
+        setBusy(false);
+        setMsg(r.ok ? "Saved" : ((await r.json().catch(() => ({}))) as { error?: string }).error ?? "Upload failed");
+        e.target.value = "";
+        router.refresh();
+      }} />
+      {msg && <span className="ml-2 font-normal no-underline text-ink-soft">{msg}</span>}
+    </label>
   );
 }

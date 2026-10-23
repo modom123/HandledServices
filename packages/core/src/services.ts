@@ -59,6 +59,8 @@
  *           installation, windows & doors, insulation, garage doors, driveway sealcoating, flooring, appliance repair, smart
  *           home & Wi-Fi, water damage, locksmith, property inspection, duct & dryer vent cleaning, tile & grout, trash bins,
  *           chimney sweep, sprinklers, holiday lights, pools, pest control, live wildlife removal, laundry pickup, home watch.
+ * UPDATED : 2026-10-23_2330 UTC — TUCKED_CATEGORIES / MAIN_CATEGORIES: Business & Technology stays off the default
+ *           lists and opens from a button.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -188,6 +190,15 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "security", name: "Security Guards & Patrol", short: "Security", icon: "🛡️", blurb: "Licensed guards for buildings, job sites, lots and events: standing posts, nightly patrols and fire watch." },
   { id: "business", name: "Business & Technology", short: "Business & Tech", icon: "💼", blurb: "We build intelligent websites, business operating systems and automated businesses — plus AI agents, automation, business formation and consulting. Done remotely, with a free consultation first." },
 ];
+
+/**
+ * Categories kept off the default lists (services sidebar, Services menu, footer, home cards) so home-service customers
+ * aren't overloaded: they open from a "Business & technology" button, and direct links (?cat=business) still work.
+ */
+export const TUCKED_CATEGORIES: readonly CategoryId[] = ["business"];
+export const isTucked = (id: string) => (TUCKED_CATEGORIES as readonly string[]).includes(id);
+/** The categories shown by default. */
+export const MAIN_CATEGORIES = CATEGORIES.filter((c) => !isTucked(c.id));
 
 const n = (a: Answers, k: string, d = 0) => (typeof a[k] === "number" ? (a[k] as number) : Number(a[k] ?? d) || d);
 const s = (a: Answers, k: string, d = "") => (a[k] === undefined ? d : String(a[k]));

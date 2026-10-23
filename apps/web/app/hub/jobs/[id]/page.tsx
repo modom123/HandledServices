@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-12_0121 UTC — customer (C-), business client (B-) and pro (P-) IDs.
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, editable), saved home link, and text the customer / pro from here.
  * UPDATED : 2026-10-15_0300 UTC — payment panel gets the "pay after" hold / retry fields.
+ * UPDATED : 2026-10-23_2200 UTC — materials: quote estimate and hold, card purchases and missing receipts, the store on receipts.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -66,7 +67,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
     v.db.from("reviews").select("rating, comment").eq("job_id", id).maybeSingle(),
     signedUrls(job.photos),
     signedUrls(job.completion_photos ?? []),
-    v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
+    v.db.from("job_expenses").select("*").eq("job_id", id).order("created_at"),
   ]);
   const { data: backupRows } = await v.db.from("job_backups").select("rank, status, asked_at, called_at, contractors(id, business_name)").eq("job_id", id).order("rank");
   const { data: cancels } = await v.db.from("pro_standing_events").select("kind, note, created_at, contractors(business_name)").eq("job_id", id).in("kind", ["free_cancel", "short_notice_cancel", "late_cancel", "excused_cancel", "no_show"]).order("created_at");
@@ -141,8 +142,9 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
         <PaymentPanel job={{ id: job.id, ref: job.ref, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status, payment_plan: job.payment_plan, deposit_amount: job.deposit_amount, deposit_paid_at: job.deposit_paid_at, balance_due_date: job.balance_due_date, balance_hold_intent: job.balance_hold_intent ?? null, balance_attempts: job.balance_attempts ?? 0, pay_in_full_discount: job.pay_in_full_discount ?? 0 }} />
         {(expenses ?? []).length > 0 && (
           <div className="card text-sm"><div className="font-semibold">Materials (at cost, billed to the customer)</div>
-            {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string }) => (
-              <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2"><span>{e.description} · <b>{money(e.amount)}</b> · {e.status}</span><ExpenseActions id={e.id} status={e.status} /></div>
+            {job.materials_high ? <p className="text-xs text-ink-soft">Quote estimate {money(job.materials_low)}–{money(job.materials_high)}{job.materials_hold_intent ? " · held on the card" : job.materials_settled_at ? " · settled" : ""}</p> : null}
+            {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string; source?: string; receipt_path?: string | null; merchant_name?: string | null }) => (
+              <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2"><span>{e.source === "card" ? "💳 " : ""}{e.description}{e.merchant_name && e.source !== "card" ? ` (${e.merchant_name})` : ""} · <b>{money(e.amount)}</b> · {e.status}{e.source === "card" && !e.receipt_path && e.status !== "rejected" ? " · receipt missing" : ""}</span><ExpenseActions id={e.id} status={e.status} /></div>
             ))}
           </div>
         )}

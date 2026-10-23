@@ -30,12 +30,14 @@
  * UPDATED : 2026-10-23_1030 UTC — category cards show 3 services each (uniform cards); "+ N more" opens the rest of that
  *           group in a dropdown over the page, so the cards keep their size; on
  *           phones (swipe row) it opens inside the card (native <details>, no script).
+ * UPDATED : 2026-10-23_2330 UTC — Business & Technology is off the category cards, and the "We build" band is now one
+ *           button to its own page, /technology (WeBuildLink), so home-service visitors aren't overloaded.
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
+import { BRAND, MAIN_CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { popularServices } from "@/lib/popular";
-import { WeBuild } from "@/components/home/WeBuild";
+import { WeBuildLink } from "@/components/home/WeBuild";
 import { PartnerBand } from "@/components/home/PartnerBand";
 import { HomeDoors } from "@/components/home/HomeDoors";
 
@@ -69,7 +71,7 @@ export async function HomeClassic() {
   const es = l === "es";
   const top = await popularServices(4);
   const topSlugs = new Set(top.map((s) => s.slug));
-  const cats = CATEGORIES.map((c) => {
+  const cats = MAIN_CATEGORIES.map((c) => {
     const all = SERVICES.filter((s) => s.category === c.id);
     return { ...c, all, list: all.filter((s) => !topSlugs.has(s.slug)) }; // every service not already in Most popular
   }).filter((c) => c.list.length);
@@ -155,7 +157,7 @@ export async function HomeClassic() {
       </section>
 
       {/* we build: intelligent websites, operating systems, automated businesses */}
-      <WeBuild es={l === "es"} compact />
+      <WeBuildLink es={l === "es"} />
 
       {/* how it works */}
       <section className="border-y border-line bg-paper-deep py-14">

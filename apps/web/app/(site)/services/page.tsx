@@ -6,6 +6,7 @@
  *           (tabs on phones), the chosen category's service cards on the right. New services
  *           and categories appear automatically from the catalog.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-10-23_2330 UTC — Business & Technology opens from a button under the categories (ServicesBrowser).
  */
 import { CATEGORIES, SERVICES, categoryText, priceHint, serviceText, t } from "@handled/core";
 import { getLocale } from "@/lib/locale";
@@ -27,7 +28,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
     <div className="wrap py-14">
       <h1 className="text-4xl font-extrabold tracking-tight">{t(l, "Services")}</h1>
       <p className="mt-2 text-ink-soft">{l === "es" ? "Precios por adelantado. Profesionales verificados. Una sola cuenta para todo." : "Upfront prices. Vetted pros. One account for all of it."}</p>
-      <ServicesBrowser categories={categories} initial={cat} />
+      <ServicesBrowser categories={categories} initial={cat} es={l === "es"} />
     </div>
   );
 }
