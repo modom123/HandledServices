@@ -50,6 +50,11 @@
  * UPDATED : 2026-10-19_1320 UTC — insuranceOptional: services with no work on the customer's property with tools or equipment
  *           (remote business work; errands, courier, personal assistant) don't need a general liability certificate, so pros
  *           without one still get those jobs. Trade coverages (bond, business-use auto) still apply.
+ * UPDATED : 2026-10-23_1900 UTC — six new services (75 total): Landscaping & Bed Care (mulch, bed edging, shrub trimming,
+ *           planting, sod, seeding), Furniture Assembly & TV Mounting (per piece), Roof Repair & Replacement, Masonry & Brick
+ *           Repair, Concrete Steps, Patios & Sidewalks, and Demolition & Tear-Out. Detroit-metro 2026 rates noted in each
+ *           price(). New trades: assembly, roofing, masonry, concrete, demolition (the last four licensed); lawn is now
+ *           "Lawn care & landscaping".
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -169,10 +174,10 @@ export interface Service {
 
 export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: string; blurb: string }[] = [
   { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing, mobile car detailing — plus decluttering." },
-  { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
+  { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing and edging, landscaping and mulch, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
-  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
+  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, demolition and tear-outs, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
+  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, furniture assembly, plumbing, electrical, HVAC, roofing, masonry, concrete steps and patios, painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals, venues and event security — one invoice." },
@@ -550,6 +555,48 @@ export const SERVICES: Service[] = [
       if (b(a, "fertilize")) items.push({ label: "Fertilization", amount: Math.round(70 * mult) });
       const base = sum(items);
       return { items, base, hours: Math.max(0.75, base / 70) };
+    },
+  },
+  {
+    slug: "landscaping",
+    name: "Landscaping & Bed Care",
+    category: "outdoor",
+    icon: "🌷",
+    tagline: "Mulch, crisp bed edges, trimmed shrubs and new plants.",
+    description: "Bed and landscape work for homes and commercial properties: weeding, fresh mulch, hand-cut bed edges, shrub and hedge trimming, planting, new sod and seeding. Mulch and plants are included at a standard grade; upgrades are billed at cost.",
+    includes: ["Vetted, insured landscaper", "Mulch and standard plants included", "Hand-cut bed edges", "Debris hauled or bagged", "Before & after photos"],
+    notesHint: "Which beds and areas, mulch color, any plants to keep or remove, and the gate or water access",
+    questions: [
+      { id: "mulch_yards", label: "Mulch to spread", type: "number", min: 0, max: 60, default: 3, unit: "cu yd", help: "1 cubic yard covers about 100 sq ft at 3 inches deep. Measure the beds (length × width) and divide by 100." },
+      { id: "edge_ft", label: "Bed edges to hand-cut", type: "number", min: 0, max: 2000, default: 100, unit: "ft", help: "The total length of bed borders. A crisp spade-cut edge keeps grass and mulch apart." },
+      { id: "shrubs", label: "Shrubs or hedge sections to trim", type: "number", min: 0, max: 200, default: 6, help: "Count each shrub, or each 10 ft of hedge." },
+      { id: "plants", label: "New shrubs or perennials to plant", type: "number", min: 0, max: 200, default: 0, help: "Standard nursery sizes (1–3 gallon) included. Larger trees get a site visit." },
+      { id: "sod_sqft", label: "New sod to lay", type: "number", min: 0, max: 20000, default: 0, unit: "sq ft", help: "Old turf removed and soil graded first. For bare patches, use seeding instead." },
+      { id: "seed_sqft", label: "Bare or thin lawn to seed", type: "number", min: 0, max: 40000, default: 0, unit: "sq ft" },
+      { id: "weeding", label: "Weed the beds first", type: "toggle", default: true },
+      { id: "haul", label: "Haul away the debris (not bagged at the curb)", type: "toggle", default: true },
+    ],
+    minimum: 150,
+    spread: [0.92, 1.15],
+    siteVisit: false,
+    frequencies: ["once", "monthly"],
+    trades: ["lawn"],
+    price: (a) => {
+      // Detroit-metro 2026: mulch installed $85–$110/yd, spade edging $1.50–$2.50/ft, shrub trim $12–$25 each,
+      // planted 1–3 gal shrubs/perennials $45–$70, sod installed $1.75–$2.50/sq ft, seeding $0.15–$0.25/sq ft.
+      const yd = n(a, "mulch_yards"), ft = n(a, "edge_ft"), sh = n(a, "shrubs"), pl = n(a, "plants"), sod = n(a, "sod_sqft"), seed = n(a, "seed_sqft");
+      const items: LineItem[] = [];
+      if (b(a, "weeding")) items.push({ label: "Weed the beds", amount: 85 + Math.round(yd * 15) });
+      if (yd) items.push({ label: `Mulch — ${yd} cu yd, delivered & spread`, amount: yd * 95 });
+      if (ft) items.push({ label: `Hand-cut bed edges — ${ft} ft`, amount: Math.round(ft * 2) });
+      if (sh) items.push({ label: `Shrub & hedge trimming — ${sh}`, amount: sh * 18 });
+      if (pl) items.push({ label: `Planting — ${pl} shrubs or perennials`, amount: pl * 55 });
+      if (sod) items.push({ label: `Sod — ${sod} sq ft, prepped & laid`, amount: Math.round(sod * 2.1) });
+      if (seed) items.push({ label: `Seeding — ${seed} sq ft, with starter fertilizer & straw`, amount: Math.max(90, Math.round(seed * 0.2)) });
+      if (b(a, "haul") && items.length) items.push({ label: "Debris haul-away", amount: 75 });
+      if (!items.length) items.push({ label: "Bed cleanup & touch-up", amount: 150 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1.5, base / 65) };
     },
   },
   {
@@ -1288,6 +1335,45 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "furniture-assembly",
+    name: "Furniture Assembly & TV Mounting",
+    category: "repair_remodel",
+    icon: "🪑",
+    tagline: "Flat-pack to finished, priced per piece.",
+    description: "Beds, dressers, desks, bookcases, cribs, patio sets, gym equipment and playsets assembled, leveled and anchored to the wall, plus TV mounting with the wires hidden. Priced per piece, so you know the total before we arrive.",
+    includes: ["Vetted, insured assembler", "Own tools and drill", "Tall pieces anchored to the wall", "Boxes broken down", "Before & after photos"],
+    notesHint: "The pieces (store and model if you have them), which rooms, and stairs or elevator access",
+    questions: [
+      { id: "small", label: "Small pieces (nightstand, chair, side table, shelf)", type: "number", min: 0, max: 50, default: 0 },
+      { id: "medium", label: "Medium pieces (dresser, desk, bookcase, TV stand, crib)", type: "number", min: 0, max: 30, default: 2 },
+      { id: "large", label: "Large pieces (bed frame, wardrobe, sectional, entertainment center)", type: "number", min: 0, max: 20, default: 0 },
+      { id: "xl", label: "Extra-large (playset, trampoline, shed kit, home gym)", type: "number", min: 0, max: 10, default: 0 },
+      { id: "tvs", label: "TVs to mount", type: "number", min: 0, max: 10, default: 0, help: "Bring your own mount or we pick one up at cost. Brick and stone walls need masonry anchors (included)." },
+      { id: "hide_wires", label: "Hide the TV wires in the wall", type: "toggle", default: false, help: "For each TV mounted. Not possible on brick or exterior walls." },
+      { id: "haul_boxes", label: "Take the boxes and packaging away", type: "toggle", default: false },
+    ],
+    minimum: 89,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["assembly", "handyman"],
+    price: (a) => {
+      // Detroit-metro 2026 per-piece market: small $40–$60, medium $75–$110, large $120–$180, playsets/gyms $250–$450,
+      // TV mount $100–$160 (+$80–$150 to run wires in the wall).
+      const sm = n(a, "small"), md = n(a, "medium"), lg = n(a, "large"), xl = n(a, "xl"), tv = n(a, "tvs");
+      const items: LineItem[] = [];
+      if (sm) items.push({ label: `Small pieces — ${sm}`, amount: sm * 45 });
+      if (md) items.push({ label: `Medium pieces — ${md}`, amount: md * 85 });
+      if (lg) items.push({ label: `Large pieces — ${lg}`, amount: lg * 140 });
+      if (xl) items.push({ label: `Extra-large pieces — ${xl}`, amount: xl * 325 });
+      if (tv) items.push({ label: `TVs mounted — ${tv}`, amount: tv * 129 });
+      if (tv && b(a, "hide_wires")) items.push({ label: `Wires hidden in the wall — ${tv} TVs`, amount: tv * 99 });
+      if (b(a, "haul_boxes") && items.length) items.push({ label: "Boxes & packaging taken away", amount: 35 });
+      if (!items.length) items.push({ label: "Assembly visit", amount: 89 });
+      return { items, base: sum(items), hours: Math.max(1, sm * 0.5 + md * 1 + lg * 1.75 + xl * 4 + tv * 1.25) };
+    },
+  },
+  {
     slug: "plumbing",
     name: "Plumbing Repairs",
     category: "repair_remodel",
@@ -1841,6 +1927,221 @@ export const SERVICES: Service[] = [
       if (test === "before" || test === "both") items.push({ label: "Mold inspection & air test (before)", amount: 375 });
       if (test === "after" || test === "both") items.push({ label: "Clearance air test (after)", amount: 325 });
       return { items, base: sum(items), hours: Math.max(3, 2 + sq / 25 + (b(a, "remove") ? sq / 40 : 0) + (b(a, "hvac") ? 3 : 0)) };
+    },
+  },
+  {
+    slug: "roofing",
+    name: "Roof Repair & Replacement",
+    category: "repair_remodel",
+    icon: "🏠",
+    tagline: "Leaks stopped, shingles replaced, or a whole new roof, by a licensed roofer.",
+    description: "Leak and storm repairs, missing or damaged shingles, flashing around chimneys, skylights and vents, and full tear-off and replacement in architectural asphalt shingles or a flat-roof membrane. Repairs are priced instantly; a full replacement is measured on site first and gets a firm written price. Permits, dumpster and cleanup with a magnet sweep included.",
+    includes: ["Licensed, insured roofer", "Permit pulled where required", "Dumpster, cleanup and magnet sweep", "Manufacturer's shingle warranty plus the roofer's workmanship warranty", "Before & after photos (roof and attic)"],
+    notesHint: "Where it leaks or what's damaged, the roof's age, how many layers you think it has, and any skylights or chimneys",
+    questions: [
+      {
+        id: "work",
+        label: "What do you need?",
+        type: "select",
+        default: "repair",
+        options: [
+          { value: "inspection", label: "Inspection & written report" },
+          { value: "repair", label: "Leak or shingle repair" },
+          { value: "replace", label: "Full roof replacement" },
+        ],
+      },
+      { id: "areas", label: "Areas to repair", type: "number", min: 1, max: 10, default: 1, help: "Each leak or damaged spot (up to about 100 sq ft each).", showIf: { id: "work", is: ["repair"] } },
+      { id: "flashing", label: "Chimney, skylight or wall flashing to redo", type: "number", min: 0, max: 6, default: 0, showIf: { id: "work", is: ["repair", "replace"] } },
+      { id: "roof_sqft", label: "Roof area", type: "number", min: 0, max: 20000, default: 0, unit: "sq ft", required: true, help: "Not sure? House footprint × 1.2 for a typical pitched roof (a 1,500 sq ft ranch is about 1,800 sq ft of roof). The roofer measures exactly before the firm price.", showIf: { id: "work", is: ["replace"] } },
+      { id: "material", label: "New roof", type: "select", default: "asphalt", options: [{ value: "asphalt", label: "Architectural asphalt shingles" }, { value: "flat", label: "Flat roof membrane (EPDM / modified bitumen)" }], showIf: { id: "work", is: ["replace"] } },
+      { id: "layers", label: "Layers to tear off", type: "select", default: "1", options: [{ value: "1", label: "1 layer" }, { value: "2", label: "2 layers" }, { value: "3", label: "3 layers" }], showIf: { id: "work", is: ["replace"] } },
+      { id: "decking", label: "Sheets of rotted decking to replace (estimate)", type: "number", min: 0, max: 100, default: 0, help: "Usually found during tear-off; you're only charged for sheets actually replaced.", showIf: { id: "work", is: ["replace"] } },
+      { id: "stories", label: "Height", type: "select", default: "1", options: STORIES },
+      { id: "steep", label: "Steep roof (hard to walk on)", type: "toggle", default: false },
+    ],
+    minimum: 225,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["roofing"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: inspection $175–$300, leak/shingle repair $350–$900, flashing $350–$650,
+      // tear-off & architectural shingles $450–$650 per square (100 sq ft), flat membrane $650–$900 per square,
+      // extra layer $60–$100 per square, decking $75–$110 per sheet.
+      const work = s(a, "work", "repair");
+      const height = { "1": 1, "2": 1.12, "3": 1.25 }[s(a, "stories", "1")] ?? 1;
+      const pitch = b(a, "steep") ? 1.15 : 1;
+      const fl = n(a, "flashing");
+      const items: LineItem[] = [];
+      if (work === "inspection") items.push({ label: "Roof & attic inspection with written report", amount: 225 });
+      else if (work === "repair") {
+        const ar = Math.max(1, n(a, "areas", 1));
+        items.push({ label: `Leak & shingle repair — ${ar} area${ar > 1 ? "s" : ""}`, amount: Math.round((450 + (ar - 1) * 275) * height * pitch) });
+      } else {
+        const sq = Math.max(10, Math.ceil(n(a, "roof_sqft") / 100) || 18);
+        const flat = s(a, "material", "asphalt") === "flat";
+        items.push({ label: `Tear-off & new ${flat ? "flat roof membrane" : "architectural shingles"} — ${sq} squares`, amount: Math.round(sq * (flat ? 775 : 525) * height * pitch) });
+        const extra = Number(s(a, "layers", "1")) - 1;
+        if (extra > 0) items.push({ label: `Extra layer tear-off — ${extra} × ${sq} squares`, amount: extra * sq * 80 });
+        const dk = n(a, "decking");
+        if (dk) items.push({ label: `Decking replacement — ${dk} sheets`, amount: dk * 95 });
+        items.push({ label: "Permit, dumpster & cleanup", amount: 650 });
+      }
+      if (fl && work !== "inspection") items.push({ label: `Flashing redone — ${fl}`, amount: fl * 450 });
+      const base = sum(items);
+      return { items, base, hours: work === "inspection" ? 1.5 : work === "repair" ? Math.max(3, base / 110) : Math.max(16, base / 95) };
+    },
+  },
+  {
+    slug: "masonry",
+    name: "Masonry & Brick Repair",
+    category: "repair_remodel",
+    icon: "🧱",
+    tagline: "Tuckpointing, brick replacement, chimneys and walls, by a licensed mason.",
+    description: "Brick and block repair for homes and buildings: tuckpointing worn mortar joints, replacing cracked or spalling bricks with the closest match, chimney crowns and rebuilds above the roof, brick steps, and new block retaining or garden walls. A licensed mason does the work; big chimney and wall jobs get a free site visit first.",
+    includes: ["Licensed, insured mason", "Mortar color matched as closely as possible", "Brick matched from local yards", "Scaffold or lift when needed", "Cleanup and before & after photos"],
+    notesHint: "What's cracked or crumbling, where (chimney, front wall, steps, foundation above grade), the brick color, and how high it is",
+    questions: [
+      { id: "tuck_sqft", label: "Wall area to tuckpoint (repoint mortar)", type: "number", min: 0, max: 5000, default: 50, unit: "sq ft", help: "Measure the patch of worn or missing mortar: width × height in feet." },
+      { id: "bricks", label: "Cracked or crumbling bricks to replace", type: "number", min: 0, max: 500, default: 0 },
+      {
+        id: "chimney",
+        label: "Chimney",
+        type: "select",
+        default: "none",
+        options: [
+          { value: "none", label: "No chimney work" },
+          { value: "crown", label: "New crown (concrete cap) & seal" },
+          { value: "rebuild", label: "Rebuild above the roofline" },
+        ],
+      },
+      { id: "wall_sqft", label: "New block retaining or garden wall (face area)", type: "number", min: 0, max: 2000, default: 0, unit: "sq ft", help: "Length × height of the wall face. Walls over 4 ft tall need an engineer and a site visit." },
+      { id: "stories", label: "Height of the work", type: "select", default: "1", options: STORIES },
+    ],
+    minimum: 450,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["masonry"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: tuckpointing $12–$22/sq ft, brick replacement $25–$50 per brick, chimney crown $750–$1,500,
+      // rebuild above roofline $3,000–$5,500, segmental block wall $35–$55 per face sq ft.
+      const height = { "1": 1, "2": 1.2, "3": 1.4 }[s(a, "stories", "1")] ?? 1;
+      const t = n(a, "tuck_sqft"), br = n(a, "bricks"), w = n(a, "wall_sqft");
+      const items: LineItem[] = [];
+      if (t) items.push({ label: `Tuckpointing — ${t} sq ft`, amount: Math.round(t * 16 * height) });
+      if (br) items.push({ label: `Brick replacement — ${br} bricks`, amount: Math.round(br * 38 * height) });
+      const ch = s(a, "chimney", "none");
+      if (ch === "crown") items.push({ label: "Chimney crown & seal", amount: 1100 });
+      if (ch === "rebuild") items.push({ label: "Chimney rebuild above the roofline", amount: 4200 });
+      if (w) items.push({ label: `Block retaining / garden wall — ${w} sq ft`, amount: w * 45 });
+      if (!items.length) items.push({ label: "Masonry repair visit", amount: 450 });
+      if (height > 1 && (t || br)) items.push({ label: "Scaffold or lift", amount: height > 1.2 ? 450 : 250 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(4, base / 85) };
+    },
+  },
+  {
+    slug: "concrete-repair",
+    name: "Concrete Steps, Patios & Sidewalks",
+    category: "repair_remodel",
+    icon: "🪨",
+    tagline: "Crumbling steps, sunken slabs and cracked walks, fixed or replaced.",
+    description: "Concrete work by a licensed contractor: front and back steps resurfaced or rebuilt, handrails, patios, sidewalks and driveway sections poured new, sunken slabs lifted level, and cracks routed and sealed. Old concrete broken out and hauled away. Larger pours get a free site visit and a firm written price.",
+    includes: ["Licensed, insured concrete contractor", "Forms, gravel base and reinforcement", "Old concrete hauled away", "Broom finish (stamped optional)", "Before & after photos"],
+    notesHint: "What's damaged (steps, patio, walk, driveway), the size, whether water pools there, and access for a truck",
+    questions: [
+      { id: "steps_fix", label: "Steps to resurface or patch", type: "number", min: 0, max: 30, default: 3, help: "Each step (tread). Good for chipped or flaking steps that are still solid." },
+      { id: "steps_new", label: "Steps to break out and pour new", type: "number", min: 0, max: 30, default: 0, help: "Each step (tread). For steps that are cracked through, sinking or pulling from the house." },
+      { id: "railing", label: "New metal handrail", type: "toggle", default: false },
+      { id: "slab_sqft", label: "Patio, sidewalk or driveway to pour new", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft", help: "Length × width in feet. A sidewalk square is about 4 × 4 = 16 sq ft." },
+      { id: "tear_out", label: "Break out and haul away the old concrete there", type: "toggle", default: true },
+      { id: "stamped", label: "Stamped / colored finish", type: "toggle", default: false },
+      { id: "lift_sqft", label: "Sunken slab to lift level (mudjacking / foam)", type: "number", min: 0, max: 3000, default: 0, unit: "sq ft" },
+      { id: "crack_ft", label: "Cracks to route & seal", type: "number", min: 0, max: 1000, default: 0, unit: "ft" },
+    ],
+    minimum: 400,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["concrete"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: step resurfacing $125–$200 per step, new poured steps $400–$650 per step plus footing,
+      // new broom-finish slab $9–$14/sq ft (+$3–$5 stamped), tear-out $2–$4/sq ft, lifting $5–$8/sq ft,
+      // crack routing & sealing $3–$6/ft, handrail $350–$600.
+      const fix = n(a, "steps_fix"), nw = n(a, "steps_new"), slab = n(a, "slab_sqft"), lift = n(a, "lift_sqft"), cr = n(a, "crack_ft");
+      const items: LineItem[] = [];
+      if (fix) items.push({ label: `Step resurfacing — ${fix} steps`, amount: fix * 165 });
+      if (nw) items.push({ label: `New poured steps — ${nw} steps, with footing`, amount: nw * 525 + 600 });
+      if (b(a, "railing")) items.push({ label: "Metal handrail", amount: 450 });
+      if (slab) {
+        items.push({ label: `New concrete — ${slab} sq ft`, amount: Math.round(slab * 11) });
+        if (b(a, "tear_out")) items.push({ label: `Break out & haul away old concrete — ${slab} sq ft`, amount: Math.round(slab * 3) });
+        if (b(a, "stamped")) items.push({ label: `Stamped / colored finish — ${slab} sq ft`, amount: Math.round(slab * 4) });
+      }
+      if (lift) items.push({ label: `Slab lifting — ${lift} sq ft`, amount: Math.max(450, Math.round(lift * 6.5)) });
+      if (cr) items.push({ label: `Crack routing & sealing — ${cr} ft`, amount: Math.max(150, Math.round(cr * 4.5)) });
+      if (!items.length) items.push({ label: "Concrete repair visit", amount: 400 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, base / 90) };
+    },
+  },
+  {
+    slug: "demolition",
+    name: "Demolition & Tear-Out",
+    category: "removal",
+    icon: "🔨",
+    tagline: "Sheds, decks, garages, pools and rooms torn out and hauled away.",
+    description: "Small demolition by a licensed contractor: interior tear-outs (kitchens, bathrooms, drywall, flooring), sheds, decks and porches, above-ground pools, concrete slabs and detached garages. Utilities are confirmed disconnected first, permits pulled where required, and all debris hauled away. Garages and anything over 400 sq ft get a free site visit and a firm price.",
+    includes: ["Licensed, insured demolition crew", "Permit pulled where required", "Utilities confirmed off before work", "All debris hauled & dumped", "Site left broom-clean or raked", "Before & after photos"],
+    notesHint: "What's coming down, its size and material, what stays, and whether a truck can get close",
+    questions: [
+      {
+        id: "kind",
+        label: "What's being torn out?",
+        type: "select",
+        default: "interior",
+        options: [
+          { value: "interior", label: "Interior room (kitchen, bath, drywall, flooring)" },
+          { value: "shed", label: "Shed or playset" },
+          { value: "deck", label: "Deck or porch" },
+          { value: "pool", label: "Above-ground pool" },
+          { value: "slab", label: "Concrete slab, patio or walk" },
+          { value: "garage", label: "Detached garage" },
+        ],
+      },
+      { id: "sqft", label: "Size", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft", required: true, help: "Floor area of the room, shed, deck or garage, or the slab's length × width. A pool: its footprint (a 24 ft round pool is about 450 sq ft)." },
+      { id: "stories", label: "Floor of the house (interior work)", type: "select", default: "1", options: [{ value: "1", label: "Ground floor or basement" }, { value: "2", label: "Upstairs" }], showIf: { id: "kind", is: ["interior"] } },
+      { id: "slab_too", label: "Also break out the concrete slab or footings under it", type: "toggle", default: false, showIf: { id: "kind", is: ["shed", "deck", "garage"] } },
+      { id: "fill", label: "Fill, grade and seed the area after", type: "toggle", default: false, showIf: { id: "kind", is: ["shed", "deck", "pool", "slab", "garage"] } },
+    ],
+    minimum: 450,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["demolition"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026 incl. haul & dump: interior tear-out $5–$9/sq ft, shed $5–$8/sq ft (min ~$500),
+      // deck/porch $8–$12/sq ft, above-ground pool $600–$1,200, slab break-out $4–$7/sq ft,
+      // detached garage $12–$18/sq ft (2-car ~$5,000–$7,500 incl. permit).
+      const kind = s(a, "kind", "interior");
+      const sq = n(a, "sqft") || ({ interior: 150, shed: 100, deck: 200, pool: 450, slab: 200, garage: 400 } as Record<string, number>)[kind] || 150;
+      const items: LineItem[] = [];
+      if (kind === "interior") items.push({ label: `Interior tear-out — ${sq} sq ft`, amount: Math.round(sq * 7 * (s(a, "stories", "1") === "2" ? 1.15 : 1)) });
+      if (kind === "shed") items.push({ label: `Shed or playset demolition — ${sq} sq ft`, amount: Math.max(500, Math.round(sq * 6.5)) });
+      if (kind === "deck") items.push({ label: `Deck or porch demolition — ${sq} sq ft`, amount: Math.round(sq * 10) });
+      if (kind === "pool") items.push({ label: "Above-ground pool removal", amount: Math.max(750, Math.round(sq * 1.9)) });
+      if (kind === "slab") items.push({ label: `Concrete break-out — ${sq} sq ft`, amount: Math.round(sq * 5.5) });
+      if (kind === "garage") items.push({ label: `Detached garage demolition — ${sq} sq ft`, amount: Math.round(sq * 14) });
+      if (b(a, "slab_too") && ["shed", "deck", "garage"].includes(kind)) items.push({ label: `Slab & footing break-out — ${sq} sq ft`, amount: Math.round(sq * 4.5) });
+      if (b(a, "fill") && kind !== "interior") items.push({ label: `Fill, grade & seed — ${sq} sq ft`, amount: Math.max(250, Math.round(sq * 1.25)) });
+      if (["garage", "interior"].includes(kind)) items.push({ label: "Permit & utility disconnect check", amount: kind === "garage" ? 450 : 150 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, base / 95) };
     },
   },
   {
@@ -3183,7 +3484,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "carpet", label: "Carpet & upholstery" },
   { id: "organizing", label: "Professional organizing" },
   { id: "gutters", label: "Gutters" },
-  { id: "lawn", label: "Lawn care" },
+  { id: "lawn", label: "Lawn care & landscaping" },
   { id: "tree", label: "Tree service / arborist" },
   { id: "snow", label: "Snow plowing & removal" },
   { id: "pet_waste", label: "Pet waste removal" },
@@ -3197,10 +3498,15 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "waste_oil", label: "Used oil transporter (licensed)" },
   { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },
+  { id: "assembly", label: "Furniture assembly & TV mounting" },
   { id: "small_engine", label: "Small engine repair" },
   { id: "dock_door", label: "Commercial & dock door service" },
   { id: "fire_safety", label: "Fire extinguisher service (state-certified)" },
   { id: "foundation", label: "Foundation repair (licensed)" },
+  { id: "roofing", label: "Roofing (licensed)" },
+  { id: "masonry", label: "Masonry & brick (licensed)" },
+  { id: "concrete", label: "Concrete & flatwork (licensed)" },
+  { id: "demolition", label: "Demolition (licensed)" },
   { id: "mold", label: "Mold remediation (certified)" },
   { id: "remodel", label: "Remodeling / general contractor" },
   { id: "painting", label: "Painting (interior & exterior)" },

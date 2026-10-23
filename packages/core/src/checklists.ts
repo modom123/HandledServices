@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol checklist (post, patrol, fire watch).
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal checklist.
  * UPDATED : 2026-10-12_0117 UTC — Mold removal checklist (containment, moisture source, removal, drying, clearance test).
+ * UPDATED : 2026-10-23_1900 UTC — checklists for landscaping, furniture assembly, roofing, masonry, concrete and demolition.
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -247,6 +248,21 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
     ] }],
   }),
 
+  "landscaping": tpl({
+    service: "landscaping", version: 1, title: { en: "Landscaping checklist", es: "Lista de jardinería" },
+    sections: [{ id: "beds", en: "Beds & landscape", es: "Jardineras y jardín", items: [
+      i("weeds", "Beds weeded, roots out", "Jardineras deshierbadas, con raíz", { when: { q: "weeding", in: [true] }, required: true }),
+      i("edges", "Bed edges cut clean and even; grass and mulch separated", "Bordes de jardineras cortados limpios y parejos; césped y mantillo separados", { when: { q: "edge_ft", gt: 0 }, required: true }),
+      i("mulch", "Mulch spread evenly about 3 in deep, pulled back from stems, trunks and siding", "Mantillo esparcido parejo a unas 3 pulgadas, alejado de tallos, troncos y fachada", { when: { q: "mulch_yards", gt: 0 }, required: true, photo: true }),
+      i("shrubs", "Shrubs and hedges trimmed to shape; clippings picked up", "Arbustos y setos podados con forma; recortes recogidos", { when: { q: "shrubs", gt: 0 }, required: true }),
+      i("plants", "Plants set at the right depth and watered in; tags and pots removed", "Plantas a la profundidad correcta y regadas; etiquetas y macetas retiradas", { when: { q: "plants", gt: 0 }, required: true }),
+      i("sod", "Sod laid tight with staggered seams, rolled and watered; customer told how to water it", "Pasto colocado sin huecos con juntas alternadas, compactado y regado; cliente informado de cómo regarlo", { when: { q: "sod_sqft", gt: 0 }, required: true }),
+      i("seed", "Seed spread with starter fertilizer and straw; watering plan given to the customer", "Semilla esparcida con fertilizante inicial y paja; plan de riego entregado al cliente", { when: { q: "seed_sqft", gt: 0 }, required: true }),
+      i("walks", "Walks, drive and siding blown off", "Banquetas, entrada y fachada sopladas", { required: true }),
+      i("haul", "Debris hauled away", "Desechos retirados", { when: { q: "haul", in: [true] }, required: true }),
+    ] }],
+  }),
+
   "leaf-removal": tpl({
     service: "leaf-removal", version: 1, title: { en: "Leaf removal checklist", es: "Lista de retiro de hojas" },
     sections: [{ id: "leaves", en: "Leaves", es: "Hojas", items: [
@@ -333,6 +349,20 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
       i("done", "Every task finished and tested (doors close, fixtures work, nothing loose)", "Cada tarea terminada y probada (puertas cierran, accesorios funcionan, nada flojo)", { required: true }),
       i("receipts", "Material receipts uploaded", "Recibos de materiales subidos", { when: { q: "materials", in: [true] }, required: true }),
       i("dust", "Dust and offcuts cleaned up", "Polvo y recortes limpiados", { required: true }),
+    ] }],
+  }),
+
+  "furniture-assembly": tpl({
+    service: "furniture-assembly", version: 1, title: { en: "Furniture assembly checklist", es: "Lista de armado de muebles" },
+    sections: [{ id: "assembly", en: "Assembly", es: "Armado", items: [
+      i("parts", "Every box opened and parts checked; missing or damaged parts photographed and reported", "Cada caja abierta y piezas revisadas; piezas faltantes o dañadas fotografiadas y reportadas", { required: true }),
+      i("built", "Every piece assembled per the instructions, square, level and tight; drawers and doors run smoothly", "Cada pieza armada según las instrucciones, a escuadra, nivelada y firme; cajones y puertas corren bien", { required: true, photo: true }),
+      i("anchor", "Dressers, bookcases and other tall pieces anchored to the wall", "Cómodas, libreros y otros muebles altos anclados a la pared", { required: true }),
+      i("placed", "Pieces placed where the customer wants them", "Piezas colocadas donde el cliente quiere", { required: true }),
+      i("tv", "TV mounted level into studs or masonry anchors; customer shown it's secure", "Televisor instalado nivelado en postes o anclajes de mampostería; se le mostró al cliente que está firme", { when: { q: "tvs", gt: 0 }, required: true, photo: true }),
+      i("wires", "TV wires run inside the wall with an in-wall rated kit", "Cables del televisor dentro de la pared con un kit aprobado para pared", { when: { q: "hide_wires", in: [true] }, required: true }),
+      i("boxes", "Boxes broken down and packaging taken away", "Cajas desarmadas y empaque retirado", { when: { q: "haul_boxes", in: [true] }, required: true }),
+      i("hardware", "Leftover hardware and the instructions left with the customer", "Tornillería sobrante e instrucciones entregadas al cliente"),
     ] }],
   }),
 
@@ -531,6 +561,63 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
       i("pet_hair", "Pet hair removed", "Pelo de mascota retirado", { when: { q: "pet_hair", in: [true] }, required: true }),
       i("headlights", "Headlights restored", "Faros restaurados", { when: { q: "headlights", in: [true] }, required: true }),
       i("ceramic", "Ceramic coating applied; cure instructions given to the customer", "Recubrimiento cerámico aplicado; instrucciones de curado dadas al cliente", { when: { q: "package", in: ["ceramic"] }, required: true }),
+    ] }],
+  }),
+
+  "roofing": tpl({
+    service: "roofing", version: 1, title: { en: "Roofing checklist", es: "Lista de techos" },
+    sections: [{ id: "roof", en: "Roof", es: "Techo", items: [
+      i("safety", "Fall protection set up; ladders tied off; yard and walks below protected", "Protección contra caídas instalada; escaleras amarradas; patio y banquetas protegidos", { required: true }),
+      i("report", "Written inspection report with photos of every slope, the flashing and the attic", "Informe de inspección por escrito con fotos de cada lado, los tapajuntas y el ático", { when: { q: "work", in: ["inspection"] }, required: true, photo: true }),
+      i("leak", "Leak source found; damaged shingles, underlayment and sealant replaced", "Origen de la gotera encontrado; tejas, membrana y sellador dañados reemplazados", { when: { q: "work", in: ["repair"] }, required: true, photo: true }),
+      i("permit", "Permit posted on site", "Permiso exhibido en el sitio", { when: { q: "work", in: ["replace"] }, required: true }),
+      i("tearoff", "Tear-off down to the deck; rotten decking replaced and photographed", "Retiro hasta el entablado; entablado podrido reemplazado y fotografiado", { when: { q: "work", in: ["replace"] }, required: true, photo: true }),
+      i("underlay", "Ice & water shield at eaves and valleys, underlayment, drip edge and vents installed", "Membrana contra hielo y agua en aleros y valles, membrana base, gotero y ventilas instalados", { when: { q: "work", in: ["replace"] }, required: true }),
+      i("flash", "Flashing at chimneys, skylights and walls redone and sealed", "Tapajuntas de chimeneas, tragaluces y paredes rehechos y sellados", { when: { q: "flashing", gt: 0 }, required: true }),
+      i("nails", "Yard, drive and gutters cleaned; magnet sweep for nails done", "Patio, entrada y canaletas limpios; barrido con imán para clavos hecho", { required: true }),
+      i("warranty", "Warranty and inspection sign-off given to the customer", "Garantía y aprobación de inspección entregadas al cliente", { when: { q: "work", in: ["replace"] }, required: true }),
+    ] }],
+  }),
+
+  "masonry": tpl({
+    service: "masonry", version: 1, title: { en: "Masonry checklist", es: "Lista de albañilería" },
+    sections: [{ id: "masonry", en: "Masonry", es: "Albañilería", items: [
+      i("match", "Mortar color and brick match shown to the customer before starting", "Color del mortero y ladrillo igualado mostrados al cliente antes de empezar", { required: true }),
+      i("joints", "Worn joints ground out to a consistent depth and repointed; tooled to match the wall", "Juntas gastadas desbastadas a profundidad pareja y rejuntadas; terminadas igual que el muro", { when: { q: "tuck_sqft", gt: 0 }, required: true, photo: true }),
+      i("bricks", "Damaged bricks cut out and replaced, flush with the wall", "Ladrillos dañados retirados y reemplazados, al ras del muro", { when: { q: "bricks", gt: 0 }, required: true, photo: true }),
+      i("crown", "Chimney crown formed with an overhang and drip edge, then sealed", "Corona de chimenea con vuelo y gotero, luego sellada", { when: { q: "chimney", in: ["crown"] }, required: true, photo: true }),
+      i("rebuild", "Chimney rebuilt above the roofline; flashing reset and sealed", "Chimenea reconstruida arriba del techo; tapajuntas recolocados y sellados", { when: { q: "chimney", in: ["rebuild"] }, required: true, photo: true }),
+      i("wall", "Wall built on a compacted base with drainage stone and a perforated drain behind it", "Muro sobre base compactada con piedra de drenaje y tubo perforado detrás", { when: { q: "wall_sqft", gt: 0 }, required: true, photo: true }),
+      i("wash", "Mortar smears washed off; dust and debris cleaned up", "Manchas de mortero lavadas; polvo y escombros limpiados", { required: true }),
+    ] }],
+  }),
+
+  "concrete-repair": tpl({
+    service: "concrete-repair", version: 1, title: { en: "Concrete checklist", es: "Lista de concreto" },
+    sections: [{ id: "concrete", en: "Concrete", es: "Concreto", items: [
+      i("permit", "Permit pulled where required (city sidewalks and drive approaches)", "Permiso tramitado donde se requiera (banquetas de la ciudad y accesos de entrada)"),
+      i("resurface", "Steps cleaned, bonded and resurfaced; edges crisp and slip-resistant", "Escalones limpios, con adherente y resanados; orillas definidas y antiderrapantes", { when: { q: "steps_fix", gt: 0 }, required: true, photo: true }),
+      i("steps", "Old steps broken out; footing, forms and rebar in place before the pour (photo)", "Escalones viejos demolidos; zapata, cimbra y varilla listas antes del colado (foto)", { when: { q: "steps_new", gt: 0 }, required: true, photo: true }),
+      i("rail", "Handrail set solid in the concrete or anchored", "Pasamanos firme en el concreto o anclado", { when: { q: "railing", in: [true] }, required: true }),
+      i("base", "Compacted gravel base, forms and reinforcement checked before the pour (photo)", "Base de grava compactada, cimbra y refuerzo revisados antes del colado (foto)", { when: { q: "slab_sqft", gt: 0 }, required: true, photo: true }),
+      i("finish", "Slab pitched to drain away from the house, control joints cut, broom or stamped finish", "Losa con pendiente que aleja el agua de la casa, juntas de control cortadas, acabado de escoba o estampado", { when: { q: "slab_sqft", gt: 0 }, required: true }),
+      i("lift", "Sunken slab lifted level; holes patched", "Losa hundida nivelada; perforaciones resanadas", { when: { q: "lift_sqft", gt: 0 }, required: true }),
+      i("cracks", "Cracks routed, cleaned and sealed", "Grietas ranuradas, limpias y selladas", { when: { q: "crack_ft", gt: 0 }, required: true }),
+      i("cure", "Area taped off; customer told when they can walk and drive on it", "Área acordonada; cliente informado de cuándo puede caminar y manejar sobre ella", { required: true }),
+    ] }],
+  }),
+
+  "demolition": tpl({
+    service: "demolition", version: 1, title: { en: "Demolition checklist", es: "Lista de demolición" },
+    sections: [{ id: "demo", en: "Demolition", es: "Demolición", items: [
+      i("utilities", "Gas, power and water to the structure confirmed off and capped (photo)", "Gas, luz y agua de la estructura confirmados como cortados y tapados (foto)", { required: true, photo: true }),
+      i("permit", "Demolition permit posted where required", "Permiso de demolición exhibido donde se requiera", { when: { q: "kind", in: ["garage", "interior"] }, required: true }),
+      i("protect", "What stays is protected (walls, floors, plants, fences); dust barriers up for interior work", "Lo que se queda está protegido (paredes, pisos, plantas, cercas); barreras de polvo para trabajo interior", { required: true }),
+      i("down", "Everything in scope taken down; nothing outside the scope removed", "Todo lo del alcance demolido; nada fuera del alcance retirado", { required: true, photo: true }),
+      i("slab", "Slab and footings broken out", "Losa y zapatas demolidas", { when: { q: "slab_too", in: [true] }, required: true }),
+      i("debris", "All debris hauled to a licensed disposal site (receipt uploaded)", "Todos los escombros llevados a un sitio de desecho autorizado (recibo subido)", { required: true }),
+      i("grade", "Area filled, graded and seeded", "Área rellenada, nivelada y sembrada", { when: { q: "fill", in: [true] }, required: true }),
+      i("nails", "Nails and sharp debris swept up (magnet sweep outdoors)", "Clavos y escombros filosos recogidos (barrido con imán afuera)", { required: true }),
     ] }],
   }),
 

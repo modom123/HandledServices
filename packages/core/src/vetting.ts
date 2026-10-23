@@ -21,6 +21,8 @@
  * UPDATED : 2026-10-11_0608 UTC — trade profiles for the remote specialists: web design, business formation, consulting, AI automation.
  * UPDATED : 2026-10-11_1405 UTC — freight trade (licensed motor carriers) and the cargo coverage (motor truck cargo, $100K per load).
  * UPDATED : 2026-10-12_0117 UTC — mold trade (certified remediation; no state license in MI or WA).
+ * UPDATED : 2026-10-23_1900 UTC — lawn trade covers landscaping (more specialties: edging, shrubs, planting, sod, cleanups);
+ *           new trades: furniture assembly, roofing, masonry, concrete, demolition (Michigan M&A or builder license).
  */
 import { BRAND } from "./brand.ts";
 
@@ -104,13 +106,20 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     skillsCheck: "Ladder-safety attestation, photos of recent jobs, 2 references.",
   },
   lawn: {
-    does: "Mowing, edging, cleanups, aeration, seeding and leaf removal.",
+    does: "Mowing, edging and trimming, landscaping and bed care (mulch, edging, shrubs, planting, sod), cleanups, aeration, seeding and leaf removal.",
     specialties: [
       { id: "mowing", label: "Mowing & edging", slug: "lawn-care" },
+      { id: "string_trim", label: "String trimming & blowing" },
+      { id: "landscaping", label: "Mulch, beds & landscaping", slug: "landscaping" },
+      { id: "bed_edging", label: "Bed edging (spade-cut or installed)" },
+      { id: "shrubs", label: "Shrub & hedge trimming" },
+      { id: "planting", label: "Planting shrubs & perennials" },
+      { id: "sod", label: "Sod & seeding" },
+      { id: "cleanups", label: "Spring & fall cleanups" },
       { id: "leaf", label: "Leaf removal & fall cleanup", slug: "leaf-removal" },
       { id: "aeration", label: "Aeration & overseeding" },
       { id: "treatment", label: "Fertilizer & weed control" },
-      { id: "landscaping", label: "Mulch, beds & landscaping" },
+      { id: "commercial_grounds", label: "Commercial grounds & HOAs" },
     ],
     license: null, preferred: ["MDARD commercial applicator certification (required if you apply fertilizer or pesticides)"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }, { key: "auto", when: "you tow a trailer to jobs" }],
     skillsCheck: "Equipment list, photos of 3 maintained properties, 2 references.",
@@ -269,6 +278,34 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     preferred: ["Manufacturer-certified installer for the pier or bracing system used"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
     skillsCheck: "LARA license lookup, a sample written estimate and warranty, photos of recent jobs, 3 homeowner references.",
   },
+  roofing: {
+    does: "Roof leak and storm repairs, shingle and flashing work, inspections, and full tear-off and replacement (asphalt shingles and flat-roof membranes).",
+    specialties: [{ id: "roof_repair", label: "Leak & shingle repair", slug: "roofing" }, { id: "reroof", label: "Tear-off & replacement" }, { id: "flat_roof", label: "Flat roofs (EPDM, modified bitumen)" }, { id: "flashing", label: "Chimney & skylight flashing" }, { id: "roof_storm", label: "Storm & insurance claims" }],
+    license: "Michigan Residential Builder or Maintenance & Alteration Contractor license with the roofing trade (LARA), required for residential work over $600; local permits for reroofs",
+    preferred: ["Shingle manufacturer certification (GAF, Owens Corning, CertainTeed)", "OSHA fall-protection training"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
+    skillsCheck: "LARA license lookup, fall-protection plan, a sample written estimate and warranty, photos of 3 recent roofs, 3 homeowner references.",
+  },
+  masonry: {
+    does: "Tuckpointing, brick and block repair, chimney crowns and rebuilds, brick steps and retaining walls.",
+    specialties: [{ id: "tuckpointing", label: "Tuckpointing & brick repair", slug: "masonry" }, { id: "chimney", label: "Chimney crowns & rebuilds" }, { id: "retaining", label: "Block retaining & garden walls" }, { id: "brick_steps", label: "Brick steps & porches" }, { id: "stone", label: "Stone & veneer" }],
+    license: "Michigan Maintenance & Alteration Contractor license with the masonry trade, or a Residential Builder license (LARA), required for residential work over $600",
+    preferred: ["Scaffold or lift experience for 2-story work"], glMin: GL1, requires: ["workers_comp"], conditional: [{ key: "auto", when: "you haul a trailer or mixer to jobs" }],
+    skillsCheck: "LARA license lookup, photos of 3 recent repairs showing the mortar and brick match, 2 references.",
+  },
+  concrete: {
+    does: "Concrete steps, patios, sidewalks and driveway sections: resurfacing, break-out and new pours, slab lifting and crack sealing.",
+    specialties: [{ id: "steps", label: "Steps & stoops", slug: "concrete-repair" }, { id: "concrete_flat", label: "Patios, walks & driveways" }, { id: "slab_lift", label: "Slab lifting (mudjacking / foam)" }, { id: "stamped", label: "Stamped & decorative" }, { id: "crack_seal", label: "Crack repair & sealing" }],
+    license: "Michigan Maintenance & Alteration Contractor license with the concrete trade, or a Residential Builder license (LARA), required for residential work over $600; city permits for sidewalks and drive approaches",
+    preferred: ["ACI flatwork finisher certification"], glMin: GL1, requires: ["auto", "workers_comp"], conditional: [],
+    skillsCheck: "LARA license lookup, photos of 3 recent pours (forms and finish), 2 references.",
+  },
+  demolition: {
+    does: "Interior tear-outs, sheds, decks, porches, above-ground pools, slabs and detached garages, with haul-away.",
+    specialties: [{ id: "interior_demo", label: "Interior tear-outs", slug: "demolition" }, { id: "structures", label: "Sheds, decks & garages" }, { id: "pools", label: "Above-ground pools" }, { id: "slab_breakout", label: "Concrete break-out" }],
+    license: "Michigan Maintenance & Alteration Contractor license with the wrecking trade, or a Residential Builder license (LARA); local demolition permits, utility disconnects and asbestos survey where required",
+    preferred: ["Asbestos awareness training", "Own dump trailer or roll-off account"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
+    skillsCheck: "LARA license lookup, equipment list (skid steer, dump trailer), disposal receipts from a recent job, 2 references.",
+  },
   mold: {
     does: "Mold remediation: containment with negative air, removal of moldy drywall, insulation and carpet, HEPA vacuuming, antimicrobial treatment, drying, and finding the moisture source.",
     specialties: [{ id: "remediation", label: "Mold remediation", slug: "mold-removal" }, { id: "attic_crawl", label: "Attics & crawlspaces" }, { id: "hvac_mold", label: "Furnace & duct mold" }, { id: "testing", label: "Mold inspection & air testing" }],
@@ -288,6 +325,12 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     ],
     license: null, preferred: ["Michigan Maintenance & Alteration license (lets you take jobs over $600 that need one)"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
     skillsCheck: "Skills interview, photos of 5 recent repairs, 2 references. Plumbing, electrical and HVAC work goes only to licensed pros.",
+  },
+  assembly: {
+    does: "Flat-pack furniture, office furniture, cribs, patio sets, playsets and home gyms assembled and anchored; TVs mounted.",
+    specialties: [{ id: "flatpack", label: "Flat-pack furniture (IKEA, Wayfair, Amazon)", slug: "furniture-assembly" }, { id: "office_furniture", label: "Office furniture & cubicles" }, { id: "outdoor_assembly", label: "Playsets, trampolines & sheds" }, { id: "gym_equipment", label: "Home gym equipment" }, { id: "tv_mount", label: "TV mounting" }],
+    license: null, preferred: [], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "Photos of 3 recent assemblies, own drill and tools, 2 references.",
   },
   remodel: {
     does: "Bathroom, kitchen and whole-home remodels with permits and subs.",

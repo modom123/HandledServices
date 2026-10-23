@@ -10,6 +10,7 @@
  *                               the website form) → one lead row; tolerant of field names
  *             speedToLeadText — the instant reply when the AI is off (honest: no prices, a booking link and a call)
  *             SOCIAL_CHANNELS / socialSlots / fitCaption — the weekly posting plan and each network's limits
+ * UPDATED : 2026-10-23_1900 UTC — free-text phrases for landscaping, roofing, masonry, concrete, demolition, furniture assembly and power washing.
  */
 import { BRAND } from "./brand.ts";
 import { SERVICE_BY_SLUG } from "./services.ts";
@@ -106,7 +107,14 @@ const SERVICE_PHRASES: [RegExp, string][] = [
   [/carpet|rug|upholster/, "carpet-cleaning"],
   [/window/, "window-cleaning"],
   [/gutter/, "gutter-cleaning"],
-  [/lawn|mow|landscap|yard work|grass/, "lawn-care"],
+  [/mulch|landscap|flower bed|shrub|hedge|\bsod\b|bed edg/, "landscaping"],
+  [/lawn|mow|yard work|grass/, "lawn-care"],
+  [/roof|shingle/, "roofing"],
+  [/tuck ?point|brick|mason|chimney/, "masonry"],
+  [/power ?wash|pressure ?wash/, "power-washing"],
+  [/concrete|cement|mudjack|(steps|stoop|sidewalk|patio|driveway)\b.{0,30}(crack|crumbl|sink|sunk|broke|repair|replace|pour)/, "concrete-repair"],
+  [/demoli|tear[- ]?out|tear down|knock down/, "demolition"],
+  [/assembl|ikea|tv mount|mount (a|my|the) tv/, "furniture-assembly"],
   [/paint/, "interior-painting"],
 ];
 const stem = (w: string) => w.replace(/(ing|ers|er|es|s)$/, "");

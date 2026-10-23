@@ -4,6 +4,9 @@
   CREATED : 2026-10-01_1800 UTC
   UPDATED : 2026-10-11_1603 UTC — 66 services: Business & Technology (websites, AI automation & agents, business formation,
             consulting) and Freight & Pallet Delivery with carrier partners such as 3 Lakes Logistics.
+  UPDATED : 2026-10-23_1900 UTC — 75 services: Landscaping & Bed Care, Furniture Assembly & TV Mounting, Roof Repair &
+            Replacement, Masonry & Brick Repair, Concrete Steps, Patios & Sidewalks, and Demolition & Tear-Out. The site's
+            service counts come from the catalog, so they stay accurate as services are added.
 -->
 
 # Handled — AI-run home & business services

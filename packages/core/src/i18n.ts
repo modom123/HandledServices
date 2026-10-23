@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
  * UPDATED : 2026-10-15_0300 UTC — the brand promise: 25% books your pro, pay the rest when it's done.
+ * UPDATED : 2026-10-23_1900 UTC — Spanish for the six new services (landscaping, furniture assembly, roofing, masonry, concrete, demolition).
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -123,6 +124,19 @@ const ES: Record<string, string> = {
   "Any cracks, holes or water stains": "Grietas, agujeros o manchas de agua",
   "Ceilings and trim if included": "Techos y molduras si se incluyen",
   "Each side of the building": "Cada lado del edificio",
+  "The roof from the street": "El techo desde la calle",
+  "The damaged area or leak up close": "El área dañada o la gotera de cerca",
+  "Any water stain inside or in the attic": "Cualquier mancha de agua adentro o en el ático",
+  "The whole wall or chimney": "Todo el muro o la chimenea",
+  "The worst cracks or missing mortar up close": "Las peores grietas o el mortero faltante de cerca",
+  "Each area, wide shot": "Cada área, toma amplia",
+  "The worst cracks or crumbling up close": "Las peores grietas o partes desmoronadas de cerca",
+  "What's coming down, wide shot": "Lo que se va a demoler, toma amplia",
+  "Access for a truck (driveway or alley)": "Acceso para un camión (entrada o callejón)",
+  "Each bed or area": "Cada jardinera o área",
+  "The edges and shrubs": "Los bordes y arbustos",
+  "The boxes or a link to the items": "Las cajas o un enlace a los artículos",
+  "The wall for any TV": "La pared para el televisor",
   "Peeling or damaged areas up close": "Áreas peladas o dañadas de cerca",
   "Trim, doors and any deck": "Molduras, puertas y terraza",
   "Each wall of the room": "Cada pared del cuarto",
@@ -320,10 +334,10 @@ const ES: Record<string, string> = {
 
 const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: string }> = {
   cleaning: { name: "Limpieza y organización", short: "Limpieza", blurb: "Casas, oficinas, ventanas, alfombras, canaletas, lavado a presión, lavado de autos a domicilio y organización." },
-  outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte de césped, limpieza de hojas, remoción de nieve y árboles." },
+  outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte y bordes, jardinería y mantillo, limpieza de hojas, remoción de nieve y árboles." },
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
-  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
-  repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
+  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, demolición y desmontaje, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
+  repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, armado de muebles, plomería, electricidad, climatización, techos, albañilería, escalones y patios de concreto, pintura, y remodelaciones." },
   errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
   events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres, salones y seguridad, en una sola factura." },
@@ -350,6 +364,12 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "dock-door-service": ["Servicio de puertas de muelle y seccionales", "Inspecciones, mantenimiento y reparaciones de puertas de muelle, niveladores y puertas seccionales."],
   "fire-extinguisher-inspection": ["Inspección y servicio de extintores", "Inspecciones anuales, etiquetas, recargas y extintores nuevos, en el lugar."],
   "foundation-repair": ["Reparación de cimientos", "Grietas, paredes combadas y hundimientos, reparados por un contratista con licencia."],
+  "roofing": ["Reparación y reemplazo de techos", "Goteras detenidas, tejas reemplazadas o un techo nuevo, por un techador con licencia."],
+  "masonry": ["Albañilería y reparación de ladrillo", "Rejuntado, reemplazo de ladrillos, chimeneas y muros, por un albañil con licencia."],
+  "concrete-repair": ["Escalones, patios y banquetas de concreto", "Escalones desmoronados, losas hundidas y banquetas agrietadas, reparados o reemplazados."],
+  "demolition": ["Demolición y desmontaje", "Cobertizos, terrazas, garajes, piscinas y cuartos demolidos y retirados."],
+  "furniture-assembly": ["Armado de muebles e instalación de TV", "De la caja a terminado, con precio por pieza."],
+  "landscaping": ["Jardinería y cuidado de jardineras", "Mantillo, bordes definidos, arbustos podados y plantas nuevas."],
   "waste-oil-collection": ["Recolección de aceite usado", "Aceite de motor usado, filtros y anticongelante recogidos por un transportista con licencia."],
   "urgent-ride": ["Viaje urgente (no médico)", "¿Varado o necesita ir ya? Un conductor con licencia en camino. ¿Emergencia médica? Llame al 911."],
   "dead-animal-removal": ["Retiro de animales muertos", "Se retira hoy: embolsado, retirado y desechado correctamente. Tratamiento de olores disponible."],

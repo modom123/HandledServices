@@ -23,6 +23,8 @@
  * UPDATED : 2026-10-19_2330 UTC — stateWide search (one call for the whole state, filtered to our codes on our side, plus
  *           one nationwide call per remote code) so the daily search fits a 10-call key; pickBidCandidates — the day's
  *           5 best notices we can still respond to (open, biddable, 5+ days left, good fit).
+ * UPDATED : 2026-10-23_1900 UTC — roofing (238160) is now a catalog service; masonry (238140), poured concrete (238110) and
+ *           site preparation & demolition (238910) added; landscaping joins 561730.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -39,8 +41,11 @@ export interface GovNaics {
 /** NAICS codes agencies post work under, for services we already offer (2022 NAICS). */
 export const GOV_NAICS: GovNaics[] = [
   { code: "561720", title: "Janitorial services", slugs: ["house-cleaning", "window-cleaning"] },
-  { code: "561730", title: "Landscaping & grounds maintenance", slugs: ["lawn-care", "leaf-removal", "tree-removal"], focus: true },
-  { code: "238160", title: "Roofing", slugs: [], subcontracted: true },
+  { code: "561730", title: "Landscaping & grounds maintenance", slugs: ["lawn-care", "landscaping", "leaf-removal", "tree-removal"], focus: true },
+  { code: "238160", title: "Roofing", slugs: ["roofing"] },
+  { code: "238140", title: "Masonry", slugs: ["masonry"] },
+  { code: "238110", title: "Poured concrete (steps, walks, flatwork)", slugs: ["concrete-repair"] },
+  { code: "238910", title: "Site preparation & demolition", slugs: ["demolition"] },
   { code: "561740", title: "Carpet & upholstery cleaning", slugs: ["carpet-cleaning"], focus: true },
   { code: "561790", title: "Other services to buildings (snow removal, power washing, gutters)", slugs: ["snow-removal", "power-washing", "gutter-cleaning"] },
   { code: "561612", title: "Security guards & patrol", slugs: ["security-guard", "event-security"] },
