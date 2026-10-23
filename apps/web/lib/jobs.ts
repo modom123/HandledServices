@@ -47,6 +47,7 @@
  *           recurring visits). A pro can be assigned and start once the 25% is in (clearedForWork); their payout never waits on the customer.
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
+ * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
  */
 import "server-only";
 import { z } from "zod";
@@ -336,11 +337,11 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   if (job.status === "site_visit" && svc.remote) {
     // websites, AI, formation, consulting: a free video consultation instead of a site visit
     if (es) await sendEmail(job.contact_email, `${BRAND.name}: consulta gratis ${job.ref} reservada`,
-      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} le escribirá para agendar su consulta gratis por video sobre ${svcEs(svc.slug)} (estimado ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
-      `En la consulta confirmamos el alcance y un precio firme. No debe nada hasta que apruebe la cotización.\n\nSu estimado y acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} le escribirá para agendar su consulta gratis por video sobre ${svcEs(svc.slug)}. ` +
+      `En la consulta confirmamos el alcance y un precio firme. No debe nada hasta que apruebe la cotización.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     else await sendEmail(job.contact_email, `${BRAND.name}: free consultation ${job.ref} booked`,
-      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will reach out to schedule your free video consultation for ${svc.name} (estimated ${moneyRange(job.estimate_low, job.estimate_high)}). ` +
-      `On the call we confirm the scope and a firm price. Nothing is owed until you approve the quote.\n\nYour estimate & service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will reach out to schedule your free video consultation for ${svc.name}. ` +
+      `On the call we confirm the scope and a firm price. Nothing is owed until you approve the quote.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     await addEvent(job.id, "site_visit", "Free consultation requested — a specialist will reach out to schedule a video call.", "system", true, "Consulta gratis solicitada: un especialista le escribirá para agendar una videollamada.").catch(() => {});
     await dispatchJob(job.id, { siteVisit: true });
     return;

@@ -8,6 +8,8 @@
  *           sweep does the follow-up automatically; this page is for watching and stepping in.
  * UPDATED : 2026-10-05_0246 UTC — candidate pages (approval checklist, interview), interview stages, days in stage and
  *           stuck flags, link to the interview packet.
+ * UPDATED : 2026-10-23_1100 UTC — Add candidates (one by hand, or a CSV import such as Indeed's candidate export) and the
+ *           Indeed Apply connection: Indeed applications arrive at /api/indeed/apply and join this pipeline.
  */
 import Link from "next/link";
 import { PIPELINE, STAGE_LABEL, TRADES, type PipelineStage } from "@handled/core";
@@ -16,6 +18,8 @@ import { getRecruitingSettings, pipeline } from "@/lib/recruiting";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { RecruitingRowActions, RecruitingSettingsForm } from "@/components/HubActions";
+import { RecruitingIntake } from "@/components/RecruitingIntake";
+import { siteUrl } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +58,23 @@ export default async function RecruitingPage({ searchParams }: { searchParams: P
         <h1 className="text-2xl font-bold">Recruiting</h1>
         <p className="text-sm text-ink-soft">Applicants are screened, interviewed (AI or you), invited, reminded and activated automatically; a person decides who's invited. Share <code>/pros</code> — each pro’s dashboard has a referral link too. Click a name for the candidate's full checklist and interview. · <Link href="/hub/recruiting/packet" className="font-semibold text-brand underline">Interview packet (print)</Link></p>
       </div>
+      <details className="group" open={!total}>
+        <summary className="btn-primary inline-flex cursor-pointer list-none [&::-webkit-details-marker]:hidden">＋ Add candidates</summary>
+        <div className="mt-3 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <RecruitingIntake trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} />
+          <div className="card space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-2"><span className="font-semibold">Indeed connection</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${process.env.INDEED_API_SECRET ? "bg-brand-tint text-brand-dark" : "bg-amber-50 text-amber-900"}`}>{process.env.INDEED_API_SECRET ? "Indeed Apply on" : "Not connected yet"}</span></div>
+            <p className="text-ink-soft">{rows.filter((r) => String(r.app.source ?? "").toLowerCase().includes("indeed")).length} candidates from Indeed so far.</p>
+            <ol className="list-decimal space-y-1 pl-5 text-ink-soft">
+              <li><b>Today, no setup:</b> export candidates from Indeed (Candidates → Export) and use <b>Import a list</b>. Posts that say “Apply on company website” send people to <code>/pros?utm_source=indeed</code>, which adds them automatically.</li>
+              <li><b>Automatic (Indeed Apply):</b> ask Indeed (your account rep or Indeed’s integrations team) to turn on Indeed Apply for your jobs and deliver applications to <span className="select-all font-mono text-xs text-ink">{siteUrl()}/api/indeed/apply</span>. They give you an API secret: add it in Vercel as <code>INDEED_API_SECRET</code> and redeploy.</li>
+              <li>Optional: set each job’s <code>jobMeta</code> to the trades, e.g. <code>trades=cleaning,windows</code>; otherwise trades are read from the job title.</li>
+            </ol>
+            <p className="text-xs text-ink-soft">Every Indeed application is signature-checked, de-duplicated, gets a confirmation email and goes through the same screen → interview → invite steps as a website application. Résumés are kept in private storage.</p>
+          </div>
+        </div>
+      </details>
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat label="In the pipeline" value={total - active - count("rejected") - count("dropped")} hint={`${since30.length} applied in the last 30 days`} />
         <Stat label="Active pros from applicants" value={active} hint={total ? `${Math.round((active / total) * 100)}% of everyone who applied` : "—"} />

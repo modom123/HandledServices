@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-20_0015 UTC — call-desk (call queue, outcomes and scripts for Hub → Business leads → Call desk).
  * UPDATED : 2026-10-20_0100 UTC — channels (omnichannel lead intake, channel reporting, social calendar).
  * UPDATED : 2026-10-20_0200 UTC — pro-rates (pros set their own prices; price choices; request-a-quote).
+ * UPDATED : 2026-10-23_1100 UTC — ats (Indeed Apply + CSV candidate import parsing, trade detection).
  */
 
 export * from "./types.ts";
@@ -68,3 +69,4 @@ export * from "./coverage.ts";
 export * from "./partners.ts";
 export * from "./loyalty.ts";
 export * from "./supabase-public.ts";
+export * from "./ats.ts";

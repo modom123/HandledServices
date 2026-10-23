@@ -5,6 +5,7 @@
  * PURPOSE : /technology — "We build intelligent websites, business operating systems and automated businesses." The three
  *           pillars, how an engagement works, what Handled itself runs on (the proof), the rest of the Business & Technology
  *           services, and the free consultation. English / Spanish.
+ * UPDATED : 2026-10-23_1100 UTC — no prices (consultation-only): "See solutions" instead of "See prices"; cards say Free consultation (priceHint).
  */
 import Link from "next/link";
 import { SERVICES, priceHint, serviceText } from "@handled/core";
@@ -30,7 +31,7 @@ export default async function Technology() {
       <div className="max-w-3xl">
         <h1 className="text-4xl font-extrabold tracking-tight">{es ? "Creamos sitios web inteligentes, sistemas operativos para negocios y negocios automatizados" : "We build intelligent websites, business operating systems and automated businesses"}</h1>
         <p className="mt-3 text-lg text-ink-soft">{es ? "Para dueños que quieren crecer sin contratar a alguien para cada tarea: la IA atiende, agenda, da seguimiento y lleva las cuentas; su equipo hace el trabajo que importa." : "For owners who want to grow without hiring for every task: AI answers, books, follows up and keeps the books, while your team does the work that matters."}</p>
-        <div className="mt-6 flex flex-wrap gap-3"><Link href="/book?service=automated-business" className="btn-primary">{es ? "Reservar consulta gratis" : "Book a free consultation"}</Link><Link href="/services?cat=business" className="btn-ghost">{es ? "Ver precios" : "See prices"}</Link></div>
+        <div className="mt-6 flex flex-wrap gap-3"><Link href="/book?service=automated-business" className="btn-primary">{es ? "Reservar consulta gratis" : "Book a free consultation"}</Link><Link href="/services?cat=business" className="btn-ghost">{es ? "Ver soluciones" : "See solutions"}</Link></div>
       </div>
 
       <WeBuild es={es} />

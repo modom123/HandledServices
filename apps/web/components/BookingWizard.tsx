@@ -25,6 +25,8 @@
  * UPDATED : 2026-10-12_0005 UTC — saved homes: pick one of My homes (address + entry details), "save this home", and an entry
  *           details box (lockbox, key, gate) that only the assigned pro sees.
  * UPDATED : 2026-10-20_0200 UTC — marketplace: "Choose your price" (pros' own upfront prices next to Handled's) and booking a request-a-quote at its locked price.
+ * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
+ *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  */
 "use client";
 
@@ -35,7 +37,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, consultOnly,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, splitJob, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
 } from "@handled/core";
@@ -84,6 +86,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
   const svc = getService(slug);
+  const consult = consultOnly(slug); // Business & Technology: priced on the free consultation, never shown here
   const [answers, setAnswers] = useState<Answers>(() => {
     if (!svc) return {};
     const known = new Set(svc.questions.map((q) => q.id));
@@ -417,8 +420,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
 
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
-          <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{consult ? (es ? "Precio" : "Price") : t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
+          <div className="mt-1 text-3xl font-bold">{consult ? (es ? "Consulta gratis" : "Free consultation") : siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
+          {consult && <p className="mt-1 text-sm text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en la llamada. No paga nada hasta aprobarlo." : "Every solution is different: scope and price are set on the call. Nothing is owed until you approve it."}</p>}
           {siteVisit && !svc.remote && <a href={`/quote-request?service=${svc.slug}`} className="mt-1 block text-sm text-brand underline">{es ? "O reciba hasta 3 cotizaciones firmes en 24 horas" : "Or get up to 3 firm quotes in 24 hours"}</a>}
           {quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{es ? `Cotización firme de ${quote.pro}: ${money(quote.price)}, todo incluido. ${quote.pro} recibe el trabajo primero.` : `Firm quote from ${quote.pro}: ${money(quote.price)}, all-in. ${quote.pro} gets the job first.`}</p>}
           {proOffers.length > 0 && (
@@ -458,7 +462,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Su profesional gana ${money(splitJob(listTotal, slug).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal, slug).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</p>
             </div>
           )}
-          {svc.slug !== "event-package" && (() => {
+          {svc.slug !== "event-package" && !consult && (() => {
             const fit = budgetFit(Number(budget), siteVisit ? price.low : ai?.final_price ?? est.point);
             return (
               <div className="mt-3">
@@ -510,8 +514,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             );
           })()}
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
-            {est.items.map((i) => (
-              <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span><span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span></li>
+            {consult && <li className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo que eligió" : "What you picked"}</li>}
+            {est.items.filter((i) => !consult || i.amount > 0 && !/booking fee/i.test(i.label)).map((i) => (
+              <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span>{!consult && <span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span>}</li>
             ))}
           </ul>
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}

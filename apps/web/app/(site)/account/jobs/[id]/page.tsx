@@ -10,9 +10,10 @@
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (what's included and, once the pro starts, what's done) and special requests.
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: 25% to book, then "remaining — charged automatically when the job is done".
+ * UPDATED : 2026-10-23_1100 UTC — Business & Technology jobs say "Priced at your consultation" until the firm price is set.
  */
 import { notFound, redirect } from "next/navigation";
-import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job } from "@handled/core";
+import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, consultOnly, getService, money, moneyRange, serviceText, t as tr, type Job } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer, type Viewer } from "@/lib/auth";
@@ -52,7 +53,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <div className="mt-2 text-sm text-ink-soft">{job.ref} · {fmtDate(job.scheduled_date)} · {t(TIME_WINDOW_LABEL[job.time_window])}</div>
           <div className="mt-1 text-sm text-ink-soft">{job.address}, {job.city} {job.zip}</div>
           <a href={`/invoice/${job.id}`} className="mt-2 inline-block text-sm font-semibold text-brand underline">{t("Invoice & service agreement")}</a>
-          <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</div>
+          <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : consultOnly(job.service_slug) ? (l === "es" ? "Precio en la consulta" : "Priced at your consultation") : moneyRange(job.estimate_low, job.estimate_high)}</div>
         </div>
         {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && (
           <PayNow jobId={job.id} amount={money((job.payment_plan === "deposit" || job.payment_plan === "after") && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}

@@ -14,10 +14,11 @@
  *           It switches to the normal bookings view after their first booking.
  * UPDATED : 2026-10-12_0005 UTC — 🏠 My homes: saved home profiles (entry, keys, pets, preferences) used by bookings.
  * UPDATED : 2026-10-12_0121 UTC — Customer ID (C-…) under the email.
+ * UPDATED : 2026-10-23_1100 UTC — Business & Technology jobs say "Priced at consultation" until the firm price is set.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { HANDLED_PLUS, LAUNCH_SET_RECOMMENDED, REFERRAL, getService, money, moneyRange, serviceText, t as tr, type Job, type Locale } from "@handled/core";
+import { HANDLED_PLUS, LAUNCH_SET_RECOMMENDED, REFERRAL, consultOnly, getService, money, moneyRange, serviceText, t as tr, type Job, type Locale } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { activeMembership, ensureReferralCode } from "@/lib/growth";
 import { siteUrl } from "@/lib/notify";
@@ -93,7 +94,7 @@ export default async function Account() {
           return (
             <Link key={j.id} href={`/account/jobs/${j.id}`} className="card flex flex-wrap items-center justify-between gap-3 transition hover:border-brand">
               <div className="flex items-center gap-3"><span className="text-2xl">{s?.icon}</span><div><div className="font-semibold">{name(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address}</div></div></div>
-              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{j.price_final ? money(j.price_final) : moneyRange(j.estimate_low, j.estimate_high)}</span><StatusBadge status={j.status} /></div>
+              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{j.price_final ? money(j.price_final) : consultOnly(j.service_slug) ? (l === "es" ? "Precio en la consulta" : "Priced at consultation") : moneyRange(j.estimate_low, j.estimate_high)}</span><StatusBadge status={j.status} /></div>
             </Link>
           );
         })}
