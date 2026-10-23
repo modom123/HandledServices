@@ -10,16 +10,23 @@
  * UPDATED : 2026-10-06_0625 UTC — easier to read: category list, card titles and descriptions one size up on the site's
  *           scale (base / lg), bold or semibold, in dark ink instead of light grey; counts in a pill.
  * UPDATED : 2026-10-11_0608 UTC — remote services show "free consultation" instead of "free site visit".
+ * UPDATED : 2026-10-23_2330 UTC — Business & Technology is off the list until "Show business & technology" is clicked
+ *           (or the link is ?cat=business), so home-service visitors aren't overloaded.
  */
 "use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { isTucked } from "@handled/core";
 
 export type BrowserCategory = { id: string; name: string; icon: string; blurb: string; services: { slug: string; name: string; icon: string; tagline: string; from: string; siteVisit: boolean; remote?: boolean }[] };
 
-export function ServicesBrowser({ categories, initial }: { categories: BrowserCategory[]; initial?: string }) {
-  const [cat, setCat] = useState(categories.some((c) => c.id === initial) ? initial! : categories[0]?.id);
+export function ServicesBrowser({ categories, initial, es = false }: { categories: BrowserCategory[]; initial?: string; es?: boolean }) {
+  const [cat, setCat] = useState(categories.some((c) => c.id === initial) ? initial! : categories.find((c) => !isTucked(c.id))?.id);
+  // tucked categories (Business & Technology) join the list once opened
+  const [opened, setOpened] = useState(Boolean(initial && isTucked(initial)));
+  const shown = categories.filter((c) => opened || !isTucked(c.id));
+  const tucked = categories.filter((c) => isTucked(c.id));
   const navRef = useRef<HTMLElement>(null);
   // keep the chosen tab in view on phones (the tab row scrolls sideways)
   useEffect(() => {
@@ -27,7 +34,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
   }, [cat]);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("cat");
-    if (q && categories.some((c) => c.id === q)) setCat(q);
+    if (q && categories.some((c) => c.id === q)) { setCat(q); if (isTucked(q)) setOpened(true); }
   }, [categories]);
   function pick(id: string) {
     setCat(id);
@@ -39,7 +46,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
     <div className="mt-8 grid gap-6 lg:grid-cols-[290px_1fr] lg:gap-10">
       <nav ref={navRef} aria-label="Service categories" className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
         <ul className="flex gap-2 lg:sticky lg:top-24 lg:flex-col lg:gap-1">
-          {categories.map((c) => (
+          {shown.map((c) => (
             <li key={c.id}>
               <button
                 type="button"
@@ -50,6 +57,19 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
                 <span className="text-lg">{c.icon}</span>
                 <span className="flex-1">{c.name}</span>
                 <span className="rounded-full bg-paper-deep px-2 py-0.5 text-sm font-semibold text-ink">{c.services.length}</span>
+              </button>
+            </li>
+          ))}
+          {!opened && tucked.map((c) => (
+            <li key={c.id} className="lg:mt-3 lg:border-t lg:border-line lg:pt-3">
+              <button
+                type="button"
+                onClick={() => { setOpened(true); pick(c.id); }}
+                className="flex w-full items-center gap-2 whitespace-nowrap rounded-xl border border-dashed border-line bg-white px-3.5 py-2.5 text-left text-sm font-semibold text-brand transition-colors hover:border-brand lg:whitespace-normal"
+              >
+                <span className="text-lg">{c.icon}</span>
+                <span className="flex-1">{es ? `Ver ${c.name.toLowerCase()}` : `Show ${c.name.toLowerCase()}`}</span>
+                <span aria-hidden>→</span>
               </button>
             </li>
           ))}

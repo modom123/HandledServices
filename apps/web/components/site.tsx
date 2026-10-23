@@ -21,10 +21,12 @@
  * UPDATED : 2026-10-23_1500 UTC — the header's Become a partner button opens the sign-up form (/partners#join).
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
+ * UPDATED : 2026-10-23_2330 UTC — Services menu and footer list the main categories; Business & Technology is under
+ *           For Business (and a button on /services and the home page).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
+import { BRAND, MAIN_CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { LangSwitch } from "./LangSwitch";
 import { DesktopNav, MobileNav, type NavGroup } from "./SiteNav";
@@ -46,7 +48,7 @@ export async function SiteHeader() {
   const groups: NavGroup[] = [
     {
       id: "services", label: t("Services"), wide: true,
-      items: CATEGORIES.map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name, icon: c.icon })),
+      items: MAIN_CATEGORIES.map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name, icon: c.icon })),
       footer: { href: "/services", label: es ? `Ver los ${SERVICES.length} servicios →` : `See all ${SERVICES.length} services →` },
     },
     {
@@ -116,7 +118,7 @@ export async function SiteFooter() {
         <div>
           <div className="text-sm font-semibold">{t("Services")}</div>
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-            {CATEGORIES.map((c) => (
+            {MAIN_CATEGORIES.map((c) => (
               <li key={c.id}><Link href={`/services?cat=${c.id}`} className="hover:text-ink">{c.icon} {categoryText(l, c.id, c).name}</Link></li>
             ))}
           </ul>
