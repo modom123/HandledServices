@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
+ * UPDATED : 2026-10-23_1100 UTC — recruiting intake (Indeed Apply, CSV import, trade detection) and consultation-only pricing.
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
  * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
@@ -2092,4 +2093,51 @@ test("marketplace: pros price 80–175%, Handled's commission rules hold at ever
     assert.ok(splitJob(price, "home-remodel").payout >= pay, `the quoting pro earns at least ${pay}`);
     assert.ok(price > pay, "Handled's fee is added on top");
   }
+});
+
+// ─── recruiting intake (ats.ts) & consultation-only pricing ───────────────────
+import { inferTrades, parseCandidatesCsv, parseIndeedApply } from "./ats.ts";
+import { consultOnly, priceHint } from "./pricing.ts";
+
+test("inferTrades reads job titles and jobMeta", () => {
+  assert.deepEqual(inferTrades("Independent House Cleaner — Pick Your Own Jobs"), ["cleaning"]);
+  assert.deepEqual(inferTrades("Licensed Electricians & Plumbers").sort(), ["electrical", "plumbing"]);
+  assert.deepEqual(inferTrades("trades=windows,carpet"), ["windows", "carpet"]);
+  assert.deepEqual(inferTrades("Accountant"), []);
+});
+
+test("parseIndeedApply maps an Indeed Apply application", () => {
+  const r = parseIndeedApply({
+    id: "abc123", appliedOnMillis: 1, job: { jobId: "J1", jobTitle: "Independent House Cleaner", jobLocation: "Detroit, MI", jobMeta: "" },
+    applicant: { fullName: "Ana Ruiz", email: "Ana@Example.com ", phoneNumber: "(313) 555-0100", coverletter: "5 years cleaning homes", resume: { file: { data: "aGVsbG8=", fileName: "ana.pdf", contentType: "application/pdf" } } },
+    questions: { q1: "yes" },
+  });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.candidate.email, "ana@example.com");
+  assert.equal(r.candidate.phone, "3135550100");
+  assert.deepEqual(r.candidate.trades, ["cleaning"]);
+  assert.equal(r.candidate.external_id, "abc123");
+  assert.equal(r.candidate.source, "indeed");
+  assert.equal(r.candidate.resume?.fileName, "ana.pdf");
+  assert.equal(parseIndeedApply({ applicant: { fullName: "X" } }).ok, false);
+});
+
+test("parseCandidatesCsv handles Indeed-style exports", () => {
+  const csv = 'Name,Email,Phone,Job title,Candidate location\n"Ruiz, Ana",ana@example.com,313-555-0100,Independent House Cleaner,"Detroit, MI"\nBob,not-an-email,,Handyman,\nCara Li,cara@example.com,,"Handyman, carpentry",Warren\ncara again,CARA@example.com,,,';
+  const { candidates, skipped } = parseCandidatesCsv(csv, "indeed");
+  assert.equal(candidates.length, 2);
+  assert.equal(candidates[0].full_name, "Ruiz, Ana");
+  assert.equal(candidates[0].location, "Detroit, MI");
+  assert.deepEqual(candidates[0].trades, ["cleaning"]);
+  assert.deepEqual(candidates[1].trades, ["handyman"]);
+  assert.equal(candidates[1].source, "indeed");
+  assert.equal(skipped.length, 2);
+  assert.equal(parseCandidatesCsv("Phone\n123").candidates.length, 0);
+});
+
+test("Business & Technology is consultation-only", () => {
+  assert.equal(consultOnly("website-design"), true);
+  assert.equal(consultOnly("house-cleaning"), false);
+  assert.equal(priceHint("website-design"), "Free consultation");
 });
