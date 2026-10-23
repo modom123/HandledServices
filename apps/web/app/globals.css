@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-07_2115 UTC — the Original look's background is light blue instead of eggshell.
  * UPDATED : 2026-10-23_0430 UTC — new look: blue, white & green (bluegreen) — white pages, navy blue panels and type,
  *           green buttons, sky-blue accents.
+ * UPDATED : 2026-10-23_1030 UTC — bluegreen: the page background is blue (sky blue), cards stay white; greens darkened for contrast.
  */
 @import "tailwindcss";
 
@@ -136,12 +137,12 @@ body {
   --color-line: #e5e5e5;
 }
 [data-theme="bwg"] .site-header { border-top-color: #0a0a0a; }
-/* bluegreen: blue, white & green — white pages, navy panels and type, green buttons, blue accents */
+/* bluegreen: blue, white & green — sky-blue page background, white cards, navy panels and type, green buttons */
 [data-theme="bluegreen"] {
   --color-ink: #0b1f3a;
-  --color-ink-soft: #44546a;
-  --color-brand: #15803d;      /* white text ≈ 5.0:1 */
-  --color-brand-dark: #166534;
+  --color-ink-soft: #33445c;   /* on the blue page ≈ 7:1 */
+  --color-brand: #166534;      /* green links on the blue page ≈ 5.5:1, white text on it ≈ 7:1 */
+  --color-brand-dark: #14532d;
   --color-brand-tint: #ecfdf3;
   --color-brand-deep: #1e3a8a; /* hero panels, banners, Hub sidebar: navy blue */
   --color-gold: #2563eb;
@@ -149,10 +150,10 @@ body {
   --color-gold-dark: #1d4ed8;
   --color-mint: #93c5fd;
   --color-sun: #2563eb;
-  --color-page: #ffffff;
-  --color-paper: #f3f7fd;
-  --color-paper-deep: #e6effb;
-  --color-line: #d7e2f0;
+  --color-page: #d4e5fb;       /* blue background */
+  --color-paper: #c4daf8;
+  --color-paper-deep: #b6d0f5;
+  --color-line: #a9c4ec;
 }
 [data-theme="bluegreen"] .site-header { border-top-color: #1e3a8a; }
 

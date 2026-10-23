@@ -27,6 +27,9 @@
  * UPDATED : 2026-10-23_0430 UTC — the hero no longer leads with cleaning: it offers our 4 most popular services as big
  *           buttons (lib/popular.ts: approved pros who cover them + what people order), then "Everything else we offer",
  *           which now lists every other service in each category (none hidden), and a "Become a partner" band.
+ * UPDATED : 2026-10-23_1030 UTC — category cards show 3 services each (uniform cards); "+ N more" opens the rest of that
+ *           group in a dropdown over the page, so the cards keep their size; on
+ *           phones (swipe row) it opens inside the card (native <details>, no script).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -160,11 +163,24 @@ export async function HomeModern() {
           {cats.map((c) => (
             <div key={c.id} className="card lift flex w-[78%] shrink-0 snap-start flex-col sm:w-auto">
               <div className="flex items-center gap-3"><Glyph icon={c.icon} /><span className="font-display font-bold leading-tight">{categoryText(l, c.id, c).name}</span></div>
-              <ul className="mt-3 flex-1 space-y-1.5 text-sm">
-                {c.list.map((s) => (
-                  <li key={s.slug}><Link href={`/services/${s.slug}`} className="flex items-center gap-2 text-ink-soft hover:text-brand"><Glyph icon={s.icon} size="sm" tone="plain" />{serviceText(l, s.slug, s).name}</Link></li>
-                ))}
-              </ul>
+              {/* 3 services per card so every card matches; "+ N more" opens the rest of the group */}
+              <div className="mt-3 flex-1 text-sm">
+                <ul className="space-y-1.5">
+                  {c.list.slice(0, 3).map((s) => (
+                    <li key={s.slug}><Link href={`/services/${s.slug}`} className="flex items-center gap-2 text-ink-soft hover:text-brand"><Glyph icon={s.icon} size="sm" tone="plain" />{serviceText(l, s.slug, s).name}</Link></li>
+                  ))}
+                </ul>
+                {c.list.length > 3 && (
+                  <details className="group relative mt-1.5">
+                    <summary className="cursor-pointer list-none font-semibold text-brand marker:hidden [&::-webkit-details-marker]:hidden"><span className="group-open:hidden">+ {c.list.length - 3} {es ? "más" : "more"}</span><span className="hidden group-open:inline">{es ? "Mostrar menos" : "Show less"}</span></summary>
+                    <ul className="mt-1.5 space-y-1.5 sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:mt-2 sm:max-h-80 sm:overflow-y-auto sm:rounded-xl sm:border sm:border-line sm:bg-white sm:p-3 sm:shadow-xl">
+                      {c.list.slice(3).map((s) => (
+                        <li key={s.slug}><Link href={`/services/${s.slug}`} className="flex items-center gap-2 text-ink-soft hover:text-brand"><Glyph icon={s.icon} size="sm" tone="plain" />{serviceText(l, s.slug, s).name}</Link></li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
                 <span className="text-ink-soft">{c.id === "events" ? t("By budget") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
                 <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.all.length} →</Link>
