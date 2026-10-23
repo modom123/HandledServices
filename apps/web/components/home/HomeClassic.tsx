@@ -22,11 +22,16 @@
  * UPDATED : 2026-10-07_0235 UTC — moved here from app/(site)/home/page.tsx: the home layout for the Original and
  *           Green-white-gold looks (lib/theme.ts). The Modern look uses HomeModern.
  * UPDATED : 2026-10-11_2307 UTC — "We build" band: intelligent websites, business operating systems, automated businesses.
+ * UPDATED : 2026-10-23_0430 UTC — the hero no longer leads with cleaning: it offers our 4 most popular services as big
+ *           buttons (lib/popular.ts: approved pros who cover them + what people order), then "Everything else we offer",
+ *           which now lists every other service in each category (none hidden), and a "Become a partner" band.
  */
 import Link from "next/link";
-import { BRAND, CATEGORIES, RECURRING_DISCOUNT, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
+import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
+import { popularServices } from "@/lib/popular";
 import { WeBuild } from "@/components/home/WeBuild";
+import { PartnerBand } from "@/components/home/PartnerBand";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -43,17 +48,6 @@ const COMPARE = [
 ];
 
 
-// Cleaning push: what the hero offers first (MARKETING_FOCUS in @handled/core).
-const PLAN_SAVE = Math.round(RECURRING_DISCOUNT.weekly * 100);
-const CLEANING = [
-  { href: "/book?service=house-cleaning&level=standard", icon: "🧽", title: "Standard clean", body: "Kitchen, baths, dusting, floors" },
-  { href: "/book?service=house-cleaning&level=deep", icon: "✨", title: "Deep clean", body: "Baseboards, buildup, every corner" },
-  { href: "/book?service=house-cleaning&level=move", icon: "📦", title: "Move-in / move-out", body: "Empty home, deposit-ready" },
-  { href: "/book?service=house-cleaning&frequency=biweekly", icon: "🔁", title: "Recurring plan", body: `Same cleaner, save up to ${PLAN_SAVE}%` },
-  { href: "/book?service=carpet-cleaning", icon: "🧼", title: "Carpet cleaning", body: "Rooms, stairs, rugs, upholstery" },
-  { href: "/book?service=window-cleaning", icon: "🪟", title: "Window cleaning", body: "Inside, outside, screens & tracks" },
-];
-
 const TRUST = ["Insured & background-checked pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
 
 const MORE = [
@@ -66,34 +60,40 @@ const MORE = [
 export async function HomeClassic() {
   const l = await getLocale();
   const t = (s: string) => tr(l, s);
+  const es = l === "es";
+  const top = await popularServices(4);
+  const topSlugs = new Set(top.map((s) => s.slug));
   const cats = CATEGORIES.map((c) => {
-    const list = SERVICES.filter((s) => s.category === c.id);
-    return { ...c, list };
+    const all = SERVICES.filter((s) => s.category === c.id);
+    return { ...c, all, list: all.filter((s) => !topSlugs.has(s.slug)) }; // every service not already in Most popular
   }).filter((c) => c.list.length);
   return (
     <>
-      {/* hero — cleaning first (MARKETING_FOCUS) */}
+      {/* hero — our 4 most popular services (lib/popular.ts), everything else below */}
       <section className="wrap grid items-center gap-10 pb-12 pt-12 md:grid-cols-[1.05fr_1fr] md:pt-16">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark"><span className="text-gold">●</span> {t("Launching in Metro Detroit · expanding nationwide")}</span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-            {t("Home & office cleaning, done right.")} <span className="text-brand">{t("Handled.")}</span>
+            {es ? "Servicios para hogar y negocio." : "Home & business services."} <span className="text-brand">{t("Handled.")}</span>
           </h1>
-          <p className="mt-5 max-w-lg text-lg text-ink-soft">{t("Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.")}</p>
+          <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales asegurados y verificados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Insured, background-checked local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/book?service=house-cleaning" className="btn-primary px-6 py-3 text-base">{t("Book a cleaning")}</Link>
-            <Link href="/business" className="btn-ghost px-6 py-3 text-base">🏢 {t("Office & property cleaning")}</Link>
-            <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {l === "es" ? "servicios" : "services"}</Link>
+            <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
+            <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {CLEANING.map((c) => (
-            <Link key={c.href} href={c.href} className="card flex flex-col p-4 transition hover:border-gold hover:bg-brand-tint">
-              <span className="text-2xl sm:text-3xl">{c.icon}</span>
-              <span className="mt-2 text-sm font-semibold leading-tight sm:text-base">{t(c.title)}</span>
-              <span className="mt-1 text-xs text-ink-soft">{l === "es" && c.title === "Recurring plan" ? `Misma persona, ahorre hasta ${PLAN_SAVE}%` : t(c.body)}</span>
-            </Link>
-          ))}
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo más popular" : "Most popular"}</div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {top.map((s) => (
+              <Link key={s.slug} href={`/book?service=${s.slug}`} className="card flex flex-col p-4 transition hover:border-gold hover:bg-brand-tint sm:p-5">
+                <span className="text-3xl sm:text-4xl">{s.icon}</span>
+                <span className="mt-3 text-base font-bold leading-tight sm:text-lg">{serviceText(l, s.slug, s).name}</span>
+                <span className="mt-1 flex-1 text-xs text-ink-soft sm:text-sm">{serviceText(l, s.slug, s).tagline}</span>
+                <span className="mt-3 text-sm font-semibold text-brand">{es ? "Reservar" : "Book now"} →</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -104,11 +104,14 @@ export async function HomeClassic() {
         </div>
       </section>
 
+      {/* become a partner — Referral Partner Program, front and center */}
+      <PartnerBand es={es} />
+
       {/* browse by category */}
       <section className="wrap py-14">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-3xl font-bold tracking-tight">{t("Everything else, handled too")}</h2>
-          <Link href="/services" className="text-sm font-semibold text-brand">All {SERVICES.length} services →</Link>
+          <h2 className="text-3xl font-bold tracking-tight">{es ? "Todo lo demás que ofrecemos" : "Everything else we offer"}</h2>
+          <Link href="/services" className="text-sm font-semibold text-brand">{es ? `Los ${SERVICES.length} servicios` : `All ${SERVICES.length} services`} →</Link>
         </div>
         {/* phones: swipe sideways; tablets and up: grid */}
         <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
@@ -116,13 +119,13 @@ export async function HomeClassic() {
             <div key={c.id} className="card flex w-[78%] shrink-0 snap-start flex-col sm:w-auto">
               <div className="flex items-center gap-2"><span className="text-2xl">{c.icon}</span><span className="font-semibold leading-tight">{categoryText(l, c.id, c).name}</span></div>
               <ul className="mt-3 flex-1 space-y-1.5 text-sm">
-                {c.list.slice(0, 3).map((s) => (
+                {c.list.map((s) => (
                   <li key={s.slug}><Link href={`/services/${s.slug}`} className="text-ink-soft hover:text-brand">{s.icon} {serviceText(l, s.slug, s).name}</Link></li>
                 ))}
               </ul>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
                 <span className="text-ink-soft">{c.id === "events" ? t("By budget") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
-                <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.list.length} →</Link>
+                <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.all.length} →</Link>
               </div>
             </div>
           ))}

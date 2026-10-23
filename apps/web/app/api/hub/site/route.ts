@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0250 UTC
  * PURPOSE : Hub → Website (admins). POST JSON:
- *             { action: "theme", theme: "classic" | "greengold" | "modern" | "bwg" } — the default website look
+ *             { action: "theme", theme: "classic" | "greengold" | "modern" | "bwg" | "bluegreen" } — the default website look
  *             { action: "booking_without_pro", on: boolean } — take bookings where no pro covers the area yet
  * UPDATED : 2026-10-12_0032 UTC — booking_without_pro switch (Hub → Dispatch).
  */
