@@ -7,9 +7,10 @@
  *           record (status vetting until setup, documents and background check are done).
  * UPDATED : 2026-10-11_0451 UTC — inviting (approve) or declining an applicant is admins only; dispatchers can mark one "reviewing".
  * UPDATED : 2026-10-23_1100 UTC — PATCH { trades } (staff): set the trades on a candidate added from Indeed or an import.
+ * UPDATED : 2026-10-23_1900 UTC — PATCH also takes { specialties } (skills within those trades).
  */
 import { z } from "zod";
-import { MAX_TRADES, TRADES } from "@handled/core";
+import { MAX_TRADES, TRADES, specialtiesFor } from "@handled/core";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { inviteApplicant, logRecruiting, rejectApplicant } from "@/lib/recruiting";
@@ -34,7 +35,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   return Response.json({ ok: true });
 }
 
-const Trades = z.object({ trades: z.array(z.string()).min(1).max(MAX_TRADES) });
+const Trades = z.object({ trades: z.array(z.string()).min(1).max(MAX_TRADES), specialties: z.array(z.string().max(40)).max(60).optional() });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const v = await getViewer(req);
@@ -43,8 +44,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const p = Trades.safeParse(await req.json().catch(() => null));
   const trades = p.success ? p.data.trades.filter((t) => TRADES.some((x) => x.id === t)) : [];
   if (!trades.length) return deny(400, `Pick 1 to ${MAX_TRADES} trades`);
-  const { error } = await adminClient().from("contractor_applications").update({ trades }).eq("id", id);
+  // skills are kept only when they belong to the chosen trades
+  const allowed = new Set(specialtiesFor(trades).map((s) => s.id));
+  const specialties = p.success && p.data.specialties ? [...new Set(p.data.specialties.filter((s) => allowed.has(s)))] : undefined;
+  const { error } = await adminClient().from("contractor_applications").update(specialties ? { trades, specialties } : { trades }).eq("id", id);
   if (error) return deny(500, error.message);
-  await logRecruiting("trades_set", { applicationId: id }, trades.join(", "), v!.fullName ?? v!.email);
+  await logRecruiting("trades_set", { applicationId: id }, [trades.join(", "), specialties?.length ? `skills: ${specialties.join(", ")}` : null].filter(Boolean).join(" · "), v!.fullName ?? v!.email);
   return Response.json({ ok: true });
 }

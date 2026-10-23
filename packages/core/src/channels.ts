@@ -10,6 +10,8 @@
  *                               the website form) → one lead row; tolerant of field names
  *             speedToLeadText — the instant reply when the AI is off (honest: no prices, a booking link and a call)
  *             SOCIAL_CHANNELS / socialSlots / fitCaption — the weekly posting plan and each network's limits
+ * UPDATED : 2026-10-23_1900 UTC — free-text phrases for landscaping, roofing, masonry, concrete, demolition, furniture assembly and power washing.
+ * UPDATED : 2026-10-23_2100 UTC — free-text phrases for services 76–100.
  */
 import { BRAND } from "./brand.ts";
 import { SERVICE_BY_SLUG } from "./services.ts";
@@ -102,11 +104,43 @@ const key = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** Common ways people describe the work, checked before the catalog words. */
 const SERVICE_PHRASES: [RegExp, string][] = [
+  [/demoli|tear[- ]?out|tear down|knock down/, "demolition"],
+  [/power ?wash|pressure ?wash/, "power-washing"],
+  [/gutter (install|replace)|new gutters|seamless gutter/, "gutter-install"],
+  [/(replace|new|install)\w* (my |the )?(windows?|front door|entry door|storm door|patio door)/, "window-door-install"],
   [/move[- ]?out|move[- ]?in clean|deep clean|maid|janitor|office clean|house ?clean|cleaning service/, "house-cleaning"],
   [/carpet|rug|upholster/, "carpet-cleaning"],
   [/window/, "window-cleaning"],
   [/gutter/, "gutter-cleaning"],
-  [/lawn|mow|landscap|yard work|grass/, "lawn-care"],
+  [/sprinkler|irrigation|blow ?out/, "sprinkler-service"],
+  [/christmas light|holiday light/, "holiday-lights"],
+  [/\bpool\b/, "pool-service"],
+  [/air duct|duct clean|dryer vent/, "duct-cleaning"],
+  [/grout/, "tile-grout-cleaning"],
+  [/trash (can|bin)|garbage (can|bin)|bin clean/, "trash-bin-cleaning"],
+  [/chimney sweep|creosote|sweep (my|the) chimney/, "chimney-sweep"],
+  [/bed ?bug|roach|cockroach|\bants?\b|\bmice\b|\bmouse\b|\brats?\b|exterminat|pest|wasp|hornet/, "pest-control"],
+  [/raccoon|squirrel|skunk|opossum|groundhog|\bbats?\b/, "wildlife-removal"],
+  [/flood|water damage|burst pipe|sewer backup|water in (my|the) basement/, "water-damage"],
+  [/lock(ed)? out|locksmith|rekey/, "locksmith"],
+  [/garage door/, "garage-door"],
+  [/home inspect|property inspect|pre-?purchase inspect/, "property-inspection"],
+  [/laundry|wash (and|&) fold/, "laundry-pickup"],
+  [/home watch|check on (my|the) house|vacant (home|house)/, "home-watch"],
+  [/mulch|landscap|flower bed|shrub|hedge|\bsod\b|bed edg/, "landscaping"],
+  [/lawn|mow|yard work|grass/, "lawn-care"],
+  [/roof|shingle/, "roofing"],
+  [/siding/, "siding"],
+  [/\bfence/, "fence-install"],
+  [/\bdeck\b/, "deck-build"],
+  [/insulat/, "insulation"],
+  [/seal ?coat|asphalt|pothole/, "driveway-sealcoating"],
+  [/flooring|\blvp\b|laminate|hardwood floor|new carpet|carpet install/, "flooring"],
+  [/washer|dryer|fridge|refrigerator|dishwasher|oven|stove|appliance/, "appliance-repair"],
+  [/wi-?fi|mesh|thermostat|smart home/, "smart-home-setup"],
+  [/tuck ?point|brick|mason|chimney/, "masonry"],
+  [/concrete|cement|mudjack|(steps|stoop|sidewalk|patio|driveway)\b.{0,30}(crack|crumbl|sink|sunk|broke|repair|replace|pour)/, "concrete-repair"],
+  [/assembl|ikea|tv mount|mount (a|my|the) tv/, "furniture-assembly"],
   [/paint/, "interior-painting"],
 ];
 const stem = (w: string) => w.replace(/(ing|ers|er|es|s)$/, "");

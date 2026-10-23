@@ -11,6 +11,7 @@
  *             • scopeChange()     — the pro on site finds more work → priced difference = change order
  *             • sizeNeedsSiteVisit() — jobs too big for an instant price (a commercial repaint, 15+
  *                                    rooms) always get a free site visit and a firm quote
+ * UPDATED : 2026-10-23_1900 UTC — photo rules and site-visit triggers for roofing, masonry, concrete, demolition, landscaping and furniture assembly.
  */
 import { AI_MAX_CUT, AI_MAX_RAISE, estimate, type Estimate } from "./pricing.ts";
 import { getService, type Answers } from "./services.ts";
@@ -59,6 +60,26 @@ const RULES: Record<string, PhotoRule> = {
   "bathroom-remodel": R(3, "Each wall of the room", "Floor", "Anything you're keeping"),
   "kitchen-remodel": R(3, "Each wall of the kitchen", "Floor and ceiling", "Anything you're keeping"),
   "mold-removal": R(2, "The mold, wide shot showing how big", "Close-up of the growth", "Any leak or water stain nearby"),
+  roofing: R(2, "The roof from the street", "The damaged area or leak up close", "Any water stain inside or in the attic"),
+  masonry: R(2, "The whole wall or chimney", "The worst cracks or missing mortar up close"),
+  "concrete-repair": R(2, "Each area, wide shot", "The worst cracks or crumbling up close"),
+  demolition: R(2, "What's coming down, wide shot", "Access for a truck (driveway or alley)"),
+  landscaping: O("Each bed or area", "The edges and shrubs"),
+  "furniture-assembly": O("The boxes or a link to the items", "The wall for any TV"),
+  "fence-install": R(1, "The fence line or the broken section", "Where the gates go"),
+  "deck-build": R(1, "The deck or the spot for a new one", "Damaged boards, railings or stairs up close"),
+  siding: R(2, "Each side with damage", "The damage up close"),
+  "gutter-install": O("Each side of the roofline", "Where water overflows or pools"),
+  "window-door-install": O("Each window or door, inside", "The outside of the house"),
+  insulation: O("The attic from the hatch", "The attic access"),
+  "garage-door": O("The door from inside the garage", "The springs and opener"),
+  "driveway-sealcoating": O("The whole driveway or lot", "The worst cracks or holes"),
+  flooring: O("Each room, wide shot", "The current floor up close"),
+  "appliance-repair": O("The appliance", "The model and serial number label"),
+  "water-damage": R(2, "The wet area, wide shot", "How high the water reached", "Where it came from"),
+  "chimney-sweep": O("The fireplace or stove", "The chimney from outside"),
+  "wildlife-removal": O("Where you hear or see them", "Any holes or chewed spots outside"),
+  "pest-control": O("What you're seeing", "Where you see it"),
   "home-remodel": R(3, "Each area to remodel", "Floors", "Anything you're keeping"),
 };
 
@@ -145,6 +166,17 @@ const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "large-item-removal": (a) => (Number(a.heaviest ?? 0) > 1000 ? "An item over 1,000 lb" : Number(a.specialty ?? 0) > 2 ? "More than 2 specialty items" : null),
   "mold-removal": (a) => (Number(a.sqft ?? 0) > 100 ? "More than 100 sq ft of mold" : a.hvac === true || a.hvac === "true" ? "Mold in the furnace or ducts" : null),
   "junk-removal": (a) => (a.volume === "double" && a.kind === "heavy" ? "Two truckloads of heavy debris" : null),
+  roofing: (a) => (a.work === "replace" ? "Full roof replacement (measured on site for the firm price)" : null),
+  masonry: (a) => (a.chimney === "rebuild" ? "Chimney rebuild" : Number(a.wall_sqft ?? 0) > 100 ? "Retaining wall over 100 sq ft" : Number(a.tuck_sqft ?? 0) > 500 ? "Over 500 sq ft of tuckpointing" : null),
+  "concrete-repair": (a) => (Number(a.slab_sqft ?? 0) > 400 ? "Over 400 sq ft of new concrete" : Number(a.steps_new ?? 0) > 6 ? "More than 6 new steps" : null),
+  demolition: (a) => (a.kind === "garage" ? "Detached garage" : Number(a.sqft ?? 0) > 400 ? "Over 400 sq ft" : null),
+  "fence-install": (a) => (a.job !== "repair" && Number(a.feet ?? 0) > 300 ? "Over 300 ft of fence" : null),
+  "deck-build": (a) => (a.job === "new" ? "New deck (drawings for the permit)" : null),
+  siding: (a) => (a.job === "replace" ? "Full re-siding (measured on site)" : null),
+  "window-door-install": (a) => (Number(a.windows ?? 0) + Number(a.bay ?? 0) > 15 ? "More than 15 windows" : null),
+  flooring: (a) => (Number(a.sqft ?? 0) > 1500 ? "Over 1,500 sq ft of flooring" : null),
+  "water-damage": (a) => (a.water === "black" ? "Sewage (category 3 water)" : Number(a.sqft ?? 0) > 1000 ? "Over 1,000 sq ft wet" : null),
+  "driveway-sealcoating": (a) => (Number(a.sqft ?? 0) > 10000 ? "Lot over 10,000 sq ft" : null),
 };
 
 /** Why this job needs a free site visit for a firm price (null = instant price is fine). */

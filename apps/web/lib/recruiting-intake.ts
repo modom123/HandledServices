@@ -11,6 +11,7 @@
  *             · résumé (base64) → private pro-docs bucket, applications/<id>/…
  *             · optional confirmation email (English / Spanish) with what happens next
  *           The caller runs onApplication() afterwards (AI screen → interview / invite / ask staff), as the /pros form does.
+ * UPDATED : 2026-10-23_1900 UTC — skills (specialties) saved with the candidate when given or read from the text.
  */
 import "server-only";
 import { BRAND, type Candidate } from "@handled/core";
@@ -51,7 +52,7 @@ export async function addCandidate(c: Candidate, opts: { actor: string; confirm:
   const message = [c.message, c.location && `Location: ${c.location}`].filter(Boolean).join("\n").slice(0, 2000) || null;
   const row = {
     business_name: c.business_name || c.full_name, contact_name: c.full_name, email, phone: c.phone || "",
-    trades: c.trades, zips: c.zips ?? null, years_experience: c.years_experience ?? null, message,
+    trades: c.trades, ...(c.specialties?.length ? { specialties: c.specialties } : {}), zips: c.zips ?? null, years_experience: c.years_experience ?? null, message,
     source: c.source, external_source: c.external_id ? c.source : null, external_id: c.external_id ?? null,
     external_job: c.external_job ?? null, screener: c.screener ?? null, added_by: opts.actor === "indeed" ? null : opts.actor,
     locale: opts.locale ?? "en", last_contact_at: new Date().toISOString(),

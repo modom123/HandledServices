@@ -8,10 +8,11 @@
  * UPDATED : 2026-10-05_0432 UTC — approval checklist shows whether the pro has signed in (account created).
  * UPDATED : 2026-10-23_1100 UTC — candidates from Indeed / imports: résumé (private link), the job they applied to, screener
  *           answers, who added them, and setting their trades.
+ * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { COMPETENCIES, QUESTIONS, RESULT_LABEL, TRADES, approvalChecklist, interviewPlan, onboardingChecklist, type Competency } from "@handled/core";
+import { COMPETENCIES, QUESTIONS, RESULT_LABEL, TRADES, approvalChecklist, interviewPlan, onboardingChecklist, specialtiesFor, type Competency } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { interviewsFor, interviewUrl } from "@/lib/interviews";
 import { aiEnabled } from "@/lib/ai/client";
@@ -45,6 +46,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
   const plan = interviewPlan((app.trades as string[]) ?? []);
   const human = ivs.find((i) => i.mode === "human" && i.status === "in_progress");
   const trade = (t: string) => TRADES.find((x) => x.id === t)?.label ?? t;
+  const skills = specialtiesFor((app.trades as string[]) ?? []).filter((s) => ((app.specialties as string[]) ?? []).includes(s.id)).map((s) => s.label);
   const lastEvent = (events ?? [])[0] as { created_at: string } | undefined;
   const resumeUrl = app.resume_path ? await signedDocUrl(String(app.resume_path), 3600) : null;
   const extJob = app.external_job as { title?: string | null; location?: string | null; url?: string | null } | null;
@@ -114,7 +116,8 @@ export default async function Candidate({ params, searchParams }: { params: Prom
             {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
             {app.message && <p className="mt-1 whitespace-pre-line">“{app.message}”</p>}
             {screener && <details className="mt-1 text-xs"><summary className="cursor-pointer text-ink-soft">Screener answers</summary><pre className="mt-1 whitespace-pre-wrap break-words">{screener}</pre></details>}
-            <TradesEditor appId={appId} initial={(app.trades as string[]) ?? []} trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} />
+            {skills.length > 0 && <div className="mt-1 text-xs"><b>Skills:</b> {skills.join(", ")}</div>}
+            <TradesEditor appId={appId} initial={(app.trades as string[]) ?? []} initialSkills={(app.specialties as string[]) ?? []} trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} />
             {app.ai_screen && <p className="mt-1 text-xs">AI screen {app.ai_screen.score} · {String(app.ai_screen.recommendation).replace(/_/g, " ")} · concerns: {(app.ai_screen.concerns ?? []).join("; ") || "none"}</p>}
           </div>
           <details className="card text-xs"><summary className="cursor-pointer font-semibold">History ({(events ?? []).length})</summary>
