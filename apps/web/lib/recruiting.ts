@@ -23,6 +23,8 @@
  * UPDATED : 2026-10-19_1308 UTC — renewalSweep(): active pros hear 30 and 7 days before insurance, a required coverage or
  *           a trade license expires, and on the day it lapses (offers pause then — dispatch eligible()); ops is alerted at 7 days
  *           and on expiry. Once per document per expiry date.
+ * UPDATED : 2026-10-23_2300 UTC — followUpApplicant(): staff follow up before the invite (note + the interview link again);
+ *           a résumé on the application counts as the pro's "Resume uploaded" setup step when they're invited.
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
@@ -150,6 +152,12 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   if (error || !pro) return { ok: false, error: error?.message ?? "Couldn't create the pro" };
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);
   await logRecruiting("invited", { applicationId: appId, contractorId: pro.id }, why || null, actor);
+  // a résumé that came with the application (Indeed, an import, or staff) covers the "Resume uploaded" setup step
+  if (app.resume_path && !pro.resume_uploaded_at) {
+    await db().from("contractor_documents").insert({ contractor_id: pro.id, kind: "resume", storage_path: app.resume_path, status: "verified", verified_by: "from application", verified_at: now }).then(() => null, () => null);
+    await db().from("contractors").update({ resume_uploaded_at: now }).eq("id", pro.id).then(() => null, () => null);
+    pro.resume_uploaded_at = now; // so the invite email doesn't list it as a step left
+  }
   const link = await signInUrl(pro.email);
   const lang = await localeOf(pro.profile_id, app.locale);
   if (lang === "es") await sendEmail(pro.email, `Tiene una invitación de ${BRAND.name}: termine su configuración en unos 15 minutos`,
@@ -157,6 +165,28 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   else await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
     `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
+}
+
+/**
+ * Staff follow up with someone who hasn't been invited yet: a personal note, plus the interview link again when they have
+ * an open AI interview (or an invitation to reply and ask questions when they don't).
+ */
+export async function followUpApplicant(appId: string, note: string | null | undefined, actor: string) {
+  const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
+  if (!app) return { ok: false, error: "Not found" };
+  if (["invited", "rejected", "withdrawn"].includes(app.stage)) return { ok: false, error: app.stage === "invited" ? "Already invited — use Nudge" : `Application is ${app.stage}` };
+  const { data: iv } = await db().from("pro_interviews").select("token, status, expires_at").eq("application_id", appId).in("status", ["invited", "in_progress"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const open = iv && (!iv.expires_at || new Date(iv.expires_at).getTime() > Date.now());
+  const url = open ? (await import("./interviews")).interviewUrl(iv!.token) : null;
+  const es = app.locale === "es";
+  const msg = note?.trim() ? `${note.trim()}\n\n` : "";
+  if (es) await sendEmail(app.email, `Seguimiento de su solicitud en ${BRAND.name}`,
+    `Hola ${first(app.contact_name)}:\n\n${msg}${url ? `Su entrevista corta (unos 15 minutos, desde su teléfono) sigue esperándole:\n${url}\n\nEs el siguiente paso para recibir su invitación.` : "Queremos seguir con su solicitud. Responda a este correo con cualquier pregunta o con el mejor momento para llamarle."}\n\n— ${BRAND.name}`);
+  else await sendEmail(app.email, `Following up on your ${BRAND.name} application`,
+    `Hi ${first(app.contact_name)},\n\n${msg}${url ? `Your short interview (about 15 minutes, from your phone) is still waiting for you:\n${url}\n\nIt's the next step to getting your invite.` : "We'd like to keep your application moving. Reply to this email with any questions, or the best time to call you."}\n\n— ${BRAND.name}`);
+  await db().from("contractor_applications").update({ last_contact_at: new Date().toISOString() }).eq("id", appId);
+  await logRecruiting("follow_up", { applicationId: appId }, [note?.trim() || null, url ? "interview link re-sent" : null].filter(Boolean).join(" · ") || null, actor);
+  return { ok: true, interviewLink: Boolean(url) };
 }
 
 export async function rejectApplicant(appId: string, actor: string, reason?: string) {

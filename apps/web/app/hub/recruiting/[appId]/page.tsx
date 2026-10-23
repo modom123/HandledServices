@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-23_1100 UTC — candidates from Indeed / imports: résumé (private link), the job they applied to, screener
  *           answers, who added them, and setting their trades.
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
+ * UPDATED : 2026-10-23_2300 UTC — upload or replace the résumé; Invite / Follow up / Decline at every stage before the invite.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,7 +19,7 @@ import { interviewsFor, interviewUrl } from "@/lib/interviews";
 import { aiEnabled } from "@/lib/ai/client";
 import { InterviewDecision, Scorecard, StartInterview } from "@/components/Interviews";
 import { RecruitingRowActions } from "@/components/HubActions";
-import { TradesEditor } from "@/components/RecruitingIntake";
+import { ResumeUpload, TradesEditor } from "@/components/RecruitingIntake";
 import { signedDocUrl } from "@/lib/photos";
 
 export const dynamic = "force-dynamic";
@@ -113,7 +114,10 @@ export default async function Candidate({ params, searchParams }: { params: Prom
             <h2 className="mb-1 font-bold">Application</h2>
             <div className="text-xs text-ink-soft">{app.years_experience ?? "?"} yrs · crew {app.crew_size ?? "?"} · {app.insured ? "insured" : "not insured yet"} · {app.has_vehicle ? "has a vehicle" : "no vehicle"}{app.license_number ? ` · license ${app.license_number}` : ""} · source: {app.source ?? "not given"}</div>
             {(extJob?.title || app.added_by) && <div className="mt-1 text-xs text-ink-soft">{extJob?.title ? <>Applied on {String(app.external_source ?? app.source)} for <b>{extJob.url ? <a className="underline" href={extJob.url} target="_blank" rel="noreferrer">{extJob.title}</a> : extJob.title}</b>{extJob.location ? ` (${extJob.location})` : ""}</> : null}{app.added_by ? ` · added by ${app.added_by}` : ""}</div>}
-            {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
+            <div className="flex flex-wrap items-center gap-3">
+              {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
+              <ResumeUpload appId={appId} has={Boolean(resumeUrl)} />
+            </div>
             {app.message && <p className="mt-1 whitespace-pre-line">“{app.message}”</p>}
             {screener && <details className="mt-1 text-xs"><summary className="cursor-pointer text-ink-soft">Screener answers</summary><pre className="mt-1 whitespace-pre-wrap break-words">{screener}</pre></details>}
             {skills.length > 0 && <div className="mt-1 text-xs"><b>Skills:</b> {skills.join(", ")}</div>}

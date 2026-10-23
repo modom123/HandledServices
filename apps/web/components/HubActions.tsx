@@ -5,6 +5,8 @@
  * PURPOSE : Interactive controls for the Handled Hub.
  * UPDATED : 2026-10-05_0246 UTC — recruiting settings: screening interview first, auto-invite after an interview.
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
+ * UPDATED : 2026-10-23_2300 UTC — recruiting: Invite / Decline stay available while the interview is out or done, a
+ *           "Follow up" email before the invite (interview link re-sent when open), and "Invite anyway" for a decline.
  */
 "use client";
 
@@ -481,10 +483,13 @@ export function RecruitingRowActions({ appId, contractorId, stage }: { appId: st
   const decide = async (decision: string, reason?: string) => { const r = await call(`/api/hub/applications/${appId}`, "POST", { decision, reason }); setMsg(r.ok ? (decision === "approve" ? "Invited" : "Declined") : r.json.error ?? "Failed"); router.refresh(); };
   return (
     <span className="flex flex-wrap items-center gap-1.5 text-xs">
-      {(stage === "applied" || stage === "screened") && appId && <>
-        <button className="btn-primary px-2.5 py-1 text-xs" onClick={() => decide("approve")}>Invite</button>
+      {/* not invited yet — including while an interview is out or done (pipeline "interview" / application "interviewing") */}
+      {["applied", "screened", "interview", "interviewing", "interviewed"].includes(stage) && appId && <>
+        <button className="btn-primary px-2.5 py-1 text-xs" onClick={() => { if (stage.startsWith("interview") && stage !== "interviewed" && !confirm("Their interview isn't finished. Invite them anyway?")) return; decide("approve"); }}>Invite</button>
+        <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const n = prompt("Follow-up note (emailed to them; their interview link is added if one is open)"); if (n !== null) act({ action: "follow_up", application_id: appId, note: n || undefined }, "Follow-up sent"); }}>Follow up</button>
         <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const r = prompt("Reason (sent to the applicant, optional)"); if (r !== null) decide("reject", r || undefined); }}>Decline</button>
       </>}
+      {stage === "rejected" && appId && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { if (confirm("Invite this candidate after all?")) decide("approve"); }}>Invite anyway</button>}
       {contractorId && ["invited", "onboarding", "verifying", "background"].includes(stage) && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const n = prompt("Add a personal note to the reminder (optional)"); if (n !== null) act({ action: "nudge", contractor_id: contractorId, note: n || undefined }, "Reminder sent"); }}>Nudge</button>}
       {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => act({ action: "order_background", contractor_id: contractorId }, "Background check ordered")}>Order check</button>}
       {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { if (confirm("Mark the background check as clear? Only after you've read the report.")) act({ action: "background_clear", contractor_id: contractorId }, "Cleared"); }}>Mark clear</button>}
