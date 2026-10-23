@@ -5,9 +5,9 @@
  * PURPOSE : "We build" — Intelligent Websites, Business Operating Systems and Automated Businesses (Business & Technology
  *           services), with Handled itself as the proof. Used on both home page looks, the business page and /technology.
  *           English / Spanish.
+ * UPDATED : 2026-10-23_1100 UTC — no prices on the pillars (Business & Technology is consultation-only); each card says Free consultation.
  */
 import Link from "next/link";
-import { getService, priceHint } from "@handled/core";
 
 export const BUILD_PILLARS = [
   {
@@ -27,7 +27,7 @@ export const BUILD_PILLARS = [
   },
 ] as const;
 
-/** The three pillars as cards. `compact` = the home-page band; otherwise the full section with prices. */
+/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. No prices: each is scoped on a free consultation. */
 export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolean }) {
   return (
     <section className={compact ? "border-y border-line bg-paper py-14" : "py-2"}>
@@ -43,18 +43,17 @@ export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolea
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {BUILD_PILLARS.map((p) => {
             const txt = es ? p.es : p.en;
-            const svc = getService(p.slug);
             return (
               <Link key={p.slug} href={`/services/${p.slug}`} className="card flex flex-col transition hover:border-brand">
                 <div className="text-3xl">{p.icon}</div>
                 <div className="mt-3 text-lg font-bold">{txt.t}</div>
                 <p className="mt-1.5 flex-1 text-sm leading-relaxed text-ink/90">{txt.d}</p>
-                <div className="mt-4 text-sm font-bold text-brand">{svc ? priceHint(p.slug, es ? "es" : "en") : ""} · {es ? "consulta gratis" : "free consultation"}</div>
+                <div className="mt-4 text-sm font-bold text-brand">{es ? "Consulta gratis →" : "Free consultation →"}</div>
               </Link>
             );
           })}
         </div>
-        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Los precios “desde” son el paquete más pequeño; el precio firme se fija en la consulta gratis por video." : "“From” prices are the smallest package; the firm price is set on the free video consultation."}</p>}
+        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en una consulta gratis por video." : "Every solution is different: scope and price are set on a free video consultation."}</p>}
       </div>
     </section>
   );

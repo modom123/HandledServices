@@ -2834,7 +2834,7 @@ export const SERVICES: Service[] = [
     icon: "🌐",
     tagline: "A website that works for you — answers visitors, captures every lead and books appointments, 24/7.",
     description: "We build intelligent websites: fast, mobile-friendly and designed around your brand, with an AI assistant that answers visitors' questions, captures every lead and books appointments around the clock. Add instant follow-up so every inquiry gets a reply in seconds by text and email. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. A free video consultation confirms the scope and the firm price before any work starts.",
-    includes: ["Free video consultation", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups) from $49/month"],
+    includes: ["Free video consultation", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups), quoted at the consultation"],
     notesHint: "Your business and who it serves, sites you like, the pages you need, your domain if you have one, and any deadline",
     questions: [
       {
@@ -2887,7 +2887,7 @@ export const SERVICES: Service[] = [
     icon: "🧠",
     tagline: "One system that runs your business — customers, booking, scheduling, dispatch, invoicing and dashboards.",
     description: "We build a business operating system around how your company actually works: your customer list, online booking, scheduling and dispatch, job tracking, invoicing and payments, your team's to-dos and a live dashboard — in one place instead of ten apps and a spreadsheet. Add AI agents, accounting sync and a branded mobile app as you grow. It's the same kind of system Handled runs on. You own your data. A free video consultation maps your operation and sets the firm price.",
-    includes: ["Free video consultation", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support quoted at the consultation (from $299/month)"],
+    includes: ["Free video consultation", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support quoted at the consultation"],
     notesHint: "What your business does, how work comes in and gets done today, the apps and spreadsheets you use, how many people would use it, and what you'd most like to stop doing by hand",
     questions: [
       {
@@ -3130,7 +3130,7 @@ export const SERVICES: Service[] = [
     icon: "🤖",
     tagline: "An AI assistant that answers customers, books appointments and works inside your tools — 24/7.",
     description: "We build an AI agent trained on your business: a chat assistant on your website that answers questions and captures leads, a customer service agent for email and chat, an AI receptionist that answers your phone and books appointments, or an operations agent that works inside your CRM, calendar and invoicing. It hands off to a person whenever it isn't sure, and every conversation is logged for you. Built, tested with you and tuned for 30 days after launch. A free video consultation confirms the scope and the firm price first.",
-    includes: ["Free video consultation", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage quoted separately (from $199/month)"],
+    includes: ["Free video consultation", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage quoted at the consultation"],
     notesHint: "What the agent should handle, the questions customers ask most, the tools it should connect to (website, phone, CRM, calendar), and when it should hand off to a person",
     questions: [
       {

@@ -6,6 +6,8 @@
  *           with the next step and who it waits on), the application and AI screen, interviews (AI transcript,
  *           scores with evidence, result, decision; or the scorecard for interviewing them yourself), and history.
  * UPDATED : 2026-10-05_0432 UTC — approval checklist shows whether the pro has signed in (account created).
+ * UPDATED : 2026-10-23_1100 UTC — candidates from Indeed / imports: résumé (private link), the job they applied to, screener
+ *           answers, who added them, and setting their trades.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,6 +17,8 @@ import { interviewsFor, interviewUrl } from "@/lib/interviews";
 import { aiEnabled } from "@/lib/ai/client";
 import { InterviewDecision, Scorecard, StartInterview } from "@/components/Interviews";
 import { RecruitingRowActions } from "@/components/HubActions";
+import { TradesEditor } from "@/components/RecruitingIntake";
+import { signedDocUrl } from "@/lib/photos";
 
 export const dynamic = "force-dynamic";
 const days = (iso: string | null | undefined) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : null);
@@ -42,6 +46,9 @@ export default async function Candidate({ params, searchParams }: { params: Prom
   const human = ivs.find((i) => i.mode === "human" && i.status === "in_progress");
   const trade = (t: string) => TRADES.find((x) => x.id === t)?.label ?? t;
   const lastEvent = (events ?? [])[0] as { created_at: string } | undefined;
+  const resumeUrl = app.resume_path ? await signedDocUrl(String(app.resume_path), 3600) : null;
+  const extJob = app.external_job as { title?: string | null; location?: string | null; url?: string | null } | null;
+  const screener = app.screener && typeof app.screener === "object" ? JSON.stringify(app.screener, null, 1).slice(0, 3000) : null;
   return (
     <div className="space-y-6">
       <div>
@@ -103,7 +110,11 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           <div className="card text-sm">
             <h2 className="mb-1 font-bold">Application</h2>
             <div className="text-xs text-ink-soft">{app.years_experience ?? "?"} yrs · crew {app.crew_size ?? "?"} · {app.insured ? "insured" : "not insured yet"} · {app.has_vehicle ? "has a vehicle" : "no vehicle"}{app.license_number ? ` · license ${app.license_number}` : ""} · source: {app.source ?? "not given"}</div>
-            {app.message && <p className="mt-1">“{app.message}”</p>}
+            {(extJob?.title || app.added_by) && <div className="mt-1 text-xs text-ink-soft">{extJob?.title ? <>Applied on {String(app.external_source ?? app.source)} for <b>{extJob.url ? <a className="underline" href={extJob.url} target="_blank" rel="noreferrer">{extJob.title}</a> : extJob.title}</b>{extJob.location ? ` (${extJob.location})` : ""}</> : null}{app.added_by ? ` · added by ${app.added_by}` : ""}</div>}
+            {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
+            {app.message && <p className="mt-1 whitespace-pre-line">“{app.message}”</p>}
+            {screener && <details className="mt-1 text-xs"><summary className="cursor-pointer text-ink-soft">Screener answers</summary><pre className="mt-1 whitespace-pre-wrap break-words">{screener}</pre></details>}
+            <TradesEditor appId={appId} initial={(app.trades as string[]) ?? []} trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} />
             {app.ai_screen && <p className="mt-1 text-xs">AI screen {app.ai_screen.score} · {String(app.ai_screen.recommendation).replace(/_/g, " ")} · concerns: {(app.ai_screen.concerns ?? []).join("; ") || "none"}</p>}
           </div>
           <details className="card text-xs"><summary className="cursor-pointer font-semibold">History ({(events ?? []).length})</summary>

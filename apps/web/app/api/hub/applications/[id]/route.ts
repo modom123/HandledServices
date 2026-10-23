@@ -6,8 +6,10 @@
  * PURPOSE : Staff: invite, decline or hold a subcontractor application. Inviting creates the pro
  *           record (status vetting until setup, documents and background check are done).
  * UPDATED : 2026-10-11_0451 UTC — inviting (approve) or declining an applicant is admins only; dispatchers can mark one "reviewing".
+ * UPDATED : 2026-10-23_1100 UTC — PATCH { trades } (staff): set the trades on a candidate added from Indeed or an import.
  */
 import { z } from "zod";
+import { MAX_TRADES, TRADES } from "@handled/core";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { inviteApplicant, logRecruiting, rejectApplicant } from "@/lib/recruiting";
@@ -29,5 +31,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (parsed.data.decision === "reject") { await rejectApplicant(id, who, parsed.data.reason); return Response.json({ ok: true }); }
   await adminClient().from("contractor_applications").update({ status: "reviewing" }).eq("id", id);
   await logRecruiting("reviewing", { applicationId: id }, parsed.data.reason ?? null, who);
+  return Response.json({ ok: true });
+}
+
+const Trades = z.object({ trades: z.array(z.string()).min(1).max(MAX_TRADES) });
+
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const v = await getViewer(req);
+  if (!isStaff(v)) return deny();
+  const { id } = await ctx.params;
+  const p = Trades.safeParse(await req.json().catch(() => null));
+  const trades = p.success ? p.data.trades.filter((t) => TRADES.some((x) => x.id === t)) : [];
+  if (!trades.length) return deny(400, `Pick 1 to ${MAX_TRADES} trades`);
+  const { error } = await adminClient().from("contractor_applications").update({ trades }).eq("id", id);
+  if (error) return deny(500, error.message);
+  await logRecruiting("trades_set", { applicationId: id }, trades.join(", "), v!.fullName ?? v!.email);
   return Response.json({ ok: true });
 }
