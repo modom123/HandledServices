@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-07_2115 UTC — uses the site background (light blue).
  * UPDATED : 2026-10-07_2100 UTC — simplified to the logo and the tagline (plus Enter / Get my price); categories and trust
  *           points live on the home page.
+ * UPDATED : 2026-10-23_0430 UTC — "Become a partner" link in the footer row (Referral Partner Program).
  */
 import Link from "next/link";
 import { BRAND, t as tr } from "@handled/core";
@@ -46,7 +47,7 @@ export default async function Splash() {
 
       <div className="wrap relative flex flex-wrap items-center justify-between gap-3 border-t border-line py-4 text-xs text-ink-soft">
         <span>© {new Date().getFullYear()} {BRAND.legalName}</span>
-        <span className="flex gap-4"><Link href="/business" className="hover:text-ink">{t("For businesses")}</Link><Link href="/pros" className="hover:text-ink">{t("Become a Pro")}</Link><Link href="/home" className="hover:text-ink">{t("Skip intro")}</Link></span>
+        <span className="flex flex-wrap gap-4"><Link href="/partners" className="font-semibold text-[#0f6b66] hover:text-ink">💸 {es ? "Hágase socio" : "Become a partner"}</Link><Link href="/business" className="hover:text-ink">{t("For businesses")}</Link><Link href="/pros" className="hover:text-ink">{t("Become a Pro")}</Link><Link href="/home" className="hover:text-ink">{t("Skip intro")}</Link></span>
       </div>
     </div>
   );

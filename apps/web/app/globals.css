@@ -14,6 +14,8 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-07_2115 UTC — the Original look's background is light blue instead of eggshell.
+ * UPDATED : 2026-10-23_0430 UTC — new look: blue, white & green (bluegreen) — white pages, navy blue panels and type,
+ *           green buttons, sky-blue accents.
  */
 @import "tailwindcss";
 
@@ -134,6 +136,25 @@ body {
   --color-line: #e5e5e5;
 }
 [data-theme="bwg"] .site-header { border-top-color: #0a0a0a; }
+/* bluegreen: blue, white & green — white pages, navy panels and type, green buttons, blue accents */
+[data-theme="bluegreen"] {
+  --color-ink: #0b1f3a;
+  --color-ink-soft: #44546a;
+  --color-brand: #15803d;      /* white text ≈ 5.0:1 */
+  --color-brand-dark: #166534;
+  --color-brand-tint: #ecfdf3;
+  --color-brand-deep: #1e3a8a; /* hero panels, banners, Hub sidebar: navy blue */
+  --color-gold: #2563eb;
+  --color-gold-light: #93c5fd; /* highlights on navy ≈ 6.5:1 */
+  --color-gold-dark: #1d4ed8;
+  --color-mint: #93c5fd;
+  --color-sun: #2563eb;
+  --color-page: #ffffff;
+  --color-paper: #f3f7fd;
+  --color-paper-deep: #e6effb;
+  --color-line: #d7e2f0;
+}
+[data-theme="bluegreen"] .site-header { border-top-color: #1e3a8a; }
 
 [data-theme="modern"] :is(h1, h2, h3, .font-display) { font-family: var(--font-display); letter-spacing: -0.02em; }
 [data-theme="modern"] .card { border-color: color-mix(in srgb, var(--color-line) 80%, transparent); box-shadow: 0 1px 2px rgba(15, 31, 26, 0.04), 0 10px 30px -18px rgba(15, 31, 26, 0.18); }

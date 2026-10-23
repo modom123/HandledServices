@@ -3,6 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0250 UTC
  * PURPOSE : Hub → Website controls: pick the default website look.
+ * UPDATED : 2026-10-23_0430 UTC — each look shows its color swatches (page, panels, buttons, accents).
  */
 "use client";
 
@@ -15,7 +16,7 @@ async function post(body: unknown) {
   return r.ok ? null : String(j.error ?? "Failed");
 }
 
-export function ThemePicker({ themes, current, admin }: { themes: { id: string; name: string; note: string }[]; current: string; admin: boolean }) {
+export function ThemePicker({ themes, current, admin }: { themes: { id: string; name: string; note: string; colors?: readonly string[] }[]; current: string; admin: boolean }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   return (
@@ -23,6 +24,7 @@ export function ThemePicker({ themes, current, admin }: { themes: { id: string; 
       <div className="grid gap-3 md:grid-cols-3">{themes.map((t) => (
         <div key={t.id} className={`rounded-xl border p-4 ${t.id === current ? "border-brand bg-brand-tint" : "border-line"}`}>
           <div className="font-semibold">{t.name}{t.id === current && <span className="ml-2 text-xs font-normal text-brand">default</span>}</div>
+          {t.colors && <div className="mt-2 flex gap-1.5" aria-hidden>{t.colors.map((c) => <span key={c} className="h-6 w-6 rounded-full border border-line" style={{ background: c }} />)}</div>}
           <p className="mt-1 text-xs text-ink-soft">{t.note}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <a className="btn-ghost px-3 py-1 text-xs" href={`/home?theme=${t.id}`} target="_blank" rel="noreferrer">Preview</a>
