@@ -13,6 +13,8 @@
  * UPDATED : 2026-10-07_0615 UTC — default back to classic (the Original look), owner's choice "for now". The other three
  *           looks stay available by ?theme= link and Hub → Website look.
  *           Colors are CSS variables per theme (globals.css, [data-theme] on <html>).
+ * UPDATED : 2026-10-23_0430 UTC — new look: bluegreen (blue, white & green), now the system default (when no default is saved
+ *           in Hub → Website look and SITE_THEME isn't set). Each look carries color swatches for the Hub picker.
  */
 import "server-only";
 import { cache } from "react";
@@ -21,16 +23,17 @@ import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 
 export const THEMES = {
-  classic: { name: "Original", note: "Green on a light blue background, the first design" },
-  greengold: { name: "Green, white & gold", note: "White pages, deeper greens, gold accents" },
-  modern: { name: "Modern", note: "Green, white & gold with line icons, bigger type, soft shadows and a product-style hero" },
-  bwg: { name: "Black, white & green", note: "White pages, black panels and type, green buttons" },
+  classic: { name: "Original", note: "Green on a light blue background, the first design", colors: ["#eaf4fb", "#0a4a3e", "#0e7c66", "#9fe6cc"] },
+  greengold: { name: "Green, white & gold", note: "White pages, deeper greens, gold accents", colors: ["#ffffff", "#0a3a2c", "#0f6b50", "#c4993a"] },
+  modern: { name: "Modern", note: "Green, white & gold with line icons, bigger type, soft shadows and a product-style hero", colors: ["#ffffff", "#0a3a2c", "#0f6b50", "#e8cc7a"] },
+  bwg: { name: "Black, white & green", note: "White pages, black panels and type, green buttons", colors: ["#ffffff", "#0a0a0a", "#0b7a4e", "#4ade80"] },
+  bluegreen: { name: "Blue, white & green", note: "White pages, navy blue panels and type, green buttons, blue accents", colors: ["#ffffff", "#1e3a8a", "#15803d", "#2563eb"] },
 } as const;
 export type Theme = keyof typeof THEMES;
 export const THEME_COOKIE = "site_theme";
 export const isTheme = (v: unknown): v is Theme => typeof v === "string" && v in THEMES;
 
-/** The default look set in the Hub (falls back to SITE_THEME, then the Original look). Cached per request. */
+/** The default look set in the Hub (falls back to SITE_THEME, then Blue, white & green). Cached per request. */
 export const defaultTheme = cache(async (): Promise<Theme> => {
   if (supabaseConfigured && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
@@ -39,7 +42,7 @@ export const defaultTheme = cache(async (): Promise<Theme> => {
       if (isTheme(v)) return v;
     } catch { /* table not created yet */ }
   }
-  return isTheme(process.env.SITE_THEME) ? process.env.SITE_THEME : "classic";
+  return isTheme(process.env.SITE_THEME) ? process.env.SITE_THEME : "bluegreen";
 });
 
 /** The look for this visitor: their ?theme= link (cookie) or the default. */

@@ -36,9 +36,9 @@ export async function proxy(request: NextRequest) {
   // ?partner=CODE (Referral Partner Program): remember the partner for 90 days; the first partner link clicked wins
   const partner = (request.nextUrl.searchParams.get("partner") ?? "").trim().toUpperCase();
   const setPartner = /^[A-Z0-9]{4,16}$/.test(partner) && !request.cookies.get("handled_partner") ? partner : null;
-  // ?theme=classic|greengold|modern (one link per market) shows that website look and remembers it; ?theme=default forgets it
+  // ?theme=classic|greengold|modern|bwg|bluegreen (one link per market) shows that website look and remembers it; ?theme=default forgets it
   const themeQ = request.nextUrl.searchParams.get("theme");
-  const setTheme = themeQ && ["classic", "greengold", "modern", "bwg", "default"].includes(themeQ) ? themeQ : null;
+  const setTheme = themeQ && ["classic", "greengold", "modern", "bwg", "bluegreen", "default"].includes(themeQ) ? themeQ : null;
   if (setTheme && setTheme !== "default") request.cookies.set("site_theme", setTheme);
   if (setTheme === "default") request.cookies.delete("site_theme");
   let response = NextResponse.next({ request }); // after the cookie changes above, so this request sees them
