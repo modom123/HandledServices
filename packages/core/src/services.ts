@@ -55,6 +55,10 @@
  *           Repair, Concrete Steps, Patios & Sidewalks, and Demolition & Tear-Out. Detroit-metro 2026 rates noted in each
  *           price(). New trades: assembly, roofing, masonry, concrete, demolition (the last four licensed); lawn is now
  *           "Lawn care & landscaping".
+ * UPDATED : 2026-10-23_2100 UTC — 25 more services (100 total), none overlapping an existing one: fences, decks, siding, gutter
+ *           installation, windows & doors, insulation, garage doors, driveway sealcoating, flooring, appliance repair, smart
+ *           home & Wi-Fi, water damage, locksmith, property inspection, duct & dryer vent cleaning, tile & grout, trash bins,
+ *           chimney sweep, sprinklers, holiday lights, pools, pest control, live wildlife removal, laundry pickup, home watch.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -173,12 +177,12 @@ export interface Service {
 }
 
 export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: string; blurb: string }[] = [
-  { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, gutters, power washing, mobile car detailing — plus decluttering." },
-  { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing and edging, landscaping and mulch, leaf cleanup, snow removal and trees." },
+  { id: "cleaning", name: "Cleaning & Organizing", short: "Cleaning", icon: "🧽", blurb: "Homes, offices, windows, carpets, tile & grout, air ducts, chimneys, trash bins, power washing, mobile car detailing — plus decluttering." },
+  { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing and edging, landscaping and mulch, sprinklers, pools, holiday lights, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
-  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, demolition and tear-outs, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
-  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, furniture assembly, plumbing, electrical, HVAC, roofing, masonry, concrete steps and patios, painting — up to full remodels." },
-  { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
+  { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, pest control, wildlife removal, demolition and tear-outs, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
+  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, furniture assembly, appliances, locksmith, plumbing, electrical, HVAC, roofing, siding, gutters, windows & doors, fences & decks, flooring, insulation, masonry, concrete, water damage, painting — up to full remodels." },
+  { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, laundry pickup, home watch, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals, venues and event security — one invoice." },
   { id: "security", name: "Security Guards & Patrol", short: "Security", icon: "🛡️", blurb: "Licensed guards for buildings, job sites, lots and events: standing posts, nightly patrols and fire watch." },
@@ -514,6 +518,137 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "duct-cleaning",
+    name: "Air Duct & Dryer Vent Cleaning",
+    category: "cleaning",
+    icon: "🌬️",
+    tagline: "Dust, pet hair and lint out of your ducts and dryer vent.",
+    description: "Whole-system air duct cleaning with negative-pressure vacuum and agitation tools, every supply and return vent cleaned, the furnace blower and coil compartment wiped down, and before & after photos inside the ducts. Dryer vent cleaning removes lint from the dryer to the outside cap — the leading cause of dryer fires. Optional sanitizer for allergies or after a renovation.",
+    includes: ["Vetted, insured duct cleaning tech (NADCA standards)", "Negative-pressure vacuum system", "Every vent and return cleaned", "Furnace blower compartment wiped", "Before & after photos inside the ducts"],
+    notesHint: "Number of vents and returns, how many furnaces, pets in the home, and where the dryer vents outside",
+    questions: [
+      { id: "vents", label: "Supply vents and returns", type: "number", min: 0, max: 60, default: 14, help: "Count every register in the floors, walls and ceilings, plus the big return grilles. A 3-bedroom home has about 12–16." },
+      { id: "systems", label: "Furnaces / air handlers", type: "number", min: 0, max: 4, default: 1 },
+      { id: "dryer", label: "Dryer vent cleaning", type: "toggle", default: true },
+      { id: "sanitize", label: "Sanitizer fogged into the ducts", type: "toggle", default: false },
+    ],
+    minimum: 129,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["duct_cleaning"],
+    price: (a) => {
+      // Detroit-metro 2026: whole-system duct cleaning $350–$550 for 12–16 vents (no $99 bait-and-switch), each extra vent $15–$25,
+      // second system $200–$300, dryer vent $120–$175, sanitizer $75–$125.
+      const v = n(a, "vents"), sy = n(a, "systems");
+      const items: LineItem[] = [];
+      if (v && sy) {
+        items.push({ label: `Air duct cleaning — ${v} vents & returns`, amount: 299 + v * 14 });
+        if (sy > 1) items.push({ label: `Additional furnace systems — ${sy - 1}`, amount: (sy - 1) * 245 });
+        if (b(a, "sanitize")) items.push({ label: "Duct sanitizer", amount: 95 });
+      }
+      if (b(a, "dryer")) items.push({ label: "Dryer vent cleaning", amount: 145 });
+      if (!items.length) items.push({ label: "Duct & vent visit", amount: 129 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, v * 0.15 + sy * 1 + (b(a, "dryer") ? 0.75 : 0)) };
+    },
+  },
+  {
+    slug: "tile-grout-cleaning",
+    name: "Tile & Grout Cleaning",
+    category: "cleaning",
+    icon: "🧼",
+    tagline: "Dingy grout lines steam-cleaned back to their color, then sealed.",
+    description: "Tile floors, showers and backsplashes cleaned with high-pressure hot-water extraction and grout brushes, then rinsed and dried. Sealing protects the grout from stains; color sealing evens out grout that won't come clean. Natural stone gets a pH-neutral cleaner. Regular house cleaning is booked under House & Office Cleaning.",
+    includes: ["Vetted, insured tile cleaning tech", "Hot-water extraction and grout brushing", "Furniture moved and replaced", "Before & after photos"],
+    notesHint: "Rooms and showers, the tile type (ceramic, porcelain, stone), and how stained the grout is",
+    questions: [
+      { id: "floor_sqft", label: "Tile floor area", type: "number", min: 0, max: 5000, default: 200, unit: "sq ft" },
+      { id: "showers", label: "Tiled showers or tub surrounds", type: "number", min: 0, max: 6, default: 0 },
+      { id: "seal", label: "Seal the grout", type: "select", default: "clear", options: [{ value: "none", label: "No sealing" }, { value: "clear", label: "Clear sealer" }, { value: "color", label: "Color seal (makes grout uniform)" }] },
+      { id: "stone", label: "Natural stone (marble, travertine, slate)", type: "toggle", default: false },
+    ],
+    minimum: 199,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["carpet"],
+    price: (a) => {
+      // Detroit-metro 2026: tile & grout cleaning $1.00–$1.75/sq ft, showers $150–$225 each, clear seal $0.60–$1.00/sq ft,
+      // color seal $1.75–$2.75/sq ft, natural stone +20–30%.
+      const f = n(a, "floor_sqft"), sh = n(a, "showers"), seal = s(a, "seal", "clear");
+      const stone = b(a, "stone") ? 1.25 : 1;
+      const items: LineItem[] = [];
+      if (f) items.push({ label: `Tile & grout cleaning — ${f} sq ft`, amount: Math.round(f * 1.3 * stone) });
+      if (sh) items.push({ label: `Showers or tub surrounds — ${sh}`, amount: Math.round(sh * 175 * stone) });
+      const area = f + sh * 80;
+      if (seal === "clear" && area) items.push({ label: `Clear grout sealer — ${area} sq ft`, amount: Math.round(area * 0.8) });
+      if (seal === "color" && area) items.push({ label: `Color seal — ${area} sq ft`, amount: Math.round(area * 2.25) });
+      if (!items.length) items.push({ label: "Tile cleaning visit", amount: 199 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1.5, base / 80) };
+    },
+  },
+  {
+    slug: "trash-bin-cleaning",
+    name: "Trash Bin Cleaning",
+    category: "cleaning",
+    icon: "🗑️",
+    tagline: "Garbage, recycling and yard carts washed and deodorized at the curb.",
+    description: "After pickup day, your carts are pressure-washed with hot water inside and out, sanitized and deodorized right at the curb — no maggots, no smell. Wastewater is captured, not sent down the storm drain. Monthly or every-other-week plans keep them clean all summer.",
+    includes: ["Vetted, insured cleaning crew", "Hot-water pressure wash inside & out", "Sanitized and deodorized", "Wastewater captured", "Photo after every cleaning"],
+    notesHint: "Your trash pickup day and how many carts (garbage, recycling, yard waste)",
+    questions: [
+      { id: "bins", label: "Carts to clean", type: "number", min: 1, max: 12, default: 2 },
+      { id: "first_deep", label: "First cleaning is a heavy one (never cleaned, maggots)", type: "toggle", default: false },
+    ],
+    minimum: 35,
+    spread: [1, 1.1],
+    siteVisit: false,
+    frequencies: ["once", "biweekly", "monthly"],
+    trades: ["pressure_washing"],
+    price: (a) => {
+      // Detroit-metro 2026: one-time $25–$40 per cart, $15–$20 per cart on a monthly plan (plan discount applies),
+      // heavy first cleaning +$10–$20 per cart.
+      const c = Math.max(1, n(a, "bins", 2));
+      const items: LineItem[] = [{ label: `Carts washed & deodorized — ${c}`, amount: c * 22 }];
+      if (b(a, "first_deep")) items.push({ label: `Heavy first cleaning — ${c} carts`, amount: c * 12 });
+      return { items, base: sum(items), hours: Math.max(0.25, c * 0.15) };
+    },
+  },
+  {
+    slug: "chimney-sweep",
+    name: "Chimney Sweep & Inspection",
+    category: "cleaning",
+    icon: "🔥",
+    tagline: "Creosote swept out and the flue inspected before you light a fire.",
+    description: "Fireplace and wood-stove chimneys swept from the top or bottom with rotary brushes and a HEPA vacuum, the firebox and smoke chamber cleaned, and a Level 1 inspection of the flue, damper, crown and cap with photos. A Level 2 camera inspection is recommended when you buy a home or after a chimney fire. Masonry and crown repairs are booked under Masonry & Brick Repair.",
+    includes: ["Certified chimney sweep (CSIA or equal)", "Drop cloths and HEPA vacuum — no soot in the house", "Level 1 inspection with photos", "Written condition report"],
+    notesHint: "Fireplace or wood stove, how often you burn, the last time it was swept, and any smoke or smell problems",
+    questions: [
+      { id: "flues", label: "Flues to sweep", type: "number", min: 1, max: 4, default: 1, help: "Each fireplace or stove has its own flue." },
+      { id: "heavy", label: "Heavy creosote (glazed or not swept in years)", type: "toggle", default: false },
+      { id: "camera", label: "Level 2 camera inspection (buying a home, after a chimney fire)", type: "toggle", default: false },
+      { id: "cap", label: "Install a new chimney cap", type: "toggle", default: false },
+    ],
+    minimum: 199,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["chimney_sweep"],
+    price: (a) => {
+      // Detroit-metro 2026: sweep + Level 1 inspection $200–$300, each extra flue $100–$150, heavy creosote +$125–$200,
+      // Level 2 camera inspection $250–$450, stainless cap installed $200–$300.
+      const f = Math.max(1, n(a, "flues", 1));
+      const items: LineItem[] = [{ label: `Chimney sweep & Level 1 inspection — ${f} flue${f > 1 ? "s" : ""}`, amount: 249 + (f - 1) * 129 }];
+      if (b(a, "heavy")) items.push({ label: "Heavy creosote removal", amount: 150 * f });
+      if (b(a, "camera")) items.push({ label: "Level 2 camera inspection", amount: 325 });
+      if (b(a, "cap")) items.push({ label: "Stainless chimney cap installed", amount: 245 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1.5, f * 1.25 + (b(a, "camera") ? 1 : 0)) };
+    },
+  },
+  {
     slug: "lawn-care",
     name: "Lawn Care",
     category: "outdoor",
@@ -760,6 +895,110 @@ export const SERVICES: Service[] = [
         return { items: [{ label: `Season plan — up to 12 storms × ${"$" + visit} per visit, 15% off`, amount: season }], base: season, hours: 12 };
       }
       return { items, base: visit, hours: lot ? 2 : 0.75 };
+    },
+  },
+  {
+    slug: "sprinkler-service",
+    name: "Sprinkler Start-Up, Winterizing & Repair",
+    category: "outdoor",
+    icon: "💦",
+    tagline: "Turned on in spring, blown out before the freeze, and broken heads fixed.",
+    description: "Lawn sprinkler systems: spring start-up (water on, every zone run and adjusted, controller programmed), fall winterization with a compressed-air blowout so pipes don't crack in the freeze, and repairs for broken heads, leaks and valves. The annual backflow test some cities require can be added.",
+    includes: ["Vetted, insured irrigation tech", "Every zone run and checked", "Controller set for the season", "Broken heads quoted before replacing"],
+    notesHint: "Number of zones, the controller brand, where the shutoff and backflow device are, and any dry or soggy spots",
+    questions: [
+      { id: "service", label: "What do you need?", type: "select", default: "startup", options: [{ value: "startup", label: "Spring start-up" }, { value: "winterize", label: "Fall winterization (blowout)" }, { value: "repair", label: "Repair visit" }] },
+      { id: "zones", label: "Zones", type: "number", min: 1, max: 40, default: 6 },
+      { id: "heads", label: "Broken sprinkler heads to replace", type: "number", min: 0, max: 50, default: 0 },
+      { id: "backflow", label: "Annual backflow test (certified tester)", type: "toggle", default: false },
+    ],
+    minimum: 85,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["irrigation"],
+    price: (a) => {
+      // Detroit-metro 2026: start-up $80–$130 + $5–$10/zone over 4, blowout $75–$120 + $5–$10/zone over 4,
+      // repair visit $95–$150, heads $15–$25 each installed, backflow test $75–$110.
+      const sv = s(a, "service", "startup"), z = Math.max(1, n(a, "zones", 6)), h = n(a, "heads");
+      const extra = Math.max(0, z - 4);
+      const items: LineItem[] = [];
+      if (sv === "startup") items.push({ label: `Spring start-up — ${z} zones`, amount: 95 + extra * 8 });
+      if (sv === "winterize") items.push({ label: `Winterization blowout — ${z} zones`, amount: 89 + extra * 7 });
+      if (sv === "repair") items.push({ label: "Sprinkler repair visit", amount: 125 });
+      if (h) items.push({ label: `Sprinkler heads replaced — ${h}`, amount: h * 19 });
+      if (b(a, "backflow")) items.push({ label: "Backflow test & city report", amount: 89 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(0.75, z * 0.15 + h * 0.2 + (sv === "repair" ? 1 : 0)) };
+    },
+  },
+  {
+    slug: "holiday-lights",
+    name: "Holiday Light Installation",
+    category: "outdoor",
+    icon: "🎄",
+    tagline: "Rooflines, trees and wreaths lit — and taken down after the holidays.",
+    description: "Commercial-grade LED holiday lights installed on rooflines, gutters, trees, bushes and railings, with wreaths and garland, on timers. Lights are provided (or we hang yours), any burned-out bulbs are fixed during the season, and takedown in January is included. Book by early November for the best dates.",
+    includes: ["Vetted, insured install crew", "Commercial-grade LED lights provided", "Timers set", "Service call if anything goes out", "Takedown in January"],
+    notesHint: "Roofline length, trees and bushes to wrap, colors (warm white, multicolor), and an outdoor outlet location",
+    questions: [
+      { id: "roof_ft", label: "Roofline & gutters to light", type: "number", min: 0, max: 1000, default: 80, unit: "ft", help: "The front of a typical city house is 40–60 ft; around the whole house, 120–180 ft." },
+      { id: "trees", label: "Trees or large bushes to wrap", type: "number", min: 0, max: 30, default: 0 },
+      { id: "wreaths", label: "Wreaths or garland pieces", type: "number", min: 0, max: 30, default: 0 },
+      { id: "lights", label: "Lights", type: "select", default: "ours", options: [{ value: "ours", label: "Provided (commercial-grade LED)" }, { value: "own", label: "Hang my own lights (about 30% less)" }] },
+      { id: "stories", label: "Height", type: "select", default: "1", options: STORIES },
+    ],
+    minimum: 349,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["holiday_lights"],
+    leadDays: 7,
+    price: (a) => {
+      // Detroit-metro 2026 (lights provided, install + takedown): roofline $5–$9/ft, trees/large bushes $60–$150 each,
+      // wreaths/garland $35–$60 each; customer's own lights about 30% less.
+      const height = { "1": 1, "2": 1.15, "3": 1.3 }[s(a, "stories", "1")] ?? 1;
+      const own = s(a, "lights", "ours") === "own" ? 0.7 : 1;
+      const r = n(a, "roof_ft"), t = n(a, "trees"), w = n(a, "wreaths");
+      const items: LineItem[] = [];
+      if (r) items.push({ label: `Roofline lights — ${r} ft`, amount: Math.round(r * 6.75 * height * own) });
+      if (t) items.push({ label: `Trees & bushes wrapped — ${t}`, amount: Math.round(t * 95 * own) });
+      if (w) items.push({ label: `Wreaths & garland — ${w}`, amount: Math.round(w * 45 * own) });
+      if (!items.length) items.push({ label: "Holiday lighting visit", amount: 349 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(2, base / 75) };
+    },
+  },
+  {
+    slug: "pool-service",
+    name: "Pool Opening, Closing & Cleaning",
+    category: "outdoor",
+    icon: "🏊",
+    tagline: "Pools opened in spring, closed for winter and kept clean all summer.",
+    description: "Inground and above-ground pools: spring opening (cover off, equipment started, water balanced), fall closing (water lowered, lines blown out and plugged, winter chemicals, cover on), weekly cleaning visits with chemicals included, and green-to-clean recovery. Equipment repairs are quoted separately.",
+    includes: ["Vetted, insured pool tech", "Chemicals included", "Water tested and balanced", "Photo of the pool after every visit"],
+    notesHint: "Pool type and size, the cover type, the pump and filter, and when you want it open or closed",
+    questions: [
+      { id: "pool", label: "Pool", type: "select", default: "inground", options: [{ value: "inground", label: "Inground" }, { value: "above", label: "Above-ground" }] },
+      { id: "service", label: "What do you need?", type: "select", default: "open", options: [{ value: "open", label: "Spring opening" }, { value: "close", label: "Fall closing" }, { value: "clean", label: "Cleaning visit (weekly plan available)" }, { value: "green", label: "Green-to-clean recovery" }] },
+      { id: "safety_cover", label: "Safety cover (anchored) to take off or put on", type: "toggle", default: false, showIf: { id: "service", is: ["open", "close"] } },
+    ],
+    minimum: 95,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly"],
+    trades: ["pool"],
+    price: (a) => {
+      // Detroit-metro 2026: opening inground $275–$400 (above-ground $175–$275), closing $250–$375 ($175–$250),
+      // weekly cleaning $85–$125 with chemicals, green-to-clean $350–$600, safety cover +$50–$100.
+      const ig = s(a, "pool", "inground") === "inground", sv = s(a, "service", "open");
+      const [label, amount, hrs] = ({
+        open: ["Pool opening", ig ? 325 : 225, 2.5], close: ["Pool closing", ig ? 295 : 200, 2.5],
+        clean: ["Pool cleaning visit, chemicals included", ig ? 105 : 85, 1], green: ["Green-to-clean recovery", ig ? 475 : 350, 4],
+      } as Record<string, [string, number, number]>)[sv] ?? ["Pool opening", 325, 2.5];
+      const items: LineItem[] = [{ label, amount }];
+      if (b(a, "safety_cover") && (sv === "open" || sv === "close")) items.push({ label: "Safety cover", amount: 75 });
+      return { items, base: sum(items), hours: hrs };
     },
   },
   {
@@ -1103,6 +1342,96 @@ export const SERVICES: Service[] = [
       if (b(a, "pet")) items.push({ label: "Pet aftercare — taken to your vet or a pet crematory", amount: 45 });
       const hours = ({ open: 0.75, under: 1.5, attic: 2.5 }[where] ?? 0.75) + (count - 1) * 0.25 + (b(a, "sanitize") ? 0.5 : 0) + (b(a, "pet") ? 0.75 : 0);
       return { items, base: sum(items), hours };
+    },
+  },
+  {
+    slug: "pest-control",
+    name: "Pest Control",
+    category: "removal",
+    icon: "🐜",
+    tagline: "Ants, roaches, spiders, mice, bed bugs and wasp nests — handled by a licensed applicator.",
+    description: "Pest control by a state-licensed applicator: general treatments for ants, roaches, spiders and silverfish inside and around the foundation; rodent programs with sealed bait stations, traps, entry points sealed and follow-up visits; bed bug treatment room by room; and wasp, hornet and yellow jacket nests removed. Products are labeled for homes with kids and pets, and you get the safety sheets.",
+    includes: ["Michigan-licensed pesticide applicator", "Products labeled for homes with kids and pets", "Entry points found and explained", "Follow-up visit included on rodents and bed bugs", "Treatment report with photos"],
+    notesHint: "What you're seeing, where, for how long, any pets or small children, and anyone with asthma or allergies",
+    questions: [
+      {
+        id: "pest",
+        label: "Pest",
+        type: "select",
+        default: "general",
+        options: [
+          { value: "general", label: "Ants, roaches, spiders or silverfish" },
+          { value: "rodents", label: "Mice or rats" },
+          { value: "bed_bugs", label: "Bed bugs" },
+          { value: "stinging", label: "Wasp, hornet or yellow jacket nests" },
+        ],
+      },
+      { id: "sqft", label: "Home size", type: "number", min: 0, max: 10000, default: 1500, unit: "sq ft", showIf: { id: "pest", is: ["general", "rodents"] } },
+      { id: "rooms", label: "Rooms with bed bugs", type: "number", min: 1, max: 15, default: 2, showIf: { id: "pest", is: ["bed_bugs"] } },
+      { id: "nests", label: "Nests to remove", type: "number", min: 1, max: 10, default: 1, showIf: { id: "pest", is: ["stinging"] } },
+    ],
+    minimum: 149,
+    spread: [0.92, 1.2],
+    siteVisit: false,
+    frequencies: ["once", "quarterly"],
+    trades: ["pest"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: general treatment $175–$250 (quarterly plan $110–$150 a visit), rodent program with 2 follow-ups
+      // $300–$450, bed bugs $400–$600 per room (heat or chemical), nests $125–$200 each.
+      const p = s(a, "pest", "general"), sq = n(a, "sqft");
+      const big = sq > 2500 ? 1 + Math.min(1, (sq - 2500) / 5000) : 1;
+      const items: LineItem[] = [];
+      if (p === "general") items.push({ label: `General pest treatment — ${sq} sq ft`, amount: Math.round(199 * big) });
+      if (p === "rodents") items.push({ label: `Rodent program with 2 follow-ups — ${sq} sq ft`, amount: Math.round(349 * big) });
+      if (p === "bed_bugs") { const r = Math.max(1, n(a, "rooms", 2)); items.push({ label: `Bed bug treatment — ${r} room${r > 1 ? "s" : ""}`, amount: r * 475 }); }
+      if (p === "stinging") { const ne = Math.max(1, n(a, "nests", 1)); items.push({ label: `Stinging insect nests removed — ${ne}`, amount: 149 + (ne - 1) * 75 }); }
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, base / 120) };
+    },
+  },
+  {
+    slug: "wildlife-removal",
+    name: "Wildlife Removal & Exclusion",
+    category: "removal",
+    icon: "🦝",
+    tagline: "Raccoons, squirrels, skunks and bats out — and kept out.",
+    description: "Live nuisance wildlife removed humanely by a DNR-permitted operator: raccoons, squirrels, skunks, opossums and groundhogs trapped and relocated as Michigan law allows, and bats excluded with one-way doors (never trapped). Entry points are sealed with steel mesh and flashing so they don't come back, and attic droppings and nesting cleaned up on request. Dead animals are booked under Dead Animal Removal.",
+    includes: ["DNR-permitted nuisance wildlife operator", "Humane trapping or one-way exclusion", "Trap checks every day", "Entry points sealed with steel mesh", "Photos of the entry points and repairs"],
+    notesHint: "What you hear or see, where (attic, chimney, under the deck), when it's active, and any babies you've noticed",
+    questions: [
+      {
+        id: "animal",
+        label: "Animal",
+        type: "select",
+        default: "raccoon",
+        options: [
+          { value: "raccoon", label: "Raccoon" },
+          { value: "squirrel", label: "Squirrels" },
+          { value: "skunk", label: "Skunk, opossum or groundhog" },
+          { value: "bats", label: "Bats (exclusion only)" },
+        ],
+      },
+      { id: "entries", label: "Entry points to seal", type: "number", min: 0, max: 20, default: 1, help: "Holes, gaps at the roofline, vents, chimney. The tech confirms on the first visit." },
+      { id: "attic_cleanup", label: "Clean up droppings and nesting in the attic", type: "toggle", default: false },
+    ],
+    minimum: 275,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["nuisance_wildlife"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: inspection + trapping (5–7 days of checks) $275–$400, bat exclusion $450–$900,
+      // entry point sealing $125–$250 each, attic droppings cleanup $400–$800.
+      const an = s(a, "animal", "raccoon"), e = n(a, "entries");
+      const items: LineItem[] = [];
+      if (an === "bats") items.push({ label: "Bat exclusion with one-way doors", amount: 595 });
+      else items.push({ label: "Inspection, trapping & daily checks", amount: an === "squirrel" ? 325 : 345 });
+      if (e) items.push({ label: `Entry points sealed — ${e}`, amount: e * 175 });
+      if (b(a, "attic_cleanup")) items.push({ label: "Attic droppings & nesting cleanup", amount: 550 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(2, base / 100) };
     },
   },
   {
@@ -2145,6 +2474,599 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "fence-install",
+    name: "Fence Install & Repair",
+    category: "repair_remodel",
+    icon: "🚧",
+    tagline: "New fences and gates, or leaning posts and broken sections fixed.",
+    description: "Chain link, wood privacy, vinyl and ornamental aluminum fences installed with posts set in concrete, plus walk and drive gates. Repairs reset leaning posts and replace broken boards or sections. Utility lines are marked (MISS DIG) before any digging, and the old fence can be torn out and hauled away. Over 300 ft gets a free site visit first.",
+    includes: ["Licensed, insured fence contractor", "MISS DIG utility marking before digging", "Posts set in concrete", "Materials included (standard grade)", "Old fence hauled away when booked", "Before & after photos"],
+    notesHint: "Where the fence goes (or what's broken), the property line markers if you know them, gates you need, and any HOA rules",
+    questions: [
+      { id: "job", label: "New fence or repair?", type: "select", default: "new", options: [{ value: "new", label: "New fence" }, { value: "repair", label: "Repair an existing fence" }] },
+      { id: "feet", label: "Length of fence", type: "number", min: 0, max: 2000, default: 0, unit: "ft", required: true, help: "Walk the line or measure on Google Maps. A typical city backyard is 120–180 ft.", showIf: { id: "job", is: ["new"] } },
+      { id: "material", label: "Fence type", type: "select", default: "wood", options: [{ value: "chain", label: "Chain link" }, { value: "wood", label: "Wood privacy" }, { value: "vinyl", label: "Vinyl privacy" }, { value: "aluminum", label: "Ornamental aluminum" }], showIf: { id: "job", is: ["new"] } },
+      { id: "height", label: "Height", type: "select", default: "6", options: [{ value: "4", label: "4 ft" }, { value: "6", label: "6 ft" }], showIf: { id: "job", is: ["new"] } },
+      { id: "walk_gates", label: "Walk gates", type: "number", min: 0, max: 6, default: 1, showIf: { id: "job", is: ["new"] } },
+      { id: "drive_gates", label: "Double drive gates", type: "number", min: 0, max: 3, default: 0, showIf: { id: "job", is: ["new"] } },
+      { id: "remove_old", label: "Tear out and haul away the old fence", type: "toggle", default: false, showIf: { id: "job", is: ["new"] } },
+      { id: "posts", label: "Leaning or broken posts to reset or replace", type: "number", min: 0, max: 30, default: 2, showIf: { id: "job", is: ["repair"] } },
+      { id: "sections", label: "Broken boards or sections to replace (8 ft each)", type: "number", min: 0, max: 30, default: 1, showIf: { id: "job", is: ["repair"] } },
+    ],
+    minimum: 350,
+    spread: [0.9, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["fence_deck"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026 installed per foot: chain link $20–$28, wood privacy $32–$45, vinyl $42–$55, aluminum $48–$65;
+      // walk gate $300–$450, double drive gate $800–$1,300, tear-out $4–$6/ft; post reset $150–$225, section $150–$250.
+      const items: LineItem[] = [];
+      if (s(a, "job", "new") === "repair") {
+        const p = n(a, "posts"), sc = n(a, "sections");
+        if (p) items.push({ label: `Posts reset or replaced — ${p}`, amount: p * 185 });
+        if (sc) items.push({ label: `Sections or boards replaced — ${sc}`, amount: sc * 195 });
+        if (!items.length) items.push({ label: "Fence repair visit", amount: 350 });
+      } else {
+        const ft = n(a, "feet") || 150;
+        const rate = ({ chain: 24, wood: 38, vinyl: 48, aluminum: 55 } as Record<string, number>)[s(a, "material", "wood")] ?? 38;
+        const tall = s(a, "height", "6") === "4" ? 0.82 : 1;
+        items.push({ label: `New fence — ${ft} ft`, amount: Math.round(ft * rate * tall) });
+        const wg = n(a, "walk_gates"), dg = n(a, "drive_gates");
+        if (wg) items.push({ label: `Walk gates — ${wg}`, amount: wg * 375 });
+        if (dg) items.push({ label: `Double drive gates — ${dg}`, amount: dg * 1050 });
+        if (b(a, "remove_old")) items.push({ label: `Old fence torn out & hauled — ${ft} ft`, amount: Math.round(ft * 5) });
+      }
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, base / 90) };
+    },
+  },
+  {
+    slug: "deck-build",
+    name: "Deck Building & Repair",
+    category: "repair_remodel",
+    icon: "🪵",
+    tagline: "New decks built to code, or soft boards, railings and stairs fixed.",
+    description: "New pressure-treated or composite decks with footings, framing, railings and stairs, built to code with the permit pulled. Repairs replace rotted or loose boards, wobbly railings and steps. New decks get a free site visit and drawings for the permit before the firm price. Staining is booked separately under Exterior Painting.",
+    includes: ["Licensed, insured carpenter", "Permit and inspections for new decks", "Footings below frost line (42 in)", "Materials included", "Before & after photos"],
+    notesHint: "Size and height, what's attached to the house, the material you like, and any existing deck to remove",
+    questions: [
+      { id: "job", label: "New deck or repair?", type: "select", default: "repair", options: [{ value: "new", label: "New deck" }, { value: "repair", label: "Repair an existing deck" }] },
+      { id: "sqft", label: "Deck size", type: "number", min: 0, max: 2000, default: 0, unit: "sq ft", required: true, help: "Length × width. A 12 × 16 ft deck is 192 sq ft.", showIf: { id: "job", is: ["new"] } },
+      { id: "material", label: "Decking", type: "select", default: "pt", options: [{ value: "pt", label: "Pressure-treated wood" }, { value: "composite", label: "Composite (Trex or similar)" }], showIf: { id: "job", is: ["new"] } },
+      { id: "raised", label: "Raised more than 30 in off the ground", type: "toggle", default: false, showIf: { id: "job", is: ["new"] } },
+      { id: "boards_sqft", label: "Deck boards to replace", type: "number", min: 0, max: 1000, default: 40, unit: "sq ft", showIf: { id: "job", is: ["repair"] } },
+      { id: "rail_ft", label: "Railing to build or replace", type: "number", min: 0, max: 300, default: 0, unit: "ft" },
+      { id: "steps", label: "Stair steps to build or replace", type: "number", min: 0, max: 20, default: 0 },
+    ],
+    minimum: 400,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["fence_deck"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: new pressure-treated deck $35–$50/sq ft, composite $55–$80/sq ft (railings extra),
+      // board replacement $10–$15/sq ft, railing $40–$85/ft, stair step $100–$160, permit & drawings $300–$450.
+      const items: LineItem[] = [];
+      const comp = s(a, "material", "pt") === "composite";
+      if (s(a, "job", "repair") === "new") {
+        const sq = n(a, "sqft") || 192;
+        items.push({ label: `New ${comp ? "composite" : "pressure-treated"} deck — ${sq} sq ft`, amount: Math.round(sq * (comp ? 68 : 42) * (b(a, "raised") ? 1.15 : 1)) });
+        items.push({ label: "Permit, drawings & inspections", amount: 375 });
+      } else {
+        const bd = n(a, "boards_sqft");
+        if (bd) items.push({ label: `Deck boards replaced — ${bd} sq ft`, amount: Math.round(bd * 12.5) });
+      }
+      const r = n(a, "rail_ft"), st = n(a, "steps");
+      if (r) items.push({ label: `Railing — ${r} ft`, amount: Math.round(r * (comp ? 80 : 45)) });
+      if (st) items.push({ label: `Stair steps — ${st}`, amount: st * 135 });
+      if (!items.length) items.push({ label: "Deck repair visit", amount: 400 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(4, base / 85) };
+    },
+  },
+  {
+    slug: "siding",
+    name: "Siding Repair & Replacement",
+    category: "repair_remodel",
+    icon: "🏘️",
+    tagline: "Storm-damaged panels patched, or the whole house re-sided.",
+    description: "Vinyl and fiber cement siding: damaged or loose panels replaced and matched as closely as possible, and full re-siding with house wrap, new trim, soffit and fascia. Old siding torn off and hauled away. Full replacements are measured on site for the firm price.",
+    includes: ["Licensed, insured siding contractor", "Closest available color match on repairs", "House wrap on replacements", "Tear-off, dumpster and cleanup", "Before & after photos"],
+    notesHint: "What's damaged and where, the siding type and color, and photos of any storm damage for insurance",
+    questions: [
+      { id: "job", label: "What do you need?", type: "select", default: "repair", options: [{ value: "repair", label: "Repair damaged areas" }, { value: "replace", label: "Replace all the siding" }] },
+      { id: "areas", label: "Damaged areas to repair", type: "number", min: 1, max: 10, default: 1, help: "Each spot up to about 50 sq ft.", showIf: { id: "job", is: ["repair"] } },
+      { id: "wall_sqft", label: "Wall area to re-side", type: "number", min: 0, max: 10000, default: 0, unit: "sq ft", required: true, help: "Not sure? About 1.5 × the home's finished sq ft for a 2-story house, 1 × for a ranch. Measured on site before the firm price.", showIf: { id: "job", is: ["replace"] } },
+      { id: "material", label: "New siding", type: "select", default: "vinyl", options: [{ value: "vinyl", label: "Vinyl" }, { value: "fiber", label: "Fiber cement (Hardie)" }], showIf: { id: "job", is: ["replace"] } },
+      { id: "trim_ft", label: "Soffit, fascia or trim to wrap or replace", type: "number", min: 0, max: 1000, default: 0, unit: "ft" },
+      { id: "stories", label: "Height", type: "select", default: "1", options: STORIES },
+    ],
+    minimum: 350,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["siding"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: siding repair $300–$700 per area; full vinyl re-side $7–$11/sq ft of wall, fiber cement $11–$16;
+      // soffit, fascia & trim wrap $14–$22/ft.
+      const height = { "1": 1, "2": 1.12, "3": 1.25 }[s(a, "stories", "1")] ?? 1;
+      const items: LineItem[] = [];
+      if (s(a, "job", "repair") === "replace") {
+        const sq = n(a, "wall_sqft") || 1500;
+        const fiber = s(a, "material", "vinyl") === "fiber";
+        items.push({ label: `Tear-off & new ${fiber ? "fiber cement" : "vinyl"} siding — ${sq} sq ft`, amount: Math.round(sq * (fiber ? 13.5 : 9) * height) });
+      } else {
+        const ar = Math.max(1, n(a, "areas", 1));
+        items.push({ label: `Siding repair — ${ar} area${ar > 1 ? "s" : ""}`, amount: Math.round((395 + (ar - 1) * 225) * height) });
+      }
+      const t = n(a, "trim_ft");
+      if (t) items.push({ label: `Soffit, fascia & trim — ${t} ft`, amount: Math.round(t * 18 * height) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, base / 95) };
+    },
+  },
+  {
+    slug: "gutter-install",
+    name: "Gutter Installation & Guards",
+    category: "repair_remodel",
+    icon: "🌧️",
+    tagline: "New seamless gutters and downspouts, with guards if you want them.",
+    description: "Seamless aluminum gutters formed on site in 5 or 6 inch, new downspouts and extensions to carry water away from the foundation, and gutter guards. Old gutters taken down and hauled away. Cleaning existing gutters is booked under Gutter Cleaning.",
+    includes: ["Licensed, insured gutter contractor", "Seamless aluminum, formed on site", "Downspouts & extensions", "Old gutters hauled away", "Before & after photos"],
+    notesHint: "The home's perimeter or roofline length, the color, any spots where water overflows or pools, and whether guards are wanted",
+    questions: [
+      { id: "feet", label: "Gutter length", type: "number", min: 0, max: 1000, default: 0, unit: "ft", required: true, help: "Usually the length of the roof edges that drain (about the home's perimeter for a hip roof, the front and back for a gable)." },
+      { id: "size", label: "Gutter size", type: "select", default: "5", options: [{ value: "5", label: "5 inch (most homes)" }, { value: "6", label: "6 inch (large or steep roofs)" }] },
+      { id: "downspouts", label: "Downspouts", type: "number", min: 0, max: 20, default: 4 },
+      { id: "guards", label: "Add gutter guards", type: "toggle", default: false },
+      { id: "remove_old", label: "Take down and haul away old gutters", type: "toggle", default: true },
+      { id: "stories", label: "Height", type: "select", default: "1", options: STORIES },
+    ],
+    minimum: 450,
+    spread: [0.92, 1.18],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["gutter_install"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: seamless aluminum 5" $9–$13/ft, 6" $12–$17/ft, downspouts $100–$150 each,
+      // guards $7–$12/ft, old gutter removal $1–$3/ft.
+      const ft = n(a, "feet") || 150;
+      const height = { "1": 1, "2": 1.12, "3": 1.25 }[s(a, "stories", "1")] ?? 1;
+      const items: LineItem[] = [{ label: `Seamless gutters — ${ft} ft`, amount: Math.round(ft * (s(a, "size", "5") === "6" ? 14.5 : 11) * height) }];
+      const d = n(a, "downspouts");
+      if (d) items.push({ label: `Downspouts & extensions — ${d}`, amount: d * 125 });
+      if (b(a, "guards")) items.push({ label: `Gutter guards — ${ft} ft`, amount: Math.round(ft * 9.5) });
+      if (b(a, "remove_old")) items.push({ label: `Old gutters removed — ${ft} ft`, amount: Math.round(ft * 2) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, base / 110) };
+    },
+  },
+  {
+    slug: "window-door-install",
+    name: "Window & Door Replacement",
+    category: "repair_remodel",
+    icon: "🪟",
+    tagline: "Energy-efficient replacement windows and new entry, storm and patio doors.",
+    description: "Replacement vinyl windows (double-hung, sliders, casements), bay and bow windows, steel or fiberglass entry doors, storm doors and patio sliders, installed and sealed with the trim finished and the old units hauled away. Measured on site before ordering; lead-safe practices for homes built before 1978.",
+    includes: ["Licensed, insured installer", "Measured on site before ordering", "Insulated, sealed and trimmed", "Old units hauled away", "Lead-safe (EPA RRP) for pre-1978 homes", "Manufacturer and workmanship warranties"],
+    notesHint: "How many windows and which kinds, any doors, the rooms and floors they're on, and the color you want",
+    questions: [
+      { id: "windows", label: "Standard replacement windows", type: "number", min: 0, max: 40, default: 4, help: "Double-hung, slider or casement up to about 36 × 60 in." },
+      { id: "bay", label: "Bay or bow windows", type: "number", min: 0, max: 4, default: 0 },
+      { id: "upper", label: "How many windows are above the first floor", type: "number", min: 0, max: 40, default: 0 },
+      { id: "entry", label: "Entry doors (steel or fiberglass, prehung)", type: "number", min: 0, max: 6, default: 0 },
+      { id: "storm", label: "Storm doors", type: "number", min: 0, max: 6, default: 0 },
+      { id: "patio", label: "Patio sliders", type: "number", min: 0, max: 4, default: 0 },
+    ],
+    minimum: 550,
+    spread: [0.9, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["windows_doors"],
+    licensed: true,
+    leadDays: 14,
+    price: (a) => {
+      // Detroit-metro 2026 installed: vinyl replacement window $550–$800, bay/bow $2,800–$4,500, upper-floor +$40–$80,
+      // prehung entry door $1,500–$2,500, storm door $450–$700, patio slider $2,000–$3,200.
+      const w = n(a, "windows"), bay = n(a, "bay"), up = Math.min(n(a, "upper"), w), e = n(a, "entry"), st = n(a, "storm"), p = n(a, "patio");
+      const items: LineItem[] = [];
+      if (w) items.push({ label: `Replacement windows — ${w}`, amount: w * 675 });
+      if (up) items.push({ label: `Upper-floor access — ${up} windows`, amount: up * 60 });
+      if (bay) items.push({ label: `Bay or bow windows — ${bay}`, amount: bay * 3400 });
+      if (e) items.push({ label: `Entry doors — ${e}`, amount: e * 1850 });
+      if (st) items.push({ label: `Storm doors — ${st}`, amount: st * 550 });
+      if (p) items.push({ label: `Patio sliders — ${p}`, amount: p * 2500 });
+      if (!items.length) items.push({ label: "Window & door measure visit", amount: 550 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, w * 1.5 + bay * 6 + e * 4 + st * 2 + p * 5) };
+    },
+  },
+  {
+    slug: "insulation",
+    name: "Attic & Wall Insulation",
+    category: "repair_remodel",
+    icon: "🧤",
+    tagline: "Blown-in attic insulation, air sealing and walls — lower heating bills.",
+    description: "Blown-in cellulose or fiberglass to R-49 in the attic (DTE and Consumers Energy recommend it for Michigan), air sealing around attic bypasses, baffles at the eaves, and dense-pack insulation blown into empty walls. Old contaminated insulation can be vacuumed out first. Ask about utility rebates — we give you the paperwork.",
+    includes: ["Licensed, insured insulation contractor", "Depth markers and before & after photos", "Baffles to keep soffit vents open", "Rebate paperwork for your utility"],
+    notesHint: "The attic access (hatch or stairs), what's up there now and how deep, any knob-and-tube wiring, and which walls feel cold",
+    questions: [
+      { id: "attic_sqft", label: "Attic floor area", type: "number", min: 0, max: 5000, default: 1000, unit: "sq ft", help: "About the footprint of the top floor of the house." },
+      { id: "depth", label: "What's in the attic now", type: "select", default: "some", options: [{ value: "some", label: "Some insulation (top up to R-49)" }, { value: "none", label: "Little or none (full R-49)" }] },
+      { id: "air_seal", label: "Air seal the attic first", type: "toggle", default: true },
+      { id: "remove_old", label: "Vacuum out old insulation first (wet, moldy or rodent-damaged)", type: "toggle", default: false },
+      { id: "wall_sqft", label: "Exterior walls to dense-pack (empty walls)", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft" },
+    ],
+    minimum: 650,
+    spread: [0.92, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["insulation"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026: blown-in attic top-up $1.50–$2.20/sq ft, full R-49 $2.20–$3.00, air sealing $500–$900,
+      // removal $1.25–$2.00/sq ft, dense-pack walls $3.50–$5.00/sq ft of wall.
+      const at = n(a, "attic_sqft"), wl = n(a, "wall_sqft");
+      const items: LineItem[] = [];
+      if (at) {
+        if (b(a, "remove_old")) items.push({ label: `Old insulation vacuumed out — ${at} sq ft`, amount: Math.round(at * 1.6) });
+        items.push({ label: `Blown-in attic insulation to R-49 — ${at} sq ft`, amount: Math.round(at * (s(a, "depth", "some") === "none" || b(a, "remove_old") ? 2.6 : 1.85)) });
+        if (b(a, "air_seal")) items.push({ label: "Attic air sealing & baffles", amount: 650 });
+      }
+      if (wl) items.push({ label: `Dense-pack wall insulation — ${wl} sq ft`, amount: Math.round(wl * 4.25) });
+      if (!items.length) items.push({ label: "Insulation visit", amount: 650 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(4, base / 110) };
+    },
+  },
+  {
+    slug: "garage-door",
+    name: "Garage Door Repair & Install",
+    category: "repair_remodel",
+    icon: "🚘",
+    tagline: "Broken springs, openers and off-track doors fixed — or a new door.",
+    description: "Home garage doors: torsion spring replacement, cables and rollers, doors off track, tune-ups, new openers (belt drive with Wi-Fi and battery backup) and new insulated steel doors, with the old door hauled away. Commercial overhead and dock doors are booked under Loading Dock & Overhead Door Service.",
+    includes: ["Vetted, insured garage door technician", "Safety reversal test on every visit", "Parts warranty plus workmanship warranty", "Old door or opener hauled away"],
+    notesHint: "What's happening (won't open, loud bang, off track), the door size, and the opener brand",
+    questions: [
+      {
+        id: "service",
+        label: "What do you need?",
+        type: "select",
+        default: "spring",
+        options: [
+          { value: "tune", label: "Tune-up & safety check" },
+          { value: "spring", label: "Broken spring (both springs replaced)" },
+          { value: "track", label: "Off track, cables or rollers" },
+          { value: "opener", label: "New opener, installed" },
+          { value: "door_single", label: "New single-car door (8–9 ft)" },
+          { value: "door_double", label: "New double-car door (16 ft)" },
+        ],
+      },
+      { id: "insulated", label: "Insulated door (warmer garage, quieter)", type: "toggle", default: true, showIf: { id: "service", is: ["door_single", "door_double"] } },
+      { id: "add_opener", label: "Also a new opener", type: "toggle", default: false, showIf: { id: "service", is: ["door_single", "door_double"] } },
+    ],
+    minimum: 129,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["garage_door"],
+    price: (a) => {
+      // Detroit-metro 2026: tune-up $100–$160, torsion spring pair $275–$400, cables/rollers/off-track $175–$300,
+      // belt-drive opener installed $475–$700, single door $1,100–$1,800, double $1,800–$3,000 (insulated +$300–$600).
+      const sv = s(a, "service", "spring");
+      const [label, amount, hrs] = ({ tune: ["Garage door tune-up & safety check", 129, 1], spring: ["Torsion springs replaced (pair)", 325, 1.5], track: ["Door back on track — cables & rollers", 235, 1.5], opener: ["Belt-drive opener installed", 575, 2.5], door_single: ["New single-car garage door", 1350, 4], door_double: ["New double-car garage door", 2150, 5] } as Record<string, [string, number, number]>)[sv] ?? ["Torsion springs replaced (pair)", 325, 1.5];
+      const items: LineItem[] = [{ label, amount }];
+      const door = sv === "door_single" || sv === "door_double";
+      if (door && b(a, "insulated")) items.push({ label: "Insulated door upgrade", amount: sv === "door_double" ? 550 : 325 });
+      if (door && b(a, "add_opener")) items.push({ label: "Belt-drive opener installed", amount: 575 });
+      return { items, base: sum(items), hours: hrs + (door && b(a, "add_opener") ? 2 : 0) };
+    },
+  },
+  {
+    slug: "driveway-sealcoating",
+    name: "Driveway Sealcoating & Asphalt Repair",
+    category: "repair_remodel",
+    icon: "🛣️",
+    tagline: "Asphalt sealed, cracks filled and potholes patched — drives and lots.",
+    description: "Asphalt driveways and parking lots cleaned, cracks filled with hot rubberized sealant, potholes patched, and two coats of sealer applied, plus line striping for lots. Best done every 2–3 years, May through October (needs 50°F and dry weather). Concrete driveways are booked under Concrete Steps, Patios & Sidewalks.",
+    includes: ["Vetted, insured paving crew", "Surface cleaned and edged first", "Hot-pour crack filler", "Two coats of commercial-grade sealer", "Area taped off while it cures"],
+    notesHint: "Driveway or lot size, the worst cracks or holes, when you can keep cars off it for 24 hours, and stalls to stripe",
+    questions: [
+      { id: "sqft", label: "Asphalt area", type: "number", min: 0, max: 100000, default: 0, unit: "sq ft", required: true, help: "Length × width. A 2-car city driveway is about 600 sq ft; a 20-space lot is about 7,000 sq ft." },
+      { id: "crack_ft", label: "Cracks to fill", type: "number", min: 0, max: 5000, default: 50, unit: "ft" },
+      { id: "patch_sqft", label: "Potholes or broken spots to patch", type: "number", min: 0, max: 2000, default: 0, unit: "sq ft" },
+      { id: "stalls", label: "Parking stalls to stripe", type: "number", min: 0, max: 500, default: 0 },
+    ],
+    minimum: 225,
+    spread: [0.92, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["paving"],
+    price: (a) => {
+      // Detroit-metro 2026: sealcoating $0.25–$0.40/sq ft (2 coats), hot crack fill $1–$2/ft,
+      // pothole patch $9–$15/sq ft, stall striping $6–$10 each.
+      const sq = n(a, "sqft") || 600, cr = n(a, "crack_ft"), p = n(a, "patch_sqft"), st = n(a, "stalls");
+      const items: LineItem[] = [{ label: `Clean & sealcoat, 2 coats — ${sq} sq ft`, amount: Math.max(225, Math.round(sq * (sq > 5000 ? 0.26 : 0.34))) }];
+      if (cr) items.push({ label: `Hot crack fill — ${cr} ft`, amount: Math.round(cr * 1.5) });
+      if (p) items.push({ label: `Pothole & patch repair — ${p} sq ft`, amount: Math.max(150, Math.round(p * 12)) });
+      if (st) items.push({ label: `Line striping — ${st} stalls`, amount: Math.max(125, st * 8) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(2, base / 100) };
+    },
+  },
+  {
+    slug: "flooring",
+    name: "Flooring Installation",
+    category: "repair_remodel",
+    icon: "🪚",
+    tagline: "Luxury vinyl plank, laminate, hardwood, carpet and tile floors installed.",
+    description: "New floors for rooms, basements and whole homes: luxury vinyl plank, laminate, engineered or solid hardwood, carpet with pad, and porcelain or ceramic floor tile. Standard-grade material included (upgrades at cost), old flooring removed and hauled away, subfloor leveled where needed, and new baseboard or quarter round. Bathroom and kitchen remodels are booked under the remodel services.",
+    includes: ["Licensed, insured flooring installer", "Standard-grade material included (upgrades at cost)", "Furniture moved and replaced", "Old flooring hauled away", "Transitions at doorways", "Before & after photos"],
+    notesHint: "Which rooms, the material and color you like (a link is great), what's on the floor now, and any stairs",
+    questions: [
+      {
+        id: "material",
+        label: "New floor",
+        type: "select",
+        default: "lvp",
+        options: [
+          { value: "lvp", label: "Luxury vinyl plank (waterproof)" },
+          { value: "laminate", label: "Laminate" },
+          { value: "engineered", label: "Engineered hardwood" },
+          { value: "hardwood", label: "Solid hardwood (site-finished)" },
+          { value: "carpet", label: "Carpet with pad" },
+          { value: "tile", label: "Porcelain or ceramic tile" },
+        ],
+      },
+      { id: "sqft", label: "Floor area", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft", required: true, help: "Add up length × width of each room. Add 10% for closets and odd shapes." },
+      { id: "remove_old", label: "Remove and haul away the old flooring", type: "toggle", default: true },
+      { id: "level", label: "Level or patch the subfloor", type: "toggle", default: false },
+      { id: "stairs", label: "Stairs to cover", type: "number", min: 0, max: 30, default: 0 },
+      { id: "trim_ft", label: "New baseboard or quarter round", type: "number", min: 0, max: 2000, default: 0, unit: "ft" },
+    ],
+    minimum: 450,
+    spread: [0.9, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["flooring"],
+    licensed: true,
+    price: (a) => {
+      // Detroit-metro 2026 installed with standard material: LVP $5–$8/sq ft, laminate $4.50–$7, engineered $9–$13,
+      // solid hardwood $11–$15, carpet & pad $4–$6.50, tile $11–$17; removal $1–$2, leveling $1.50–$3,
+      // stairs $60–$120 per step, baseboard $2.50–$4/ft.
+      const mat = s(a, "material", "lvp");
+      const sq = n(a, "sqft") || 300;
+      const rate = ({ lvp: 6.5, laminate: 5.75, engineered: 11, hardwood: 13, carpet: 5.25, tile: 14 } as Record<string, number>)[mat] ?? 6.5;
+      const name = ({ lvp: "luxury vinyl plank", laminate: "laminate", engineered: "engineered hardwood", hardwood: "solid hardwood", carpet: "carpet & pad", tile: "tile" } as Record<string, string>)[mat] ?? "luxury vinyl plank";
+      const items: LineItem[] = [{ label: `New ${name} — ${sq} sq ft`, amount: Math.round(sq * rate) }];
+      if (b(a, "remove_old")) items.push({ label: `Old flooring removed — ${sq} sq ft`, amount: Math.round(sq * 1.5) });
+      if (b(a, "level")) items.push({ label: `Subfloor leveling — ${sq} sq ft`, amount: Math.round(sq * 2) });
+      const st = n(a, "stairs"), tr = n(a, "trim_ft");
+      if (st) items.push({ label: `Stairs — ${st} steps`, amount: st * (mat === "carpet" ? 60 : 110) });
+      if (tr) items.push({ label: `Baseboard or quarter round — ${tr} ft`, amount: Math.round(tr * 3.25) });
+      const base = sum(items);
+      return { items, base, hours: Math.max(4, base / 90) };
+    },
+  },
+  {
+    slug: "appliance-repair",
+    name: "Appliance Repair & Install",
+    category: "repair_remodel",
+    icon: "🧺",
+    tagline: "Washers, dryers, fridges, dishwashers and ranges fixed — or new ones hooked up.",
+    description: "Repairs for washers, dryers, refrigerators, dishwashers, ovens and ranges, and microwaves: the tech diagnoses it, quotes the parts before ordering, and the diagnostic fee is part of the repair price. Or hook-up of new appliances you bought (dishwashers, ranges, washers and dryers, over-the-range microwaves). Gas lines and new circuits go to licensed plumbers and electricians.",
+    includes: ["Vetted, insured appliance technician", "Diagnosis included in the repair", "Parts quoted before ordering, billed at cost", "90-day labor warranty", "Old appliance hauled away on installs"],
+    notesHint: "The appliance, brand and model number (inside the door or on the back), and what it's doing or the error code",
+    questions: [
+      {
+        id: "appliance",
+        label: "Appliance",
+        type: "select",
+        default: "washer",
+        options: [
+          { value: "washer", label: "Washer" },
+          { value: "dryer", label: "Dryer" },
+          { value: "fridge", label: "Refrigerator or freezer" },
+          { value: "dishwasher", label: "Dishwasher" },
+          { value: "range", label: "Oven, range or cooktop" },
+          { value: "microwave", label: "Over-the-range microwave" },
+        ],
+      },
+      { id: "job", label: "Repair or install?", type: "select", default: "repair", options: [{ value: "repair", label: "Repair" }, { value: "install", label: "Install a new one I bought" }] },
+      { id: "count", label: "How many of these", type: "number", min: 1, max: 6, default: 1 },
+      { id: "haul_old", label: "Haul away the old appliance", type: "toggle", default: false, showIf: { id: "job", is: ["install"] } },
+    ],
+    minimum: 95,
+    spread: [0.9, 1.35],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["appliance"],
+    price: (a) => {
+      // Detroit-metro 2026 labor (parts at cost): diagnostic $80–$120 (applied to the repair), washer/dryer repair $150–$250,
+      // fridge $200–$325, dishwasher $150–$225, range $160–$260, OTR microwave $130–$200;
+      // install: dishwasher $200–$275, range $150–$225, washer/dryer $110–$160, OTR microwave $175–$250.
+      const ap = s(a, "appliance", "washer"), c = Math.max(1, n(a, "count", 1));
+      const name = ({ washer: "washer", dryer: "dryer", fridge: "refrigerator", dishwasher: "dishwasher", range: "oven or range", microwave: "microwave" } as Record<string, string>)[ap] ?? "appliance";
+      const items: LineItem[] = [];
+      if (s(a, "job", "repair") === "install") {
+        const each = ({ washer: 135, dryer: 135, fridge: 120, dishwasher: 235, range: 185, microwave: 215 } as Record<string, number>)[ap] ?? 150;
+        items.push({ label: `Install new ${name} — ${c}`, amount: each * c });
+        if (b(a, "haul_old")) items.push({ label: `Old appliance hauled away — ${c}`, amount: c * 45 });
+      } else {
+        const each = ({ washer: 195, dryer: 185, fridge: 265, dishwasher: 185, range: 205, microwave: 165 } as Record<string, number>)[ap] ?? 195;
+        items.push({ label: `Diagnose & repair ${name} (labor; parts at cost) — ${c}`, amount: each * c });
+      }
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, c * 1.5) };
+    },
+  },
+  {
+    slug: "smart-home-setup",
+    name: "Smart Home & Wi-Fi Setup",
+    category: "repair_remodel",
+    icon: "📶",
+    tagline: "Mesh Wi-Fi, smart thermostats, TVs, speakers and voice assistants set up right.",
+    description: "Whole-home mesh Wi-Fi installed and tested room by room, smart thermostats (Nest, Ecobee, Honeywell) wired to your existing system, TVs, streaming boxes and soundbars connected, smart plugs and bulbs paired, and voice assistant routines set up — then we show you how it all works. Cameras and doorbells are booked under Security Camera Install; smart locks under Locksmith; new wiring by a licensed electrician.",
+    includes: ["Vetted, insured smart-home tech", "Everything tested before we leave", "A walkthrough of the apps", "Packaging taken away"],
+    notesHint: "Your internet provider and plan speed, the devices you bought, the home's size and floors, and where the Wi-Fi is weak",
+    questions: [
+      { id: "mesh_nodes", label: "Mesh Wi-Fi units to install", type: "number", min: 0, max: 10, default: 2, help: "1 unit per 1,000–1,500 sq ft is typical; basements usually need their own." },
+      { id: "thermostats", label: "Smart thermostats", type: "number", min: 0, max: 4, default: 0 },
+      { id: "tvs", label: "TVs or soundbars to connect (no wall mounting)", type: "number", min: 0, max: 8, default: 0 },
+      { id: "devices", label: "Smart plugs, bulbs or speakers to pair", type: "number", min: 0, max: 50, default: 0 },
+      { id: "routines", label: "Voice assistant routines & schedules", type: "toggle", default: false },
+    ],
+    minimum: 99,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["low_voltage"],
+    price: (a) => {
+      // Detroit-metro 2026 (Geek Squad / local techs): mesh setup $129–$199 + $25–$50 per extra unit, thermostat $100–$160,
+      // TV/soundbar setup $80–$130, device pairing $10–$20 each, routines $50–$80.
+      const m = n(a, "mesh_nodes"), th = n(a, "thermostats"), tv = n(a, "tvs"), dv = n(a, "devices");
+      const items: LineItem[] = [];
+      if (m) items.push({ label: `Mesh Wi-Fi — ${m} unit${m > 1 ? "s" : ""}, tested room by room`, amount: 149 + (m - 1) * 39 });
+      if (th) items.push({ label: `Smart thermostats — ${th}`, amount: th * 129 });
+      if (tv) items.push({ label: `TVs or soundbars connected — ${tv}`, amount: tv * 99 });
+      if (dv) items.push({ label: `Smart devices paired — ${dv}`, amount: dv * 15 });
+      if (b(a, "routines")) items.push({ label: "Voice assistant routines & schedules", amount: 65 });
+      if (!items.length) items.push({ label: "Smart home visit", amount: 99 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, m * 0.5 + th * 1 + tv * 0.75 + dv * 0.15 + (b(a, "routines") ? 0.75 : 0)) };
+    },
+  },
+  {
+    slug: "water-damage",
+    name: "Water Damage Cleanup",
+    category: "repair_remodel",
+    icon: "💧",
+    tagline: "Flooded basement or burst pipe? Water out, wet materials removed, everything dried.",
+    description: "Water damage cleanup by a certified restoration crew: standing water extracted, wet carpet, pad and drywall cut out and bagged, antimicrobial applied, and commercial dehumidifiers and air movers run until moisture readings are back to normal (usually 3 days, with daily checks). Photos and moisture logs for your insurance claim. Mold that's already growing is booked under Mold Removal; fixing the leak goes to a plumber.",
+    includes: ["Certified restoration crew (IICRC WRT or equal)", "Water extraction", "Dehumidifiers & air movers with daily checks", "Moisture readings logged for insurance", "Antimicrobial treatment", "Photos for your claim"],
+    notesHint: "Where the water came from, how long ago, how deep it got, what's wet (carpet, drywall, furniture), and whether the source is fixed",
+    questions: [
+      { id: "sqft", label: "Wet area", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft", required: true, help: "The floor area that got wet. A typical basement room is 200–400 sq ft." },
+      {
+        id: "water",
+        label: "Kind of water",
+        type: "select",
+        default: "clean",
+        options: [
+          { value: "clean", label: "Clean — burst supply pipe, water heater, rain" },
+          { value: "gray", label: "Gray — washer or dishwasher overflow" },
+          { value: "black", label: "Black — sewer backup or outside flooding" },
+        ],
+      },
+      { id: "remove", label: "Cut out wet carpet, pad or drywall", type: "toggle", default: true },
+      { id: "after_hours", label: "Tonight or this weekend (emergency response)", type: "toggle", default: false },
+    ],
+    minimum: 450,
+    spread: [0.85, 1.35],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["water_damage"],
+    onDemand: true,
+    price: (a) => {
+      // Detroit-metro 2026: extraction + 3-day drying $3.50–$5.50/sq ft plus $350–$500 setup; gray water ×1.3,
+      // black water (sewage) ×1.9; tear-out $2.50–$4/sq ft; after-hours dispatch $200–$300.
+      const sq = n(a, "sqft") || 300;
+      const mult = ({ clean: 1, gray: 1.3, black: 1.9 } as Record<string, number>)[s(a, "water", "clean")] ?? 1;
+      const items: LineItem[] = [{ label: `Extraction & 3-day drying — ${sq} sq ft`, amount: Math.round((425 + sq * 4.5) * mult) }];
+      if (b(a, "remove")) items.push({ label: `Wet materials removed & bagged — ${sq} sq ft`, amount: Math.round(sq * 3 * mult) });
+      if (b(a, "after_hours")) items.push({ label: "Emergency after-hours response", amount: 250 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(3, 2 + sq / 60) };
+    },
+  },
+  {
+    slug: "locksmith",
+    name: "Locksmith",
+    category: "repair_remodel",
+    icon: "🔑",
+    tagline: "Locked out, lost keys, or new tenants — rekeyed or new locks today.",
+    description: "Home and car lockouts, rekeying after a move or a tenant change (all locks on one key), new deadbolts and handle sets, and smart lock installation. The locksmith checks ID and proof you live there or own the car before opening anything. Hardware billed at cost unless you have your own.",
+    includes: ["Vetted, insured locksmith", "ID and residence checked before any lockout", "All locks keyed alike on request", "2 keys per lock", "Hardware at cost with the receipt"],
+    notesHint: "Home or car (make and year), how many doors, the lock brand if you know it, and any smart lock you bought",
+    questions: [
+      {
+        id: "service",
+        label: "What do you need?",
+        type: "select",
+        default: "rekey",
+        options: [
+          { value: "home_lockout", label: "Locked out of my home" },
+          { value: "car_lockout", label: "Locked out of my car" },
+          { value: "rekey", label: "Rekey my locks" },
+          { value: "install", label: "Install new deadbolts or handle sets" },
+          { value: "smart", label: "Install a smart lock" },
+        ],
+      },
+      { id: "locks", label: "Number of locks", type: "number", min: 1, max: 20, default: 3, showIf: { id: "service", is: ["rekey", "install", "smart"] } },
+      { id: "after_hours", label: "After 6 pm, weekend or holiday", type: "toggle", default: false },
+    ],
+    minimum: 85,
+    spread: [0.95, 1.2],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["locksmith"],
+    onDemand: true,
+    price: (a) => {
+      // Detroit-metro 2026: home lockout $100–$175, car lockout $75–$125, service call $65–$95 + rekey $25–$40 per cylinder,
+      // deadbolt/handle install $75–$120 labor each, smart lock install $95–$150 each, after-hours +$50–$100.
+      const sv = s(a, "service", "rekey"), l = Math.max(1, n(a, "locks", 3));
+      const items: LineItem[] = [];
+      if (sv === "home_lockout") items.push({ label: "Home lockout", amount: 135 });
+      else if (sv === "car_lockout") items.push({ label: "Car lockout", amount: 95 });
+      else {
+        items.push({ label: "Service call", amount: 85 });
+        const [lab, each] = ({ rekey: ["Locks rekeyed", 35], install: ["New locks installed (hardware at cost)", 95], smart: ["Smart locks installed & set up", 125] } as Record<string, [string, number]>)[sv] ?? ["Locks rekeyed", 35];
+        items.push({ label: `${lab} — ${l}`, amount: l * each });
+      }
+      if (b(a, "after_hours")) items.push({ label: "After-hours call", amount: 75 });
+      const base = sum(items);
+      return { items, base, hours: sv.endsWith("lockout") ? 0.75 : Math.max(1, l * (sv === "rekey" ? 0.3 : 0.8)) };
+    },
+  },
+  {
+    slug: "property-inspection",
+    name: "Property Condition Inspection",
+    category: "repair_remodel",
+    icon: "📋",
+    tagline: "A full inspection and photo report — before you buy, sell, rent or insure.",
+    description: "A visual inspection of the roof, exterior, foundation, structure, plumbing, electrical, heating and cooling, attic, interior and appliances, with a written report and photos of every finding, delivered within 24 hours. Optional radon test and sewer camera scope. Good for buyers, sellers, landlords getting ready for a rental inspection, and insurers. It doesn't replace the City of Detroit's rental Certificate of Compliance inspection.",
+    includes: ["Certified home inspector (InterNACHI or ASHI)", "Roof-to-basement visual inspection", "Photo report within 24 hours", "Summary of repairs by priority", "Phone call to walk you through it"],
+    notesHint: "The address, year built, whether it's occupied, access (lockbox or someone there), and why you need it (buying, selling, rental, insurance)",
+    questions: [
+      { id: "sqft", label: "Home size (finished sq ft)", type: "number", min: 0, max: 10000, default: 1500, unit: "sq ft" },
+      { id: "units", label: "Units", type: "select", default: "1", options: [{ value: "1", label: "Single-family or condo" }, { value: "2", label: "Duplex (2 units)" }, { value: "3", label: "3 units" }, { value: "4", label: "4 units" }] },
+      { id: "radon", label: "Radon test (2-day monitor)", type: "toggle", default: false },
+      { id: "sewer", label: "Sewer line camera scope", type: "toggle", default: false },
+    ],
+    minimum: 325,
+    spread: [0.95, 1.1],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["inspection"],
+    price: (a) => {
+      // Detroit-metro 2026: home inspection $300–$450 to 1,500 sq ft, about $0.10–$0.15/sq ft above; each extra unit $125–$200;
+      // radon $125–$175; sewer scope $175–$275.
+      const sq = n(a, "sqft"), u = Number(s(a, "units", "1")) || 1;
+      const items: LineItem[] = [{ label: `Inspection & photo report — ${sq} sq ft`, amount: 325 + Math.max(0, Math.round((sq - 1500) * 0.12)) }];
+      if (u > 1) items.push({ label: `Additional units — ${u - 1}`, amount: (u - 1) * 150 });
+      if (b(a, "radon")) items.push({ label: "Radon test", amount: 150 });
+      if (b(a, "sewer")) items.push({ label: "Sewer camera scope", amount: 225 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(2.5, 2 + sq / 1000 + (u - 1)) };
+    },
+  },
+  {
     slug: "bathroom-remodel",
     name: "Bathroom Remodel",
     category: "repair_remodel",
@@ -2395,6 +3317,68 @@ export const SERVICES: Service[] = [
   // ───────────────────────────── TRANSPORTATION ─────────────────────────────
   // Booked with licensed operator companies only (state/federal authority, passenger-carrier
   // insurance). Date + exact pickup time like events; pickup = the booking address.
+  {
+    slug: "laundry-pickup",
+    name: "Laundry Pickup & Delivery",
+    category: "errands",
+    icon: "👕",
+    tagline: "Wash & fold, picked up and back folded in 24–48 hours.",
+    description: "Your laundry picked up at the door, washed, dried and folded the way you like (your detergent preferences, hang-dry items kept separate), and delivered back in 24 to 48 hours, or same day when booked by 10 am. Comforters and bedding priced per piece. Dry cleaning runs are booked under Errands & Drop-Offs.",
+    includes: ["Background-checked laundry pro", "Your detergent and care preferences", "Hang-dry items kept separate", "Folded, bagged and delivered", "Weight receipt with every order"],
+    notesHint: "Detergent and softener preferences, hang-dry or delicate items, and where to pick up and drop off",
+    questions: [
+      { id: "lbs", label: "Laundry weight", type: "number", min: 10, max: 200, default: 20, unit: "lb", help: "A full tall kitchen bag is about 15–20 lb; a week of laundry for 2 people is about 20–30 lb. Weighed at pickup." },
+      { id: "comforters", label: "Comforters or duvets", type: "number", min: 0, max: 10, default: 0 },
+      { id: "same_day", label: "Same-day return (booked by 10 am)", type: "toggle", default: false },
+    ],
+    minimum: 40,
+    spread: [0.95, 1.15],
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly"],
+    trades: ["laundry"],
+    insuranceOptional: true,
+    price: (a) => {
+      // Detroit-metro 2026: wash & fold with pickup $1.75–$2.50/lb (20 lb minimum), pickup & delivery $5–$12,
+      // comforters $20–$35 each, same-day +$10–$20.
+      const lb = Math.max(20, n(a, "lbs", 20)), c = n(a, "comforters");
+      const items: LineItem[] = [{ label: `Wash & fold — ${lb} lb`, amount: Math.round(lb * 2) }, { label: "Pickup & delivery", amount: 9 }];
+      if (c) items.push({ label: `Comforters & duvets — ${c}`, amount: c * 28 });
+      if (b(a, "same_day")) items.push({ label: "Same-day return", amount: 15 });
+      const base = sum(items);
+      return { items, base, hours: Math.max(1, 0.75 + lb / 25) };
+    },
+  },
+  {
+    slug: "home-watch",
+    name: "Home Watch (Vacant & Seasonal Homes)",
+    category: "errands",
+    icon: "🏡",
+    tagline: "Away for the winter or between tenants? We check the house and send photos.",
+    description: "Scheduled visits to a home that's empty: inside and outside checked for leaks, break-ins, pests and storm damage, faucets run and toilets flushed, the furnace and thermostat checked (no frozen pipes), mail and packages brought in, and a photo report after every visit. Many insurers require regular checks on vacant homes — the reports are your proof. After a storm or a power outage we go the same day.",
+    includes: ["Background-checked, bonded home watcher", "Inside & outside checklist every visit", "Faucets run, toilets flushed, heat checked", "Photo report after every visit", "Same-day check after storms or outages"],
+    notesHint: "Access (lockbox code or key), the alarm, the thermostat setting you want, the water shutoff location, and who to call for repairs",
+    questions: [
+      { id: "sqft", label: "Home size", type: "number", min: 500, max: 10000, default: 1800, unit: "sq ft" },
+      { id: "mail", label: "Bring in mail and packages", type: "toggle", default: true },
+      { id: "plants", label: "Water indoor plants", type: "toggle", default: false },
+      { id: "car", label: "Start the car and run it a few minutes", type: "toggle", default: false },
+    ],
+    minimum: 45,
+    spread: [0.95, 1.1],
+    siteVisit: false,
+    frequencies: ["once", "weekly", "biweekly", "monthly"],
+    trades: ["errands"],
+    insuranceOptional: true,
+    price: (a) => {
+      // Detroit-metro 2026: home watch visit $40–$65 (bigger homes more), add-ons $5–$15 each.
+      const sq = n(a, "sqft", 1800);
+      const items: LineItem[] = [{ label: `Home watch visit with photo report — ${sq} sq ft`, amount: sq > 3500 ? 75 : sq > 2500 ? 60 : 49 }];
+      if (b(a, "mail")) items.push({ label: "Mail & packages", amount: 8 });
+      if (b(a, "plants")) items.push({ label: "Indoor plants watered", amount: 10 });
+      if (b(a, "car")) items.push({ label: "Car started & run", amount: 10 });
+      return { items, base: sum(items), hours: sq > 2500 ? 1 : 0.75 };
+    },
+  },
   {
     slug: "private-driver",
     name: "Private Driver / Black Car",
@@ -3484,9 +4468,15 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "carpet", label: "Carpet & upholstery" },
   { id: "organizing", label: "Professional organizing" },
   { id: "gutters", label: "Gutters" },
+  { id: "duct_cleaning", label: "Air duct & dryer vent cleaning" },
+  { id: "chimney_sweep", label: "Chimney sweep" },
+  { id: "laundry", label: "Wash & fold laundry" },
   { id: "lawn", label: "Lawn care & landscaping" },
   { id: "tree", label: "Tree service / arborist" },
   { id: "snow", label: "Snow plowing & removal" },
+  { id: "irrigation", label: "Sprinkler & irrigation" },
+  { id: "holiday_lights", label: "Holiday lighting" },
+  { id: "pool", label: "Pool service" },
   { id: "pet_waste", label: "Pet waste removal" },
   { id: "pet_care", label: "Dog walking & pet sitting" },
   { id: "pressure_washing", label: "Power / pressure washing" },
@@ -3495,10 +4485,17 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "auto_detailing", label: "Mobile car detailing" },
   { id: "hauling", label: "Junk hauling, moving & delivery" },
   { id: "wildlife", label: "Wildlife control & dead animal removal" },
+  { id: "nuisance_wildlife", label: "Live wildlife removal (DNR permit)" },
+  { id: "pest", label: "Pest control (licensed applicator)" },
   { id: "waste_oil", label: "Used oil transporter (licensed)" },
   { id: "dumpster", label: "Roll-off container / dumpster" },
   { id: "handyman", label: "Handyman" },
   { id: "assembly", label: "Furniture assembly & TV mounting" },
+  { id: "appliance", label: "Appliance repair & install" },
+  { id: "garage_door", label: "Garage doors & openers" },
+  { id: "locksmith", label: "Locksmith" },
+  { id: "inspection", label: "Home inspector" },
+  { id: "water_damage", label: "Water damage restoration (certified)" },
   { id: "small_engine", label: "Small engine repair" },
   { id: "dock_door", label: "Commercial & dock door service" },
   { id: "fire_safety", label: "Fire extinguisher service (state-certified)" },
@@ -3507,6 +4504,13 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "masonry", label: "Masonry & brick (licensed)" },
   { id: "concrete", label: "Concrete & flatwork (licensed)" },
   { id: "demolition", label: "Demolition (licensed)" },
+  { id: "fence_deck", label: "Fences & decks (licensed)" },
+  { id: "siding", label: "Siding (licensed)" },
+  { id: "gutter_install", label: "Gutter installation (licensed)" },
+  { id: "windows_doors", label: "Windows & doors (licensed)" },
+  { id: "insulation", label: "Insulation (licensed)" },
+  { id: "flooring", label: "Flooring & tile (licensed)" },
+  { id: "paving", label: "Asphalt sealcoating & paving" },
   { id: "mold", label: "Mold remediation (certified)" },
   { id: "remodel", label: "Remodeling / general contractor" },
   { id: "painting", label: "Painting (interior & exterior)" },

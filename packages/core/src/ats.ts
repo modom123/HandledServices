@@ -11,6 +11,7 @@
  *           The web app saves them with lib/recruiting-intake.ts (dedupe, résumé, confirmation, AI screen).
  * UPDATED : 2026-10-23_1900 UTC — skills (specialties) on candidates: picked by staff, or read from the Skills / job title /
  *           notes text; job titles for roofing, masonry, concrete, demolition and furniture assembly; landscaping words → lawn.
+ * UPDATED : 2026-10-23_2100 UTC — job titles for the 20 trades added with services 76–100.
  */
 import { TRADES } from "./services.ts";
 import { MAX_TRADES } from "./pro-program.ts";
@@ -61,6 +62,26 @@ const TRADE_WORDS: [RegExp, string][] = [
   [/\b(concrete|cement|flatwork|finisher)\b/i, "concrete"],
   [/\b(demo|demolition|wrecking|tear[\s-]?out)\b/i, "demolition"],
   [/\b(furniture assembl\w*|assembler|ikea|tv mount\w*)\b/i, "assembly"],
+  [/\b(fenc(e|ing)|deck build\w*|deck (installer|carpenter))\b/i, "fence_deck"],
+  [/\bsiding\b/i, "siding"],
+  [/\b(seamless gutter|gutter install\w*)\b/i, "gutter_install"],
+  [/\b(window (installer|installation|replacement)|door installer)\b/i, "windows_doors"],
+  [/\binsulat\w*/i, "insulation"],
+  [/\b(floor(ing)? (installer|install\w*|mechanic)|carpet install\w*|tile setter)\b/i, "flooring"],
+  [/\b(sealcoat\w*|seal coat\w*|asphalt|paving)\b/i, "paving"],
+  [/\bappliance/i, "appliance"],
+  [/\bgarage door/i, "garage_door"],
+  [/\blocksmith/i, "locksmith"],
+  [/\b(home|property|building) inspector\b/i, "inspection"],
+  [/\b(water damage|restoration tech\w*|water mitigation)\b/i, "water_damage"],
+  [/\b(duct clean\w*|dryer vent)\b/i, "duct_cleaning"],
+  [/\bchimney sweep/i, "chimney_sweep"],
+  [/\b(irrigation|sprinkler tech\w*)\b/i, "irrigation"],
+  [/\b(holiday|christmas) light/i, "holiday_lights"],
+  [/\bpool (tech\w*|service|cleaner)\b/i, "pool"],
+  [/\b(pest control|exterminator|pest tech\w*)\b/i, "pest"],
+  [/\b(wildlife (control|removal|tech\w*)|nuisance animal)\b/i, "nuisance_wildlife"],
+  [/\b(laundry|wash (and|&) fold|laundromat)\b/i, "laundry"],
   [/\b(security guard|security officer)\b/i, "security"],
   [/\b(driver|chauffeur|limo)\b/i, "transportation"],
   [/\brecruit(er|ing)\b/i, "recruiter"],

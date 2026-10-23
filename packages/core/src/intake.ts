@@ -66,6 +66,20 @@ const RULES: Record<string, PhotoRule> = {
   demolition: R(2, "What's coming down, wide shot", "Access for a truck (driveway or alley)"),
   landscaping: O("Each bed or area", "The edges and shrubs"),
   "furniture-assembly": O("The boxes or a link to the items", "The wall for any TV"),
+  "fence-install": R(1, "The fence line or the broken section", "Where the gates go"),
+  "deck-build": R(1, "The deck or the spot for a new one", "Damaged boards, railings or stairs up close"),
+  siding: R(2, "Each side with damage", "The damage up close"),
+  "gutter-install": O("Each side of the roofline", "Where water overflows or pools"),
+  "window-door-install": O("Each window or door, inside", "The outside of the house"),
+  insulation: O("The attic from the hatch", "The attic access"),
+  "garage-door": O("The door from inside the garage", "The springs and opener"),
+  "driveway-sealcoating": O("The whole driveway or lot", "The worst cracks or holes"),
+  flooring: O("Each room, wide shot", "The current floor up close"),
+  "appliance-repair": O("The appliance", "The model and serial number label"),
+  "water-damage": R(2, "The wet area, wide shot", "How high the water reached", "Where it came from"),
+  "chimney-sweep": O("The fireplace or stove", "The chimney from outside"),
+  "wildlife-removal": O("Where you hear or see them", "Any holes or chewed spots outside"),
+  "pest-control": O("What you're seeing", "Where you see it"),
   "home-remodel": R(3, "Each area to remodel", "Floors", "Anything you're keeping"),
 };
 
@@ -156,6 +170,13 @@ const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   masonry: (a) => (a.chimney === "rebuild" ? "Chimney rebuild" : Number(a.wall_sqft ?? 0) > 100 ? "Retaining wall over 100 sq ft" : Number(a.tuck_sqft ?? 0) > 500 ? "Over 500 sq ft of tuckpointing" : null),
   "concrete-repair": (a) => (Number(a.slab_sqft ?? 0) > 400 ? "Over 400 sq ft of new concrete" : Number(a.steps_new ?? 0) > 6 ? "More than 6 new steps" : null),
   demolition: (a) => (a.kind === "garage" ? "Detached garage" : Number(a.sqft ?? 0) > 400 ? "Over 400 sq ft" : null),
+  "fence-install": (a) => (a.job !== "repair" && Number(a.feet ?? 0) > 300 ? "Over 300 ft of fence" : null),
+  "deck-build": (a) => (a.job === "new" ? "New deck (drawings for the permit)" : null),
+  siding: (a) => (a.job === "replace" ? "Full re-siding (measured on site)" : null),
+  "window-door-install": (a) => (Number(a.windows ?? 0) + Number(a.bay ?? 0) > 15 ? "More than 15 windows" : null),
+  flooring: (a) => (Number(a.sqft ?? 0) > 1500 ? "Over 1,500 sq ft of flooring" : null),
+  "water-damage": (a) => (a.water === "black" ? "Sewage (category 3 water)" : Number(a.sqft ?? 0) > 1000 ? "Over 1,000 sq ft wet" : null),
+  "driveway-sealcoating": (a) => (Number(a.sqft ?? 0) > 10000 ? "Lot over 10,000 sq ft" : null),
 };
 
 /** Why this job needs a free site visit for a firm price (null = instant price is fine). */

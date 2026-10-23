@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal checklist.
  * UPDATED : 2026-10-12_0117 UTC — Mold removal checklist (containment, moisture source, removal, drying, clearance test).
  * UPDATED : 2026-10-23_1900 UTC — checklists for landscaping, furniture assembly, roofing, masonry, concrete and demolition.
+ * UPDATED : 2026-10-23_2100 UTC — checklists for 16 of services 76–100; the rest use the generic checklist built from what they include.
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -618,6 +619,204 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
       i("debris", "All debris hauled to a licensed disposal site (receipt uploaded)", "Todos los escombros llevados a un sitio de desecho autorizado (recibo subido)", { required: true }),
       i("grade", "Area filled, graded and seeded", "Área rellenada, nivelada y sembrada", { when: { q: "fill", in: [true] }, required: true }),
       i("nails", "Nails and sharp debris swept up (magnet sweep outdoors)", "Clavos y escombros filosos recogidos (barrido con imán afuera)", { required: true }),
+    ] }],
+  }),
+
+  "fence-install": tpl({
+    service: "fence-install", version: 1, title: { en: "Fence checklist", es: "Lista de cercas" },
+    sections: [{ id: "fence", en: "Fence", es: "Cerca", items: [
+      i("missdig", "MISS DIG ticket number recorded before any digging", "Número de reporte de MISS DIG registrado antes de excavar", { when: { q: "job", in: ["new"] }, required: true }),
+      i("line", "Fence line and gate spots confirmed with the customer (property markers, HOA rules)", "Línea de la cerca y lugar de los portones confirmados con el cliente (marcas de propiedad, reglas de la asociación)", { when: { q: "job", in: ["new"] }, required: true }),
+      i("posts", "Posts set plumb in concrete at the right depth", "Postes a plomo fijados en concreto a la profundidad correcta", { when: { q: "job", in: ["new"] }, required: true, photo: true }),
+      i("gates", "Gates hung level, swing freely and latch", "Portones nivelados, abren libremente y cierran con pestillo", { when: { q: "job", in: ["new"] }, required: true }),
+      i("old", "Old fence torn out and hauled away", "Cerca vieja quitada y retirada", { when: { q: "remove_old", in: [true] }, required: true }),
+      i("repair", "Posts reset solid and broken boards or sections replaced to match", "Postes firmes y tablas o secciones rotas reemplazadas igual que el resto", { when: { q: "job", in: ["repair"] }, required: true, photo: true }),
+    ] }],
+  }),
+
+  "deck-build": tpl({
+    service: "deck-build", version: 1, title: { en: "Deck checklist", es: "Lista de terrazas" },
+    sections: [{ id: "deck", en: "Deck", es: "Terraza", items: [
+      i("permit", "Permit posted; footing and framing inspections passed before decking goes on", "Permiso exhibido; inspecciones de zapatas y estructura aprobadas antes de poner el piso", { when: { q: "job", in: ["new"] }, required: true, photo: true }),
+      i("ledger", "Ledger flashed and bolted to the house; joist hangers on every joist", "Viga de unión con tapajuntas y atornillada a la casa; colgadores en cada vigueta", { when: { q: "job", in: ["new"] }, required: true }),
+      i("boards", "Rotted or loose boards replaced and fastened flush; no raised nails or screws", "Tablas podridas o flojas reemplazadas y fijadas al ras; sin clavos ni tornillos salidos", { when: { q: "job", in: ["repair"] }, required: true, photo: true }),
+      i("rail", "Railings solid (no wobble) and at code height", "Barandales firmes (sin moverse) y a la altura del código", { when: { q: "rail_ft", gt: 0 }, required: true }),
+      i("stairs", "Stairs even, solid and with a graspable handrail", "Escalones parejos, firmes y con pasamanos que se pueda agarrar", { when: { q: "steps", gt: 0 }, required: true }),
+      i("offcuts", "Offcuts, fasteners and sawdust cleaned up", "Recortes, tornillería y aserrín limpiados", { required: true }),
+    ] }],
+  }),
+
+  "siding": tpl({
+    service: "siding", version: 1, title: { en: "Siding checklist", es: "Lista de revestimiento" },
+    sections: [{ id: "siding", en: "Siding", es: "Revestimiento", items: [
+      i("match", "Color and profile match shown to the customer before installing", "Igualación de color y perfil mostrada al cliente antes de instalar", { when: { q: "job", in: ["repair"] }, required: true }),
+      i("wrap", "House wrap installed and taped; flashing at windows and doors", "Barrera de humedad instalada y encintada; tapajuntas en ventanas y puertas", { when: { q: "job", in: ["replace"] }, required: true, photo: true }),
+      i("panels", "Panels locked in, straight and nailed to allow expansion", "Paneles trabados, derechos y clavados dejando espacio para dilatación", { required: true, photo: true }),
+      i("trim", "Soffit, fascia and trim wrapped tight; no exposed wood", "Plafón, fascia y molduras bien forrados; sin madera expuesta", { when: { q: "trim_ft", gt: 0 }, required: true }),
+      i("nails", "Yard swept for nails and scraps", "Patio barrido de clavos y recortes", { required: true }),
+    ] }],
+  }),
+
+  "gutter-install": tpl({
+    service: "gutter-install", version: 1, title: { en: "Gutter installation checklist", es: "Lista de instalación de canaletas" },
+    sections: [{ id: "gutters", en: "Gutters", es: "Canaletas", items: [
+      i("old", "Old gutters taken down and hauled away", "Canaletas viejas quitadas y retiradas", { when: { q: "remove_old", in: [true] }, required: true }),
+      i("pitch", "Gutters hung with a steady pitch to the downspouts, hidden hangers every 2 ft", "Canaletas colgadas con pendiente constante hacia los bajantes, soportes ocultos cada 2 pies", { required: true, photo: true }),
+      i("seal", "Corners and end caps sealed", "Esquinas y tapas selladas", { required: true }),
+      i("downspouts", "Downspouts and extensions carry water at least 4 ft from the foundation", "Bajantes y extensiones alejan el agua al menos 4 pies del cimiento", { required: true }),
+      i("guards", "Guards installed along every run", "Protectores instalados en todos los tramos", { when: { q: "guards", in: [true] }, required: true }),
+      i("hose", "Water-tested with a hose; no leaks or overflow", "Probadas con manguera; sin fugas ni desbordes", { required: true }),
+    ] }],
+  }),
+
+  "window-door-install": tpl({
+    service: "window-door-install", version: 1, title: { en: "Window & door checklist", es: "Lista de ventanas y puertas" },
+    sections: [{ id: "install", en: "Installation", es: "Instalación", items: [
+      i("rrp", "Lead-safe setup (plastic, HEPA) for homes built before 1978", "Preparación segura contra plomo (plástico, HEPA) en casas construidas antes de 1978"),
+      i("set", "Each unit set plumb, level and square; opens, closes and locks smoothly", "Cada unidad a plomo, nivelada y a escuadra; abre, cierra y asegura sin problema", { required: true, photo: true }),
+      i("seal", "Gaps insulated with low-expansion foam; exterior caulked", "Huecos aislados con espuma de baja expansión; exterior calafateado", { required: true }),
+      i("trim", "Interior and exterior trim finished", "Molduras interiores y exteriores terminadas", { required: true }),
+      i("old_units", "Old windows and doors hauled away", "Ventanas y puertas viejas retiradas", { required: true }),
+      i("labels", "Stickers removed; warranty papers left with the customer", "Etiquetas retiradas; papeles de garantía entregados al cliente"),
+    ] }],
+  }),
+
+  "insulation": tpl({
+    service: "insulation", version: 1, title: { en: "Insulation checklist", es: "Lista de aislamiento" },
+    sections: [{ id: "attic", en: "Attic", es: "Ático", items: [
+      i("knob", "Checked for knob-and-tube wiring and recessed lights; anything unsafe flagged before blowing", "Revisado por cableado antiguo de perilla y tubo y luces empotradas; lo inseguro reportado antes de soplar", { required: true }),
+      i("removed", "Old insulation vacuumed out", "Aislamiento viejo aspirado", { when: { q: "remove_old", in: [true] }, required: true }),
+      i("airseal", "Top plates, chases and penetrations air sealed; baffles at every eave bay", "Placas superiores, ductos y perforaciones sellados; deflectores en cada espacio del alero", { when: { q: "air_seal", in: [true] }, required: true, photo: true }),
+      i("depth", "Even depth to R-49 with depth markers visible in the photo", "Espesor parejo hasta R-49 con marcadores visibles en la foto", { required: true, photo: true }),
+      i("hatch", "Attic hatch insulated and weatherstripped", "Escotilla del ático aislada y con burlete", { required: true }),
+      i("walls", "Wall holes plugged and patched to match", "Perforaciones en muros tapadas y resanadas", { when: { q: "wall_sqft", gt: 0 }, required: true }),
+      i("certificate", "Insulation certificate (type, R-value, depth) left for the customer and the rebate", "Certificado de aislamiento (tipo, valor R, espesor) entregado para el cliente y el reembolso", { required: true }),
+    ] }],
+  }),
+
+  "garage-door": tpl({
+    service: "garage-door", version: 1, title: { en: "Garage door checklist", es: "Lista de puerta de garaje" },
+    sections: [{ id: "door", en: "Door", es: "Puerta", items: [
+      i("work", "Booked repair or install finished; door opens and closes smoothly and stays put halfway", "Reparación o instalación terminada; la puerta abre y cierra bien y se queda a medio camino", { required: true }),
+      i("balance", "Springs balanced and hardware tightened", "Resortes balanceados y herrajes apretados", { required: true }),
+      i("reverse", "Safety reversal and photo-eye tests passed", "Pruebas de reversa de seguridad y fotocelda aprobadas", { required: true, photo: true }),
+      i("remotes", "Remotes and keypad programmed", "Controles y teclado programados", { when: { q: "service", in: ["opener"] }, required: true }),
+      i("old_parts", "Old parts, door or opener hauled away", "Piezas, puerta o abridor viejo retirado", { required: true }),
+    ] }],
+  }),
+
+  "flooring": tpl({
+    service: "flooring", version: 1, title: { en: "Flooring checklist", es: "Lista de pisos" },
+    sections: [{ id: "floor", en: "Floor", es: "Piso", items: [
+      i("material", "Material and color confirmed with the customer before opening boxes", "Material y color confirmados con el cliente antes de abrir cajas", { required: true }),
+      i("removed", "Old flooring removed and hauled away", "Piso viejo quitado y retirado", { when: { q: "remove_old", in: [true] }, required: true }),
+      i("flat", "Subfloor flat, clean and dry (moisture checked on concrete)", "Contrapiso plano, limpio y seco (humedad revisada en concreto)", { required: true }),
+      i("installed", "Floor installed tight with expansion gaps; no gaps, lippage or loose spots", "Piso instalado bien unido con juntas de dilatación; sin huecos, desniveles ni partes flojas", { required: true, photo: true }),
+      i("transitions", "Transitions at doorways; doors still swing freely", "Transiciones en las puertas; las puertas siguen abriendo libremente", { required: true }),
+      i("stairs", "Stairs covered with nosings secure", "Escalones cubiertos con narices firmes", { when: { q: "stairs", gt: 0 }, required: true }),
+      i("trim", "Baseboard or quarter round installed and caulked", "Zoclo o cuarto de caña instalado y calafateado", { when: { q: "trim_ft", gt: 0 }, required: true }),
+      i("leftover", "Leftover boxes left for future repairs; furniture back in place", "Cajas sobrantes dejadas para reparaciones futuras; muebles de vuelta en su lugar"),
+    ] }],
+  }),
+
+  "water-damage": tpl({
+    service: "water-damage", version: 1, title: { en: "Water damage checklist", es: "Lista de daños por agua" },
+    sections: [{ id: "dry", en: "Mitigation", es: "Mitigación", items: [
+      i("source", "Water source confirmed stopped (or the customer told who to call)", "Fuente del agua confirmada como detenida (o se le dijo al cliente a quién llamar)", { required: true }),
+      i("safety", "Power to wet areas checked safe; category of water recorded", "Electricidad en áreas mojadas revisada; categoría del agua registrada", { required: true }),
+      i("extract", "Standing water extracted", "Agua estancada extraída", { required: true, photo: true }),
+      i("remove", "Wet carpet, pad and drywall cut out, bagged and removed", "Alfombra, bajoalfombra y paneles mojados cortados, embolsados y retirados", { when: { q: "remove", in: [true] }, required: true }),
+      i("antimicrobial", "Antimicrobial applied", "Antimicrobiano aplicado", { required: true }),
+      i("equipment", "Dehumidifiers and air movers placed; moisture map and day-1 readings logged", "Deshumidificadores y ventiladores colocados; mapa de humedad y lecturas del día 1 registrados", { required: true, photo: true }),
+      i("readings", "Daily readings logged until dry standard reached; equipment picked up", "Lecturas diarias registradas hasta alcanzar el estándar de secado; equipo recogido", { required: true }),
+    ] }],
+  }),
+
+  "property-inspection": tpl({
+    service: "property-inspection", version: 1, title: { en: "Property inspection checklist", es: "Lista de inspección de propiedad" },
+    sections: [{ id: "inspect", en: "Inspection", es: "Inspección", items: [
+      i("exterior", "Roof, gutters, siding, windows, grading and drainage inspected and photographed", "Techo, canaletas, revestimiento, ventanas, nivelación y drenaje inspeccionados y fotografiados", { required: true, photo: true }),
+      i("structure", "Foundation, basement or crawlspace and attic inspected", "Cimiento, sótano o espacio bajo el piso y ático inspeccionados", { required: true, photo: true }),
+      i("systems", "Plumbing, electrical panel, heating, cooling and water heater inspected", "Plomería, panel eléctrico, calefacción, aire acondicionado y calentador inspeccionados", { required: true, photo: true }),
+      i("interior", "Interior rooms, doors, windows, outlets and appliances checked", "Cuartos, puertas, ventanas, contactos y electrodomésticos revisados", { required: true }),
+      i("units", "Every unit inspected", "Cada unidad inspeccionada", { when: { q: "units", in: ["2", "3", "4"] }, required: true }),
+      i("radon", "Radon monitor placed and pickup scheduled", "Monitor de radón colocado y recolección programada", { when: { q: "radon", in: [true] }, required: true }),
+      i("sewer", "Sewer line scoped; video saved to the report", "Línea de drenaje inspeccionada con cámara; video guardado en el informe", { when: { q: "sewer", in: [true] }, required: true }),
+      i("report", "Photo report with repairs by priority delivered within 24 hours", "Informe con fotos y reparaciones por prioridad entregado en 24 horas", { required: true }),
+    ] }],
+  }),
+
+  "duct-cleaning": tpl({
+    service: "duct-cleaning", version: 1, title: { en: "Duct cleaning checklist", es: "Lista de limpieza de ductos" },
+    sections: [{ id: "ducts", en: "Ducts & vents", es: "Ductos y ventilas", items: [
+      i("before_duct", "Photo inside a supply and a return duct before cleaning", "Foto dentro de un ducto de suministro y uno de retorno antes de limpiar", { when: { q: "vents", gt: 0 }, required: true, photo: true }),
+      i("vacuum", "System under negative pressure; every vent and return agitated and vacuumed", "Sistema con presión negativa; cada rejilla y retorno agitado y aspirado", { when: { q: "vents", gt: 0 }, required: true }),
+      i("blower", "Furnace blower compartment cleaned; filter replaced or customer told it's due", "Compartimiento del ventilador limpio; filtro reemplazado o se le avisó al cliente", { when: { q: "vents", gt: 0 }, required: true }),
+      i("after_duct", "Photo inside the same ducts after cleaning", "Foto dentro de los mismos ductos después de limpiar", { when: { q: "vents", gt: 0 }, required: true, photo: true }),
+      i("dryer", "Dryer vent cleaned from the dryer to the outside cap; airflow checked", "Ventila de secadora limpia desde la secadora hasta la salida exterior; flujo de aire revisado", { when: { q: "dryer", in: [true] }, required: true, photo: true }),
+      i("registers", "Registers back in place; holes in the ducts sealed", "Rejillas de vuelta en su lugar; perforaciones en los ductos selladas", { required: true }),
+    ] }],
+  }),
+
+  "chimney-sweep": tpl({
+    service: "chimney-sweep", version: 1, title: { en: "Chimney sweep checklist", es: "Lista de limpieza de chimenea" },
+    sections: [{ id: "chimney", en: "Chimney", es: "Chimenea", items: [
+      i("protect", "Hearth and floor covered; HEPA vacuum running at the firebox", "Hogar y piso cubiertos; aspiradora HEPA funcionando en el fogón", { required: true }),
+      i("swept", "Flue, smoke chamber and firebox swept clean", "Conducto, cámara de humo y fogón limpios", { required: true, photo: true }),
+      i("damper", "Damper opens and seals", "El regulador abre y sella", { required: true }),
+      i("level1", "Level 1 inspection: crown, cap, flashing and liner condition photographed", "Inspección de nivel 1: corona, sombrerete, tapajuntas y revestimiento fotografiados", { required: true, photo: true }),
+      i("camera", "Level 2 camera video of the full flue saved to the report", "Video de nivel 2 de todo el conducto guardado en el informe", { when: { q: "camera", in: [true] }, required: true }),
+      i("cap", "New cap installed and secured", "Sombrerete nuevo instalado y asegurado", { when: { q: "cap", in: [true] }, required: true, photo: true }),
+    ] }],
+  }),
+
+  "sprinkler-service": tpl({
+    service: "sprinkler-service", version: 1, title: { en: "Sprinkler checklist", es: "Lista de riego" },
+    sections: [{ id: "irrigation", en: "Irrigation", es: "Riego", items: [
+      i("on", "Water turned on slowly; backflow device and valves checked for leaks", "Agua abierta lentamente; antirretorno y válvulas revisados por fugas", { when: { q: "service", in: ["startup"] }, required: true }),
+      i("zones", "Every zone run; heads adjusted to cover the lawn, not the street or house", "Cada zona encendida; aspersores ajustados al césped, no a la calle ni a la casa", { when: { q: "service", in: ["startup", "repair"] }, required: true }),
+      i("controller", "Controller set for the season (rain sensor on)", "Controlador programado para la temporada (sensor de lluvia activo)", { when: { q: "service", in: ["startup"] }, required: true }),
+      i("blowout", "Every zone blown out until only mist; water off and backflow drained", "Cada zona purgada hasta que solo salga vapor; agua cerrada y antirretorno drenado", { when: { q: "service", in: ["winterize"] }, required: true, photo: true }),
+      i("heads", "Broken heads replaced and tested", "Aspersores rotos reemplazados y probados", { when: { q: "heads", gt: 0 }, required: true }),
+      i("backflow", "Backflow test passed and report filed with the city", "Prueba de antirretorno aprobada e informe enviado a la ciudad", { when: { q: "backflow", in: [true] }, required: true }),
+    ] }],
+  }),
+
+  "pool-service": tpl({
+    service: "pool-service", version: 1, title: { en: "Pool checklist", es: "Lista de piscina" },
+    sections: [{ id: "pool", en: "Pool", es: "Piscina", items: [
+      i("cover_off", "Cover removed, cleaned, dried and stored", "Cubierta retirada, limpia, seca y guardada", { when: { q: "service", in: ["open"] }, required: true }),
+      i("equipment", "Pump, filter and heater started; no leaks", "Bomba, filtro y calentador encendidos; sin fugas", { when: { q: "service", in: ["open", "green"] }, required: true }),
+      i("clean", "Skimmed, brushed and vacuumed; baskets emptied", "Superficie limpia, paredes cepilladas y fondo aspirado; canastas vacías", { when: { q: "service", in: ["open", "clean", "green"] }, required: true, photo: true }),
+      i("chemistry", "Water tested and balanced; readings logged", "Agua analizada y balanceada; lecturas registradas", { when: { q: "service", in: ["open", "clean", "green"] }, required: true }),
+      i("close_lines", "Water lowered, lines blown out and plugged, winter chemicals added", "Nivel bajado, líneas purgadas y tapadas, químicos de invierno agregados", { when: { q: "service", in: ["close"] }, required: true }),
+      i("cover_on", "Cover on and secured", "Cubierta puesta y asegurada", { when: { q: "service", in: ["close"] }, required: true, photo: true }),
+      i("gate", "Pool gate closed and latched", "Portón de la piscina cerrado con pestillo", { required: true }),
+    ] }],
+  }),
+
+  "pest-control": tpl({
+    service: "pest-control", version: 1, title: { en: "Pest control checklist", es: "Lista de control de plagas" },
+    sections: [{ id: "pest", en: "Treatment", es: "Tratamiento", items: [
+      i("inspect", "Activity and entry points found and shown to the customer", "Actividad y puntos de entrada encontrados y mostrados al cliente", { required: true, photo: true }),
+      i("label", "Products applied per label; kids and pets kept away for the label time", "Productos aplicados según la etiqueta; niños y mascotas alejados el tiempo indicado", { required: true }),
+      i("stations", "Bait stations locked and placed out of reach of kids and pets", "Estaciones de cebo cerradas con llave y fuera del alcance de niños y mascotas", { when: { q: "pest", in: ["rodents"] }, required: true }),
+      i("seal", "Entry points sealed or listed for the customer", "Puntos de entrada sellados o enlistados para el cliente", { when: { q: "pest", in: ["rodents", "general"] }, required: true }),
+      i("prep", "Bed bug prep sheet reviewed; every room treated", "Hoja de preparación para chinches revisada; cada cuarto tratado", { when: { q: "pest", in: ["bed_bugs"] }, required: true }),
+      i("nests", "Nests removed and bagged", "Nidos retirados y embolsados", { when: { q: "pest", in: ["stinging"] }, required: true, photo: true }),
+      i("report", "Treatment report with products used and safety sheets left", "Informe del tratamiento con los productos usados y hojas de seguridad entregadas", { required: true }),
+    ] }],
+  }),
+
+  "wildlife-removal": tpl({
+    service: "wildlife-removal", version: 1, title: { en: "Wildlife removal checklist", es: "Lista de retiro de fauna" },
+    sections: [{ id: "wildlife", en: "Wildlife", es: "Fauna", items: [
+      i("inspect", "Every entry point found and photographed", "Cada punto de entrada encontrado y fotografiado", { required: true, photo: true }),
+      i("young", "Checked for young; none trapped inside", "Revisado por crías; ninguna quedó atrapada adentro", { required: true }),
+      i("traps", "Traps or one-way doors set; customer given the check schedule", "Trampas o puertas de una vía colocadas; cliente informado del horario de revisión", { required: true }),
+      i("daily", "Traps checked every day and animals handled as the DNR permit requires", "Trampas revisadas todos los días y animales manejados como lo exige el permiso del DNR", { required: true }),
+      i("sealed", "Entry points sealed with steel mesh or flashing", "Puntos de entrada sellados con malla de acero o tapajuntas", { when: { q: "entries", gt: 0 }, required: true, photo: true }),
+      i("attic", "Droppings and nesting removed and the area sanitized", "Excrementos y nidos retirados y área desinfectada", { when: { q: "attic_cleanup", in: [true] }, required: true }),
     ] }],
   }),
 

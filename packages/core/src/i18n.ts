@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
  * UPDATED : 2026-10-15_0300 UTC — the brand promise: 25% books your pro, pay the rest when it's done.
  * UPDATED : 2026-10-23_1900 UTC — Spanish for the six new services (landscaping, furniture assembly, roofing, masonry, concrete, demolition).
+ * UPDATED : 2026-10-23_2100 UTC — Spanish for services 76–100 and the updated category blurbs.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -333,12 +334,12 @@ const ES: Record<string, string> = {
 };
 
 const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: string }> = {
-  cleaning: { name: "Limpieza y organización", short: "Limpieza", blurb: "Casas, oficinas, ventanas, alfombras, canaletas, lavado a presión, lavado de autos a domicilio y organización." },
-  outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte y bordes, jardinería y mantillo, limpieza de hojas, remoción de nieve y árboles." },
+  cleaning: { name: "Limpieza y organización", short: "Limpieza", blurb: "Casas, oficinas, ventanas, alfombras, azulejo y juntas, ductos, chimeneas, botes de basura, lavado a presión, lavado de autos a domicilio y organización." },
+  outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte y bordes, jardinería y mantillo, riego, piscinas, luces navideñas, limpieza de hojas, remoción de nieve y árboles." },
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
-  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, demolición y desmontaje, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
-  repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, armado de muebles, plomería, electricidad, climatización, techos, albañilería, escalones y patios de concreto, pintura, y remodelaciones." },
-  errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
+  removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, control de plagas, retiro de fauna, demolición y desmontaje, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
+  repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, armado de muebles, electrodomésticos, cerrajería, plomería, electricidad, climatización, techos, revestimiento, canaletas, ventanas y puertas, cercas y terrazas, pisos, aislamiento, albañilería, concreto, daños por agua, pintura, y remodelaciones." },
+  errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, lavandería a domicilio, cuidado de casas vacías, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
   events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres, salones y seguridad, en una sola factura." },
   security: { name: "Guardias de seguridad y patrullaje", short: "Seguridad", blurb: "Guardias con licencia para edificios, obras, estacionamientos y eventos: puestos fijos, rondas nocturnas y vigilancia contra incendios." },
@@ -370,6 +371,31 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "demolition": ["Demolición y desmontaje", "Cobertizos, terrazas, garajes, piscinas y cuartos demolidos y retirados."],
   "furniture-assembly": ["Armado de muebles e instalación de TV", "De la caja a terminado, con precio por pieza."],
   "landscaping": ["Jardinería y cuidado de jardineras", "Mantillo, bordes definidos, arbustos podados y plantas nuevas."],
+  "fence-install": ["Instalación y reparación de cercas", "Cercas y portones nuevos, o postes inclinados y secciones rotas reparados."],
+  "deck-build": ["Construcción y reparación de terrazas", "Terrazas nuevas según el código, o tablas blandas, barandales y escalones reparados."],
+  "siding": ["Reparación y reemplazo de revestimiento", "Paneles dañados por tormenta reparados, o toda la casa con revestimiento nuevo."],
+  "gutter-install": ["Instalación de canaletas y protectores", "Canaletas sin uniones y bajantes nuevos, con protectores si los quiere."],
+  "window-door-install": ["Reemplazo de ventanas y puertas", "Ventanas de reemplazo eficientes y puertas de entrada, de tormenta y de patio nuevas."],
+  "insulation": ["Aislamiento de ático y muros", "Aislamiento soplado en el ático, sellado de fugas y muros: facturas de calefacción más bajas."],
+  "garage-door": ["Reparación e instalación de puertas de garaje", "Resortes rotos, abridores y puertas fuera del riel reparados, o una puerta nueva."],
+  "driveway-sealcoating": ["Sellado de entradas y reparación de asfalto", "Asfalto sellado, grietas rellenadas y baches parchados: entradas y estacionamientos."],
+  "flooring": ["Instalación de pisos", "Vinilo tipo duela de lujo, laminado, madera, alfombra y loseta instalados."],
+  "appliance-repair": ["Reparación e instalación de electrodomésticos", "Lavadoras, secadoras, refrigeradores, lavavajillas y estufas reparados, o los nuevos conectados."],
+  "smart-home-setup": ["Configuración de casa inteligente y Wi-Fi", "Wi-Fi en malla, termostatos inteligentes, televisores, bocinas y asistentes de voz bien configurados."],
+  "water-damage": ["Limpieza de daños por agua", "¿Sótano inundado o tubería reventada? Agua fuera, materiales mojados retirados, todo seco."],
+  "locksmith": ["Cerrajero", "¿Se quedó afuera, perdió las llaves o hay inquilinos nuevos? Combinación nueva o cerraduras nuevas hoy."],
+  "property-inspection": ["Inspección de condición de la propiedad", "Una inspección completa con informe de fotos, antes de comprar, vender, rentar o asegurar."],
+  "duct-cleaning": ["Limpieza de ductos y ventila de secadora", "Polvo, pelo de mascotas y pelusa fuera de sus ductos y la ventila de la secadora."],
+  "tile-grout-cleaning": ["Limpieza de azulejo y juntas", "Juntas opacas limpiadas con vapor hasta recuperar su color, y luego selladas."],
+  "trash-bin-cleaning": ["Limpieza de botes de basura", "Botes de basura, reciclaje y jardín lavados y desodorizados en la banqueta."],
+  "chimney-sweep": ["Limpieza e inspección de chimeneas", "Creosota retirada y el conducto inspeccionado antes de encender el fuego."],
+  "sprinkler-service": ["Arranque, invernado y reparación de riego", "Encendido en primavera, purgado antes de las heladas y aspersores rotos reparados."],
+  "holiday-lights": ["Instalación de luces navideñas", "Bordes del techo, árboles y coronas iluminados, y retirados después de las fiestas."],
+  "pool-service": ["Apertura, cierre y limpieza de piscinas", "Piscinas abiertas en primavera, cerradas para el invierno y limpias todo el verano."],
+  "pest-control": ["Control de plagas", "Hormigas, cucarachas, arañas, ratones, chinches y nidos de avispas: atendidos por un aplicador con licencia."],
+  "wildlife-removal": ["Retiro y exclusión de fauna", "Mapaches, ardillas, zorrillos y murciélagos fuera, y sin poder regresar."],
+  "laundry-pickup": ["Lavandería a domicilio", "Lavado y doblado, recogido y entregado doblado en 24–48 horas."],
+  "home-watch": ["Cuidado de casas vacías o de temporada", "¿Fuera por el invierno o entre inquilinos? Revisamos la casa y le enviamos fotos."],
   "waste-oil-collection": ["Recolección de aceite usado", "Aceite de motor usado, filtros y anticongelante recogidos por un transportista con licencia."],
   "urgent-ride": ["Viaje urgente (no médico)", "¿Varado o necesita ir ya? Un conductor con licencia en camino. ¿Emergencia médica? Llame al 911."],
   "dead-animal-removal": ["Retiro de animales muertos", "Se retira hoy: embolsado, retirado y desechado correctamente. Tratamiento de olores disponible."],

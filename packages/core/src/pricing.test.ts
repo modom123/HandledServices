@@ -171,7 +171,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "concrete", "demolition", "electrical", "fire_safety", "food_truck", "foundation", "freight", "hvac", "masonry", "medical_courier", "painting", "plumbing", "remodel", "roofing", "security", "transportation", "waste_oil"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "concrete", "demolition", "electrical", "fence_deck", "fire_safety", "flooring", "food_truck", "foundation", "freight", "gutter_install", "hvac", "insulation", "masonry", "medical_courier", "nuisance_wildlife", "painting", "pest", "plumbing", "remodel", "roofing", "security", "siding", "transportation", "waste_oil", "windows_doors"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
@@ -2051,6 +2051,15 @@ test("omnichannel: channels from first touch, any lead payload normalized, hones
   assert.equal(guessService("power wash the patio"), "power-washing");
   assert.equal(guessService("tear out the old deck"), "demolition");
   assert.equal(guessService("assemble an ikea dresser"), "furniture-assembly");
+  assert.equal(guessService("need new gutters"), "gutter-install");
+  assert.equal(guessService("my gutters are clogged"), "gutter-cleaning");
+  assert.equal(guessService("replace my windows"), "window-door-install");
+  assert.equal(guessService("clean my windows"), "window-cleaning");
+  assert.equal(guessService("pressure wash deck"), "power-washing");
+  assert.equal(guessService("basement flooded"), "water-damage");
+  assert.equal(guessService("mice in the kitchen"), "pest-control");
+  assert.equal(guessService("raccoon in the attic"), "wildlife-removal");
+  assert.equal(guessService("locked out of my house"), "locksmith");
   assert.equal(guessService("hello"), null);
   const t = speedToLeadText({ name: "Dana Ray", service_slug: "carpet-cleaning", company: null }, { siteUrl: "https://x.test", phone: "(313) 555-0100" });
   assert.match(t.text, /Hi Dana/); assert.match(t.text, /book/); assert.ok(!/\$\d/.test(t.text), "no prices");
@@ -2156,6 +2165,39 @@ test("new services: landscaping, furniture assembly, roofing, masonry, concrete,
   for (const slug of ["roofing", "masonry", "concrete-repair", "demolition"]) assert.ok(getService(slug)!.licensed, `${slug} is licensed work`);
   assert.deepEqual(getService("furniture-assembly")!.trades, ["assembly", "handyman"]);
   assert.deepEqual(getService("landscaping")!.trades, ["lawn"]);
+});
+
+test("services 76–100: priced, licensed where Michigan requires it, and no duplicates in the catalog", async () => {
+  const { sizeNeedsSiteVisit } = await import("./intake.ts");
+  const { CHECKLISTS } = await import("./checklists.ts");
+  const base = (slug: string, a: Record<string, unknown>) => { const svc = getService(slug)!; return svc.price({ ...defaultAnswers(svc), ...a } as Answers).base; };
+  assert.equal(SERVICES.length, 100, "100 services");
+  assert.equal(new Set(SERVICES.map((s) => s.slug)).size, 100, "unique slugs");
+  assert.equal(new Set(SERVICES.map((s) => s.name.toLowerCase())).size, 100, "unique names");
+  // spot prices (Detroit-metro 2026)
+  assert.equal(base("fence-install", { job: "new", feet: 100, material: "chain", height: "6", walk_gates: 0, drive_gates: 0, remove_old: false }), 2400);
+  assert.equal(base("fence-install", { job: "repair", posts: 2, sections: 1 }), 2 * 185 + 195);
+  assert.equal(base("deck-build", { job: "new", sqft: 200, material: "pt", raised: false, rail_ft: 0, steps: 0 }), 200 * 42 + 375);
+  assert.equal(base("gutter-install", { feet: 100, size: "5", downspouts: 2, guards: false, remove_old: false, stories: "1" }), 1100 + 250);
+  assert.equal(base("window-door-install", { windows: 5, bay: 0, upper: 0, entry: 1, storm: 0, patio: 0 }), 5 * 675 + 1850);
+  assert.equal(base("garage-door", { service: "spring" }), 325);
+  assert.equal(base("flooring", { material: "lvp", sqft: 400, remove_old: false, level: false, stairs: 0, trim_ft: 0 }), 2600);
+  assert.equal(base("locksmith", { service: "rekey", locks: 4, after_hours: false }), 85 + 140);
+  assert.equal(base("trash-bin-cleaning", { bins: 3, first_deep: false }), 66);
+  assert.ok(base("water-damage", { sqft: 300, water: "black" }) > base("water-damage", { sqft: 300, water: "clean" }), "sewage costs more");
+  assert.ok(base("pest-control", { pest: "bed_bugs", rooms: 3 }) > base("pest-control", { pest: "bed_bugs", rooms: 1 }));
+  assert.equal(base("furniture-assembly", { medium: 0, tvs: 0 }), 89);
+  // site visits for the big jobs
+  assert.ok(sizeNeedsSiteVisit("deck-build", { job: "new" }) && !sizeNeedsSiteVisit("deck-build", { job: "repair" }));
+  assert.ok(sizeNeedsSiteVisit("siding", { job: "replace" }));
+  assert.ok(sizeNeedsSiteVisit("water-damage", { water: "black", sqft: 100 }));
+  assert.ok(sizeNeedsSiteVisit("flooring", { sqft: 2000 }) && !sizeNeedsSiteVisit("flooring", { sqft: 500 }));
+  // licensing
+  for (const slug of ["fence-install", "deck-build", "siding", "gutter-install", "window-door-install", "insulation", "flooring", "pest-control", "wildlife-removal"]) assert.ok(getService(slug)!.licensed, `${slug} is licensed work`);
+  for (const slug of ["garage-door", "locksmith", "appliance-repair", "property-inspection", "laundry-pickup"]) assert.ok(!getService(slug)!.licensed, `${slug} needs no state license`);
+  assert.ok(getService("laundry-pickup")!.insuranceOptional && getService("home-watch")!.insuranceOptional);
+  assert.deepEqual(getService("gutter-cleaning")!.trades, ["gutters"], "cleaning gutters stays unlicensed (installs are their own trade)");
+  for (const slug of ["fence-install", "water-damage", "pest-control", "wildlife-removal", "property-inspection"]) assert.ok(CHECKLISTS[slug], `${slug} has its own checklist`);
 });
 
 test("parseIndeedApply maps an Indeed Apply application", () => {

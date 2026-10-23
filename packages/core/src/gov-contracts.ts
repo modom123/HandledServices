@@ -25,6 +25,8 @@
  *           5 best notices we can still respond to (open, biddable, 5+ days left, good fit).
  * UPDATED : 2026-10-23_1900 UTC — roofing (238160) is now a catalog service; masonry (238140), poured concrete (238110) and
  *           site preparation & demolition (238910) added; landscaping joins 561730.
+ * UPDATED : 2026-10-23_2100 UTC — codes for services 76–100: siding & gutters, flooring, insulation, fencing & paving, pest control,
+ *           appliance repair, locksmiths, building inspection, water remediation; window installation now has a catalog service.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -46,8 +48,17 @@ export const GOV_NAICS: GovNaics[] = [
   { code: "238140", title: "Masonry", slugs: ["masonry"] },
   { code: "238110", title: "Poured concrete (steps, walks, flatwork)", slugs: ["concrete-repair"] },
   { code: "238910", title: "Site preparation & demolition", slugs: ["demolition"] },
+  { code: "238170", title: "Siding", slugs: ["siding", "gutter-install"] },
+  { code: "238330", title: "Flooring", slugs: ["flooring"] },
+  { code: "238310", title: "Drywall & insulation", slugs: ["insulation"] },
+  { code: "238990", title: "Specialty trades (fencing, paving & sealcoating)", slugs: ["fence-install", "driveway-sealcoating"] },
+  { code: "561710", title: "Exterminating & pest control", slugs: ["pest-control", "wildlife-removal"] },
+  { code: "811412", title: "Appliance repair", slugs: ["appliance-repair"] },
+  { code: "561622", title: "Locksmiths", slugs: ["locksmith"] },
+  { code: "541350", title: "Building inspection", slugs: ["property-inspection"] },
+  { code: "562910", title: "Remediation (water damage)", slugs: ["water-damage"] },
   { code: "561740", title: "Carpet & upholstery cleaning", slugs: ["carpet-cleaning"], focus: true },
-  { code: "561790", title: "Other services to buildings (snow removal, power washing, gutters)", slugs: ["snow-removal", "power-washing", "gutter-cleaning"] },
+  { code: "561790", title: "Other services to buildings (snow removal, power washing, gutters)", slugs: ["snow-removal", "power-washing", "gutter-cleaning", "duct-cleaning", "chimney-sweep", "trash-bin-cleaning"] },
   { code: "561612", title: "Security guards & patrol", slugs: ["security-guard", "event-security"] },
   { code: "561210", title: "Facilities support (multi-service)", slugs: ["handyman", "unit-turnover", "house-cleaning", "lawn-care"] },
   { code: "562111", title: "Solid waste collection (junk & debris hauling)", slugs: ["junk-removal", "junk-container"] },
@@ -60,7 +71,7 @@ export const GOV_NAICS: GovNaics[] = [
   { code: "541519", title: "Other computer services (AI automation)", slugs: ["ai-automation"], focus: true, remote: true },
   { code: "236118", title: "Residential remodeling", slugs: ["bathroom-remodel", "kitchen-remodel", "home-remodel"], focus: true },
   { code: "236220", title: "Commercial & institutional building construction", slugs: ["home-remodel", "handyman"], focus: true },
-  { code: "238150", title: "Window installation (glass & glazing)", slugs: [], focus: true, subcontracted: true },
+  { code: "238150", title: "Window installation (glass & glazing)", slugs: ["window-door-install"], focus: true, subcontracted: true },
   { code: "492210", title: "Local couriers & delivery", slugs: ["courier", "medical-delivery"] },
   { code: "485320", title: "Limousine & car service", slugs: ["private-driver", "airport-transfer", "limousine"] },
   { code: "485510", title: "Charter bus", slugs: ["charter-bus", "event-shuttle"] },

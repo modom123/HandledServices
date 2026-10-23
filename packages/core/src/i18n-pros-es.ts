@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-12_0117 UTC — mold remediation trade.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP codes to cover ("only these ZIP codes").
  * UPDATED : 2026-10-23_1900 UTC — new trades (assembly, roofing, masonry, concrete, demolition) and lawn & landscaping specialties.
+ * UPDATED : 2026-10-23_2100 UTC — the 20 trades for services 76–100.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -26,6 +27,26 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Professional organizing": "Organización profesional",
   "Gutters": "Canaletas",
   "Lawn care": "Cuidado del césped",
+  "Air duct & dryer vent cleaning": "Limpieza de ductos y ventilas de secadora",
+  "Chimney sweep": "Deshollinador",
+  "Wash & fold laundry": "Lavandería (lavado y doblado)",
+  "Sprinkler & irrigation": "Riego y aspersores",
+  "Holiday lighting": "Iluminación navideña",
+  "Pool service": "Servicio de piscinas",
+  "Live wildlife removal (DNR permit)": "Retiro de fauna viva (permiso del DNR)",
+  "Pest control (licensed applicator)": "Control de plagas (aplicador con licencia)",
+  "Appliance repair & install": "Reparación e instalación de electrodomésticos",
+  "Garage doors & openers": "Puertas de garaje y abridores",
+  "Locksmith": "Cerrajero",
+  "Home inspector": "Inspector de viviendas",
+  "Water damage restoration (certified)": "Restauración por daños de agua (certificado)",
+  "Fences & decks (licensed)": "Cercas y terrazas (con licencia)",
+  "Siding (licensed)": "Revestimiento (con licencia)",
+  "Gutter installation (licensed)": "Instalación de canaletas (con licencia)",
+  "Windows & doors (licensed)": "Ventanas y puertas (con licencia)",
+  "Insulation (licensed)": "Aislamiento (con licencia)",
+  "Flooring & tile (licensed)": "Pisos y loseta (con licencia)",
+  "Asphalt sealcoating & paving": "Sellado de asfalto y pavimentación",
   "Lawn care & landscaping": "Cuidado del césped y jardinería",
   "Furniture assembly & TV mounting": "Armado de muebles e instalación de TV",
   "Roofing (licensed)": "Techos (con licencia)",
