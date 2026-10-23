@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0637 UTC — six new services: prices, licensing, and no rush surcharge on urgent rides.
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry & concrete and roofing.
  * UPDATED : 2026-10-23_1100 UTC — recruiting intake (Indeed Apply, CSV import, trade detection) and consultation-only pricing.
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
@@ -171,7 +172,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "electrical", "fire_safety", "food_truck", "foundation", "freight", "hvac", "medical_courier", "painting", "plumbing", "remodel", "security", "transportation", "waste_oil"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["carpentry", "catering", "electrical", "fire_safety", "food_truck", "foundation", "freight", "hvac", "masonry", "medical_courier", "painting", "plumbing", "remodel", "roofing", "security", "transportation", "waste_oil"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
@@ -244,7 +245,7 @@ test("square footage drives the price wherever it's asked", async () => {
   for (const svc of SERVICES) {
     const q = svc.questions.find((x) => x.type === "number" && /sq ?ft/i.test(x.unit ?? ""));
     if (!q || q.type !== "number") continue;
-    const at = (v: number) => estimate({ slug: svc.slug, answers: { ...defaultAnswers(svc), [q.id]: v } }).point;
+    const at = (v: number) => estimate({ slug: svc.slug, answers: { ...defaultAnswers(svc), ...(q.showIf ? { [q.showIf.id]: q.showIf.is[0] } : {}), [q.id]: v } }).point; // the choice that shows the question
     const span = q.max - q.min;
     const lo = Math.round(q.min + span * 0.05), mid = Math.round(q.min + span * 0.25), hi = Math.round(q.min + span * 0.5);
     assert.ok(at(mid) >= at(lo), `${svc.slug}: ${mid} sq ft should cost ≥ ${lo} sq ft`);
@@ -2104,6 +2105,8 @@ test("inferTrades reads job titles and jobMeta", () => {
   assert.deepEqual(inferTrades("Licensed Electricians & Plumbers").sort(), ["electrical", "plumbing"]);
   assert.deepEqual(inferTrades("trades=windows,carpet"), ["windows", "carpet"]);
   assert.deepEqual(inferTrades("Accountant"), []);
+  assert.deepEqual(inferTrades("Roofer / Shingle installer"), ["roofing"]);
+  assert.deepEqual(inferTrades("Brick mason"), ["masonry"]);
 });
 
 test("parseIndeedApply maps an Indeed Apply application", () => {
@@ -2130,7 +2133,7 @@ test("parseCandidatesCsv handles Indeed-style exports", () => {
   assert.equal(candidates[0].full_name, "Ruiz, Ana");
   assert.equal(candidates[0].location, "Detroit, MI");
   assert.deepEqual(candidates[0].trades, ["cleaning"]);
-  assert.deepEqual(candidates[1].trades, ["handyman"]);
+  assert.deepEqual(candidates[1].trades, ["handyman", "carpentry"]);
   assert.equal(candidates[1].source, "indeed");
   assert.equal(skipped.length, 2);
   assert.equal(parseCandidatesCsv("Phone\n123").candidates.length, 0);
@@ -2140,4 +2143,23 @@ test("Business & Technology is consultation-only", () => {
   assert.equal(consultOnly("website-design"), true);
   assert.equal(consultOnly("house-cleaning"), false);
   assert.equal(priceHint("website-design"), "Free consultation");
+});
+
+test("carpentry, masonry and roofing: licensed, priced by size, big jobs get a site visit", async () => {
+  const { sizeNeedsSiteVisit } = await import("./intake.ts");
+  const { TRADES } = await import("./services.ts");
+  for (const slug of ["carpentry", "masonry", "roofing"]) {
+    const svc = getService(slug)!;
+    assert.ok(svc && svc.licensed, `${slug} is licensed work`);
+    assert.ok(svc.trades.every((t) => TRADES.some((x) => x.id === t)), `${slug} trade exists`);
+  }
+  const trim = (ft: number) => estimate({ slug: "carpentry", answers: { ...defaultAnswers(getService("carpentry")!), project: "trim", trim_ft: ft } }).point;
+  assert.ok(trim(200) > trim(50));
+  const roof = (m: string) => estimate({ slug: "roofing", answers: { ...defaultAnswers(getService("roofing")!), project: "replace", material: m } }).point;
+  assert.ok(roof("metal") > roof("architectural") && roof("architectural") > roof("three_tab"));
+  assert.ok(sizeNeedsSiteVisit("roofing", { project: "replace" }));
+  assert.equal(sizeNeedsSiteVisit("roofing", { project: "leak" }), null);
+  assert.ok(sizeNeedsSiteVisit("carpentry", { project: "deck_new" }));
+  assert.ok(sizeNeedsSiteVisit("masonry", { project: "flatwork", slab_sqft: 1500 }));
+  assert.equal(sizeNeedsSiteVisit("masonry", { project: "tuckpoint", tuck_sqft: 200 }), null);
 });

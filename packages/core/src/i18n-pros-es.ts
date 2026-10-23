@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-06_2010 UTC — pro place of business (address fields).
  * UPDATED : 2026-10-12_0117 UTC — mold remediation trade.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP codes to cover ("only these ZIP codes").
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry and roofing trades.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -41,6 +42,35 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Fire extinguisher service (state-certified)": "Servicio de extintores (certificado por el estado)",
   "Foundation repair (licensed)": "Reparación de cimientos (con licencia)",
   "Mold remediation (certified)": "Remediación de moho (certificado)",
+  "Finish and rough carpentry: trim and molding, doors, built-ins, deck repairs and new decks, stairs and railings, and non-load-bearing framing.": "Carpintería de acabado y de obra: molduras, puertas, muebles empotrados, reparación de terrazas y terrazas nuevas, escaleras y barandales, y armado de paredes que no son de carga.",
+  "Trim & molding": "Molduras",
+  "Built-ins & closets": "Muebles empotrados y clósets",
+  "Decks & porches": "Terrazas y porches",
+  "Michigan Maintenance & Alteration Contractor license (carpentry) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration": "Licencia de Contratista de Mantenimiento y Alteración de Michigan (carpintería) o de Constructor Residencial (LARA), obligatoria para trabajos residenciales de más de $600; Washington: registro de contratista ante L&I",
+  "License lookup on LARA (or L&I in Washington), photos of 5 recent jobs (trim, doors or decks), 2 client references.": "Verificación de licencia en LARA (o L&I en Washington), fotos de 5 trabajos recientes (molduras, puertas o terrazas), 2 referencias de clientes.",
+  "Masonry and concrete: tuckpointing, brick, block and stone repair, chimney crowns, caps and rebuilds, steps, slab lifting, crack sealing, and driveways, patios and sidewalks.": "Albañilería y concreto: rejunteo, reparación de ladrillo, bloque y piedra, coronas, tapas y reconstrucción de chimeneas, escalones, nivelación de losas, sellado de grietas, y entradas, patios y banquetas.",
+  "Tuckpointing & brick repair": "Rejunteo y reparación de ladrillo",
+  "Chimneys": "Chimeneas",
+  "Steps & stoops": "Escalones y entradas",
+  "Driveways, patios & sidewalks": "Entradas, patios y banquetas",
+  "Slab lifting (mudjacking / foam)": "Nivelación de losas (inyección de lodo o espuma)",
+  "Michigan Maintenance & Alteration Contractor license (masonry or concrete) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration": "Licencia de Contratista de Mantenimiento y Alteración de Michigan (albañilería o concreto) o de Constructor Residencial (LARA), obligatoria para trabajos residenciales de más de $600; Washington: registro de contratista ante L&I",
+  "Silica dust control plan (OSHA 1926.1153)": "Plan de control de polvo de sílice (OSHA 1926.1153)",
+  "CSIA certification for chimney work": "Certificación CSIA para trabajos de chimenea",
+  "License lookup on LARA (or L&I in Washington), photos of 5 recent jobs (brick, chimney or concrete), 3 client references.": "Verificación de licencia en LARA (o L&I en Washington), fotos de 5 trabajos recientes (ladrillo, chimenea o concreto), 3 referencias de clientes.",
+  "Roof leak repairs, shingle replacement, flashing, pipe boots and vents, inspections, and full tear-off and replacement.": "Reparación de goteras, cambio de tejas, tapajuntas, sellos de tubería y ventilas, inspecciones, y retiro y reemplazo completo del techo.",
+  "Leaks & shingle repair": "Goteras y reparación de tejas",
+  "Flashing & vents": "Tapajuntas y ventilas",
+  "Full replacements": "Reemplazos completos",
+  "Metal roofing": "Techos de metal",
+  "Flat & low-slope roofs": "Techos planos y de baja pendiente",
+  "Michigan Maintenance & Alteration Contractor license (roofing) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration": "Licencia de Contratista de Mantenimiento y Alteración de Michigan (techos) o de Constructor Residencial (LARA), obligatoria para trabajos residenciales de más de $600; Washington: registro de contratista ante L&I",
+  "Shingle manufacturer certification (GAF, Owens Corning or CertainTeed)": "Certificación del fabricante de tejas (GAF, Owens Corning o CertainTeed)",
+  "OSHA fall-protection training": "Capacitación de OSHA en protección contra caídas",
+  "License lookup on LARA (or L&I in Washington), fall-protection plan, photos of 5 recent roofs, 3 homeowner references.": "Verificación de licencia en LARA (o L&I en Washington), plan de protección contra caídas, fotos de 5 techos recientes, 3 referencias de propietarios.",
+  "Carpentry (licensed)": "Carpintería (con licencia)",
+  "Masonry & concrete (licensed)": "Albañilería y concreto (con licencia)",
+  "Roofing (licensed)": "Techos (con licencia)",
   "Roll-off container / dumpster": "Contenedor de basura (roll-off)",
   "Handyman": "Mantenimiento general",
   "Remodeling / general contractor": "Remodelación / contratista general",
@@ -443,7 +473,7 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Legal name, tax classification and TIN": "Nombre legal, clasificación fiscal y número de identificación fiscal (TIN)",
   "What you do best: we send you those jobs first": "Lo que mejor hace: le enviamos esos trabajos primero",
   "Where you start from, how far you'll drive, which days and times you work": "Desde dónde sale, qué tan lejos maneja y qué días y horarios trabaja",
-  "Required for plumbing, electrical, HVAC, painting, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)": "Obligatoria para plomería, electricidad, climatización, pintura, remodelación, servicio de alimentos, transporte de pasajeros, transportistas de carga (número USDOT) y mensajería médica (capacitación en HIPAA)",
+  "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)": "Obligatoria para plomería, electricidad, climatización, pintura, carpintería, albañilería, techos, remodelación, servicio de alimentos, transporte de pasajeros, transportistas de carga (número USDOT) y mensajería médica (capacitación en HIPAA)",
   "Consent + check through your screening provider": "Consentimiento + verificación con el proveedor de verificación",
   "Bank (ACH) or Stripe Connect": "Banco (ACH) o Stripe Connect",
   "Cleared": "Aprobada",

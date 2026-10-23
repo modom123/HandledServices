@@ -8,6 +8,7 @@
  *                                    columns are matched by name, in any order, with common aliases
  *             inferTrades()        — trade ids from a job title / jobMeta / notes ("House Cleaner" → cleaning)
  *           The web app saves them with lib/recruiting-intake.ts (dedupe, résumé, confirmation, AI screen).
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry and roofing are their own trades (carpenters no longer map to handyman).
  */
 import { TRADES } from "./services.ts";
 import { MAX_TRADES } from "./pro-program.ts";
@@ -44,7 +45,10 @@ const TRADE_WORDS: [RegExp, string][] = [
   [/\b(courier|errand|personal assistant)/i, "errands"],
   [/\b(detail(er|ing)?)\b/i, "auto_detailing"],
   [/\b(mover|moving|junk|haul\w*)\b/i, "hauling"],
-  [/\b(handyman|handy man|carpent\w*|maintenance tech\w*)\b/i, "handyman"],
+  [/\b(handyman|handy man|maintenance tech\w*)\b/i, "handyman"],
+  [/\b(carpent\w*|deck build\w*)\b/i, "carpentry"],
+  [/\b(mason\w*|brick\w*|concrete|tuckpoint\w*|chimney)\b/i, "masonry"],
+  [/\b(roof\w*|shingl\w*)\b/i, "roofing"],
   [/\bplumb/i, "plumbing"],
   [/\belectric(ians?|al)\b/i, "electrical"],
   [/\b(hvac|heating|air condition\w*|refrigeration)\b/i, "hvac"],

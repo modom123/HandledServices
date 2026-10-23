@@ -11,6 +11,7 @@
  *             • scopeChange()     — the pro on site finds more work → priced difference = change order
  *             • sizeNeedsSiteVisit() — jobs too big for an instant price (a commercial repaint, 15+
  *                                    rooms) always get a free site visit and a firm quote
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry and roofing: required photos; new decks, chimney rebuilds, big pours and roof replacements get a free site visit.
  */
 import { AI_MAX_CUT, AI_MAX_RAISE, estimate, type Estimate } from "./pricing.ts";
 import { getService, type Answers } from "./services.ts";
@@ -58,6 +59,9 @@ const RULES: Record<string, PhotoRule> = {
   "exterior-painting": R(3, "Each side of the building", "Peeling or damaged areas up close", "Trim, doors and any deck"),
   "bathroom-remodel": R(3, "Each wall of the room", "Floor", "Anything you're keeping"),
   "kitchen-remodel": R(3, "Each wall of the kitchen", "Floor and ceiling", "Anything you're keeping"),
+  carpentry: R(1, "Where the work goes, wide shot", "Close-up of anything damaged, rotten or loose"),
+  masonry: R(2, "The brick, chimney or concrete, wide shot", "Close-up of the cracks or damage", "The area around it (yard, driveway, roofline)"),
+  roofing: R(2, "The roof from the ground, each side you can see", "Close-up of the damage", "Ceiling or attic stains inside, if it leaks"),
   "mold-removal": R(2, "The mold, wide shot showing how big", "Close-up of the growth", "Any leak or water stain nearby"),
   "home-remodel": R(3, "Each area to remodel", "Floors", "Anything you're keeping"),
 };
@@ -143,6 +147,9 @@ const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "event-shuttle": (a) => (Number(a.vehicles ?? 0) > 4 ? "More than 4 shuttles (we plan the loops with you)" : null),
   "charter-bus": (a) => (a.out_of_state === true || a.out_of_state === "true" ? "Out-of-state trip (routing and federal authority confirmed first)" : Number(a.days ?? 0) > 3 ? "Trip longer than 3 days" : null),
   "large-item-removal": (a) => (Number(a.heaviest ?? 0) > 1000 ? "An item over 1,000 lb" : Number(a.specialty ?? 0) > 2 ? "More than 2 specialty items" : null),
+  carpentry: (a) => (a.project === "deck_new" ? "New deck (design, footings and permit)" : a.project === "builtins" && Number(a.shelf_ft ?? 0) > 24 ? "More than 24 ft of built-ins" : null),
+  masonry: (a) => (a.project === "chimney" && Number(a.rebuild_ft ?? 0) > 0 ? "Chimney rebuild" : a.project === "flatwork" && Number(a.slab_sqft ?? 0) > 1000 ? "More than 1,000 sq ft of concrete" : null),
+  roofing: (a) => (a.project === "replace" ? "Full roof replacement (we measure the roof and check the decking)" : null),
   "mold-removal": (a) => (Number(a.sqft ?? 0) > 100 ? "More than 100 sq ft of mold" : a.hvac === true || a.hvac === "true" ? "Mold in the furnace or ducts" : null),
   "junk-removal": (a) => (a.volume === "double" && a.kind === "heavy" ? "Two truckloads of heavy debris" : null),
 };

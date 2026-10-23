@@ -4,12 +4,13 @@
   CREATED : 2026-10-01_1800 UTC
   UPDATED : 2026-10-11_1603 UTC — 66 services: Business & Technology (websites, AI automation & agents, business formation,
             consulting) and Freight & Pallet Delivery with carrier partners such as 3 Lakes Logistics.
+  UPDATED : 2026-10-23_1600 UTC — 72 services: Carpentry, Masonry & Concrete and Roofing (licensed trades).
 -->
 
 # Handled — AI-run home & business services
 
 A services company that delivers cleaning, power washing, lawn & snow, trees, pet care, hauling, handyman and
-licensed trades, interior & exterior painting, remodels, errands, events, transportation (licensed operators), freight and
+licensed trades, carpentry, masonry & concrete, roofing, interior & exterior painting, remodels, errands, events, transportation (licensed operators), freight and
 pallet delivery (licensed carriers, e.g. 3 Lakes Logistics), and remote business services — websites, AI automation and AI
 agents, business formation and consulting — through vetted subcontractors and Handled staff. AI runs it day to day, IEBC's AI workforce staffs it, and a small
 human team manages it. Business plan: [`docs/BUSINESS_PLAN_2026-10-01_1830.md`](docs/BUSINESS_PLAN_2026-10-01_1830.md).

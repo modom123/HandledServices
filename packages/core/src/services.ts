@@ -47,6 +47,7 @@
  * UPDATED : 2026-10-11_2307 UTC — "We build": Website Design & Build is now Intelligent Websites (AI assistant built in,
  *           instant lead follow-up option; same slug), plus Business Operating System and Automated Business (68 services).
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal (certified remediation: containment, removal, HEPA, optional testing) and the mold trade.
+ * UPDATED : 2026-10-23_1600 UTC — Carpentry, Masonry & Concrete and Roofing (licensed trades: carpentry, masonry, roofing).
  * UPDATED : 2026-10-19_1320 UTC — insuranceOptional: services with no work on the customer's property with tools or equipment
  *           (remote business work; errands, courier, personal assistant) don't need a general liability certificate, so pros
  *           without one still get those jobs. Trade coverages (bond, business-use auto) still apply.
@@ -172,7 +173,7 @@ export const CATEGORIES: { id: CategoryId; name: string; short: string; icon: st
   { id: "outdoor", name: "Lawn, Leaves & Snow", short: "Lawn & Snow", icon: "🌳", blurb: "Mowing, leaf cleanup, snow removal and trees." },
   { id: "pets", name: "Pet Care", short: "Pet Care", icon: "🐾", blurb: "Dog walking, dog sitting and yard poop pickup by background-checked pros." },
   { id: "removal", name: "Haul Away, Moves & Delivery", short: "Haul & Move", icon: "🚛", blurb: "Junk gone today, small moves, same-day large-item delivery, staging furniture, dead animal removal — or a container for the week." },
-  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
+  { id: "repair_remodel", name: "Repairs, Painting & Remodels", short: "Repairs", icon: "🔧", blurb: "Handyman, carpentry, masonry, roofing, plumbing, electrical, HVAC, water heaters, interior & exterior painting — up to full remodels." },
   { id: "errands", name: "Errands & Delivery", short: "Errands", icon: "🛍️", blurb: "Same-day courier, medical deliveries, dry cleaning, returns and drop-offs, or an assistant for the day." },
   { id: "transport", name: "Transportation", short: "Rides", icon: "🚘", blurb: "Private drivers, black cars, airport rides, game day & concert rides, limos, party buses, tour buses and event shuttles — licensed operators only." },
   { id: "events", name: "Parties & Events", short: "Events", icon: "🎉", blurb: "Planning, catering, food trucks, DJs, rentals, venues and event security — one invoice." },
@@ -1844,6 +1845,200 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "carpentry",
+    name: "Carpentry",
+    category: "repair_remodel",
+    icon: "🪚",
+    tagline: "Trim, doors, built-ins, decks and railings, built and fixed by a licensed carpenter.",
+    description: "Finish and rough carpentry by a licensed carpenter: baseboard, casing and crown molding; interior and exterior doors hung and trimmed; built-in shelving, closets and window seats; deck board, joist and railing repairs; stairs and railings; and non-load-bearing walls. Standard lumber, trim and fasteners are included in the price; premium wood, composite or custom millwork is confirmed before work starts. New decks get a free site visit for the design, footings and permit.",
+    includes: ["Licensed carpenter (state contractor license)", "Standard lumber, trim and fasteners included", "Cut, fit, nail, caulk and fill — ready to paint", "Old material hauled away", "Before & after photos"],
+    notesHint: "What you want built or fixed, rough measurements, the wood or finish you like, and anything rotten, loose or squeaky",
+    questions: [
+      {
+        id: "project",
+        label: "What do you need?",
+        type: "select",
+        default: "trim",
+        options: [
+          { value: "trim", label: "Trim, baseboard & crown molding" },
+          { value: "doors", label: "Hang or replace doors" },
+          { value: "builtins", label: "Built-in shelving, closets & window seats" },
+          { value: "deck_repair", label: "Deck repair (boards, joists, railing)" },
+          { value: "deck_new", label: "New deck" },
+          { value: "railings", label: "Stairs & railings" },
+          { value: "framing", label: "Frame a wall or partition (not load-bearing)" },
+        ],
+      },
+      { id: "trim_ft", label: "Trim to install", type: "number", min: 10, max: 1500, default: 80, unit: "ft", showIf: { id: "project", is: ["trim"] }, help: "Total length of baseboard, door/window casing and crown. A 12 × 12 ft room is about 48 ft of baseboard." },
+      { id: "doors", label: "Doors", type: "number", min: 1, max: 30, default: 2, showIf: { id: "project", is: ["doors"] } },
+      { id: "exterior", label: "Exterior doors (entry, side or patio)", type: "toggle", default: false, showIf: { id: "project", is: ["doors"] }, help: "Weather-stripping, sill and lockset fitting included. You buy the door or we pick one up for you." },
+      { id: "shelf_ft", label: "Width of built-ins", type: "number", min: 2, max: 60, default: 8, unit: "ft", showIf: { id: "project", is: ["builtins"] } },
+      { id: "deck_repair_sqft", label: "Deck area to repair", type: "number", min: 10, max: 800, default: 60, unit: "sq ft", showIf: { id: "project", is: ["deck_repair"] }, help: "Boards and joists to replace. A 6 × 10 ft section is 60 sq ft." },
+      { id: "deck_sqft", label: "New deck size", type: "number", min: 40, max: 1200, default: 200, unit: "sq ft", showIf: { id: "project", is: ["deck_new"] }, help: "A 10 × 20 ft deck is 200 sq ft. New decks get a free site visit for the design, footings and permit." },
+      { id: "rail_ft", label: "Railing or stair length", type: "number", min: 3, max: 300, default: 16, unit: "ft", showIf: { id: "project", is: ["railings"] } },
+      { id: "wall_ft", label: "Wall length", type: "number", min: 4, max: 120, default: 12, unit: "ft", showIf: { id: "project", is: ["framing"] }, help: "Framing and drywall-ready. Electrical in the new wall is a separate electrician job." },
+      { id: "finish", label: "Paint or stain the new work too", type: "toggle", default: false },
+    ],
+    minimum: 250,
+    spread: [0.85, 1.3],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["carpentry"],
+    licensed: true,
+    price: (a) => {
+      const p = s(a, "project", "trim");
+      const items: LineItem[] = [];
+      let hrs = 3;
+      if (p === "trim") { const f = Math.max(10, n(a, "trim_ft", 80)); items.push({ label: `Trim & molding installed — ${f} ft`, amount: f * 9 }); hrs = 2 + f / 25; }
+      else if (p === "doors") {
+        const d = Math.max(1, n(a, "doors", 2)), ext = b(a, "exterior");
+        items.push({ label: `${ext ? "Exterior" : "Interior"} doors hung & trimmed — ${d}`, amount: d * (ext ? 525 : 275) }); hrs = d * (ext ? 4 : 2.5);
+      } else if (p === "builtins") { const f = Math.max(2, n(a, "shelf_ft", 8)); items.push({ label: `Built-in shelving & cabinetry — ${f} ft wide`, amount: f * 240 }); hrs = 6 + f * 2; }
+      else if (p === "deck_repair") { const f = Math.max(10, n(a, "deck_repair_sqft", 60)); items.push({ label: `Deck boards, joists & fasteners replaced — ${f} sq ft`, amount: 150 + f * 26 }); hrs = 3 + f / 15; }
+      else if (p === "deck_new") { const f = Math.max(40, n(a, "deck_sqft", 200)); items.push({ label: `New pressure-treated deck with railing — ${f} sq ft`, amount: 1500 + f * 48 }); hrs = 16 + f / 6; }
+      else if (p === "railings") { const f = Math.max(3, n(a, "rail_ft", 16)); items.push({ label: `Stairs & railings — ${f} ft`, amount: 150 + f * 85 }); hrs = 3 + f / 6; }
+      else { const f = Math.max(4, n(a, "wall_ft", 12)); items.push({ label: `Non-load-bearing wall framed — ${f} ft`, amount: 300 + f * 95 }); hrs = 4 + f / 3; }
+      if (b(a, "finish")) items.push({ label: "Paint or stain the new work", amount: Math.round(sum(items) * 0.2) });
+      return { items, base: sum(items), hours: Math.max(2, hrs) };
+    },
+  },
+  {
+    slug: "masonry",
+    name: "Masonry & Concrete",
+    category: "repair_remodel",
+    icon: "🧱",
+    tagline: "Brick, block, stone, chimneys, steps and concrete, repaired or replaced by a licensed mason.",
+    description: "Masonry and concrete work by a licensed contractor: tuckpointing worn mortar joints, replacing cracked or spalled brick, block and stone, chimney crowns, caps and rebuilds, brick and concrete steps, sunken slab lifting, crack sealing, and tear-out and replacement of driveways, patios and sidewalks. Mortar is color-matched to your brick. Large pours and chimney rebuilds get a free site visit for a firm price.",
+    includes: ["Licensed masonry contractor (state contractor license)", "Mortar color-matched to your brick", "Debris hauled away", "Permits pulled where required", "Contractor's written warranty", "Before & after photos"],
+    notesHint: "What's cracked, loose, leaning or sunken, where it is, rough size, the material (brick, block, stone, concrete), and whether water is getting in",
+    questions: [
+      {
+        id: "project",
+        label: "What do you need?",
+        type: "select",
+        default: "tuckpoint",
+        options: [
+          { value: "tuckpoint", label: "Tuckpointing (repoint worn mortar joints)" },
+          { value: "brick", label: "Replace cracked brick, block or stone" },
+          { value: "chimney", label: "Chimney repair (crown, cap, rebuild)" },
+          { value: "steps", label: "Brick or concrete steps" },
+          { value: "lift", label: "Lift sunken concrete slabs" },
+          { value: "cracks", label: "Seal concrete cracks" },
+          { value: "flatwork", label: "New concrete driveway, patio or sidewalk" },
+        ],
+      },
+      { id: "tuck_sqft", label: "Wall area to repoint", type: "number", min: 10, max: 3000, default: 100, unit: "sq ft", showIf: { id: "project", is: ["tuckpoint"] } },
+      { id: "brick_sqft", label: "Area of damaged brick, block or stone", type: "number", min: 5, max: 500, default: 20, unit: "sq ft", showIf: { id: "project", is: ["brick"] } },
+      { id: "crown", label: "New chimney crown (the concrete cap on top)", type: "toggle", default: true, showIf: { id: "project", is: ["chimney"] } },
+      { id: "cap", label: "Chimney cap with screen (keeps out rain and animals)", type: "toggle", default: false, showIf: { id: "project", is: ["chimney"] } },
+      { id: "rebuild_ft", label: "Feet of chimney to rebuild above the roof", type: "number", min: 0, max: 12, default: 0, unit: "ft", showIf: { id: "project", is: ["chimney"] }, help: "Only for loose or leaning brick at the top. Any rebuild gets a free site visit first." },
+      { id: "steps", label: "Steps", type: "number", min: 1, max: 15, default: 3, showIf: { id: "project", is: ["steps"] } },
+      { id: "slabs", label: "Sunken slabs to lift", type: "number", min: 1, max: 20, default: 2, showIf: { id: "project", is: ["lift"] }, help: "A slab is one section between control joints, usually about 5 × 5 ft on a sidewalk." },
+      { id: "crack_ft", label: "Cracks to seal", type: "number", min: 5, max: 600, default: 40, unit: "ft", showIf: { id: "project", is: ["cracks"] } },
+      { id: "slab_sqft", label: "Concrete area (old concrete torn out)", type: "number", min: 20, max: 4000, default: 300, unit: "sq ft", showIf: { id: "project", is: ["flatwork"] }, help: "A one-car driveway is about 10 × 40 ft (400 sq ft). Over 1,000 sq ft gets a free site visit first." },
+      { id: "sealer", label: "Seal the new concrete", type: "toggle", default: false, showIf: { id: "project", is: ["flatwork"] } },
+    ],
+    minimum: 350,
+    spread: [0.85, 1.35],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["masonry"],
+    licensed: true,
+    price: (a) => {
+      const p = s(a, "project", "tuckpoint");
+      const items: LineItem[] = [];
+      let hrs = 4;
+      if (p === "tuckpoint") { const f = Math.max(10, n(a, "tuck_sqft", 100)); items.push({ label: `Tuckpointing — ${f} sq ft`, amount: 200 + f * 14 }); hrs = 3 + f / 20; }
+      else if (p === "brick") { const f = Math.max(5, n(a, "brick_sqft", 20)); items.push({ label: `Brick, block or stone replaced — ${f} sq ft`, amount: 250 + f * 48 }); hrs = 3 + f / 4; }
+      else if (p === "chimney") {
+        items.push({ label: "Chimney setup, roof access & inspection", amount: 350 });
+        if (b(a, "crown")) items.push({ label: "New chimney crown", amount: 750 });
+        if (b(a, "cap")) items.push({ label: "Chimney cap with screen", amount: 325 });
+        const r = n(a, "rebuild_ft");
+        if (r) items.push({ label: `Chimney rebuilt above the roof — ${r} ft`, amount: r * 950 });
+        hrs = 4 + (b(a, "crown") ? 5 : 0) + r * 6;
+      } else if (p === "steps") { const k = Math.max(1, n(a, "steps", 3)); items.push({ label: `Steps rebuilt — ${k}`, amount: 400 + k * 425 }); hrs = 6 + k * 3; }
+      else if (p === "lift") { const k = Math.max(1, n(a, "slabs", 2)); items.push({ label: `Sunken slabs lifted — ${k}`, amount: 250 + k * 325 }); hrs = 2 + k; }
+      else if (p === "cracks") { const f = Math.max(5, n(a, "crack_ft", 40)); items.push({ label: `Concrete cracks sealed — ${f} ft`, amount: 175 + f * 7 }); hrs = 2 + f / 40; }
+      else {
+        const f = Math.max(20, n(a, "slab_sqft", 300));
+        items.push({ label: `Concrete torn out & poured — ${f} sq ft`, amount: 800 + f * 13 });
+        if (b(a, "sealer")) items.push({ label: `Concrete sealed — ${f} sq ft`, amount: Math.round(f * 1.5) });
+        hrs = 10 + f / 40;
+      }
+      return { items, base: sum(items), hours: Math.max(2, hrs) };
+    },
+  },
+  {
+    slug: "roofing",
+    name: "Roofing",
+    category: "repair_remodel",
+    icon: "🏠",
+    tagline: "Leaks, missing shingles, flashing and full roof replacements by a licensed roofer.",
+    description: "Roof repairs and replacements by a licensed roofer: leaks found and fixed, missing or damaged shingles replaced, chimney and wall flashing, pipe boots and vents, a full inspection with a photo report, and complete tear-off and replacement with new underlayment, ice and water shield at the edges, drip edge and ridge vents. Full replacements get a free site visit to measure the roof and confirm the decking before the firm price.",
+    includes: ["Licensed roofer (state contractor license)", "Matched shingles where possible", "Ice & water shield and drip edge on replacements", "Nails swept with a magnet, debris hauled away", "Manufacturer and workmanship warranty on replacements", "Before & after photos (from the roof)"],
+    notesHint: "Where it leaks or what's damaged, how old the roof is, the number of stories, the shingle color, and any storm or insurance claim",
+    questions: [
+      {
+        id: "project",
+        label: "What do you need?",
+        type: "select",
+        default: "leak",
+        options: [
+          { value: "leak", label: "Fix a leak" },
+          { value: "shingles", label: "Replace missing or damaged shingles" },
+          { value: "flashing", label: "Flashing, pipe boots & vents" },
+          { value: "inspection", label: "Roof inspection & photo report" },
+          { value: "replace", label: "Full roof replacement" },
+        ],
+      },
+      { id: "leaks", label: "Leaks to fix", type: "number", min: 1, max: 10, default: 1, showIf: { id: "project", is: ["leak"] } },
+      { id: "shingle_sqft", label: "Damaged area", type: "number", min: 5, max: 500, default: 40, unit: "sq ft", showIf: { id: "project", is: ["shingles"] }, help: "One shingle is about 1 × 3 ft. A torn-off patch after a storm is often 20–100 sq ft." },
+      { id: "flashing", label: "Spots to fix (chimney, wall, pipe boot or vent)", type: "number", min: 1, max: 12, default: 2, showIf: { id: "project", is: ["flashing"] } },
+      { id: "roof_sqft", label: "Roof area", type: "number", min: 600, max: 8000, default: 2000, unit: "sq ft", showIf: { id: "project", is: ["replace"] }, help: "About 1.2 × your home's footprint for a normal pitch. We measure it at the free site visit." },
+      {
+        id: "material",
+        label: "Roofing",
+        type: "select",
+        default: "architectural",
+        showIf: { id: "project", is: ["replace"] },
+        options: [
+          { value: "three_tab", label: "3-tab asphalt shingles" },
+          { value: "architectural", label: "Architectural asphalt shingles (most common)" },
+          { value: "metal", label: "Standing-seam metal" },
+        ],
+      },
+      { id: "layers", label: "Old layers to tear off", type: "number", min: 1, max: 3, default: 1, showIf: { id: "project", is: ["replace"] } },
+      { id: "steep", label: "Steep roof or 3+ stories", type: "toggle", default: false, help: "Harder to walk safely, so it takes more time and safety gear." },
+    ],
+    minimum: 350,
+    spread: [0.85, 1.3],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["roofing"],
+    licensed: true,
+    price: (a) => {
+      const p = s(a, "project", "leak");
+      const items: LineItem[] = [];
+      let hrs = 3;
+      if (p === "leak") { const k = Math.max(1, n(a, "leaks", 1)); items.push({ label: `Leak found & repaired — ${k}`, amount: 175 + k * 325 }); hrs = 2 + k * 2; }
+      else if (p === "shingles") { const f = Math.max(5, n(a, "shingle_sqft", 40)); items.push({ label: `Shingles replaced — ${f} sq ft`, amount: 250 + f * 12 }); hrs = 2 + f / 30; }
+      else if (p === "flashing") { const k = Math.max(1, n(a, "flashing", 2)); items.push({ label: `Flashing, boots & vents — ${k}`, amount: 150 + k * 275 }); hrs = 2 + k * 1.5; }
+      else if (p === "inspection") { items.push({ label: "Roof inspection & photo report", amount: 250 }); hrs = 1.5; }
+      else {
+        const f = Math.max(600, n(a, "roof_sqft", 2000));
+        const rate = ({ three_tab: 5.5, architectural: 6.5, metal: 13 } as Record<string, number>)[s(a, "material", "architectural")] ?? 6.5;
+        const mat = ({ three_tab: "3-tab shingle", architectural: "architectural shingle", metal: "standing-seam metal" } as Record<string, string>)[s(a, "material", "architectural")] ?? "architectural shingle";
+        items.push({ label: `Tear-off & new ${mat} roof — ${f} sq ft`, amount: Math.round(f * rate) });
+        const extra = Math.max(0, n(a, "layers", 1) - 1);
+        if (extra) items.push({ label: `Extra old layers torn off — ${extra}`, amount: Math.round(extra * f * 0.9) });
+        hrs = 16 + f / 60;
+      }
+      if (b(a, "steep")) items.push({ label: "Steep roof / 3+ stories — safety gear & time", amount: Math.round(sum(items) * 0.2) });
+      return { items, base: sum(items), hours: Math.max(1.5, hrs) };
+    },
+  },
+  {
     slug: "bathroom-remodel",
     name: "Bathroom Remodel",
     category: "repair_remodel",
@@ -3202,6 +3397,9 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "fire_safety", label: "Fire extinguisher service (state-certified)" },
   { id: "foundation", label: "Foundation repair (licensed)" },
   { id: "mold", label: "Mold remediation (certified)" },
+  { id: "carpentry", label: "Carpentry (licensed)" },
+  { id: "masonry", label: "Masonry & concrete (licensed)" },
+  { id: "roofing", label: "Roofing (licensed)" },
   { id: "remodel", label: "Remodeling / general contractor" },
   { id: "painting", label: "Painting (interior & exterior)" },
   { id: "plumbing", label: "Plumbing (licensed)" },

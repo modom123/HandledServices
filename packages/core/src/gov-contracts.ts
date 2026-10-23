@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-19_2330 UTC — stateWide search (one call for the whole state, filtered to our codes on our side, plus
  *           one nationwide call per remote code) so the daily search fits a 10-call key; pickBidCandidates — the day's
  *           5 best notices we can still respond to (open, biddable, 5+ days left, good fit).
+ * UPDATED : 2026-10-23_1600 UTC — roofing (238160), masonry (238140) and finish carpentry (238350) map to the new catalog services.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -40,7 +41,9 @@ export interface GovNaics {
 export const GOV_NAICS: GovNaics[] = [
   { code: "561720", title: "Janitorial services", slugs: ["house-cleaning", "window-cleaning"] },
   { code: "561730", title: "Landscaping & grounds maintenance", slugs: ["lawn-care", "leaf-removal", "tree-removal"], focus: true },
-  { code: "238160", title: "Roofing", slugs: [], subcontracted: true },
+  { code: "238160", title: "Roofing", slugs: ["roofing"] },
+  { code: "238140", title: "Masonry contractors", slugs: ["masonry"] },
+  { code: "238350", title: "Finish carpentry contractors", slugs: ["carpentry"] },
   { code: "561740", title: "Carpet & upholstery cleaning", slugs: ["carpet-cleaning"], focus: true },
   { code: "561790", title: "Other services to buildings (snow removal, power washing, gutters)", slugs: ["snow-removal", "power-washing", "gutter-cleaning"] },
   { code: "561612", title: "Security guards & patrol", slugs: ["security-guard", "event-security"] },

@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-05_1433 UTC — Security Guards & Patrol checklist (post, patrol, fire watch).
  * UPDATED : 2026-10-06_0526 UTC — Dead Animal Removal checklist.
  * UPDATED : 2026-10-12_0117 UTC — Mold removal checklist (containment, moisture source, removal, drying, clearance test).
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry & concrete and roofing checklists.
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -554,6 +555,73 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
         i("waste", "Bagged waste taken away; work area left broom-clean", "Desechos embolsados retirados; área barrida y limpia", { required: true }),
         i("advice", "Customer told how to fix the moisture source and what to rebuild (drywall, insulation)", "Se le explicó al cliente cómo corregir la humedad y qué reponer (paneles, aislamiento)", { required: true }),
         i("test", "Clearance test scheduled with the independent tester", "Prueba final programada con el evaluador independiente", { when: { q: "testing", in: ["after", "both"] }, required: true }),
+      ] },
+    ],
+  },
+  carpentry: {
+    service: "carpentry", version: 1, title: { en: "Carpentry checklist", es: "Lista de carpintería" },
+    sections: [
+      { id: "setup", en: "Before starting", es: "Antes de empezar", items: [
+        i("before", "Photos of the work area before starting", "Fotos del área de trabajo antes de empezar", { required: true, photo: true }),
+        i("protect", "Floors and furniture covered; cutting station set up outside or on a drop cloth", "Pisos y muebles cubiertos; área de corte afuera o sobre una lona", { required: true }),
+        i("measure", "Measurements and material confirmed with the customer", "Medidas y material confirmados con el cliente", { required: true }),
+        i("permit", "Deck permit posted and footings inspected before framing", "Permiso de la terraza a la vista y bases inspeccionadas antes de armar", { when: { q: "project", in: ["deck_new"] }, required: true }),
+      ] },
+      { id: "work", en: "The work", es: "El trabajo", items: [
+        i("level", "Work is level, plumb and square; doors swing and latch freely", "El trabajo está nivelado, a plomo y a escuadra; las puertas abren y cierran bien", { required: true }),
+        i("fasteners", "Exterior work uses rated fasteners and treated lumber; railings solid with no wobble", "El trabajo exterior usa fijaciones adecuadas y madera tratada; barandales firmes, sin movimiento", { when: { q: "project", in: ["deck_repair", "deck_new", "railings"] }, required: true }),
+        i("fill", "Nail holes filled and seams caulked; ready to paint", "Agujeros de clavos resanados y uniones selladas; listo para pintar", { when: { q: "project", in: ["trim", "builtins", "doors"] } }),
+        i("finish", "Paint or stain applied evenly", "Pintura o tinte aplicado de forma pareja", { when: { q: "finish", in: [true] }, required: true }),
+      ] },
+      { id: "finish", en: "Finish", es: "Terminar", items: [
+        i("after", "Photos of the finished work", "Fotos del trabajo terminado", { required: true, photo: true }),
+        i("cleanup", "Sawdust vacuumed, scraps and old material hauled away", "Aserrín aspirado, sobrantes y material viejo retirados", { required: true }),
+      ] },
+    ],
+  },
+  masonry: {
+    service: "masonry", version: 1, title: { en: "Masonry & concrete checklist", es: "Lista de albañilería y concreto" },
+    sections: [
+      { id: "setup", en: "Before starting", es: "Antes de empezar", items: [
+        i("before", "Photos of the brick, chimney or concrete before work", "Fotos del ladrillo, la chimenea o el concreto antes del trabajo", { required: true, photo: true }),
+        i("protect", "Plants, siding, windows and the driveway protected from mortar and dust", "Plantas, revestimiento, ventanas y entrada protegidos del mortero y el polvo", { required: true }),
+        i("silica", "Wet cutting or a vacuum on saws and grinders (silica dust)", "Corte en húmedo o aspiradora en sierras y esmeriles (polvo de sílice)", { required: true }),
+        i("utilities", "Utility lines marked (811) before digging or tearing out concrete", "Líneas de servicios marcadas (811) antes de excavar o retirar concreto", { when: { q: "project", in: ["flatwork", "steps"] }, required: true }),
+      ] },
+      { id: "work", en: "The work", es: "El trabajo", items: [
+        i("mortar", "Mortar color matched and joints tooled to match the existing", "Color del mortero igualado y juntas acabadas como las existentes", { when: { q: "project", in: ["tuckpoint", "brick", "chimney", "steps"] }, required: true }),
+        i("crown", "Chimney crown sloped to shed water, with a drip edge", "Corona de chimenea con pendiente para escurrir el agua, con gotero", { when: { q: "crown", in: [true] }, required: true }),
+        i("base", "Base compacted, forms set to slope away from the house, reinforcement in place", "Base compactada, cimbras con pendiente lejos de la casa, refuerzo colocado", { when: { q: "project", in: ["flatwork"] }, required: true, photo: true }),
+        i("joints", "Control joints cut; surface finished (broom finish outside)", "Juntas de control cortadas; superficie terminada (acabado de escoba afuera)", { when: { q: "project", in: ["flatwork"] }, required: true }),
+        i("lifted", "Slabs lifted level and holes patched", "Losas niveladas y agujeros resanados", { when: { q: "project", in: ["lift"] }, required: true }),
+      ] },
+      { id: "finish", en: "Finish", es: "Terminar", items: [
+        i("after", "Photos of the finished work", "Fotos del trabajo terminado", { required: true, photo: true }),
+        i("cure", "Customer told how long to stay off it and how to care for new mortar or concrete", "Se le dijo al cliente cuánto tiempo no pisarlo y cómo cuidar el mortero o concreto nuevo", { required: true }),
+        i("cleanup", "Mortar smears washed off; debris hauled away", "Manchas de mortero lavadas; escombros retirados", { required: true }),
+      ] },
+    ],
+  },
+  roofing: {
+    service: "roofing", version: 1, title: { en: "Roofing checklist", es: "Lista de techos" },
+    sections: [
+      { id: "setup", en: "Before starting", es: "Antes de empezar", items: [
+        i("before", "Photos of the roof and the damage (and inside stains) before work", "Fotos del techo y del daño (y manchas interiores) antes del trabajo", { required: true, photo: true }),
+        i("fall", "Fall protection set up (anchors, harness or guardrail) before anyone is on the roof", "Protección contra caídas instalada (anclajes, arnés o barandal) antes de subir al techo", { required: true }),
+        i("protect", "Landscaping, AC unit and windows protected; tarps down", "Jardín, unidad de aire y ventanas protegidos; lonas puestas", { required: true }),
+      ] },
+      { id: "work", en: "The work", es: "El trabajo", items: [
+        i("source", "Leak source found and shown to the customer in photos", "Origen de la gotera encontrado y mostrado al cliente en fotos", { when: { q: "project", in: ["leak"] }, required: true, photo: true }),
+        i("match", "Replacement shingles match as closely as possible; sealed down", "Tejas de reemplazo lo más parecidas posible; selladas", { when: { q: "project", in: ["shingles", "leak"] } }),
+        i("flashing", "Flashing, boots and vents sealed and water-tested", "Tapajuntas, sellos y ventilas sellados y probados con agua", { when: { q: "project", in: ["flashing", "leak"] }, required: true }),
+        i("deck", "Decking checked after tear-off; soft or rotten boards replaced (photos)", "Entablado revisado después del retiro; tablas blandas o podridas cambiadas (fotos)", { when: { q: "project", in: ["replace"] }, required: true, photo: true }),
+        i("underlay", "Ice & water shield at eaves and valleys, underlayment, drip edge and ridge vent installed", "Membrana contra hielo y agua en aleros y limahoyas, base, gotero y ventila de cumbrera instalados", { when: { q: "project", in: ["replace"] }, required: true }),
+        i("report", "Inspection report with photos of every slope sent to the customer", "Reporte de inspección con fotos de cada lado enviado al cliente", { when: { q: "project", in: ["inspection"] }, required: true }),
+      ] },
+      { id: "finish", en: "Finish", es: "Terminar", items: [
+        i("after", "Photos of the finished roof from up close", "Fotos del techo terminado de cerca", { required: true, photo: true }),
+        i("nails", "Yard and driveway swept with a magnet for nails", "Jardín y entrada barridos con imán para clavos", { required: true }),
+        i("cleanup", "Old shingles and debris hauled away; gutters cleared of grit", "Tejas viejas y escombros retirados; canaletas sin arenilla", { required: true }),
       ] },
     ],
   },

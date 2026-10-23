@@ -11,8 +11,38 @@
  * UPDATED : 2026-10-06_0637 UTC — small engine, dock & door, fire extinguisher, foundation, used oil, urgent ride lines.
  * UPDATED : 2026-10-11_0608 UTC — Spanish price-line templates for the Business & Technology services.
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal lines.
+ * UPDATED : 2026-10-23_1600 UTC — Carpentry, Masonry & Concrete and Roofing lines.
  */
 export const ES_LINES: Record<string, string> = {
+  "Trim & molding installed — {#} ft": "Molduras instaladas — {#} pies",
+  "Interior doors hung & trimmed — {#}": "Puertas interiores instaladas y con marco — {#}",
+  "Exterior doors hung & trimmed — {#}": "Puertas exteriores instaladas y con marco — {#}",
+  "Built-in shelving & cabinetry — {#} ft wide": "Repisas y gabinetes empotrados — {#} pies de ancho",
+  "Deck boards, joists & fasteners replaced — {#} sq ft": "Tablas, vigas y fijaciones de terraza reemplazadas — {#} pies cuadrados",
+  "New pressure-treated deck with railing — {#} sq ft": "Terraza nueva de madera tratada con barandal — {#} pies cuadrados",
+  "Stairs & railings — {#} ft": "Escaleras y barandales — {#} pies",
+  "Non-load-bearing wall framed — {#} ft": "Pared no de carga armada — {#} pies",
+  "Paint or stain the new work": "Pintar o teñir el trabajo nuevo",
+  "Tuckpointing — {#} sq ft": "Rejunteo — {#} pies cuadrados",
+  "Brick, block or stone replaced — {#} sq ft": "Ladrillo, bloque o piedra reemplazados — {#} pies cuadrados",
+  "Chimney setup, roof access & inspection": "Preparación, acceso al techo e inspección de la chimenea",
+  "New chimney crown": "Corona nueva de chimenea",
+  "Chimney cap with screen": "Tapa de chimenea con malla",
+  "Chimney rebuilt above the roof — {#} ft": "Chimenea reconstruida sobre el techo — {#} pies",
+  "Steps rebuilt — {#}": "Escalones reconstruidos — {#}",
+  "Sunken slabs lifted — {#}": "Losas hundidas levantadas — {#}",
+  "Concrete cracks sealed — {#} ft": "Grietas de concreto selladas — {#} pies",
+  "Concrete torn out & poured — {#} sq ft": "Concreto retirado y colado — {#} pies cuadrados",
+  "Concrete sealed — {#} sq ft": "Concreto sellado — {#} pies cuadrados",
+  "Leak found & repaired — {#}": "Gotera localizada y reparada — {#}",
+  "Shingles replaced — {#} sq ft": "Tejas reemplazadas — {#} pies cuadrados",
+  "Flashing, boots & vents — {#}": "Tapajuntas, sellos y ventilas — {#}",
+  "Roof inspection & photo report": "Inspección de techo con reporte de fotos",
+  "Tear-off & new {#}-tab shingle roof — {#} sq ft": "Retiro y techo nuevo de tejas de {#} lengüetas — {#} pies cuadrados",
+  "Tear-off & new architectural shingle roof — {#} sq ft": "Retiro y techo nuevo de tejas arquitectónicas — {#} pies cuadrados",
+  "Tear-off & new standing-seam metal roof — {#} sq ft": "Retiro y techo nuevo de metal de junta alzada — {#} pies cuadrados",
+  "Extra old layers torn off — {#}": "Capas viejas adicionales retiradas — {#}",
+  "Steep roof / {#}+ stories — safety gear & time": "Techo inclinado / {#}+ pisos — equipo de seguridad y tiempo",
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
   "Bar service": "Servicio de bar",
   "Basement floor & walls — {#} sq ft": "Piso y paredes del sótano — {#} pies²",

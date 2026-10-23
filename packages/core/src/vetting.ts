@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-11_0608 UTC — trade profiles for the remote specialists: web design, business formation, consulting, AI automation.
  * UPDATED : 2026-10-11_1405 UTC — freight trade (licensed motor carriers) and the cargo coverage (motor truck cargo, $100K per load).
  * UPDATED : 2026-10-12_0117 UTC — mold trade (certified remediation; no state license in MI or WA).
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry and roofing trades (state contractor license over $600 in Michigan, L&I registration in Washington; roofers need workers' comp and $2M liability).
  */
 import { BRAND } from "./brand.ts";
 
@@ -268,6 +269,27 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: "Michigan residential builder license (LARA); local permits for structural work",
     preferred: ["Manufacturer-certified installer for the pier or bracing system used"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
     skillsCheck: "LARA license lookup, a sample written estimate and warranty, photos of recent jobs, 3 homeowner references.",
+  },
+  carpentry: {
+    does: "Finish and rough carpentry: trim and molding, doors, built-ins, deck repairs and new decks, stairs and railings, and non-load-bearing framing.",
+    specialties: [{ id: "trim", label: "Trim & molding", slug: "carpentry" }, { id: "doors", label: "Doors" }, { id: "builtins", label: "Built-ins & closets" }, { id: "decks", label: "Decks & porches" }, { id: "stairs", label: "Stairs & railings" }],
+    license: "Michigan Maintenance & Alteration Contractor license (carpentry) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration",
+    preferred: ["EPA RRP lead-safe certification (required for pre-1978 homes)"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "License lookup on LARA (or L&I in Washington), photos of 5 recent jobs (trim, doors or decks), 2 client references.",
+  },
+  masonry: {
+    does: "Masonry and concrete: tuckpointing, brick, block and stone repair, chimney crowns, caps and rebuilds, steps, slab lifting, crack sealing, and driveways, patios and sidewalks.",
+    specialties: [{ id: "tuckpoint", label: "Tuckpointing & brick repair", slug: "masonry" }, { id: "chimney", label: "Chimneys" }, { id: "steps", label: "Steps & stoops" }, { id: "flatwork", label: "Driveways, patios & sidewalks" }, { id: "lifting", label: "Slab lifting (mudjacking / foam)" }],
+    license: "Michigan Maintenance & Alteration Contractor license (masonry or concrete) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration",
+    preferred: ["Silica dust control plan (OSHA 1926.1153)", "CSIA certification for chimney work"], glMin: GL1, requires: ["auto"], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "License lookup on LARA (or L&I in Washington), photos of 5 recent jobs (brick, chimney or concrete), 3 client references.",
+  },
+  roofing: {
+    does: "Roof leak repairs, shingle replacement, flashing, pipe boots and vents, inspections, and full tear-off and replacement.",
+    specialties: [{ id: "repair", label: "Leaks & shingle repair", slug: "roofing" }, { id: "flashing", label: "Flashing & vents" }, { id: "replace", label: "Full replacements" }, { id: "metal", label: "Metal roofing" }, { id: "flat", label: "Flat & low-slope roofs" }],
+    license: "Michigan Maintenance & Alteration Contractor license (roofing) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration",
+    preferred: ["Shingle manufacturer certification (GAF, Owens Corning or CertainTeed)", "OSHA fall-protection training"], glMin: GL2, requires: ["workers_comp"], conditional: [],
+    skillsCheck: "License lookup on LARA (or L&I in Washington), fall-protection plan, photos of 5 recent roofs, 3 homeowner references.",
   },
   mold: {
     does: "Mold remediation: containment with negative air, removal of moldy drywall, insulation and carpet, HEPA vacuuming, antimicrobial treatment, drying, and finding the moisture source.",

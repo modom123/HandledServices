@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-11_0608 UTC — Spanish for the Business & Technology category, its five services and the free-consultation booking text.
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
  * UPDATED : 2026-10-15_0300 UTC — the brand promise: 25% books your pro, pay the rest when it's done.
+ * UPDATED : 2026-10-23_1600 UTC — Carpentry, Masonry & Concrete and Roofing (names, taglines, repairs category blurb).
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -323,7 +324,7 @@ const ES_CATEGORY: Record<CategoryId, { name: string; short: string; blurb: stri
   outdoor: { name: "Jardín, hojas y nieve", short: "Jardín y nieve", blurb: "Corte de césped, limpieza de hojas, remoción de nieve y árboles." },
   pets: { name: "Mascotas", short: "Mascotas", blurb: "Paseo y cuidado de perros, y limpieza del patio, con personal verificado." },
   removal: { name: "Retiro, mudanzas y entregas", short: "Retiro y mudanza", blurb: "Basura fuera hoy mismo, mudanzas pequeñas, entrega de objetos grandes el mismo día, muebles de decoración, retiro de animales muertos, o un contenedor por una semana." },
-  repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
+  repair_remodel: { name: "Reparaciones, pintura y remodelación", short: "Reparaciones", blurb: "Mantenimiento, carpintería, albañilería, techos, plomería, electricidad, climatización, calentadores, pintura interior y exterior, y remodelaciones." },
   errands: { name: "Mandados y entregas", short: "Mandados", blurb: "Mensajería el mismo día, entregas médicas, tintorería, devoluciones y entregas, o un asistente por el día." },
   transport: { name: "Transporte", short: "Transporte", blurb: "Choferes privados, autos ejecutivos, aeropuerto, partidos y conciertos, limusinas, autobuses de fiesta y de turismo, y lanzaderas." },
   events: { name: "Fiestas y eventos", short: "Eventos", blurb: "Planificación, comida, food trucks, DJ, alquileres, salones y seguridad, en una sola factura." },
@@ -389,6 +390,9 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "food-truck": ["Reserva de food truck", "Tacos, barbacoa, pizza, hamburguesas o postres en su fiesta."],
   "dj-music": ["DJ y música en vivo", "DJ, animadores, bandas y dúos acústicos."],
   "security-guard": ["Guardias de seguridad y patrullaje", "Guardias con licencia para su edificio, obra o estacionamiento: puesto fijo, rondas nocturnas o vigilancia contra incendios."],
+  carpentry: ["Carpintería", "Molduras, puertas, muebles empotrados, terrazas y barandales, hechos y reparados por un carpintero con licencia."],
+  masonry: ["Albañilería y concreto", "Ladrillo, bloque, piedra, chimeneas, escalones y concreto, reparados o reemplazados por un albañil con licencia."],
+  roofing: ["Techos", "Goteras, tejas faltantes, tapajuntas y reemplazos completos de techo por un techador con licencia."],
   "mold-removal": ["Eliminación de moho", "Moho localizado, contenido y retirado por un profesional certificado en remediación, y se encuentra la humedad que lo causa."],
   "freight-delivery": ["Carga y entrega de tarimas", "Tarimas y carga con un transportista con licencia: camioneta, camión caja con plataforma elevadora o un tráiler completo de 53 pies."],
   "website-design": ["Sitios web inteligentes", "Un sitio web que trabaja por usted: atiende visitantes, capta cada cliente potencial y agenda citas, 24/7."],

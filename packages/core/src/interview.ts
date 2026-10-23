@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_0526 UTC — wildlife trade interviews with the outdoor group.
  * UPDATED : 2026-10-06_0637 UTC — new trades join their interview groups (repair; used oil with moving).
  * UPDATED : 2026-10-11_0608 UTC — "business" trade group (remote specialists) with portfolio and client-data questions.
+ * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry and roofing use the repair interview track.
  */
 import { BRAND } from "./brand.ts";
 
@@ -38,7 +39,7 @@ const GROUP_OF: Record<string, TradeGroup> = {
   cleaning: "cleaning", windows: "cleaning", carpet: "cleaning", organizing: "cleaning", auto_detailing: "cleaning",
   gutters: "outdoor", lawn: "outdoor", tree: "outdoor", snow: "outdoor", pet_waste: "outdoor", wildlife: "outdoor", pressure_washing: "outdoor",
   hauling: "moving", dumpster: "moving", waste_oil: "moving", freight: "moving",
-  handyman: "repair", remodel: "repair", low_voltage: "repair", small_engine: "repair", dock_door: "repair", foundation: "repair", mold: "repair", fire_safety: "repair",
+  handyman: "repair", remodel: "repair", low_voltage: "repair", small_engine: "repair", dock_door: "repair", foundation: "repair", mold: "repair", carpentry: "repair", masonry: "repair", roofing: "repair", fire_safety: "repair",
   painting: "painting",
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",
