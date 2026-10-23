@@ -21,9 +21,12 @@
  * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
  *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
  * UPDATED : 2026-10-23_2200 UTC — SERVICE_AGREEMENT_VERSION v9 (materials estimate and hold, approved vendors). The pro agreement is unchanged.
+ * UPDATED : 2026-10-23_2345 UTC — Handled group insurance: with the program on, every pro signs the enrollment step
+ *           (a small monthly share from payouts); for covered trades the group policy stands in for their own COI.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
+import { GROUP_INSURANCE_VERSION, groupCovers, type GroupInsurance } from "./group-insurance.ts";
 
 export const AGREEMENT_VERSION = "2026-10-v9"; // v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
@@ -87,10 +90,13 @@ export interface ComplianceInput {
   id_verified_at?: string | null;
   resume_uploaded_at?: string | null;
   photo_uploaded_at?: string | null;
+  /** Handled group insurance: when the pro signed the enrollment authorization, and which version. */
+  group_insurance_enrolled_at?: string | null;
+  group_insurance_version?: string | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
+  key: "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "group_insurance" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -112,8 +118,15 @@ export function insuranceRequired(trades: string[]): boolean {
 const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
 const valid = (d: string | null) => Boolean(d) && new Date(d!).getTime() >= Date.now() - 86400000;
 
-export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
+/**
+ * Every step a pro must finish before activation. Pass the group insurance settings (Hub → Pro Program) when the program
+ * is on: every pro then signs the enrollment, and for covered trades the group policy stands in for their own COI.
+ */
+export function onboardingChecklist(c: ComplianceInput, opts: { group?: GroupInsurance | null } = {}): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
+  const group = opts.group?.enabled ? opts.group : null;
+  const enrolled = Boolean(group && c.group_insurance_enrolled_at && c.group_insurance_version === GROUP_INSURANCE_VERSION);
+  const groupIsGl = Boolean(group && groupCovers(group, c.trades));
   const steps: Step[] = [
     { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
@@ -121,7 +134,11 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
     { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
     { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
-    insuranceRequired(c.trades)
+    ...(group ? [{ key: "group_insurance" as const, label: `Handled group insurance ($${group.monthlyFee % 1 ? group.monthlyFee.toFixed(2) : group.monthlyFee}/month)`, done: enrolled,
+      detail: enrolled ? `Enrolled ${c.group_insurance_enrolled_at!.slice(0, 10)}` : groupIsGl ? "Group general liability for your trades: no certificate of your own needed" : "Backup coverage behind your own certificate" }] : []),
+    insuranceRequired(c.trades) && enrolled && groupIsGl
+      ? { key: "coi", label: "Insurance — covered by the Handled group policy", done: true, detail: `General liability through ${group!.carrier || "the Handled group policy"}${group!.policyNumber ? ` #${group!.policyNumber}` : ""}` }
+      : insuranceRequired(c.trades)
       ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
       : { key: "coi", label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : "Not required for your work (remote work, errands, courier, assistant)" },
   ];

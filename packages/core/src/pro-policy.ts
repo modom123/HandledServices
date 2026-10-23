@@ -17,11 +17,13 @@
  * UPDATED : 2026-10-23_2200 UTC — materials: more trades (assembly, small engine, appliance, locksmith, dock doors, organizing);
  *           the cap is the materials estimate held on the customer's card; receipts from unapproved vendors go to staff;
  *           the materials card at approved vendors (materials.ts).
+ * UPDATED : 2026-10-23_2345 UTC — groupInsurance: Handled group general liability, a small monthly share from every pro.
  */
 import { CARD_FEE, money } from "./pricing.ts";
 import { PRO_TIERS, proTier, type ProTierId } from "./pro-program.ts";
 import { LATE_CANCEL_FEE } from "./compliance.ts";
 import type { Contractor } from "./types.ts";
+import { GROUP_INSURANCE_DEFAULTS, type GroupInsurance } from "./group-insurance.ts";
 
 /** Who qualifies for a benefit. Empty trades = every trade. */
 export interface QualifyRule {
@@ -40,6 +42,8 @@ export interface ProPolicy {
   /** Shopping trades (errands) buy goods for the customer: capped in dollars, not as a share of the price. */
   materials: QualifyRule & { autoApproveUpTo: number; maxShareOfPrice: number; shoppingTrades: string[]; shoppingMax: number };
   guarantee: QualifyRule & { weeklyMinimum: number; months: number[]; minAcceptance: number; minDaysAvailable: number; weeklyBudget: number };
+  /** Group general liability: every pro pays a small monthly share (group-insurance.ts). Not a QualifyRule: it's for everyone. */
+  groupInsurance: GroupInsurance;
 }
 
 const rule = (r: Partial<QualifyRule> = {}): QualifyRule => ({ enabled: true, minTier: "pro", minJobs: 0, minRating: 0, trades: [], ...r });
@@ -54,6 +58,7 @@ export const PRO_POLICY_DEFAULTS: ProPolicy = {
   },
   materials: { ...rule({ trades: ["handyman", "assembly", "plumbing", "electrical", "hvac", "low_voltage", "remodel", "gutters", "pressure_washing", "errands", "dumpster", "small_engine", "appliance", "locksmith", "dock_door", "organizing"] }), autoApproveUpTo: 75, maxShareOfPrice: 0.5, shoppingTrades: ["errands"], shoppingMax: 300 },
   guarantee: { ...rule({ enabled: false, minTier: "elite", trades: ["snow", "lawn", "cleaning"] }), weeklyMinimum: 800, months: [1, 2, 5, 6, 7, 12], minAcceptance: 0.9, minDaysAvailable: 5, weeklyBudget: 2000 },
+  groupInsurance: GROUP_INSURANCE_DEFAULTS,
 };
 
 /** Merge saved Hub settings over the defaults, one benefit and one field at a time. */

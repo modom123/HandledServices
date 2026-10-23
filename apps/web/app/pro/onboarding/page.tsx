@@ -14,15 +14,18 @@
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
+ * UPDATED : 2026-10-23_2345 UTC — Handled group insurance step (when the program is on): what it covers, the monthly fee
+ *           from payouts, sign to enroll; for covered trades it stands in for the pro's own certificate.
  */
 import { VerifyId } from "@/components/VerifyId";
-import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, groupCovers, groupEnrollmentText, money, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
 import { PRO_AGREEMENT, localized, proSigningSet } from "@/lib/contracts";
 import { Badge } from "@/components/ui";
 import { Field, StepForm } from "@/components/ProOnboarding";
+import { checklistOpts } from "@/lib/group-insurance";
 
 export default async function Onboarding() {
   const v = await getViewer();
@@ -35,13 +38,17 @@ export default async function Onboarding() {
     v.db.from("contractor_documents").select("kind, status, expires_on, created_at").order("created_at", { ascending: false }),
   ]);
   const pro = c as Contractor;
-  const partners = (await getPolicy()).insurance.partners.filter((x) => x.url || x.phone);
-  const { steps, complete } = onboardingChecklist(pro as never);
+  const policy = await getPolicy();
+  const partners = policy.insurance.partners.filter((x) => x.url || x.phone);
+  const group = policy.groupInsurance;
+  const { steps, complete } = onboardingChecklist(pro as never, await checklistOpts());
   const latest = (kind: string) => (docs ?? []).find((d: { kind: string }) => d.kind === kind) as { status: string; expires_on: string | null } | undefined;
   const pending = (kind: string) => latest(kind)?.status === "pending";
   const covLabel = (k: CoverageKey) => t(COVERAGES[k].label);
   /** Step labels and details from core are English; the dynamic ones are rebuilt here in Spanish. */
   const stepLabel = (s: { key: string; label: string }) => {
+    if (s.key === "group_insurance") return es ? `Seguro colectivo de Handled (${money(group.monthlyFee)}/mes)` : s.label;
+    if (s.key === "coi" && s.label.includes("group policy")) return es ? "Seguro: cubierto por la póliza colectiva de Handled" : s.label;
     if (!es) return s.label;
     if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)} (verificado)`;
     return t(s.label);
@@ -56,6 +63,10 @@ export default async function Onboarding() {
     if ((m = d.match(/^Current version (.+)$/))) return `Versión actual ${m[1]}`;
     if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled named as additional insured$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional`;
     if ((m = d.match(/^#(.+) · until (.+)$/))) return `#${m[1]} · hasta ${m[2]}`;
+    if ((m = d.match(/^Enrolled (.+)$/))) return `Inscrito el ${m[1]}`;
+    if (d === "Group general liability for your trades: no certificate of your own needed") return "Responsabilidad civil colectiva para sus oficios: no necesita un certificado propio";
+    if (d === "Backup coverage behind your own certificate") return "Cobertura de respaldo detrás de su propio certificado";
+    if ((m = d.match(/^General liability through (.+)$/))) return `Responsabilidad civil general con ${m[1] === "the Handled group policy" ? "la póliza colectiva de Handled" : m[1]}`;
     return t(d);
   };
   const body = (key: string) => {
@@ -110,6 +121,13 @@ export default async function Onboarding() {
       <StepForm step="photo" cta={t("Upload photo")} locale={l}>
         <Field label={t("Profile photo (JPG, PNG, WEBP or HEIC, up to 8 MB)")} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" required />
         <p className="text-xs text-ink-soft">{t("A recent, well-lit photo of just you: no sunglasses, hats or group photos.")}</p>
+      </StepForm>
+    );
+    if (key === "group_insurance") return (
+      <StepForm step="group_insurance" cta={es ? `Inscribirme (${money(group.monthlyFee)}/mes)` : `Enroll me (${money(group.monthlyFee)}/month)`} locale={l}>
+        <input type="hidden" name="agree" value="true" />
+        <ul className="list-disc space-y-1 pl-5 text-sm text-ink-soft">{groupEnrollmentText(group, groupCovers(group, pro.trades), es).map((x) => <li key={x}>{x}</li>)}</ul>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" required /> <span>{es ? "Acepto inscribirme en el seguro colectivo de Handled y autorizo la deducción mensual de mi pago." : "I enroll in Handled group insurance and authorize the monthly deduction from my payout."}</span></label>
       </StepForm>
     );
     if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{t("Certificate received — we’re verifying it.")}</p> : (

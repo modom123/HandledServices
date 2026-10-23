@@ -3,6 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_2124 UTC
  * PURPOSE : Staff: read and save the Pro Program policy — who qualifies for each benefit and its amounts.
+ * UPDATED : 2026-10-23_2345 UTC — groupInsurance (Handled group insurance: monthly fee, carrier, limits, covered trades).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -22,6 +23,8 @@ const Policy = z.object({
   materials: z.object({ ...rule, autoApproveUpTo: money(1000), maxShareOfPrice: z.number().min(0.05).max(1), shoppingTrades: z.array(z.string().max(40)).max(40), shoppingMax: money(5000) }),
   guarantee: z.object({ ...rule, weeklyMinimum: money(5000), months: z.array(z.number().int().min(1).max(12)).max(12), minAcceptance: z.number().min(0).max(1),
     minDaysAvailable: z.number().int().min(0).max(7), weeklyBudget: money(100000) }),
+  groupInsurance: z.object({ enabled: z.boolean(), monthlyFee: money(100), onlyMonthsWorked: z.boolean(), carrier: z.string().max(80), policyNumber: z.string().max(60),
+    perOccurrence: z.number().min(0).max(10_000_000), aggregate: z.number().min(0).max(20_000_000), coversTrades: z.array(z.string().max(40)).max(80) }),
 });
 
 export async function GET(req: Request) {

@@ -12,6 +12,7 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -29,6 +30,7 @@ import { listCrew } from "@/lib/crew";
 import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
+import { checklistOpts } from "@/lib/group-insurance";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -53,7 +55,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
   if (!c) notFound();
   const pro = c as Contractor;
   const sc = (card ?? {}) as Rec;
-  const { steps, complete } = onboardingChecklist(pro as never);
+  const { steps, complete } = onboardingChecklist(pro as never, await checklistOpts());
   const ytdPaid = ((payouts ?? []) as Rec[]).filter((p) => ["paid", "clawback"].includes(p.status) && (p.paid_at ?? p.created_at).startsWith(String(year))).reduce((t, p) => t + Number(p.amount), 0);
   const owed = ((payouts ?? []) as Rec[]).filter((p) => ["approved", "pending"].includes(p.status)).reduce((t, p) => t + Number(p.amount), 0)
     + ((payouts ?? []) as Rec[]).filter((p) => p.status === "clawback" && !p.paid_at).reduce((t, p) => t + Number(p.amount), 0);

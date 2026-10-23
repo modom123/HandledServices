@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-11_2242 UTC — prunes notification log rows older than 180 days.
  * UPDATED : 2026-10-18_0248 UTC — live pros missing their resume or profile photo get a reminder (lib/recruiting).
  * UPDATED : 2026-10-19_1308 UTC — renewal reminders for active pros' insurance, coverages and licenses (lib/recruiting renewalSweep).
+ * UPDATED : 2026-10-23_2345 UTC — group insurance: last month's fee charged once to every enrolled pro (taken from a payout).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -32,6 +33,7 @@ import { sendBookingFollowups, sendQuoteFollowups } from "@/lib/reminders";
 import { nudgeLowOffers } from "@/lib/market";
 import { invoiceSweep, runInvoices } from "@/lib/business";
 import { cronAuthorized } from "@/lib/cron-auth";
+import { chargeGroupInsurance } from "@/lib/group-insurance";
 
 export const maxDuration = 300;
 
@@ -72,6 +74,7 @@ export async function GET(req: Request) {
   // 5. Balances due after a deposit → charge the saved card, else payment link + alert
   const balances = await collectBalances();
   const stipends = await grantStipends();
+  const groupInsurance = await chargeGroupInsurance().catch((e) => { console.error("[group insurance]", e); return null; }); // last month's fee, once
   const recruiting = await recruitingSweep(); // setup reminders, stuck applicants, drop-offs, auto-activation
   const uploads = await uploadReminderSweep().catch((e) => { console.error("[upload reminders]", e); return null; }); // live pros missing resume / photo
   const renewals = await renewalSweep().catch((e) => { console.error("[renewals]", e); return null; }); // insurance / license expiring → remind pro, alert ops
@@ -91,5 +94,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ renewals, uploads, noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ renewals, uploads, noticesPruned, loyalty, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, groupInsurance, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

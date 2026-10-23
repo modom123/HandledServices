@@ -24,6 +24,7 @@
  *           every service that bills parts at cost allows receipts; the cap is the quote's materials estimate; with a
  *           materials hold, approved receipts are charged from it at completion (billExpense otherwise); card swipes are
  *           never reimbursed to the pro (our card paid); cancelJob lets go of the materials hold.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import "server-only";
 import {
@@ -63,7 +64,7 @@ export { PRO_POLICY_DEFAULTS };
 /** Which benefits a pro gets right now, with the reason for any they don't. */
 export async function benefitsFor(c: Contractor, policy?: ProPolicy) {
   const p = policy ?? (await getPolicy());
-  return (Object.keys(PRO_POLICY_DEFAULTS) as (keyof ProPolicy)[]).map((k) => ({ key: k, why: whyNot(p[k], c) }));
+  return (Object.keys(PRO_POLICY_DEFAULTS) as (keyof ProPolicy)[]).filter((k) => k !== "groupInsurance").map((k) => ({ key: k, why: whyNot(p[k as Exclude<keyof ProPolicy, "groupInsurance">], c) }));
 }
 
 // ─── 2. Cancellations, lockouts and show-up pay ──────────────────────────────

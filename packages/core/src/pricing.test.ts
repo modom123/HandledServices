@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-05_1443 UTC — government contracts (SAM.gov parsing, fit, search queries).
  * UPDATED : 2026-10-19_2015 UTC — government contract awards (Contract Awards API parsing, merge, recompete fit).
  * UPDATED : 2026-10-23_1100 UTC — recruiting intake (Indeed Apply, CSV import, trade detection) and consultation-only pricing.
+ * UPDATED : 2026-10-23_2345 UTC — group insurance (covered trades, enrollment step, monthly fee).
  * UPDATED : 2026-10-19_2140 UTC — subcontracting under primes (subFit, primeTargets, pitch); landscaping / painting / AI focus.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk daily picks and the state-wide SAM.gov search.
  * UPDATED : 2026-10-20_0015 UTC — Call desk queue order, outcomes and scripts.
@@ -2286,4 +2287,26 @@ test("materials: quote estimate, approved vendors, card swipes, settlement", asy
     const m = materialsEstimate(s.slug, { ...defaultAnswers(s), ...extra });
     if (m) assert.notEqual(tr("es", m.note), m.note, `Spanish for "${m.note}"`);
   }
+});
+
+test("group insurance: covered trades skip the COI, everyone signs, fee only in months worked", async () => {
+  const { GROUP_INSURANCE_DEFAULTS, GROUP_INSURANCE_VERSION, groupCovers, groupFeeDue, lastMonth, onboardingChecklist } = await import("./index.ts");
+  const g = { ...GROUP_INSURANCE_DEFAULTS, enabled: true };
+  assert.equal(groupCovers(g, ["cleaning", "lawn"]), true);
+  assert.equal(groupCovers(g, ["cleaning", "roofing"]), false); // roofing keeps its own certificate
+  assert.equal(groupCovers(g, ["web_design"]), false); // needs no insurance at all
+  const base = { status: "vetting", trades: ["cleaning"], legal_name: null, tin_last4: null, w9_received_at: null, agreement_version: null, agreement_signed_at: null, insured_until: null, license_number: null, license_expires: null, background_checked: false, payout_method: null };
+  const step = (c: object, o = {}) => onboardingChecklist(c as never, o).steps;
+  assert.equal(step(base).some((s) => s.key === "group_insurance"), false); // program off: unchanged
+  assert.equal(step(base, { group: g }).find((s) => s.key === "group_insurance")?.done, false);
+  const enrolled = { ...base, group_insurance_enrolled_at: "2026-10-01T00:00:00Z", group_insurance_version: GROUP_INSURANCE_VERSION };
+  assert.equal(step(enrolled, { group: g }).find((s) => s.key === "coi")?.done, true);
+  assert.equal(step({ ...enrolled, trades: ["roofing"] }, { group: g }).find((s) => s.key === "coi")?.done, false);
+  assert.equal(step({ ...enrolled, group_insurance_version: "old" }, { group: g }).find((s) => s.key === "coi")?.done, false);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 2, alreadyCharged: false }), 5);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 0, alreadyCharged: false }), 0);
+  assert.equal(groupFeeDue({ ...g, onlyMonthsWorked: false }, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 0, alreadyCharged: false }), 5);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-10-02", month: "2026-09", jobsPaidInMonth: 3, alreadyCharged: false }), 0);
+  assert.equal(groupFeeDue(g, { enrolledAt: "2026-09-15", month: "2026-09", jobsPaidInMonth: 3, alreadyCharged: true }), 0);
+  assert.equal(lastMonth(new Date("2026-01-01T05:00:00Z")), "2025-12");
 });

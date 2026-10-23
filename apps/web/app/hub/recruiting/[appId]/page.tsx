@@ -10,6 +10,7 @@
  *           answers, who added them, and setting their trades.
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
  * UPDATED : 2026-10-23_2300 UTC — upload or replace the résumé; Invite / Follow up / Decline at every stage before the invite.
+ * UPDATED : 2026-10-23_2345 UTC — onboarding checklist gets the group insurance settings (enrollment step when the program is on).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,6 +22,7 @@ import { InterviewDecision, Scorecard, StartInterview } from "@/components/Inter
 import { RecruitingRowActions } from "@/components/HubActions";
 import { ResumeUpload, TradesEditor } from "@/components/RecruitingIntake";
 import { signedDocUrl } from "@/lib/photos";
+import { checklistOpts } from "@/lib/group-insurance";
 
 export const dynamic = "force-dynamic";
 const days = (iso: string | null | undefined) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : null);
@@ -42,7 +44,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
   const done = ivs.find((i) => i.status === "completed");
   const check = approvalChecklist({
     applied_at: app.created_at, ai_screen: app.ai_screen, interview: latest ? { status: latest.status, result: latest.result, mode: latest.mode } : null,
-    invited_at: app.invited_at, account_linked: Boolean(pro?.profile_id), onboarding: pro ? onboardingChecklist(pro as never).steps : [], approved: pro?.status === "approved", first_job_done: Boolean(firstJob?.length),
+    invited_at: app.invited_at, account_linked: Boolean(pro?.profile_id), onboarding: pro ? onboardingChecklist(pro as never, await checklistOpts()).steps : [], approved: pro?.status === "approved", first_job_done: Boolean(firstJob?.length),
   });
   const plan = interviewPlan((app.trades as string[]) ?? []);
   const human = ivs.find((i) => i.mode === "human" && i.status === "in_progress");

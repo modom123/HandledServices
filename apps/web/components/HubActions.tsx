@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
  * UPDATED : 2026-10-23_2300 UTC — recruiting: Invite / Decline stay available while the interview is out or done, a
  *           "Follow up" email before the invite (interview link re-sent when open), and "Invite anyway" for a decline.
+ * UPDATED : 2026-10-23_2345 UTC — Pro Program form: 7 · Handled group insurance (on/off, monthly fee, carrier, limits, covered trades).
  */
 "use client";
 
@@ -468,6 +469,31 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
           return <button type="button" key={m} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set("guarantee", "months", on ? months.filter((x) => x !== i + 1) : [...months, i + 1].sort((a, b) => a - b))}>{m}</button>;
         })}</div></div>
       </>)}
+      {(() => {
+        const g = p.groupInsurance as unknown as { enabled: boolean; monthlyFee: number; onlyMonthsWorked: boolean; carrier: string; policyNumber: string; perOccurrence: number; aggregate: number; coversTrades: string[] };
+        if (!g) return null;
+        const setG = (field: string, value: unknown) => setP({ ...p, groupInsurance: { ...p.groupInsurance, [field]: value } });
+        return (
+          <div className="card space-y-3">
+            <div><div className="text-lg font-bold">7 · Handled group insurance</div><p className="text-sm text-ink-soft">One master general liability policy we buy at a group rate. Every pro signs the enrollment during sign-up and pays the monthly fee from a payout (a deduction row: never more than half a payout, never tips). For covered trades it replaces their own certificate; everyone else keeps their own and gets it as backup. Turn it on only once the policy is bound with the carrier, and fill in the carrier and policy number first. Fee or coverage changes need 30 days’ written notice to enrolled pros.</p></div>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={g.enabled} onChange={(e) => setG("enabled", e.target.checked)} disabled={!canEdit} /> Offered (sign-up step on)</label>
+              <label className="block"><span className="label">Monthly fee per pro ($)</span><input className="input" type="number" step={0.5} value={g.monthlyFee} onChange={(e) => setG("monthlyFee", Number(e.target.value))} disabled={!canEdit} /></label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={g.onlyMonthsWorked} onChange={(e) => setG("onlyMonthsWorked", e.target.checked)} disabled={!canEdit} /> Only charge months they were paid for a job</label>
+              <span />
+              <label className="block"><span className="label">Carrier</span><input className="input" value={g.carrier} onChange={(e) => setG("carrier", e.target.value)} disabled={!canEdit} /></label>
+              <label className="block"><span className="label">Policy number</span><input className="input" value={g.policyNumber} onChange={(e) => setG("policyNumber", e.target.value)} disabled={!canEdit} /></label>
+              <label className="block"><span className="label">Per occurrence ($)</span><input className="input" type="number" step={100000} value={g.perOccurrence} onChange={(e) => setG("perOccurrence", Number(e.target.value))} disabled={!canEdit} /></label>
+              <label className="block"><span className="label">Aggregate ($)</span><input className="input" type="number" step={100000} value={g.aggregate} onChange={(e) => setG("aggregate", Number(e.target.value))} disabled={!canEdit} /></label>
+              <div className="sm:col-span-4"><span className="label">Trades the policy covers as their general liability (the rest keep their own certificate)</span>
+                <div className="flex flex-wrap gap-1">{trades.map((t) => {
+                  const on = g.coversTrades.includes(t.id);
+                  return <button type="button" key={t.id} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => setG("coversTrades", on ? g.coversTrades.filter((x) => x !== t.id) : [...g.coversTrades, t.id])}>{t.label}</button>;
+                })}</div></div>
+            </div>
+          </div>
+        );
+      })()}
       {canEdit ? <button className="btn-primary" onClick={async () => { const r = await call("/api/hub/pro-program", "PUT", p); setMsg(r.ok ? "Saved — applies from now on" : r.json.error ?? "Failed"); router.refresh(); }}>Save Pro Program</button>
         : <p className="text-sm text-ink-soft">Only an admin can change these settings.</p>}
       {msg && <p className="text-sm">{msg}</p>}
