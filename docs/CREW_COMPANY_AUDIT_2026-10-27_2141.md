@@ -4,6 +4,8 @@
   CREATED : 2026-10-27_2141 UTC
   PURPOSE : Audit of how a crew company (example: "Atkins & Sons") signs up and is treated across the system, the gaps
             found, and what was fixed. Run supabase/setup/ADD_CREW_COMPANIES_2026-10-27_2141.sql once in Supabase.
+  UPDATED : 2026-10-27_2300 UTC — mobile app sign-up and office manager logins added (were "still open");
+            run supabase/setup/ADD_PRO_OFFICE_TEAM_2026-10-27_2300.sql after the crew companies SQL.
 -->
 
 # Crew companies: audit & fixes
@@ -38,10 +40,39 @@ listed as `crew_members` (lead, licensed tech, apprentice or helper), and each p
 7. Customers always saw the owner's first name, with no option to be shown as the company.
 8. The Hub only showed a crew panel once someone was listed. The recruiting page showed only the crew size.
 
-## Still open (not in this change)
+## Added 2026-10-27_2300: mobile sign-up and office manager logins
 
-- **Mobile app:** the pro application and "How you work with us" are web-only for now. Mobile already has crew management and the job picker.
-- **Office staff logins:** an office manager can't yet sign in under the company to accept offers. Today it's one login per company.
+**Mobile app sign-up** (`apps/mobile/app/apply.tsx`): the full pro application in the app, including *Who does the
+work?*, *Do you go to jobs?*, *Customers see*, crew size and the crew roster. Every "Apply / Become a pro" link in the app
+opens it instead of the website. The app's **My crew** also has *How you work with us* (owners), and the people from the
+application fill the add form in one tap.
+
+**Office manager logins** (`contractor_members`, `lib/pro-team.ts`, `/pro/team` and app → Office team):
+
+| | Owner | Office manager |
+|---|---|---|
+| Job offers: accept, pass, counter | ✓ | ✓ |
+| Calendar, days off, on call | ✓ | ✓ |
+| Jobs: start, checklist, photos, complete, expenses | ✓ | ✓ |
+| Pick who on the crew goes; add / remove crew | ✓ | ✓ |
+| Message customers | ✓ | ✓ |
+| Sign the Crew Addendum; *How you work with us* | ✓ | — |
+| Setup & documents (W-9, agreement, insurance, ID, payout) | ✓ | — |
+| Earnings, instant pay, rewards, prices | ✓ | — |
+| Deduction disputes, standing appeals, fast track, recruiting | ✓ | — |
+| Office team (invite / remove) | ✓ | — |
+
+- The owner invites by name and email (up to 5). The office manager gets a one-click sign-in link and can also sign in on
+  the app ("I'm a pro") with that email; the first sign-in claims the invite.
+- The database's `my_contractor_id()` returns the owner's company for an active office member, so every pro read rule
+  covers them. Owner-only actions are refused on the server (`ownerOnly`), not just hidden.
+- An office manager's phone location is never used for dispatch. If they delete their login, only their seat ends;
+  the company stays.
+- An email can run the office for only one company and can't be a pro account of its own.
+- Removing someone ends their access on their next request.
+
+## Still open
+
 - **Per-crew capacity:** capacity stays a single daily number the pro sets. It doesn't yet rise automatically as crew members clear their checks.
 
 ## To turn on

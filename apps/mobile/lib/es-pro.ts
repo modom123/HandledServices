@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-06_1950 UTC — standby requests and the cancel tiers.
  * UPDATED : 2026-10-06_2120 UTC — your cancellations card.
  * PURPOSE : Spanish for the pro screens of the app (offers, jobs, calendar, earnings).
+ * UPDATED : 2026-10-27_2300 UTC — How you work with us, application roster, Office team.
  */
 export const ES_PRO: Record<string, string> = {
   // Time windows
@@ -291,4 +292,33 @@ export const ES_PRO: Record<string, string> = {
   "free": "gratis",
   "excused": "excusadas",
   "Only late cancels (3) and no-shows (2) in 90 days lead to a written warning. Hand jobs back early so your backup can take them.": "Solo las cancelaciones tardías (3) y las inasistencias (2) en 90 días llevan a una advertencia por escrito. Devuelva los trabajos con tiempo para que su respaldo los tome.",
+  "Who does the work?": "¿Quién hace el trabajo?",
+  "Just me": "Solo yo",
+  "My company sends a crew": "Mi empresa envía un equipo",
+  "Do you go to jobs?": "¿Usted va a los trabajos?",
+  "I'm on every job": "Voy a todos los trabajos",
+  "Me or my crew": "Yo o mi equipo",
+  "My crew does the jobs": "Mi equipo hace los trabajos",
+  "Your crew works alongside you.": "Su equipo trabaja con usted.",
+  "You pick who goes, job by job.": "Usted elige quién va, trabajo por trabajo.",
+  "You run the office: pick a crew member for every job before it starts.": "Usted lleva la oficina: elija a alguien de su equipo para cada trabajo antes de empezar.",
+  "Customers see": "Los clientes ven",
+  "My first name": "Mi nombre de pila",
+  "My company name": "El nombre de mi empresa",
+  "How you work with us": "Cómo trabaja con nosotros",
+  "Save": "Guardar",
+  "The company owner signs the Crew Addendum before anyone can be added.": "El dueño de la empresa firma el Anexo de Equipo de Trabajo antes de agregar a alguien.",
+  "From your application": "De su solicitud",
+  "The people you listed when you applied. Tap one to fill in the form below, check the details, then add them.": "Las personas que registró al postularse. Toque una para llenar el formulario de abajo, revise los datos y agréguela.",
+  "Office team": "Equipo de oficina",
+  "Give your office manager their own login with their email. They can accept offers, run the calendar, pick who on your crew goes and message customers for your company. Money, tax, contracts, documents, prices and this team stay with you.": "Dé a su encargado(a) de oficina su propio acceso con su correo. Puede aceptar ofertas, manejar el calendario, elegir quién del equipo va y escribir a los clientes en nombre de su empresa. Dinero, impuestos, contratos, documentos, precios y este equipo quedan con usted.",
+  "Only the company owner manages the office team.": "Solo el dueño de la empresa maneja el equipo de oficina.",
+  "Who has access": "Con acceso",
+  "No one yet.": "Nadie todavía.",
+  "Last in": "Entró",
+  "Invite sent": "Invitación enviada",
+  "Remove their access? They're signed out of your company right away.": "¿Quitar su acceso? Pierde el acceso a su empresa de inmediato.",
+  "Email (they sign in with it)": "Correo (con el que inicia sesión)",
+  "Phone (optional)": "Teléfono (opcional)",
+  "Give access and send link": "Dar acceso y enviar enlace",
 };

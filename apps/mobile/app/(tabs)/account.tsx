@@ -8,6 +8,7 @@
  *           delete my account (required by the App Store and Google Play).
  * UPDATED : 2026-10-06_0645 UTC — now a tab: signed out it offers Sign in (and the language), signed in it loads with a
  *           spinner and a Try again if the connection drops; sign-out refreshes the shared session.
+ * UPDATED : 2026-10-27_2300 UTC — "Become a pro" opens the in-app application.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Share, Text, View, ScrollView } from "react-native";
@@ -73,7 +74,7 @@ export default function Account() {
       <ScrollView style={s.screen} contentContainerStyle={s.pad}>
         <Empty icon="👤" title={t("Sign in to see your account")} body={t("Track bookings, pay, rate your pro and get $25 for every friend you refer.")} action={<Button title={t("Sign in")} onPress={() => router.push("/login")} />} />
         {language}
-        <Button title={`💼 ${t("Become a pro — get prepaid jobs")}`} kind="ghost" onPress={() => Linking.openURL(`${API_URL}/pros?src=app`)} style={{ marginTop: 20 }} />
+        <Button title={`💼 ${t("Become a pro — get prepaid jobs")}`} kind="ghost" onPress={() => router.push("/apply")} style={{ marginTop: 20 }} />
       </ScrollView>
     );
   }

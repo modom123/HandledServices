@@ -13,6 +13,8 @@
  * UPDATED : 2026-10-06_2310 UTC — the code email comes from Handled (POST /api/auth/email-code: always has the code, its link works
  *           on any device); Supabase's own email is only the fallback. Code length comes from the server (6–10 digits).
  * UPDATED : 2026-10-07_0255 UTC — 60s resend; a rate limit or a code sent moments ago opens the code box instead of an error.
+ * UPDATED : 2026-10-27_2300 UTC — "Apply" opens the in-app application; office managers sign in as pros with the email the
+ *           owner invited.
  */
 import { useEffect, useRef, useState } from "react";
 import { Alert, Linking, Pressable, Text, TextInput, View } from "react-native";
@@ -78,8 +80,8 @@ export default function Login() {
     setBusy(false);
     const pro = Boolean(r.ok && r.data.user?.contractorId);
     if (who === "pro" && !pro) {
-      Alert.alert(t("No pro account for this email"), t("Apply first — your pro account opens once you're approved. Use the email from your application."), [
-        { text: t("Apply"), onPress: () => Linking.openURL(`${API_URL}/pros?src=app#apply`) }, { text: "OK" }]);
+      Alert.alert(t("No pro account for this email"), t("Apply first — your pro account opens once you're approved. Use the email from your application, or the email your company's owner gave office access to."), [
+        { text: t("Apply"), onPress: () => router.push("/apply") }, { text: "OK" }]);
       return router.replace("/");
     }
     router.replace(pro && who === "pro" ? "/work" : "/");
@@ -96,7 +98,7 @@ export default function Login() {
             <Chip label={`🏠 ${t("I book services")}`} on={who === "customer"} onPress={() => setWho("customer")} />
             <Chip label={`🧰 ${t("I'm a pro")}`} on={who === "pro"} onPress={() => setWho("pro")} />
           </View>
-          {who === "pro" ? <Text style={[s.p, { fontSize: 15, marginBottom: 8 }]}>{t("Not a pro yet?")} <Text style={{ color: C.brand, fontWeight: "700" }} onPress={() => Linking.openURL(`${API_URL}/pros?src=app#apply`)}>{t("Apply")}</Text></Text> : null}
+          {who === "pro" ? <Text style={[s.p, { fontSize: 15, marginBottom: 8 }]}>{t("Not a pro yet?")} <Text style={{ color: C.brand, fontWeight: "700" }} onPress={() => router.push("/apply")}>{t("Apply")}</Text></Text> : null}
           <Field label={t("Email")} value={email} onChangeText={(v) => { setEmail(v); if (emailErr) setEmailErr(null); }} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" autoComplete="email" returnKeyType="send" onSubmitEditing={send} error={emailErr} autoFocus />
           <Button title={t("Send code")} onPress={send} busy={busy} />
           <Text style={[s.p, { fontSize: 14, marginTop: 12 }]}>{t("Business accounts and the Handled team sign in on the website.")}</Text>

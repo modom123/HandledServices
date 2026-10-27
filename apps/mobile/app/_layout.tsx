@@ -14,6 +14,7 @@
  *           a friendly "Try again" screen (and is reported to the Hub) instead of closing the app; a build
  *           without its settings shows a setup notice instead of crashing; a tapped notification waits until
  *           navigation is ready (cold start) before opening its screen; SessionProvider.
+ * UPDATED : 2026-10-27_2300 UTC — apply (in-app pro application) and pro/team (office logins) screens.
  */
 import { useEffect, useRef } from "react";
 import { Text, View } from "react-native";
@@ -120,6 +121,8 @@ function AppStack() {
       <Stack.Screen name="pro/crew" options={{ title: t("My crew") }} />
       <Stack.Screen name="pro/fast-track" options={{ title: t("Fast track") }} />
       <Stack.Screen name="pro/rewards" options={{ title: t("Rewards") }} />
+      <Stack.Screen name="pro/team" options={{ title: t("Office team") }} />
+      <Stack.Screen name="apply" options={{ title: t("Become a pro") }} />
     </Stack>
   );
 }

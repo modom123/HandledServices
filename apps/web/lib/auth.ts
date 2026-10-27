@@ -9,6 +9,9 @@
  *           customer account / "Staff only".
  * UPDATED : 2026-10-11_0451 UTC — isAdmin() + ADMINS_ONLY: dispatchers run day-to-day operations; money, settings, marketing
  *           email and pro approvals/standing are admin-only (enforced in each /api/hub route, menu hidden in the Hub).
+ * UPDATED : 2026-10-27_2300 UTC — office managers: someone the pro owner invited (contractor_members) signs in with their own
+ *           email and acts for the company (contractorId = the company, proRole "office"). Their first sign-in claims the
+ *           invite. ownerOnly() keeps money, tax, contracts, documents, prices and the team with the owner.
  */
 import "server-only";
 import type { Role } from "@handled/core";
@@ -21,6 +24,8 @@ export interface Viewer {
   role: Role;
   fullName: string | null;
   contractorId: string | null;
+  /** owner = the pro's own login; office = an office manager the owner invited (lib/pro-team.ts). */
+  proRole: "owner" | "office" | null;
   db: Awaited<ReturnType<typeof serverClient>> | ReturnType<typeof tokenClient>;
 }
 
@@ -41,15 +46,33 @@ export async function getViewer(req?: Request): Promise<Viewer | null> {
     const { adminClient } = await import("./supabase/server");
     await adminClient().from("profiles").update({ role: "admin" }).eq("id", user.id).then(() => null, () => null);
   }
+  const office = contractor ? null : await officeCompany(user.id, user.email);
   return {
     userId: user.id,
     email: user.email ?? "",
     role,
     fullName: profile?.full_name ?? null,
-    contractorId: contractor?.id ?? null,
+    contractorId: contractor?.id ?? office ?? null,
+    proRole: contractor ? "owner" : office ? "office" : null,
     db,
   };
 }
+
+/** The pro company this person runs the office for: an active invite already claimed, or claimed now by email. */
+async function officeCompany(userId: string, email?: string | null): Promise<string | null> {
+  const { adminClient } = await import("./supabase/server");
+  const addr = (email ?? "").trim().toLowerCase();
+  const q = adminClient().from("contractor_members").select("id, contractor_id, profile_id").eq("active", true);
+  const { data, error } = await (addr && !/[,()]/.test(addr) ? q.or(`profile_id.eq.${userId},and(profile_id.is.null,email.eq.${addr})`) : q.eq("profile_id", userId)).limit(1).maybeSingle();
+  if (error || !data) return null; // includes "table not added yet"
+  const now = new Date().toISOString();
+  await adminClient().from("contractor_members").update(data.profile_id ? { last_seen_at: now } : { profile_id: userId, accepted_at: now, last_seen_at: now }).eq("id", data.id).then(() => null, () => null);
+  return data.contractor_id as string;
+}
+
+export const OFFICE_NOT_ALLOWED = "Only the company owner can do this (money, tax, contracts, documents, prices and your office team)";
+/** Office managers run jobs and the crew; the owner keeps everything else. Returns the refusal, or null. */
+export const ownerOnly = (v: Viewer | null) => (v?.proRole === "office" ? deny(403, OFFICE_NOT_ALLOWED) : null);
 
 /** Emails listed in OWNER_EMAILS (Vercel) are admins from their first sign-in. */
 export const ownerEmails = () => (process.env.OWNER_EMAILS ?? "").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);

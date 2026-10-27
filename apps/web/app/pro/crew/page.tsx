@@ -7,6 +7,7 @@
  *           people who leave. Whether the crew can be sent yet (workers' comp on file) is shown up top.
  * UPDATED : 2026-10-27_2141 UTC — "How you work with us" (just me / crew, does the owner go to jobs, what customers see),
  *           and the people listed on the application ready to add with one click.
+ * UPDATED : 2026-10-27_2300 UTC — office managers manage the crew; the Addendum and "How you work with us" are the owner's.
  */
 import Link from "next/link";
 import { crewReady, t as tr, TRADES, type Contractor, type CrewMember } from "@handled/core";
@@ -50,8 +51,10 @@ export default async function CrewPage() {
           : "Have people who work with you? List them here to send them on your company’s jobs. Each person passes the same background check you did before entering a customer’s home. Your crew works for your company: you decide who goes, and your payout covers the whole job."}</p>
       </div>
 
-      {prefs}
-      {!isCrew ? null : !pro.crew_attested_at ? (
+      {v.proRole === "owner" && prefs}
+      {!isCrew ? null : !pro.crew_attested_at && v.proRole !== "owner" ? (
+        <div className="card text-sm">{es ? "El dueño de la empresa firma el Anexo de Equipo de Trabajo antes de agregar a alguien." : "The company owner signs the Crew Addendum before anyone can be added."}</div>
+      ) : !pro.crew_attested_at ? (
         <div className="card space-y-3">
           <div className="font-semibold">{es ? "Paso 1: firme el Anexo de Equipo de Trabajo" : "Step 1: sign the Crew Addendum"}</div>
           <ul className="list-disc space-y-1 pl-5 text-sm text-ink-soft">

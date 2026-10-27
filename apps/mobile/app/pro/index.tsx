@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-06_2120 UTC — Your cancellations card (last 90 days: late, no-shows, short notice, free, excused).
  * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
+ * UPDATED : 2026-10-27_2300 UTC — Office team tool for owners; office managers see calendar and crew only.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -26,6 +27,7 @@ import { TIME_WINDOW_LABEL, getService, jobTimeZone, localDate, money, type Job 
 import { API_URL, api, supabase } from "../../lib/supabase";
 import { useLocationSharing } from "../../lib/location";
 import { useI18n } from "../../lib/i18n";
+import { useSession } from "../../lib/session";
 import { Button, C, Card, ErrorState, Status, s } from "../../components/ui";
 import { haptic } from "../../lib/haptics";
 
@@ -35,6 +37,7 @@ type Offer = { id: string; payout: number; expires_at: string; jobs: Pick<Job, "
 
 export default function ProHome() {
   const { t, locale, svc } = useI18n();
+  const { me } = useSession();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,7 +65,7 @@ export default function ProHome() {
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
   const [onCall, setOnCall] = useState<{ on: boolean; until: string | null }>({ on: false, until: null });
   const activeToday = jobs.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status));
-  useLocationSharing(onCall.on || activeToday);
+  useLocationSharing((onCall.on || activeToday) && me?.proRole !== "office"); // only the owner's phone is on the road
   async function toggleOnCall(hours = 4) {
     const r = await api<{ onCall: boolean; until: string | null; error?: string }>("/api/pro/status", { method: "POST", body: JSON.stringify({ on_call: !onCall.on, hours }) });
     if (!r.ok) { haptic("error"); return Alert.alert(t("Couldn't update"), r.data.error ?? t("Try again")); }
@@ -93,10 +96,16 @@ export default function ProHome() {
 
   const today = localDate(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone); // the phone's own zone (Pacific for Washington pros)
   const left = (iso: string) => { const sec = Math.max(0, Math.floor((new Date(iso).getTime() - now) / 1000)); return { sec, label: `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` }; };
-  const tools: { icon: string; label: string; go: () => void }[] = [
+  // office managers run the work; money, documents and contracts stay with the owner
+  const office = me?.proRole === "office";
+  const tools: { icon: string; label: string; go: () => void }[] = office ? [
+    { icon: "📅", label: t("My calendar & days off"), go: () => router.push("/pro/schedule") },
+    { icon: "👷", label: t("My crew"), go: () => router.push("/pro/crew") },
+  ] : [
     { icon: "⚡", label: t("Earnings"), go: () => router.push("/pro/earnings") },
     { icon: "📅", label: t("My calendar & days off"), go: () => router.push("/pro/schedule") },
     { icon: "👷", label: t("My crew"), go: () => router.push("/pro/crew") },
+    { icon: "🗂️", label: t("Office team"), go: () => router.push("/pro/team") },
     { icon: "🎁", label: t("Rewards"), go: () => router.push("/pro/rewards") },
     { icon: "📄", label: t("Setup & documents"), go: () => Linking.openURL(`${API_URL}/pro/onboarding`) },
     { icon: "✍️", label: t("My contracts"), go: () => Linking.openURL(`${API_URL}/pro/contracts`) },

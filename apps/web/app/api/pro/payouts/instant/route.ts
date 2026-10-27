@@ -4,8 +4,9 @@
  * CREATED : 2026-10-01_2124 UTC
  * UPDATED : 2026-10-01_2140 UTC — GET: balance, fee and eligibility (mobile app).
  * PURPOSE : Pro: cash out approved payouts now (instant pay), or start Stripe payout setup.
+ * UPDATED : 2026-10-27_2300 UTC — owner only: an office manager (lib/pro-team.ts) can't do this.
  */
-import { deny, getViewer } from "@/lib/auth";
+import { deny, getViewer, ownerOnly } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { instantPayFee, whyNot, type Contractor } from "@handled/core";
 import { availableBalance, cashOutNow, getPolicy } from "@/lib/pro-benefits";
@@ -24,6 +25,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const v = await getViewer(req);
   if (!v?.contractorId) return deny(403, "Pro account required");
+  const notOwner = ownerOnly(v);
+  if (notOwner) return notOwner;
   const { setup } = (await req.json().catch(() => ({}))) as { setup?: boolean };
   if (setup) {
     const { data: c } = await adminClient().from("contractors").select("id, email, business_name, stripe_account_id").eq("id", v.contractorId).single();

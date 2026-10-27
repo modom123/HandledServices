@@ -10,6 +10,7 @@
  *           account, sign-in, chat). Shared words live in @handled/core i18n.ts.
  * UPDATED : 2026-10-06_0645 UTC — tab bar, new Home, Bookings, sign-in, booking checks, offline and crash messages.
  * UPDATED : 2026-10-06_0708 UTC — in-app payment (Apple Pay / Google Pay) and live map strings.
+ * UPDATED : 2026-10-27_2300 UTC — in-app pro application (crew companies) and office sign-in.
  */
 export const ES_APP: Record<string, string> = {
   "What can we take off your plate?": "¿Qué pendiente le quitamos de encima?",
@@ -240,4 +241,21 @@ export const ES_APP: Record<string, string> = {
   "Couldn't start the payment. Please try again.": "No se pudo iniciar el pago. Intente de nuevo.",
   "Sign in to pay for this booking": "Inicie sesión para pagar esta reserva",
   "Nothing to pay now": "No hay nada que pagar ahora",
+  "Become a pro": "Sea profesional",
+  "Become a Handled pro": "Sea profesional de Handled",
+  "Takes 2 minutes. Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.": "Toma 2 minutos. Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.",
+  "Couldn't send": "No se pudo enviar",
+  "You already have a pro account": "Ya tiene una cuenta de profesional",
+  "We emailed you a sign-in link. Or sign in here with your email.": "Le enviamos un enlace para iniciar sesión. O inicie sesión aquí con su correo.",
+  "Done": "Listo",
+  "Once you're in, add your crew in My crew — each person gets their background check link — and give your office manager a login in Office team.": "Cuando entre, agregue a su equipo en Mi equipo (cada persona recibe su enlace de verificación de antecedentes) y dé acceso a su encargado(a) de oficina en Equipo de oficina.",
+  "By giving your mobile number, you agree to receive automated texts from Handled about your application, job offers and payouts. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out, HELP for help. We never sell your number.": "Al dar su número de celular, acepta recibir mensajes de texto automatizados de Handled sobre su solicitud, ofertas de trabajo y pagos. La frecuencia varía. Pueden aplicar tarifas de mensajes y datos. Responda STOP para cancelar o HELP para ayuda. Nunca vendemos su número.",
+  "Privacy": "Privacidad",
+  "Crew size (including you)": "Tamaño del equipo (incluyéndolo a usted)",
+  "Your crew (optional now)": "Su equipo (opcional ahora)",
+  "Email (for their background check)": "Correo (para su verificación)",
+  "License number": "Número de licencia",
+  "Add someone on your crew": "Agregar a alguien de su equipo",
+  "Your company directs and pays them and keeps their I-9s. Each person passes our background check before going to a job; we send it when you add them in My crew after you're invited. You'll need a workers' comp policy to send a crew.": "Su empresa los dirige y les paga y guarda su I-9. Cada persona pasa nuestra verificación de antecedentes antes de ir a un trabajo; la enviamos cuando los agregue en Mi equipo después de su invitación. Para enviar un equipo necesitará una póliza de seguro de accidentes laborales.",
+  "Apply first — your pro account opens once you're approved. Use the email from your application, or the email your company's owner gave office access to.": "Primero postúlese: su cuenta de profesional se abre cuando lo aprueban. Use el correo de su solicitud, o el correo al que el dueño de su empresa dio acceso de oficina.",
 };

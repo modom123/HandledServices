@@ -5,15 +5,18 @@
  * PURPOSE : Pro → My crew (app twin of the portal page). Sign the Crew Addendum, add crew (their
  *           background check link is emailed right away), see each check's status, remove people who
  *           leave, and see whether the crew can be sent yet (workers' comp on file). English / Spanish.
+ * UPDATED : 2026-10-27_2300 UTC — "How you work with us" (owners), people from the application fill the add form, and office
+ *           managers manage the crew while the owner signs the Addendum.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, RefreshControl, ScrollView, Text, View } from "react-native";
-import { CREW_ROLES, TRADES, type CrewMember, type CrewRole } from "@handled/core";
+import { ACCOUNT_TYPES, CREW_ROLES, CUSTOMER_DISPLAY, OWNER_ON_SITE, TRADES, type AccountType, type CrewMember, type CrewRole, type CustomerDisplay, type OwnerOnSite, type RosterEntry } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { useI18n } from "../../lib/i18n";
 import { Button, C, Card, Chip, Field, s } from "../../components/ui";
 
-type Data = { attested: boolean; ready: string | null; trades: string[]; crew: CrewMember[] };
+type Prefs = { account_type: AccountType; owner_on_site: OwnerOnSite; customer_display: CustomerDisplay };
+type Data = Prefs & { me: "owner" | "office" | null; attested: boolean; ready: string | null; trades: string[]; crew: CrewMember[]; fromApplication: RosterEntry[] };
 
 export const BG_LABEL: Record<CrewMember["background_status"], string> = {
   not_started: "Not started", invited: "Link sent: waiting on them", pending: "In progress", clear: "Clear: can go to jobs",
@@ -29,10 +32,11 @@ export default function Crew() {
   const [agree, setAgree] = useState(false);
   const blank = { full_name: "", email: "", phone: "", locale: locale as "en" | "es", role: "lead" as CrewRole, trades: [] as string[], years: "", license: "" };
   const [f, setF] = useState(blank);
+  const [prefs, setPrefs] = useState<Prefs | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     const r = await api<Data>("/api/pro/crew");
-    if (r.ok) { setD(r.data); setF((x) => (x.trades.length ? x : { ...x, trades: r.data.trades.slice(0, 1) })); }
+    if (r.ok) { setD(r.data); setPrefs({ account_type: r.data.account_type === "crew" || r.data.crew.length ? "crew" : "solo", owner_on_site: r.data.owner_on_site, customer_display: r.data.customer_display }); setF((x) => (x.trades.length ? x : { ...x, trades: r.data.trades.slice(0, 1) })); }
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -57,7 +61,29 @@ export default function Crew() {
       <Text style={s.h1}>{t("My crew")}</Text>
       <Text style={[s.p, { marginTop: 6 }]}>{t("Have people who work with you? List them here to send them on your company’s jobs. Each person passes the same background check you did before entering a customer’s home. Your crew works for your company: you decide who goes, and your payout covers the whole job.")}</Text>
 
-      {d && !d.attested && (
+      {d?.me === "owner" && prefs && (
+        <Card style={{ marginTop: 14 }}>
+          <Text style={s.b}>{t("How you work with us")}</Text>
+          <Text style={[s.label, { marginTop: 8 }]}>{t("Who does the work?")}</Text>
+          <View style={s.row}>{ACCOUNT_TYPES.map((o) => <Chip key={o.id} label={t(o.label)} on={prefs.account_type === o.id} onPress={() => setPrefs({ ...prefs, account_type: o.id })} />)}</View>
+          {prefs.account_type === "crew" && <>
+            <Text style={[s.label, { marginTop: 8 }]}>{t("Do you go to jobs?")}</Text>
+            <View style={s.row}>{OWNER_ON_SITE.map((o) => <Chip key={o.id} label={t(o.label)} on={prefs.owner_on_site === o.id} onPress={() => setPrefs({ ...prefs, owner_on_site: o.id })} />)}</View>
+            <Text style={[s.p, { fontSize: 14 }]}>{t(OWNER_ON_SITE.find((o) => o.id === prefs.owner_on_site)!.help)}</Text>
+          </>}
+          <Text style={[s.label, { marginTop: 8 }]}>{t("Customers see")}</Text>
+          <View style={s.row}>{CUSTOMER_DISPLAY.map((o) => <Chip key={o.id} label={t(o.label)} on={prefs.customer_display === o.id} onPress={() => setPrefs({ ...prefs, customer_display: o.id })} />)}</View>
+          <Button title={t("Save")} kind="ghost" busy={busy} style={{ marginTop: 8 }}
+            disabled={prefs.account_type === (d.account_type === "crew" || d.crew.length ? "crew" : "solo") && prefs.owner_on_site === d.owner_on_site && prefs.customer_display === d.customer_display}
+            onPress={() => post({ action: "prefs", ...prefs, owner_on_site: prefs.account_type === "solo" ? "always" : prefs.owner_on_site })} />
+        </Card>
+      )}
+
+      {d && !d.attested && d.me !== "owner" && (d.account_type === "crew") && (
+        <Card style={{ marginTop: 14 }}><Text style={s.p}>{t("The company owner signs the Crew Addendum before anyone can be added.")}</Text></Card>
+      )}
+
+      {d && !d.attested && d.me === "owner" && prefs?.account_type === "crew" && (
         <Card style={{ marginTop: 14 }}>
           <Text style={s.b}>{t("Step 1: sign the Crew Addendum")}</Text>
           {["Your crew works for your company: you direct and pay them.", "Everyone is legally allowed to work in the U.S.; your company keeps their I-9.", "Workers’ comp for your crew before any job.", "Everyone listed and background-checked.", "Licensed work only to license holders; helpers never go alone."].map((x) => <Text key={x} style={[s.p, { marginTop: 4 }]}>• {t(x)}</Text>)}
@@ -88,6 +114,12 @@ export default function Crew() {
             </Card>
           ))}
 
+          {d.fromApplication?.length > 0 && <>
+            <Text style={s.h2}>{t("From your application")}</Text>
+            <Text style={[s.p, { fontSize: 14 }]}>{t("The people you listed when you applied. Tap one to fill in the form below, check the details, then add them.")}</Text>
+            <View style={[s.row, { marginTop: 6 }]}>{d.fromApplication.map((r) => <Chip key={`${r.full_name}-${r.email ?? ""}`} label={`${r.full_name} · ${t(CREW_ROLES.find((x) => x.id === r.role)?.label ?? r.role)}`} on={f.full_name === r.full_name}
+              onPress={() => setF({ ...f, full_name: r.full_name, email: r.email ?? "", phone: r.phone ?? "", role: r.role, license: r.license_number ?? "" })} />)}</View>
+          </>}
           <Text style={s.h2}>{t("Add someone")}</Text>
           <Card>
             <Text style={[s.p, { marginBottom: 10, fontSize: 14 }]}>{t("We email them a secure link from our screening provider (Checkr) to consent. It usually takes 1–3 business days.")}</Text>

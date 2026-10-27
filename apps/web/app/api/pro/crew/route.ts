@@ -12,9 +12,10 @@
  *           customer asked for this pro (askedForYou).
  * UPDATED : 2026-10-27_2141 UTC — { action: "prefs", account_type, owner_on_site, customer_display } (how the company works
  *           with us); GET also returns those settings and the people listed on the application not yet added.
+ * UPDATED : 2026-10-27_2300 UTC — office managers can add / remove crew; signing and prefs are owner only; GET returns me.
  */
 import { z } from "zod";
-import { deny, getViewer } from "@/lib/auth";
+import { deny, getViewer, ownerOnly } from "@/lib/auth";
 import { addCrewMember, applicationRoster, listCrew, removeCrewMember, setCompanyPrefs, signCrewAddendum } from "@/lib/crew";
 import { adminClient } from "@/lib/supabase/server";
 import { crewCanTake, crewReady, type Contractor } from "@handled/core";
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, b.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   const d = b.data;
+  // the office can add and remove crew; signing the Addendum and how the company works with us are the owner's
+  if (d.action === "sign" || d.action === "prefs") { const notOwner = ownerOnly(v); if (notOwner) return notOwner; }
   const r = d.action === "sign" ? await signCrewAddendum(v.contractorId, d.signer_name, { ...requestMeta(req), locale: await getLocale() })
     : d.action === "add" ? await addCrewMember(v.contractorId, { full_name: d.full_name, email: d.email, phone: d.phone ?? null, locale: d.locale, role: d.role, trades: d.trades, years_experience: d.years_experience ?? null, license_number: d.license_number || null })
     : d.action === "prefs" ? await setCompanyPrefs(v.contractorId, { account_type: d.account_type, owner_on_site: d.owner_on_site, customer_display: d.customer_display })
@@ -58,7 +61,7 @@ export async function GET(req: Request) {
   const mine = job && job.contractor_id === v.contractorId ? job : null;
   const requested = mine ? await crewRequest(mine, v.contractorId) : null;
   return Response.json({
-    account_type: c?.account_type ?? "solo", owner_on_site: c?.owner_on_site ?? "always", customer_display: c?.customer_display ?? "person", fromApplication,
+    me: v.proRole, account_type: c?.account_type ?? "solo", owner_on_site: c?.owner_on_site ?? "always", customer_display: c?.customer_display ?? "person", fromApplication,
     attested: Boolean(c?.crew_attested_at), ready: crewReady((c ?? {}) as Pick<Contractor, "crew_attested_at" | "coverage">), trades: c?.trades ?? [], crew,
     ...(mine ? { askedForYou: mine.preferred_contractor_id === v.contractorId, requested: requested ? { id: requested.id, name: requested.name.split(" ")[0] } : null, current: mine.crew_member_id ?? null, options: crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, mine.service_slug) })) } : {}),
   });

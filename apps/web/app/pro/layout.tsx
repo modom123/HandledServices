@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-05_2034 UTC — 🤝 Talent (recruiters: Handled Talent searches).
  * UPDATED : 2026-10-07_0205 UTC — menu as dropdowns (Work · Money · Account, same component as the website); ☰ on phones.
  * UPDATED : 2026-10-20_0200 UTC — 🏷️ My prices (pros set their own price per service).
+ * UPDATED : 2026-10-27_2300 UTC — Office team (owners); office managers see the Work menu only and a banner naming the company.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -44,6 +45,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
       { href: "/pro/schedule", label: t("Calendar"), icon: "📅" },
       { href: "/pro/checklists", label: es ? "Listas" : "Checklists", icon: "✅" },
       { href: "/pro/crew", label: es ? "Mi equipo" : "My crew", icon: "👥" },
+      ...(v.proRole === "owner" ? [{ href: "/pro/team", label: es ? "Equipo de oficina" : "Office team", icon: "🗂️", hint: es ? "Acceso para su encargado de oficina" : "Logins for your office manager" }] : []),
     ] },
     { id: "money", label: es ? "Dinero" : "Money", items: [
       { href: "/pro/prices", label: es ? "Mis precios" : "My prices", icon: "🏷️", hint: es ? "Fije su propio precio" : "Set your own price" },
@@ -56,19 +58,24 @@ export default async function ProLayout({ children }: { children: React.ReactNod
       { href: "/pro/talent", label: es ? "Talento" : "Talent", icon: "🤝" },
     ] },
   ];
+  // office managers run the work; money, documents and contracts stay with the owner
+  const office = v.proRole === "office";
+  const menus = office ? groups.filter((g) => g.id === "work") : groups;
+  const company = office ? (await v.db.from("contractors").select("business_name").eq("id", v.contractorId).maybeSingle()).data?.business_name : null;
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-paper-deep/95 backdrop-blur">
         <div className="wrap flex h-16 items-center justify-between gap-3">
           <Logo />
-          <DesktopNav groups={groups} />
+          <DesktopNav groups={menus} />
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden sm:inline-flex"><LangSwitch locale={l} /></span>
             <form action="/auth/signout" method="post" className="hidden md:block"><button className="text-ink-soft hover:text-ink">{t("Sign out")}</button></form>
-            <MobileNav groups={groups} lang={<LangSwitch locale={l} />} cta={{ href: "/pro", label: t("Jobs") }} />
+            <MobileNav groups={menus} lang={<LangSwitch locale={l} />} cta={{ href: "/pro", label: t("Jobs") }} />
           </div>
         </div>
       </header>
+      {office && <div className="border-b border-line bg-brand-tint"><div className="wrap py-2 text-xs">{es ? `Usted maneja la oficina de ${company ?? "la empresa"}. Dinero, documentos, contratos y precios quedan con el dueño.` : `You're running the office for ${company ?? "the company"}. Money, documents, contracts and prices stay with the owner.`}</div></div>}
       <main className="wrap py-8">{children}</main>
     </>
   );

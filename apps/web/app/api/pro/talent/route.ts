@@ -5,9 +5,10 @@
  * PURPOSE : Recruiter portal actions (approved pros with the "recruiter" trade, on searches they're assigned to):
  *           upload a résumé, add a candidate, move them through screening, submit to the client (consent + write-up,
  *           ownership checked), withdraw, and open a résumé.
+ * UPDATED : 2026-10-27_2300 UTC — owner only: an office manager can't act as the recruiter.
  */
 import { z } from "zod";
-import { deny, getViewer } from "@/lib/auth";
+import { deny, getViewer, ownerOnly } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { addCandidate, moveStage, recruiterFor, recruiterOnSearch, resumeLink, resumeUploadUrl, submitToClient } from "@/lib/talent";
 
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
   const v = await getViewer(req);
   const rec = await recruiterFor(v?.contractorId ?? null);
   if (!v || !rec) return deny(403, "Recruiter access only — apply as a recruiter in Setup & documents");
+  const notOwner = ownerOnly(v);
+  if (notOwner) return notOwner;
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Check the form");
   const d = b.data;

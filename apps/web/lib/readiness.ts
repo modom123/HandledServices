@@ -53,6 +53,7 @@
  * UPDATED : 2026-10-21_0030 UTC — migrations from Oct 19–21 probed (one paste: RUN_ONCE_ALL_NEW_2026-10-21_0000.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
  * UPDATED : 2026-10-27_2141 UTC — migration check: crew companies.
+ * UPDATED : 2026-10-27_2300 UTC — migration check: pro office team.
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -221,6 +222,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261020010000_omnichannel", "Lead inbox & social media (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("social_posts").select("id").limit(1)],
     ["20261020020000_pro_marketplace", "pro prices & request-a-quote (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("quote_bids").select("id").limit(1)],
     ["20261027214100_crew_companies", "crew companies: solo/crew, owner on site, customer display (or run supabase/setup/ADD_CREW_COMPANIES_2026-10-27_2141.sql)", () => db.from("contractors").select("account_type, owner_on_site, customer_display, crew_license_trades").limit(1)],
+    ["20261027230000_pro_office_team", "office manager logins for pro companies (or run supabase/setup/ADD_PRO_OFFICE_TEAM_2026-10-27_2300.sql)", () => db.from("contractor_members").select("id").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

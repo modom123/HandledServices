@@ -5,9 +5,10 @@
  * PURPOSE : Pro Rewards for the signed-in pro (lib/rewards.ts).
  *             GET                                   — balance, pending, history, tier, milestones, catalog, orders
  *             POST { item_id, ship_to{name,line1,line2?,city,state,zip,phone?} } — redeem points for a reward
+ * UPDATED : 2026-10-27_2300 UTC — owner only: an office manager (lib/pro-team.ts) can't do this.
  */
 import { z } from "zod";
-import { deny, getViewer } from "@/lib/auth";
+import { deny, getViewer, ownerOnly } from "@/lib/auth";
 import { redeem, rewardsFor } from "@/lib/rewards";
 
 export async function GET(req: Request) {
@@ -22,6 +23,8 @@ const Ship = z.object({ name: z.string().trim().min(2).max(120), line1: z.string
 export async function POST(req: Request) {
   const v = await getViewer(req);
   if (!v?.contractorId) return deny(403, "Pro account required");
+  const notOwner = ownerOnly(v);
+  if (notOwner) return notOwner;
   const b = z.object({ item_id: z.string().uuid(), ship_to: Ship }).safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Add a full shipping address");
   const r = await redeem(v.contractorId, b.data.item_id, b.data.ship_to, v.fullName ?? v.email);

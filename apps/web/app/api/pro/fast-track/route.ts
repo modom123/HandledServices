@@ -5,9 +5,10 @@
  * PURPOSE : Pro applies for the proven-skill fast track. POST JSON { years, summary, references, trades[], photos[] }
  *           (photos are paths from /api/uploads).
  * UPDATED : 2026-10-03_1337 UTC — GET for the mobile app: where the pro's application stands.
+ * UPDATED : 2026-10-27_2300 UTC — owner only: an office manager (lib/pro-team.ts) can't do this.
  */
 import { z } from "zod";
-import { deny, getViewer } from "@/lib/auth";
+import { deny, getViewer, ownerOnly } from "@/lib/auth";
 import { applyFastTrack } from "@/lib/fast-track";
 import { adminClient } from "@/lib/supabase/server";
 import { proTier } from "@handled/core";
@@ -17,6 +18,8 @@ const Body = z.object({ years: z.number().int().min(0).max(70), summary: z.strin
 export async function POST(req: Request) {
   const v = await getViewer(req);
   if (!v?.contractorId) return deny(403, "Pro account required");
+  const notOwner = ownerOnly(v);
+  if (notOwner) return notOwner;
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Check the form");
   const r = await applyFastTrack(v.contractorId, b.data);

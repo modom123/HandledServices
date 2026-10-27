@@ -12,6 +12,7 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-10-27_2300 UTC — office team panel (who can sign in for the company).
  * UPDATED : 2026-10-27_2141 UTC — crew panel shows how the company works with us (owner on site, what customers see,
  *           trades licensed through the crew) and appears for every crew company, even before anyone is listed.
  */
@@ -28,6 +29,7 @@ import { MarkIdVerified } from "@/components/VerifyId";
 import { FastTrackReview } from "@/components/FastTrack";
 import { crewReady, FAST_TRACK, type CrewMember } from "@handled/core";
 import { listCrew } from "@/lib/crew";
+import { listTeam } from "@/lib/pro-team";
 import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
@@ -80,6 +82,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       <StandingPanel pro={pro as unknown as StandingPro} />
       <FastTrackPanel pro={pro as unknown as FastTrackPro} />
       <CrewPanel pro={pro} />
+      <OfficeTeamPanel pro={pro} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Our take from their work" value={money(Number(sc.take_generated ?? 0))} hint={`${money(Number(sc.take_90d ?? 0))} last 90 days · ~${money(Number(sc.take_90d ?? 0) * 4)}/yr pace`} />
@@ -153,6 +156,18 @@ async function StandingPanel({ pro }: { pro: StandingPro }) {
             <div className="mt-2"><StandingActions contractorId={pro.id} appealOpen={Boolean(st.appeal_decide_by)} /></div>
           </div>
         );
+}
+
+async function OfficeTeamPanel({ pro }: { pro: Contractor }) {
+  const team = await listTeam(pro.id);
+  if (!team.length) return null;
+  return (
+    <div className="card text-sm">
+      <div className="font-semibold">Office team ({team.length})</div>
+      <ul className="mt-1 divide-y divide-line">{team.map((m) => <li key={m.id} className="py-1">{m.full_name} · {m.email}{m.phone ? ` · ${m.phone}` : ""} · {m.accepted_at ? `last in ${(m.last_seen_at ?? m.accepted_at).slice(0, 10)}` : "invite not used yet"}</li>)}</ul>
+      <p className="mt-1 text-xs text-ink-soft">Office managers act for the company on offers, the calendar, crew and customer messages. Money, tax, contracts, documents and prices are the owner’s only.</p>
+    </div>
+  );
 }
 
 async function CrewPanel({ pro }: { pro: Contractor }) {

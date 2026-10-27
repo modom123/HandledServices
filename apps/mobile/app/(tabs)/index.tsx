@@ -11,6 +11,7 @@
  *           every service (English and Spanish), Snap / Ask actions, popular cleaning in Metro Detroit
  *           (MARKETING_FOCUS) as big tiles, and category chips that show one category at a time instead of
  *           one long list. Bookings, Pro and Account moved to the tab bar.
+ * UPDATED : 2026-10-27_2300 UTC — "Become a pro" opens the in-app application.
  */
 import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
@@ -131,7 +132,7 @@ export default function Home() {
           {SERVICES.filter((x) => x.category === picked).map((x) => <ServiceRow key={x.slug} slug={x.slug} />)}
 
           {!me?.contractorId ? (
-            <Pressable onPress={() => Linking.openURL(`${API_URL}/pros?src=app`)} accessibilityRole="link" style={{ marginTop: 18 }}>
+            <Pressable onPress={() => router.push("/apply")} accessibilityRole="link" style={{ marginTop: 18 }}>
               <Text style={[s.p, { textAlign: "center" }]}>💼 {t("Own a crew or trade?")} <Text style={{ color: C.brand, fontWeight: "700" }}>{t("Become a pro — get prepaid jobs")}</Text></Text>
             </Pressable>
           ) : null}

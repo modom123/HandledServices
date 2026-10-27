@@ -7,13 +7,15 @@
  *           even on a bad connection; refreshed on sign-in, sign-out and when the app comes back
  *           to the foreground.
  *             const { me, ready, refresh } = useSession();
+ * UPDATED : 2026-10-27_2300 UTC — Me.proRole (owner | office).
  */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, supabase } from "./supabase";
 
-export type Me = { email: string; role: string; contractorId: string | null } | null;
+/** proRole: owner of the pro company, or an office manager the owner invited (null for customers). */
+export type Me = { email: string; role: string; contractorId: string | null; proRole?: "owner" | "office" | null } | null;
 
 const KEY = "handled_me";
 const Ctx = createContext<{ me: Me; ready: boolean; refresh: () => Promise<void> }>({ me: null, ready: false, refresh: async () => {} });
