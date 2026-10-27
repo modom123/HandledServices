@@ -32,6 +32,8 @@
  * UPDATED : 2026-10-23_1030 UTC — category cards show 3 services each (uniform cards); "+ N more" opens the rest of that
  *           group in a dropdown over the page, so the cards keep their size; on
  *           phones (swipe row) it opens inside the card (native <details>, no script).
+ * UPDATED : 2026-10-27_1500 UTC — cleanup: "Why it works" for customers and pros (replaces the comparison table), a "Who we
+ *           are" strip (slogan + mission → /about); the "More from Handled" tiles are gone (the side menu has them).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -42,6 +44,8 @@ import { popularServices } from "@/lib/popular";
 import { WeBuild } from "@/components/home/WeBuild";
 import { PartnerBand } from "@/components/home/PartnerBand";
 import { HomeDoors } from "@/components/home/HomeDoors";
+import { WhyItWorks } from "@/components/home/WhyItWorks";
+import { WhoWeAre } from "@/components/home/WhoWeAre";
 
 const STEPS = [
   { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
@@ -49,13 +53,6 @@ const STEPS = [
   { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. If it isn’t right, we come back free or refund you." },
 ];
 
-const COMPARE = [
-  ["Upfront, guaranteed price", "Quotes after calls"],
-  ["One pro, not 5 sales calls", "Your number is sold as a lead"],
-  ["Pros vetted, insured & rated by us", "Varies"],
-  ["Free redo or money back", "Varies"],
-  ["One app for every home & business service", "One trade per site"],
-];
 
 
 const TRUST = [
@@ -65,12 +62,6 @@ const TRUST = [
   { icon: RotateCcw, text: `${BRAND.guaranteeDays}-day make-it-right guarantee` },
 ];
 
-const MORE = [
-  { href: "/events", icon: "🎉", title: "Parties & events", body: "Planning, catering, food trucks, DJs, rentals and the venue — or plan by budget.", cta: "Plan my event" },
-  { href: "/services?cat=transport", icon: "🚘", title: "Rides", body: "Black cars, airport rides, game day & concert rides, limos, party buses and shuttles.", cta: "Book a ride" },
-  { href: "/business", icon: "🏢", title: "For businesses", body: "Every location, one vendor, one prepaid monthly invoice.", cta: "Commercial accounts" },
-  { href: "/pros", icon: "🧰", title: "Own a crew?", body: "Prepaid jobs on your phone, weekly pay, no lead fees.", cta: "Become a pro" },
-];
 
 export async function HomeModern() {
   const l = await getLocale();
@@ -155,8 +146,8 @@ export async function HomeModern() {
         </div>
       </section>
 
-      {/* become a partner — Referral Partner Program, front and center */}
-      <PartnerBand es={es} />
+      {/* why it works: what customers get, what pros get, and the model */}
+      <WhyItWorks es={es} />
 
       {/* browse by category */}
       <section id="services" className="wrap reveal scroll-mt-24 py-16">
@@ -216,42 +207,11 @@ export async function HomeModern() {
         </div>
       </section>
 
-      {/* why us */}
-      <section className="wrap reveal py-16">
-        <div className="card overflow-hidden p-0">
-          <div className="grid md:grid-cols-[1fr_1.4fr]">
-            <div className="bg-brand-deep p-8 text-white">
-              <h2 className="text-2xl font-bold">Not a lead list. A finished job.</h2>
-              <p className="mt-3 text-sm text-white/75">
-                Lead sites sell your phone number to several contractors and leave the rest to you. {BRAND.name} owns the outcome: we price it, send the pro, check the work and stand behind it.
-              </p>
-              <Link href="/book" className="btn mt-6 bg-white text-brand-dark hover:bg-gold-light">Get my price</Link>
-            </div>
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-soft"><th className="p-4"></th><th className="p-4">Typical lead site</th><th className="p-4 text-brand">{BRAND.name}</th></tr></thead>
-              <tbody>
-                {COMPARE.map(([a, b]) => (
-                  <tr key={a} className="border-b border-line last:border-0"><td className="p-4 font-medium">{a}</td><td className="p-4 text-ink-soft">{b}</td><td className="p-4 text-brand"><Check size={18} strokeWidth={2.5} /></td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      {/* who we are: slogan, mission, link to About */}
+      <WhoWeAre es={es} />
 
-      {/* more from Handled */}
-      <section className="wrap reveal pb-14">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {MORE.map((m) => (
-            <Link key={m.href} href={m.href} className="card lift flex flex-col p-4 hover:border-gold sm:p-5">
-              <Glyph icon={m.icon} size="lg" />
-              <span className="mt-3 text-base font-bold sm:text-lg">{m.title}</span>
-              <span className="mt-1 hidden flex-1 text-sm text-ink-soft sm:block">{m.body}</span>
-              <span className="mt-4 text-sm font-semibold text-brand">{m.cta} →</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* become a partner — Referral Partner Program */}
+      <PartnerBand es={es} />
 
       {/* closing call to action */}
       <section className="wrap reveal pb-6">

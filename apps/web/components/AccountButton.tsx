@@ -8,6 +8,8 @@
  * UPDATED : 2026-10-06_0618 UTC — never takes the page down: without NEXT_PUBLIC_SUPABASE_URL / anon key (e.g. a Vercel
  *           deployment missing them) or when the session check fails, it just shows "Sign in". Before, the
  *           Supabase client threw and every public page, the home page included, showed the error screen.
+ * UPDATED : 2026-10-27_1500 UTC — `up` opens the menu upward (the side menu keeps the account button at the bottom); `block`
+ *           makes the button fill the side menu's width.
  */
 "use client";
 
@@ -17,7 +19,7 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 
 type Me = { email: string; role: string; contractorId: string | null } | null;
 
-export function AccountButton({ es }: { es: boolean }) {
+export function AccountButton({ es, up = false, block = false }: { es: boolean; up?: boolean; block?: boolean }) {
   const [me, setMe] = useState<Me | undefined>(undefined);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -43,7 +45,7 @@ export function AccountButton({ es }: { es: boolean }) {
     return () => { alive = false; sub?.unsubscribe(); document.removeEventListener("click", close); };
   }, []);
   if (me === undefined) return <span className="w-16" />;
-  if (!me) return <a href="/login" className="whitespace-nowrap text-sm font-semibold text-ink hover:text-brand">{es ? "Iniciar sesión" : "Sign in"}</a>;
+  if (!me) return <a href="/login" className={block ? "btn-ghost w-full justify-center" : "whitespace-nowrap text-sm font-semibold text-ink hover:text-brand"}>{es ? "Iniciar sesión" : "Sign in"}</a>;
   const staff = me.role === "admin" || me.role === "dispatcher";
   const main = staff ? { href: "/hub", label: "Hub" } : me.contractorId ? { href: "/pro", label: es ? "Portal pro" : "Pro portal" } : { href: "/account", label: es ? "Mi cuenta" : "My account" };
   const links = [
@@ -53,10 +55,10 @@ export function AccountButton({ es }: { es: boolean }) {
     { href: "/account/business", label: es ? "Cuenta empresarial" : "Business account" },
   ];
   return (
-    <div ref={box} className="relative">
-      <button onClick={() => setOpen(!open)} className="flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold hover:border-brand">👤 {main.label} ▾</button>
+    <div ref={box} className={`relative ${block ? "w-full" : ""}`}>
+      <button onClick={() => setOpen(!open)} className={`flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-white px-3 py-1.5 text-sm font-semibold hover:border-brand ${block ? "w-full justify-center" : ""}`}>👤 {main.label} {up ? "▴" : "▾"}</button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-56 rounded-xl border border-line bg-white p-1 text-sm shadow-lg">
+        <div className={`absolute z-50 w-56 rounded-xl border border-line bg-white p-1 text-sm shadow-lg ${up ? "bottom-full left-0 mb-2" : "right-0 mt-2"}`}>
           <div className="truncate px-3 py-2 text-xs text-ink-soft">{me.email}</div>
           {links.map((l) => <a key={l.href} href={l.href} className="block rounded-lg px-3 py-2 hover:bg-paper">{l.label}</a>)}
           <form action="/auth/signout" method="post"><button className="block w-full rounded-lg px-3 py-2 text-left text-ink-soft hover:bg-paper">{es ? "Cerrar sesión" : "Sign out"}</button></form>
