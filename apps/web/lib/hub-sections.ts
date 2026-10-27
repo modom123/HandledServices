@@ -12,6 +12,7 @@
  *           Client searches (Talent, moved from Growth), Supply gaps and Pro leads (moved from Pros), Interview packet.
  *           Tabs light up by the most specific match (activeTab), and detail pages can alias a tab. Onboarding (contracts,
  *           documents, activation) and the Contract library (moved from Settings) are part of the flow too.
+ * UPDATED : 2026-10-27_2100 UTC — Money → Jobs & payouts (/hub/money, admins): each job's split and payout, and the Monday run.
  * UPDATED : 2026-10-27_2000 UTC — FIX: tab aliases are strings, not RegExp. A RegExp can't be passed from the server layout
  *           to the client nav, so every Hub page failed to render (looked like the Hub login was broken).
  * UPDATED : 2026-10-21_0030 UTC — Lead inbox and Marketplace & quotes (Clients), Social media (Growth). The Call desk lives
@@ -78,6 +79,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/email", "Email"],
   ] },
   { id: "money", icon: "💵", label: "Money", links: [
+    ["/hub/money", "Jobs & payouts"],
     ["/hub/payments", "Payments"],
     ["/hub/finance", "Finance"],
     ["/hub/accounting", "Accounting (Xero)"],
@@ -102,7 +104,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
 ];
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
-export const ADMIN_PAGES = new Set(["/hub/finance", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup"]);
+export const ADMIN_PAGES = new Set(["/hub/money", "/hub/finance", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);
