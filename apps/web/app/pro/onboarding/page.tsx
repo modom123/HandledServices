@@ -14,9 +14,11 @@
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
+ * UPDATED : 2026-10-27_1900 UTC — "Your road to your first paycheck" (core PRO_ROADMAP): setup → documents → background →
+ *           live → offers → the job → paid every Monday, with where they are now.
  */
 import { VerifyId } from "@/components/VerifyId";
-import { BUSINESS_ENTITY_TYPES, COVERAGES, TRADE_PROFILES, TRADES, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -199,6 +201,22 @@ export default async function Onboarding() {
     return null;
   };
   const doneCount = steps.filter((s) => s.done).length;
+  const docKind = (key: string) => (key.startsWith("coverage:") ? key.slice(9) : key);
+  const left = steps.filter((s) => !s.done && !s.optional && s.key !== "background");
+  const here = roadmapStage({ live: pro.status === "approved", left: left.length, leftPending: left.filter((s) => pending(docKind(s.key))).length, backgroundDone: Boolean(pro.background_checked) });
+  const roadmap = (
+    <details className="card text-sm" open={here <= 3}>
+      <summary className="cursor-pointer font-semibold">{es ? "Su camino a su primer pago" : "Your road to your first paycheck"}</summary>
+      <ol className="mt-3 space-y-2">
+        {PRO_ROADMAP.map((x, i) => (
+          <li key={x.id} className={`flex gap-3 rounded-xl p-2 ${i === here ? "bg-brand-tint" : ""}`}>
+            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${i < here ? "bg-brand text-white" : i === here ? "border-2 border-brand text-brand" : "border border-line text-ink-soft"}`}>{i < here ? "✓" : i + 1}</span>
+            <div><div className="font-semibold">{es ? x.es : x.en}{i === here && <span className="ml-2 text-xs font-bold uppercase text-brand">{es ? "usted está aquí" : "you are here"}</span>}</div><div className="text-ink-soft">{es ? x.esDo : x.enDo}</div></div>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -207,6 +225,7 @@ export default async function Onboarding() {
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-paper-deep"><div className="h-full bg-brand transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
       {!complete && (() => { const next = steps.find((s) => !s.done && s.key !== "background"); return next ? <p className="text-sm">{es ? "Siguiente:" : "Next:"} <a href={`#step-${next.key}`} className="font-semibold text-brand underline">{stepLabel(next)}</a>. {t("Saved as you go — finish any time on your phone.")}</p> : <p className="text-sm text-ink-soft">{t("All your steps are in. We’re verifying documents and your background check; you’ll get a notification the moment you’re live.")}</p>; })()}
+      {roadmap}
       <details className="card text-sm">
         <summary className="cursor-pointer font-semibold">{t("What your trades require")}</summary>
         <div className="mt-3 space-y-3">

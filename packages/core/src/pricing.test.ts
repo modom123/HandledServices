@@ -33,6 +33,7 @@
  * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
  * UPDATED : 2026-10-12_0005 UTC — scheduling gaps (texts, calendar feed, saved homes) and pro ZIP coverage.
  * UPDATED : 2026-10-27_1600 UTC — carpentry.
+ * UPDATED : 2026-10-27_1900 UTC — pro roadmap (invite → first Monday pay).
  */
 
 import { test } from "node:test";
@@ -2287,4 +2288,17 @@ test("pro file: columns come from the onboarding checklist; optional and missing
   assert.equal(f.cells.license, "n/a");
   assert.deepEqual(f.missing, ["Résumé"]);
   assert.equal(f.pct, 88); // 7 of 8 required items present
+});
+
+test("pro roadmap: where a new pro is between invite and first Monday pay", async () => {
+  const { PRO_ROADMAP, roadmapStage, roadmapText } = await import("./recruiting-division.ts");
+  const at = (id: string) => PRO_ROADMAP.findIndex((x) => x.id === id);
+  assert.equal(roadmapStage({ live: false, left: 5, leftPending: 1, backgroundDone: false }), at("setup"));
+  assert.equal(roadmapStage({ live: false, left: 2, leftPending: 2, backgroundDone: false }), at("verify"));
+  assert.equal(roadmapStage({ live: false, left: 0, leftPending: 0, backgroundDone: false }), at("background"));
+  assert.equal(roadmapStage({ live: false, left: 0, leftPending: 0, backgroundDone: true }), at("live"));
+  assert.equal(roadmapStage({ live: true, left: 0, leftPending: 0, backgroundDone: true }), at("offers"));
+  assert.equal(PRO_ROADMAP.at(-1)!.id, "paid");
+  assert.match(roadmapText("en"), /^1\. Finish setup — /);
+  assert.match(roadmapText("es", at("offers")), /^5\. Acepte ofertas de trabajo — .*\n7\. Cobre cada lunes/s);
 });

@@ -11,11 +11,13 @@
  *           Activation goes through activatePro (logged, and the pro is told they're live). Same checklist the pro sees
  *           (core onboardingChecklist); the daily sweep sends the reminders. Contracts: Hub → Recruiting → Contracts.
  *           New hires on our own team: their employee paperwork runs in payroll, listed at the bottom.
+ * UPDATED : 2026-10-27_1900 UTC — "Add an approved pro" (after your phone interview): entered here, invited at once.
  */
 import Link from "next/link";
-import { onboardingChecklist, type Contractor } from "@handled/core";
+import { TRADES, onboardingChecklist, type Contractor } from "@handled/core";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
+import { ApproveProForm } from "@/components/RecruitingIntake";
 import { DocDecision, ProStatusControls, RecruitingRowActions } from "@/components/HubActions";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +82,10 @@ export default async function Onboarding() {
         <h1 className="text-2xl font-bold">Onboarding</h1>
         <p className="text-sm text-ink-soft">Everyone between “invited” and “live”: contracts, documents, background check and payout — the same checklist the pro sees. The AI reads every uploaded document first; a person verifies. Reminders go out automatically every day. Contract versions and who signed what: <Link href="/hub/contracts" className="font-semibold text-brand underline">Contracts</Link>.</p>
       </div>
+      <details>
+        <summary className="btn-primary inline-flex cursor-pointer list-none [&::-webkit-details-marker]:hidden">✅ Add an approved pro (after your phone interview)</summary>
+        <div className="mt-3"><ApproveProForm trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} /></div>
+      </details>
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="card"><div className="text-xs font-semibold uppercase text-ink-soft">In setup</div><div className="mt-1 text-3xl font-extrabold">{rows.length}</div></div>
         <div className="card"><div className="text-xs font-semibold uppercase text-ink-soft">Documents to verify</div><div className={`mt-1 text-3xl font-extrabold ${(docs ?? []).length ? "text-amber-700" : ""}`}>{(docs ?? []).length}</div></div>
