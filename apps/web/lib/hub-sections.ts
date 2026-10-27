@@ -12,6 +12,8 @@
  *           Client searches (Talent, moved from Growth), Supply gaps and Pro leads (moved from Pros), Interview packet.
  *           Tabs light up by the most specific match (activeTab), and detail pages can alias a tab. Onboarding (contracts,
  *           documents, activation) and the Contract library (moved from Settings) are part of the flow too.
+ * UPDATED : 2026-10-27_2000 UTC — FIX: tab aliases are strings, not RegExp. A RegExp can't be passed from the server layout
+ *           to the client nav, so every Hub page failed to render (looked like the Hub login was broken).
  * UPDATED : 2026-10-21_0030 UTC — Lead inbox and Marketplace & quotes (Clients), Social media (Growth). The Call desk lives
  *           under Business leads, Awards & recompetes under Gov contracts.
  */
@@ -24,8 +26,9 @@ export type HubSection = {
   links: readonly HubLink[];
   /** Extra URL prefixes that belong to this section (detail pages that aren't tabs). */
   also?: readonly string[];
-  /** Detail pages that should light up a given tab (e.g. a candidate page → Pipeline). */
-  alias?: readonly (readonly [RegExp, string])[];
+  /** Detail pages that should light up a given tab (e.g. a candidate page → Pipeline): [regex source, tab href]. Plain
+   *  strings, not RegExp — sections are passed from the server layout to client components and must be serializable. */
+  alias?: readonly (readonly [pattern: string, href: string])[];
 };
 
 /** Always at the top of the sidebar. */
@@ -37,7 +40,7 @@ export const HUB_TOP: readonly (readonly [href: string, icon: string, label: str
 export const HUB_SECTIONS: readonly HubSection[] = [
   // Recruiting division, top down: what we need (openings) → where they come from (Indeed first) → the pipeline → the
   // supporting engines. Fills our pro network, our own team and our clients' roles (Handled Talent).
-  { id: "recruiting", icon: "🎯", label: "Recruiting", also: ["/hub/talent"], alias: [[/^\/hub\/recruiting\/[0-9a-f-]{36}/, "/hub/recruiting/pipeline"], [/^\/hub\/talent\/[0-9a-f-]{36}/, "/hub/talent"]], links: [
+  { id: "recruiting", icon: "🎯", label: "Recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]], links: [
     ["/hub/recruiting", "Overview"],
     ["/hub/recruiting/openings", "Openings"],
     ["/hub/recruiting/indeed", "Indeed"],
@@ -111,6 +114,6 @@ export const topActive = (path: string, href: string) => (href === "/hub" ? path
 export const linkActive = (path: string, href: string) => under(path, href);
 /** The one tab to light up in a section: an alias for detail pages, else the most specific matching tab. */
 export const activeTab = (s: HubSection, path: string): string | null =>
-  s.alias?.find(([re]) => re.test(path))?.[1] ?? s.links.map(([h]) => h).filter((h) => under(path, h)).sort((a, b) => b.length - a.length)[0] ?? null;
+  s.alias?.find(([re]) => new RegExp(re).test(path))?.[1] ?? s.links.map(([h]) => h).filter((h) => under(path, h)).sort((a, b) => b.length - a.length)[0] ?? null;
 export const sectionOf = (sections: readonly HubSection[], path: string) =>
   sections.find((s) => s.links.some(([h]) => under(path, h)) || s.also?.some((p) => under(path, p)));
