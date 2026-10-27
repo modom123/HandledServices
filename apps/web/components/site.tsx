@@ -18,16 +18,18 @@
  * UPDATED : 2026-10-07_1640 UTC — footer links Terms of Use, all terms, privacy & cookies, accessibility and contact, plus the mailing address.
  * UPDATED : 2026-10-07_1945 UTC — the official logo (public/brand/handled-lockup.png) replaces the ✓ badge.
  * UPDATED : 2026-10-11_2307 UTC — For Business menu: Intelligent websites & automation (/technology).
+ * UPDATED : 2026-10-27_1500 UTC — the menu moved to a side menu (SideNav): Services, For Business, For Pros, Partners, More,
+ *           About us and Handled Network; SiteShell lays out every public page (side menu + content + footer).
  * UPDATED : 2026-10-23_1500 UTC — the header's Become a partner button opens the sign-up form (/partners#join).
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
-import { BRAND, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
+import { BRAND, BRAND_STORY, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { LangSwitch } from "./LangSwitch";
-import { DesktopNav, MobileNav, type NavGroup } from "./SiteNav";
+import { SideNav, type NavGroup } from "./SiteNav";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
@@ -45,26 +47,25 @@ export async function SiteHeader() {
   const t = (s: string) => tr(l, s);
   const groups: NavGroup[] = [
     {
-      id: "services", label: t("Services"), wide: true,
+      id: "services", label: t("Services"),
       items: CATEGORIES.map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name, icon: c.icon })),
       footer: { href: "/services", label: es ? `Ver los ${SERVICES.length} servicios →` : `See all ${SERVICES.length} services →` },
     },
     {
       id: "business", label: t("For Business"),
       items: [
-        { href: "/business", label: t("Commercial accounts"), icon: "🏢", hint: es ? "Limpieza y mantenimiento, un proveedor" : "Cleaning and facilities, one vendor" },
-        { href: "/technology", label: es ? "Sitios inteligentes y automatización" : "Intelligent websites & automation", icon: "🧠", hint: es ? "Sistemas operativos y negocios automatizados" : "Operating systems & automated businesses" },
+        { href: "/business", label: t("Commercial accounts"), icon: "🏢" },
         { href: "/business#industries", label: es ? "Industrias que atendemos" : "Who we serve", icon: "🏬" },
-        { href: "/events", label: t("Parties & events"), icon: "🎉", hint: es ? "Eventos corporativos, una factura" : "Corporate events, one invoice" },
+        { href: "/technology", label: es ? "Sitios inteligentes y automatización" : "Websites & automation", icon: "🧠" },
+        { href: "/events", label: t("Parties & events"), icon: "🎉" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
-        { href: "/partners", label: es ? "Programa de socios: gane por referir" : "Partner Program: earn on referrals", icon: "💸", hint: es ? "10% de nuestra tarifa por 12 meses" : "10% of our fee for 12 months" },
       ],
       footer: { href: "/business#quote", label: es ? "Pida una propuesta →" : "Request a proposal →" },
     },
     {
-      id: "pros", label: t("Become a Pro"),
+      id: "pros", label: es ? "Para profesionales" : "For Pros",
       items: [
-        { href: "/pros", label: es ? "Cómo funciona" : "How it works", icon: "🧰", hint: es ? "Trabajos pagados, no clientes potenciales" : "Paid jobs, not leads" },
+        { href: "/pros", label: es ? "Cómo funciona" : "How it works", icon: "🧰" },
         { href: "/pros#pay", label: es ? "Cuánto puede ganar" : "What you’d make", icon: "💵" },
         { href: "/pros#grow", label: t("Pro Rewards & tiers"), icon: "🏆" },
         { href: "/pros#requirements", label: es ? "Requisitos por oficio" : "Requirements by trade", icon: "📋" },
@@ -73,71 +74,98 @@ export async function SiteHeader() {
       footer: { href: "/pros#apply", label: es ? "Postúlese en 5 minutos →" : "Apply in 5 minutes →" },
     },
     {
+      id: "partners", label: es ? "Socios" : "Partners",
+      items: [
+        { href: "/partners", label: es ? "Cómo funciona: 10% por 12 meses" : "How it works: 10% for 12 months", icon: "💸" },
+        { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
+      ],
+      footer: { href: "/partners#join", label: es ? "Hacerme socio →" : "Become a partner →" },
+    },
+    {
       id: "more", label: es ? "Más" : "More",
       items: [
-        { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐", hint: es ? "Su portal: clientes, profesionales, socios, equipo" : "Your portal: customers, pros, partners, team" },
-        { href: "/plus", label: "Handled Plus", icon: "⭐", hint: es ? "10% de descuento en cada trabajo" : "10% off every job" },
+        { href: "/plus", label: "Handled Plus", icon: "⭐" },
         { href: "/gift-cards", label: t("Gift cards"), icon: "🎁" },
         { href: "/reviews", label: t("Customer reviews"), icon: "💬" },
-        { href: "/snap", label: es ? "Tome una foto, reciba un precio" : "Snap a photo, get a price", icon: "📸" },
+        { href: "/contact", label: es ? "Contacto" : "Contact", icon: "✉️" },
       ],
     },
   ];
-  const snap = es ? "Tome una foto y publique su trabajo" : "Snap a photo, post a job";
+  const links = [
+    { href: "/about", label: es ? "Quiénes somos" : "About us", icon: "ℹ️" },
+    { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
+  ];
   return (
-    <header className="site-header sticky top-0 z-30 border-b border-t-[3px] border-line border-t-gold bg-page/95 backdrop-blur">
-      <div className="wrap flex h-16 items-center justify-between gap-2 sm:gap-4">
-        <Logo />
-        <DesktopNav groups={groups} />
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <AccountButton es={es} />
-          <span className="hidden sm:inline-flex"><LangSwitch locale={l} /></span>
-          <Link href="/snap" title={snap} aria-label={snap} className="grid h-9 w-9 place-items-center rounded-full border border-line bg-white text-base hover:border-brand sm:h-10 sm:w-10 sm:text-lg">📸</Link>
-          <Link href="/partners#join" className="hidden whitespace-nowrap rounded-full border-2 border-gold px-4 py-1.5 text-sm font-bold text-gold-dark hover:bg-gold hover:text-white xl:inline-flex">💸 {es ? "Hágase socio" : "Become a partner"}</Link>
-          <Link href="/book" className="btn-primary whitespace-nowrap px-3.5 text-sm sm:px-5 sm:text-base">{t("Book now")}</Link>
-          <MobileNav groups={groups} lang={<LangSwitch locale={l} />} cta={{ href: "/book", label: t("Book now") }} />
-        </div>
+    <SideNav
+      groups={groups}
+      links={links}
+      primary={{ href: "/book", label: t("Book now") }}
+      secondary={{ href: "/snap", label: es ? "Foto y precio" : "Snap a photo", icon: "📸" }}
+      logo={<Logo />}
+      account={<AccountButton es={es} up block />}
+      accountBar={<span className="hidden sm:block"><AccountButton es={es} /></span>}
+      lang={<LangSwitch locale={l} />}
+      contact={BRAND.supportPhone}
+      slogan={BRAND_STORY.slogan[es ? "es" : "en"]}
+      menuLabel={es ? "Abrir menú" : "Open menu"}
+    />
+  );
+}
+
+/** Every public page: the side menu, then the page offset to its right on computers. */
+export async function SiteShell({ children, footer = true }: { children: React.ReactNode; footer?: boolean }) {
+  return (
+    <>
+      <SiteHeader />
+      <div className="lg:pl-64">
+        <main>{children}</main>
+        {footer && <SiteFooter />}
       </div>
-    </header>
+    </>
   );
 }
 
 export async function SiteFooter() {
   const l = await getLocale();
+  const es = l === "es";
+  const L = es ? "es" : "en";
   const t = (s: string) => tr(l, s);
+  const col = (title: string, items: { href: string; label: string }[]) => (
+    <div>
+      <div className="text-sm font-semibold">{title}</div>
+      <ul className="mt-3 space-y-2 text-sm text-ink-soft">{items.map((x) => <li key={x.href}><Link href={x.href} className="hover:text-ink">{x.label}</Link></li>)}</ul>
+    </div>
+  );
   return (
     <footer className="mt-24 border-t-2 border-gold/60 bg-paper-deep">
-      <div className="wrap grid gap-10 py-12 md:grid-cols-4">
+      <div className="wrap grid gap-10 py-12 md:grid-cols-5">
         <div className="md:col-span-2">
           <Logo />
-          <p className="mt-3 max-w-sm text-sm text-ink-soft">{BRAND.pitch}</p>
-          <p className="mt-4 text-xs text-ink-soft">{BRAND.partner}</p>
+          <p className="mt-3 text-lg font-bold text-brand">{BRAND_STORY.slogan[L]}</p>
+          <p className="mt-2 max-w-sm text-sm text-ink-soft">{BRAND_STORY.short[L]}</p>
+          <p className="mt-4 text-sm">{BRAND.supportPhone} · <a href={`mailto:${BRAND.supportEmail}`} className="hover:text-brand">{BRAND.supportEmail}</a></p>
+          <p className="mt-3 text-xs text-ink-soft">{BRAND.partner}</p>
         </div>
-        <div>
-          <div className="text-sm font-semibold">{t("Services")}</div>
-          <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-            {CATEGORIES.map((c) => (
-              <li key={c.id}><Link href={`/services?cat=${c.id}`} className="hover:text-ink">{c.icon} {categoryText(l, c.id, c).name}</Link></li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <div className="text-sm font-semibold">{t("Company")}</div>
-          <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-            <li><Link href="/events" className="hover:text-ink">{t("Parties & events")}</Link></li>
-            <li><Link href="/business" className="hover:text-ink">{t("Commercial accounts")}</Link></li>
-            <li><Link href="/talent" className="hover:text-ink">{t("Recruiting (Handled Talent)")}</Link></li>
-            <li><Link href="/partners" className="hover:text-ink">💸 {l === "es" ? "Programa de socios" : "Partner Program"}</Link></li>
-            <li><Link href="/plus" className="hover:text-ink">⭐ Handled Plus</Link></li>
-            <li><Link href="/gift-cards" className="hover:text-ink">🎁 {t("Gift cards")}</Link></li>
-            <li><Link href="/reviews" className="hover:text-ink">{t("Customer reviews")}</Link></li>
-            <li><Link href="/pros" className="hover:text-ink">{t("Join as a pro")}</Link></li>
-            <li><Link href="/pros#rewards" className="hover:text-ink">🏆 {t("Pro Rewards & tiers")}</Link></li>
-            <li><Link href="/hub" className="hover:text-ink">Handled Hub</Link></li>
-            <li>{BRAND.supportPhone}</li>
-            <li>{BRAND.supportEmail}</li>
-          </ul>
-        </div>
+        {col(t("Services"), [
+          ...CATEGORIES.slice(0, 6).map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name })),
+          { href: "/services", label: es ? `Los ${SERVICES.length} servicios →` : `All ${SERVICES.length} services →` },
+        ])}
+        {col(t("Company"), [
+          { href: "/about", label: es ? "Quiénes somos" : "About us" },
+          { href: "/network", label: es ? "Red Handled" : "Handled Network" },
+          { href: "/business", label: t("Commercial accounts") },
+          { href: "/events", label: t("Parties & events") },
+          { href: "/talent", label: t("Recruiting (Handled Talent)") },
+          { href: "/reviews", label: t("Customer reviews") },
+          { href: "/contact", label: es ? "Contacto" : "Contact" },
+        ])}
+        {col(es ? "Trabaje con nosotros" : "Work with us", [
+          { href: "/pros#apply", label: es ? "Hágase profesional" : "Become a pro" },
+          { href: "/pros#rewards", label: t("Pro Rewards & tiers") },
+          { href: "/partners#join", label: es ? "Hágase socio" : "Become a partner" },
+          { href: "/plus", label: "Handled Plus" },
+          { href: "/gift-cards", label: t("Gift cards") },
+        ])}
       </div>
       <div className="border-t border-line py-4 text-center text-xs text-ink-soft">
         © {new Date().getFullYear()} {BRAND.legalName}{process.env.BUSINESS_POSTAL_ADDRESS ? ` · ${process.env.BUSINESS_POSTAL_ADDRESS}` : ""}

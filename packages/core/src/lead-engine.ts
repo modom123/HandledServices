@@ -15,16 +15,23 @@
  * UPDATED : 2026-10-11_0608 UTC — remote trades: web design, business formation, consulting, AI automation.
  * UPDATED : 2026-10-11_1625 UTC — pickHunterEmail: the best outreach address from a Hunter.io domain search (owner for pros,
  *           facilities / operations / office manager for business customers; confident, own domain, never jobs/HR/billing).
+ * UPDATED : 2026-10-23_1900 UTC — search phrases and words for the new trades (roofing, masonry, concrete, demolition, furniture assembly); lawn includes landscaping.
+ * UPDATED : 2026-10-27_1600 UTC — recruiting search and wording for carpentry.
  */
 import { BRAND } from "./brand.ts";
 
 /** Google Places text-search phrase per trade ("<phrase> near <city>"). */
 export const TRADE_SEARCH: Record<string, string> = {
   cleaning: "house cleaning service", windows: "window cleaning service", carpet: "carpet cleaning", organizing: "professional organizer",
-  gutters: "gutter cleaning", lawn: "lawn care service", tree: "tree service", snow: "snow removal service", pet_waste: "pet waste removal",
+  gutters: "gutter cleaning", lawn: "lawn care and landscaping service", tree: "tree service", snow: "snow removal service", pet_waste: "pet waste removal",
   pet_care: "dog walker", pressure_washing: "pressure washing service", errands: "courier service", medical_courier: "medical courier",
   auto_detailing: "mobile car detailing", hauling: "junk removal", wildlife: "wildlife removal", waste_oil: "used oil recycling service", dumpster: "dumpster rental", handyman: "handyman",
   small_engine: "small engine repair", dock_door: "commercial overhead door repair", fire_safety: "fire extinguisher service", foundation: "foundation repair contractor", mold: "mold remediation company",
+  carpentry: "finish carpenter", roofing: "roofing contractor", masonry: "masonry contractor", concrete: "concrete contractor", demolition: "demolition contractor", assembly: "furniture assembly service",
+  fence_deck: "fence and deck contractor", siding: "siding contractor", gutter_install: "seamless gutter installer", windows_doors: "window replacement company", insulation: "insulation contractor",
+  flooring: "flooring installer", paving: "asphalt sealcoating", appliance: "appliance repair", garage_door: "garage door repair", locksmith: "locksmith", inspection: "home inspector",
+  water_damage: "water damage restoration", duct_cleaning: "air duct cleaning", chimney_sweep: "chimney sweep", irrigation: "sprinkler repair", holiday_lights: "christmas light installation",
+  pool: "pool service", pest: "pest control", nuisance_wildlife: "wildlife removal service", laundry: "wash and fold laundry service",
   remodel: "remodeling contractor", painting: "house painter", plumbing: "plumber", electrical: "electrician", hvac: "HVAC contractor",
   low_voltage: "security camera installer", transportation: "limousine service", event_planner: "event planner", catering: "caterer",
   food_truck: "food truck", dj_music: "DJ service", rentals: "party rental", venue: "event venue",
@@ -37,10 +44,15 @@ export const TRADE_SEARCH: Record<string, string> = {
 /** Plain-English trade name for the email ("house cleaning", "electrical"). */
 export const TRADE_WORD: Record<string, string> = {
   cleaning: "house cleaning", windows: "window cleaning", carpet: "carpet cleaning", organizing: "organizing", gutters: "gutter cleaning",
-  lawn: "lawn care", tree: "tree work", snow: "snow removal", pet_waste: "pet waste removal", pet_care: "dog walking and pet sitting",
+  lawn: "lawn care and landscaping", tree: "tree work", snow: "snow removal", pet_waste: "pet waste removal", pet_care: "dog walking and pet sitting",
   pressure_washing: "power washing", errands: "courier and errands", medical_courier: "medical courier", auto_detailing: "car detailing",
   hauling: "junk removal", wildlife: "dead animal removal", waste_oil: "used oil pickup", dumpster: "container rental", handyman: "handyman",
   small_engine: "small engine repair", dock_door: "dock and door service", fire_safety: "fire extinguisher service", foundation: "foundation repair", mold: "mold remediation", remodel: "remodeling", painting: "painting",
+  carpentry: "carpentry", roofing: "roofing", masonry: "masonry and brick repair", concrete: "concrete steps and patios", demolition: "demolition", assembly: "furniture assembly",
+  fence_deck: "fence and deck", siding: "siding", gutter_install: "gutter installation", windows_doors: "window and door", insulation: "insulation",
+  flooring: "flooring", paving: "sealcoating", appliance: "appliance repair", garage_door: "garage door", locksmith: "locksmith", inspection: "home inspection",
+  water_damage: "water damage", duct_cleaning: "duct cleaning", chimney_sweep: "chimney sweep", irrigation: "sprinkler", holiday_lights: "holiday lighting",
+  pool: "pool service", pest: "pest control", nuisance_wildlife: "wildlife removal", laundry: "laundry",
   plumbing: "plumbing", electrical: "electrical", hvac: "HVAC", low_voltage: "camera and low-voltage", transportation: "transportation",
   event_planner: "event planning", catering: "catering", food_truck: "food truck", dj_music: "DJ and music", rentals: "event rentals", venue: "event venue",
   security: "event security",

@@ -3,15 +3,16 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-23_1100 UTC
  * PURPOSE : Staff add candidates to the pro recruiting pipeline by hand (Hub → Recruiting → Add candidates).
- *             POST { mode: "one", full_name, email, phone?, business_name?, trades[], zips?, years_experience?, notes?, source,
+ *             POST { mode: "one", full_name, email, phone?, business_name?, trades[], specialties[], zips?, years_experience?, notes?, source,
  *                    confirm, screen }
  *             POST { mode: "csv", csv, source, confirm, screen }  — up to 500 rows (Indeed's candidate export works as-is)
  *           confirm = email them what happens next; screen = run the usual AI screen → interview / invite / ask staff.
  *           Returns what happened to each candidate (added, updated, already a pro, skipped and why).
+ * UPDATED : 2026-10-23_1900 UTC — specialties[] (skills within the picked trades), else read from the notes.
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { MAX_TRADES, TRADES, cleanPhone, inferTrades, parseCandidatesCsv, type Candidate } from "@handled/core";
+import { MAX_TRADES, TRADES, cleanPhone, inferSpecialties, inferTrades, parseCandidatesCsv, specialtiesFor, type Candidate } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { addCandidate, type AddResult } from "@/lib/recruiting-intake";
 import { onApplication } from "@/lib/recruiting";
@@ -23,6 +24,7 @@ const Body = z.discriminatedUnion("mode", [
     mode: z.literal("one"), ...Common,
     full_name: z.string().trim().min(2).max(120), email: z.string().trim().email(), phone: z.string().max(40).optional(),
     business_name: z.string().max(120).optional(), trades: z.array(z.string()).max(MAX_TRADES).default([]),
+    specialties: z.array(z.string().max(40)).max(60).default([]),
     zips: z.string().max(400).optional(), years_experience: z.coerce.number().int().min(0).max(80).optional(), notes: z.string().max(2000).optional(),
   }),
   z.object({ mode: z.literal("csv"), ...Common, csv: z.string().min(1).max(2_000_000) }),
@@ -37,9 +39,12 @@ export async function POST(req: Request) {
   const source = d.source.toLowerCase();
   let list: Candidate[], skipped: { row: number; reason: string }[] = [];
   if (d.mode === "one") {
-    const trades = d.trades.filter((t) => ids.has(t));
+    const picked = d.trades.filter((t) => ids.has(t));
+    const trades = picked.length ? picked : inferTrades(d.notes);
+    const skillIds = new Set(specialtiesFor(trades).map((s) => s.id));
+    const skills = d.specialties.filter((s) => skillIds.has(s));
     list = [{ full_name: d.full_name, email: d.email.toLowerCase(), phone: cleanPhone(d.phone ?? ""), business_name: d.business_name || undefined,
-      trades: trades.length ? trades : inferTrades(d.notes), zips: d.zips || undefined, years_experience: d.years_experience, message: d.notes || undefined, source }];
+      trades, specialties: skills.length ? skills : inferSpecialties(trades, d.notes), zips: d.zips || undefined, years_experience: d.years_experience, message: d.notes || undefined, source }];
   } else {
     ({ candidates: list, skipped } = parseCandidatesCsv(d.csv, source));
     if (list.length > 500) return deny(400, `${list.length} candidates — import up to 500 at a time`);
