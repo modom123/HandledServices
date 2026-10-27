@@ -4,18 +4,17 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-07_0315 UTC — grand opening banner (countdown) above the header.
  * UPDATED : 2026-10-07_0345 UTC — grand opening discount and banner removed (owner decision).
- * PURPOSE : Public website shell (header, footer, AI concierge bubble).
+ * PURPOSE : Public website shell (side menu, footer, AI concierge bubble).
+ * UPDATED : 2026-10-27_1500 UTC — SiteShell: side menu on the left, page and footer to its right.
  */
-import { SiteFooter, SiteHeader } from "@/components/site";
+import { SiteShell } from "@/components/site";
 import { Concierge } from "@/components/Concierge";
 import { getLocale } from "@/lib/locale";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <SiteHeader />
-      <main>{children}</main>
-      <SiteFooter />
+      <SiteShell>{children}</SiteShell>
       <Concierge locale={await getLocale()} />
     </>
   );

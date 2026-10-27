@@ -27,6 +27,7 @@
  *           site preparation & demolition (238910) added; landscaping joins 561730.
  * UPDATED : 2026-10-23_2100 UTC — codes for services 76–100: siding & gutters, flooring, insulation, fencing & paving, pest control,
  *           appliance repair, locksmiths, building inspection, water remediation; window installation now has a catalog service.
+ * UPDATED : 2026-10-27_1600 UTC — finish carpentry (238350) maps to Carpentry.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -46,6 +47,7 @@ export const GOV_NAICS: GovNaics[] = [
   { code: "561730", title: "Landscaping & grounds maintenance", slugs: ["lawn-care", "landscaping", "leaf-removal", "tree-removal"], focus: true },
   { code: "238160", title: "Roofing", slugs: ["roofing"] },
   { code: "238140", title: "Masonry", slugs: ["masonry"] },
+  { code: "238350", title: "Finish carpentry contractors", slugs: ["carpentry"] },
   { code: "238110", title: "Poured concrete (steps, walks, flatwork)", slugs: ["concrete-repair"] },
   { code: "238910", title: "Site preparation & demolition", slugs: ["demolition"] },
   { code: "238170", title: "Siding", slugs: ["siding", "gutter-install"] },

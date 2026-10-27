@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP codes to cover ("only these ZIP codes").
  * UPDATED : 2026-10-23_1900 UTC — new trades (assembly, roofing, masonry, concrete, demolition) and lawn & landscaping specialties.
  * UPDATED : 2026-10-23_2100 UTC — the 20 trades for services 76–100.
+ * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  */
 export const ES_PROS_SIGNUP: Record<string, string> = {
   // trades (TRADES)
@@ -50,6 +51,14 @@ export const ES_PROS_SIGNUP: Record<string, string> = {
   "Lawn care & landscaping": "Cuidado del césped y jardinería",
   "Furniture assembly & TV mounting": "Armado de muebles e instalación de TV",
   "Roofing (licensed)": "Techos (con licencia)",
+  "Carpentry (licensed)": "Carpintería (con licencia)",
+  "Finish carpentry: trim and molding, interior doors, built-ins and closets, stairs and railings, and non-load-bearing framing.": "Carpintería de acabado: molduras, puertas interiores, muebles empotrados y clósets, escaleras y barandales, y armado de paredes que no son de carga.",
+  "Trim & molding": "Molduras",
+  "Interior doors": "Puertas interiores",
+  "Built-ins & closets": "Muebles empotrados y clósets",
+  "Framing (non-load-bearing)": "Armado (no de carga)",
+  "Michigan Maintenance & Alteration Contractor license (carpentry) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration": "Licencia de Contratista de Mantenimiento y Alteración de Michigan (carpintería) o de Constructor Residencial (LARA), obligatoria para trabajos residenciales de más de $600; Washington: registro de contratista ante L&I",
+  "License lookup on LARA (or L&I in Washington), photos of 5 recent jobs (trim, doors or built-ins), 2 client references.": "Verificación de licencia en LARA (o L&I en Washington), fotos de 5 trabajos recientes (molduras, puertas o muebles empotrados), 2 referencias de clientes.",
   "Masonry & brick (licensed)": "Albañilería y ladrillo (con licencia)",
   "Concrete & flatwork (licensed)": "Concreto y losas (con licencia)",
   "Demolition (licensed)": "Demolición (con licencia)",

@@ -15,8 +15,27 @@
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal.
  * UPDATED : 2026-10-23_1900 UTC — landscaping, furniture assembly, roofing, masonry, concrete and demolition.
  * UPDATED : 2026-10-23_2100 UTC — services 76–100 (fences to home watch).
+ * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  */
 export const ES_CATALOG: Record<string, string> = {
+  "Licensed carpenter (state contractor license)": "Carpintero con licencia (licencia estatal de contratista)",
+  "Standard lumber, trim and fasteners included": "Madera, molduras y fijaciones estándar incluidas",
+  "Cut, fit, nail, caulk and fill — ready to paint": "Cortado, ajustado, clavado, sellado y resanado: listo para pintar",
+  "Old material hauled away": "Material viejo retirado",
+  "What you want built or fixed, rough measurements, the wood or finish you like, and anything rotten, loose or squeaky": "Qué quiere construir o reparar, medidas aproximadas, la madera o acabado que le gusta y cualquier parte podrida, floja o que rechine",
+  "Trim, baseboard & crown molding": "Molduras, zócalos y cornisas",
+  "Hang or replace interior doors": "Instalar o cambiar puertas interiores",
+  "Built-in shelving, closets & window seats": "Repisas empotradas, clósets y bancos de ventana",
+  "Stairs & railings": "Escaleras y barandales",
+  "Frame a wall or partition (not load-bearing)": "Armar una pared o división (no de carga)",
+  "Trim to install": "Molduras a instalar",
+  "Total length of baseboard, door/window casing and crown. A 12 × 12 ft room is about 48 ft of baseboard.": "Largo total de zócalos, marcos de puertas/ventanas y cornisas. Un cuarto de 12 × 12 pies lleva unos 48 pies de zócalo.",
+  "Doors": "Puertas",
+  "Width of built-ins": "Ancho de los muebles empotrados",
+  "Railing or stair length": "Largo del barandal o la escalera",
+  "Wall length": "Largo de la pared",
+  "Framing and drywall-ready. Electrical in the new wall is a separate electrician job.": "Estructura lista para paneles de yeso. La electricidad en la pared nueva es un trabajo aparte de un electricista.",
+  "Paint or stain the new work too": "También pintar o teñir el trabajo nuevo",
   "1 month": "1 mes",
   "1 story": "1 piso",
   "1 week": "1 semana",

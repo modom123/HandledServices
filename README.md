@@ -11,6 +11,7 @@
             doors, sealcoating, flooring, appliance repair, smart home & Wi-Fi, water damage, locksmith, property inspection, duct
             & dryer vent, tile & grout, trash bins, chimney sweep, sprinklers, holiday lights, pools, pest control, wildlife
             removal, laundry pickup and home watch, with none overlapping an existing service.
+  UPDATED : 2026-10-27_1600 UTC — 101 services: Carpentry (finish carpentry); side menu, About page, slogan and mission.
 -->
 
 # Handled — AI-run home & business services

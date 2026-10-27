@@ -20,6 +20,7 @@
  *           who gets a 1099-NEC (corporations are exempt); BUSINESS_ENTITY_TYPES for signing on a business's behalf.
  * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
  *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
+ * UPDATED : 2026-10-23_1600 UTC — license step lists carpentry, masonry and roofing.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -139,7 +140,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     });
   }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
   steps.push(
     { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },

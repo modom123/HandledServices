@@ -32,6 +32,7 @@
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers: pro pay unchanged at higher prices.
  * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
  * UPDATED : 2026-10-12_0005 UTC — scheduling gaps (texts, calendar feed, saved homes) and pro ZIP coverage.
+ * UPDATED : 2026-10-27_1600 UTC — carpentry.
  */
 
 import { test } from "node:test";
@@ -171,7 +172,7 @@ test("licensed work only goes to pros with a license on file", async () => {
 
 test("onboarding blocks activation until every step is done", async () => {
   const { onboardingChecklist, AGREEMENT_VERSION, LICENSED_TRADES } = await import("./compliance.ts");
-  assert.deepEqual([...LICENSED_TRADES].sort(), ["catering", "concrete", "demolition", "electrical", "fence_deck", "fire_safety", "flooring", "food_truck", "foundation", "freight", "gutter_install", "hvac", "insulation", "masonry", "medical_courier", "nuisance_wildlife", "painting", "pest", "plumbing", "remodel", "roofing", "security", "siding", "transportation", "waste_oil", "windows_doors"]);
+  assert.deepEqual([...LICENSED_TRADES].sort(), ["carpentry", "catering", "concrete", "demolition", "electrical", "fence_deck", "fire_safety", "flooring", "food_truck", "foundation", "freight", "gutter_install", "hvac", "insulation", "masonry", "medical_courier", "nuisance_wildlife", "painting", "pest", "plumbing", "remodel", "roofing", "security", "siding", "transportation", "waste_oil", "windows_doors"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
@@ -2171,9 +2172,9 @@ test("services 76–100: priced, licensed where Michigan requires it, and no dup
   const { sizeNeedsSiteVisit } = await import("./intake.ts");
   const { CHECKLISTS } = await import("./checklists.ts");
   const base = (slug: string, a: Record<string, unknown>) => { const svc = getService(slug)!; return svc.price({ ...defaultAnswers(svc), ...a } as Answers).base; };
-  assert.equal(SERVICES.length, 100, "100 services");
-  assert.equal(new Set(SERVICES.map((s) => s.slug)).size, 100, "unique slugs");
-  assert.equal(new Set(SERVICES.map((s) => s.name.toLowerCase())).size, 100, "unique names");
+  assert.equal(SERVICES.length, 101, "101 services (100 + Carpentry)");
+  assert.equal(new Set(SERVICES.map((s) => s.slug)).size, SERVICES.length, "unique slugs");
+  assert.equal(new Set(SERVICES.map((s) => s.name.toLowerCase())).size, SERVICES.length, "unique names");
   // spot prices (Detroit-metro 2026)
   assert.equal(base("fence-install", { job: "new", feet: 100, material: "chain", height: "6", walk_gates: 0, drive_gates: 0, remove_old: false }), 2400);
   assert.equal(base("fence-install", { job: "repair", posts: 2, sections: 1 }), 2 * 185 + 195);
@@ -2224,7 +2225,7 @@ test("parseCandidatesCsv handles Indeed-style exports", () => {
   assert.equal(candidates[0].full_name, "Ruiz, Ana");
   assert.equal(candidates[0].location, "Detroit, MI");
   assert.deepEqual(candidates[0].trades, ["cleaning"]);
-  assert.deepEqual(candidates[1].trades, ["handyman"]);
+  assert.deepEqual(candidates[1].trades, ["handyman", "carpentry"]);
   assert.equal(candidates[1].source, "indeed");
   assert.equal(skipped.length, 2);
   assert.equal(parseCandidatesCsv("Phone\n123").candidates.length, 0);
@@ -2234,4 +2235,15 @@ test("Business & Technology is consultation-only", () => {
   assert.equal(consultOnly("website-design"), true);
   assert.equal(consultOnly("house-cleaning"), false);
   assert.equal(priceHint("website-design"), "Free consultation");
+});
+
+test("carpentry: licensed finish work priced by size; decks and exterior doors live in their own services", async () => {
+  const { sizeNeedsSiteVisit } = await import("./intake.ts");
+  const svc = getService("carpentry")!;
+  assert.ok(svc.licensed && svc.trades.includes("carpentry"));
+  const trim = (ft: number) => estimate({ slug: "carpentry", answers: { ...defaultAnswers(svc), project: "trim", trim_ft: ft } }).point;
+  assert.ok(trim(200) > trim(50));
+  assert.ok(getService("deck-build") && getService("window-door-install"), "decks and exterior doors stay with their own services");
+  assert.ok(sizeNeedsSiteVisit("carpentry", { project: "builtins", shelf_ft: 30 }));
+  assert.equal(sizeNeedsSiteVisit("carpentry", { project: "trim", trim_ft: 200 }), null);
 });

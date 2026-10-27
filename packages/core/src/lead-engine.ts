@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-11_1625 UTC — pickHunterEmail: the best outreach address from a Hunter.io domain search (owner for pros,
  *           facilities / operations / office manager for business customers; confident, own domain, never jobs/HR/billing).
  * UPDATED : 2026-10-23_1900 UTC — search phrases and words for the new trades (roofing, masonry, concrete, demolition, furniture assembly); lawn includes landscaping.
+ * UPDATED : 2026-10-27_1600 UTC — recruiting search and wording for carpentry.
  */
 import { BRAND } from "./brand.ts";
 
@@ -26,7 +27,7 @@ export const TRADE_SEARCH: Record<string, string> = {
   pet_care: "dog walker", pressure_washing: "pressure washing service", errands: "courier service", medical_courier: "medical courier",
   auto_detailing: "mobile car detailing", hauling: "junk removal", wildlife: "wildlife removal", waste_oil: "used oil recycling service", dumpster: "dumpster rental", handyman: "handyman",
   small_engine: "small engine repair", dock_door: "commercial overhead door repair", fire_safety: "fire extinguisher service", foundation: "foundation repair contractor", mold: "mold remediation company",
-  roofing: "roofing contractor", masonry: "masonry contractor", concrete: "concrete contractor", demolition: "demolition contractor", assembly: "furniture assembly service",
+  carpentry: "finish carpenter", roofing: "roofing contractor", masonry: "masonry contractor", concrete: "concrete contractor", demolition: "demolition contractor", assembly: "furniture assembly service",
   fence_deck: "fence and deck contractor", siding: "siding contractor", gutter_install: "seamless gutter installer", windows_doors: "window replacement company", insulation: "insulation contractor",
   flooring: "flooring installer", paving: "asphalt sealcoating", appliance: "appliance repair", garage_door: "garage door repair", locksmith: "locksmith", inspection: "home inspector",
   water_damage: "water damage restoration", duct_cleaning: "air duct cleaning", chimney_sweep: "chimney sweep", irrigation: "sprinkler repair", holiday_lights: "christmas light installation",
@@ -47,7 +48,7 @@ export const TRADE_WORD: Record<string, string> = {
   pressure_washing: "power washing", errands: "courier and errands", medical_courier: "medical courier", auto_detailing: "car detailing",
   hauling: "junk removal", wildlife: "dead animal removal", waste_oil: "used oil pickup", dumpster: "container rental", handyman: "handyman",
   small_engine: "small engine repair", dock_door: "dock and door service", fire_safety: "fire extinguisher service", foundation: "foundation repair", mold: "mold remediation", remodel: "remodeling", painting: "painting",
-  roofing: "roofing", masonry: "masonry and brick repair", concrete: "concrete steps and patios", demolition: "demolition", assembly: "furniture assembly",
+  carpentry: "carpentry", roofing: "roofing", masonry: "masonry and brick repair", concrete: "concrete steps and patios", demolition: "demolition", assembly: "furniture assembly",
   fence_deck: "fence and deck", siding: "siding", gutter_install: "gutter installation", windows_doors: "window and door", insulation: "insulation",
   flooring: "flooring", paving: "sealcoating", appliance: "appliance repair", garage_door: "garage door", locksmith: "locksmith", inspection: "home inspection",
   water_damage: "water damage", duct_cleaning: "duct cleaning", chimney_sweep: "chimney sweep", irrigation: "sprinkler", holiday_lights: "holiday lighting",

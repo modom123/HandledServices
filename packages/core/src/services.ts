@@ -59,6 +59,7 @@
  *           installation, windows & doors, insulation, garage doors, driveway sealcoating, flooring, appliance repair, smart
  *           home & Wi-Fi, water damage, locksmith, property inspection, duct & dryer vent cleaning, tile & grout, trash bins,
  *           chimney sweep, sprinklers, holiday lights, pools, pest control, live wildlife removal, laundry pickup, home watch.
+ * UPDATED : 2026-10-27_1600 UTC — Carpentry (finish carpentry: trim, interior doors, built-ins, stairs & railings, framing) and the carpentry trade; decks and exterior doors stay with Deck Building and Window & Door Replacement.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -2523,6 +2524,55 @@ export const SERVICES: Service[] = [
     },
   },
   {
+    slug: "carpentry",
+    name: "Carpentry",
+    category: "repair_remodel",
+    icon: "🪚",
+    tagline: "Trim, interior doors, built-ins, stairs and railings, built and fixed by a licensed carpenter.",
+    description: "Finish carpentry by a licensed carpenter: baseboard, casing and crown molding; interior doors hung and trimmed; built-in shelving, closets and window seats; stairs and railings; and non-load-bearing walls. Standard lumber, trim and fasteners are included in the price; premium wood or custom millwork is confirmed before work starts. Decks are booked as Deck Building & Repair, and exterior doors as Window & Door Replacement.",
+    includes: ["Licensed carpenter (state contractor license)", "Standard lumber, trim and fasteners included", "Cut, fit, nail, caulk and fill — ready to paint", "Old material hauled away", "Before & after photos"],
+    notesHint: "What you want built or fixed, rough measurements, the wood or finish you like, and anything rotten, loose or squeaky",
+    questions: [
+      {
+        id: "project",
+        label: "What do you need?",
+        type: "select",
+        default: "trim",
+        options: [
+          { value: "trim", label: "Trim, baseboard & crown molding" },
+          { value: "doors", label: "Hang or replace interior doors" },
+          { value: "builtins", label: "Built-in shelving, closets & window seats" },
+          { value: "railings", label: "Stairs & railings" },
+          { value: "framing", label: "Frame a wall or partition (not load-bearing)" },
+        ],
+      },
+      { id: "trim_ft", label: "Trim to install", type: "number", min: 10, max: 1500, default: 80, unit: "ft", showIf: { id: "project", is: ["trim"] }, help: "Total length of baseboard, door/window casing and crown. A 12 × 12 ft room is about 48 ft of baseboard." },
+      { id: "doors", label: "Doors", type: "number", min: 1, max: 30, default: 2, showIf: { id: "project", is: ["doors"] } },
+      { id: "shelf_ft", label: "Width of built-ins", type: "number", min: 2, max: 60, default: 8, unit: "ft", showIf: { id: "project", is: ["builtins"] } },
+      { id: "rail_ft", label: "Railing or stair length", type: "number", min: 3, max: 300, default: 16, unit: "ft", showIf: { id: "project", is: ["railings"] } },
+      { id: "wall_ft", label: "Wall length", type: "number", min: 4, max: 120, default: 12, unit: "ft", showIf: { id: "project", is: ["framing"] }, help: "Framing and drywall-ready. Electrical in the new wall is a separate electrician job." },
+      { id: "finish", label: "Paint or stain the new work too", type: "toggle", default: false },
+    ],
+    minimum: 250,
+    spread: [0.85, 1.3],
+    siteVisit: false,
+    frequencies: ["once"],
+    trades: ["carpentry"],
+    licensed: true,
+    price: (a) => {
+      const p = s(a, "project", "trim");
+      const items: LineItem[] = [];
+      let hrs = 3;
+      if (p === "trim") { const f = Math.max(10, n(a, "trim_ft", 80)); items.push({ label: `Trim & molding installed — ${f} ft`, amount: f * 9 }); hrs = 2 + f / 25; }
+      else if (p === "doors") { const d = Math.max(1, n(a, "doors", 2)); items.push({ label: `Interior doors hung & trimmed — ${d}`, amount: d * 275 }); hrs = d * 2.5; }
+      else if (p === "builtins") { const f = Math.max(2, n(a, "shelf_ft", 8)); items.push({ label: `Built-in shelving & cabinetry — ${f} ft wide`, amount: f * 240 }); hrs = 6 + f * 2; }
+      else if (p === "railings") { const f = Math.max(3, n(a, "rail_ft", 16)); items.push({ label: `Stairs & railings — ${f} ft`, amount: 150 + f * 85 }); hrs = 3 + f / 6; }
+      else { const f = Math.max(4, n(a, "wall_ft", 12)); items.push({ label: `Non-load-bearing wall framed — ${f} ft`, amount: 300 + f * 95 }); hrs = 4 + f / 3; }
+      if (b(a, "finish")) items.push({ label: "Paint or stain the new work", amount: Math.round(sum(items) * 0.2) });
+      return { items, base: sum(items), hours: Math.max(2, hrs) };
+    },
+  },
+  {
     slug: "deck-build",
     name: "Deck Building & Repair",
     category: "repair_remodel",
@@ -4504,6 +4554,7 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "masonry", label: "Masonry & brick (licensed)" },
   { id: "concrete", label: "Concrete & flatwork (licensed)" },
   { id: "demolition", label: "Demolition (licensed)" },
+  { id: "carpentry", label: "Carpentry (licensed)" },
   { id: "fence_deck", label: "Fences & decks (licensed)" },
   { id: "siding", label: "Siding (licensed)" },
   { id: "gutter_install", label: "Gutter installation (licensed)" },

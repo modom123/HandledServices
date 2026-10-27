@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-23_1900 UTC — skills (specialties) on candidates: picked by staff, or read from the Skills / job title /
  *           notes text; job titles for roofing, masonry, concrete, demolition and furniture assembly; landscaping words → lawn.
  * UPDATED : 2026-10-23_2100 UTC — job titles for the 20 trades added with services 76–100.
+ * UPDATED : 2026-10-27_1600 UTC — carpenters are their own trade (carpentry) instead of handyman.
  */
 import { TRADES } from "./services.ts";
 import { MAX_TRADES } from "./pro-program.ts";
@@ -51,7 +52,8 @@ const TRADE_WORDS: [RegExp, string][] = [
   [/\b(courier|errand|personal assistant)/i, "errands"],
   [/\b(detail(er|ing)?)\b/i, "auto_detailing"],
   [/\b(mover|moving|junk|haul\w*)\b/i, "hauling"],
-  [/\b(handyman|handy man|carpent\w*|maintenance tech\w*)\b/i, "handyman"],
+  [/\b(handyman|handy man|maintenance tech\w*)\b/i, "handyman"],
+  [/\b(carpent\w*|trim carpenter|finish carpenter)\b/i, "carpentry"],
   [/\bplumb/i, "plumbing"],
   [/\belectric(ians?|al)\b/i, "electrical"],
   [/\b(hvac|heating|air condition\w*|refrigeration)\b/i, "hvac"],

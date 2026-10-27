@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-15_0300 UTC — the brand promise: 25% books your pro, pay the rest when it's done.
  * UPDATED : 2026-10-23_1900 UTC — Spanish for the six new services (landscaping, furniture assembly, roofing, masonry, concrete, demolition).
  * UPDATED : 2026-10-23_2100 UTC — Spanish for services 76–100 and the updated category blurbs.
+ * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -365,6 +366,7 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "dock-door-service": ["Servicio de puertas de muelle y seccionales", "Inspecciones, mantenimiento y reparaciones de puertas de muelle, niveladores y puertas seccionales."],
   "fire-extinguisher-inspection": ["Inspección y servicio de extintores", "Inspecciones anuales, etiquetas, recargas y extintores nuevos, en el lugar."],
   "foundation-repair": ["Reparación de cimientos", "Grietas, paredes combadas y hundimientos, reparados por un contratista con licencia."],
+  carpentry: ["Carpintería", "Molduras, puertas interiores, muebles empotrados, escaleras y barandales, hechos y reparados por un carpintero con licencia."],
   "roofing": ["Reparación y reemplazo de techos", "Goteras detenidas, tejas reemplazadas o un techo nuevo, por un techador con licencia."],
   "masonry": ["Albañilería y reparación de ladrillo", "Rejuntado, reemplazo de ladrillos, chimeneas y muros, por un albañil con licencia."],
   "concrete-repair": ["Escalones, patios y banquetas de concreto", "Escalones desmoronados, losas hundidas y banquetas agrietadas, reparados o reemplazados."],

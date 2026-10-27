@@ -26,6 +26,7 @@
  * UPDATED : 2026-10-23_2100 UTC — 20 trades for services 76–100: fences & decks, siding, gutter install, windows & doors, insulation,
  *           flooring (M&A licensed), pest (MDARD), live wildlife (DNR permit), paving, appliance, garage door, locksmith,
  *           inspection, water damage, duct cleaning, chimney sweep, irrigation, holiday lights, pool, laundry.
+ * UPDATED : 2026-10-27_1600 UTC — carpentry trade (state contractor license over $600 in Michigan, L&I registration in Washington).
  */
 import { BRAND } from "./brand.ts";
 
@@ -280,6 +281,13 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: "Michigan residential builder license (LARA); local permits for structural work",
     preferred: ["Manufacturer-certified installer for the pier or bracing system used"], glMin: GL2, requires: ["auto", "workers_comp"], conditional: [],
     skillsCheck: "LARA license lookup, a sample written estimate and warranty, photos of recent jobs, 3 homeowner references.",
+  },
+  carpentry: {
+    does: "Finish carpentry: trim and molding, interior doors, built-ins and closets, stairs and railings, and non-load-bearing framing.",
+    specialties: [{ id: "trim", label: "Trim & molding", slug: "carpentry" }, { id: "doors", label: "Interior doors" }, { id: "builtins", label: "Built-ins & closets" }, { id: "stairs", label: "Stairs & railings" }, { id: "framing", label: "Framing (non-load-bearing)" }],
+    license: "Michigan Maintenance & Alteration Contractor license (carpentry) or Residential Builder license (LARA), required for residential work over $600; Washington: L&I contractor registration",
+    preferred: ["EPA RRP lead-safe certification (required for pre-1978 homes)"], glMin: GL1, requires: [], conditional: [{ key: "workers_comp", when: "you have employees" }],
+    skillsCheck: "License lookup on LARA (or L&I in Washington), photos of 5 recent jobs (trim, doors or built-ins), 2 client references.",
   },
   roofing: {
     does: "Roof leak and storm repairs, shingle and flashing work, inspections, and full tear-off and replacement (asphalt shingles and flat-roof membranes).",

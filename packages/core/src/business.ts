@@ -13,6 +13,7 @@
  *           new industry: auto shops & fleets.
  * UPDATED : 2026-10-11_0608 UTC — "Websites, AI & business setup" group (Business & Technology services).
  * UPDATED : 2026-10-11_1405 UTC — "Freight & pallet delivery" group (licensed carriers, e.g. 3 Lakes Logistics).
+ * UPDATED : 2026-10-23_1600 UTC — "Roofing, masonry & carpentry" group for business accounts.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -22,6 +23,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "janitorial", title: "Janitorial & cleaning", icon: "🧽", blurb: "Nightly, weekly or one-time office cleaning, glass, carpets and move-outs.", slugs: ["house-cleaning", "window-cleaning", "carpet-cleaning", "organizing"] },
   { id: "exterior", title: "Exterior & grounds", icon: "🌳", blurb: "Curb appeal year-round: grounds, snow and ice, sidewalks and storefronts.", slugs: ["lawn-care", "snow-removal", "leaf-removal", "power-washing", "gutter-cleaning", "tree-removal"] },
   { id: "maintenance", title: "Repairs & maintenance", icon: "🔧", blurb: "Work orders handled by licensed trades, with photos on every ticket.", slugs: ["handyman", "plumbing", "lighting-install", "camera-install", "water-heater", "hvac-install", "dock-door-service", "fire-extinguisher-inspection", "small-engine-repair"] },
+  { id: "exterior_repairs", title: "Roofing, masonry & carpentry", icon: "🏠", blurb: "Roof leaks and replacements, tuckpointing, steps, sidewalks and parking-lot concrete, doors, trim and decks — licensed contractors with photos on every ticket.", slugs: ["roofing", "masonry", "concrete-repair", "carpentry"] },
   { id: "buildout", title: "Painting & build-outs", icon: "🎨", blurb: "Tenant turnovers, refreshes and remodels, scheduled around your hours.", slugs: ["interior-painting", "exterior-painting", "bathroom-remodel", "kitchen-remodel"] },
   { id: "turnovers", title: "Unit turnovers & make-readies", icon: "🔑", blurb: "Cleanout, deep clean, touch-ups and punch list between tenants — rent-ready in one booking, photos of every room.", slugs: ["unit-turnover", "house-cleaning", "interior-painting", "carpet-cleaning"] },
   { id: "cleanouts", title: "Clean-outs, moves & hauling", icon: "🚛", blurb: "Office and small moves, abandoned items and furniture removal — or a container for the week.", slugs: ["junk-removal", "small-moves", "large-item-removal", "junk-container", "dead-animal-removal", "waste-oil-collection"] },

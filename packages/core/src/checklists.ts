@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-12_0117 UTC — Mold removal checklist (containment, moisture source, removal, drying, clearance test).
  * UPDATED : 2026-10-23_1900 UTC — checklists for landscaping, furniture assembly, roofing, masonry, concrete and demolition.
  * UPDATED : 2026-10-23_2100 UTC — checklists for 16 of services 76–100; the rest use the generic checklist built from what they include.
+ * UPDATED : 2026-10-27_1600 UTC — carpentry checklist.
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -840,6 +841,26 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
         i("waste", "Bagged waste taken away; work area left broom-clean", "Desechos embolsados retirados; área barrida y limpia", { required: true }),
         i("advice", "Customer told how to fix the moisture source and what to rebuild (drywall, insulation)", "Se le explicó al cliente cómo corregir la humedad y qué reponer (paneles, aislamiento)", { required: true }),
         i("test", "Clearance test scheduled with the independent tester", "Prueba final programada con el evaluador independiente", { when: { q: "testing", in: ["after", "both"] }, required: true }),
+      ] },
+    ],
+  },
+  carpentry: {
+    service: "carpentry", version: 1, title: { en: "Carpentry checklist", es: "Lista de carpintería" },
+    sections: [
+      { id: "setup", en: "Before starting", es: "Antes de empezar", items: [
+        i("before", "Photos of the work area before starting", "Fotos del área de trabajo antes de empezar", { required: true, photo: true }),
+        i("protect", "Floors and furniture covered; cutting station set up outside or on a drop cloth", "Pisos y muebles cubiertos; área de corte afuera o sobre una lona", { required: true }),
+        i("measure", "Measurements and material confirmed with the customer", "Medidas y material confirmados con el cliente", { required: true }),
+      ] },
+      { id: "work", en: "The work", es: "El trabajo", items: [
+        i("level", "Work is level, plumb and square; doors swing and latch freely", "El trabajo está nivelado, a plomo y a escuadra; las puertas abren y cierran bien", { required: true }),
+        i("railings", "Railings solid with no wobble; balusters spaced to code", "Barandales firmes, sin movimiento; balaustres a la distancia del código", { when: { q: "project", in: ["railings"] }, required: true }),
+        i("fill", "Nail holes filled and seams caulked; ready to paint", "Agujeros de clavos resanados y uniones selladas; listo para pintar", { when: { q: "project", in: ["trim", "builtins", "doors"] } }),
+        i("finish", "Paint or stain applied evenly", "Pintura o tinte aplicado de forma pareja", { when: { q: "finish", in: [true] }, required: true }),
+      ] },
+      { id: "finish", en: "Finish", es: "Terminar", items: [
+        i("after", "Photos of the finished work", "Fotos del trabajo terminado", { required: true, photo: true }),
+        i("cleanup", "Sawdust vacuumed, scraps and old material hauled away", "Aserrín aspirado, sobrantes y material viejo retirado", { required: true }),
       ] },
     ],
   },

@@ -13,8 +13,15 @@
  * UPDATED : 2026-10-12_0117 UTC — Mold Removal lines.
  * UPDATED : 2026-10-23_1900 UTC — landscaping, furniture assembly, roofing, masonry, concrete and demolition lines.
  * UPDATED : 2026-10-23_2100 UTC — lines for services 76–100.
+ * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  */
 export const ES_LINES: Record<string, string> = {
+  "Trim & molding installed — {#} ft": "Molduras instaladas — {#} pies",
+  "Interior doors hung & trimmed — {#}": "Puertas interiores instaladas y con marco — {#}",
+  "Built-in shelving & cabinetry — {#} ft wide": "Repisas y gabinetes empotrados — {#} pies de ancho",
+  "Stairs & railings — {#} ft": "Escaleras y barandales — {#} pies",
+  "Non-load-bearing wall framed — {#} ft": "Pared no de carga armada — {#} pies",
+  "Paint or stain the new work": "Pintar o teñir el trabajo nuevo",
   "Acoustic duo — {#} hrs": "Dúo acústico — {#} h",
   "Bar service": "Servicio de bar",
   "Basement floor & walls — {#} sq ft": "Piso y paredes del sótano — {#} pies²",
