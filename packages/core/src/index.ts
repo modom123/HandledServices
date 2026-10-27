@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-20_0200 UTC — pro-rates (pros set their own prices; price choices; request-a-quote).
  * UPDATED : 2026-10-23_1100 UTC — ats (Indeed Apply + CSV candidate import parsing, trade detection).
  * UPDATED : 2026-10-27_1700 UTC — recruiting-division (openings on three tracks, Indeed post kit, shared pipeline stages).
+ * UPDATED : 2026-10-27_2100 UTC — job-money (one job's money end to end: customer paid → split → pro payout lines → Monday).
  */
 
 export * from "./types.ts";
@@ -72,3 +73,4 @@ export * from "./loyalty.ts";
 export * from "./supabase-public.ts";
 export * from "./ats.ts";
 export * from "./recruiting-division.ts";
+export * from "./job-money.ts";

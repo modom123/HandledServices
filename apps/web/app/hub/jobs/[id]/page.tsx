@@ -15,12 +15,14 @@
  * UPDATED : 2026-10-12_0121 UTC — customer (C-), business client (B-) and pro (P-) IDs.
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, editable), saved home link, and text the customer / pro from here.
  * UPDATED : 2026-10-15_0300 UTC — payment panel gets the "pay after" hold / retry fields.
+ * UPDATED : 2026-10-27_2100 UTC — 💵 Money card: customer paid → split → every payout line for this job → when the pro
+ *           is paid (core jobMoney, same as Hub → Money → Jobs & payouts), with anything that doesn't add up flagged.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
 import { NoShowButton } from "@/components/Standing";
 import { notFound } from "next/navigation";
-import { LATE_CANCEL_FEE, SERVICES, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
+import { LATE_CANCEL_FEE, PAYOUT_STAGE_LABEL, SERVICES, jobMoney, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
@@ -68,6 +70,8 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
     signedUrls(job.completion_photos ?? []),
     v.db.from("job_expenses").select("id, amount, description, status, created_at").eq("job_id", id).order("created_at"),
   ]);
+  const { data: payLines } = await adminClient().from("payouts").select("id, amount, status, kind, reason, paid_at, week_of, method, created_at, contractors(business_name)").eq("job_id", id).order("created_at");
+  const jm = jobMoney(job as never, (payLines ?? []) as never);
   const { data: backupRows } = await v.db.from("job_backups").select("rank, status, asked_at, called_at, contractors(id, business_name)").eq("job_id", id).order("rank");
   const { data: cancels } = await v.db.from("pro_standing_events").select("kind, note, created_at, contractors(business_name)").eq("job_id", id).in("kind", ["free_cancel", "short_notice_cancel", "late_cancel", "excused_cancel", "no_show"]).order("created_at");
   const quote = job.ai_quote as AnyRec | null;
@@ -84,12 +88,30 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
             <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}{cno && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{cno}</span>}{clientNo && <Link href={`/hub/business/${job.business_account_id}`} className="ml-2 font-mono text-xs font-normal text-brand underline">{clientNo}</Link>}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><Link href={`/hub/customers/${encodeURIComponent(String(job.contact_email).toLowerCase())}`} className="text-xs font-semibold text-brand underline">Customer history & notes →</Link><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div>{proContact && <div className="mt-1">Pro: <Link className="font-semibold text-brand underline" href={`/hub/pros/${job.contractor_id}`}>{(proContact as { business_name: string }).business_name}</Link>{proNo && <span className="ml-1 font-mono text-xs text-ink-soft">{proNo}</span>}</div>}</div>
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>
-              <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <span className="font-normal text-ink-soft">· payout {money(job.contractor_payout)} · margin {job.price_final && job.contractor_payout ? money(job.price_final - job.contractor_payout) : "—"}</span></div>
+              <div className="mt-1 font-semibold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)} <a href="#money" className="font-normal text-ink-soft underline decoration-dotted">· pro pay {money(jm.proPay)} · we keep {money(jm.keep)}</a></div>
               {(job.urgency || job.needed_by) && <div className={deadlineRisk(job) === "late" ? "font-semibold text-rose-600" : deadlineRisk(job) ? "font-semibold text-amber-700" : ""}>Customer needs it: {job.urgency ? URGENCY_LABEL[job.urgency] : "—"}{job.needed_by ? ` · by ${fmtDate(job.needed_by)}` : ""}{deadlineRisk(job) === "late" ? " (past due)" : deadlineRisk(job) === "due" ? " (due now)" : ""}</div>}
               {job.customer_budget ? <div>Customer budget: {money(job.customer_budget)} · <span className="text-ink-soft">{budgetFit(job.customer_budget, Number(job.price_final ?? job.estimate_low)).message}</span></div> : null}</div>
           </div>
           <div className="mt-4 grid gap-1 border-t border-line pt-4 text-sm sm:grid-cols-2">{s.questions.filter((q) => questionVisible(q, job.answers as Answers, s.questions)).map((q) => <div key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</div>)}</div>
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}
+        </div>
+        <div id="money" className="card scroll-mt-24 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">💵 Money (internal)</div><Link href="/hub/money" className="text-xs font-semibold text-brand underline">All jobs & payouts →</Link></div>
+          <div className="mt-2 grid gap-3 sm:grid-cols-4">
+            <div><div className="text-xs text-ink-soft">Customer paid</div><div className="text-lg font-bold">{money(jm.customerNet)}</div><div className="text-xs text-ink-soft">price {money(jm.price)}{jm.refunded ? ` · refunded ${money(jm.refunded)}` : ""}</div></div>
+            <div><div className="text-xs text-ink-soft">Pro pay</div><div className="text-lg font-bold">{money(jm.proPay)}</div><div className="text-xs text-ink-soft">agreed {money(jm.proAgreed)}{jm.tips ? ` · + ${money(jm.tips)} tips` : ""}</div></div>
+            <div><div className="text-xs text-ink-soft">Handled keeps</div><div className="text-lg font-bold">{money(jm.keep)}</div><div className="text-xs text-ink-soft">{jm.takePct != null ? `${Math.round(jm.takePct * 100)}% · ` : ""}{money(jm.keepAfterFees)} after est. card fee</div></div>
+            <div><div className="text-xs text-ink-soft">Pro's money</div><div className="text-lg font-bold">{PAYOUT_STAGE_LABEL[jm.stage]}</div><div className="text-xs text-ink-soft">{jm.stage === "paid" && jm.lastPaid ? `paid ${jm.lastPaid.slice(0, 10)}` : jm.payday ? `${money(jm.owed)} on Monday ${jm.payday}` : jm.stage === "not_created" ? "created when the job is done and approved" : ""}</div></div>
+          </div>
+          {jm.issues.map((i) => <p key={i} className="mt-2 rounded-lg bg-rose-50 p-2 text-xs font-semibold text-rose-700">⚠ {i}</p>)}
+          {(payLines ?? []).length > 0 && (
+            <table className="mt-3 w-full text-xs">
+              <thead><tr className="text-left text-ink-soft"><th className="py-1">Payout line</th><th>Status</th><th className="text-right">Amount</th><th>When</th></tr></thead>
+              <tbody>{((payLines ?? []) as unknown as { id: string; amount: number; status: string; kind: string | null; reason: string | null; paid_at: string | null; week_of: string | null; method: string | null; created_at: string; contractors: { business_name: string } | null }[]).map((l) => (
+                <tr key={l.id} className="border-t border-line"><td className="py-1">{(l.kind ?? "job").replace(/_/g, " ")}{l.reason ? <span className="text-ink-soft"> — {l.reason}</span> : null}{l.contractors?.business_name ? <span className="text-ink-soft"> · {l.contractors.business_name}</span> : null}</td><td>{l.status}</td><td className={`text-right font-semibold ${Number(l.amount) < 0 ? "text-rose-700" : ""}`}>{money(Number(l.amount))}</td><td className="text-ink-soft">{l.paid_at ? `${l.paid_at.slice(0, 10)}${l.method ? ` (${l.method})` : ""}` : l.created_at.slice(0, 10)}</td></tr>
+              ))}</tbody>
+            </table>
+          )}
         </div>
         <HubChecklist job={job} />
 

@@ -34,6 +34,7 @@
  * UPDATED : 2026-10-12_0005 UTC — scheduling gaps (texts, calendar feed, saved homes) and pro ZIP coverage.
  * UPDATED : 2026-10-27_1600 UTC — carpentry.
  * UPDATED : 2026-10-27_1900 UTC — pro roadmap (invite → first Monday pay).
+ * UPDATED : 2026-10-27_2100 UTC — job money (split, payout stage, issues).
  */
 
 import { test } from "node:test";
@@ -2301,4 +2302,33 @@ test("pro roadmap: where a new pro is between invite and first Monday pay", asyn
   assert.equal(PRO_ROADMAP.at(-1)!.id, "paid");
   assert.match(roadmapText("en"), /^1\. Finish setup — /);
   assert.match(roadmapText("es", at("offers")), /^5\. Acepte ofertas de trabajo — .*\n7\. Cobre cada lunes/s);
+});
+
+test("job money: customer paid → split → pro payout lines → Monday", async () => {
+  const { jobMoney, nextMonday } = await import("./job-money.ts");
+  assert.equal(nextMonday(new Date("2026-10-27T12:00:00Z")), "2026-11-02"); // Tue → next Mon
+  assert.equal(nextMonday(new Date("2026-11-02T12:00:00Z")), "2026-11-02"); // Mon → today
+  const job = { status: "completed", price_final: 200, contractor_payout: 140, amount_paid: 200, amount_refunded: 0, paid_at: "2026-10-20", tip_total: 20 };
+  const notYet = jobMoney(job, []);
+  assert.equal(notYet.stage, "not_created");
+  assert.equal(notYet.keep, 60);
+  assert.match(notYet.issues.join(), /hasn't been created/);
+  const owed = jobMoney(job, [{ amount: 140, status: "approved", kind: "job" }, { amount: 20, status: "approved", kind: "tip" }]);
+  assert.equal(owed.stage, "approved");
+  assert.equal(owed.proPay, 140); // tips pass through and are kept apart
+  assert.equal(owed.tips, 20);
+  assert.equal(owed.keep, 60);
+  assert.equal(owed.owed, 140);
+  assert.ok(owed.payday);
+  assert.deepEqual(owed.issues, []);
+  const paid = jobMoney({ ...job, amount_refunded: 50 }, [{ amount: 140, status: "paid", kind: "job", paid_at: "2026-10-26T15:00:00Z" }, { amount: -25, status: "clawback", kind: "clawback" }]);
+  assert.equal(paid.customerNet, 150);
+  assert.equal(paid.proPay, 115);
+  assert.equal(paid.keep, 35);
+  assert.equal(paid.stage, "paid");
+  assert.equal(paid.lastPaid, "2026-10-26T15:00:00Z");
+  const held = jobMoney({ ...job, paid_at: null }, [{ amount: 140, status: "held", kind: "job" }]);
+  assert.equal(held.stage, "held");
+  assert.ok(held.issues.some((x) => /hasn't paid/.test(x)) && held.issues.some((x) => /held/.test(x)));
+  assert.equal(jobMoney({ status: "cancelled", price_final: 100, contractor_payout: 70 }).stage, "none");
 });
