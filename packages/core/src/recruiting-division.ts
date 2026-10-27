@@ -12,6 +12,8 @@
  *           pay line, description, screener questions, the tracked apply link, and the jobMeta that routes Indeed Apply
  *           applications back to the right pipeline). Pro posts avoid employment words (contractorWordingIssues) so they
  *           match the Independent Contractor Agreement. Used by Hub → Recruiting and the public /careers page.
+ * UPDATED : 2026-10-27_1900 UTC — PRO_ROADMAP / roadmapStage / roadmapText: a new pro's road from invite to first
+ *           Monday pay (EN/ES), shown on /pro/onboarding and in the invite and "You're live" emails.
  */
 import { BRAND } from "./brand.ts";
 import { MARKETING_FOCUS } from "./focus.ts";
@@ -176,6 +178,7 @@ export const DIVISION_AI: { step: string; agents: string[]; auto: string[]; huma
   { step: "Sourcing (Indeed first)", agents: [], auto: ["Indeed post kit and tracked apply links", "Indeed Apply and CSV import route each applicant to the right pipeline", "Pro leads: finds and emails independent pros where we're short"], human: "Staff post on Indeed and paste the link" },
   { step: "Screening", agents: ["screen"], auto: ["Confirmation email to every applicant"], human: "Decline only by a person" },
   { step: "Interview", agents: ["interview_turn", "interview_eval"], auto: [], human: "A person decides who's invited (or interviews them with the scorecard)" },
+  { step: "Approved by you (phone interview)", agents: ["resume_reader"], auto: ["Résumé filed in the pro's file", "Invite email with the setup checklist and the road to their first Monday pay"], human: "You screen the résumé, do the phone interview and decide" },
   { step: "Onboarding", agents: ["doc_check"], auto: ["Setup reminders, background check (Checkr), drop-offs", "Activation when every step is verified"], human: "Staff verify documents the AI flags and review any background result that isn't clear" },
   { step: "Active", agents: ["dispatch"], auto: ["Insurance and license renewal reminders"], human: "Staff pause or offboard" },
 ];
@@ -207,4 +210,39 @@ export function proFileStatus(steps: { key: string; done: boolean; optional?: bo
   const req = Object.values(cells).filter((c) => c !== "n/a");
   const pct = req.length ? Math.round((req.filter((c) => c !== "missing").length / req.length) * 100) : 100;
   return { cells, pct, missing: PRO_FILE_ITEMS.filter((it) => cells[it.id] === "missing").map((it) => it.label), expiring: PRO_FILE_ITEMS.filter((it) => cells[it.id] === "expiring").map((it) => it.label) };
+}
+
+/**
+ * A new pro's road from invite to their first paycheck, in order. Shown on /pro/onboarding (with where they are now) and
+ * written into the invite and "You're live" emails, so a pro always knows what to do next and when they get paid.
+ */
+export const PRO_ROADMAP: { id: string; en: string; enDo: string; es: string; esDo: string }[] = [
+  { id: "setup", en: "Finish setup", enDo: "On your phone, about 15 minutes: W-9, sign the agreement, your skills and area, photo, ID, insurance if your trade needs it, and how you want to be paid.",
+    es: "Termine su configuración", esDo: "Desde su teléfono, unos 15 minutos: W-9, firmar el acuerdo, sus habilidades y zona, foto, identificación, seguro si su oficio lo requiere y cómo quiere recibir sus pagos." },
+  { id: "verify", en: "We check your documents", enDo: "We review what you uploaded, usually the same day. If something needs fixing, we email you exactly what.",
+    es: "Revisamos sus documentos", esDo: "Revisamos lo que subió, normalmente el mismo día. Si algo necesita corrección, le escribimos exactamente qué." },
+  { id: "background", en: "Background check", enDo: "Starts automatically once your W-9 and agreement are in. Our screening provider emails you a secure link (about 5 minutes); results take 1–3 business days.",
+    es: "Verificación de antecedentes", esDo: "Empieza automáticamente cuando su W-9 y su acuerdo estén listos. Nuestro proveedor le envía un enlace seguro por correo (unos 5 minutos); los resultados tardan de 1 a 3 días hábiles." },
+  { id: "live", en: "You're live", enDo: "We turn you on and tell you by email and notification. Turn on notifications in the app so you never miss an offer.",
+    es: "Ya está activo", esDo: "Lo activamos y le avisamos por correo y notificación. Active las notificaciones en la app para no perderse ninguna oferta." },
+  { id: "offers", en: "Accept job offers", enDo: "Prepaid, pre-priced jobs in your trades and ZIP codes come to your phone. Tap Accept on the ones you want — no lead fees, never.",
+    es: "Acepte ofertas de trabajo", esDo: "Le llegan al teléfono trabajos prepagados y con precio fijo en sus oficios y códigos postales. Toque Aceptar en los que quiera; nunca cobramos por clientes." },
+  { id: "work", en: "Do the job", enDo: "Show up on time, follow the job checklist, take the before and after photos and mark it done in the app.",
+    es: "Haga el trabajo", esDo: "Llegue a tiempo, siga la lista del trabajo, tome las fotos de antes y después y márquelo como terminado en la app." },
+  { id: "paid", en: "Get paid every Monday", enDo: "Every finished, approved job is paid the following Monday, free. Need it sooner? Cash out instantly from your dashboard for a small fee.",
+    es: "Cobre cada lunes", esDo: "Cada trabajo terminado y aprobado se paga el lunes siguiente, sin costo. ¿Lo necesita antes? Cobre al instante desde su panel por un pequeño cargo." },
+];
+
+/** Where a pro is on PRO_ROADMAP (index of the step they're on). left = required setup steps not done (background aside), leftPending = how many of those are uploaded and waiting on us. */
+export function roadmapStage(o: { live: boolean; left: number; leftPending: number; backgroundDone: boolean }): number {
+  if (o.live) return PRO_ROADMAP.findIndex((x) => x.id === "offers");
+  if (o.left > o.leftPending) return 0;
+  if (o.left > 0) return 1;
+  if (!o.backgroundDone) return 2;
+  return 3;
+}
+
+/** The roadmap as numbered email lines, from step `from` on. */
+export function roadmapText(lang: "en" | "es" | string = "en", from = 0): string {
+  return PRO_ROADMAP.slice(from).map((x, i) => `${from + i + 1}. ${lang === "es" ? x.es : x.en} — ${lang === "es" ? x.esDo : x.enDo}`).join("\n");
 }

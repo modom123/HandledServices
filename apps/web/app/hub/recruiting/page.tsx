@@ -9,13 +9,16 @@
  *           the funnel by track and stage, today's to-do list, where applicants come from (Indeed first), and the AI team:
  *           which agent works each step (runs in the last 30 days) and where a person always decides.
  *           The pro pipeline that used to live here is Hub → Recruiting → Pipeline.
+ * UPDATED : 2026-10-27_1900 UTC — "Add an approved pro": your hiring routine (post on Indeed → screen the résumé → phone
+ *           interview → enter them here) and what the system does on its own after that, up to their first Monday pay.
  */
 import Link from "next/link";
-import { AGENTS, DIVISION_AI, DIVISION_STAGES, DIVISION_STAGE_LABEL, TRACK_ICON, TRACK_LABEL, type Track } from "@handled/core";
+import { AGENTS, DIVISION_AI, TRADES, DIVISION_STAGES, DIVISION_STAGE_LABEL, TRACK_ICON, TRACK_LABEL, type Track } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { aiEnabled } from "@/lib/ai/client";
 import { getViewer } from "@/lib/auth";
 import { funnel, openings } from "@/lib/recruiting-division";
+import { ApproveProForm } from "@/components/RecruitingIntake";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +56,30 @@ export default async function RecruitingOverview() {
         <h1 className="text-2xl font-bold">Recruiting division</h1>
         <p className="text-sm text-ink-soft">One flow for every role we fill: independent pros for our network, people for our own team, and our clients' roles. Indeed is our primary source — every opening has a ready-to-post Indeed job, and Indeed applicants flow straight into the right pipeline.</p>
       </div>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+        <div className="card text-sm">
+          <h2 className="font-bold">How you hire a pro</h2>
+          <ol className="mt-2 space-y-1.5">
+            <li><b>1 · You post the ad</b> on Indeed (<Link href="/hub/recruiting/indeed" className="text-brand underline">post kits</Link>).</li>
+            <li><b>2 · You screen the résumé.</b></li>
+            <li><b>3 · You do a short, informal phone interview</b> and decide yes or no.</li>
+            <li><b>4 · Yes → upload their résumé here and tick “I interviewed them.”</b> Their pro file is created and that's the last thing you have to do.</li>
+          </ol>
+          <h3 className="mt-4 font-bold">Then the system takes over</h3>
+          <ol className="mt-2 space-y-1.5 text-ink-soft">
+            <li>📧 Invite email right away: one-click sign-in, their setup checklist and how jobs and pay work (English or Spanish).</li>
+            <li>📝 They do setup on their phone (~15 min): W-9, sign the agreement, skills, area, photo, ID, insurance, payout account.</li>
+            <li>⏰ Reminders on days 1, 3, 7 and 14 until it's done; dropped after 30 days.</li>
+            <li>🤖 AI reads each document; a person verifies (<Link href="/hub/recruiting/onboarding" className="text-brand underline">Onboarding</Link> shows what's waiting on us).</li>
+            <li>🔎 Background check ordered automatically when setup is in.</li>
+            <li>🎉 Everything clear → they go live and get a “You're live” email and push.</li>
+            <li>📲 Job offers start in their trades and ZIPs; they accept, do the job, finish the checklist and photos.</li>
+            <li>💵 Paid every Monday for the week's finished jobs (instant cash-out optional).</li>
+          </ol>
+        </div>
+        <ApproveProForm trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} />
+      </section>
 
       <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {steps.map((s) => (

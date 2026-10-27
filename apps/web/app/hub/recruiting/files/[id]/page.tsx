@@ -7,6 +7,8 @@
  *           coverages and licenses (status, expiry, the AI's read, open the file), résumé, background check and payout;
  *           what's missing and what's expiring; and every document version ever uploaded. Documents to verify can be
  *           verified right here. Everything comes from the pro's own setup (core onboardingChecklist) — no double entry.
+ * UPDATED : 2026-10-27_1900 UTC — Hiring record: applied, résumé screen and phone interview (who, when, notes), invite,
+ *           activation — from the recruiting history.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -36,6 +38,10 @@ export default async function ProFile({ params }: { params: Promise<{ id: string
   ]);
   if (!c) notFound();
   const pro = c as Contractor & Record<string, unknown>;
+  const HIRING = ["applied", "screened", "interviewed", "phone_interview", "invited", "background_ordered", "activated", "rejected", "dropped", "revived"];
+  const { data: hiring } = await db.from("recruiting_events").select("kind, note, actor, created_at")
+    .or(pro.application_id ? `contractor_id.eq.${id},application_id.eq.${String(pro.application_id)}` : `contractor_id.eq.${id}`)
+    .in("kind", HIRING).order("created_at", { ascending: true }).limit(50);
   const { steps } = onboardingChecklist(pro as never);
   const file = proFileStatus(steps);
   type Doc = { id: string; kind: string; status: string; storage_path: string | null; expires_on: string | null; created_at: string; verified_by: string | null; ai_check: { meets_requirements?: boolean; problems?: string[] } | null };
@@ -99,6 +105,14 @@ export default async function ProFile({ params }: { params: Promise<{ id: string
           <Row label="Profile photo" s={step("photo")} />
         </section>
       </div>
+
+      <section className="card text-sm">
+        <h2 className="font-bold">Hiring record</h2>
+        {!(hiring ?? []).length && <p className="mt-1 text-ink-soft">No hiring history on file (added before the recruiting pipeline).</p>}
+        <ul className="mt-2 space-y-1">{((hiring ?? []) as { kind: string; note: string | null; actor: string; created_at: string }[]).map((e, i) => (
+          <li key={i} className={e.kind === "phone_interview" ? "rounded-lg bg-brand-tint p-2" : ""}><span className="text-ink-soft">{e.created_at.slice(0, 10)}</span> · <b>{e.kind === "phone_interview" ? "📞 Résumé screened & phone interview — approved" : e.kind.replace(/_/g, " ")}</b>{e.note ? ` — ${e.note}` : ""} <span className="text-ink-soft">({e.actor})</span></li>
+        ))}</ul>
+      </section>
 
       <section className="card text-sm">
         <h2 className="font-bold">Every document on file ({all.length})</h2>

@@ -8,6 +8,8 @@
  *           TradesEditor: set a candidate's trades on their page (Indeed / imported candidates whose job title didn't say).
  * UPDATED : 2026-10-23_1900 UTC — Skills: after picking trades, check off what the candidate does within each trade
  *           (lawn: mowing, edging, landscaping, shrubs, planting, sod…), on both the add form and the candidate page.
+ * UPDATED : 2026-10-27_1900 UTC — ApproveProForm: upload the résumé (the AI fills in the form), "I interviewed them",
+ *           approve → their pro file is created with the résumé and they're invited (api/hub/recruiting/approve).
  */
 "use client";
 
@@ -162,5 +164,95 @@ export function TradesEditor({ appId, initial, initialSkills = [], trades }: { a
         setMsg(r.ok ? "Saved" : ((await r.json().catch(() => ({}))) as { error?: string }).error ?? "Failed"); router.refresh();
       }}>Save trades & skills</button> {msg && <span className="ml-2">{msg}</span>}
     </details>
+  );
+}
+
+/** File → base64 (no data: prefix) for the approve route. */
+const toBase64 = (file: File) => new Promise<string>((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] ?? ""); r.onerror = () => fail(r.error); r.readAsDataURL(file); });
+
+/**
+ * "I did the phone interview — they're in": upload their résumé (the résumé reader fills in the form), check the
+ * details, tick "I interviewed them" and approve. Their pro file is created with the résumé in it and they're invited
+ * at once (api/hub/recruiting/approve).
+ */
+export function ApproveProForm({ trades }: { trades: Trade[] }) {
+  const router = useRouter();
+  const blank = { full_name: "", email: "", phone: "", business_name: "", zips: "", years_experience: "", interview_notes: "", source: "indeed", locale: "en", trades: [] as string[], specialties: [] as string[] };
+  const [f, setF] = useState(blank);
+  const [resume, setResume] = useState<{ data: string; fileName: string; contentType: string } | null>(null);
+  const [reading, setReading] = useState("");
+  const [interviewed, setInterviewed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [out, setOut] = useState<{ ok: boolean; text: string; contractorId?: string } | null>(null);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const toggle = (id: string) => { const t = f.trades.includes(id) ? f.trades.filter((x) => x !== id) : [...f.trades, id].slice(0, 5); setF({ ...f, trades: t, specialties: keepSkills(f.specialties, t) }); };
+  const call = async (body: unknown) => {
+    const r = await fetch("/api/hub/recruiting/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return { ok: r.ok, j: (await r.json().catch(() => ({}))) as { error?: string; contractorId?: string; resumeFiled?: boolean; note?: string; read?: { readable: boolean; full_name: string; email: string; phone: string; zip: string; business_name: string; years_experience: number; trades: string[]; specialties: string[]; summary: string } | null } };
+  };
+  async function pick(file: File | undefined) {
+    setOut(null); setResume(null); setReading("");
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) return setReading("That file is over 4 MB — save it as a smaller PDF.");
+    const r = { data: await toBase64(file), fileName: file.name, contentType: file.type || "application/octet-stream" };
+    setResume(r);
+    setReading("Reading the résumé…");
+    const { ok, j } = await call({ mode: "read", resume: r });
+    if (!ok) return setReading(j.error ?? "Couldn't read it — fill in the form.");
+    const x = j.read;
+    if (x?.readable) setF((cur) => ({
+      ...cur,
+      full_name: cur.full_name || x.full_name, email: cur.email || x.email, phone: cur.phone || x.phone, business_name: cur.business_name || x.business_name,
+      zips: cur.zips || x.zip, years_experience: cur.years_experience || (x.years_experience ? String(x.years_experience) : ""),
+      trades: cur.trades.length ? cur.trades : x.trades, specialties: cur.specialties.length ? cur.specialties : x.specialties,
+      interview_notes: cur.interview_notes || (x.summary ? `From résumé: ${x.summary}` : ""),
+    }));
+    setReading(j.note ?? "");
+  }
+  async function submit() {
+    setBusy(true); setOut(null);
+    const { ok, j } = await call({ mode: "approve", ...f, years_experience: f.years_experience ? Number(f.years_experience) : undefined, interviewed, resume: resume ?? undefined });
+    setBusy(false);
+    if (!ok) return setOut({ ok: false, text: j.error ?? "Couldn't add" });
+    setOut({ ok: true, text: `${f.full_name}'s pro file is created${j.resumeFiled ? " with their résumé" : ""} and they're invited. They just got an email with a one-click sign-in, their setup checklist and how they get jobs and get paid. From here the system reminds them, checks their documents, runs the background check and turns them on — you only step in if something needs a person.`, contractorId: j.contractorId });
+    setF(blank); setResume(null); setReading(""); setInterviewed(false);
+    router.refresh();
+  }
+  return (
+    <div className="card space-y-3 border-brand text-sm">
+      <div>
+        <h2 className="font-bold">✅ Add an approved pro</h2>
+        <p className="text-ink-soft">You screened the résumé and did the phone interview, and you want them. Upload the résumé, check the details and approve — their pro file is created and the system takes over: invite email, setup checklist, reminders, document checks, background check, going live, job offers and Monday pay.</p>
+      </div>
+      <label className="block rounded-xl border border-dashed border-brand bg-brand-tint/40 p-3">
+        <span className="label">1 · Their résumé (PDF, Word or a photo, up to 4 MB)</span>
+        <input type="file" className="mt-1 block text-xs" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" onChange={(e) => pick(e.target.files?.[0])} />
+        <span className="mt-1 block text-xs text-ink-soft">{reading || (resume ? `📄 ${resume.fileName} — goes into their pro file` : "We read it and fill in the form for you. No résumé? Just fill in the form.")}</span>
+      </label>
+      <div className="label">2 · Check their details</div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block"><span className="label">Full name *</span><input className="input" value={f.full_name} onChange={set("full_name")} /></label>
+        <label className="block"><span className="label">Email * (their invite goes here)</span><input className="input" type="email" value={f.email} onChange={set("email")} /></label>
+        <label className="block"><span className="label">Mobile phone</span><input className="input" inputMode="tel" value={f.phone} onChange={set("phone")} /></label>
+        <label className="block"><span className="label">Business name (if they have one)</span><input className="input" value={f.business_name} onChange={set("business_name")} /></label>
+        <label className="block"><span className="label">ZIPs they'll cover</span><input className="input" value={f.zips} onChange={set("zips")} placeholder="48201, 48226" /></label>
+        <label className="block"><span className="label">Years of experience</span><input className="input" inputMode="numeric" value={f.years_experience} onChange={set("years_experience")} /></label>
+        <label className="block"><span className="label">Where you found them</span><select className="input" value={f.source} onChange={set("source")}>{SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+        <label className="block"><span className="label">Their language (emails and app)</span><select className="input" value={f.locale} onChange={set("locale")}><option value="en">English</option><option value="es">Español</option></select></label>
+      </div>
+      <div>
+        <span className="label">Trades * (what they'll get offers for)</span>
+        <div className="mt-1 flex flex-wrap gap-1.5">{trades.map((t) => (
+          <button key={t.id} type="button" onClick={() => toggle(t.id)} className={`rounded-full border px-2.5 py-0.5 text-xs ${f.trades.includes(t.id) ? "border-brand bg-brand text-white" : "border-line"}`}>{t.label}</button>
+        ))}</div>
+      </div>
+      <SkillPicker trades={f.trades} labels={trades} value={f.specialties} onChange={(specialties) => setF({ ...f, specialties })} />
+      <div className="label">3 · Your phone interview</div>
+      <label className="flex items-start gap-2 rounded-xl bg-paper p-3"><input type="checkbox" className="mt-0.5" checked={interviewed} onChange={(e) => setInterviewed(e.target.checked)} /> <span><b>I screened their résumé and interviewed them by phone, and I approve them.</b> Recorded on their file with your name and today's date.</span></label>
+      <label className="block"><span className="label">Interview notes (kept on their file)</span><textarea className="input min-h-20" value={f.interview_notes} onChange={set("interview_notes")} placeholder="Has own truck and mower, 6 yrs residential, available weekdays, can start next week" /></label>
+      <button className="btn-primary" disabled={busy || !f.full_name.trim() || !f.email.trim() || !f.trades.length || !interviewed || reading === "Reading the résumé…"} onClick={submit}>{busy ? "Creating their file…" : "Approve, create their file & send the invite"}</button>
+      {(!f.trades.length || !interviewed) && <p className="text-xs text-ink-soft">{!f.trades.length ? "Pick at least one trade — a pro with no trade never gets job offers. " : ""}{!interviewed ? "Tick “I interviewed them” to approve." : ""}</p>}
+      {out && <div className={`rounded-xl p-3 ${out.ok ? "bg-brand-tint text-brand-dark" : "bg-rose-50 text-rose-800"}`}>{out.ok ? "✓ " : ""}{out.text}{out.contractorId && <> <a className="font-semibold underline" href={`/hub/recruiting/files/${out.contractorId}`}>Open their file →</a></>}</div>}
+    </div>
   );
 }
