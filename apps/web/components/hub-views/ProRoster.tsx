@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-15_0100 UTC — "Pro roster" (Mastermind → Pros tab). The applications queue moved out — it duplicated
  *           Recruiting, which reviews, interviews, invites and declines; this page links there with the count.
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Pros → Roster, "All pros" view (rendered by app/hub/pros/page.tsx).
+ * UPDATED : 2026-10-27_1700 UTC — applications link → Recruiting → Pipeline.
  */
 import Link from "next/link";
 import { TRADES, nextTierProgress, proTier, type Contractor } from "@handled/core";
@@ -34,7 +35,7 @@ export default async function Pros() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-2xl font-bold">Pro roster</h1><p className="text-sm text-ink-soft">Every pro on file — performance, tier, points, insurance and status.</p></div>
-        <Link href="/hub/recruiting" className="btn-ghost">🧲 {(apps ?? []).length} application{(apps ?? []).length === 1 ? "" : "s"} to review in Recruiting →</Link>
+        <Link href="/hub/recruiting/pipeline" className="btn-ghost">🧲 {(apps ?? []).length} application{(apps ?? []).length === 1 ? "" : "s"} to review in Recruiting →</Link>
       </div>
       <section>
         <div className="card overflow-x-auto p-0">

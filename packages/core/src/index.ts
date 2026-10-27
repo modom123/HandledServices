@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-20_0100 UTC — channels (omnichannel lead intake, channel reporting, social calendar).
  * UPDATED : 2026-10-20_0200 UTC — pro-rates (pros set their own prices; price choices; request-a-quote).
  * UPDATED : 2026-10-23_1100 UTC — ats (Indeed Apply + CSV candidate import parsing, trade detection).
+ * UPDATED : 2026-10-27_1700 UTC — recruiting-division (openings on three tracks, Indeed post kit, shared pipeline stages).
  */
 
 export * from "./types.ts";
@@ -70,3 +71,4 @@ export * from "./partners.ts";
 export * from "./loyalty.ts";
 export * from "./supabase-public.ts";
 export * from "./ats.ts";
+export * from "./recruiting-division.ts";

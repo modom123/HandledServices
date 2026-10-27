@@ -15,6 +15,8 @@
  *             guarantee           — an early exit: replacement search or prorated refund, and the recruiter's share back
  * UPDATED : 2026-10-12_1525 UTC — flat fee per hire: searches of type "flat" (fee set by the role's pay tier, or by staff), hires
  *           billed the flat fee with the recruiter's 80% share, invoices say "flat fee per hire".
+ * UPDATED : 2026-10-27_1700 UTC — internal searches (Handled's own staff roles, talent_clients.internal): hire without a client
+ *           submission, $0 fee, never invoiced.
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
@@ -273,13 +275,17 @@ export async function candidateAnswer(t: string, answer: "confirm" | "withdraw")
 // ───────────────────────────── hires, invoices, payouts ─────────────────────────────
 
 export async function recordHire(submissionId: string, o: { base_salary: number; start_date: string }, actor: string) {
-  const { data: sub } = await db().from("talent_submissions").select("*, talent_searches(*)").eq("id", submissionId).maybeSingle();
+  const { data: sub } = await db().from("talent_submissions").select("*, talent_searches(*), talent_clients(internal)").eq("id", submissionId).maybeSingle();
   if (!sub) return { ok: false, error: "Not found" };
-  if (!sub.submitted_at) return { ok: false, error: "Only candidates submitted to the client can be hired through us" };
+  // our own staff roles (internal client): no client submission, no fee, nothing to invoice
+  const internal = Boolean((sub.talent_clients as { internal?: boolean } | null)?.internal);
+  if (!sub.submitted_at && !internal) return { ok: false, error: "Only candidates submitted to the client can be hired through us" };
   const s = sub.talent_searches as { id: string; type: string; fee_pct: number; recruiter_pct: number; minimum_fee: number; openings: number; estimated_salary: number | null; engaged_on: string | null; title: string; flat_fee?: number | null };
   const retained = s.type === "retained";
   let fee: number, recruiterPay: number;
-  if (retained) {
+  if (internal) {
+    fee = 0; recruiterPay = 0;
+  } else if (retained) {
     const { data: pays } = await db().from("talent_retainer_payments").select("key, amount, status").eq("search_id", s.id);
     const paidOrBilled = (pays ?? []).filter((p) => p.key !== "placement").reduce((t, p) => t + Number(p.amount), 0);
     const sched = retainedSchedule({ estimatedSalary: Number(s.estimated_salary ?? o.base_salary), feePct: Number(s.fee_pct), engagedOn: s.engaged_on ?? today(), actualSalary: o.base_salary, paidSoFar: paidOrBilled });
@@ -296,7 +302,7 @@ export async function recordHire(submissionId: string, o: { base_salary: number;
   const { data: pl, error } = await db().from("talent_placements").insert({
     submission_id: sub.id, search_id: s.id, client_id: sub.client_id, candidate_id: sub.candidate_id, recruiter_id: sub.recruiter_id, base_salary: o.base_salary, fee_pct: s.fee_pct,
     fee, recruiter_pay: recruiterPay, platform: Math.round((fee - recruiterPay) * 100) / 100, start_date: o.start_date, guarantee_ends: addDays(o.start_date, TALENT_TERMS.guaranteeDays),
-    invoice_due: addDays(o.start_date, TALENT_TERMS.invoiceDueDays), status: retained ? "invoiced" : "pending_start", created_by: actor,
+    invoice_due: addDays(o.start_date, TALENT_TERMS.invoiceDueDays), status: internal ? "paid" : retained ? "invoiced" : "pending_start", created_by: actor, // internal: $0, never invoiced
   }).select("id").single();
   if (error || !pl) return { ok: false, error: error?.message ?? "Couldn't record the hire" };
   await db().from("talent_submissions").update({ stage: "placed", offer_salary: o.base_salary, start_date: o.start_date, updated_at: now() }).eq("id", sub.id);

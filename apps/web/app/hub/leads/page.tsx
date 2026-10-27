@@ -7,6 +7,7 @@
  *           emailed, who clicked and applied, the call list for phone-only leads, CSV import, and
  *           the settings. Setup status for the three keys it needs.
  * UPDATED : 2026-10-11_1625 UTC — HUNTER_API_KEY in the setup list (Hunter.io finds emails the website doesn't show).
+ * UPDATED : 2026-10-27_1700 UTC — applicants link → Recruiting → Pipeline.
  */
 import Link from "next/link";
 import { TRADES } from "@handled/core";
@@ -42,7 +43,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Pro leads</h1>
-        <p className="text-sm text-ink-soft">Finds independent pros where we’re short (<Link href="/hub/gaps" className="text-brand underline">Supply gaps</Link>), finds the email on their own website, writes each one a 3-email invitation (day 0, 3, 8) and hands it to Instantly to send. It stops when they apply, unsubscribe or bounce. Phone-only leads go to the call list below — we never send automated texts. Applicants land in <Link href="/hub/recruiting" className="text-brand underline">Recruiting</Link>.</p>
+        <p className="text-sm text-ink-soft">Finds independent pros where we’re short (<Link href="/hub/gaps" className="text-brand underline">Supply gaps</Link>), finds the email on their own website, writes each one a 3-email invitation (day 0, 3, 8) and hands it to Instantly to send. It stops when they apply, unsubscribe or bounce. Phone-only leads go to the call list below — we never send automated texts. Applicants land in <Link href="/hub/recruiting/pipeline" className="text-brand underline">Recruiting → Pipeline</Link>.</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">{keys.map(([k, ok, why]) => <div key={k} className={`card text-xs ${ok ? "" : "border-amber-300 bg-amber-50"}`}><b>{ok ? "✓" : "⚠"} {k}</b><div className="text-ink-soft">{why}</div></div>)}</div>
       {!outreachReady() && <p className="text-xs text-ink-soft">Without the Instantly keys the engine still finds leads and builds the call list; it just doesn’t email. Replies land in Instantly’s Unibox.</p>}
