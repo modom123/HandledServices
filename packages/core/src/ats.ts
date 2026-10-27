@@ -7,11 +7,16 @@
  *             parseCandidatesCsv() — a CSV export (Indeed "Candidates" export, a spreadsheet, another ATS) → candidates;
  *                                    columns are matched by name, in any order, with common aliases
  *             inferTrades()        — trade ids from a job title / jobMeta / notes ("House Cleaner" → cleaning)
+ *             inferSpecialties()   — skills within those trades ("mulch, edging" → landscaping, bed edging)
  *           The web app saves them with lib/recruiting-intake.ts (dedupe, résumé, confirmation, AI screen).
- * UPDATED : 2026-10-23_1600 UTC — carpentry, masonry and roofing are their own trades (carpenters no longer map to handyman).
+ * UPDATED : 2026-10-23_1900 UTC — skills (specialties) on candidates: picked by staff, or read from the Skills / job title /
+ *           notes text; job titles for roofing, masonry, concrete, demolition and furniture assembly; landscaping words → lawn.
+ * UPDATED : 2026-10-23_2100 UTC — job titles for the 20 trades added with services 76–100.
+ * UPDATED : 2026-10-27_1600 UTC — carpenters are their own trade (carpentry) instead of handyman.
  */
 import { TRADES } from "./services.ts";
 import { MAX_TRADES } from "./pro-program.ts";
+import { specialtiesFor } from "./vetting.ts";
 
 export interface Candidate {
   full_name: string;
@@ -19,6 +24,8 @@ export interface Candidate {
   phone: string;
   business_name?: string;
   trades: string[];
+  /** skills within those trades (TRADE_PROFILES specialty ids) */
+  specialties?: string[];
   zips?: string;
   location?: string;
   years_experience?: number;
@@ -37,7 +44,7 @@ const TRADE_WORDS: [RegExp, string][] = [
   [/\b(carpet|upholster)/i, "carpet"],
   [/\borganiz/i, "organizing"],
   [/\bgutter/i, "gutters"],
-  [/\b(lawn|landscap\w*|mow\w*|groundskeep\w*)\b/i, "lawn"],
+  [/\b(lawn|landscap\w*|mow\w*|groundskeep\w*|grounds crew|yard work|edging|mulch\w*|hedge|shrubs?|sod)\b/i, "lawn"],
   [/\b(tree|arborist)/i, "tree"],
   [/\bsnow/i, "snow"],
   [/\b(dog|pet)\b/i, "pet_care"],
@@ -46,14 +53,37 @@ const TRADE_WORDS: [RegExp, string][] = [
   [/\b(detail(er|ing)?)\b/i, "auto_detailing"],
   [/\b(mover|moving|junk|haul\w*)\b/i, "hauling"],
   [/\b(handyman|handy man|maintenance tech\w*)\b/i, "handyman"],
-  [/\b(carpent\w*|deck build\w*)\b/i, "carpentry"],
-  [/\b(mason\w*|brick\w*|concrete|tuckpoint\w*|chimney)\b/i, "masonry"],
-  [/\b(roof\w*|shingl\w*)\b/i, "roofing"],
+  [/\b(carpent\w*|trim carpenter|finish carpenter)\b/i, "carpentry"],
   [/\bplumb/i, "plumbing"],
   [/\belectric(ians?|al)\b/i, "electrical"],
   [/\b(hvac|heating|air condition\w*|refrigeration)\b/i, "hvac"],
   [/\bpaint(er|ers|ing)?\b/i, "painting"],
   [/\b(remodel\w*|general contractor|renovat\w*)\b/i, "remodel"],
+  [/\b(roof\w*|shingl\w*)\b/i, "roofing"],
+  [/\b(mason\w*|brick\w*|tuckpoint\w*|chimney)\b/i, "masonry"],
+  [/\b(concrete|cement|flatwork|finisher)\b/i, "concrete"],
+  [/\b(demo|demolition|wrecking|tear[\s-]?out)\b/i, "demolition"],
+  [/\b(furniture assembl\w*|assembler|ikea|tv mount\w*)\b/i, "assembly"],
+  [/\b(fenc(e|ing)|deck build\w*|deck (installer|carpenter))\b/i, "fence_deck"],
+  [/\bsiding\b/i, "siding"],
+  [/\b(seamless gutter|gutter install\w*)\b/i, "gutter_install"],
+  [/\b(window (installer|installation|replacement)|door installer)\b/i, "windows_doors"],
+  [/\binsulat\w*/i, "insulation"],
+  [/\b(floor(ing)? (installer|install\w*|mechanic)|carpet install\w*|tile setter)\b/i, "flooring"],
+  [/\b(sealcoat\w*|seal coat\w*|asphalt|paving)\b/i, "paving"],
+  [/\bappliance/i, "appliance"],
+  [/\bgarage door/i, "garage_door"],
+  [/\blocksmith/i, "locksmith"],
+  [/\b(home|property|building) inspector\b/i, "inspection"],
+  [/\b(water damage|restoration tech\w*|water mitigation)\b/i, "water_damage"],
+  [/\b(duct clean\w*|dryer vent)\b/i, "duct_cleaning"],
+  [/\bchimney sweep/i, "chimney_sweep"],
+  [/\b(irrigation|sprinkler tech\w*)\b/i, "irrigation"],
+  [/\b(holiday|christmas) light/i, "holiday_lights"],
+  [/\bpool (tech\w*|service|cleaner)\b/i, "pool"],
+  [/\b(pest control|exterminator|pest tech\w*)\b/i, "pest"],
+  [/\b(wildlife (control|removal|tech\w*)|nuisance animal)\b/i, "nuisance_wildlife"],
+  [/\b(laundry|wash (and|&) fold|laundromat)\b/i, "laundry"],
   [/\b(security guard|security officer)\b/i, "security"],
   [/\b(driver|chauffeur|limo)\b/i, "transportation"],
   [/\brecruit(er|ing)\b/i, "recruiter"],
@@ -72,6 +102,47 @@ export function inferTrades(...texts: (string | null | undefined)[]): string[] {
     for (const [re, id] of TRADE_WORDS) if (re.test(text)) out.add(id);
   }
   return [...out].filter((id) => TRADE_IDS.has(id)).slice(0, MAX_TRADES);
+}
+
+// keyword → specialty id (only kept when the candidate has the trade that owns it)
+const SKILL_WORDS: [RegExp, string][] = [
+  [/\b(mow\w*)\b/i, "mowing"],
+  [/\b(string trim\w*|weed[\s-]?eat\w*|weed[\s-]?whack\w*|trimm(ing|er))\b/i, "string_trim"],
+  [/\b(landscap\w*|mulch\w*)\b/i, "landscaping"],
+  [/\b(edg(e|es|ing|er))\b/i, "bed_edging"],
+  [/\b(hedges?|shrubs?|bush(es)?|prun\w*)\b/i, "shrubs"],
+  [/\b(plant(ing|s)?|perennials?|flower beds?)\b/i, "planting"],
+  [/\b(sod|seed(ing)?|overseed\w*)\b/i, "sod"],
+  [/\b(clean[\s-]?ups?|spring clean\w*|fall clean\w*)\b/i, "cleanups"],
+  [/\b(leaf|leaves)\b/i, "leaf"],
+  [/\baerat\w*/i, "aeration"],
+  [/\b(fertiliz\w*|weed control|pesticide|applicator)\b/i, "treatment"],
+  [/\b(grounds(keep\w*)?|commercial lawn|hoa)\b/i, "commercial_grounds"],
+  [/\b(shingl\w*|roof repair|leaks?)\b/i, "roof_repair"],
+  [/\b(re-?roof\w*|tear[\s-]?off)\b/i, "reroof"],
+  [/\b(flat roof|epdm|modified bitumen|tpo)\b/i, "flat_roof"],
+  [/\b(tuck[\s-]?point\w*|repoint\w*|brick repair)\b/i, "tuckpointing"],
+  [/\bchimney/i, "chimney"],
+  [/\bretaining wall/i, "retaining"],
+  [/\b(steps|stoops?)\b/i, "steps"],
+  [/\b(patios?|sidewalks?|driveways?|flatwork)\b/i, "concrete_flat"],
+  [/\b(mudjack\w*|slab lift\w*|foam lift\w*)\b/i, "slab_lift"],
+  [/\bstamped/i, "stamped"],
+  [/\b(ikea|flat[\s-]?pack|furniture assembl\w*)\b/i, "flatpack"],
+  [/\b(tv mount\w*|mount(ing)? tvs?)\b/i, "tv_mount"],
+  [/\b(playsets?|swing sets?|trampolines?)\b/i, "outdoor_assembly"],
+];
+
+/** Skill (specialty) ids for these trades named in free text, plus ids listed as-is ("skills: mowing, bed_edging"). */
+export function inferSpecialties(trades: string[], ...texts: (string | null | undefined)[]): string[] {
+  const allowed = new Set(specialtiesFor(trades).map((s) => s.id));
+  const out = new Set<string>();
+  for (const raw of texts) {
+    const text = String(raw ?? "");
+    for (const tok of text.toLowerCase().split(/[,;/|]+/)) if (allowed.has(tok.trim())) out.add(tok.trim());
+    for (const [re, id] of SKILL_WORDS) if (allowed.has(id) && re.test(text)) out.add(id);
+  }
+  return [...out];
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
@@ -100,6 +171,7 @@ export function parseIndeedApply(body: unknown): { ok: true; candidate: Candidat
     candidate: {
       full_name: name.slice(0, 120), email, phone: cleanPhone(str(a.phoneNumber ?? a.phone)),
       trades: inferTrades(meta, title),
+      specialties: inferSpecialties(inferTrades(meta, title), meta, title, cover),
       location: loc || undefined,
       zips: str(a.zip ?? a.postalCode ?? obj(a.location).postalCode) || undefined,
       message: [cover, resumeText && !str(file.data) ? `Résumé (text): ${resumeText}` : ""].filter(Boolean).join("\n\n").slice(0, 2000) || undefined,
@@ -174,7 +246,8 @@ export function parseCandidatesCsv(text: string, defaultSource = "import"): { ca
     const years = parseInt(get("years"), 10);
     candidates.push({
       full_name: name.slice(0, 120), email, phone: cleanPhone(get("phone")), business_name: get("business") || undefined,
-      trades: inferTrades(get("trades"), get("job"), get("notes")), location: get("location") || undefined, zips: get("zip") || undefined,
+      trades: inferTrades(get("trades"), get("job"), get("notes")),
+      specialties: inferSpecialties(inferTrades(get("trades"), get("job"), get("notes")), get("trades"), get("job"), get("notes")), location: get("location") || undefined, zips: get("zip") || undefined,
       years_experience: Number.isFinite(years) && years >= 0 && years <= 80 ? years : undefined,
       message: [get("job") && `Applied for: ${get("job")}`, get("notes")].filter(Boolean).join("\n").slice(0, 2000) || undefined,
       source: (get("source") || defaultSource).toLowerCase().slice(0, 60),

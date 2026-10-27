@@ -13,6 +13,11 @@
   UPDATED : 2026-10-11_1405 UTC — 66 services: Freight & Pallet Delivery added (motor truck cargo insurance required of carriers).
   UPDATED : 2026-10-11_0608 UTC — 65 services (Business & Technology: websites, business formation, consulting, AI automation,
             AI agents). Professional E&O now also covers this delivered work; formation is paperwork only (no legal advice).
+  UPDATED : 2026-10-23_1900 UTC — 75 services: roofing, masonry, concrete and demolition (licensed trades: ask the broker
+            about general liability for roofing and demolition subs), landscaping and furniture assembly.
+  UPDATED : 2026-10-23_2100 UTC — 100 services. New licensed trades: fences & decks, siding, gutter installation, windows &
+            doors, insulation, flooring (Michigan M&A), pest control (MDARD applicator) and live wildlife (DNR permit). Ask the
+            broker about water damage (pollution / mold exclusions) and locksmith and home-watch work (care, custody & control).
 -->
 
 # Business & legal launch checklist
@@ -24,7 +29,7 @@ real customers' money.
 ## How to work through it fastest
 
 1. **One commercial insurance broker** who already insures marketplaces or gig platforms can quote
-   every policy in the insurance section at once. Bring: the service list (66 services), expected
+   every policy in the insurance section at once. Bring: the service list (100 services), expected
    jobs per month, that pros are 1099 subcontractors carrying their own insurance (our onboarding
    verifies it), and that we arrange rides and deliveries in vehicles we don't own.
 2. **One business attorney** for the legal review section, with referrals for the specialists
