@@ -12,11 +12,13 @@
  * UPDATED : 2026-10-04_1934 UTC — BusinessForm passes the sales-engine lead token (pilot offer, credit).
  * UPDATED : 2026-10-06_0841 UTC — BusinessForm moved to ProposalForm.tsx (3-step Request for Proposal with scope of work).
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the pro application's mobile number.
+ * UPDATED : 2026-10-27_1800 UTC — pro application: utm_source becomes the source (Indeed applicants counted as Indeed), and
+ *           ?opening=pro:<trade> / ?trade= pre-selects that trade.
  */
 "use client";
 
 import { SmsConsent } from "./SmsConsent";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { COVERAGES, MAX_TRADES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
 
 function useSubmit(url: string) {
@@ -50,13 +52,20 @@ function Chips({ options, value, onChange, max }: { options: { id: string; label
 /**
  * Pro application. Quick by design: name, contact, trades and ZIP codes are all that's
  * required — everything else is optional ("speeds up approval") and can be added in setup.
- * Where they came from (?ref= referral, ?src=, utm_*) is captured automatically.
+ * Where they came from (?ref= referral, ?src=, utm_*) is captured automatically; utm_source (e.g. indeed) is also the
+ * application's source, and ?opening=pro:<trade> / ?trade= pre-selects the trade (Indeed posts, the careers page).
  */
 export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
   const es = locale === "es";
   const t = (s: string) => tr(locale, s);
   const { state, error, submit } = useSubmit("/api/applications");
   const [trades, setTrades] = useState<string[]>([]);
+  // came from an Indeed post or the careers page (?opening=pro:<trade> or ?trade=<trade>): start with that trade picked
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const want = q.get("opening")?.match(/^pro:([a-z_]+)$/)?.[1] ?? q.get("trade");
+    if (want && TRADES.some((x) => x.id === want)) setTrades((cur) => (cur.length ? cur : [want]));
+  }, []);
   const [insured, setInsured] = useState(false);
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [coverages, setCoverages] = useState<string[]>([]);
@@ -77,7 +86,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
       submit({
         ...f, trades, insured, specialties: specialties.filter((s) => specialtyOptions.some((o) => o.id === s)), coverages_held: coverages,
         years_experience: f.years_experience || undefined, crew_size: f.crew_size || undefined,
-        source: f.source || q.get("src") || undefined, ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined, lead: q.get("lead") || undefined,
+        source: f.source || q.get("src") || q.get("utm_source") || undefined, // utm_source=indeed counts as Indeed in Recruiting ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined, lead: q.get("lead") || undefined,
       });
     }}>
       <p className="text-sm text-ink-soft">{t("Takes 2 minutes. Only the first part is required.")}</p>

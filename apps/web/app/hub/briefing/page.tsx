@@ -6,6 +6,7 @@
  *           schedule and the queues waiting on a person (jobs without a pro, QA, IEBC approvals, new pro applications).
  *           Moved off the Dashboard, which is now stats and insights only (app/hub/page.tsx).
  * UPDATED : 2026-10-15_0010 UTC — pro candidates waiting on a decision (screened or interviewed) lead the queues.
+ * UPDATED : 2026-10-27_1700 UTC — candidates to decide → Recruiting → Pipeline.
  */
 import Link from "next/link";
 import { getService, type Job } from "@handled/core";
@@ -38,7 +39,7 @@ export default async function Briefing() {
   const jobs = (todays ?? []) as Job[];
 
   const queues: [string, number, string, boolean][] = [
-    ["🧲 Pro candidates to decide", decide, "/hub/recruiting", decide > 0],
+    ["🧲 Pro candidates to decide", decide, "/hub/recruiting/pipeline", decide > 0],
     ["🧰 Jobs need a pro", unassigned, "/hub/dispatch", unassigned > 0],
     ["🔍 Awaiting QA", qa, "/hub/jobs", qa > 0],
     ["🤖 IEBC actions to approve", iebcPending ?? 0, "/hub/agents?view=workforce", (iebcPending ?? 0) > 0],

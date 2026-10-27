@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-19_2230 UTC — sales_reply agent: reads replies to the Instantly business campaign and drafts answers.
  * UPDATED : 2026-10-19_2330 UTC — deal_hunter agent; the gov contract scout picks the day's bids (AI bid desk).
  * UPDATED : 2026-10-20_0100 UTC — speed_to_lead and social_writer agents (omnichannel).
+ * UPDATED : 2026-10-27_1900 UTC — resume_reader agent (fills in a phone-interviewed pro's file from their résumé).
  */
 import { BRAND } from "./brand.ts";
 import { GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "./city-scorecard.ts";
@@ -103,6 +104,9 @@ export const AGENTS: AgentRole[] = [
   { kind: "doc_check", name: "Document checker", does: "Reads insurance, licenses and IDs uploaded by pros", trigger: "Every document upload", gate: true,
     tasks: ["Check every upload the same minute; flag expired or mismatched documents", "Read dates and names exactly as printed"],
     drives: "Fast, accurate checks get pros working sooner and keep customers and the company protected." },
+  { kind: "resume_reader", name: "Résumé reader", does: "Reads a résumé staff upload for a pro they've phone-interviewed and fills in the new pro's file (contact details, trades, skills, experience)", trigger: "Hub → Recruiting → Add an approved pro", gate: true,
+    tasks: ["Copy contact details exactly as printed", "Pick only the trades and skills the work history shows"],
+    drives: "Entering a hire in seconds means approved pros get their invite the same day." },
   { kind: "speed_to_lead", name: "Speed-to-lead responder", does: "Answers every inbound lead from every channel (website, AI chat, Facebook / Instagram / TikTok / Google / LinkedIn lead forms, Yelp) within seconds: a short email, a text only when they agreed to texts, and a call note for the team", trigger: "Every new lead (Lead inbox)", external: true,
     tasks: ["Reply to every lead within 1 minute, 24/7", "Show you understood what they asked, give the booking link and say a real person will call — never a price, date or promise", "Write the caller a one-line note with the first question to ask"],
     drives: "The first business to answer usually wins the job: an instant, honest reply plus a fast call turns ad and social spend into bookings." },

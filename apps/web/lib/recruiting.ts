@@ -23,9 +23,13 @@
  * UPDATED : 2026-10-19_1308 UTC — renewalSweep(): active pros hear 30 and 7 days before insurance, a required coverage or
  *           a trade license expires, and on the day it lapses (offers pause then — dispatch eligible()); ops is alerted at 7 days
  *           and on expiry. Once per document per expiry date.
+ * UPDATED : 2026-10-27_1700 UTC — inviteApplicant() refuses a candidate with no trade (Indeed / imported applicants whose job
+ *           title didn't say): they'd become a pro who never gets an offer. Staff set the trade on the candidate page first.
+ * UPDATED : 2026-10-27_1900 UTC — the invite and "You're live" emails spell out the road to the first paycheck (core
+ *           PRO_ROADMAP): setup, document checks, background, live, offers, the job, paid every Monday.
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -98,6 +102,8 @@ async function appLocale(c: { application_id?: string | null }): Promise<string 
 export async function proLocale(c: { profile_id?: string | null; application_id?: string | null }) {
   return localeOf(c.profile_id, await appLocale(c));
 }
+/** "You're live" emails explain the roadmap from accepting offers on. */
+const LIVE_FROM = PRO_ROADMAP.findIndex((x) => x.id === "offers");
 const first = (name: unknown) => String(name ?? "").split(" ")[0];
 
 function stepsList(c: Contractor, lang = "en") {
@@ -129,7 +135,8 @@ export async function onApplication(appId: string) {
   }
   const d = autoInviteDecision(settings, screen);
   if (d.invite) {
-    await inviteApplicant(appId, "auto-invite", d.why);
+    const inv = await inviteApplicant(appId, "auto-invite", d.why);
+    if (!inv.ok) await raiseAlert("recruiting", "info", `Set the trade, then invite: ${app.business_name}`, `${inv.error}. Open Hub → Recruiting → Pipeline.`);
     return;
   }
   await raiseAlert("recruiting", "info", `Decide: ${app.business_name} (${(app.trades as string[]).join(", ")})`, `${d.why}. Open Hub → Recruiting.`);
@@ -140,6 +147,11 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
   if (!app) return { ok: false, error: "Not found" };
   if (app.stage === "invited" && app.contractor_id) return { ok: true, contractorId: app.contractor_id as string };
+  // a pro with no trade never gets an offer (common for Indeed / imported candidates): set it on the candidate page first
+  if (!((app.trades as string[] | null) ?? []).length) {
+    await logRecruiting("invite_blocked", { applicationId: appId }, "no trade set", actor);
+    return { ok: false, error: "Set this candidate's trades first (on their candidate page) — a pro with no trade never gets job offers" };
+  }
   const zips = String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z));
   const now = new Date().toISOString();
   const { data: pro, error } = await db().from("contractors").upsert({
@@ -153,9 +165,9 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   const link = await signInUrl(pro.email);
   const lang = await localeOf(pro.profile_id, app.locale);
   if (lang === "es") await sendEmail(pro.email, `Tiene una invitación de ${BRAND.name}: termine su configuración en unos 15 minutos`,
-    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
+    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
   else await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
-    `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
+    `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
 }
 
@@ -261,10 +273,10 @@ export async function activatePro(contractorId: string, actor: string) {
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
   await notify(c.profile_id, { title: "You're live 🎉", body: "Setup is complete. Job offers in your area start now.", data: { type: "pro_home" },
-    email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` },
+    email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nHow it works from here:\n${roadmapText("en", LIVE_FROM)}\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` },
     locale: await appLocale(c),
     es: { title: "¡Ya está activo! 🎉", body: "Su configuración está completa. Las ofertas de trabajo en su zona empiezan ahora.",
-      subject: `Ya está activo en ${BRAND.name}`, text: `Le damos la bienvenida, ${first(c.contact_name)}. Su configuración está completa y verificada. Empezará a recibir ofertas de trabajo en su zona y especialidades de inmediato.\n\nActive las notificaciones en la app de ${BRAND.name} para no perderse ninguna oferta.\nSu panel: ${siteUrl()}/pro\n\n— ${BRAND.name}` } });
+      subject: `Ya está activo en ${BRAND.name}`, text: `Le damos la bienvenida, ${first(c.contact_name)}. Su configuración está completa y verificada. Empezará a recibir ofertas de trabajo en su zona y especialidades de inmediato.\n\nCómo funciona a partir de ahora:\n${roadmapText("es", LIVE_FROM)}\n\nActive las notificaciones en la app de ${BRAND.name} para no perderse ninguna oferta.\nSu panel: ${siteUrl()}/pro\n\n— ${BRAND.name}` } });
   return true;
 }
 

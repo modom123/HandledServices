@@ -33,6 +33,7 @@
  * UPDATED : 2026-10-06_1950 UTC — coverage: cancel tiers (24h free / 6–24h short notice / under 6h late), time zones, backup order.
  * UPDATED : 2026-10-12_0005 UTC — scheduling gaps (texts, calendar feed, saved homes) and pro ZIP coverage.
  * UPDATED : 2026-10-27_1600 UTC — carpentry.
+ * UPDATED : 2026-10-27_1900 UTC — pro roadmap (invite → first Monday pay).
  */
 
 import { test } from "node:test";
@@ -2246,4 +2247,58 @@ test("carpentry: licensed finish work priced by size; decks and exterior doors l
   assert.ok(getService("deck-build") && getService("window-door-install"), "decks and exterior doors stay with their own services");
   assert.ok(sizeNeedsSiteVisit("carpentry", { project: "builtins", shelf_ft: 30 }));
   assert.equal(sizeNeedsSiteVisit("carpentry", { project: "trim", trim_ft: 200 }), null);
+});
+
+// ─── Recruiting division (recruiting-division.ts) ─────────────────────────────
+test("recruiting division: openings, Indeed posts that route back, contractor-safe pro wording", async () => {
+  const { proOpenings, searchOpening, indeedPost, applyUrl, openingFromMeta, contractorWordingIssues, proStageToDivision, talentStageToDivision } = await import("./recruiting-division.ts");
+  const pros = proOpenings([{ trade: "roofing", needed: 3, zips: 2 }, { trade: "roofing", needed: 1, zips: 1 }, { trade: "nope", needed: 5, zips: 1 }]);
+  const roof = pros.find((o) => o.trade === "roofing")!;
+  assert.equal(roof.needed, 4);
+  assert.equal(roof.reason, "short of pros in 3 ZIPs");
+  assert.ok(!pros.some((o) => o.trade === "nope"), "unknown trades are ignored");
+  assert.ok(pros.some((o) => o.trade === "cleaning" && o.reason.includes("always")), "focus trades are always open");
+  const post = indeedPost(roof, "https://handledsvc.com/");
+  assert.equal(post.jobType, "Contract");
+  assert.deepEqual(post.issues, [], "pro posts use no employment words");
+  assert.ok(post.applyUrl.startsWith("https://handledsvc.com/pros?utm_source=indeed") && post.applyUrl.endsWith("#apply"));
+  assert.deepEqual(openingFromMeta(post.jobMeta), { track: "pro", id: "roofing" });
+  const staff = searchOpening({ id: "0b6f3c1e-1111-4222-8333-944455556666", title: "Dispatcher", location: "Detroit, MI", salary_min: 45000, salary_max: 55000, openings: 1 }, true);
+  assert.equal(staff.key, "staff:0b6f3c1e-1111-4222-8333-944455556666");
+  assert.equal(applyUrl("https://x.com", staff), "https://x.com/careers/0b6f3c1e-1111-4222-8333-944455556666?utm_source=indeed");
+  const sp = indeedPost(staff, "https://x.com");
+  assert.equal(sp.pay, "$45,000 – $55,000 a year");
+  assert.ok(sp.description.includes("equal opportunity employer"));
+  assert.deepEqual(openingFromMeta("trades=cleaning; opening=client:abc-123"), { track: "client", id: "abc-123" });
+  assert.equal(openingFromMeta("trades=cleaning"), null);
+  assert.deepEqual(contractorWordingIssues("We are hiring full-time employees"), ["hiring", "employee", "full-time"]);
+  assert.equal(proStageToDivision("interviewed"), "interview");
+  assert.equal(proStageToDivision("rejected"), null);
+  assert.equal(talentStageToDivision("placed"), "active");
+});
+
+test("pro file: columns come from the onboarding checklist; optional and missing items handled", async () => {
+  const { proFileStatus } = await import("./recruiting-division.ts");
+  const f = proFileStatus([
+    { key: "photo", done: true }, { key: "resume", done: false }, { key: "id", done: true }, { key: "w9", done: true }, { key: "agreement", done: true },
+    { key: "coi", done: true, optional: true }, { key: "coverage:auto", done: true, expiring: true }, { key: "background", done: true }, { key: "payout", done: true },
+  ]);
+  assert.equal(f.cells.resume, "missing");
+  assert.equal(f.cells.insurance, "expiring");
+  assert.equal(f.cells.license, "n/a");
+  assert.deepEqual(f.missing, ["Résumé"]);
+  assert.equal(f.pct, 88); // 7 of 8 required items present
+});
+
+test("pro roadmap: where a new pro is between invite and first Monday pay", async () => {
+  const { PRO_ROADMAP, roadmapStage, roadmapText } = await import("./recruiting-division.ts");
+  const at = (id: string) => PRO_ROADMAP.findIndex((x) => x.id === id);
+  assert.equal(roadmapStage({ live: false, left: 5, leftPending: 1, backgroundDone: false }), at("setup"));
+  assert.equal(roadmapStage({ live: false, left: 2, leftPending: 2, backgroundDone: false }), at("verify"));
+  assert.equal(roadmapStage({ live: false, left: 0, leftPending: 0, backgroundDone: false }), at("background"));
+  assert.equal(roadmapStage({ live: false, left: 0, leftPending: 0, backgroundDone: true }), at("live"));
+  assert.equal(roadmapStage({ live: true, left: 0, leftPending: 0, backgroundDone: true }), at("offers"));
+  assert.equal(PRO_ROADMAP.at(-1)!.id, "paid");
+  assert.match(roadmapText("en"), /^1\. Finish setup — /);
+  assert.match(roadmapText("es", at("offers")), /^5\. Acepte ofertas de trabajo — .*\n7\. Cobre cada lunes/s);
 });
