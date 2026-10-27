@@ -8,12 +8,16 @@
  *           intake.ts: dedupe, résumé to the private bucket, confirmation email) and then screened (onApplication).
  *           Responses: 200 saved (or already saved / already a pro), 400 bad payload, 401 bad signature, 503 not set up.
  *           Job → trades: put "trades=cleaning" (trade ids) in the job's jobMeta, or the job title is read ("House Cleaner").
+ * UPDATED : 2026-10-27_1700 UTC — routes by jobMeta: opening=staff:<id> / client:<id> → that Talent search's pipeline (résumé
+ *           to the talent bucket); everything else (opening=pro:<trade>, or none) → the pro pipeline as before.
  */
 import { after } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { parseIndeedApply } from "@handled/core";
+import { openingFromMeta, parseIndeedApply } from "@handled/core";
 import { addCandidate } from "@/lib/recruiting-intake";
 import { onApplication } from "@/lib/recruiting";
+import { applyToRole } from "@/lib/recruiting-division";
+import { adminClient } from "@/lib/supabase/server";
 
 function signed(raw: string, header: string | null, secret: string): boolean {
   if (!header) return false;
@@ -35,6 +39,20 @@ export async function POST(req: Request) {
   try { body = JSON.parse(raw); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
   const parsed = parseIndeedApply(body);
   if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+  // jobMeta "opening=staff:<id>" / "opening=client:<id>": a team or client role → that search's pipeline
+  const c = parsed.candidate;
+  const target = openingFromMeta(String(c.external_job?.meta ?? ""));
+  if (target && target.track !== "pro") {
+    let resume_path: string | null = null;
+    if (c.resume) {
+      const path = `indeed/${Date.now()}-${c.resume.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-60)}`;
+      const { error } = await adminClient().storage.from("talent").upload(path, Buffer.from(c.resume.data, "base64"), { contentType: c.resume.contentType });
+      if (!error) resume_path = path;
+    }
+    const t = await applyToRole(target.id, { full_name: c.full_name, email: c.email, phone: c.phone || null, location: c.location ?? null, summary: c.message ?? null, resume_path, source: "indeed" }, { requirePublic: false });
+    if (!t.ok && !/already applied/.test(t.error)) return Response.json({ error: t.error }, { status: t.error.includes("isn't open") ? 404 : 500 });
+    return Response.json({ ok: true, status: t.ok ? "added" : "duplicate" });
+  }
   const r = await addCandidate(parsed.candidate, { actor: "indeed", confirm: true });
   if (r.error) return Response.json({ error: "Couldn't save the application" }, { status: 500 }); // Indeed retries
   if (r.status === "added" && r.id) { const id = r.id; after(() => onApplication(id).catch((e) => console.error("[indeed]", e))); }

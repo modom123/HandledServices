@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-27_1500 UTC — /about in the matcher (?lang= and ?theme= links work there too).
  * PURPOSE : Refreshes the Supabase auth session cookie on every request to the
  *           signed-in areas (account, pro portal, ops hub).
+ * UPDATED : 2026-10-27_1800 UTC — /careers in the matcher.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
@@ -66,4 +67,4 @@ export async function proxy(request: NextRequest) {
 }
 
 // signed-in areas (session refresh) + public pages that may carry ?lang=
-export const config = { matcher: ["/account/:path*", "/pro/:path*", "/hub/:path*", "/login", "/pros", "/book", "/home", "/", "/terms/:path*", "/services/:path*", "/business", "/plus", "/gift-cards", "/book/:path*", "/partners", "/partner", "/events", "/talent", "/network", "/about"] };
+export const config = { matcher: ["/account/:path*", "/pro/:path*", "/hub/:path*", "/login", "/pros", "/book", "/home", "/", "/terms/:path*", "/services/:path*", "/business", "/plus", "/gift-cards", "/book/:path*", "/partners", "/partner", "/events", "/talent", "/network", "/about", "/careers"] };

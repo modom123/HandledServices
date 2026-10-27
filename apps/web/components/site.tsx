@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-23_1500 UTC — the header's Become a partner button opens the sign-up form (/partners#join).
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
+ * UPDATED : 2026-10-27_1800 UTC — Careers (/careers) in the For Pros menu and the footer.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -69,6 +70,7 @@ export async function SiteHeader() {
         { href: "/pros#pay", label: es ? "Cuánto puede ganar" : "What you’d make", icon: "💵" },
         { href: "/pros#grow", label: t("Pro Rewards & tiers"), icon: "🏆" },
         { href: "/pros#requirements", label: es ? "Requisitos por oficio" : "Requirements by trade", icon: "📋" },
+        { href: "/careers", label: es ? "Empleos y puestos abiertos" : "Careers & open roles", icon: "💼" },
         { href: "/login?next=/pro", label: es ? "Portal para profesionales" : "Pro sign in", icon: "🔑" },
       ],
       footer: { href: "/pros#apply", label: es ? "Postúlese en 5 minutos →" : "Apply in 5 minutes →" },
@@ -161,6 +163,7 @@ export async function SiteFooter() {
         ])}
         {col(es ? "Trabaje con nosotros" : "Work with us", [
           { href: "/pros#apply", label: es ? "Hágase profesional" : "Become a pro" },
+          { href: "/careers", label: es ? "Empleos" : "Careers" },
           { href: "/pros#rewards", label: t("Pro Rewards & tiers") },
           { href: "/partners#join", label: es ? "Hágase socio" : "Become a partner" },
           { href: "/plus", label: "Handled Plus" },

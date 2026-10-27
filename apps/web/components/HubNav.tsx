@@ -8,13 +8,14 @@
  * UPDATED : 2026-10-15_0100 UTC — Mastermind declutter: the sidebar is Daily Briefing, Dashboard and one link per section
  *           (Pros, Jobs, Clients, Money, Growth, AI team, Settings) — 9 links instead of 41. The pages inside the current
  *           section show as tabs across the top of the page (SectionTabs). The map lives in lib/hub-sections.
+ * UPDATED : 2026-10-27_1700 UTC — the section's tab lights up by the most specific match or an alias (activeTab).
  */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { HUB_TOP, linkActive, sectionOf, topActive, type HubSection } from "@/lib/hub-sections";
+import { HUB_TOP, activeTab, sectionOf, topActive, type HubSection } from "@/lib/hub-sections";
 
 const item = (on: boolean) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${on ? "bg-white/15 font-semibold text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`;
 
@@ -55,12 +56,13 @@ export function SectionTabs({ sections }: { sections: HubSection[] }) {
   const path = usePathname();
   const s = sectionOf(sections, path);
   if (!s) return null;
+  const tab = activeTab(s, path);
   return (
     <div className="mb-6 -mt-1 border-b border-line">
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{s.icon} {s.label}</div>
       <nav className="-mb-px flex gap-1 overflow-x-auto" aria-label={s.label}>
         {s.links.map(([href, label]) => {
-          const on = linkActive(path, href);
+          const on = href === tab;
           return (
             <Link key={href} href={href} aria-current={on ? "page" : undefined}
               className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${on ? "border-brand font-semibold text-ink" : "border-transparent text-ink-soft hover:border-line hover:text-ink"}`}>{label}</Link>

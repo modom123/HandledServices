@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-23_1100 UTC — candidates from Indeed / imports: résumé (private link), the job they applied to, screener
  *           answers, who added them, and setting their trades.
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
+ * UPDATED : 2026-10-27_1700 UTC — back link → Recruiting → Pipeline.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,7 +55,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/hub/recruiting" className="text-sm text-brand underline">← Recruiting</Link>
+        <Link href="/hub/recruiting/pipeline" className="text-sm text-brand underline">← Pipeline</Link>
         <h1 className="text-2xl font-bold">{app.business_name}</h1>
         <p className="text-sm text-ink-soft">{app.contact_name} · {app.phone} · {app.email} · {((app.trades as string[]) ?? []).map(trade).join(", ")} · applied {days(app.created_at)}d ago{lastEvent ? ` · last activity ${days(lastEvent.created_at)}d ago` : ""}</p>
       </div>

@@ -23,6 +23,8 @@
  * UPDATED : 2026-10-19_1308 UTC — renewalSweep(): active pros hear 30 and 7 days before insurance, a required coverage or
  *           a trade license expires, and on the day it lapses (offers pause then — dispatch eligible()); ops is alerted at 7 days
  *           and on expiry. Once per document per expiry date.
+ * UPDATED : 2026-10-27_1700 UTC — inviteApplicant() refuses a candidate with no trade (Indeed / imported applicants whose job
+ *           title didn't say): they'd become a pro who never gets an offer. Staff set the trade on the candidate page first.
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
@@ -129,7 +131,8 @@ export async function onApplication(appId: string) {
   }
   const d = autoInviteDecision(settings, screen);
   if (d.invite) {
-    await inviteApplicant(appId, "auto-invite", d.why);
+    const inv = await inviteApplicant(appId, "auto-invite", d.why);
+    if (!inv.ok) await raiseAlert("recruiting", "info", `Set the trade, then invite: ${app.business_name}`, `${inv.error}. Open Hub → Recruiting → Pipeline.`);
     return;
   }
   await raiseAlert("recruiting", "info", `Decide: ${app.business_name} (${(app.trades as string[]).join(", ")})`, `${d.why}. Open Hub → Recruiting.`);
@@ -140,6 +143,11 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
   if (!app) return { ok: false, error: "Not found" };
   if (app.stage === "invited" && app.contractor_id) return { ok: true, contractorId: app.contractor_id as string };
+  // a pro with no trade never gets an offer (common for Indeed / imported candidates): set it on the candidate page first
+  if (!((app.trades as string[] | null) ?? []).length) {
+    await logRecruiting("invite_blocked", { applicationId: appId }, "no trade set", actor);
+    return { ok: false, error: "Set this candidate's trades first (on their candidate page) — a pro with no trade never gets job offers" };
+  }
   const zips = String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z));
   const now = new Date().toISOString();
   const { data: pro, error } = await db().from("contractors").upsert({
