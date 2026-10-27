@@ -19,12 +19,15 @@
  * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP list: "only these ZIP codes" (zips_only), or listed ZIPs count even past the driving radius.
  * UPDATED : 2026-10-19_1320 UTC — insurance-optional services (Service.insuranceOptional) skip the general liability check.
+ * UPDATED : 2026-10-27_2141 UTC — licensed work: a crew company qualifies through a cleared licensed tech on its crew
+ *           (crewCoversLicense) when the owner holds no license; the tech must be assigned before the job starts.
  */
 
 import { getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
 import { proTier } from "./pro-program.ts";
 import { liveLocation, localDate, onCall, timeZoneForZip } from "./roster.ts";
+import { crewCoversLicense } from "./crew.ts";
 import { PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
 
 export interface DispatchCandidate {
@@ -113,8 +116,9 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   const svc = getService(job.service_slug);
   if (c.status !== "approved") return "not approved";
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
-  if (svc?.licensed && !c.license_number) return "license required";
-  if (svc?.licensed && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
+  const viaCrew = Boolean(svc?.licensed) && !c.license_number && crewCoversLicense(c, svc!.trades, today);
+  if (svc?.licensed && !c.license_number && !viaCrew) return "license required";
+  if (svc?.licensed && !viaCrew && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
   // remote work (websites, AI, formation, consulting): no driving radius or service area
   const base = svc?.remote ? null : proDistance(c, job);
   const live = svc?.remote ? null : liveDistance(c, job, today);

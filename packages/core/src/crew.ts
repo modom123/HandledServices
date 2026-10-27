@@ -49,6 +49,60 @@ export interface CrewMember {
 
 export const CREW_LIMITS = { maxActive: 25 } as const;
 
+// ─── How a pro company works with us ─────────────────────────────────────────
+
+export type AccountType = "solo" | "crew";
+export type OwnerOnSite = "always" | "sometimes" | "never";
+export type CustomerDisplay = "person" | "company";
+
+export const ACCOUNT_TYPES: { id: AccountType; label: string; help: string }[] = [
+  { id: "solo", label: "Just me", help: "You do every job yourself." },
+  { id: "crew", label: "My company sends a crew", help: "You list your people; each passes our background check. Your company directs and pays them." },
+];
+export const OWNER_ON_SITE: { id: OwnerOnSite; label: string; help: string }[] = [
+  { id: "always", label: "I'm on every job", help: "Your crew works alongside you." },
+  { id: "sometimes", label: "Me or my crew", help: "You pick who goes, job by job." },
+  { id: "never", label: "My crew does the jobs", help: "You run the office: pick a crew member for every job before it starts." },
+];
+export const CUSTOMER_DISPLAY: { id: CustomerDisplay; label: string; help: string }[] = [
+  { id: "person", label: "My first name", help: "Customers see “Mike · Atkins & Sons”." },
+  { id: "company", label: "My company name", help: "Customers see “Atkins & Sons”, plus the first name of whoever comes out." },
+];
+
+/** A crew member listed at sign-up (added for real, with a background check, from My crew). */
+export interface RosterEntry { full_name: string; role: CrewRole; email?: string | null; phone?: string | null; license_number?: string | null }
+
+type CompanyPrefs = Partial<Pick<Contractor, "account_type" | "owner_on_site" | "customer_display" | "crew_license_trades">>;
+
+export const isCrewCompany = (c: CompanyPrefs) => c.account_type === "crew";
+
+/** The owner doesn't go to jobs: every job needs a crew member picked before it starts. */
+export const ownerOffSite = (c: CompanyPrefs) => isCrewCompany(c) && c.owner_on_site === "never";
+
+/** Starting daily capacity from the size of the crew (the pro can change it any time). */
+export const capacityForCrew = (people: number | null | undefined) => Math.max(2, Math.min(10, Math.max(1, people ?? 1) * 2));
+
+/** Trades a company can take licensed work in through its crew: active, cleared licensed techs with a license number. */
+export function crewLicenseTrades(crew: Pick<CrewMember, "active" | "role" | "background_status" | "license_number" | "trades">[]): string[] {
+  return [...new Set(crew.filter((m) => m.active && m.role === "licensed" && m.background_status === "clear" && m.license_number).flatMap((m) => m.trades))];
+}
+
+/** A licensed job is covered by the company's crew (a licensed tech in one of the service's trades, crew sendable). */
+export function crewCoversLicense(c: CompanyPrefs & Pick<Contractor, "crew_attested_at" | "coverage">, serviceTrades: string[], today = new Date()): boolean {
+  return isCrewCompany(c) && serviceTrades.some((t) => c.crew_license_trades?.includes(t)) && crewReady(c, today) === null;
+}
+
+/**
+ * Why this job can't start yet with who's assigned (null = it can).
+ * Office-only owners must send someone; licensed work the owner isn't licensed for must go to a licensed tech.
+ */
+export function startBlocker(c: CompanyPrefs & Pick<Contractor, "license_number">, slug: string, crewMemberId: string | null | undefined): string | null {
+  if (crewMemberId) return null; // assignCrew already checked that person against this job
+  if (ownerOffSite(c)) return "Pick who on your crew is doing this job before you start";
+  if (getService(slug)?.licensed && !c.license_number) return "This is licensed work: assign a licensed tech from your crew before you start";
+  return null;
+}
+
 /** The company may send crew at all: attested (Crew Addendum signed) and a real workers' comp policy on file. */
 export function crewReady(c: Pick<Contractor, "crew_attested_at" | "coverage">, today = new Date()): string | null {
   if (!c.crew_attested_at) return "Sign the Crew Addendum first";

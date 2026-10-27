@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-15_0300 UTC — Job: payment_plan "after" (25% now, balance after the job), balance_charge_at, balance_attempts,
  *           balance_hold_intent, pay_in_full_discount.
  * UPDATED : 2026-10-18_0415 UTC — Contractor.entity_type uses EntityType (adds LLCs taxed as S/C corporations).
+ * UPDATED : 2026-10-27_2141 UTC — Contractor: account_type, owner_on_site, customer_display, crew_license_trades (crew.ts).
  */
 import type { EntityType } from "./compliance.ts";
 
@@ -226,6 +227,12 @@ export interface Contractor {
   last_located_at?: string | null;
   // crews and the proven-skill fast track (see crew.ts)
   crew_attested_at?: string | null;
+  /** How the company works with us (crew.ts): solo or crew, whether the owner goes to jobs, what customers see. */
+  account_type?: "solo" | "crew" | null;
+  owner_on_site?: "always" | "sometimes" | "never" | null;
+  customer_display?: "person" | "company" | null;
+  /** Trades covered by an active, cleared licensed tech on the crew (kept current by lib/crew). */
+  crew_license_trades?: string[] | null;
   fast_track_status?: "none" | "applied" | "trial" | "approved" | "declined" | null;
   /** Approved fast track: at least this tier while their numbers hold up (proTier). */
   tier_floor?: "pro_plus" | null;

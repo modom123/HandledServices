@@ -10,6 +10,7 @@
  *           answers, who added them, and setting their trades.
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
  * UPDATED : 2026-10-27_1700 UTC — back link → Recruiting → Pipeline.
+ * UPDATED : 2026-10-27_2141 UTC — Application card: solo or crew company, owner on site, customer display, crew listed.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -112,9 +113,10 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           {ivs.length > 1 && <div className="card text-xs"><b>Earlier interviews:</b> {ivs.slice(1).map((i) => `${i.mode} ${i.status}${i.result ? ` (${i.result})` : ""} ${i.created_at.slice(0, 10)}`).join(" · ")}</div>}
           <div className="card text-sm">
             <h2 className="mb-1 font-bold">Application</h2>
-            <div className="text-xs text-ink-soft">{app.years_experience ?? "?"} yrs · crew {app.crew_size ?? "?"} · {app.insured ? "insured" : "not insured yet"} · {app.has_vehicle ? "has a vehicle" : "no vehicle"}{app.license_number ? ` · license ${app.license_number}` : ""} · source: {app.source ?? "not given"}</div>
+            <div className="text-xs text-ink-soft">{app.account_type === "crew" ? <b>Crew company{app.owner_on_site === "never" ? " (owner office only)" : app.owner_on_site === "always" ? " (owner on every job)" : ""}{app.customer_display === "company" ? " · shown by company name" : ""}</b> : "Solo"} · {app.years_experience ?? "?"} yrs · crew {app.crew_size ?? "?"} · {app.insured ? "insured" : "not insured yet"} · {app.has_vehicle ? "has a vehicle" : "no vehicle"}{app.license_number ? ` · license ${app.license_number}` : ""} · source: {app.source ?? "not given"}</div>
             {(extJob?.title || app.added_by) && <div className="mt-1 text-xs text-ink-soft">{extJob?.title ? <>Applied on {String(app.external_source ?? app.source)} for <b>{extJob.url ? <a className="underline" href={extJob.url} target="_blank" rel="noreferrer">{extJob.title}</a> : extJob.title}</b>{extJob.location ? ` (${extJob.location})` : ""}</> : null}{app.added_by ? ` · added by ${app.added_by}` : ""}</div>}
             {resumeUrl && <a className="mt-1 inline-block text-xs font-semibold text-brand underline" href={resumeUrl} target="_blank" rel="noreferrer">📄 Open résumé</a>}
+            {((app.crew_roster ?? []) as { full_name: string; role: string; license_number?: string }[]).length > 0 && <div className="mt-1 text-xs"><b>Crew listed:</b> {((app.crew_roster ?? []) as { full_name: string; role: string; license_number?: string }[]).map((r) => `${r.full_name} (${r.role}${r.license_number ? ` · lic ${r.license_number}` : ""})`).join(" · ")}</div>}
             {app.message && <p className="mt-1 whitespace-pre-line">“{app.message}”</p>}
             {screener && <details className="mt-1 text-xs"><summary className="cursor-pointer text-ink-soft">Screener answers</summary><pre className="mt-1 whitespace-pre-wrap break-words">{screener}</pre></details>}
             {skills.length > 0 && <div className="mt-1 text-xs"><b>Skills:</b> {skills.join(", ")}</div>}

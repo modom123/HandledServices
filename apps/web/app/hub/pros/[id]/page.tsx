@@ -12,6 +12,8 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-10-27_2141 UTC — crew panel shows how the company works with us (owner on site, what customers see,
+ *           trades licensed through the crew) and appears for every crew company, even before anyone is listed.
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -155,10 +157,12 @@ async function StandingPanel({ pro }: { pro: StandingPro }) {
 
 async function CrewPanel({ pro }: { pro: Contractor }) {
   const crew = await listCrew(pro.id, true);
-  if (!crew.length && !pro.crew_attested_at) return null;
+  if (!crew.length && !pro.crew_attested_at && pro.account_type !== "crew") return null;
   const notReady = crewReady(pro);
+  const onSite = { always: "owner on every job", sometimes: "owner or crew, job by job", never: "office only: crew does every job" }[pro.owner_on_site ?? "always"];
   return (
     <div className="card">
+      <div className="mb-1 text-xs"><b>Crew company</b> · {onSite} · customers see {pro.customer_display === "company" ? `“${pro.business_name}”` : "the owner’s first name"}{pro.crew_license_trades?.length ? ` · licensed through crew: ${pro.crew_license_trades.join(", ")}` : ""}</div>
       <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-semibold">Crew ({crew.filter((m) => m.active).length} active)</div>
         <div className="text-xs text-ink-soft">Crew Addendum {pro.crew_attested_at ? `signed ${pro.crew_attested_at.slice(0, 10)}` : "not signed"} · {notReady ? <b className="text-amber-800">can’t send crew: {notReady}</b> : "can send crew"}</div></div>
       <ul className="mt-2 divide-y divide-line text-sm">

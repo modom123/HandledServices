@@ -27,9 +27,11 @@
  *           title didn't say): they'd become a pro who never gets an offer. Staff set the trade on the candidate page first.
  * UPDATED : 2026-10-27_1900 UTC — the invite and "You're live" emails spell out the road to the first paycheck (core
  *           PRO_ROADMAP): setup, document checks, background, live, offers, the job, paid every Monday.
+ * UPDATED : 2026-10-27_2141 UTC — invite carries the company's choices to the pro (account_type, owner_on_site,
+ *           customer_display); the AI screen sees whether it's a crew company and how many people were listed.
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, capacityForCrew, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -119,6 +121,7 @@ export async function onApplication(appId: string) {
   // business qualifications only — no name, email, phone or anything that could bias the screen
   const facts = {
     trades: app.trades, specialties: app.specialties, service_zips: app.zips, years_experience: app.years_experience, crew_size: app.crew_size,
+    account_type: app.account_type, crew_listed: ((app.crew_roster ?? []) as unknown[]).length,
     has_general_liability: app.insured, license_number_given: Boolean(app.license_number), other_coverages: app.coverages_held,
     equipment: app.equipment, references_given: Boolean(app.references_text), work_links_given: Boolean(app.work_links), about: app.message,
   };
@@ -154,11 +157,20 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   }
   const zips = String(app.zips ?? "").split(/[,\s]+/).filter((z: string) => /^\d{3,5}\*?$/.test(z));
   const now = new Date().toISOString();
-  const { data: pro, error } = await db().from("contractors").upsert({
+  const upsert = (r: Record<string, unknown>) => db().from("contractors").upsert(r, { onConflict: "email" }).select("*").single();
+  const fields = {
     business_name: app.business_name, contact_name: app.contact_name, email: String(app.email).toLowerCase(), phone: app.phone,
     trades: app.trades, specialties: app.specialties ?? [], service_zips: zips, license_number: app.license_number, status: "vetting",
-    daily_capacity: Math.max(2, Math.min(10, (app.crew_size ?? 1) * 2)), application_id: app.id, invited_at: now, dropped_at: null,
-  }, { onConflict: "email" }).select("*").single();
+    daily_capacity: capacityForCrew(app.crew_size), application_id: app.id, invited_at: now, dropped_at: null,
+    // how the company asked to be treated (changeable in My crew)
+    account_type: app.account_type ?? "solo", owner_on_site: app.account_type === "crew" ? app.owner_on_site ?? "sometimes" : "always", customer_display: app.customer_display ?? "person",
+  };
+  let { data: pro, error } = await upsert(fields);
+  // crew-company columns not added yet: invite anyway (they choose again in My crew once the SQL is run)
+  if (error && /account_type|owner_on_site|customer_display/.test(error.message)) {
+    const { account_type: _a, owner_on_site: _o, customer_display: _c, ...rest } = fields;
+    ({ data: pro, error } = await upsert(rest));
+  }
   if (error || !pro) return { ok: false, error: error?.message ?? "Couldn't create the pro" };
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);
   await logRecruiting("invited", { applicationId: appId, contractorId: pro.id }, why || null, actor);

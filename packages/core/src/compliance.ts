@@ -21,6 +21,9 @@
  * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
  *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
  * UPDATED : 2026-10-23_1600 UTC — license step lists carpentry, masonry and roofing.
+ * UPDATED : 2026-10-27_2141 UTC — crew companies (account_type "crew"): a "Crew Addendum signed" step, workers' comp must be a
+ *           real policy (no no-employees statement), and the license step is met by a cleared licensed tech on the crew
+ *           in each licensed trade when the owner holds no license.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -87,10 +90,13 @@ export interface ComplianceInput {
   id_verified_at?: string | null;
   resume_uploaded_at?: string | null;
   photo_uploaded_at?: string | null;
+  account_type?: string | null;
+  crew_attested_at?: string | null;
+  crew_license_trades?: string[] | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
+  key: "crew" | "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -126,21 +132,27 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
       : { key: "coi", label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : "Not required for your work (remote work, errands, courier, assistant)" },
   ];
   // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement
+  const crewCo = c.account_type === "crew";
+  if (crewCo)
+    steps.push({ key: "crew", label: "Crew Addendum signed", done: Boolean(c.crew_attested_at), detail: c.crew_attested_at ? `Signed ${c.crew_attested_at.slice(0, 10)}` : "Your company directs and pays its crew and keeps their I-9s; everyone passes our background check (My crew)" });
   const required = requiredCoverages(c.trades);
   const needs: CoverageKey[] = [...new Set<CoverageKey>([...required, "workers_comp"])];
   for (const k of needs) {
     const v = c.coverage?.[k];
-    const ok = coverageValid(c.coverage, k, new Date(), !required.includes(k)); // remodelers need a real workers' comp policy
+    // remodelers and crew companies need a real workers' comp policy
+    const ok = coverageValid(c.coverage, k, new Date(), !required.includes(k) && !(crewCo && k === "workers_comp"));
     steps.push({
       key: `coverage:${k}`,
-      label: k === "workers_comp" ? "Workers' comp (or no-employees statement)" : `${COVERAGES[k].label} verified`,
+      label: k === "workers_comp" ? (crewCo ? "Workers' comp policy (you have a crew)" : "Workers' comp (or no-employees statement)") : `${COVERAGES[k].label} verified`,
       done: ok,
-      detail: v === "exempt" ? "No employees: statement signed" : v ? `Valid until ${v}` : COVERAGES[k].detail,
+      detail: v === "exempt" ? (crewCo && k === "workers_comp" ? "The no-employees statement doesn't cover a crew: upload your policy" : "No employees: statement signed") : v ? `Valid until ${v}` : COVERAGES[k].detail,
       expiring: ok && v !== "exempt" && soon(v ?? null),
     });
   }
+  // a crew company whose owner isn't licensed: a cleared licensed tech on the crew in every licensed trade they offer
+  const crewLicensed = crewCo && !c.license_number && c.trades.filter((t) => LICENSED_TRADES.includes(t)).every((t) => c.crew_license_trades?.includes(t));
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push({ key: "license", label: "Trade license verified", done: (Boolean(c.license_number) && valid(c.license_expires)) || crewLicensed, detail: crewLicensed ? "Held by a licensed tech on your crew" : c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : crewCo ? "Your license, or add a licensed tech to your crew (My crew) for each licensed trade" : "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
   steps.push(
     { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },

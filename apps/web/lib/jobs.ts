@@ -48,10 +48,12 @@
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
+ * UPDATED : 2026-10-27_2141 UTC — startJob: an office-only crew company, or an unlicensed owner on licensed work, must assign a
+ *           crew member first (startBlocker).
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, startBlocker, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -821,6 +823,12 @@ export async function startJob(jobId: string, contractorId: string): Promise<{ o
   if (pre && !clearedForWork(pre)) {
     await raiseAlert("payment", "warn", `${pre.ref}: pro tried to start before the balance was paid`, null, jobId);
     return { ok: false, error: "The customer's balance isn't paid yet — don't start. We're collecting it now; you'll get a notification." };
+  }
+  // office-only owners and unlicensed owners on licensed work must send someone from the crew
+  if (pre) {
+    const { data: co } = await db().from("contractors").select("account_type, owner_on_site, license_number").eq("id", contractorId).maybeSingle();
+    const blocked = co ? startBlocker(co as Pick<Contractor, "account_type" | "owner_on_site" | "license_number">, pre.service_slug, pre.crew_member_id) : null;
+    if (blocked) return { ok: false, error: blocked };
   }
   const { data } = await db()
     .from("jobs")

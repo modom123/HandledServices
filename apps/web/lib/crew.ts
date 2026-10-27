@@ -8,9 +8,13 @@
  *             removeCrewMember   — the day they stop working for the company (unassigns upcoming jobs)
  *             assignCrew         — who the company is sending to a job (customer sees the name)
  *             setCrewBackground  — Checkr webhook or Hub result
+ * UPDATED : 2026-10-27_2141 UTC — setCompanyPrefs (solo/crew, owner on site, what customers see); signing the Crew
+ *           Addendum makes the pro a crew company; syncLicenseTrades keeps contractors.crew_license_trades current
+ *           whenever a crew member is added, removed or their background check changes; applicationRoster returns
+ *           the people listed at sign-up who aren't on the crew yet.
  */
 import "server-only";
-import { BRAND, CREW_LIMITS, crewCanTake, crewReady, type Contractor, type CrewMember, type CrewRole } from "@handled/core";
+import { BRAND, CREW_LIMITS, crewCanTake, crewLicenseTrades, crewReady, type AccountType, type Contractor, type CrewMember, type CrewRole, type CustomerDisplay, type OwnerOnSite, type RosterEntry } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, raiseAlert } from "./jobs";
 import { PRO_CREW_ADDENDUM } from "./contracts";
@@ -27,11 +31,37 @@ export async function listCrew(contractorId: string, all = false): Promise<CrewM
   return (data ?? []) as CrewMember[];
 }
 
+/** Trades the company can take licensed work in through its crew (dispatch reads contractors.crew_license_trades). */
+export async function syncLicenseTrades(contractorId: string) {
+  await db().from("contractors").update({ crew_license_trades: crewLicenseTrades(await listCrew(contractorId)) }).eq("id", contractorId);
+}
+
+export interface CompanyPrefs { account_type: AccountType; owner_on_site: OwnerOnSite; customer_display: CustomerDisplay }
+
+/** How the company works with us. Going back to solo needs an empty crew; a solo pro always works their own jobs. */
+export async function setCompanyPrefs(contractorId: string, p: CompanyPrefs): Promise<R> {
+  if (p.account_type === "solo" && (await listCrew(contractorId)).length) return { ok: false, error: "Remove your crew members first to switch to just you" };
+  const prefs = p.account_type === "solo" ? { ...p, owner_on_site: "always" as const } : p;
+  await db().from("contractors").update(prefs).eq("id", contractorId);
+  return { ok: true };
+}
+
+/** People listed on the application who aren't on the crew yet (matched by email, else by name). */
+export async function applicationRoster(contractorId: string): Promise<RosterEntry[]> {
+  const { data: c } = await db().from("contractors").select("application_id").eq("id", contractorId).single();
+  if (!c?.application_id) return [];
+  const { data: app } = await db().from("contractor_applications").select("crew_roster").eq("id", c.application_id).maybeSingle();
+  const roster = ((app?.crew_roster ?? []) as RosterEntry[]).filter((r) => r?.full_name);
+  const crew = await listCrew(contractorId, true);
+  const on = (r: RosterEntry) => crew.some((m) => (r.email && m.email === r.email.toLowerCase()) || m.full_name.toLowerCase() === r.full_name.toLowerCase());
+  return roster.filter((r) => !on(r));
+}
+
 export async function signCrewAddendum(contractorId: string, signer: string, meta: { ip: string | null; userAgent: string | null; locale: string }): Promise<R> {
   const { data: c } = await db().from("contractors").select("email, profile_id").eq("id", contractorId).single();
   if (!c) return { ok: false, error: "Pro not found" };
   const at = new Date().toISOString();
-  await db().from("contractors").update({ crew_attested_at: at, crew_attestation: { signer, version: PRO_CREW_ADDENDUM.version, ip: meta.ip, at } }).eq("id", contractorId);
+  await db().from("contractors").update({ account_type: "crew", crew_attested_at: at, crew_attestation: { signer, version: PRO_CREW_ADDENDUM.version, ip: meta.ip, at } }).eq("id", contractorId);
   await recordAcceptance([PRO_CREW_ADDENDUM], { contractorId, profileId: c.profile_id, email: c.email, signerName: signer, method: "signature", locale: meta.locale, ip: meta.ip, userAgent: meta.userAgent });
   return { ok: true };
 }
@@ -49,6 +79,7 @@ export async function addCrewMember(contractorId: string, m: NewCrewMember): Pro
   const { data, error } = await db().from("crew_members").insert({ contractor_id: contractorId, ...m, trades, email: m.email.trim().toLowerCase() }).select("id").single();
   if (error || !data) return { ok: false, error: error?.message ?? "Could not add" };
   await orderCrewCheck(data.id).catch((e) => console.error("[crew check]", e));
+  await syncLicenseTrades(contractorId);
   return { ok: true, id: data.id };
 }
 
@@ -57,6 +88,7 @@ export async function removeCrewMember(contractorId: string, id: string): Promis
   if (!data) return { ok: false, error: "Not on your crew" };
   // upcoming jobs they were going to: back to the owner to choose again
   await db().from("jobs").update({ crew_member_id: null }).eq("crew_member_id", id).in("status", ["assigned", "scheduled", "dispatched"]);
+  await syncLicenseTrades(contractorId);
   return { ok: true };
 }
 
@@ -100,6 +132,7 @@ export async function setCrewBackground(id: string, status: "clear" | "consider"
   const clear = status === "clear";
   const { data: m } = await db().from("crew_members").update({ background_status: status, ...(clear ? { background_checked_at: new Date().toISOString() } : {}) }).eq("id", id).select("full_name, contractor_id").maybeSingle();
   if (!m) return;
+  await syncLicenseTrades(m.contractor_id);
   if (!clear && status !== "pending") {
     await raiseAlert("recruiting", "warn", `Crew background check needs review: ${m.full_name}`, `Result: ${status} (${actor}). Review the report and follow the adverse-action process before any decision. They can't be sent to jobs meanwhile.`);
     await db().from("jobs").update({ crew_member_id: null }).eq("crew_member_id", id).in("status", ["assigned", "scheduled", "dispatched"]);

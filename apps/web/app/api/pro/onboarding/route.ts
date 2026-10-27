@@ -25,6 +25,7 @@
  *           pro-docs bucket as contractor_documents kinds 'resume' / 'photo' (staff open them in Hub → Pros).
  * UPDATED : 2026-10-18_0415 UTC — w9: LLCs taxed as S/C corporations (llc_s_corp, llc_c_corp). agreement: signed_for (the
  *           business's legal name, blank when signing as yourself) + signer_title — recorded on the pro and every signed copy.
+ * UPDATED : 2026-10-27_2141 UTC — a crew company can't sign the no-employees statement (it needs a real workers' comp policy).
  */
 import { after } from "next/server";
 import { z } from "zod";
@@ -121,8 +122,9 @@ export async function POST(req: Request) {
   }
   if (b.step === "coverage" && b.exempt) {
     if (b.coverage !== "workers_comp") return deny(400, "Only workers' comp has a no-employees statement");
-    const { data: pro } = await db.from("contractors").select("trades, coverage").eq("id", id).single();
+    const { data: pro } = await db.from("contractors").select("trades, coverage, account_type").eq("id", id).single();
     if (requiredCoverages((pro?.trades ?? []) as string[]).includes("workers_comp")) return deny(400, "Your trade requires a workers' comp policy");
+    if (pro?.account_type === "crew") return deny(400, "You have a crew, so the no-employees statement doesn't apply: upload your workers' comp policy");
     const signedAt = new Date().toISOString();
     await db.from("contractors").update({ coverage: { ...(pro?.coverage ?? {}), workers_comp: "exempt" } }).eq("id", id);
     await db.from("contractor_documents").insert({ contractor_id: id, kind: "workers_comp", status: "verified", verified_by: "attestation", verified_at: signedAt,

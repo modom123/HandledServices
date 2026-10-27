@@ -5,12 +5,79 @@
  * PURPOSE : Crew accounts, pro side: sign the Crew Addendum, add / remove crew members, and pick who
  *           goes to a job. English and Spanish.
  * UPDATED : 2026-10-04_2204 UTC — the job sheet shows a customer's crew member request (preselected; the owner decides).
+ * UPDATED : 2026-10-27_2141 UTC — CompanyPrefsForm (just me / crew, does the owner go to jobs, what customers see) and
+ *           RosterQuickAdd (people listed on the application, one click to add with a background check). CrewPicker
+ *           drops "Me" when the owner doesn't go to jobs.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CREW_ROLES, TRADES, t as tr, type CrewRole } from "@handled/core";
+import { ACCOUNT_TYPES, CREW_ROLES, CUSTOMER_DISPLAY, OWNER_ON_SITE, TRADES, t as tr, type AccountType, type CrewRole, type CustomerDisplay, type OwnerOnSite, type RosterEntry } from "@handled/core";
+
+const PREFS_ES: Record<string, [string, string]> = {
+  solo: ["Solo yo", "Usted hace cada trabajo."],
+  crew: ["Mi empresa envía un equipo", "Registra a su gente; cada persona pasa nuestra verificación de antecedentes. Su empresa los dirige y les paga."],
+  always: ["Voy a todos los trabajos", "Su equipo trabaja con usted."],
+  sometimes: ["Yo o mi equipo", "Usted elige quién va, trabajo por trabajo."],
+  never: ["Mi equipo hace los trabajos", "Usted lleva la oficina: elija a alguien de su equipo para cada trabajo antes de empezar."],
+  person: ["Mi nombre de pila", "Los clientes ven “Miguel · Atkins & Sons”."],
+  company: ["El nombre de mi empresa", "Los clientes ven “Atkins & Sons” y el nombre de pila de quien vaya."],
+};
+
+/** How the company works with us. Shown on My crew; the same choices as the application. */
+export function CompanyPrefsForm({ es, value }: { es: boolean; value: { account_type: AccountType; owner_on_site: OwnerOnSite; customer_display: CustomerDisplay } }) {
+  const router = useRouter();
+  const [f, setF] = useState(value);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const L = (o: { id: string; label: string; help: string }) => (es ? PREFS_ES[o.id] : [o.label, o.help]);
+  const group = <K extends keyof typeof f>(k: K, title: string, opts: { id: string; label: string; help: string }[]) => (
+    <div><div className="label">{title}</div>
+      <div className="grid gap-2 sm:grid-cols-3">{opts.map((o) => (
+        <button key={o.id} type="button" onClick={() => setF({ ...f, [k]: o.id })} className={`rounded-xl border p-2 text-left text-sm ${f[k] === o.id ? "border-brand bg-brand-tint" : "border-line"}`}>
+          <div className="font-semibold">{L(o)[0]}</div><div className="text-xs text-ink-soft">{L(o)[1]}</div></button>
+      ))}</div></div>
+  );
+  const changed = f.account_type !== value.account_type || f.owner_on_site !== value.owner_on_site || f.customer_display !== value.customer_display;
+  return (
+    <div className="space-y-3">
+      {group("account_type", es ? "¿Quién hace el trabajo?" : "Who does the work?", ACCOUNT_TYPES)}
+      {f.account_type === "crew" && group("owner_on_site", es ? "¿Usted va a los trabajos?" : "Do you go to jobs?", OWNER_ON_SITE)}
+      {group("customer_display", es ? "Los clientes ven" : "Customers see", CUSTOMER_DISPLAY)}
+      <button className="btn-ghost" disabled={busy || !changed} onClick={async () => {
+        setBusy(true); setMsg("");
+        const e = await post("/api/pro/crew", { action: "prefs", ...f, owner_on_site: f.account_type === "solo" ? "always" : f.owner_on_site });
+        setBusy(false);
+        if (e) setMsg(e); else router.refresh();
+      }}>{es ? "Guardar" : "Save"}</button>
+      {msg && <p className="text-sm text-rose-700">{msg}</p>}
+    </div>
+  );
+}
+
+/** Someone listed on the application: add them for real (their background check goes out right away). */
+export function RosterQuickAdd({ es, entry, trades }: { es: boolean; entry: RosterEntry; trades: string[] }) {
+  const router = useRouter();
+  const [email, setEmail] = useState(entry.email ?? "");
+  const [license, setLicense] = useState(entry.license_number ?? "");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <li className="flex flex-wrap items-center gap-2 py-2 text-sm">
+      <b>{entry.full_name}</b> · {roleLabel(entry.role, es)}
+      <input className="input max-w-[14rem] py-1" type="email" placeholder={es ? "Correo" : "Email"} value={email} onChange={(e) => setEmail(e.target.value)} />
+      {entry.role === "licensed" && <input className="input max-w-[10rem] py-1" placeholder={es ? "Licencia" : "License #"} value={license} onChange={(e) => setLicense(e.target.value)} />}
+      <button className="btn-ghost px-3 py-1 text-xs" disabled={busy || !email.includes("@") || (entry.role === "licensed" && !license.trim())} onClick={async () => {
+        setBusy(true); setMsg("");
+        const e = await post("/api/pro/crew", { action: "add", full_name: entry.full_name, email, phone: entry.phone || null, locale: es ? "es" : "en", role: entry.role, trades, license_number: license.trim() || null });
+        setBusy(false);
+        if (e) setMsg(e); else router.refresh();
+      }}>{es ? "Agregar y enviar verificación" : "Add and send check"}</button>
+      {msg && <span className="text-rose-700">{msg}</span>}
+    </li>
+  );
+}
 
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -90,7 +157,7 @@ export function CrewRemove({ id, es }: { id: string; es: boolean }) {
 }
 
 /** Who goes to this job. Options come from the server with a reason when someone can't take it. */
-export function CrewPicker({ jobId, current, options, es, blocked, requested }: { jobId: string; current: string | null; options: { id: string; name: string; why: string | null }[]; es: boolean; blocked: string | null; requested?: { id: string; name: string } | null }) {
+export function CrewPicker({ jobId, current, options, es, blocked, requested, ownerOff = false }: { jobId: string; current: string | null; options: { id: string; name: string; why: string | null }[]; es: boolean; blocked: string | null; requested?: { id: string; name: string } | null; ownerOff?: boolean }) {
   const router = useRouter();
   const ask = requested ? options.find((o) => o.id === requested.id && !o.why && !blocked) : undefined;
   const [v, setV] = useState(current ?? ask?.id ?? "");
@@ -101,7 +168,7 @@ export function CrewPicker({ jobId, current, options, es, blocked, requested }: 
       {requested && <p className="rounded bg-brand-tint p-2 text-xs">★ {es ? `El cliente pidió a ${requested.name.split(" ")[0]}. Es una solicitud: usted decide quién va.` : `The customer asked for ${requested.name.split(" ")[0]}. It’s a request — who goes is your call.`}</p>}
       {blocked && <p className="text-xs text-amber-800">{es ? "Para enviar a su equipo: " : "To send your crew: "}{blocked}</p>}
       <select className="input" value={v} onChange={(e) => setV(e.target.value)}>
-        <option value="">{es ? "Yo mismo" : "Me"}</option>
+        <option value="" disabled={ownerOff && !current}>{ownerOff ? (es ? "Elija a alguien de su equipo" : "Pick someone on your crew") : es ? "Yo mismo" : "Me"}</option>
         {options.map((o) => <option key={o.id} value={o.id} disabled={Boolean(o.why) || Boolean(blocked)}>{o.name}{o.why ? ` — ${o.why}` : ""}</option>)}
       </select>
       <button className="btn-ghost w-full" disabled={v === (current ?? "")} onClick={async () => { setMsg(""); const e = await post(`/api/pro/jobs/${jobId}`, { action: "crew", crew_member_id: v || null }); if (e) setMsg(e); else router.refresh(); }}>{es ? "Guardar" : "Save"}</button>

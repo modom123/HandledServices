@@ -8,12 +8,14 @@
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * UPDATED : 2026-10-03_0209 UTC — credits the pro lead it came from (link token, email or phone).
+ * UPDATED : 2026-10-27_2141 UTC — crew companies: account_type (solo | crew), owner_on_site, customer_display and crew_roster
+ *           (the people they plan to send; added with background checks from My crew once invited).
  * PURPOSE : Subcontractor application → stored, confirmed, screened, invited or queued for staff.
  */
 import { after } from "next/server";
 import { z } from "zod";
 import { markLeadConverted } from "@/lib/leads";
-import { BRAND, COVERAGE_KINDS, MAX_TRADES } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, CREW_LIMITS, MAX_TRADES } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { sendEmail, siteUrl } from "@/lib/notify";
 import { logRecruiting, onApplication, signInUrl } from "@/lib/recruiting";
@@ -29,6 +31,13 @@ const Body = z.object({
   equipment: z.string().max(500).optional(), references_text: z.string().max(1000).optional(), work_links: z.string().max(1000).optional(),
   source: z.string().max(60).optional(), ref: z.string().max(60).optional(), utm: z.record(z.string(), z.string().max(120)).optional(),
   lead: z.string().max(40).optional(),
+  account_type: z.enum(["solo", "crew"]).default("solo"),
+  owner_on_site: z.enum(["always", "sometimes", "never"]).optional(),
+  customer_display: z.enum(["person", "company"]).optional(),
+  crew_roster: z.array(z.object({
+    full_name: z.string().trim().min(2).max(120), role: z.enum(["lead", "helper", "apprentice", "licensed"]),
+    email: z.string().trim().email().optional().or(z.literal("")), phone: z.string().trim().max(30).optional(), license_number: z.string().trim().max(60).optional(),
+  })).max(CREW_LIMITS.maxActive).default([]),
 });
 
 export async function POST(req: Request) {
@@ -61,10 +70,20 @@ export async function POST(req: Request) {
   // same email applied before and not decided → update that application instead of a duplicate
   const { data: prior } = await db.from("contractor_applications").select("id, stage").ilike("email", email).in("stage", ["applied", "screened"]).maybeSingle();
   const { lead: leadToken, ...fields } = b;
+  // a solo pro has no crew; a crew company's size is at least the people it listed
+  if (fields.account_type === "solo") Object.assign(fields, { owner_on_site: null, crew_roster: [] });
+  else fields.crew_size = Math.max(fields.crew_size ?? 0, fields.crew_roster.length + 1);
   const row = { ...fields, email, referred_by, locale, source: b.source ?? (leadToken ? "lead_email" : referred_by ? "referral" : null), last_contact_at: new Date().toISOString() };
-  const { data, error } = prior
-    ? await db.from("contractor_applications").update(row).eq("id", prior.id).select("id").single()
-    : await db.from("contractor_applications").insert(row).select("id").single();
+  const save = (r: Record<string, unknown>) => prior
+    ? db.from("contractor_applications").update(r).eq("id", prior.id).select("id").single()
+    : db.from("contractor_applications").insert(r).select("id").single();
+  let { data, error } = await save(row);
+  // crew-company columns not added yet (supabase/setup/ADD_CREW_COMPANIES_2026-10-27_2141.sql): keep the application, crew details go in the note
+  if (error && /account_type|owner_on_site|customer_display|crew_roster/.test(error.message)) {
+    const { account_type, owner_on_site, customer_display, crew_roster, ...rest } = row;
+    const note = account_type === "crew" ? `Crew company · owner ${owner_on_site ?? "?"} · customers see ${customer_display ?? "person"}${crew_roster.length ? ` · crew: ${crew_roster.map((r) => `${r.full_name} (${r.role})`).join(", ")}` : ""}` : "";
+    ({ data, error } = await save({ ...rest, message: [rest.message, note].filter(Boolean).join("\n\n") || null }));
+  }
   if (error || !data) return Response.json({ error: error?.message ?? "Couldn't save" }, { status: 500 });
   await logRecruiting(prior ? "application_updated" : "applied", { applicationId: data.id }, row.source ?? null, "applicant");
 

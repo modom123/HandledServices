@@ -5,13 +5,15 @@
  * PURPOSE : Pro portal → My crew. A pro company lists the people it sends to jobs: sign the Crew
  *           Addendum, add crew (background check sent right away), see each check's status, remove
  *           people who leave. Whether the crew can be sent yet (workers' comp on file) is shown up top.
+ * UPDATED : 2026-10-27_2141 UTC — "How you work with us" (just me / crew, does the owner go to jobs, what customers see),
+ *           and the people listed on the application ready to add with one click.
  */
 import Link from "next/link";
 import { crewReady, t as tr, TRADES, type Contractor, type CrewMember } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
-import { listCrew } from "@/lib/crew";
-import { CrewAdd, CrewRemove, CrewSign, roleLabel } from "@/components/Crew";
+import { applicationRoster, listCrew } from "@/lib/crew";
+import { CompanyPrefsForm, CrewAdd, CrewRemove, CrewSign, RosterQuickAdd, roleLabel } from "@/components/Crew";
 
 const BG: Record<CrewMember["background_status"], [string, string, string]> = {
   not_started: ["Not started", "No iniciada", "bg-paper text-ink-soft"],
@@ -30,8 +32,15 @@ export default async function CrewPage() {
   const es = l === "es";
   const { data: me } = await v.db.from("contractors").select("*").eq("id", v.contractorId).single();
   const pro = me as Contractor;
-  const crew = await listCrew(v.contractorId);
+  const [crew, fromApp] = await Promise.all([listCrew(v.contractorId), applicationRoster(v.contractorId)]);
   const notReady = crewReady(pro);
+  const isCrew = pro.account_type === "crew" || crew.length > 0;
+  const prefs = (
+    <div className="card space-y-2">
+      <div className="font-semibold">{es ? "Cómo trabaja con nosotros" : "How you work with us"}</div>
+      <CompanyPrefsForm es={es} value={{ account_type: isCrew ? "crew" : "solo", owner_on_site: pro.owner_on_site ?? "always", customer_display: pro.customer_display ?? "person" }} />
+    </div>
+  );
   return (
     <div className="max-w-3xl space-y-6">
       <div>
@@ -41,7 +50,8 @@ export default async function CrewPage() {
           : "Have people who work with you? List them here to send them on your company’s jobs. Each person passes the same background check you did before entering a customer’s home. Your crew works for your company: you decide who goes, and your payout covers the whole job."}</p>
       </div>
 
-      {!pro.crew_attested_at ? (
+      {prefs}
+      {!isCrew ? null : !pro.crew_attested_at ? (
         <div className="card space-y-3">
           <div className="font-semibold">{es ? "Paso 1: firme el Anexo de Equipo de Trabajo" : "Step 1: sign the Crew Addendum"}</div>
           <ul className="list-disc space-y-1 pl-5 text-sm text-ink-soft">
@@ -67,6 +77,13 @@ export default async function CrewPage() {
               ))}
             </ul>
           </div>
+          {fromApp.length > 0 && (
+            <div className="card">
+              <div className="font-semibold">{es ? "De su solicitud" : "From your application"}</div>
+              <p className="mt-1 text-xs text-ink-soft">{es ? "Las personas que registró al postularse. Agregue a cada una para enviarle su verificación de antecedentes." : "The people you listed when you applied. Add each one to send their background check."}</p>
+              <ul className="mt-1 divide-y divide-line">{fromApp.map((r) => <RosterQuickAdd key={`${r.full_name}-${r.email ?? ""}`} es={es} entry={r} trades={pro.trades} />)}</ul>
+            </div>
+          )}
           <div className="card space-y-2">
             <div className="font-semibold">{es ? "Agregar a alguien" : "Add someone"}</div>
             <p className="text-xs text-ink-soft">{es ? "Le enviamos por correo un enlace seguro de nuestro proveedor de verificación (Checkr) para dar su consentimiento. Normalmente tarda de 1 a 3 días hábiles." : "We email them a secure link from our screening provider (Checkr) to consent. It usually takes 1–3 business days."}</p>

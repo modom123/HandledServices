@@ -13,6 +13,8 @@
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  * UPDATED : 2026-10-07_1900 UTC — "On my way" shows on the job's own local day (Pacific in Washington).
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, from the customer's saved home) while the job is assigned / in progress.
+ * UPDATED : 2026-10-27_2141 UTC — office-only crew companies (and unlicensed owners on licensed work) see who must be
+ *           assigned before starting; the crew picker drops "Me" when the owner doesn't go to jobs.
  */
 import { notFound } from "next/navigation";
 import { TIME_WINDOW_LABEL, buildWorkOrder, getService, jobTimeZone, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
@@ -30,7 +32,7 @@ import { listCrew } from "@/lib/crew";
 import { crewRequest } from "@/lib/favorites";
 import { checklistState, freezeChecklist } from "@/lib/checklists";
 import { ChecklistPanel } from "@/components/Checklist";
-import { crewCanTake, crewReady } from "@handled/core";
+import { crewCanTake, crewReady, ownerOffSite, startBlocker } from "@handled/core";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -98,7 +100,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.status === "assigned" && job.scheduled_date === localDate(new Date(), jobTimeZone(job)) && <OnMyWay locale={l} jobId={job.id} sent={Boolean(job.en_route_at)} />}
         {job.preferred_contractor_id === v.contractorId && <div className="card border-brand/40 bg-brand-tint text-sm">★ {es ? "Este cliente lo pidió a usted." : "This customer asked for you."}{asked && (es ? ` Pidieron a ${asked.name.split(" ")[0]}; usted decide quién va.` : ` They asked for ${asked.name.split(" ")[0]}; who goes is your call.`)}</div>}
         {crew.length > 0 && <CrewPicker jobId={job.id} es={es} current={job.crew_member_id ?? null} requested={asked} blocked={me ? crewReady(me as Contractor) : null}
-          options={crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, job.service_slug) }))} />}
+          ownerOff={me ? ownerOffSite(me as Contractor) : false} options={crew.map((m) => ({ id: m.id, name: m.full_name, why: crewCanTake(m, job.service_slug) }))} />}
+        {job.status === "assigned" && me && startBlocker(me as Contractor, job.service_slug, job.crew_member_id) && <div className="card border-amber-300 bg-amber-50 text-sm">{(() => { const b = startBlocker(me as Contractor, job.service_slug, job.crew_member_id)!; return es ? (b.startsWith("Pick") ? "Elija quién de su equipo hará este trabajo antes de empezar." : "Es trabajo con licencia: asigne a un técnico con licencia de su equipo antes de empezar.") : b; })()}{!crew.length && <> <a href="/pro/crew" className="text-brand underline">{es ? "Mi equipo" : "My crew"}</a></>}</div>}
         {job.status === "assigned" && <StartJob locale={l} jobId={job.id} />}
         {(job.status === "assigned" || job.status === "in_progress") && <CompleteJob locale={l} jobId={job.id} />}
         {job.status === "qa_review" && <div className="card text-sm">{t("Photos submitted — AI quality check in progress. Your payout is approved as soon as it passes.")}</div>}

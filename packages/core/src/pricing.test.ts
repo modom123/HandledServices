@@ -1137,6 +1137,43 @@ test("crews: who can be sent, and when the company can send crew at all", async 
   assert.equal(crewReady({ crew_attested_at: "2026-10-03", coverage: { workers_comp: future } }), null);
 });
 
+test("crew companies: licensed work through a crew tech, office-only owners, onboarding", async () => {
+  const { crewLicenseTrades, startBlocker, capacityForCrew } = await import("./crew.ts");
+  const { onboardingChecklist, AGREEMENT_VERSION } = await import("./compliance.ts");
+  const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
+  const tech = { active: true, role: "licensed" as const, background_status: "clear" as const, license_number: "PL-9", trades: ["plumbing"] };
+  assert.deepEqual(crewLicenseTrades([tech, { ...tech, background_status: "pending", trades: ["electrical"] }, { ...tech, role: "lead", trades: ["hvac"] }]), ["plumbing"]);
+  assert.equal(capacityForCrew(4), 8);
+  // an unlicensed owner of a plumbing company with a cleared licensed tech and workers' comp gets licensed work
+  const co: Contractor = {
+    id: "atkins", profile_id: null, business_name: "Atkins & Sons", contact_name: "Mike Atkins", email: "a@x", phone: "1", trades: ["plumbing"],
+    service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
+    insured_until: "2099-01-01", license_number: null, background_checked: true, daily_capacity: 6, notes: null,
+    account_type: "crew", owner_on_site: "never", customer_display: "company", crew_license_trades: ["plumbing"], crew_attested_at: "2026-10-27", coverage: { workers_comp: future },
+  };
+  const job = { service_slug: "water-heater", zip: "48201", scheduled_date: null };
+  assert.equal(rankContractors([co], job).length, 1);
+  assert.equal(rankContractors([{ ...co, coverage: { workers_comp: "exempt" } }], job).length, 0, "crew can't be sent without workers' comp");
+  assert.equal(rankContractors([{ ...co, account_type: "solo" }], job).length, 0, "a solo pro needs their own license");
+  // the job can't start until someone from the crew is assigned
+  assert.match(startBlocker(co, "handyman", null)!, /Pick who/);
+  assert.match(startBlocker({ ...co, owner_on_site: "sometimes" }, "water-heater", null)!, /licensed tech/);
+  assert.equal(startBlocker({ ...co, owner_on_site: "sometimes" }, "handyman", null), null);
+  assert.equal(startBlocker(co, "water-heater", "crew-1"), null);
+  assert.equal(startBlocker({ ...co, account_type: "solo", license_number: "PL-1" }, "water-heater", null), null);
+  // onboarding: Crew Addendum step, a real workers' comp policy, license met by the crew tech
+  const ok = { status: "vetting", trades: ["plumbing"], legal_name: "Atkins & Sons LLC", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
+    agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
+    specialties: ["water_heater"], coverage: { workers_comp: future }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01", account_type: "crew", crew_attested_at: "2026-10-02", crew_license_trades: ["plumbing"] };
+  const done = (x: typeof ok) => onboardingChecklist(x).steps.filter((st) => !st.done && !st.optional).map((st) => st.key);
+  assert.deepEqual(done(ok), []);
+  assert.ok(done({ ...ok, crew_attested_at: null as never }).includes("crew"));
+  assert.ok(done({ ...ok, coverage: { workers_comp: "exempt" } }).includes("coverage:workers_comp"), "no-employees statement doesn't cover a crew");
+  assert.ok(done({ ...ok, crew_license_trades: [] }).includes("license"));
+  assert.ok(!onboardingChecklist({ ...ok, account_type: "solo" }).steps.some((st) => st.key === "crew"));
+});
+
 test("fast track: approved masters start at Pro+ while their numbers hold up", async () => {
   const { proTier } = await import("./pro-program.ts");
   const { FAST_TRACK, fastTrackProblem } = await import("./crew.ts");
