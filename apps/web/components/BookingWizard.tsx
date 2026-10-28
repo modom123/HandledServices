@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  * UPDATED : 2026-10-27_2100 UTC — customers no longer see what the pro earns (internal; it lives in the Hub's job money view).
+ * UPDATED : 2026-10-28_1730 UTC — step 1 (pick a service): search + one category at a time instead of all 101 services in one list.
  * UPDATED : 2026-10-28_1700 UTC — no consultation-only mode: Business & Technology shows its price and is ordered with a deposit
  *           like every service (and the AI check never turns remote work into a visit).
  */
@@ -88,6 +89,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [ask, setAsk] = useState(preferred ?? null);
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
+  const [pickCat, setPickCat] = useState<string>(CATEGORIES[0].id);
+  const [find, setFind] = useState("");
   const svc = getService(slug);
   const [answers, setAnswers] = useState<Answers>(() => {
     if (!svc) return {};
@@ -227,23 +230,34 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           ))}
         </ol>
 
-        {step === 0 && (
-          <div className="space-y-8">
-            {CATEGORIES.map((c) => (
-              <div key={c.id}>
-                <div className="mb-3 font-semibold">{categoryText(locale, c.id, c).name}</div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {SERVICES.filter((s) => s.category === c.id).map((s) => (
-                    <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
-                      <span className="text-2xl">{s.icon}</span>
-                      <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{priceHint(s.slug, locale)}</span></span>
-                    </button>
+        {step === 0 && (() => {
+          // one category at a time (or a search across all of them) instead of every service in one long list
+          const q = find.trim().toLowerCase();
+          const list = q
+            ? SERVICES.filter((s) => `${serviceText(locale, s.slug, s).name} ${s.name} ${s.tagline}`.toLowerCase().includes(q))
+            : SERVICES.filter((s) => s.category === pickCat);
+          return (
+            <div className="space-y-4">
+              <input className="input" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={es ? "Buscar un servicio (p. ej., limpieza, jardín, sitio web)" : "Search a service (e.g. cleaning, lawn, website)"} aria-label={es ? "Buscar un servicio" : "Search a service"} />
+              {!q && (
+                <div className="-mx-1 flex flex-wrap gap-2" role="tablist" aria-label={es ? "Categorías" : "Categories"}>
+                  {CATEGORIES.map((c) => (
+                    <button key={c.id} type="button" role="tab" aria-selected={pickCat === c.id} onClick={() => setPickCat(c.id)} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${pickCat === c.id ? "border-brand bg-brand-tint text-brand-dark" : "border-line bg-white text-ink hover:border-brand"}`}>{c.icon} {categoryText(locale, c.id, c).name}</button>
                   ))}
                 </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {list.map((s) => (
+                  <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
+                    <span className="text-2xl">{s.icon}</span>
+                    <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{priceHint(s.slug, locale)}</span></span>
+                  </button>
+                ))}
+                {!list.length && <p className="text-sm text-ink-soft">{es ? "Nada coincide. Pruebe otra palabra o elija una categoría." : "Nothing matches. Try another word or pick a category."}</p>}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {step === 1 && svc && (
           <div className="card space-y-5">

@@ -7,7 +7,7 @@
  *           English / Spanish.
  */
 import Link from "next/link";
-import { BRAND, BRAND_STORY, CATEGORIES, SERVICES } from "@handled/core";
+import { BRAND, BRAND_STORY, CATEGORIES, SERVICES, tierPct } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { WhyItWorks } from "@/components/home/WhyItWorks";
 
@@ -26,7 +26,7 @@ export default async function About() {
     { href: "/book", icon: "🧽", t: es ? "Reservar un servicio" : "Book a service", d: es ? "Precio al instante, profesional verificado" : "Instant price, vetted pro" },
     { href: "/business", icon: "🏢", t: es ? "Cuentas para empresas" : "Business accounts", d: es ? "Todas sus ubicaciones, un proveedor" : "Every location, one vendor" },
     { href: "/pros#apply", icon: "🧰", t: es ? "Hágase profesional" : "Become a Pro", d: es ? "Trabajos pagados, pago semanal" : "Paid jobs, weekly pay" },
-    { href: "/partners#join", icon: "💸", t: es ? "Hágase socio" : "Become a Partner", d: es ? "Gane el 10% por cada cliente" : "Earn 10% on every customer" },
+    { href: "/partners#join", icon: "💸", t: es ? "Hágase socio" : "Become a Partner", d: es ? `Gane hasta el ${tierPct("one_time")} por cada trabajo` : `Earn up to ${tierPct("one_time")} on every job` },
   ];
   return (
     <div>
