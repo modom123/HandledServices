@@ -49,8 +49,11 @@ export default async function ProLayout({ children }: { children: React.ReactNod
       { href: "/pro/prices", label: es ? "Mis precios" : "My prices", icon: "🏷️", hint: es ? "Fije su propio precio" : "Set your own price" },
       { href: "/pro/earnings", label: t("Earnings"), icon: "💵", hint: es ? "Pagos, pago instantáneo, 1099" : "Payouts, instant pay, 1099" },
       { href: "/pro/rewards", label: es ? "Recompensas" : "Rewards", icon: "🎁" },
+      { href: "/pro/refer", label: es ? "Referir y ganar" : "Refer & earn", icon: "💸", hint: es ? "Gane mientras espera" : "Earn while you wait" },
     ] },
     { id: "account", label: es ? "Cuenta" : "Account", items: [
+      { href: "/pro/welcome", label: es ? "Bienvenida a Handled" : "Welcome to Handled", icon: "👋", hint: es ? "Orientación" : "Orientation" },
+      { href: "/pro/info", label: es ? "Mi información" : "My info", icon: "🪪" },
       { href: "/pro/onboarding", label: t("Setup & documents"), icon: "📋" },
       { href: "/pro/contracts", label: t("My contracts"), icon: "📜" },
       { href: "/pro/talent", label: es ? "Talento" : "Talent", icon: "🤝" },

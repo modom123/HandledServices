@@ -5,10 +5,11 @@
  * PURPOSE : The signed-in partner's actions (/partner). POST JSON:
  *             { action: "ticket", …the standard referral ticket (lib/partners Ticket) }  — send us a customer; returns the ticket number
  *             { action: "connect" }                                                       — Stripe payout setup link
+ * UPDATED : 2026-10-28_2300 UTC — tickets can carry up to 8 photos of the job (uploaded through /api/uploads).
  * UPDATED : 2026-10-28_0122 UTC — "refer" replaced by the standard referral ticket (ticket number, address, timing, job type, consent).
  */
 import { z } from "zod";
-import { TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, getService } from "@handled/core";
+import { TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, getService, isPhotoPath } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { partnerConnectUrl, partnerFor, submitTicket } from "@/lib/partners";
@@ -22,6 +23,7 @@ const Body = z.discriminatedUnion("action", [
     contact_pref: z.enum(keys(TICKET_CONTACT)), best_time: opt(120), address: opt(200), city: opt(80), zip: z.string().trim().regex(/^\d{5}$/),
     service_slug: opt(80), job_type: z.enum(keys(TICKET_JOB_TYPES)), timing: z.enum(keys(TICKET_TIMING)), preferred_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable().or(z.literal("")),
     details: opt(2000), relationship: z.enum(keys(TICKET_RELATIONSHIPS)), note: opt(1000), consent: z.literal(true),
+    photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   }),
   z.object({ action: z.literal("connect") }),
 ]);

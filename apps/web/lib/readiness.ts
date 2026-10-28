@@ -224,6 +224,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261023110000_recruiting_intake", "recruiting intake: add candidates by hand, CSV import, Indeed Apply (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql for every change since setup)", () => db.from("contractor_applications").select("external_source, screener, added_by").limit(1)],
     ["20261027170000_recruiting_division", "Recruiting division: internal roles, /careers, Indeed postings (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("recruiting_postings").select("opening_key").limit(1)],
     ["20261028012200_partner_tickets_tiers", "partner rates 25/10/15 and referral tickets (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("referral_customers").select("ticket_no, status").limit(1)],
+    ["20261028224500_pro_orientation", "Welcome to Handled orientation and photos on referral tickets (or run supabase/setup/ADD_PRO_WELCOME_2026-10-28_2300.sql)", () => db.from("referral_customers").select("photos").limit(1).then(async (r) => (r.error ? r : await db.from("contractors").select("orientation").limit(1)))],
     ["20261028173500_hub_customer_totals", "Mastermind customer list covers every customer (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("hub_customer_totals").select("email").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)

@@ -74,3 +74,4 @@ export * from "./supabase-public.ts";
 export * from "./ats.ts";
 export * from "./recruiting-division.ts";
 export * from "./job-money.ts";
+export * from "./orientation.ts";

@@ -4,6 +4,7 @@
   CREATED : 2026-10-28_2131 UTC
   PURPOSE : Pro onboarding, Roadie-style: sign up in 2 minutes, account opens right away, ID + background check is
             the gate, pros see jobs near them while the check runs.
+  UPDATED : 2026-10-28_2300 UTC — portal opens at sign-up; required "Welcome to Handled" orientation; My info; Refer & earn.
   UPDATED : 2026-10-28_2150 UTC — resume required, verified ID and Handled staff approval before any paid work.
 -->
 
@@ -35,3 +36,18 @@ clears when staff activate them in Hub → Pros.
 ## What stayed (safety)
 Resume, photo ID, the background check, W-9, the agreement, insurance and license where the trade needs them, staff
 approval, and probation on the first jobs.
+
+
+## The pro portal from minute one (2026-10-28_2300)
+- **Portal at sign-up.** The account opens and the sign-in link goes out the moment someone signs up. The AI screen runs
+  afterwards and only raises a "Review" alert when it suggests declining; it never blocks the portal.
+- **Welcome to Handled (required).** Six short lessons (who we are, how a job works, pay, quality and standing, conduct in
+  the customer's home, the portal and app), about 14 minutes. Each ends with a question that must be answered correctly.
+  All six are a required onboarding step: no approval without them. Pros approved before this existed aren't affected.
+  Content: `packages/core/src/orientation.ts` (numbers come from the live policy constants). Pages: `/pro/welcome`.
+- **My info** (`/pro/info`): profile, trades, area, status and what's left, documents with expiry dates, payout,
+  contracts, orientation, referral code.
+- **Refer & earn** (`/pro/refer`): "make money while you wait". One click makes the pro a referral partner; they snap
+  photos of a job, fill out the referral ticket (photos first), and earn 25% / 10% / 15% when the job is done. Ticket
+  photos show in Hub → Partners. The $150 pro-referral bonus is listed too.
+- **SQL:** run `supabase/setup/ADD_PRO_WELCOME_2026-10-28_2300.sql` once (orientation progress + ticket photos).
