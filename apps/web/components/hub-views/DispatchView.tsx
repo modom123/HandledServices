@@ -8,6 +8,7 @@
  *           one-click actions (components/DispatchActions). Staff (admins and dispatchers).
  * UPDATED : 2026-10-12_0032 UTC — switch: "Take bookings where no pro covers the area yet" (admins change it).
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs with their 25% in read as booked (payment_plan in the query).
+ * UPDATED : 2026-10-28_1735 UTC — now the "List" view of Mastermind → Jobs (/hub/jobs); was /hub/dispatch.
  */
 import Link from "next/link";
 import { TIME_WINDOW_LABEL, dispatchFlags, getService, localDate, money, paymentState, type BoardJobInput, type TimeWindow } from "@handled/core";
@@ -18,8 +19,6 @@ import { BookingSwitch } from "@/components/BookingSwitch";
 import { bookingWithoutPro } from "@/lib/booking-settings";
 import { getViewer, isAdmin } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Dispatch" };
 
 type J = BoardJobInput & { id: string; ref: string; service_slug: string; city: string | null; contact_name: string; contact_phone: string | null; contractors: { business_name: string; phone: string | null } | null };
 const WINDOW_ORDER: Record<string, number> = { morning: 0, midday: 1, afternoon: 2, flexible: 3 };

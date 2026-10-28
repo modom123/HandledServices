@@ -26,6 +26,10 @@ const config: NextConfig = {
       { source: "/hub/network", destination: "/hub/pros?view=health", permanent: true },
       { source: "/hub/workforce", destination: "/hub/agents?view=workforce", permanent: true },
       { source: "/hub/gov", destination: "/hub/bids?view=gov", permanent: true },
+      { source: "/hub/dispatch", destination: "/hub/jobs", permanent: true },
+      { source: "/hub/schedule", destination: "/hub/jobs?view=schedule", permanent: true },
+      { source: "/hub/payments", destination: "/hub/money?view=flow", permanent: true },
+      { source: "/hub/finance", destination: "/hub/money?view=economics", permanent: true },
     ];
   },
   async headers() {
