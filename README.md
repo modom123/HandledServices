@@ -83,7 +83,7 @@ recurring visit booked with the same pro.
 
 Follow **[`docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md`](docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md)** top to bottom. In short:
 
-1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project.
+1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project. **Existing project?** Paste `supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1558.sql` once: every database change since that setup, safe to run twice. Hub → Setup shows what's still missing.
 2. **Vercel:** root directory `apps/web`, production branch `main`, environment variables from `apps/web/.env.example`.
 3. **Stripe** webhook → `/api/stripe/webhook` (`checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`). **Resend** domain + SMTP for Supabase auth emails.
 4. Sign in, make yourself admin, open **Handled Hub → Go-live setup** (`/hub/setup`) and fix every red/amber item.
