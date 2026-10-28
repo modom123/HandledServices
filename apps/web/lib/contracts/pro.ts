@@ -31,6 +31,7 @@
  * UPDATED : 2026-10-05_2034 UTC — pro-addendum-recruiter (Handled Talent: 20% of first-year salary, consent, ownership, fair hiring).
  * UPDATED : 2026-10-07_2000 UTC — Washington pros (RCW 49.62): customer clause limited to soliciting (accepting work a customer offers is allowed), Washington law and courts; agreement v8.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
+ * UPDATED : 2026-10-28_0122 UTC — agreement v10: referral partner fee (pro pays half of the partner's 25% / 10% / 15%, shown on the work order).
  */
 import {
   AGREEMENT_VERSION,
@@ -44,6 +45,7 @@ import {
   ON_CALL_MAX_HOURS,
   PROBATION,
   PRO_POLICY_DEFAULTS,
+  PARTNER_TIERS,
   PRO_REFERRAL,
   PRO_TIERS,
   STATS_WINDOW_DAYS,
@@ -53,7 +55,9 @@ import {
   TRADES,
   TRADE_PROFILES,
   money,
+  moneyCents,
   necThreshold,
+  partnerSplit,
   splitJob,
   type CoverageKey, DEACTIVATION_RULES, FAST_TRACK } from "@handled/core";
 import type { Contract } from "./types";
@@ -152,7 +156,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "10. Discounts, promotions and tips",
-      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout. Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
+      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout (the only fee shared with you is the referral partner fee below). Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nReferral partner fee. When a customer was sent to us by a referral partner, the partner earns a fixed share of the job price: ${PARTNER_TIERS.one_time.rate * 100}% of the customer's first job when it's a one-time job, ${PARTNER_TIERS.repeat.rate * 100}% of repeat or recurring jobs, or ${PARTNER_TIERS.account.rate * 100}% of jobs on a business or property account. You pay half of that and we pay the other half. Your half (for example ${moneyCents(partnerSplit({ price: 300, payout: 300, tier: "one_time" }).fromPro)} on a $300 one-time referred job) is shown on the work order before you accept, comes off that job's payout when it's completed, and never exceeds the payout. If the job is later refunded and the partner's share goes down, your half is handed back to match on the next payout. Jobs that weren't referred by a partner have no fee.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
     },
     {
       h: "11. Materials and parts",

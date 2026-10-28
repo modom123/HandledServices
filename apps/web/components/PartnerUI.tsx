@@ -4,6 +4,7 @@
  * CREATED : 2026-10-07_0125 UTC
  * PURPOSE : Referral Partner Program controls: public sign-up form (/partners), copy-link, "send us a customer" and
  *           Stripe payout setup (/partner), and the staff controls in Hub → Partners.
+ * UPDATED : 2026-10-28_0122 UTC — "send us a customer" is now the standard referral ticket; Hub ticket status buttons.
  */
 "use client";
 
@@ -62,29 +63,65 @@ export function CopyButton({ text, label = "Copy link" }: { text: string; label?
   return <button type="button" className="btn-ghost mt-2" onClick={async () => { try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 2000); } catch { /* blocked */ } }}>{ok ? "Copied ✓" : label}</button>;
 }
 
-export function ReferCustomer({ services }: { services: [string, string][] }) {
+type Opt = [string, string][];
+
+/**
+ * The standard referral ticket (/partner). Every referral has the same questions, in the same order, so ops can act on
+ * it without calling the partner back. Shows what the partner earns for the job type they pick.
+ */
+export function ReferralTicket({ services, jobTypes, timings, contacts, relationships }: { services: Opt; jobTypes: [string, string, string][]; timings: Opt; contacts: Opt; relationships: Opt }) {
   const router = useRouter();
-  const blank = { name: "", email: "", phone: "", service_slug: "", note: "" };
+  const blank = { name: "", email: "", phone: "", company: "", contact_pref: "call", best_time: "", address: "", city: "", zip: "", service_slug: "", job_type: "one_time", timing: "week", preferred_date: "", details: "", relationship: "client", note: "", consent: false };
   const [f, setF] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const earns = jobTypes.find(([k]) => k === f.job_type)?.[2];
   return (
-    <form className="space-y-3" onSubmit={async (e) => {
+    <form className="space-y-5" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setMsg(null);
-      const r = await post("/api/partner", { action: "refer", ...f, service_slug: f.service_slug || null });
+      const r = await post("/api/partner", { action: "ticket", ...f, service_slug: f.service_slug || null, preferred_date: f.timing === "date" ? f.preferred_date : null });
       setBusy(false);
-      setMsg(r.ok ? { ok: true, text: `Sent. We emailed ${f.name.split(" ")[0]} a booking link — they're your customer for 12 months.` } : { ok: false, text: r.error });
+      setMsg(r.ok ? { ok: true, text: `Ticket ${String(r.data.ticket_no ?? "")} sent. We emailed ${f.name.split(" ")[0]} a booking link from you and we'll reach out too — they're your customer for 12 months.` } : { ok: false, text: r.error });
       if (r.ok) { setF(blank); router.refresh(); }
     }}>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">Customer&apos;s name<input className="input mt-1" required value={f.name} onChange={set("name")} /></label>
-        <label className="text-sm">Their email<input className="input mt-1" type="email" required value={f.email} onChange={set("email")} /></label>
-        <label className="text-sm">Their phone (optional)<input className="input mt-1" type="tel" value={f.phone} onChange={set("phone")} /></label>
-        <label className="text-sm">What they need<select className="input mt-1" value={f.service_slug} onChange={set("service_slug")}><option value="">Not sure / several things</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select></label>
-      </div>
-      <label className="block text-sm">Note for them (optional)<textarea className="input mt-1" rows={2} value={f.note} onChange={set("note")} placeholder="e.g. Closing on the 15th — they need a move-out clean the day before" /></label>
-      <button className="btn-primary" disabled={busy}>{busy ? "Sending…" : "Send them to Handled"}</button>
+      <fieldset className="space-y-3">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">1 · Customer</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Full name<input className="input mt-1" required value={f.name} onChange={set("name")} /></label>
+          <label className="text-sm">Company (if a business)<input className="input mt-1" value={f.company} onChange={set("company")} /></label>
+          <label className="text-sm">Email<input className="input mt-1" type="email" required value={f.email} onChange={set("email")} /></label>
+          <label className="text-sm">Phone{f.contact_pref === "email" ? " (optional)" : ""}<input className="input mt-1" type="tel" required={f.contact_pref !== "email"} value={f.phone} onChange={set("phone")} /></label>
+          <label className="text-sm">Best way to reach them<select className="input mt-1" value={f.contact_pref} onChange={set("contact_pref")}>{contacts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+          <label className="text-sm">Best time (optional)<input className="input mt-1" value={f.best_time} onChange={set("best_time")} placeholder="e.g. weekdays after 5pm" /></label>
+        </div>
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">2 · Where</legend>
+        <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
+          <label className="text-sm">Street address (optional)<input className="input mt-1" value={f.address} onChange={set("address")} /></label>
+          <label className="text-sm">City<input className="input mt-1" value={f.city} onChange={set("city")} /></label>
+          <label className="text-sm">ZIP<input className="input mt-1" required inputMode="numeric" pattern="\d{5}" maxLength={5} value={f.zip} onChange={set("zip")} /></label>
+        </div>
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">3 · The job</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Service<select className="input mt-1" value={f.service_slug} onChange={set("service_slug")}><option value="">Not sure / several things</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select></label>
+          <label className="text-sm">Type of job<select className="input mt-1" value={f.job_type} onChange={set("job_type")}>{jobTypes.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+          <label className="text-sm">When they need it<select className="input mt-1" value={f.timing} onChange={set("timing")}>{timings.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+          {f.timing === "date" && <label className="text-sm">Date<input className="input mt-1" type="date" required value={f.preferred_date} onChange={set("preferred_date")} /></label>}
+        </div>
+        <label className="block text-sm">What needs doing (optional)<textarea className="input mt-1" rows={3} value={f.details} onChange={set("details")} placeholder="Size of the home or property, number of units, anything the pro should know" /></label>
+        {earns && <p className="rounded-lg bg-brand-tint p-2 text-sm"><b>You earn:</b> {earns}.</p>}
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">4 · You and them</legend>
+        <label className="block text-sm">How you know them<select className="input mt-1" value={f.relationship} onChange={set("relationship")}>{relationships.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+        <label className="block text-sm">Note for them (optional — goes in our email from you)<textarea className="input mt-1" rows={2} value={f.note} onChange={set("note")} placeholder="e.g. Closing on the 15th — they need a move-out clean the day before" /></label>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />They agreed that I can share their details and that Handled may contact them about this job.</label>
+      </fieldset>
+      <button className="btn-primary" disabled={busy || !f.consent}>{busy ? "Sending…" : "Submit referral ticket"}</button>
       {msg && <p className={`text-sm ${msg.ok ? "text-brand-dark" : "text-rose-700"}`}>{msg.text}</p>}
     </form>
   );
@@ -134,11 +171,30 @@ export function PartnerAssign({ partners }: { partners: [string, string][] }) {
   );
 }
 
+/** Hub → Partners: move a referral ticket along (we reached out / closed / reopen). */
+export function TicketStatusButtons({ id, status }: { id: string; status: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const go = async (to: string) => {
+    const note = to === "closed" ? prompt("Why is this ticket closed? (e.g. not interested, out of area)") : null;
+    if (to === "closed" && !note) return;
+    setBusy(true); const r = await post("/api/hub/partners", { action: "ticket", id, status: to, note }); setBusy(false);
+    if (!r.ok) alert(r.error); router.refresh();
+  };
+  return (
+    <span className="flex flex-wrap gap-1">
+      {status === "submitted" && <button className="btn-ghost px-2 py-0.5 text-xs" disabled={busy} onClick={() => go("contacted")}>We reached out</button>}
+      {status !== "closed" && <button className="btn-ghost px-2 py-0.5 text-xs" disabled={busy} onClick={() => go("closed")}>Close</button>}
+      {status === "closed" && <button className="btn-ghost px-2 py-0.5 text-xs" disabled={busy} onClick={() => go("submitted")}>Reopen</button>}
+    </span>
+  );
+}
+
 /** Hub → Partners: cancel an unpaid commission. */
 export function VoidCommission({ id }: { id: string }) {
   const router = useRouter();
   return <button className="text-xs text-rose-700 underline" onClick={async () => {
-    const note = prompt("Why are you cancelling this commission?");
+    const note = prompt("Why are you cancelling this commission? (the pro's half of the fee is handed back to them)");
     if (!note) return;
     const r = await post("/api/hub/partners", { action: "void", commission_id: id, note });
     if (!r.ok) alert(r.error); router.refresh();

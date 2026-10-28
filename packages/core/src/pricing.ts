@@ -313,6 +313,9 @@ export function isRush(date: string | null | undefined, now = new Date()): boole
 export const money = (v: number | null | undefined) =>
   v == null ? "—" : v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
+/** Exact to the cent (fees and commissions people are paid or charged, where rounding to the dollar would mislead). */
+export const moneyCents = (v: number | null | undefined) =>
+  v == null ? "—" : v.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const moneyRange = (lo: number, hi: number) => (lo === hi ? money(lo) : `${money(lo)} – ${money(hi)}`);
 
 /**

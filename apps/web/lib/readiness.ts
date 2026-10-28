@@ -219,6 +219,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261020001500_call_desk", "Call desk (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("biz_leads").select("next_call_at, call_attempts").limit(1)],
     ["20261020010000_omnichannel", "Lead inbox & social media (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("social_posts").select("id").limit(1)],
     ["20261020020000_pro_marketplace", "pro prices & request-a-quote (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("quote_bids").select("id").limit(1)],
+    ["20261028012200_partner_tickets_tiers", "partner rates 25/10/15 and referral tickets (or run supabase/setup/ADD_PARTNER_TICKETS_2026-10-28_0122.sql)", () => db.from("referral_customers").select("ticket_no, status").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

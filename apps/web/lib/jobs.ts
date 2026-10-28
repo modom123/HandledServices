@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
  * UPDATED : 2026-10-07_0110 UTC — Referral Partner Program: bookings credited to the customer's partner; commission accrued on completion.
+ * UPDATED : 2026-10-28_0122 UTC — partner-v2: the pro's half of the partner's share comes off the job payout line; recurring visits are repeat jobs.
  * UPDATED : 2026-10-07_1640 UTC — onBooked adds a new ZIP to a service area (lib/launch addZipToServiceArea).
  * UPDATED : 2026-10-07_1545 UTC — markPaid: a dispatch error no longer throws back into the Stripe webhook (alert instead).
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
@@ -51,7 +52,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -892,9 +893,13 @@ export async function finalizeJob(jobId: string, summary?: string) {
   // The pro's payout is approved now. "Pay after" included: the balance is charged just below, and collecting it is our
   // job, not the pro's — their pay never waits on the customer's card (pro agreement §3; the hold placed at start makes a
   // failure rare).
+  // Referral Partner Program: the partner's share of this job; the pro's half comes off the job payout (work order term)
+  const partnerCut = job.partner_id ? await (await import("./partners")).partnerSplitForJob(job).catch((e) => { console.error("[partners]", e); return null; }) : null;
   if (job.contractor_id && job.contractor_payout) {
     const ready = Boolean(job.paid_at || job.remedy || job.billed_on_terms || job.payment_plan === "after");
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: ready ? "approved" : "held" });
+    const fee = partnerCut?.fromPro ?? 0;
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: r2(Number(job.contractor_payout) - fee), status: ready ? "approved" : "held",
+      ...(fee ? { reason: `Job pay ${moneyCents(Number(job.contractor_payout))} − ${moneyCents(fee)} referral partner fee (your half)` } : {}) });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
@@ -918,7 +923,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   });
   if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
-  if (job.partner_id) await (await import("./partners")).accrueCommission(job).catch((e) => console.error("[partners]", e));
+  if (job.partner_id) await (await import("./partners")).accrueCommission(job, partnerCut).catch((e) => console.error("[partners]", e));
   await (await import("./loyalty")).earnForJob(job).catch((e) => console.error("[loyalty]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }
@@ -954,6 +959,8 @@ async function scheduleNextVisit(job: Job) {
   const nv = await nextVisitPrice(job);
   const pay: Record<string, unknown> = { payment_plan: "full", deposit_amount: null, deposit_paid_at: null, balance_due_date: null, discount: 0 };
   if ("balance_attempts" in job) Object.assign(pay, { balance_charge_at: null, balance_attempts: 0, balance_hold_intent: null, pay_in_full_discount: 0 });
+  // Referral Partner Program: a recurring visit is a repeat job for the partner (an account stays an account)
+  if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id ? (job.partner_tier === "account" ? "account" : "repeat") : null });
   const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
   if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
   else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {

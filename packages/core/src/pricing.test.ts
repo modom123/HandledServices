@@ -1620,21 +1620,67 @@ test("coverage: cancel tiers, time zones and backup order", async () => {
   assert.ok(backupAnswerMinutes(2) < backupAnswerMinutes(12) && backupAnswerMinutes(12) < backupAnswerMinutes(48));
 });
 
-test("referral partner program: 10% of our take, never negative, codes", async () => {
-  const { partnerCommission, partnerTake, makePartnerCode, cleanPartnerCode, partnerExpiry, PARTNER_PROGRAM } = await import("./partners.ts");
-  assert.equal(PARTNER_PROGRAM.pctOfTake, 0.1);
+test("referral partner program: fixed tiers of the price, split 50/50 pro / Handled, codes", async () => {
+  const { partnerSplit, partnerTier, partnerCommission, partnerTake, partnerLegacyJob, makePartnerCode, cleanPartnerCode, partnerExpiry, PARTNER_TIERS, PARTNER_PROGRAM } = await import("./partners.ts");
+  assert.equal(PARTNER_TIERS.one_time.rate, 0.25);
+  assert.equal(PARTNER_TIERS.repeat.rate, 0.1);
+  assert.equal(PARTNER_TIERS.account.rate, 0.15);
+  assert.equal(PARTNER_PROGRAM.proShare, 0.5);
+  // tiers
+  assert.equal(partnerTier({ firstJob: true, frequency: "once" }), "one_time");
+  assert.equal(partnerTier({ firstJob: false, frequency: "once" }), "repeat", "a second one-time job is a repeat job");
+  assert.equal(partnerTier({ firstJob: true, frequency: "biweekly" }), "repeat", "recurring from the start");
+  assert.equal(partnerTier({ firstJob: true, frequency: "once", plan_id: "p" }), "repeat");
+  assert.equal(partnerTier({ firstJob: true, frequency: "once", business_account_id: "b" }), "account", "accounts always 15%");
+  // the same $ on every service while our fee covers our half: $300 one-time → $75 ($37.50 each)
+  const a = partnerSplit({ price: 300, payout: 190, tier: "one_time" });
+  assert.deepEqual([a.amount, a.fromPro, a.fromUs], [75, 37.5, 37.5]);
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time" }).amount, 75, "same rate whatever the service's split");
+  assert.deepEqual([partnerSplit({ price: 180, payout: 120, tier: "repeat" }).amount, partnerSplit({ price: 450, payout: 300, tier: "account" }).amount], [18, 67.5]);
+  // our half never exceeds our fee after card fees: a referred job can't lose us money ("up to" 25%)
+  const thin = partnerSplit({ price: 100, payout: 85, tier: "one_time" });
+  assert.equal(thin.fromPro, 12.5);
+  assert.equal(thin.fromUs, Math.round((100 - 85 - (100 * 0.029 + 0.3)) * 100) / 100);
+  assert.ok(100 - 85 - thin.fromUs - (100 * 0.029 + 0.3) >= -0.005);
+  // refunds come off the base; the pro's half never exceeds the payout; pros on older terms pay nothing
+  assert.equal(partnerSplit({ price: 300, payout: 120, refunded: 100, tier: "one_time" }).amount, 50, "a refund lowers the payout and the base together");
+  assert.equal(partnerSplit({ price: 300, payout: 0, refunded: 300, tier: "one_time" }).amount, 0, "never negative");
+  assert.equal(partnerSplit({ price: 300, payout: 190, tier: "one_time", proPays: false }).fromPro, 0);
+  assert.equal(partnerSplit({ price: 199.99, payout: 120, tier: "repeat" }).amount, 19.99, "rounded down to the cent");
+  // partner-v1 for jobs booked before the change
   assert.equal(partnerTake({ price: 400, payout: 300 }), 100);
   assert.equal(partnerCommission({ price: 400, payout: 300 }), 10);
-  assert.equal(partnerCommission({ price: 199.99, payout: 150 }), 4.99, "rounded down to the cent");
-  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 60 }), 4, "refunds come out first");
-  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 400 }), 0, "never negative");
-  assert.equal(partnerCommission({ price: 100, payout: 120 }), 0);
+  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 60 }), 4);
+  assert.equal(partnerLegacyJob("2026-10-20T00:00:00Z"), true);
+  assert.equal(partnerLegacyJob("2026-10-29T00:00:00Z"), false);
   let i = 0;
   const code = makePartnerCode("Jane O'Neil", () => [0, 0.5, 0.99, 0.2][i++ % 4]);
   assert.match(code, /^JANEO[A-Z2-9]{4}$/);
   assert.equal(cleanPartnerCode(" jane7k2q "), "JANE7K2Q");
   assert.equal(cleanPartnerCode("<script>"), null);
   assert.equal(partnerExpiry(new Date("2026-10-07T00:00:00Z")).toISOString().slice(0, 10), "2027-10-07");
+});
+
+test("referral ticket: number, stage, same wording everywhere", async () => {
+  const { makeTicketNo, ticketStage, partnerRateLines, partnerTerms, TICKET_JOB_TYPES } = await import("./partners.ts");
+  assert.match(makeTicketNo(), /^RT-[A-HJ-NP-Z2-9]{6}$/);
+  assert.equal(ticketStage({ status: "submitted" }), "submitted");
+  assert.equal(ticketStage({ status: "contacted" }), "contacted");
+  assert.equal(ticketStage({ status: "closed" }), "closed");
+  assert.equal(ticketStage({ status: "contacted", first_job_id: "j" }), "booked");
+  assert.equal(ticketStage({ status: "closed", first_job_id: "j" }, { completed: 1 }), "completed", "a booking beats a closed ticket");
+  assert.equal(ticketStage({ first_job_id: "j" }, { completed: 2, paid: 1 }), "paid");
+  assert.deepEqual(partnerRateLines().map((l) => l.split(" ")[0]), ["25%", "10%", "15%"]);
+  assert.ok(partnerTerms()[0].includes("25%") && partnerTerms()[0].includes("10%") && partnerTerms()[0].includes("15%"));
+  assert.ok(TICKET_JOB_TYPES.account.earns.startsWith("15%"));
+});
+
+test("work order shows the pro's half of a referral fee before they accept", async () => {
+  const { buildWorkOrder } = await import("./workorder.ts");
+  const job = { ref: "H-1", service_slug: "house-cleaning", answers: {}, notes: null, scheduled_date: null, time_window: "morning", address: "1 Main", city: "Detroit", state: "MI", zip: "48201", contact_name: "A", contact_phone: null, company_name: null, contractor_payout: 190, price_final: 300 } as never;
+  assert.ok(!buildWorkOrder(job, { reveal: false }).terms.some((t: string) => t.includes("referral fee")));
+  const w = buildWorkOrder({ ...(job as object), partner_tier: "one_time" } as never, { reveal: false });
+  assert.ok(w.terms.some((t: string) => t.includes("12.5%") && t.includes("$37.50")));
 });
 
 test("measurements pick the calibrated size band and are required", async () => {
