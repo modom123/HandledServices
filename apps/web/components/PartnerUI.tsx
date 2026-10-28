@@ -69,24 +69,46 @@ type Opt = [string, string][];
  * The standard referral ticket (/partner). Every referral has the same questions, in the same order, so ops can act on
  * it without calling the partner back. Shows what the partner earns for the job type they pick.
  */
-export function ReferralTicket({ services, jobTypes, timings, contacts, relationships }: { services: Opt; jobTypes: [string, string, string][]; timings: Opt; contacts: Opt; relationships: Opt }) {
+export function ReferralTicket({ services, jobTypes, timings, contacts, relationships, photosFirst = false }: { services: Opt; jobTypes: [string, string, string][]; timings: Opt; contacts: Opt; relationships: Opt; /** pro portal: photos are step 1 */ photosFirst?: boolean }) {
   const router = useRouter();
   const blank = { name: "", email: "", phone: "", company: "", contact_pref: "call", best_time: "", address: "", city: "", zip: "", service_slug: "", job_type: "one_time", timing: "week", preferred_date: "", details: "", relationship: "client", note: "", consent: false };
   const [f, setF] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const upload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true); setMsg(null);
+    const fd = new FormData();
+    [...files].slice(0, 8 - photos.length).forEach((f) => fd.append("photos", f));
+    const r = await fetch("/api/uploads", { method: "POST", body: fd }).then((x) => x.json()).catch(() => ({ error: "Upload failed" }));
+    setUploading(false);
+    if (r.paths) setPhotos([...photos, ...r.paths].slice(0, 8)); else setMsg({ ok: false, text: r.error ?? "Upload failed" });
+  };
+  const photoField = (
+    <fieldset className="space-y-2">
+      <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{photosFirst ? "1 · Photos of the job" : "Photos of the job (optional)"}</legend>
+      <p className="text-sm text-ink-soft">The yard, the gutters, the room, the junk pile: up to 8 photos. Photos help us price the job and book it faster.</p>
+      <input type="file" accept="image/*" capture="environment" multiple disabled={uploading || photos.length >= 8} onChange={(e) => { upload(e.target.files); e.target.value = ""; }} className="text-sm" />
+      {uploading && <p className="text-sm text-ink-soft">Uploading…</p>}
+      {photos.length > 0 && <p className="text-sm">📷 {photos.length} photo{photos.length > 1 ? "s" : ""} added <button type="button" className="ml-2 text-xs text-ink-soft underline" onClick={() => setPhotos([])}>remove all</button></p>}
+    </fieldset>
+  );
+  const n = (i: number) => (photosFirst ? i + 1 : i);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   const earns = jobTypes.find(([k]) => k === f.job_type)?.[2];
   return (
     <form className="space-y-5" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setMsg(null);
-      const r = await post("/api/partner", { action: "ticket", ...f, service_slug: f.service_slug || null, preferred_date: f.timing === "date" ? f.preferred_date : null });
+      const r = await post("/api/partner", { action: "ticket", ...f, photos, service_slug: f.service_slug || null, preferred_date: f.timing === "date" ? f.preferred_date : null });
       setBusy(false);
       setMsg(r.ok ? { ok: true, text: `Ticket ${String(r.data.ticket_no ?? "")} sent. We emailed ${f.name.split(" ")[0]} a booking link from you and we'll reach out too — they're your customer for 12 months.` } : { ok: false, text: r.error });
-      if (r.ok) { setF(blank); router.refresh(); }
+      if (r.ok) { setF(blank); setPhotos([]); router.refresh(); }
     }}>
+      {photosFirst && photoField}
       <fieldset className="space-y-3">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">1 · Customer</legend>
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{n(1)} · Customer</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Full name<input className="input mt-1" required value={f.name} onChange={set("name")} /></label>
           <label className="text-sm">Company (if a business)<input className="input mt-1" value={f.company} onChange={set("company")} /></label>
@@ -97,7 +119,7 @@ export function ReferralTicket({ services, jobTypes, timings, contacts, relation
         </div>
       </fieldset>
       <fieldset className="space-y-3">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">2 · Where</legend>
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{n(2)} · Where</legend>
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
           <label className="text-sm">Street address (optional)<input className="input mt-1" value={f.address} onChange={set("address")} /></label>
           <label className="text-sm">City<input className="input mt-1" value={f.city} onChange={set("city")} /></label>
@@ -105,7 +127,7 @@ export function ReferralTicket({ services, jobTypes, timings, contacts, relation
         </div>
       </fieldset>
       <fieldset className="space-y-3">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">3 · The job</legend>
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{n(3)} · The job</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Service<select className="input mt-1" value={f.service_slug} onChange={set("service_slug")}><option value="">Not sure / several things</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select></label>
           <label className="text-sm">Type of job<select className="input mt-1" value={f.job_type} onChange={set("job_type")}>{jobTypes.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
@@ -115,13 +137,14 @@ export function ReferralTicket({ services, jobTypes, timings, contacts, relation
         <label className="block text-sm">What needs doing (optional)<textarea className="input mt-1" rows={3} value={f.details} onChange={set("details")} placeholder="Size of the home or property, number of units, anything the pro should know" /></label>
         {earns && <p className="rounded-lg bg-brand-tint p-2 text-sm"><b>You earn:</b> {earns}.</p>}
       </fieldset>
+      {!photosFirst && photoField}
       <fieldset className="space-y-3">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">4 · You and them</legend>
+        <legend className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{n(4)} · You and them</legend>
         <label className="block text-sm">How you know them<select className="input mt-1" value={f.relationship} onChange={set("relationship")}>{relationships.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         <label className="block text-sm">Note for them (optional — goes in our email from you)<textarea className="input mt-1" rows={2} value={f.note} onChange={set("note")} placeholder="e.g. Closing on the 15th — they need a move-out clean the day before" /></label>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />They agreed that I can share their details and that Handled may contact them about this job.</label>
       </fieldset>
-      <button className="btn-primary" disabled={busy || !f.consent}>{busy ? "Sending…" : "Submit referral ticket"}</button>
+      <button className="btn-primary" disabled={busy || uploading || !f.consent}>{busy ? "Sending…" : "Submit referral ticket"}</button>
       {msg && <p className={`text-sm ${msg.ok ? "text-brand-dark" : "text-rose-700"}`}>{msg.text}</p>}
     </form>
   );

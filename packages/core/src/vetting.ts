@@ -662,6 +662,6 @@ export const PROBATION = { jobs: 3, maxJobPrice: 750 };
 export const VETTING_STEPS = [
   { t: "Sign up (2 minutes)", b: "Name, email, mobile, what you do and the ZIP codes you serve. Your account opens right away: no interview, no references." },
   { t: "Photo ID + background check", b: "A photo of your ID matched to a selfie, then consent to a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
-  { t: "Resume + paperwork", b: `Upload your resume, then the W-9, contractor agreement (e-sign) and where to send your pay. Insurance naming ${BRAND.legalName} as additional insured, and a license, only for trades that need them.` },
+  { t: "Orientation, resume + paperwork", b: `Six short "Welcome to Handled" lessons with a question each, your resume, then the W-9, contractor agreement (e-sign) and where to send your pay. Insurance naming ${BRAND.legalName} as additional insured, and a license, only for trades that need them.` },
   { t: "Handled approves you", b: `A person at Handled reviews your resume, verified ID and file, then activates you. You see jobs near you while we review. Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice} with a photo review, then full offers.` },
 ];

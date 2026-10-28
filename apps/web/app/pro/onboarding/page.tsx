@@ -14,11 +14,13 @@
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
+ * UPDATED : 2026-10-28_2300 UTC — "Welcome to Handled" orientation step links to /pro/welcome.
  * UPDATED : 2026-10-27_1900 UTC — "Your road to your first paycheck" (core PRO_ROADMAP): setup → documents → background →
  *           live → offers → the job → paid every Monday, with where they are now.
  */
 import { VerifyId } from "@/components/VerifyId";
 import { BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import Link from "next/link";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -52,6 +54,8 @@ export default async function Onboarding() {
     if (!es) return d;
     let m: RegExpMatchArray | null;
     if ((m = d.match(/^(\d+) selected$/))) return `${m[1]} seleccionadas`;
+    if ((m = d.match(/^(\d+) of (\d+) lessons done/))) return `${m[1]} de ${m[2]} lecciones terminadas · unos 15 minutos`;
+    if ((m = d.match(/^All (\d+) lessons done$/))) return `Las ${m[1]} lecciones terminadas`;
     if ((m = d.match(/^From (\S+), up to (\d+) mi · (.*)$/))) return `Desde ${m[1]}, hasta ${m[2]} mi · ${m[3] === "any day" ? "cualquier día" : m[3].replace(/(\d+) days a week/, "$1 días a la semana")}`;
     if ((m = d.match(/^Valid until (.+)$/))) return `Válido hasta ${m[1]}`;
     if ((m = d.match(/^Uploaded (.+)$/))) return `Subido el ${m[1]}`;
@@ -101,6 +105,9 @@ export default async function Onboarding() {
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="agree" value="true" required /> {t("I have read and agree to the Independent Contractor Agreement and the documents listed above.")}</label>
         </StepForm>
       </div>
+    );
+    if (key === "orientation") return (
+      <Link href="/pro/welcome" className="btn-primary mt-2 inline-block">{es ? "Empezar la bienvenida a Handled →" : "Start Welcome to Handled →"}</Link>
     );
     if (key === "resume") return (
       <StepForm step="resume" cta={t("Upload resume")} locale={l}>

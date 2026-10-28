@@ -93,6 +93,8 @@ export type Ticket = {
   name: string; email: string; phone?: string | null; company?: string | null; contact_pref: TicketContact; best_time?: string | null;
   address?: string | null; city?: string | null; zip: string; service_slug?: string | null; job_type: TicketJobType; timing: TicketTiming;
   preferred_date?: string | null; details?: string | null; relationship: TicketRelationship; note?: string | null; consent: true;
+  /** Up to 8 photos of the job (paths from /api/uploads). */
+  photos?: string[];
 };
 
 /**
@@ -112,6 +114,7 @@ export async function submitTicket(partner: Partner, t: Ticket): Promise<{ ok: t
     job_type: t.job_type, address: t.address || null, city: t.city || null, zip: t.zip, contact_pref: t.contact_pref, best_time: t.best_time || null,
     timing: t.timing, preferred_date: t.timing === "date" ? t.preferred_date || null : null, details: t.details || null, relationship: t.relationship,
     consent_at: new Date().toISOString(), status: "submitted",
+    ...(t.photos?.length ? { photos: t.photos } : {}),
   };
   let ticketNo: string | null = null;
   for (let i = 0; i < 5 && !ticketNo; i++) {
@@ -128,7 +131,7 @@ export async function submitTicket(partner: Partner, t: Ticket): Promise<{ ok: t
     `Hi ${t.name.split(" ")[0]},\n\n${partner.name}${partner.company ? ` (${partner.company})` : ""} thought you'd like ${BRAND.name}${svc ? ` for your ${svc.name.toLowerCase()}` : ""}: insured, background-checked local pros, an upfront price in 60 seconds, photo proof when it's done, and a free redo if anything's missed.\n\nSee your price and book: ${book}\n${t.note ? `\nNote from ${partner.name.split(" ")[0]}: ${t.note}\n` : ""}\nWe'll also reach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}${t.best_time ? ` (${t.best_time})` : ""}. Questions? Just reply.\n\n— ${BRAND.name}`).catch(() => {});
   const summary = ticketText({ ...row, ticket_no: ticketNo });
   await sendEmail(partner.email, `Referral ticket ${ticketNo} received — ${t.name}`, `Hi ${partner.name.split(" ")[0]},\n\nThanks — we've got it. We emailed ${t.name.split(" ")[0]} a booking link from you and we'll reach out ourselves too.\n\n${summary}\n\nWhat you'll earn: ${TICKET_JOB_TYPES[t.job_type].earns}.\n\nFollow this ticket: ${siteUrl()}/partner\n\n— ${BRAND.name}`).catch(() => {});
-  if (opsEmail()) await sendEmail(opsEmail(), `Referral ticket ${ticketNo}: ${t.name}${svc ? ` — ${svc.name}` : ""} (${partner.name})`, `${summary}\n\nPartner: ${partner.name}${partner.company ? ` (${partner.company})` : ""} · ${partner.email} · code ${partner.code}\n\nReach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}, then mark it "We reached out" in Hub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
+  if (opsEmail()) await sendEmail(opsEmail(), `Referral ticket ${ticketNo}: ${t.name}${svc ? ` — ${svc.name}` : ""} (${partner.name})`, `${summary}${t.photos?.length ? `\n${t.photos.length} photo(s) of the job: see the ticket in Hub → Partners` : ""}\n\nPartner: ${partner.name}${partner.company ? ` (${partner.company})` : ""} · ${partner.email} · code ${partner.code}\n\nReach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}, then mark it "We reached out" in Hub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { ok: true, ticket_no: ticketNo };
 }
 

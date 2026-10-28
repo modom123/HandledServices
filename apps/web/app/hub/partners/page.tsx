@@ -5,10 +5,12 @@
  * PURPOSE : Handled Hub → Partners (Referral Partner Program): every partner with their customers and earnings,
  *           pause / reactivate, credit a customer by hand, and the commission queue (void before payout).
  *           Payouts run on Mondays with the pro payouts (cron sweep).
+ * UPDATED : 2026-10-28_2300 UTC — photos on referral tickets (signed links, open for an hour).
  * UPDATED : 2026-10-28_0122 UTC — partner-v2 rates; referral ticket queue (we reached out / close); who pays each commission.
  */
 import { PARTNER_KINDS, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, partnerRateLines, ticketStage, type PartnerKind, type TicketContact, type TicketJobType, type TicketTiming } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
+import { signedUrls } from "@/lib/photos";
 import { Badge, Empty, Stat } from "@/components/ui";
 import { PartnerAssign, PartnerStatusButton, TicketStatusButtons, VoidCommission } from "@/components/PartnerUI";
 
@@ -16,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 type P = { id: string; code: string; name: string; email: string; phone: string | null; company: string | null; kind: PartnerKind; status: "active" | "suspended"; stripe_account_id: string | null; created_at: string };
 type C = { id: string; partner_id: string; amount: number; take: number; status: string; eligible_at: string; paid_at: string | null; note: string | null; tier?: string | null; rate?: number | null; from_pro?: number | null; from_us?: number | null; jobs: { ref: string; service_slug: string; contact_email?: string } | null };
-type T = { id: string; partner_id: string; ticket_no: string | null; customer_name: string | null; customer_email: string; customer_phone: string | null; company: string | null; contact_pref: string | null; best_time: string | null; address: string | null; city: string | null; zip: string | null; service_slug: string | null; job_type: string | null; timing: string | null; preferred_date: string | null; details: string | null; status: string | null; staff_note: string | null; first_job_id: string | null; source: string; created_at: string };
+type T = { id: string; partner_id: string; ticket_no: string | null; customer_name: string | null; customer_email: string; customer_phone: string | null; company: string | null; contact_pref: string | null; best_time: string | null; address: string | null; city: string | null; zip: string | null; service_slug: string | null; job_type: string | null; timing: string | null; preferred_date: string | null; details: string | null; photos?: string[] | null; status: string | null; staff_note: string | null; first_job_id: string | null; source: string; created_at: string };
 
 export default async function PartnersHub() {
   const db = adminClient();
@@ -51,6 +53,7 @@ export default async function PartnersHub() {
   }
   const tickets = ((custs ?? []) as T[]).filter((t) => t.source === "direct").map((t) => ({ ...t, stage: ticketStage(t, byCustomer.get(t.customer_email.toLowerCase())) }));
   const openTickets = tickets.filter((t) => t.stage === "submitted" || t.stage === "contacted");
+  const photoUrls = new Map(await Promise.all(openTickets.filter((t) => t.photos?.length).map(async (t) => [t.id, await signedUrls(t.photos!).catch(() => [])] as const)));
   return (
     <div className="space-y-6">
       <div>
@@ -73,7 +76,7 @@ export default async function PartnersHub() {
               <tr key={t.id} className="border-t border-line align-top">
                 <td className="p-3 font-mono text-xs">{t.ticket_no ?? "—"}<div className="font-sans text-ink-soft">{t.created_at.slice(0, 10)}</div></td>
                 <td className="p-3"><div className="font-semibold">{t.customer_name}{t.company ? ` (${t.company})` : ""}</div><div className="text-xs text-ink-soft">{[t.customer_email, t.customer_phone].filter(Boolean).join(" · ")}</div><div className="text-xs">{t.contact_pref ? `${TICKET_CONTACT[t.contact_pref as TicketContact] ?? t.contact_pref}${t.best_time ? ` · ${t.best_time}` : ""}` : ""}</div><div className="text-xs text-ink-soft">{[t.address, t.city, t.zip].filter(Boolean).join(", ")}</div></td>
-                <td className="p-3">{t.service_slug ? getService(t.service_slug)?.name ?? "—" : "Not sure"}<div className="text-xs text-ink-soft">{t.job_type ? TICKET_JOB_TYPES[t.job_type as TicketJobType]?.label : ""}</div>{t.details && <div className="mt-1 max-w-xs text-xs">{t.details}</div>}</td>
+                <td className="p-3">{t.service_slug ? getService(t.service_slug)?.name ?? "—" : "Not sure"}<div className="text-xs text-ink-soft">{t.job_type ? TICKET_JOB_TYPES[t.job_type as TicketJobType]?.label : ""}</div>{t.details && <div className="mt-1 max-w-xs text-xs">{t.details}</div>}{(photoUrls.get(t.id) ?? []).length > 0 && <div className="mt-1 flex flex-wrap gap-1">{photoUrls.get(t.id)!.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer" className="text-xs text-brand underline">📷 {i + 1}</a>)}</div>}</td>
                 <td className="p-3">{t.timing ? TICKET_TIMING[t.timing as TicketTiming] : "—"}{t.preferred_date ? <div className="text-xs">{t.preferred_date}</div> : null}</td>
                 <td className="p-3">{name.get(t.partner_id) ?? "—"}</td>
                 <td className="p-3"><Badge tone={t.stage === "contacted" ? "brand" : "amber"}>{TICKET_STATUSES[t.stage]}</Badge>{t.staff_note && <div className="mt-1 text-xs text-ink-soft">{t.staff_note}</div>}</td>

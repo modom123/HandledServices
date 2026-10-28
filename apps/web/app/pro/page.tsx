@@ -16,7 +16,7 @@
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
-import { PROBATION, PRO_REFERRAL, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
+import { PROBATION, PRO_REFERRAL, orientationStatus, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { standbyFor } from "@/lib/coverage";
 import { StandbyAnswer } from "@/components/Standby";
@@ -117,6 +117,21 @@ export default async function ProHome() {
           <div className="text-sm text-ink-soft">{setup.steps.filter((x) => !x.done || x.expiring).map((x) => stepLabel(x.label)).join(" · ")}</div>
         </Link>
       )}
+      {me && me.status !== "approved" && (() => {
+        const o = orientationStatus((me as { orientation?: Record<string, string> | null }).orientation);
+        return (
+          <div className="grid gap-3 md:grid-cols-2">
+            <Link href="/pro/welcome" className={`card block hover:border-brand ${o.complete ? "border-brand/40" : "border-brand"}`}>
+              <div className="font-semibold">{o.complete ? "✅" : "👋"} {es ? "Bienvenida a Handled" : "Welcome to Handled"} · {o.done}/{o.total}</div>
+              <div className="text-sm text-ink-soft">{o.complete ? (es ? "Orientación terminada." : "Orientation done.") : (es ? "Seis lecciones cortas sobre cómo trabajamos. Obligatorias antes de su aprobación." : "Six short lessons on how we work. Required before you're approved.")}</div>
+            </Link>
+            <Link href="/pro/refer" className="card block border-gold/60 hover:border-brand">
+              <div className="font-semibold">💸 {es ? "Gane dinero mientras espera" : "Make money while you wait"}</div>
+              <div className="text-sm text-ink-soft">{es ? "Tome fotos de un trabajo, llene un ticket y cobre cuando se haga." : "Snap photos of a job, fill out a ticket, get paid when it's done."}</div>
+            </Link>
+          </div>
+        );
+      })()}
       <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{(me as { pro_no?: string | null } | null)?.pro_no ? `${es ? "ID de profesional" : "Pro ID"} ${(me as { pro_no?: string | null }).pro_no} · ` : ""}{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once your resume, ID and setup are verified and Handled approves you") : ""}</p></div>
       {me?.status === "approved" && (
         <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status))} />

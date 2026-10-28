@@ -67,6 +67,7 @@ export async function signInUrl(email: string, next = "/pro/onboarding"): Promis
 // ─── Spanish for pros and applicants ─────────────────────────────────────────
 
 const STEP_ES: Record<string, string> = {
+  orientation: "Bienvenida a Handled (orientación)",
   w9: "W-9 registrado",
   agreement: "Contrato de contratista independiente firmado",
   specialties: "Especialidades elegidas",
@@ -112,10 +113,27 @@ function stepsList(c: Contractor, lang = "en") {
 
 // ─── application → invite ────────────────────────────────────────────────────
 
-/** After an application is saved: AI screen, then invite automatically or ask staff. */
+/**
+ * After an application is saved. Instant sign-up: the portal opens right away (invite first), then the AI screen runs
+ * and only flags a "decline" for staff to review. Otherwise: AI screen, then invite automatically or ask staff.
+ */
 export async function onApplication(appId: string) {
   const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
   if (!app) return;
+  const settings = await getRecruitingSettings();
+  if (settings.instantSignup && settings.autoInvite) {
+    const inv = await inviteApplicant(appId, "instant sign-up", "account opened at sign-up");
+    if (!inv.ok) await raiseAlert("recruiting", "info", `Set the trade, then invite: ${app.business_name}`, `${inv.error}. Open Hub → Recruiting → Pipeline.`);
+    const screen = await aiScreenApplication({
+      trades: app.trades, specialties: app.specialties, service_zips: app.zips, has_general_liability: app.insured, license_number_given: Boolean(app.license_number), about: app.message,
+    }).catch(() => null);
+    if (screen) {
+      await db().from("contractor_applications").update({ ai_screen: screen, screened_at: new Date().toISOString() }).eq("id", appId);
+      await logRecruiting("screened", { applicationId: appId }, `AI ${screen.recommendation} · score ${screen.score}`, "ai");
+      if (screen.recommendation === "decline") await raiseAlert("recruiting", "warn", `Review: ${app.business_name}`, `The AI screen suggests declining (score ${screen.score}). Their portal is open; they can't take paid work until you approve them. Review in Hub → Recruiting.`);
+    }
+    return;
+  }
   // business qualifications only — no name, email, phone or anything that could bias the screen
   const facts = {
     trades: app.trades, specialties: app.specialties, service_zips: app.zips, years_experience: app.years_experience, crew_size: app.crew_size,
@@ -127,8 +145,7 @@ export async function onApplication(appId: string) {
     await db().from("contractor_applications").update({ ai_screen: screen, stage: "screened", screened_at: new Date().toISOString() }).eq("id", appId);
     await logRecruiting("screened", { applicationId: appId }, `AI ${screen.recommendation} · score ${screen.score}`, "ai");
   }
-  const settings = await getRecruitingSettings();
-  if (!settings.instantSignup && settings.interviewRequired && screen && screen.recommendation !== "decline") {
+  if (settings.interviewRequired && screen && screen.recommendation !== "decline") {
     const r = await (await import("./interviews")).startInterview(appId, "ai", "auto").catch((e) => ({ ok: false, error: String(e) }));
     if (r.ok) return;
     await logRecruiting("interview_not_sent", { applicationId: appId }, r.error ?? null);
@@ -165,9 +182,9 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   const link = await signInUrl(pro.email);
   const lang = await localeOf(pro.profile_id, app.locale);
   if (lang === "es") await sendEmail(pro.email, `Su cuenta de ${BRAND.name} está abierta: termine la configuración en unos 15 minutos`,
-    `Hola ${first(app.contact_name)}:\n\nSu cuenta de profesional independiente (1099) en ${BRAND.name} está abierta. Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría termina en unos 15 minutos. Antes de trabajos pagados necesita su currículum, su identificación verificada y la aprobación de una persona de Handled; mientras revisamos, verá los trabajos cerca de usted.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
+    `Hola ${first(app.contact_name)}:\n\nSu cuenta de profesional independiente (1099) en ${BRAND.name} está abierta. Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría termina en unos 15 minutos. Antes de trabajos pagados necesita su currículum, su identificación verificada y la aprobación de una persona de Handled; mientras revisamos, verá los trabajos cerca de usted.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nEmpiece con "Bienvenida a Handled": seis lecciones cortas sobre cómo trabajamos, obligatorias antes de la aprobación: ${siteUrl()}/pro/welcome\n\nGane dinero mientras espera: tome fotos de un trabajo que alguien necesita, llene un ticket de referido y cobre cuando se haga: ${siteUrl()}/pro/refer\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
   else await sendEmail(pro.email, `Your ${BRAND.name} account is open — finish setup in about 15 minutes`,
-    `Hi ${String(app.contact_name).split(" ")[0]},\n\nYour ${BRAND.name} independent pro (1099) account is open. Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes. Before paid work you need your resume, a verified ID and approval from a person at Handled; you'll see jobs near you while we review.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
+    `Hi ${String(app.contact_name).split(" ")[0]},\n\nYour ${BRAND.name} independent pro (1099) account is open. Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes. Before paid work you need your resume, a verified ID and approval from a person at Handled; you'll see jobs near you while we review.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nStart with "Welcome to Handled": six short lessons on how we work, required before approval: ${siteUrl()}/pro/welcome\n\nMake money while you wait: snap photos of a job someone needs, fill out a referral ticket, and get paid when it's done: ${siteUrl()}/pro/refer\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
 }
 

@@ -179,8 +179,11 @@ test("onboarding blocks activation until every step is done", async () => {
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
     specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
-    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01",
+    orientation: Object.fromEntries((await import("./orientation.ts")).ORIENTATION.map((l) => [l.id, "2026-10-01"])) };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
+  assert.equal(onboardingChecklist({ ...ok, orientation: { welcome: "2026-10-01" } }).complete, false, "needs the Welcome to Handled orientation");
+  assert.equal(onboardingChecklist({ ...ok, orientation: null, status: "approved" }).complete, true, "pros approved before orientation existed aren't blocked");
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
@@ -229,7 +232,8 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
     specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
-    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01",
+    orientation: Object.fromEntries((await import("./orientation.ts")).ORIENTATION.map((l) => [l.id, "2026-10-01"])) };
   assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
@@ -2396,4 +2400,20 @@ test("job money: customer paid → split → pro payout lines → Monday", async
   assert.equal(held.stage, "held");
   assert.ok(held.issues.some((x) => /hasn't paid/.test(x)) && held.issues.some((x) => /held/.test(x)));
   assert.equal(jobMoney({ status: "cancelled", price_final: 100, contractor_payout: 70 }).stage, "none");
+});
+
+test("orientation: six lessons, progress, answers", async () => {
+  const { ORIENTATION, orientationStatus, orientationAnswer } = await import("./orientation.ts");
+  assert.equal(ORIENTATION.length, 6);
+  for (const l of ORIENTATION) {
+    assert.ok(l.answer >= 0 && l.answer < l.en.options.length, l.id);
+    assert.equal(l.en.options.length, l.es.options.length, `${l.id}: same choices in Spanish`);
+    assert.equal(l.en.points.length, l.es.points.length, `${l.id}: same points in Spanish`);
+  }
+  assert.deepEqual(orientationStatus(null), { done: 0, total: 6, complete: false, next: ORIENTATION[0] });
+  assert.equal(orientationStatus({ welcome: "x", jobs: "x" }).next?.id, "pay");
+  assert.equal(orientationStatus(Object.fromEntries(ORIENTATION.map((l) => [l.id, "x"]))).complete, true);
+  assert.equal(orientationAnswer("pay", 0), true);
+  assert.equal(orientationAnswer("pay", 1), false);
+  assert.equal(orientationAnswer("nope", 0), false);
 });

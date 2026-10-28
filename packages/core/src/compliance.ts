@@ -24,8 +24,11 @@
  * UPDATED : 2026-10-23_1600 UTC — license step lists carpentry, masonry and roofing.
  * UPDATED : 2026-10-28_2131 UTC — Roadie-style sign-up. The resume stays required: no paid work without a resume,
  *           a verified photo ID and a Handled staff approval.
+ * UPDATED : 2026-10-28_2245 UTC — "Welcome to Handled" orientation (core orientation.ts) is a required step; pros
+ *           approved before it existed count as done.
  */
 import { SERVICES } from "./services.ts";
+import { ORIENTATION, orientationStatus } from "./orientation.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
 export const AGREEMENT_VERSION = "2026-10-v10"; // v10: referral partner fee — the pro pays half of a partner's 25% one-time / 10% repeat / 15% account share, shown on the work order; v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
@@ -90,10 +93,12 @@ export interface ComplianceInput {
   id_verified_at?: string | null;
   resume_uploaded_at?: string | null;
   photo_uploaded_at?: string | null;
+  /** Orientation lessons finished (lesson id → ISO time). */
+  orientation?: Record<string, string> | null;
 }
 
 export interface Step {
-  key: "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
+  key: "orientation" | "w9" | "agreement" | "specialties" | "area" | "resume" | "photo" | "coi" | "license" | "id" | "background" | "payout" | `coverage:${CoverageKey}`;
   label: string;
   done: boolean;
   detail: string;
@@ -117,7 +122,9 @@ const valid = (d: string | null) => Boolean(d) && new Date(d!).getTime() >= Date
 
 export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
+  const o = orientationStatus(c.orientation);
   const steps: Step[] = [
+    { key: "orientation", label: "Welcome to Handled (orientation)", done: o.complete || c.status === "approved", detail: o.complete ? `All ${o.total} lessons done` : `${o.done} of ${ORIENTATION.length} lessons done · about 15 minutes` },
     { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
