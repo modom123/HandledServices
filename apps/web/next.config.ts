@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-06_0726 UTC — security headers: Content-Security-Policy (frame-ancestors, object-src, base-uri, upgrade-insecure-requests)
  *           and Cross-Origin-Opener-Policy.
  * UPDATED : 2026-10-28_1810 UTC — /about redirects to /home (the About page was removed).
+ * UPDATED : 2026-10-28_1840 UTC — the five Mastermind "moved" stub pages are redirects here instead.
  */
 import type { NextConfig } from "next";
 import path from "node:path";
@@ -17,7 +18,15 @@ const config: NextConfig = {
   poweredByHeader: false,
   // the About page was removed (its story is on the home page): old links land there
   async redirects() {
-    return [{ source: "/about", destination: "/home", permanent: true }];
+    return [
+      { source: "/about", destination: "/home", permanent: true },
+      // Mastermind pages that moved into a tab of another page (old bookmarks and emailed links; the query string carries over)
+      { source: "/hub/market", destination: "/hub/pricing?view=market", permanent: true },
+      { source: "/hub/pricing-accuracy", destination: "/hub/pricing?view=accuracy", permanent: true },
+      { source: "/hub/network", destination: "/hub/pros?view=health", permanent: true },
+      { source: "/hub/workforce", destination: "/hub/agents?view=workforce", permanent: true },
+      { source: "/hub/gov", destination: "/hub/bids?view=gov", permanent: true },
+    ];
   },
   async headers() {
     return [{
