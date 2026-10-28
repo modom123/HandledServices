@@ -8,7 +8,7 @@
  *                              prep), home stagers (furniture moves), self-storage (abandoned-unit cleanouts),
  *                              furniture & appliance stores (same-day delivery)
  *             bizLeadScore   — 0–100: reachable by email, established (reviews), size signals
- *             bizLeadEmail   — 3 emails (day 0, 4, 10) with a pilot offer; honest, CAN-SPAM footer
+ *             bizLeadEmail   — 3 emails (day 0, 4, 10); honest, CAN-SPAM footer
  *           Cold email to businesses only; LinkedIn and phone stay manual (no automated texts — TCPA).
  * UPDATED : 2026-10-05_0130 UTC — job-posting track (from the owner's cover letter): a business that posted a job (Indeed and
  *           similar) for a cleaner, handyman, maintenance tech, groundskeeper or mover gets "book the work as a
@@ -17,6 +17,9 @@
  *           Leads are added by hand in the Hub (job sites don't allow scraping). New segment: offices & facilities.
  * UPDATED : 2026-10-05_2134 UTC — teaming partners (segment 'partner'): tracked as leads, never sent the sales sequence or blasts.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: property managers and offices lead with cleaning (move-out cleans, recurring office cleaning).
+ * UPDATED : 2026-10-28_1935 UTC — new sales letters (owner, 2026-10-28): employers hiring ("before you hire — get it covered this
+ *           week") and property managers ("rent-ready turnovers, one booking") lead the day-0 email and the hand-sent
+ *           letter; no discount promises (the pilot isn't applied to online orders); 25% to book, same-day price on reply.
  * UPDATED : 2026-10-07_2030 UTC — job-posting discovery: JOB_POST_AREAS (Michigan + Washington), JOB_POST_QUERIES, parseAdzuna, screenJobPosting
  *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
  */
@@ -87,83 +90,110 @@ export interface BizLeadEmailCtx {
   postingSource?: string | null;
 }
 
-/** The job-posting letter (owner's cover letter, kept to what we can promise). Plain text, no footer. */
-function jobPostLetter(c: BizLeadEmailCtx, closing: string, reply = "Just reply to this email."): { subject: string; text: string } {
+/** Employers hiring for work we do (job-posting track): "before you hire — get it covered this week". Plain text, no footer. */
+function employerLetter(c: BizLeadEmailCtx, closing: string, reply: string): { subject: string; text: string } {
   const title = c.jobTitle!.trim();
   const where = c.postingSource ? ` on ${c.postingSource}` : "";
   const need = jobPostNeed(title);
   const hi = c.firstName ? `Hi ${c.firstName},` : "Dear Hiring Manager,";
   const a = /^[aeiou]/i.test(title) ? "an" : "a";
-  const pilot = c.pilotPct > 0 && c.pilotJobs > 0 ? `up to ${c.pilotPct}% off ${c.pilotJobs === 1 ? "your first job" : `your first ${c.pilotJobs} jobs`}` : null;
   return {
-    subject: `Your ${title} posting${where}: a service instead of a hire`,
+    subject: `Your ${title} posting${where}: covered this week, no hire needed`,
     text: `${hi}
 
-I saw that ${c.businessName} posted a job${where} for ${a} ${title}${c.city ? ` in ${c.city}` : " in the Detroit area"}. Finding reliable people for ${need.work} is hard, so here's another option: book the work as a service from ${BRAND.name}, only when you need it, instead of hiring for the role.
+I saw that ${c.businessName} is hiring ${a} ${title}${c.city ? ` in ${c.city}` : " in the Detroit area"}${where}. Before you spend the next few weeks screening applicants, onboarding and covering shifts, here's a faster way to get the ${need.work} done, starting as soon as this week.
 
-${BRAND.name} is one app for the work your properties need: ${need.examples}, and everything else from cleaning to lawn care and snow removal. You book online in about a minute; a vetted, insured local pro does the job.
+${BRAND.name} sends vetted, insured pros to do the job on the schedule you choose: nightly, weekly or one-time. You get the result of the hire, without the hiring:
 
-Hiring for the role:
-• Beyond the hourly pay: payroll taxes, workers' comp, insurance and benefits
-• Paying for the whole shift, even between turnovers and repair tickets
-• Recruiting, interviewing, scheduling and covering call-outs
+• No recruiting, payroll, taxes or workers' comp. Our pros are independent, insured businesses.
+• No gaps when someone can't make it: a backup crew is dispatched automatically.
+• Before-and-after photos of every visit in your account.
+• An exact price up front: 25% books it, the rest is charged when the work is done. Approved accounts with a track record can move to monthly invoicing.
+• If anything's missed, we come back free or refund you within ${BRAND.guaranteeDays} days.
+• One vendor for everything else: repairs, grounds and snow, junk removal and more.
 
-Booking it with ${BRAND.name}:
-• Pay only for the jobs you book: no payroll, no idle hours
-• An upfront, all-in price in about a minute, no callbacks. The price only changes if the job turns out different from what you described, and only after you approve it
-• Every pro is ID- and background-checked, insured, licensed where required and rated on every job
-• Live arrival tracking and before-and-after photos of every job
-• One business account for all your properties; your favorite pros get your jobs first. Invoicing is available for approved accounts
-• If a job isn't right, we redo it free or refund it within ${BRAND.guaranteeDays} days
+Try us before you hire: book one visit at ${c.signupUrl}
+${reply}
 
-${pilot ? `To try us with no risk, you get ${pilot}. ` : ""}Set up your business account in two minutes: ${c.signupUrl}
-
-Do you have 5 minutes this week for a quick call? ${reply}
+Still want to hire? Keep the posting up and let us cover the work until the right person starts. No contract required.
 
 ${closing}`,
   };
 }
 
-/** The job-posting letter for sending by hand (print, PDF or a job site's message), signed by a person. */
-export function bizCoverLetter(c: BizLeadEmailCtx & { senderName: string; senderTitle?: string | null; phone?: string | null; email?: string | null; site?: string | null }): { subject: string; text: string } {
-  const sig = [`Best regards,`, c.senderName, c.senderTitle, BRAND.legalName, [c.phone, c.email].filter(Boolean).join(" · "), c.site].filter(Boolean).join("\n");
-  return jobPostLetter(c, sig, c.phone ? `Reply anytime or call me at ${c.phone}.` : "Reply anytime.");
+/** Property managers: "rent-ready turnovers, one booking". Plain text, no footer. */
+function propertyManagerLetter(c: BizLeadEmailCtx, closing: string, reply: string): { subject: string; text: string } {
+  const hi = c.firstName ? `Hi ${c.firstName},` : `Hi ${c.businessName} team,`;
+  return {
+    subject: "Rent-ready turnovers, one booking",
+    text: `${hi}
+
+Every day a unit sits empty costs you rent, and every extra vendor costs you time. ${BRAND.name} helps property managers${c.city ? ` in ${c.city}` : " around Detroit"} turn units faster and keep every property in shape: one vendor, one account, photo proof on every visit.
+
+• Unit turnovers: cleanout, deep clean, touch-ups and punch list, rent-ready in one booking, with photos of every room
+• Ongoing care: common-area cleaning, lawn and snow, gutters and power washing on a recurring schedule
+• Repairs and maintenance: handyman, plumbing, appliance and lighting work, by licensed trades where required
+• Clean-outs and haul-away between tenants
+• An exact price online, 25% to book, the rest when it's done. Larger projects start with a free site visit and no deposit
+• Every property and invoice in one account. Insured, background-checked pros, backup crews and a ${BRAND.guaranteeDays}-day make-it-right guarantee
+
+Have a turnover coming up? ${reply} Or book it now: ${c.signupUrl}
+
+${closing}`,
+  };
 }
 
-/** The invitation sequence (plain text; the sender turns it into HTML). */
+const replyLine = (phone?: string | null) => `Or reply with the address and I'll get you a price the same day${phone ? `, or call or text ${phone}` : ""}.`;
+
+/** The day-0 letter for sending by hand (print, PDF or a job site's message), signed by a person. */
+export function bizCoverLetter(c: BizLeadEmailCtx & { senderName: string; senderTitle?: string | null; phone?: string | null; email?: string | null; site?: string | null }): { subject: string; text: string } {
+  const sig = [`Best regards,`, c.senderName, c.senderTitle, BRAND.legalName, [c.phone, c.email].filter(Boolean).join(" · "), c.site].filter(Boolean).join("\n");
+  const reply = c.phone ? `Or call or text me at ${c.phone} and I'll get you a price the same day.` : "Or reply and I'll get you a price the same day.";
+  if (c.jobTitle?.trim()) return employerLetter(c, sig, reply);
+  if (c.segment === "property_manager") return propertyManagerLetter(c, sig, c.phone ? `Call or text me at ${c.phone} with the address and move-out date and I'll get you a price the same day.` : "Send me the address and move-out date and I'll get you a price the same day.");
+  const m = bizLeadEmail({ ...c, step: 0 });
+  return { subject: m.subject, text: `${m.text.split("\n\n—\n")[0].replace(/\n\n(Thanks|Best),\nThe .*$/s, "")}\n\n${sig}` };
+}
+
+/** The invitation sequence (plain text; the sender turns it into HTML). No discount promises: the price is the price. */
 export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: string } {
   const seg = BIZ_SEGMENTS[c.segment];
   const hi = c.firstName ? `Hi ${c.firstName},` : `Hi ${c.businessName} team,`;
   const where = c.city ? ` in ${c.city}` : " around Detroit";
-  const pilot = c.pilotPct > 0 && c.pilotJobs > 0 ? `up to ${c.pilotPct}% off ${c.pilotJobs === 1 ? "your first job" : `your first ${c.pilotJobs} jobs`}` : null;
+  const team = `The ${BRAND.name} team`;
   const foot = `\n\n—\n${BRAND.legalName} · ${c.postalAddress}\nThis is a business email from ${BRAND.name}. Not interested? One click and we won't email again: ${c.unsubscribeUrl}`;
-  const bodies = [
-    {
-      subject: `${seg.pilotJob[0].toUpperCase()}${seg.pilotJob.slice(1)}${pilot ? `, ${pilot}` : ""}`,
-      text: `${hi}\n\nI'm reaching out from ${BRAND.name}, a home and business services company${where}. We handle ${seg.hook}.\n\n• Vetted, insured, background-checked pros\n• Upfront prices, booked in about a minute, with live arrival tracking\n• Every property on one business account; your favorite pros get your jobs first\n• If a job isn't right, we redo it free or refund it\n\n${pilot ? `To try us, ${seg.pilotJob} is ${pilot}. ` : ""}Set up your account in two minutes: ${c.signupUrl}\n\nThanks,\nThe ${BRAND.name} team`,
-    },
-    {
-      subject: `Re: ${seg.pilotJob}`,
-      text: `${hi}\n\nQuick follow-up. Teams like yours use ${BRAND.name} so they can stop chasing contractors: one account, upfront prices, photos of every job and one monthly view of everything.${pilot ? ` The pilot offer (${pilot}) still stands.` : ""}\n\nTwo-minute setup: ${c.signupUrl}\n\nThe ${BRAND.name} team`,
-    },
-    {
-      subject: `Last note from ${BRAND.name}`,
-      text: `${hi}\n\nI won't keep emailing. If ${seg.pilotJob}${where} ever needs a reliable crew, the door's open: ${c.signupUrl}\n\nBest,\nThe ${BRAND.name} team`,
-    },
-  ];
+  const pick = (list: { subject: string; text: string }[]) => { const m = list[Math.min(c.step, list.length - 1)]; return { subject: m.subject, text: m.text + foot }; };
   if (c.jobTitle?.trim()) {
     const title = c.jobTitle.trim();
     const need = jobPostNeed(title);
-    const jp = [
-      jobPostLetter(c, `Best regards,\nThe ${BRAND.name} team`),
-      { subject: `Re: your ${title} posting`, text: `${hi === `Hi ${c.businessName} team,` ? "Hi again," : hi}\n\nQuick follow-up. If the ${title} role is still open, you can cover the ${need.work} with ${BRAND.name} while you look, or instead of hiring: book only the jobs you need, at an upfront price, done by vetted, insured pros.${pilot ? ` The pilot offer (${pilot}) still stands.` : ""}\n\nTwo-minute setup: ${c.signupUrl}\n\nThe ${BRAND.name} team` },
-      { subject: `Last note from ${BRAND.name}`, text: `${hi === `Hi ${c.businessName} team,` ? "Hello," : hi}\n\nI won't keep emailing. Whenever you need ${need.work} done, while the role is open or when someone calls out, we're one booking away: ${c.signupUrl}\n\nBest,\nThe ${BRAND.name} team` },
-    ];
-    const j = jp[Math.min(c.step, jp.length - 1)];
-    return { subject: j.subject, text: j.text + foot };
+    const again = hi === `Hi ${c.businessName} team,` ? "Hi again," : hi;
+    return pick([
+      employerLetter(c, `Best regards,\n${team}`, replyLine(BRAND.supportPhone)),
+      { subject: `Re: your ${title} posting`, text: `${again}\n\nQuick follow-up. If the ${title} role is still open, we can cover the ${need.work} while you look, or instead of hiring: vetted, insured pros, an exact price up front and 25% to book.\n\nBook a first visit: ${c.signupUrl}\n${replyLine(BRAND.supportPhone)}\n\n${team}` },
+      { subject: `Last note from ${BRAND.name}`, text: `${again === "Hi again," ? "Hello," : again}\n\nI won't keep emailing. Whenever you need ${need.work} done, while the role is open or when someone calls out, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
+    ]);
   }
-  const m = bodies[Math.min(c.step, bodies.length - 1)];
-  return { subject: m.subject, text: m.text + foot };
+  if (c.segment === "property_manager") {
+    return pick([
+      propertyManagerLetter(c, `Best regards,\n${team}`, "Reply with the address and move-out date and I'll get you a price the same day."),
+      { subject: "Re: your next turnover", text: `${hi}\n\nQuick follow-up. When your next unit turns over, send us the address and move-out date: cleanout, deep clean, touch-ups and punch list in one booking, with photos of every room, an exact price up front and 25% to book.\n\nBook it here: ${c.signupUrl}\nOr just reply.\n\n${team}` },
+      { subject: `Last note from ${BRAND.name}`, text: `${hi}\n\nI won't keep emailing. Whenever a unit needs to be rent-ready${where}, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
+    ]);
+  }
+  return pick([
+    {
+      subject: `${seg.pilotJob[0].toUpperCase()}${seg.pilotJob.slice(1)}, booked in a minute`,
+      text: `${hi}\n\nI'm reaching out from ${BRAND.name}, a home and business services company${where}. We handle ${seg.hook}.\n\n• Vetted, insured, background-checked pros\n• An exact price up front, booked online in about a minute: 25% to book, the rest when it's done\n• Every property on one business account; your favorite pros get your jobs first\n• If a job isn't right, we redo it free or refund it\n\nBook ${seg.pilotJob}: ${c.signupUrl}\nOr reply and I'll get you a price.\n\nThanks,\n${team}`,
+    },
+    {
+      subject: `Re: ${seg.pilotJob}`,
+      text: `${hi}\n\nQuick follow-up. Teams like yours use ${BRAND.name} so they can stop chasing contractors: one account, exact prices up front, photos of every job and one view of everything.\n\nBook it here: ${c.signupUrl}\n\n${team}`,
+    },
+    {
+      subject: `Last note from ${BRAND.name}`,
+      text: `${hi}\n\nI won't keep emailing. If ${seg.pilotJob}${where} ever needs a reliable crew, the door's open: ${c.signupUrl}\n\nBest,\n${team}`,
+    },
+  ]);
 }
 
 // ─── Job-posting discovery (licensed job-search API: Adzuna) ────────────────

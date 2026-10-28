@@ -239,7 +239,7 @@ async function sendTo(rows: LeadRow[]) {
       await addLeadToCampaign({ email: l.email, firstName: ctx.firstName, companyName: l.business_name, phone: l.phone, website: l.website, variables, campaign: process.env.INSTANTLY_BIZ_CAMPAIGN_ID });
     } catch (e) { await event(l.id, "send_failed", e instanceof Error ? e.message : String(e)); skipped++; continue; }
     await db().from("biz_leads").update({ status: "emailing", last_contact_at: new Date().toISOString() }).eq("id", l.id);
-    await event(l.id, "handed_to_instantly", l.job_title ? `job-posting sequence (${l.job_title})` : "3-email sequence with pilot offer");
+    await event(l.id, "handed_to_instantly", l.job_title ? `employer sequence (${l.job_title})` : l.segment === "property_manager" ? "property-manager sequence" : "3-email sequence");
     sent++;
   }
   return { sent, skipped };

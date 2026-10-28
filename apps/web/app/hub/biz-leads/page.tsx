@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-19_2330 UTC — today's Deal hunter plan (AI) at the top.
  * UPDATED : 2026-10-19_2345 UTC — the Instantly banner names exactly which Vercel variable is missing.
  * UPDATED : 2026-10-20_0015 UTC — Call desk button.
+ * UPDATED : 2026-10-28_1935 UTC — Sales letters card: what the engine sends, plus the two one-page letter templates (PDF / Word).
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
@@ -87,6 +88,14 @@ export default async function BizLeads() {
         <h2 className="text-lg font-bold">Add a business from a job posting</h2>
         <p className="mb-3 text-sm text-ink-soft">A business hiring a cleaner, handyman, maintenance tech, groundskeeper or mover is a business that needs that work done. They get the letter “book the work as a service instead of hiring for it” (cost comparison, upfront prices, vetted pros, guarantee, pilot offer) as a 3-email sequence, or print it / save it as a PDF from the letter page.</p>
         <JobPostLeadForm sendingReady={instantlyBizReady()} />
+      </section>
+      <section className="card">
+        <h2 className="text-lg font-bold">Sales letters</h2>
+        <p className="mt-1 text-sm text-ink-soft">The engine's day-0 email to each lead is the matching letter: employers hiring for cleaning or maintenance get "Before you hire — get it covered this week", property managers get "Rent-ready turnovers. One booking." Open a lead → Letter to print it for that business. One-page templates on the letterhead for mail or attachments (fill in the [brackets]):</p>
+        <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          <li>Employers hiring: <a className="font-semibold text-brand underline" href="/sales/HANDLED_LETTER_EMPLOYERS_2026-10-28_1925.pdf" target="_blank">PDF</a> · <a className="font-semibold text-brand underline" href="/sales/HANDLED_LETTER_EMPLOYERS_2026-10-28_1925.docx">Word</a></li>
+          <li>Property managers: <a className="font-semibold text-brand underline" href="/sales/HANDLED_LETTER_PROPERTY_MANAGERS_2026-10-28_1925.pdf" target="_blank">PDF</a> · <a className="font-semibold text-brand underline" href="/sales/HANDLED_LETTER_PROPERTY_MANAGERS_2026-10-28_1925.docx">Word</a></li>
+        </ul>
       </section>
       {leads.some((l) => l.job_title) && <section><h2 className="mb-2 text-lg font-bold">From job postings</h2>{table(leads.filter((l) => l.job_title).slice(0, 50))}</section>}
       {n("replied") > 0 && <section><h2 className="mb-2 text-lg font-bold">Replied: answer today</h2>{table(leads.filter((l) => l.status === "replied"))}</section>}
