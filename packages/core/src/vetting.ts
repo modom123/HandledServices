@@ -656,11 +656,12 @@ export const PROBATION = { jobs: 3, maxJobPrice: 750 };
 
 /**
  * The vetting pipeline, in order: Roadie-style sign-up. Shown to applicants and used as the Hub checklist.
- * Account first, then ID + background check; pros see jobs near them while the check runs and take them once it clears.
+ * Account first, then resume, ID + background check and paperwork; pros see jobs near them while Handled reviews, and
+ * take them once a person at Handled approves them.
  */
 export const VETTING_STEPS = [
   { t: "Sign up (2 minutes)", b: "Name, email, mobile, what you do and the ZIP codes you serve. Your account opens right away: no interview, no references." },
   { t: "Photo ID + background check", b: "A photo of your ID matched to a selfie, then consent to a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
-  { t: "Paperwork + payout", b: `W-9, contractor agreement (e-sign) and where to send your pay. Insurance naming ${BRAND.legalName} as additional insured, and a license, only for trades that need them.` },
-  { t: "Take jobs", b: `You see jobs near you while the check runs, and take them as soon as it clears. Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice} with a photo review, then full offers.` },
+  { t: "Resume + paperwork", b: `Upload your resume, then the W-9, contractor agreement (e-sign) and where to send your pay. Insurance naming ${BRAND.legalName} as additional insured, and a license, only for trades that need them.` },
+  { t: "Handled approves you", b: `A person at Handled reviews your resume, verified ID and file, then activates you. You see jobs near you while we review. Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice} with a photo review, then full offers.` },
 ];

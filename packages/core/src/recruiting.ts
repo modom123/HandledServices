@@ -9,7 +9,8 @@
  *           and when someone is stuck.
  * UPDATED : 2026-10-05_0246 UTC — screening interview stages (interview / interviewed) and interview settings.
  * UPDATED : 2026-10-28_2131 UTC — Roadie-style sign-up (instantSignup, on by default): every applicant gets an account
- *           right away unless the AI screen says decline; no interview by default. The ID + background check is the gate.
+ *           right away unless the AI screen says decline; no interview by default. Going live always takes a Handled
+ *           staff approval (autoActivate removed): resume, verified photo ID and every required step first.
  */
 
 export type PipelineStage = "applied" | "screened" | "interview" | "interviewed" | "invited" | "onboarding" | "verifying" | "background" | "active" | "rejected" | "dropped";
@@ -41,8 +42,6 @@ export interface RecruitingSettings {
   interviewRequired: boolean;
   /** After an interview the AI scores as "advance", invite without waiting for staff (off: a person always decides). */
   autoInviteAfterInterview: boolean;
-  /** Activate a pro as soon as every step is done, documents verified and background clear. */
-  autoActivate: boolean;
   /** Days after the invite to send setup reminders. */
   reminderDays: number[];
   /** No progress for this many days after the last reminder → dropped (can be revived). */
@@ -57,7 +56,6 @@ export const RECRUITING_DEFAULTS: RecruitingSettings = {
   minScore: 70,
   interviewRequired: false,
   autoInviteAfterInterview: false,
-  autoActivate: true,
   reminderDays: [1, 3, 7, 14],
   dropAfterDays: 30,
   decisionHours: 48,

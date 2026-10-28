@@ -21,7 +21,7 @@ import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
 import { sendEmail } from "../notify";
 import { localeOf } from "../push";
-import { activatePro, decideDocument, inviteApplicant, logRecruiting, nudgePro, orderBackgroundCheck, pipeline, rejectApplicant, revivePro } from "../recruiting";
+import { decideDocument, maybeActivate, inviteApplicant, logRecruiting, nudgePro, orderBackgroundCheck, pipeline, rejectApplicant, revivePro } from "../recruiting";
 
 export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales";
 
@@ -237,9 +237,9 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   }),
   "recruiting.activate_pro": def({
-    scope: "recruiting", write: true, risk: "high", description: "Activate a pro whose setup is complete and verified (W-9, agreement, area, insurance & trade coverage, license if required, background, payout). Sends the 'You're live' email and push.",
+    scope: "recruiting", write: true, risk: "low", description: "Flag a pro whose setup is complete and verified for Handled staff approval. Agents never activate a pro: a person approves every pro in Hub → Pros before any paid work.",
     params: z.object({ contractor_id: z.string().uuid() }),
-    run: async ({ contractor_id }, ctx) => { await activatePro(contractor_id, ctx.actor); return "activated"; },
+    run: async ({ contractor_id }, ctx) => { await logRecruiting("approval_requested", { contractorId: contractor_id }, null, ctx.actor); await maybeActivate(contractor_id); return "flagged for staff approval"; },
   }),
   "recruiting.pipeline": def({
     scope: "recruiting", write: false, risk: "low",

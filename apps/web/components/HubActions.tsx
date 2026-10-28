@@ -495,7 +495,7 @@ export function RecruitingRowActions({ appId, contractorId, stage }: { appId: st
   );
 }
 
-export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instantSignup: boolean; autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; autoActivate: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
+export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instantSignup: boolean; autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
   const router = useRouter();
   const [s, setS] = useState({ ...initial, reminderText: initial.reminderDays.join(", ") });
   const [msg, setMsg] = useState("");
@@ -507,7 +507,7 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instan
         <input className="input w-20" type="number" min={0} max={100} value={s.minScore} disabled={!canEdit} onChange={(e) => setS({ ...s, minScore: Number(e.target.value) })} /></label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.interviewRequired} disabled={!canEdit} onChange={(e) => setS({ ...s, interviewRequired: e.target.checked })} /> Screening interview first: email the AI interview link to every applicant the screen doesn’t decline (before any invite)</label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInviteAfterInterview} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInviteAfterInterview: e.target.checked })} /> Invite automatically when the interview result is “advance” (off = a person decides every time — recommended)</label>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoActivate} disabled={!canEdit} onChange={(e) => setS({ ...s, autoActivate: e.target.checked })} /> Activate pros automatically once every step is done, documents verified and background clear</label>
+      <p className="text-ink-soft">Pros never go live on their own: once the resume, photo ID and every step are verified you get a “Ready to approve” alert, and a person activates them in Hub → Pros.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block"><span className="label">Setup reminders (days after invite)</span><input className="input" value={s.reminderText} disabled={!canEdit} onChange={(e) => setS({ ...s, reminderText: e.target.value })} /></label>
         <label className="block"><span className="label">Mark dropped after (days)</span><input className="input" type="number" value={s.dropAfterDays} disabled={!canEdit} onChange={(e) => setS({ ...s, dropAfterDays: Number(e.target.value) })} /></label>
@@ -515,7 +515,7 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instan
       </div>
       {canEdit ? <button className="btn-primary" onClick={async () => {
         const reminderDays = s.reminderText.split(/[,\s]+/).map(Number).filter((n) => n > 0);
-        const r = await call("/api/hub/recruiting", "PUT", { instantSignup: s.instantSignup, autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, autoActivate: s.autoActivate, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
+        const r = await call("/api/hub/recruiting", "PUT", { instantSignup: s.instantSignup, autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
         setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
       }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
       {msg && <p>{msg}</p>}

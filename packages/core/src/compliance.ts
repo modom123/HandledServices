@@ -22,8 +22,8 @@
  * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
  *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
  * UPDATED : 2026-10-23_1600 UTC — license step lists carpentry, masonry and roofing.
- * UPDATED : 2026-10-28_2131 UTC — Roadie-style sign-up: the resume is optional (shown, never blocks activation, no
- *           reminders); missingUploads() only chases the profile photo customers see.
+ * UPDATED : 2026-10-28_2131 UTC — Roadie-style sign-up. The resume stays required: no paid work without a resume,
+ *           a verified photo ID and a Handled staff approval.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
@@ -122,7 +122,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
     { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
-    { key: "resume", label: "Resume — optional", done: true, optional: true, detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Not required. Add your work history if you like (PDF or Word)" },
+    { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
     { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     insuranceRequired(c.trades)
       ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
@@ -154,9 +154,9 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
 
 export type UploadKey = "resume" | "photo";
 
-/** Uploads the pro still has to add: the profile photo (the resume is optional, so it's never chased). */
+/** Resume / profile photo the pro still has to upload. */
 export function missingUploads(c: Pick<ComplianceInput, "resume_uploaded_at" | "photo_uploaded_at">): UploadKey[] {
-  return c.photo_uploaded_at ? [] : ["photo"];
+  return [...(c.resume_uploaded_at ? [] : ["resume" as const]), ...(c.photo_uploaded_at ? [] : ["photo" as const])];
 }
 
 /** Days between "missing uploads" reminders to live pros, and how many they get at most. */

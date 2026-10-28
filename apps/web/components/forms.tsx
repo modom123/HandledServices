@@ -73,7 +73,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
   const needs = [...new Set(trades.flatMap((t) => TRADE_PROFILES[t] ? [...TRADE_PROFILES[t].requires, ...(TRADE_PROFILES[t].license ? ["license"] : [])] : []))];
   if (state === "done") return (
     <div className="card text-center"><div className="text-3xl">🎉</div><h2 className="mt-2 text-xl font-bold">{t("You’re signed up")}</h2>
-      <p className="mt-2 text-sm text-ink-soft">{t("Check your email in a few minutes: one click opens your account. Add your photo ID, consent to the background check, sign the W-9 and agreement and set up payout (about 10 minutes on your phone). You’ll see jobs near you while the check runs.")}</p></div>
+      <p className="mt-2 text-sm text-ink-soft">{t("Check your email in a few minutes: one click opens your account. Upload your resume, verify your photo ID, consent to the background check, sign the W-9 and agreement and set up payout (about 15 minutes on your phone). A person at Handled then reviews your file and approves you; you’ll see jobs near you meanwhile.")}</p></div>
   );
   return (
     <form className="card space-y-4" onSubmit={(e) => {
@@ -86,7 +86,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
         source: f.source || q.get("src") || q.get("utm_source") || undefined, // utm_source=indeed counts as Indeed in Recruiting ref: q.get("ref") || undefined, utm: Object.keys(utm).length ? utm : undefined, lead: q.get("lead") || undefined,
       });
     }}>
-      <p className="text-sm text-ink-soft">{t("Takes 2 minutes. Your account opens right away: no interview, no references.")}</p>
+      <p className="text-sm text-ink-soft">{t("Takes 2 minutes. Your account opens right away: no interview, no references. Before paid work: your resume, a verified ID and Handled’s approval.")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className="label">{t("Business name (or your name)")}</label><input name="business_name" required className="input" autoComplete="organization" /></div>
         <div><label className="label">{t("Your name")}</label><input name="contact_name" required className="input" autoComplete="name" /></div>

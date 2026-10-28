@@ -117,7 +117,7 @@ export default async function ProHome() {
           <div className="text-sm text-ink-soft">{setup.steps.filter((x) => !x.done || x.expiring).map((x) => stepLabel(x.label)).join(" · ")}</div>
         </Link>
       )}
-      <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{(me as { pro_no?: string | null } | null)?.pro_no ? `${es ? "ID de profesional" : "Pro ID"} ${(me as { pro_no?: string | null }).pro_no} · ` : ""}{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once insurance & background check are verified") : ""}</p></div>
+      <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{(me as { pro_no?: string | null } | null)?.pro_no ? `${es ? "ID de profesional" : "Pro ID"} ${(me as { pro_no?: string | null }).pro_no} · ` : ""}{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once your resume, ID and setup are verified and Handled approves you") : ""}</p></div>
       {me?.status === "approved" && (
         <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status))} />
       )}
@@ -207,8 +207,8 @@ export default async function ProHome() {
         <section>
           <h2 className="font-bold">{es ? "Trabajos cerca de usted" : "Jobs near you"}</h2>
           <p className="mb-3 text-sm text-ink-soft">{es
-            ? "Así se ve el trabajo en su zona. Podrá tomarlos en cuanto termine su configuración y se apruebe su verificación de antecedentes."
-            : "Here's the work in your area. You can take jobs like these as soon as your setup is done and your background check clears."}</p>
+            ? "Así se ve el trabajo en su zona. Podrá tomarlos cuando su currículum, su identificación y su configuración estén listos y Handled lo apruebe."
+            : "Here's the work in your area. You can take jobs like these once your resume, ID and setup are done and Handled approves you."}</p>
           <div className="space-y-3">
             {preview.map((b) => (
               <div key={b.job_id} className="card flex flex-wrap items-center justify-between gap-4 opacity-90">
