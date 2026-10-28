@@ -4,6 +4,7 @@
   CREATED : 2026-10-06_2230 UTC
   PURPOSE : How Handled's books work (Xero = books of record, Stripe = where money moves), how to set up the
             connection, what gets booked where, and the month-end routine.
+  UPDATED : 2026-10-28_2210 UTC — Profit and loss from Xero in Hub → Accounting (read-only report permission).
 -->
 
 # Accounting: Xero + Stripe
@@ -124,3 +125,15 @@ Lyft, Uber and Instacart use the same kind of program. Three ways Handled can ge
 
 Recommendation: keep Stripe instant payouts now, and add a **Stripe Issuing card for materials purchases**
 once approved. Talk to Payfare or Branch about a branded pay card once you have about 100+ active pros.
+
+
+## Reports in the Hub (profit and loss from Xero)
+Hub → Accounting shows **profit and loss by month** (the last 6 months, newest first): revenue, cost of sales (pro
+payouts), gross profit, operating expenses, net profit and gross margin. It's read live from Xero, so it matches your
+books exactly, including anything your bookkeeper enters by hand (rent, software, payroll from Gusto).
+
+- Connecting asks for one extra read-only permission, `accounting.reports.profitandloss.read`. Already connected
+  before this? Click **Reconnect Xero** on the report card and approve it.
+- If Xero rejects that permission name for your app, the page offers **Connect without reports** (syncing works the
+  same) and you can set `XERO_REPORT_SCOPES` in Vercel to the report scope your Xero app lists.
+- Every other report (balance sheet, aged receivables, cash summary) stays in Xero: "All reports in Xero →".

@@ -26,6 +26,7 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "approved": "aprobado",
   "suspended": "suspendido",
   " — offers start once insurance & background check are verified": " — las ofertas empiezan cuando se verifiquen su seguro y su verificación de antecedentes",
+  " — offers start once your resume, ID and setup are verified and Handled approves you": " — las ofertas empiezan cuando su currículum, su identificación y su configuración estén verificados y Handled lo apruebe",
   "Earned this month": "Ganado este mes",
   "Rating": "Calificación",
   "Jobs completed": "Trabajos completados",

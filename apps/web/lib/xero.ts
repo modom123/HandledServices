@@ -9,6 +9,8 @@
  *           Scopes are Xero's granular scopes (required for apps created after 2 March 2026). Override with
  *           XERO_SCOPES only if your Xero app is older and still on the broad accounting.transactions scope.
  *           The account mapping (which Xero account each kind of money goes to) and its defaults live here too.
+ * UPDATED : 2026-10-28_2210 UTC — reports: profit and loss pulled back from Xero for Hub → Accounting (report scope
+ *           XERO_REPORT_SCOPES, asked for on connect; "connect without reports" if Xero rejects it).
  */
 import "server-only";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
@@ -23,6 +25,9 @@ const API = "https://api.xero.com/api.xro/2.0";
 
 export const XERO_SCOPES = process.env.XERO_SCOPES?.trim() ||
   "openid profile email offline_access accounting.settings accounting.contacts accounting.invoices accounting.payments accounting.banktransactions";
+
+/** Read-only report permission, asked for on top of XERO_SCOPES unless the admin connects without reports. */
+export const XERO_REPORT_SCOPES = process.env.XERO_REPORT_SCOPES?.trim() ?? "accounting.reports.profitandloss.read";
 
 export const xeroConfigured = () => Boolean(process.env.XERO_CLIENT_ID && process.env.XERO_CLIENT_SECRET);
 export const xeroRedirectUri = () => process.env.XERO_REDIRECT_URI?.trim() || `${siteUrl()}/api/xero/callback`;
@@ -114,8 +119,9 @@ export async function saveSettings(patch: Partial<XeroSettings>) {
 
 // ─── OAuth ───────────────────────────────────────────────────────────────────
 
-export function authorizeUrl(state: string) {
-  const q = new URLSearchParams({ response_type: "code", client_id: process.env.XERO_CLIENT_ID!, redirect_uri: xeroRedirectUri(), scope: XERO_SCOPES, state });
+export function authorizeUrl(state: string, withReports = true) {
+  const scope = withReports && XERO_REPORT_SCOPES ? `${XERO_SCOPES} ${XERO_REPORT_SCOPES}` : XERO_SCOPES;
+  const q = new URLSearchParams({ response_type: "code", client_id: process.env.XERO_CLIENT_ID!, redirect_uri: xeroRedirectUri(), scope, state });
   return `${AUTHORIZE}?${q}`;
 }
 
@@ -271,4 +277,45 @@ export function xeroLink(kind: string, id: string | null) {
   if (kind === "bank_payout") return `https://go.xero.com/Bank/ViewTransfer.aspx?bankTransferID=${id}`;
   if (kind === "invoice_payment") return null;
   return `https://go.xero.com/Bank/ViewTransaction.aspx?bankTransactionID=${id}`;
+}
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+export type PnlLine = "revenue" | "cost_of_sales" | "gross_profit" | "expenses" | "net_profit";
+export const PNL_LINES: { key: PnlLine; label: string; match: RegExp }[] = [
+  { key: "revenue", label: "Revenue", match: /^total (income|revenue|trading income|sales)/i },
+  { key: "cost_of_sales", label: "Cost of sales (pro payouts)", match: /^total (cost of sales|direct costs)/i },
+  { key: "gross_profit", label: "Gross profit", match: /^gross profit/i },
+  { key: "expenses", label: "Operating expenses", match: /^total (operating )?expenses/i },
+  { key: "net_profit", label: "Net profit", match: /^net (profit|income)/i },
+];
+
+type ReportRow = { RowType: string; Title?: string; Cells?: { Value: string }[]; Rows?: ReportRow[] };
+
+/**
+ * Profit and loss by month from Xero (the books of record): the last `months` calendar months, newest first.
+ * Totals are read by row label, so it works with Xero's standard US layout and renamed sections alike.
+ */
+export async function profitAndLoss(months = 6, today = new Date()): Promise<{ columns: string[]; lines: Record<PnlLine, number[]> }> {
+  const y = today.getUTCFullYear(), m = today.getUTCMonth();
+  const from = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  const to = new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10);
+  const r = await xero<{ Reports: { Rows: ReportRow[] }[] }>("GET", "/Reports/ProfitAndLoss", undefined, {
+    query: { fromDate: from, toDate: to, periods: String(Math.max(0, Math.min(11, months - 1))), timeframe: "MONTH", standardLayout: "true" },
+  });
+  const rows = r.Reports?.[0]?.Rows ?? [];
+  const columns = (rows.find((x) => x.RowType === "Header")?.Cells ?? []).slice(1).map((c) => c.Value);
+  const lines = Object.fromEntries(PNL_LINES.map((l) => [l.key, columns.map(() => 0)])) as Record<PnlLine, number[]>;
+  const visit = (list: ReportRow[]) => {
+    for (const row of list) {
+      if (row.Rows) visit(row.Rows);
+      const label = row.Cells?.[0]?.Value ?? "";
+      const line = PNL_LINES.find((l) => l.match.test(label));
+      if (line && row.Cells) lines[line.key] = row.Cells.slice(1).map((c) => Number(String(c.Value).replace(/[^0-9.-]/g, "")) || 0);
+    }
+  };
+  visit(rows);
+  // some layouts have no gross profit row
+  if (lines.gross_profit.every((v) => v === 0)) lines.gross_profit = lines.revenue.map((v, i) => v - lines.cost_of_sales[i]);
+  return { columns, lines };
 }

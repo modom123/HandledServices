@@ -22,6 +22,8 @@
  * UPDATED : 2026-10-19_1320 UTC — insuranceRequired(trades): a pro whose trades only cover insurance-optional services
  *           (remote business work, errands, courier, personal assistant) can be activated without a COI; the step shows optional.
  * UPDATED : 2026-10-23_1600 UTC — license step lists carpentry, masonry and roofing.
+ * UPDATED : 2026-10-28_2131 UTC — Roadie-style sign-up. The resume stays required: no paid work without a resume,
+ *           a verified photo ID and a Handled staff approval.
  */
 import { SERVICES } from "./services.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";

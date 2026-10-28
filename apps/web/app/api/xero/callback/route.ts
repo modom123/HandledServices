@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   if (v?.role !== "admin") return back("xero=admin_only");
   const url = new URL(req.url);
   const state = (await cookies()).get("xero_oauth_state")?.value;
+  if (url.searchParams.get("error") === "invalid_scope") return back("xero=scope_error");
   if (url.searchParams.get("error")) return back(`xero=error&msg=${encodeURIComponent(url.searchParams.get("error_description") ?? url.searchParams.get("error")!)}`);
   if (!state || state !== url.searchParams.get("state")) return back("xero=error&msg=Sign-in%20expired%2C%20try%20again");
   const code = url.searchParams.get("code");

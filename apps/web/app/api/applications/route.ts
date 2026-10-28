@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-02_0316 UTC — per-IP abuse limit (lib/ratelimit).
  * UPDATED : 2026-10-02_1412 UTC — Spanish versions of person-facing texts, emails and push.
  * UPDATED : 2026-10-03_0209 UTC — credits the pro lead it came from (link token, email or phone).
+ * UPDATED : 2026-10-28_2131 UTC — Roadie-style sign-up: the confirmation says the account opens right away.
  * PURPOSE : Subcontractor application → stored, confirmed, screened, invited or queued for staff.
  */
 import { after } from "next/server";
@@ -69,10 +70,12 @@ export async function POST(req: Request) {
   await logRecruiting(prior ? "application_updated" : "applied", { applicationId: data.id }, row.source ?? null, "applicant");
 
   const licensed = b.trades.some((t) => ["plumbing", "electrical", "hvac", "remodel", "painting", "catering", "food_truck"].includes(t));
-  if (locale === "es") await sendEmail(email, `Recibimos su solicitud en ${BRAND.name}`,
-    `Hola ${b.contact_name.split(" ")[0]}:\n\nGracias por su solicitud en ${BRAND.name}. Esto es lo que sigue:\n\n1. Revisamos su solicitud, normalmente el mismo día y siempre en menos de 2 días hábiles.\n2. Si es una buena opción, recibirá una invitación con un enlace de un clic a su lista de configuración (W-9, contrato, seguro, licencia si su oficio la requiere, verificación de antecedentes y pago). Unos 15 minutos desde su teléfono.\n3. Una vez verificado todo, empiezan las ofertas de trabajo.\n\nPara ir más rápido, tenga a la mano: su certificado de seguro${licensed ? ", su licencia del oficio" : ""} y sus datos bancarios para los pagos.\n\nLo que ofrecemos a los profesionales: ${siteUrl()}/pros\n\n— ${BRAND.name}`);
-  else await sendEmail(email, `We got your ${BRAND.name} application`,
-    `Hi ${b.contact_name.split(" ")[0]},\n\nThanks for applying to ${BRAND.name}. Here's what happens next:\n\n1. We review your application — usually the same day, always within 2 business days.\n2. If it's a fit, you get an invite with a one-click link to your setup checklist (W-9, agreement, insurance, license if your trade needs one, background check, payout). About 15 minutes on your phone.\n3. Once it's verified, job offers start.\n\nHave these handy to go faster: your certificate of insurance${b.trades.some((t) => ["plumbing", "electrical", "hvac", "remodel", "painting", "catering", "food_truck"].includes(t)) ? ", your trade license" : ""} and your bank details for payouts.\n\nWhat we offer pros: ${siteUrl()}/pros\n\n— ${BRAND.name}`);
+  // Roadie-style sign-up: the account opens right away (onApplication → instant invite); this note says what's next
+  const docs = `${licensed ? "your trade license, " : ""}your certificate of insurance if your trade needs one`;
+  if (locale === "es") await sendEmail(email, `Ya está registrado en ${BRAND.name}`,
+    `Hola ${b.contact_name.split(" ")[0]}:\n\nGracias por registrarse en ${BRAND.name}. Esto es lo que sigue:\n\n1. En unos minutos le llega un enlace de un clic que abre su cuenta. Sin entrevista y sin referencias.\n2. Suba su currículum, verifique su identificación con foto, autorice la verificación de antecedentes, firme el W-9 y el acuerdo y configure su pago. Unos 15 minutos desde su teléfono.\n3. Una persona de Handled revisa su expediente y lo aprueba (normalmente de 1 a 3 días). Mientras tanto ve los trabajos cerca de usted; los toma en cuanto se le aprueba.\n\nTenga a la mano: su currículum, su licencia de conducir o identificación${licensed ? ", su licencia del oficio" : ""}, su certificado de seguro si su oficio lo requiere y sus datos bancarios.\n\nLo que ofrecemos a los profesionales: ${siteUrl()}/pros\n\n— ${BRAND.name}`);
+  else await sendEmail(email, `You're signed up with ${BRAND.name}`,
+    `Hi ${b.contact_name.split(" ")[0]},\n\nThanks for signing up with ${BRAND.name}. Here's what's next:\n\n1. In a few minutes you get a one-click link that opens your account. No interview, no references.\n2. Upload your resume, verify your photo ID, consent to the background check, sign the W-9 and agreement, and set up payout. About 15 minutes on your phone.\n3. A person at Handled reviews your file and approves you (usually 1 to 3 days). You see jobs near you meanwhile and take them once you're approved.\n\nHave these handy: your resume, your driver's license or photo ID, ${docs}, and your bank details for payouts.\n\nWhat we offer pros: ${siteUrl()}/pros\n\n— ${BRAND.name}`);
   after(() => markLeadConverted(data.id, { token: leadToken, email, phone: b.phone }).catch((e) => console.error("[lead]", e)));
   after(() => onApplication(data.id).catch((e) => console.error("[recruiting]", e)));
   return Response.json({ ok: true });

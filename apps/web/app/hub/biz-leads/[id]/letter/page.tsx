@@ -4,6 +4,8 @@
  * CREATED : 2026-10-05_0130 UTC
  * PURPOSE : Hub → Business leads → the job-posting letter for one lead, signed by the staff member: print or save
  *           as PDF, or copy into a job site's message or your own email. Also shows the 3 emails the sequence sends.
+ * UPDATED : 2026-10-28_1935 UTC — the letter follows the lead: a job posting gets the employer letter, a property manager the
+ *           turnover letter (no more "Maintenance Technician" default).
  */
 import { notFound } from "next/navigation";
 import { BIZ_LEAD_SEQUENCE, bizCoverLetter, bizLeadEmail, type BizSegment } from "@handled/core";
@@ -24,7 +26,7 @@ export default async function Letter({ params }: { params: Promise<{ id: string 
   const ctx = {
     businessName: l.business_name as string, firstName: (l.contact_name as string | null)?.split(" ")[0] ?? null, segment: l.segment as BizSegment, city: l.city as string | null,
     pilotPct: s.pilot_pct, pilotJobs: s.pilot_jobs, signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: l.email ? unsubscribeUrl(l.email) : `${siteUrl()}/unsubscribe`,
-    postalAddress: process.env.BUSINESS_POSTAL_ADDRESS ?? "[BUSINESS_POSTAL_ADDRESS not set]", jobTitle: (l.job_title as string | null) ?? "Maintenance Technician", postingSource: l.posting_source as string | null,
+    postalAddress: process.env.BUSINESS_POSTAL_ADDRESS ?? "[BUSINESS_POSTAL_ADDRESS not set]", jobTitle: (l.job_title as string | null) ?? null, postingSource: l.posting_source as string | null,
   };
   const letter = bizCoverLetter({ ...ctx, step: 0, senderName: v?.fullName ?? "Your name", senderTitle: null, phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? null, email: v?.email ?? null, site: `${siteUrl()}/business` });
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });

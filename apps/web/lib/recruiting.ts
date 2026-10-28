@@ -9,7 +9,7 @@
  *             inviteApplicant()      — pro record + welcome email with a one-click sign-in link
  *             afterOnboardingStep()  — orders the background check, activates when complete
  *             orderBackgroundCheck() — Checkr invitation (CHECKR_API_KEY), else an ops task
- *             maybeActivate()        — all steps done + documents verified + background clear → live
+ *             maybeActivate()        — all steps done + documents verified + background clear → "Ready to approve" alert (staff activates)
  *             recruitingSweep()      — daily: setup reminders, stuck applicants, drop-offs
  * UPDATED : 2026-10-05_0246 UTC — screening interview: unless the screen says decline, the applicant gets the AI interview
  *           link first (Hub → Recruiting settings); a person decides after it (lib/interviews.ts).
@@ -128,7 +128,7 @@ export async function onApplication(appId: string) {
     await logRecruiting("screened", { applicationId: appId }, `AI ${screen.recommendation} · score ${screen.score}`, "ai");
   }
   const settings = await getRecruitingSettings();
-  if (settings.interviewRequired && screen && screen.recommendation !== "decline") {
+  if (!settings.instantSignup && settings.interviewRequired && screen && screen.recommendation !== "decline") {
     const r = await (await import("./interviews")).startInterview(appId, "ai", "auto").catch((e) => ({ ok: false, error: String(e) }));
     if (r.ok) return;
     await logRecruiting("interview_not_sent", { applicationId: appId }, r.error ?? null);
@@ -164,10 +164,10 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   await logRecruiting("invited", { applicationId: appId, contractorId: pro.id }, why || null, actor);
   const link = await signInUrl(pro.email);
   const lang = await localeOf(pro.profile_id, app.locale);
-  if (lang === "es") await sendEmail(pro.email, `Tiene una invitación de ${BRAND.name}: termine su configuración en unos 15 minutos`,
-    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
-  else await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
-    `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
+  if (lang === "es") await sendEmail(pro.email, `Su cuenta de ${BRAND.name} está abierta: termine la configuración en unos 15 minutos`,
+    `Hola ${first(app.contact_name)}:\n\nSu cuenta de profesional independiente (1099) en ${BRAND.name} está abierta. Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría termina en unos 15 minutos. Antes de trabajos pagados necesita su currículum, su identificación verificada y la aprobación de una persona de Handled; mientras revisamos, verá los trabajos cerca de usted.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
+  else await sendEmail(pro.email, `Your ${BRAND.name} account is open — finish setup in about 15 minutes`,
+    `Hi ${String(app.contact_name).split(" ")[0]},\n\nYour ${BRAND.name} independent pro (1099) account is open. Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes. Before paid work you need your resume, a verified ID and approval from a person at Handled; you'll see jobs near you while we review.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
 }
 
@@ -248,21 +248,22 @@ export async function onBackgroundResult(contractorId: string, status: "clear" |
   await maybeActivate(contractorId);
 }
 
-/** Everything done → activate (when auto-activate is on), and tell the pro they're live. */
-export async function maybeActivate(contractorId: string, actor = "auto-activate") {
-  const settings = await getRecruitingSettings();
+/**
+ * Everything done → ask Handled staff to approve. Nothing activates a pro automatically: no paid work until a person
+ * at Handled has reviewed the resume, the verified photo ID and the rest of the file and pressed Activate.
+ */
+export async function maybeActivate(contractorId: string) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c || c.status !== "vetting") return false;
   const { complete } = onboardingChecklist(c as never);
   if (!complete) return false;
-  if (!settings.autoActivate) {
-    await raiseAlert("recruiting", "info", `Ready to activate: ${c.business_name}`, "Every step is done and verified. Activate in Hub → Pros.");
-    return false;
-  }
-  return activatePro(contractorId, actor);
+  // one open "Ready to approve" alert per pro (the daily sweep calls this every day)
+  const { count } = await db().from("ops_alerts").select("id", { count: "exact", head: true }).eq("contractor_id", contractorId).eq("kind", "approve_pro").eq("resolved", false);
+  if (!count) await db().from("ops_alerts").insert({ kind: "approve_pro", severity: "info", contractor_id: contractorId, title: `Ready to approve: ${c.business_name}`, body: "Every step is done and verified (resume, photo ID, background, paperwork). Review the file and Activate in Hub → Pros." });
+  return false;
 }
 
-/** Activate a pro whose setup is complete (any actor: auto, staff, IEBC). */
+/** Activate a pro whose setup is complete. Only Handled staff (Hub → Pros → Activate) call this. */
 export async function activatePro(contractorId: string, actor: string) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c) throw new Error("No such pro");
@@ -272,6 +273,7 @@ export async function activatePro(contractorId: string, actor: string) {
   const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
+  await db().from("ops_alerts").update({ resolved: true }).eq("contractor_id", contractorId).eq("kind", "approve_pro").eq("resolved", false);
   await notify(c.profile_id, { title: "You're live 🎉", body: "Setup is complete. Job offers in your area start now.", data: { type: "pro_home" },
     email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nHow it works from here:\n${roadmapText("en", LIVE_FROM)}\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` },
     locale: await appLocale(c),

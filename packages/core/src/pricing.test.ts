@@ -184,7 +184,7 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
-  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "needs a resume");
+  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "no paid work without a resume");
   assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
@@ -632,9 +632,13 @@ test("removal: weight classes, heaviest item and the junk container", async () =
 
 test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
   const { RECRUITING_DEFAULTS: R, autoInviteDecision, pipelineStage, reminderDue, shouldDrop, mergeRecruiting } = await import("./recruiting.ts");
-  assert.equal(autoInviteDecision(R, { recommendation: "approve_after_checks", score: 82 }).invite, true);
-  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, false);
+  assert.equal(R.interviewRequired, false, "Roadie-style: no interview by default");
+  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, true, "instant sign-up: account right away");
+  assert.equal(autoInviteDecision(R, null).invite, true, "instant sign-up even when the AI screen is down");
   assert.equal(autoInviteDecision(R, { recommendation: "decline", score: 90 }).invite, false);
+  const scored = mergeRecruiting({ instantSignup: false });
+  assert.equal(autoInviteDecision(scored, { recommendation: "approve_after_checks", score: 82 }).invite, true);
+  assert.equal(autoInviteDecision(scored, { recommendation: "interview", score: 55 }).invite, false);
   assert.equal(autoInviteDecision(mergeRecruiting({ autoInvite: false }), { recommendation: "approve_after_checks", score: 95 }).invite, false);
   const steps = (done: string[]) => ["w9", "agreement", "specialties", "area", "coi", "background", "payout"].map((key) => ({ key, done: done.includes(key) }));
   assert.equal(pipelineStage({ appStage: "applied" }), "applied");
@@ -1223,7 +1227,11 @@ test("business sales engine: segments map to real services; emails are honest wi
     const m = bizLeadEmail({ step: i, businessName: "Maple PM", segment: "property_manager", city: "Southfield", pilotPct: 20, pilotJobs: 2, signupUrl: "https://x/b/abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI" });
     assert.match(m.text, /https:\/\/x\/u/); assert.match(m.text, /1 Main St/); assert.match(m.text, /https:\/\/x\/b\/abc/);
   }
-  assert.match(bizLeadEmail({ step: 0, businessName: "A", segment: "stager", pilotPct: 20, pilotJobs: 1, signupUrl: "u", unsubscribeUrl: "u", postalAddress: "a" }).text, /up to 20% off your first job/);
+  // no discount promises: the pilot isn't applied to online orders
+  for (const seg of ["stager", "property_manager", "facilities"] as const) for (let i = 0; i < 3; i++)
+    assert.doesNotMatch(bizLeadEmail({ step: i, businessName: "A", segment: seg, pilotPct: 20, pilotJobs: 1, signupUrl: "u", unsubscribeUrl: "u", postalAddress: "a" }).text, /% off/);
+  const pm = bizLeadEmail({ step: 0, businessName: "Maple PM", segment: "property_manager", city: "Southfield", pilotPct: 0, pilotJobs: 0, signupUrl: "https://x/b/abc", unsubscribeUrl: "u", postalAddress: "a" });
+  assert.match(pm.subject, /Rent-ready turnovers/); assert.match(pm.text, /move-out date/); assert.match(pm.text, /25% to book/);
   assert.ok(bizLeadScore({ email: "a@b.co", reviewCount: 30, rating: 4.8, website: "x" }) > bizLeadScore({ phone: "1" }));
 });
 
@@ -1257,15 +1265,17 @@ test("job-posting letter: names their posting, keeps to what we promise, unsubsc
   const ctx = { businessName: "Maple PM", segment: "property_manager" as const, city: "Southfield", pilotPct: 20, pilotJobs: 2, signupUrl: "https://x/b/abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI", jobTitle: "Office Cleaner", postingSource: "Indeed" };
   const first = bizLeadEmail({ ...ctx, step: 0 });
   assert.match(first.subject, /Office Cleaner posting on Indeed/);
-  assert.match(first.text, /for an Office Cleaner in Southfield/);
+  assert.match(first.text, /without the hiring/); assert.match(first.text, /25% books it/); assert.doesNotMatch(first.text, /% off/);
+  assert.match(first.text, /hiring an Office Cleaner in Southfield on Indeed/);
   for (let i = 0; i < BIZ_LEAD_SEQUENCE.length; i++) { const m = bizLeadEmail({ ...ctx, step: i }); assert.match(m.text, /https:\/\/x\/u/); assert.match(m.text, /1 Main St/); }
   assert.doesNotMatch(first.text, /Net[- ]?30|surcharge|guarantee upfront/i, "terms are case by case; prices can change with an approved change order");
-  assert.match(first.text, /approved accounts/);
+  assert.match(first.text, /approved accounts/i);
   assert.equal(jobPostNeed("Groundskeeper").work, "grounds work");
   assert.equal(jobPostNeed("Housekeeper").work, "cleaning");
   const letter = bizCoverLetter({ ...ctx, step: 0, senderName: "Jordan Smith", phone: "(313) 555-0100" });
-  assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call me at \(313\) 555-0100/);
-  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /move-out clean/i, "no job title → the segment sequence");
+  assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call or text me at \(313\) 555-0100/);
+  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /Rent-ready turnovers/, "no job title → the property-manager letter");
+  assert.match(bizCoverLetter({ ...ctx, jobTitle: null, step: 0, senderName: "Jordan Smith" }).subject, /Rent-ready turnovers/, "hand-sent letter for a property manager");
 });
 
 test("email center: merge tags, HTML with button and footer, law and spam checks, pasted lists", async () => {

@@ -19,6 +19,7 @@
  *           under Business leads, Awards & recompetes under Gov contracts.
  * UPDATED : 2026-10-28_1735 UTC — Jobs: one "Jobs" tab (List | Schedule | Board); Money: one "Money" tab (Jobs & payouts | Money in & out |
  *           Unit economics); Contracts → Settings; Points → Growth; Interview packet is a link in Pipeline.
+ * UPDATED : 2026-10-28_1828 UTC — Contract library is its own menu entry (was a tab under Settings).
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -93,9 +94,12 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/agents", "AI agents & IEBC"],
     ["/hub/assistant", "AI assistant"],
   ] },
+  // its own menu entry: every customer, business and pro contract, versions and signed copies
+  { id: "contracts", icon: "📜", label: "Contract library", links: [
+    ["/hub/contracts", "Contract library"],
+  ] },
   { id: "settings", icon: "⚙️", label: "Settings", links: [
     ["/hub/team", "Team"],
-    ["/hub/contracts", "Contracts"],
     ["/hub/setup", "Go-live setup"],
   ] },
 ];
