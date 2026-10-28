@@ -5,6 +5,8 @@
  * PURPOSE : /technology — "We build intelligent websites, business operating systems and automated businesses." The three
  *           pillars, how an engagement works, what Handled itself runs on (the proof), the rest of the Business & Technology
  *           services, and the free consultation. English / Spanish.
+ * UPDATED : 2026-10-28_1630 UTC — the home of Business & Technology: every one of its services listed here (#solutions); the
+ *           Services page and menus link here instead of showing it among home services.
  * UPDATED : 2026-10-23_1100 UTC — no prices (consultation-only): "See solutions" instead of "See prices"; cards say Free consultation (priceHint).
  */
 import Link from "next/link";
@@ -19,7 +21,7 @@ export const metadata = {
 
 export default async function Technology() {
   const es = (await getLocale()) === "es";
-  const others = SERVICES.filter((s) => s.category === "business" && !["website-design", "business-operating-system", "automated-business"].includes(s.slug));
+  const all = SERVICES.filter((s) => s.category === "business");
   const steps = es
     ? [["1", "Consulta gratis por video", "Revisamos cómo funciona su negocio hoy y qué automatizar primero. Precio firme por escrito."], ["2", "Lo construimos", "Diseño, sistema, agentes de IA y automatizaciones, probados con usted antes de activarlos."], ["3", "Lanzamiento y capacitación", "Su equipo aprende en una sesión grabada. Usted es dueño de todo: datos, cuentas y accesos."], ["4", "Seguimiento", "Ajustamos durante las primeras semanas y le mostramos lo que hizo la IA, con una persona cuando hace falta."]]
     : [["1", "Free video consultation", "We look at how your business runs today and what to automate first. Firm price in writing."], ["2", "We build it", "Design, system, AI agents and automations — tested with you before anything goes live."], ["3", "Launch & training", "Your team learns it in one recorded session. You own everything: data, accounts and logins."], ["4", "We stay with you", "We tune it through the first weeks and show you what the AI did — with a person whenever it matters."]];
@@ -31,7 +33,7 @@ export default async function Technology() {
       <div className="max-w-3xl">
         <h1 className="text-4xl font-extrabold tracking-tight">{es ? "Creamos sitios web inteligentes, sistemas operativos para negocios y negocios automatizados" : "We build intelligent websites, business operating systems and automated businesses"}</h1>
         <p className="mt-3 text-lg text-ink-soft">{es ? "Para dueños que quieren crecer sin contratar a alguien para cada tarea: la IA atiende, agenda, da seguimiento y lleva las cuentas; su equipo hace el trabajo que importa." : "For owners who want to grow without hiring for every task: AI answers, books, follows up and keeps the books, while your team does the work that matters."}</p>
-        <div className="mt-6 flex flex-wrap gap-3"><Link href="/book?service=automated-business" className="btn-primary">{es ? "Reservar consulta gratis" : "Book a free consultation"}</Link><Link href="/services?cat=business" className="btn-ghost">{es ? "Ver soluciones" : "See solutions"}</Link></div>
+        <div className="mt-6 flex flex-wrap gap-3"><Link href="/book?service=automated-business" className="btn-primary">{es ? "Reservar consulta gratis" : "Book a free consultation"}</Link><Link href="#solutions" className="btn-ghost">{es ? "Ver soluciones" : "See solutions"}</Link></div>
       </div>
 
       <WeBuild es={es} />
@@ -47,9 +49,10 @@ export default async function Technology() {
         <div className="mt-5 grid gap-4 md:grid-cols-4">{steps.map(([n, t, d]) => <div key={n} className="card"><div className="text-xs font-bold text-brand">{n}</div><div className="font-semibold">{t}</div><p className="mt-1 text-sm text-ink-soft">{d}</p></div>)}</div>
       </section>
 
-      <section>
-        <h2 className="text-2xl font-bold">{es ? "También hacemos" : "We also do"}</h2>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{others.map((s) => (
+      <section id="solutions" className="scroll-mt-24">
+        <h2 className="text-2xl font-bold">{es ? `Todos los servicios de negocios y tecnología (${all.length})` : `Every Business & Technology service (${all.length})`}</h2>
+        <p className="mt-1 text-ink-soft">{es ? "Elija uno para ver qué incluye y reservar su consulta gratis." : "Pick one to see what's included and book your free consultation."}</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{all.map((s) => (
           <Link key={s.slug} href={`/services/${s.slug}`} className="card flex flex-col transition hover:border-brand"><div className="text-2xl">{s.icon}</div><div className="mt-2 font-semibold">{serviceText(es ? "es" : "en", s.slug, s).name}</div><p className="mt-1 flex-1 text-sm text-ink-soft">{serviceText(es ? "es" : "en", s.slug, s).tagline}</p><div className="mt-3 text-sm font-bold text-brand">{priceHint(s.slug, es ? "es" : "en")}</div></Link>
         ))}</div>
       </section>
@@ -59,6 +62,8 @@ export default async function Technology() {
         <p className="mt-1 text-ink-soft">{es ? "En una consulta de 30 minutos le mostramos qué se puede automatizar en su negocio y cuánto cuesta." : "In a 30-minute consultation we show you what can be automated in your business and what it costs."}</p>
         <Link href="/book?service=automated-business" className="btn-primary mt-4 inline-block">{es ? "Reservar consulta gratis" : "Book a free consultation"}</Link>
       </section>
+
+      <p className="text-center text-sm text-ink-soft">{es ? "¿Busca servicios para su casa o negocio (limpieza, jardín, reparaciones…)? " : "Looking for home or property services (cleaning, lawn, repairs…)? "}<Link href="/services" className="font-semibold text-brand">{es ? "Ver todos los servicios →" : "See all services →"}</Link></p>
     </div>
   );
 }
