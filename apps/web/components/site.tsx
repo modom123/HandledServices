@@ -24,6 +24,8 @@
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  * UPDATED : 2026-10-27_1800 UTC — Careers (/careers) in the For Pros menu and the footer.
+ * UPDATED : 2026-10-28_1630 UTC — Business & Technology opens its own page (/technology) from the menu and footer.
+ * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -42,6 +44,9 @@ export function Logo({ className = "" }: { className?: string }) {
   );
 }
 
+/** Business & Technology has its own page (/technology); every other category opens on the Services page. */
+export const categoryHref = (id: string) => (id === "business" ? "/technology" : `/services?cat=${id}`);
+
 export async function SiteHeader() {
   const l = await getLocale();
   const es = l === "es";
@@ -49,7 +54,7 @@ export async function SiteHeader() {
   const groups: NavGroup[] = [
     {
       id: "services", label: t("Services"),
-      items: CATEGORIES.map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name, icon: c.icon })),
+      items: CATEGORIES.map((c) => ({ href: categoryHref(c.id), label: categoryText(l, c.id, c).name, icon: c.icon })),
       footer: { href: "/services", label: es ? `Ver los ${SERVICES.length} servicios →` : `See all ${SERVICES.length} services →` },
     },
     {
@@ -61,7 +66,7 @@ export async function SiteHeader() {
         { href: "/events", label: t("Parties & events"), icon: "🎉" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
       ],
-      footer: { href: "/business#quote", label: es ? "Pida una propuesta →" : "Request a proposal →" },
+      footer: { href: "/book?for=business", label: es ? "Ordenar para su negocio →" : "Order for your business →" },
     },
     {
       id: "pros", label: es ? "Para profesionales" : "For Pros",
@@ -94,7 +99,6 @@ export async function SiteHeader() {
     },
   ];
   const links = [
-    { href: "/about", label: es ? "Quiénes somos" : "About us", icon: "ℹ️" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];
   return (
@@ -149,11 +153,11 @@ export async function SiteFooter() {
           <p className="mt-3 text-xs text-ink-soft">{BRAND.partner}</p>
         </div>
         {col(t("Services"), [
-          ...CATEGORIES.slice(0, 6).map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name })),
+          ...CATEGORIES.slice(0, 6).map((c) => ({ href: categoryHref(c.id), label: categoryText(l, c.id, c).name })),
+          { href: "/technology", label: es ? "Negocios y tecnología" : "Business & Technology" },
           { href: "/services", label: es ? `Los ${SERVICES.length} servicios →` : `All ${SERVICES.length} services →` },
         ])}
         {col(t("Company"), [
-          { href: "/about", label: es ? "Quiénes somos" : "About us" },
           { href: "/network", label: es ? "Red Handled" : "Handled Network" },
           { href: "/business", label: t("Commercial accounts") },
           { href: "/events", label: t("Parties & events") },

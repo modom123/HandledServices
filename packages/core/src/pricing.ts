@@ -29,6 +29,10 @@
  * UPDATED : 2026-10-11_0608 UTC — priceHint: remote services show their starting price ("From $1,620") instead of "Free on-site quote".
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology is consultation-only (consultOnly): no prices shown to customers anywhere;
  *           priceHint says "Free consultation" and the firm price is set on the call.
+ * UPDATED : 2026-10-28_1830 UTC — SITE_VISIT_OVER ($2,500): no deposit on bigger jobs — they start with a free site visit
+ *           (remote: an online scope review) and are paid once the firm price is approved.
+ * UPDATED : 2026-10-28_1700 UTC — consultOnly removed: Business & Technology is ordered like every service (price from the
+ *           answers, deposit to start, rest on delivery); priceHint says "From $X".
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: BOOK_NOW (25% at booking; the balance is held on the card when the pro
  *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
  */
@@ -313,6 +317,9 @@ export function isRush(date: string | null | undefined, now = new Date()): boole
 export const money = (v: number | null | undefined) =>
   v == null ? "—" : v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
+/** Exact to the cent (fees and commissions people are paid or charged, where rounding to the dollar would mislead). */
+export const moneyCents = (v: number | null | undefined) =>
+  v == null ? "—" : v.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const moneyRange = (lo: number, hi: number) => (lo === hi ? money(lo) : `${money(lo)} – ${money(hi)}`);
 
 /**
@@ -378,6 +385,13 @@ export function depositPolicy(slug: string, price: number | null | undefined, sc
  */
 export const BOOK_NOW = { share: 0.25, minimum: 25, maxAttempts: 3, retryHours: 24 } as const;
 
+/**
+ * Jobs priced over this are never ordered with a deposit: a free site visit confirms the firm price first (remote work:
+ * staff review the order online and send the firm price — no call). Nothing is charged until the customer approves it.
+ */
+export const SITE_VISIT_OVER = 2500;
+export const overDepositLimit = (price: number | null | undefined): boolean => Number(price ?? 0) > SITE_VISIT_OVER;
+
 /** Pay the whole price at booking instead: 5% off, out of our share (the pro's pay never changes). */
 export const PAY_IN_FULL = { discount: 0.05 } as const;
 
@@ -387,7 +401,7 @@ export type PaymentPlan = "full" | "deposit" | "after";
 export function bookNowPolicy(slug: string, price: number | null | undefined) {
   const svc = getService(slug);
   const none = { allowed: false, amount: 0, balance: 0 };
-  if (!svc || !price || price <= 0 || svc.siteVisit || svc.category === "events") return none;
+  if (!svc || !price || price <= 0 || svc.siteVisit || svc.category === "events" || overDepositLimit(price)) return none;
   const p = Math.round(price);
   const amount = Math.min(p - 1, Math.max(BOOK_NOW.minimum, Math.round(p * BOOK_NOW.share)));
   return amount > 0 && amount < p ? { allowed: true, amount, balance: p - amount } : none;
@@ -475,14 +489,11 @@ export function typicalProShare(slug: string): number {
   return estimate({ slug, answers: defaultAnswers(s) }).payoutShare;
 }
 
-/** Business & Technology: every solution is scoped on a free consultation, so customers never see a price before it. */
-export const consultOnly = (slug: string | null | undefined): boolean => Boolean(slug && getService(slug)?.category === "business");
 
 export function priceHint(slug: string, locale: string = "en"): string {
   const es = locale === "es";
   if (slug === "event-package") return es ? "Según su presupuesto" : "By budget";
-  if (consultOnly(slug)) return es ? "Consulta gratis" : "Free consultation";
-  // remote work (websites, AI, formation, consulting): the starting price, with a free video consultation
+  // remote work (websites, AI, formation, consulting): the starting price
   const svc = getService(slug);
   if (svc?.remote) { const from = money(Math.round(svc.minimum * upliftFactor(svc.minimum, slug) / 5) * 5); return es ? `Desde ${from}` : `From ${from}`; }
   if (typicalPrice(slug) === null) return es ? "Cotización gratis en sitio" : "Free on-site quote";

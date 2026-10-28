@@ -2,6 +2,7 @@
  * FILE    : packages/core/src/job-money.ts
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-27_2100 UTC
+ * UPDATED : 2026-10-28_0122 UTC — the pro's half of a referral partner's earnings comes off the job payout line.
  * PURPOSE : One job's money from end to end, for the Hub only (customers never see what the pro earns):
  *             customer paid (net of refunds) → the split (pro pay / what Handled keeps / est. card fee) → the pro's payout
  *             lines for the job (job pay, show-up, materials, clawbacks…; tips pass through 100% and are kept apart) →
@@ -14,6 +15,8 @@ import { CARD_FEE } from "./pricing.ts";
 export interface MoneyJob {
   status: string; price_final?: number | null; contractor_payout?: number | null; amount_paid?: number | null; amount_refunded?: number | null;
   tip_total?: number | null; paid_at?: string | null; remedy?: string | null; billed_on_terms?: boolean | null;
+  /** The pro's half of a referral partner's earnings, taken off the job payout line (partners.ts). */
+  partner_pro_fee?: number | null;
 }
 export interface MoneyLine { amount: number; status: string; kind?: string | null; paid_at?: string | null; week_of?: string | null }
 export type PayoutStage = "none" | "not_created" | "held" | "pending" | "approved" | "paid" | "partly_paid";
@@ -38,10 +41,11 @@ export function jobMoney(job: MoneyJob, lines: MoneyLine[] = []) {
   const tips = lines.filter((l) => l.kind === "tip");
   const work = lines.filter((l) => l.kind !== "tip");
   const proAgreed = Number(job.contractor_payout ?? 0);
+  const partnerFee = Number(job.partner_pro_fee ?? 0);
   const proLines = r2(work.reduce((t, l) => t + Number(l.amount), 0));
   const done = job.status === "completed";
   // before payout lines exist, the agreed pro pay is what the pro will get (once the job is done)
-  const proPay = work.length ? proLines : job.status === "cancelled" ? 0 : proAgreed;
+  const proPay = work.length ? proLines : job.status === "cancelled" ? 0 : r2(proAgreed - Number(job.partner_pro_fee ?? 0));
   const cardFee = paid > 0 ? r2(paid * CARD_FEE.pct + CARD_FEE.fixed) : 0;
   const keep = r2(customerNet - proPay);
   const by = (s: string) => r2(work.filter((l) => l.status === s).reduce((t, l) => t + Number(l.amount), 0));
@@ -58,12 +62,12 @@ export function jobMoney(job: MoneyJob, lines: MoneyLine[] = []) {
   if (done && proAgreed > 0 && !work.length) issues.push("Finished, but the pro's payout hasn't been created");
   if (done && !job.paid_at && !job.billed_on_terms && !job.remedy && price > 0) issues.push("Customer hasn't paid in full");
   const jobLine = work.find((l) => (l.kind ?? "job") === "job");
-  if (jobLine && proAgreed > 0 && Math.abs(Number(jobLine.amount) - proAgreed) >= 1) issues.push(`Payout line ${Number(jobLine.amount).toFixed(2)} ≠ agreed pro pay ${proAgreed.toFixed(2)}`);
+  if (jobLine && proAgreed > 0 && Math.abs(Number(jobLine.amount) - (proAgreed - partnerFee)) >= 1) issues.push(`Payout line ${Number(jobLine.amount).toFixed(2)} ≠ agreed pro pay ${proAgreed.toFixed(2)}${partnerFee ? ` − referral fee ${partnerFee.toFixed(2)}` : ""}`);
   if (customerNet > 0 && keep < 0) issues.push("We paid the pro more than the customer paid");
   if (held > 0) issues.push("Pro pay held (customer charge failed or disputed)");
   return {
     price, paid, refunded, customerNet, tips: r2(tips.reduce((t, l) => t + Number(l.amount), 0)),
-    proAgreed, proPay: r2(proPay), keep, takePct: customerNet > 0 ? keep / customerNet : null, cardFee, keepAfterFees: r2(keep - cardFee),
+    proAgreed, partnerFee, proPay: r2(proPay), keep, takePct: customerNet > 0 ? keep / customerNet : null, cardFee, keepAfterFees: r2(keep - cardFee),
     owed, held, pending, paidOut, stage, lastPaid, payday: stage === "approved" || stage === "partly_paid" ? nextMonday() : null, issues,
   };
 }

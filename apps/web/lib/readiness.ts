@@ -51,6 +51,8 @@
  *           duplicate warning names which endpoint(s) to delete.
  * UPDATED : 2026-10-21_0130 UTC — Instantly webhook secret optional: replies are pulled from the API without it.
  * UPDATED : 2026-10-21_0030 UTC — migrations from Oct 19–21 probed (one paste: RUN_ONCE_ALL_NEW_2026-10-21_0000.sql).
+ * UPDATED : 2026-10-28_1735 UTC — customer totals view probed; one paste is RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql.
+ * UPDATED : 2026-10-28_1558 UTC — recruiting intake / division and partner tickets probed (one paste for everything since setup: RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
  */
 import "server-only";
@@ -219,6 +221,10 @@ export async function readiness(): Promise<Check[]> {
     ["20261020001500_call_desk", "Call desk (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("biz_leads").select("next_call_at, call_attempts").limit(1)],
     ["20261020010000_omnichannel", "Lead inbox & social media (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("social_posts").select("id").limit(1)],
     ["20261020020000_pro_marketplace", "pro prices & request-a-quote (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("quote_bids").select("id").limit(1)],
+    ["20261023110000_recruiting_intake", "recruiting intake: add candidates by hand, CSV import, Indeed Apply (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql for every change since setup)", () => db.from("contractor_applications").select("external_source, screener, added_by").limit(1)],
+    ["20261027170000_recruiting_division", "Recruiting division: internal roles, /careers, Indeed postings (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("recruiting_postings").select("opening_key").limit(1)],
+    ["20261028012200_partner_tickets_tiers", "partner rates 25/10/15 and referral tickets (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("referral_customers").select("ticket_no, status").limit(1)],
+    ["20261028173500_hub_customer_totals", "Mastermind customer list covers every customer (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("hub_customer_totals").select("email").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

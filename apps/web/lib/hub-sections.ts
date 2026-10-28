@@ -17,6 +17,8 @@
  *           to the client nav, so every Hub page failed to render (looked like the Hub login was broken).
  * UPDATED : 2026-10-21_0030 UTC — Lead inbox and Marketplace & quotes (Clients), Social media (Growth). The Call desk lives
  *           under Business leads, Awards & recompetes under Gov contracts.
+ * UPDATED : 2026-10-28_1735 UTC — Jobs: one "Jobs" tab (List | Schedule | Board); Money: one "Money" tab (Jobs & payouts | Money in & out |
+ *           Unit economics); Contracts → Settings; Points → Growth; Interview packet is a link in Pipeline.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -41,18 +43,16 @@ export const HUB_TOP: readonly (readonly [href: string, icon: string, label: str
 export const HUB_SECTIONS: readonly HubSection[] = [
   // Recruiting division, top down: what we need (openings) → where they come from (Indeed first) → the pipeline → the
   // supporting engines. Fills our pro network, our own team and our clients' roles (Handled Talent).
-  { id: "recruiting", icon: "🎯", label: "Recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]], links: [
+  { id: "recruiting", icon: "🎯", label: "Recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]], links: [
     ["/hub/recruiting", "Overview"],
     ["/hub/recruiting/openings", "Openings"],
     ["/hub/recruiting/indeed", "Indeed"],
     ["/hub/recruiting/pipeline", "Pipeline"],
     ["/hub/recruiting/onboarding", "Onboarding"],
     ["/hub/recruiting/files", "Pro files"],
-    ["/hub/contracts", "Contracts"],
     ["/hub/talent", "Client searches"],
     ["/hub/gaps", "Supply gaps"],
     ["/hub/leads", "Pro leads"],
-    ["/hub/recruiting/packet", "Interview packet"],
   ] },
   { id: "pros", icon: "🧰", label: "Pros", links: [
     ["/hub/pros", "Roster"],
@@ -60,9 +60,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/rewards", "Rewards"],
   ] },
   { id: "jobs", icon: "🗂️", label: "Jobs", links: [
-    ["/hub/dispatch", "Dispatch"],
-    ["/hub/schedule", "Schedule"],
-    ["/hub/jobs", "Jobs board"],
+    ["/hub/jobs", "Jobs"],
     ["/hub/roster", "Live map"],
     ["/hub/coverage", "Cancellations"],
     ["/hub/texts", "Texts"],
@@ -75,13 +73,10 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/bids", "Bids & contracts"],
     ["/hub/quotes", "Marketplace & quotes"],
     ["/hub/partners", "Referral partners"],
-    ["/hub/loyalty", "Points"],
     ["/hub/email", "Email"],
   ] },
   { id: "money", icon: "💵", label: "Money", links: [
-    ["/hub/money", "Jobs & payouts"],
-    ["/hub/payments", "Payments"],
-    ["/hub/finance", "Finance"],
+    ["/hub/money", "Money"],
     ["/hub/accounting", "Accounting (Xero)"],
     ["/hub/charges", "Quick Charge"],
     ["/hub/factoring", "Factoring"],
@@ -90,6 +85,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/growth", "Growth"],
     ["/hub/social", "Social media"],
     ["/hub/cities", "City scorecard"],
+    ["/hub/loyalty", "Points"],
     ["/hub/pricing", "Pricing"],
     ["/hub/site", "Website look"],
   ] },
@@ -99,12 +95,14 @@ export const HUB_SECTIONS: readonly HubSection[] = [
   ] },
   { id: "settings", icon: "⚙️", label: "Settings", links: [
     ["/hub/team", "Team"],
+    ["/hub/contracts", "Contracts"],
     ["/hub/setup", "Go-live setup"],
   ] },
 ];
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
-export const ADMIN_PAGES = new Set(["/hub/money", "/hub/finance", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup"]);
+// /hub/money is open to all staff: the page shows dispatchers only its "Money in & out" view
+export const ADMIN_PAGES = new Set(["/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);

@@ -7,6 +7,7 @@
  *           Rows show pros booked that day plus approved pros who can do that day's open jobs (?all=1 for every pro).
  *           Same rules as everywhere: no pro on unpaid work; the new pro is notified (components/ScheduleBoard).
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs with their 25% in can be dragged to a pro.
+ * UPDATED : 2026-10-28_1735 UTC — now the "Schedule" view of Mastermind → Jobs (/hub/jobs?view=schedule); was /hub/schedule.
  */
 import Link from "next/link";
 import { dayOff, getService, localDate, paymentState, type BoardJobInput } from "@handled/core";
@@ -14,8 +15,6 @@ import { adminClient } from "@/lib/supabase/server";
 import { fmtDate } from "@/components/ui";
 import { ScheduleBoard, type BoardCard, type BoardPro } from "@/components/ScheduleBoard";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Schedule" };
 
 const addDays = (d: string, n: number) => new Date(new Date(`${d}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
 type J = BoardJobInput & { id: string; ref: string; service_slug: string; city: string | null; contact_name: string };
@@ -42,7 +41,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
     return { id: j.id, ref: j.ref, icon: svc?.icon ?? "•", service: svc?.name ?? j.service_slug, trades: svc?.trades ?? [], city: j.city ?? "", customer: j.contact_name, window: j.time_window ?? "flexible", contractorId: j.contractor_id, status: j.status, payment: paymentState(j).key };
   });
   const missing = jobs.filter((j) => j.contractor_id && !pros.some((p) => p.id === j.contractor_id)).length;
-  const nav = (d: string) => `/hub/schedule?date=${d}${all ? "&all=1" : ""}`;
+  const nav = (d: string) => `/hub/jobs?view=schedule&date=${d}${all ? "&all=1" : ""}`;
 
   return (
     <div className="space-y-4">
@@ -51,16 +50,16 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
           <p className="text-sm text-ink-soft">Drag a job to another pro or time window. On a phone, tap a job, then tap where it goes. Unpaid jobs can&apos;t be given to a pro. The new pro gets a push and a text; tell the customer in the job&apos;s messages if their window changed.</p></div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Link className="btn-ghost" href={nav(addDays(date, -1))}>←</Link>
-          <form className="flex gap-1" action="/hub/schedule"><input type="date" name="date" defaultValue={date} className="input h-9 w-auto py-0" />{all && <input type="hidden" name="all" value="1" />}<button className="btn-ghost">Go</button></form>
+          <form className="flex gap-1" action="/hub/jobs"><input type="hidden" name="view" value="schedule" /><input type="date" name="date" defaultValue={date} className="input h-9 w-auto py-0" />{all && <input type="hidden" name="all" value="1" />}<button className="btn-ghost">Go</button></form>
           <Link className="btn-ghost" href={nav(addDays(date, 1))}>→</Link>
           {date !== today && <Link className="underline" href={nav(today)}>Today</Link>}
-          <Link className="underline" href={`/hub/schedule?date=${date}${all ? "" : "&all=1"}`}>{all ? "Only relevant pros" : "Show every pro"}</Link>
+          <Link className="underline" href={`/hub/jobs?view=schedule&date=${date}${all ? "" : "&all=1"}`}>{all ? "Only relevant pros" : "Show every pro"}</Link>
         </div>
       </div>
       <p className="font-semibold">{fmtDate(date)} · {jobs.length} job{jobs.length === 1 ? "" : "s"} · {jobs.filter((j) => !j.contractor_id).length} without a pro</p>
       <ScheduleBoard key={date} date={date} pros={pros} cards={cards} nextDay={addDays(date, 1)} />
       {missing > 0 && <p className="text-xs text-ink-soft">{missing} job(s) belong to a pro who isn&apos;t approved any more — they show under Unassigned&apos;s pro list on Dispatch.</p>}
-      <p className="text-xs text-ink-soft">Jobs in progress, in QA or done are locked. For backups, offers and payment links use <Link className="underline" href="/hub/dispatch">Dispatch</Link>.</p>
+      <p className="text-xs text-ink-soft">Jobs in progress, in QA or done are locked. For backups, offers and payment links use <Link className="underline" href="/hub/jobs">Dispatch</Link>.</p>
     </div>
   );
 }

@@ -6,6 +6,7 @@
  *           medium / campaign, the referring site and the landing page (this browser only).
  *           Bookings send it, so the Hub can show which ads and channels bring paying customers.
  * UPDATED : 2026-10-20_0100 UTC — TikTok (ttclid) and Google's iOS click ids (gbraid / wbraid); lead forms send it too.
+ * UPDATED : 2026-10-28_1800 UTC — also remembers a sales-engine lead (?lead=) as biz_lead.
  */
 "use client";
 
@@ -17,6 +18,13 @@ export function Attribution() {
       const url = new URL(window.location.href);
       const utm = Object.fromEntries(["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "gbraid", "wbraid", "fbclid", "ttclid"].map((k) => [k, url.searchParams.get(k)]).filter(([, v]) => v)) as Record<string, string>;
       const existing = localStorage.getItem("handled_attr");
+      // a sales-engine email link (/business?lead=…): remember the lead on whatever touch we keep, so the order converts it
+      const lead = url.searchParams.get("lead");
+      if (lead && /^[a-z0-9]{8,40}$/.test(lead)) {
+        const cur = existing ? JSON.parse(existing) : null;
+        if (cur && !Object.keys(utm).length) return localStorage.setItem("handled_attr", JSON.stringify({ ...cur, biz_lead: lead }));
+        utm.biz_lead = lead;
+      }
       // a new paid click replaces an old organic first touch; otherwise keep the first one
       if (existing && !Object.keys(utm).length) return;
       const ref = document.referrer && !document.referrer.startsWith(window.location.origin) ? new URL(document.referrer).hostname : "";

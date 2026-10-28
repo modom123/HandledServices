@@ -7,6 +7,7 @@
  *           approved and held, and what was paid in the last 30 days. Staff can send a payment link or charge a saved card
  *           for a balance (components/DispatchActions); refunds and payout decisions stay with admins (Hub → Finance).
  * UPDATED : 2026-10-15_0300 UTC — "pay after": balance failed after the job (tile + list); 25%-paid jobs before the job aren't "owed".
+ * UPDATED : 2026-10-28_1735 UTC — now the "Money in & out" view of Mastermind → Money (/hub/money?view=flow); was /hub/payments.
  */
 import Link from "next/link";
 import { getService, money, paymentState, type BoardJobInput } from "@handled/core";
@@ -15,8 +16,6 @@ import { getViewer, isAdmin } from "@/lib/auth";
 import { Badge, fmtDate } from "@/components/ui";
 import { DispatchActions } from "@/components/DispatchActions";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Payments" };
 
 type J = BoardJobInput & { id: string; ref: string; service_slug: string; contact_name: string; contact_email: string; created_at: string; updated_at: string };
 const daysSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
@@ -99,12 +98,7 @@ export default async function Payments() {
           <li key={j.id} className="flex flex-wrap justify-between gap-2 py-2"><span><Link className="font-semibold text-brand underline" href={`/hub/jobs/${j.id}`}>{j.ref}</Link> · {j.contact_name}</span><span>{money(j.amount_refunded)} of {money(j.amount_paid)}</span></li>
         ))}</ul> : <p className="text-sm text-ink-soft">No refunds.</p>}</section>
 
-      <section className="card"><h2 className="mb-2 font-bold">Pro payouts not yet paid</h2>
-        {po.length ? <ul className="divide-y divide-line text-sm">{po.map((p) => (
-          <li key={p.id} className="flex flex-wrap justify-between gap-2 py-2"><span>{p.contractors?.business_name ?? "—"} · {p.jobs ? <Link className="text-brand underline" href={`/hub/jobs/${p.jobs.id}`}>{p.jobs.ref}</Link> : "bonus"}</span>
-            <span>{money(p.amount)} <Badge tone={p.status === "held" ? "red" : p.status === "approved" ? "green" : "slate"}>{p.status}</Badge></span></li>
-        ))}</ul> : <p className="text-sm text-ink-soft">Nothing owed to pros right now.</p>}
-        <p className="mt-2 text-xs text-ink-soft">Weekly payouts run every Monday automatically. {admin ? <Link className="underline" href="/hub/finance">Approve, hold or pay in Finance →</Link> : "Admins approve, hold or pay them in Hub → Finance."}</p></section>
+      <p className="text-sm text-ink-soft">Pro payouts go out every Monday automatically. {admin ? <>See them, approve or pay early in the <Link className="underline" href="/hub/money">payout queue</Link>.</> : "Admins approve and pay them in Money."}</p>
     </div>
   );
 }
