@@ -2281,6 +2281,15 @@ test("parseCandidatesCsv handles Indeed-style exports", () => {
   assert.equal(parseCandidatesCsv("Phone\n123").candidates.length, 0);
 });
 
+test("no deposit over $2,500: those jobs start with a free site visit / scope review", async () => {
+  const { bookNowPolicy, overDepositLimit, SITE_VISIT_OVER } = await import("./pricing.ts");
+  assert.equal(SITE_VISIT_OVER, 2500);
+  assert.ok(overDepositLimit(2500.01) && !overDepositLimit(2500));
+  assert.ok(bookNowPolicy("website-design", 2400).allowed, "under the limit: 25% deposit");
+  assert.ok(!bookNowPolicy("website-design", 3297).allowed, "over the limit: no deposit");
+  assert.ok(!bookNowPolicy("kitchen-remodel", 900).allowed, "site-visit services: no deposit");
+});
+
 test("Business & Technology shows a starting price (ordered, not consulted)", () => {
   assert.match(priceHint("website-design"), /^From \$/);
 });

@@ -9,12 +9,13 @@
  * UPDATED : 2026-10-06_2010 UTC — no list of Michigan cities; a national service area (city pages still work for Google).
  * UPDATED : 2026-10-28_1630 UTC — the page ends in an order step ("Ready to book…?": 3 steps + the button) and related services;
  *           Business & Technology services speak in consultation terms (no on-site estimate, deposit or redo wording).
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 / site-visit services: no deposit — steps say the firm price comes first (remote: online).
  * UPDATED : 2026-10-28_1700 UTC — no calls: every page leads to ordering ("Order now": price, deposit, start); no phone line;
  *           Business & Technology is ordered with a deposit like every other service.
  * UPDATED : 2026-10-05_0419 UTC — no dollar figures on service pages: "exact and upfront, in about a minute" (every job is priced on its details).
  */
 import Link from "next/link";
-import { BOOK_NOW, BRAND, CATEGORIES, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
+import { BOOK_NOW, BRAND, CATEGORIES, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
 import { categoryHref } from "./site";
 import type { PublicReview } from "@/lib/reviews";
 import { siteUrl } from "@/lib/notify";
@@ -30,10 +31,17 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
   const related = SERVICES.filter((x) => x.category === s.category && x.slug !== s.slug).slice(0, 3);
   const book = `/book?service=${s.slug}`;
   const pct = `${Math.round(BOOK_NOW.share * 100)}%`;
-  const cta = s.siteVisit ? (es ? tr(locale, "Get my price") : "Get my price") : es ? "Ordenar ahora" : "Order now";
-  const steps = s.siteVisit
-    ? (es ? [["Responda unas preguntas", "Vea su rango de precio en un minuto."], ["Un profesional confirma el precio firme", "En una visita gratis al sitio."], ["Pague el depósito para empezar", "El trabajo queda reservado con su profesional."]]
-      : [["Answer a few questions", "See your price range in about a minute."], ["A pro confirms the firm price", "On a free visit to the site."], ["Pay the deposit to start", "Your job is locked in with your pro."]])
+  // over $2,500 there's no deposit: a free site visit (remote: an online scope review) sets the firm price first
+  const big = !s.siteVisit && overDepositLimit(estimate({ slug: s.slug, answers: defaultAnswers(s) }).point);
+  const visitFirst = s.siteVisit || big;
+  const limit = `$${SITE_VISIT_OVER.toLocaleString("en-US")}`;
+  const cta = visitFirst ? (es ? tr(locale, "Get my price") : "Get my price") : es ? "Ordenar ahora" : "Order now";
+  const steps = visitFirst
+    ? s.remote
+      ? (es ? [["Responda unas preguntas", "Vea su precio estimado en un minuto."], ["Le enviamos el precio firme", "Un especialista revisa su pedido en línea, sin llamadas."], ["Apruébelo y empezamos", "Sin depósito: paga cuando aprueba el precio."]]
+        : [["Answer a few questions", "See your estimated price in about a minute."], ["We send your firm price", "A specialist reviews your order online — no call."], ["Approve it and we start", "No deposit: you pay once you approve the price."]])
+      : (es ? [["Responda unas preguntas", "Vea su rango de precio en un minuto."], ["Un profesional confirma el precio firme", "En una visita gratis al sitio."], ["Apruébelo y empezamos", "Sin depósito: paga cuando aprueba el precio."]]
+        : [["Answer a few questions", "See your price range in about a minute."], ["A pro confirms the firm price", "On a free visit to the site."], ["Approve it and we start", "No deposit: you pay once you approve the price."]])
     : tech
       ? (es ? [["Responda unas preguntas", "Toma alrededor de un minuto."], [`Vea su precio y pague el ${pct}`, "Ese depósito inicia el trabajo. El resto se paga en la entrega."], ["Lo construimos y entregamos", "Lo probamos con usted antes de lanzarlo. Usted es dueño de todo."]]
         : [["Answer a few questions", "It takes about a minute."], [`See your price and pay ${pct}`, "That deposit starts the work. The rest is due on delivery."], ["We build and deliver it", "Tested with you before launch. You own everything."]])
@@ -87,8 +95,9 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
           <Link href="/services/junk-removal" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🚛 <b>Want us to do the lifting?</b> Book full-service Junk Removal instead.</Link>
         )}
         {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
+        {big && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{s.remote ? `Over ${limit}? No deposit — a specialist sends your firm price online first.` : `Over ${limit}? No deposit — a free site visit confirms the firm price first.`}</p>}
         <Link href={book} className="btn-primary mt-5 w-full py-3">{cta}</Link>
-        <p className="mt-4 text-xs text-ink-soft">{tech ? (es ? `Un depósito del ${pct} inicia el trabajo; el resto se paga en la entrega. Usted es dueño de todo lo que le entregamos.` : `A ${pct} deposit starts the work — pay the rest on delivery. You own everything we deliver.`) : BRAND.promise}</p>
+        <p className="mt-4 text-xs text-ink-soft">{tech ? (es ? `Hasta ${limit}, un depósito del ${pct} inicia el trabajo; el resto se paga en la entrega. Usted es dueño de todo lo que le entregamos.` : `Up to ${limit}, a ${pct} deposit starts the work — pay the rest on delivery. You own everything we deliver.`) : BRAND.promise}</p>
       </aside>
 
       {/* the end of the page leads into ordering, so nobody has to scroll back up */}

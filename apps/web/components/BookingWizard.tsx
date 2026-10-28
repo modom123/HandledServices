@@ -28,6 +28,8 @@
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  * UPDATED : 2026-10-27_2100 UTC — customers no longer see what the pro earns (internal; it lives in the Hub's job money view).
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 (SITE_VISIT_OVER): no deposit; the order becomes a free site visit (remote: a free
+ *           online scope review, no call) with a note under the price.
  * UPDATED : 2026-10-28_1800 UTC — `commercial` (from /book?for=business): the order starts as a company order.
  * UPDATED : 2026-10-28_1730 UTC — step 1 (pick a service): search + one category at a time instead of all 101 services in one list.
  * UPDATED : 2026-10-28_1700 UTC — no consultation-only mode: Business & Technology shows its price and is ordered with a deposit
@@ -42,7 +44,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange,
+  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
 } from "@handled/core";
@@ -176,7 +178,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
   const bigJob = svc ? sizeNeedsSiteVisit(svc.slug, answers) : null;
   // remote work (websites, AI…) is never a visit: it is priced from the answers and ordered with a deposit
-  const siteVisit = !quote && Boolean(svc?.siteVisit || bigJob || (ai?.action === "site_visit" && !svc?.remote));
+  // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
+  const overLimit = Boolean(est && !svc?.siteVisit && overDepositLimit(est.point));
+  const siteVisit = !quote && Boolean(svc?.siteVisit || bigJob || overLimit || (ai?.action === "site_visit" && !svc?.remote));
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
   // required measurements (yard sq ft, weight, height…) must be filled in before the price step
@@ -418,12 +422,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Book free consultation" : "Book free site visit") : (() => {
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
                 // what's charged today under the plan this booking actually gets
                 const dp = depositPolicy(svc!.slug, total, date), bn = bookNowPolicy(svc!.slug, total);
                 const p = resolvePlan(plan, dp.allowed, bn.allowed);
@@ -440,6 +444,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         <aside className="card h-fit lg:sticky lg:top-24">
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
           <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
+          {overLimit && !quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{t(svc.remote ? "Jobs over $2,500 start with a free scope review — no deposit. A specialist sends the firm price online, and you pay once you approve it." : "Jobs over $2,500 start with a free site visit — no deposit. A pro confirms the firm price, and you pay once you approve it.")}</p>}
           {siteVisit && !svc.remote && <a href={`/quote-request?service=${svc.slug}`} className="mt-1 block text-sm text-brand underline">{es ? "O reciba hasta 3 cotizaciones firmes en 24 horas" : "Or get up to 3 firm quotes in 24 hours"}</a>}
           {quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{es ? `Cotización firme de ${quote.pro}: ${money(quote.price)}, todo incluido. ${quote.pro} recibe el trabajo primero.` : `Firm quote from ${quote.pro}: ${money(quote.price)}, all-in. ${quote.pro} gets the job first.`}</p>}
           {proOffers.length > 0 && (
@@ -538,7 +543,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ {t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free video consultation — a specialist confirms the scope and firm price, then you pay to start the work." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
+            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
           </p>
         </aside>
       )}

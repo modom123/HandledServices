@@ -55,7 +55,7 @@ export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolea
             );
           })}
         </div>
-        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Vea su precio en un minuto según lo que necesita; un depósito del 25% inicia el trabajo y el resto se paga en la entrega." : "See your price in a minute based on what you need; a 25% deposit starts the work and the rest is due on delivery."}</p>}
+        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Vea su precio en un minuto. Hasta $2,500, un depósito del 25% inicia el trabajo; los proyectos más grandes reciben primero una revisión gratis en línea, sin depósito." : "See your price in a minute. Up to $2,500, a 25% deposit starts the work; bigger projects get a free online scope review first — no deposit."}</p>}
       </div>
     </section>
   );
