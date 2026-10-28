@@ -188,7 +188,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
-  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit));
+  // remote work (websites, AI…) is never a visit: it is ordered with a deposit on the price from the answers
+  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
@@ -580,8 +581,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const ranked = rankContractors((pros ?? []) as Contractor[], job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
   if (!ranked.length) {
     if (getService(job.service_slug)?.remote) {
-      // websites, AI, formation, consulting: no specialist yet — a staff member holds the free consultation
-      await raiseAlert("no_pros", "warn", `${job.ref}: consultation for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. Email ${job.contact_name} (${job.contact_email}) to schedule the free video consultation for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}), or assign it to a specialist.`, job.id);
+      // websites, AI, formation, consulting: no specialist yet — staff start the paid project
+      await raiseAlert("no_pros", "warn", `${job.ref}: paid project for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. ${job.contact_name} (${job.contact_email}) ordered it with a deposit for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}). Start the work and email them the kickoff details, or assign it to a specialist.`, job.id);
       return { offers: 0, reason: "no eligible pros" };
     }
     await raiseAlert("no_pros", "critical", `${job.ref}: no eligible pro`, `No approved, insured pro who works ${job.scheduled_date ?? "that day"} (${job.time_window}) within driving distance of ${job.zip} for ${job.service_slug}. Assign manually, ask a pro to take it, or recruit.`, job.id);

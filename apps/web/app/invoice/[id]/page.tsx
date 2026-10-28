@@ -9,10 +9,11 @@
  *           Printable.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" plan note; the pay-in-full 5% saving as its own line.
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no estimate before the consultation.
+ * UPDATED : 2026-10-28_1700 UTC — consultation-only wording removed (Business & Technology is ordered with a deposit).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BRAND, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, consultOnly, estimate, getService, money, type Job } from "@handled/core";
+import { BRAND, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, estimate, getService, money, type Job } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer, isStaff } from "@/lib/auth";
 import { validInvoiceToken } from "@/lib/invoice";
@@ -87,7 +88,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
       <table className="my-6 w-full">
         <tbody>
           {lines.map((l) => <tr key={l.label} className="border-b border-line"><td className="py-2">{l.label}</td><td className="py-2 text-right">{money(l.amount)}</td></tr>)}
-          {!lines.length && <tr><td className="py-2 text-ink-soft">{consultOnly(job.service_slug) ? "Scope and firm price are set on the free video consultation." : <>Firm price issued after the free site visit (estimate {money(job.estimate_low)} – {money(job.estimate_high)}).</>}</td><td /></tr>}
+          {!lines.length && <tr><td className="py-2 text-ink-soft"><>Firm price issued after the free site visit (estimate {money(job.estimate_low)} – {money(job.estimate_high)}).</></td><td /></tr>}
           <tr className="font-bold"><td className="py-2">Total</td><td className="py-2 text-right">{money(price)}</td></tr>
           {Number(job.amount_paid) > 0 && <tr><td className="py-1 text-ink-soft">Paid {fmtD(job.paid_at)}</td><td className="py-1 text-right">−{money(Number(job.amount_paid))}</td></tr>}
           {Number(job.amount_refunded) > 0 && <tr><td className="py-1 text-ink-soft">Refunded</td><td className="py-1 text-right">{money(Number(job.amount_refunded))}</td></tr>}

@@ -6,8 +6,10 @@
  *           services), with Handled itself as the proof. Used on both home page looks, the business page and /technology.
  *           English / Spanish.
  * UPDATED : 2026-10-23_1100 UTC — no prices on the pillars (Business & Technology is consultation-only); each card says Free consultation.
+ * UPDATED : 2026-10-28_1700 UTC — ordered, not consulted: each pillar shows its starting price and "Order →".
  */
 import Link from "next/link";
+import { priceHint } from "@handled/core";
 
 export const BUILD_PILLARS = [
   {
@@ -27,7 +29,7 @@ export const BUILD_PILLARS = [
   },
 ] as const;
 
-/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. No prices: each is scoped on a free consultation. */
+/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. Each shows its starting price and links to its page, where it is ordered with a deposit. */
 export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolean }) {
   return (
     <section className={compact ? "border-y border-line bg-paper py-14" : "py-2"}>
@@ -48,12 +50,12 @@ export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolea
                 <div className="text-3xl">{p.icon}</div>
                 <div className="mt-3 text-lg font-bold">{txt.t}</div>
                 <p className="mt-1.5 flex-1 text-sm leading-relaxed text-ink/90">{txt.d}</p>
-                <div className="mt-4 text-sm font-bold text-brand">{es ? "Consulta gratis →" : "Free consultation →"}</div>
+                <div className="mt-4 text-sm font-bold text-brand">{priceHint(p.slug, es ? "es" : "en")} · {es ? "Ordenar →" : "Order →"}</div>
               </Link>
             );
           })}
         </div>
-        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en una consulta gratis por video." : "Every solution is different: scope and price are set on a free video consultation."}</p>}
+        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Vea su precio en un minuto según lo que necesita; un depósito del 25% inicia el trabajo y el resto se paga en la entrega." : "See your price in a minute based on what you need; a 25% deposit starts the work and the rest is due on delivery."}</p>}
       </div>
     </section>
   );

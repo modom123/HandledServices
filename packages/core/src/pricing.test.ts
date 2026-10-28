@@ -403,11 +403,13 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
   assert.equal(a.contractor.id, "y", "specialist ranks first");
 });
 
-test("business & technology: remote, consultation first, state fees at cost", async () => {
+test("business & technology: remote, ordered with a deposit, state fees at cost", async () => {
   const { buildAvailability } = await import("./availability.ts");
   const remote = SERVICES.filter((s) => s.category === "business");
   assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "business-consulting", "business-formation", "business-operating-system", "website-design"]);
-  for (const s of remote) assert.ok(s.remote && s.siteVisit && s.onDemand, `${s.slug}: remote, free consultation, no rush fee`);
+  for (const s of remote) assert.ok(s.remote && !s.siteVisit && s.onDemand, `${s.slug}: remote, ordered with a price (no consultation), no rush fee`);
+  const { bookNowPolicy } = await import("./pricing.ts");
+  assert.ok(bookNowPolicy("website-design", 1500).allowed, "a deposit starts the work");
   // a Seattle specialist can take a Detroit website job: no driving radius or service area for remote work
   const far: Contractor = {
     id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design"], service_zips: ["98101"], status: "approved",
@@ -416,7 +418,7 @@ test("business & technology: remote, consultation first, state fees at cost", as
   } as Contractor;
   assert.equal(rankContractors([far], { service_slug: "website-design", zip: "48201", scheduled_date: null, price_final: 1500, lat: 42.33, lng: -83.05 }).length, 1);
   assert.equal(rankContractors([{ ...far, trades: ["handyman"] }], { service_slug: "handyman", zip: "48201", scheduled_date: null, price_final: 200, lat: 42.33, lng: -83.05 }).length, 0, "on-site work still needs the radius");
-  // a consultation inside 48 hours isn't a rush job
+  // a start inside 48 hours isn't a rush job
   const site = estimate({ slug: "website-design", answers: defaultAnswers(getService("website-design")!), frequency: "once", rush: true });
   assert.ok(!site.items.some((i) => /rush/i.test(i.label)));
   // the state's filing fee is shown but billed at cost ($0 in our price)
@@ -2162,7 +2164,7 @@ test("marketplace: pros price 80–175%, Handled's commission rules hold at ever
 
 // ─── recruiting intake (ats.ts) & consultation-only pricing ───────────────────
 import { inferSpecialties, inferTrades, parseCandidatesCsv, parseIndeedApply } from "./ats.ts";
-import { consultOnly, priceHint } from "./pricing.ts";
+import { priceHint } from "./pricing.ts";
 
 test("inferTrades reads job titles and jobMeta", () => {
   assert.deepEqual(inferTrades("Independent House Cleaner — Pick Your Own Jobs"), ["cleaning"]);
@@ -2279,10 +2281,8 @@ test("parseCandidatesCsv handles Indeed-style exports", () => {
   assert.equal(parseCandidatesCsv("Phone\n123").candidates.length, 0);
 });
 
-test("Business & Technology is consultation-only", () => {
-  assert.equal(consultOnly("website-design"), true);
-  assert.equal(consultOnly("house-cleaning"), false);
-  assert.equal(priceHint("website-design"), "Free consultation");
+test("Business & Technology shows a starting price (ordered, not consulted)", () => {
+  assert.match(priceHint("website-design"), /^From \$/);
 });
 
 test("carpentry: licensed finish work priced by size; decks and exterior doors live in their own services", async () => {
