@@ -34,6 +34,7 @@
  *                                 and a draft answer (for Unibox) in the alert and the lead's history.
  * UPDATED : 2026-10-20_0015 UTC — logCall (Call desk): saves the outcome, sets when to call again, stops email for a
  *           no / do-not-contact (Instantly block list), alerts the team on an interested business.
+ * UPDATED : 2026-10-28_1800 UTC — leadBooked(): a lead who orders online (no proposal form any more) is marked converted.
  */
 import "server-only";
 import { z } from "zod";
@@ -435,6 +436,18 @@ export async function recordBizLeadClick(token: string) {
 }
 
 /** They set up an account from the email: credit the lead, put the promised pilot on the account, stop emailing. */
+/** A sales-engine lead ordered a job (their /business?lead=… link was carried to the order): converted, stop emailing them. */
+export async function leadBooked(token: string, job: { id: string; ref: string; service_slug: string; contact_email: string }) {
+  if (!/^[a-z0-9]{8,40}$/.test(token)) return null;
+  const { data: lead } = await db().from("biz_leads").select("id, email, segment, status").eq("token", token).maybeSingle();
+  if (!lead) return null;
+  if (lead.status !== "converted") await db().from("biz_leads").update({ status: "converted" }).eq("id", lead.id);
+  if (lead.email) await blockInInstantly(lead.email).catch(() => {});
+  await event(lead.id, "booked", `${job.ref} · ${job.service_slug}`);
+  await raiseAlert("sales", "info", `A business lead ordered ${job.ref}`, `From the sales engine (${lead.segment}): ${job.contact_email} ordered ${job.service_slug} online with a deposit.`, job.id);
+  return lead.id as string;
+}
+
 export async function leadConverted(token: string, accountId: string) {
   if (!/^[a-z0-9]{8,40}$/.test(token)) return null;
   const { data: lead } = await db().from("biz_leads").select("id, email, segment").eq("token", token).maybeSingle();

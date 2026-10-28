@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  * UPDATED : 2026-10-27_2100 UTC — customers no longer see what the pro earns (internal; it lives in the Hub's job money view).
+ * UPDATED : 2026-10-28_1800 UTC — `commercial` (from /book?for=business): the order starts as a company order.
  * UPDATED : 2026-10-28_1730 UTC — step 1 (pick a service): search + one category at a time instead of all 101 services in one list.
  * UPDATED : 2026-10-28_1700 UTC — no consultation-only mode: Business & Technology shows its price and is ordered with a deposit
  *           like every service (and the AI check never turns remote work into a visit).
@@ -82,7 +83,7 @@ export interface BookedQuote { request: string; bid: string; price: number; pro:
 /** One of the signed-in customer's saved homes (My homes). Entry details stay on the server. */
 export interface HomeChoice { id: string; label: string; address: string; city: string; state: string; zip: string; hasAccess: boolean }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null }: { quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null, commercial = false }: { commercial?: boolean; quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -108,7 +109,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [access, setAccess] = useState("");
   const [form, setForm] = useState(business
     ? { contact_name: business.contact.name, contact_email: business.contact.email, contact_phone: business.contact.phone, address: business.address, city: business.city, state: business.state, zip: business.zip, customer_type: "commercial", company_name: business.company }
-    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: "residential", company_name: "" });
+    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: commercial && !startHome ? "commercial" : "residential", company_name: "" });
   const pickHome = (h: HomeChoice | null) => {
     setHomeId(h?.id ?? null);
     if (h) { setSaveHome(false); setForm((f) => ({ ...f, address: h.address, city: h.city, state: h.state, zip: h.zip, customer_type: "residential" })); }

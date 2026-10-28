@@ -15,23 +15,29 @@
  * UPDATED : 2026-10-06_0841 UTC — Request a proposal is a 3-step form (company → scope of work → timing) with a review
  *           screen (ProposalForm); "How it works" and the form share one 4-step process (RFP_NEXT_STEPS); beside the
  *           form, "Have these handy" so the scope is right the first time.
+ * UPDATED : 2026-10-28_1800 UTC — order, don't call: businesses order online with a 25% deposit like everyone else (hero,
+ *           industry cards and the closing section all lead to /book?for=business); the Request-a-proposal form, the
+ *           "we call you / walk the site" steps and "Have these handy" are gone. Sales-email leads (?lead=) are carried
+ *           by Attribution and marked converted when they book. Business services trimmed to 8 facility groups (top 3 each);
+ *           events, websites/automation and the full list are one link away.
  */
 import Link from "next/link";
-import { BUSINESS_GROUPS, INDUSTRIES, RFP_NEXT_STEPS, businessServices, priceHint } from "@handled/core";
-import { ProposalForm } from "@/components/ProposalForm";
+import { BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
 import { ThemedIcon } from "@/components/Glyph";
 
-export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, one prepaid monthly invoice." };
+export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, ordered online with a 25% deposit." };
 
-const PROOF = ["One vendor, every site", "Prepaid monthly invoice", "Photo proof on every visit", "Backup crews built in"];
-const JUMP: [string, string][] = [["industries", "Who we serve"], ["services", "Services"], ["how", "How it works"], ["quote", "Get a proposal"]];
+const PROOF = ["One vendor, every site", "Order online, 25% to start", "Photo proof on every visit", "Backup crews built in"];
+const JUMP: [string, string][] = [["industries", "Who we serve"], ["services", "Services"], ["how", "How it works"], ["order", "Order now"]];
+const ORDER = "/book?for=business";
+// the facility needs businesses order most; events, websites/automation and everything else have their own pages
+const SHOW = ["janitorial", "exterior", "maintenance", "turnovers", "cleanouts", "courier", "transport", "security"];
 
-const HANDY = [
-  "Site address(es) and roughly how big each one is",
-  "Which services, how often, and anything specific (floors, restrooms, areas)",
-  "When crews can be on site (hours, alarm, keys, loading dock)",
-  "What your current vendor does and costs — and what isn’t working",
-  "Insurance or vendor onboarding requirements (COI, W-9, badges)",
+const STEPS = [
+  { t: "Pick a service", b: "Choose it from the list below, or search. Several sites or services? Order each one — they all land on one account." },
+  { t: "See your price, pay 25%", b: "Answer a few questions and get an exact price. A 25% deposit books it; the rest is charged when the work is done." },
+  { t: "We do the work", b: "A vetted, insured crew on the day you chose, with before-and-after photos in your account." },
+  { t: "Make it recurring", b: "Set it weekly, every 2 weeks or monthly and it books itself. Accounts with a track record can move to monthly invoicing." },
 ];
 
 const FEATURES = [
@@ -40,11 +46,10 @@ const FEATURES = [
   ["Backup crews built in", "If a pro can’t make it, dispatch re-routes to the next qualified crew automatically."],
   ["After-hours & weekends", "Cleaning and maintenance scheduled around your open hours — nights, early mornings and weekends."],
   ["PO numbers & cost centers", "Invoices split by location, department or project so accounting can close the month in minutes."],
-  ["One point of contact", "One account team and one number for every service — no vendor juggling."],
+  ["One account for everything", "Every service, site and invoice in one login — no vendor juggling."],
 ];
 
-export default async function BusinessPage({ searchParams }: { searchParams: Promise<{ for?: string; lead?: string }> }) {
-  const { for: industry, lead } = await searchParams;
+export default function BusinessPage() {
   return (
     <div>
       {/* hero */}
@@ -55,7 +60,7 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
             <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Commercial cleaning and facilities, one vendor.</h1>
             <p className="mt-4 max-w-xl text-lg text-white/80">Offices, property managers, clinics, retail and restaurants use one account for janitorial, move-out and turnover cleans — plus grounds, repairs, courier, transportation and events.</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="#quote" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Request a proposal</a>
+              <Link href={ORDER} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Order now</Link>
               <a href="#services" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See business services</a>
             </div>
           </div>
@@ -67,21 +72,22 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
 
       <nav aria-label="On this page" className="sticky top-16 z-20 overflow-x-auto border-b border-line bg-paper/95 backdrop-blur">
         <div className="wrap flex min-w-max items-center gap-1 py-2 text-sm font-semibold">
-          {JUMP.map(([id, label]) => <a key={id} href={`#${id}`} className={id === "quote" ? "ml-1 rounded-full bg-brand px-4 py-1.5 text-white" : "rounded-full px-3 py-1.5 text-ink hover:bg-white"}>{label}</a>)}
+          {JUMP.map(([id, label]) => <a key={id} href={`#${id}`} className={id === "order" ? "ml-1 rounded-full bg-brand px-4 py-1.5 text-white" : "rounded-full px-3 py-1.5 text-ink hover:bg-white"}>{label}</a>)}
         </div>
       </nav>
 
       {/* industries */}
       <section id="industries" className="wrap scroll-mt-32 py-10 sm:py-14">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who we serve</h2>
-        <p className="mt-2 text-ink-soft">Pick your industry and we’ll pre-fill the services businesses like yours book most.</p>
+        <p className="mt-2 text-ink-soft">What businesses like yours order most — tap one to get your price and order it.</p>
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {INDUSTRIES.map((i) => (
-            <Link key={i.id} href={`/business?for=${i.id}#quote`} scroll={false} className={`card flex items-center gap-2 p-3 transition sm:flex-col sm:items-start sm:gap-0 sm:p-4 hover:border-brand ${industry === i.id ? "border-brand bg-brand-tint" : ""}`}>
-              <ThemedIcon icon={i.icon} size="md" emojiClass="text-2xl sm:text-3xl" />
-              <span className="text-sm font-semibold leading-tight sm:mt-2 sm:text-base">{i.name}</span>
-              <span className="mt-1 hidden text-sm text-ink-soft sm:block">{businessServices(i.slugs).slice(0, 3).map((s) => s.name).join(" · ")}</span>
-            </Link>
+            <div key={i.id} className="card p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:block"><ThemedIcon icon={i.icon} size="md" emojiClass="text-2xl sm:text-3xl" /><span className="text-sm font-semibold leading-tight sm:mt-2 sm:block sm:text-base">{i.name}</span></div>
+              <ul className="mt-2 space-y-1 text-sm">{businessServices(i.slugs).slice(0, 3).map((x) => (
+                <li key={x.slug}><Link href={`/book?service=${x.slug}&for=business`} className="text-brand hover:underline">{x.name} →</Link></li>
+              ))}</ul>
+            </div>
           ))}
         </div>
       </section>
@@ -90,15 +96,15 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
       <section id="services" className="scroll-mt-32 border-y border-line bg-paper-deep py-10 sm:py-14">
         <div className="wrap">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Business services</h2>
-          <p className="mt-2 text-ink-soft">Recurring contracts or one-off projects, all on one account and one invoice.</p>
+          <p className="mt-2 text-ink-soft">What facilities order most, as recurring visits or one-off jobs. Open any service to see what's included and order it.</p>
           <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {BUSINESS_GROUPS.map((g) => {
+            {BUSINESS_GROUPS.filter((g) => SHOW.includes(g.id)).map((g) => {
               const list = businessServices(g.slugs);
               const row = (x: (typeof list)[number]) => (
                 <li key={x.slug}>
                   <Link href={`/services/${x.slug}`} className="flex items-center justify-between gap-3 py-2 hover:text-brand">
                     <span className="inline-flex items-center gap-1.5"><ThemedIcon icon={x.icon} emojiClass="" />{x.name}</span>
-                    <span className="shrink-0 text-xs text-ink-soft">{x.category === "events" ? "by quote" : priceHint(x.slug)}</span>
+                    <span className="shrink-0 text-xs text-ink-soft">{priceHint(x.slug)}</span>
                   </Link>
                 </li>
               );
@@ -107,25 +113,20 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
                   <div className="flex items-center gap-2"><ThemedIcon icon={g.icon} size="md" emojiClass="text-2xl" /><h3 className="text-lg font-bold leading-tight">{g.title}</h3></div>
                   <p className="mt-1 text-sm text-ink-soft">{g.blurb}</p>
                   <ul className="mt-3 divide-y divide-line border-t border-line text-sm">{list.slice(0, 3).map(row)}</ul>
-                  {list.length > 3 && (
-                    <details className="text-sm">
-                      <summary className="cursor-pointer border-t border-line py-2 font-semibold text-brand">All {list.length} services</summary>
-                      <ul className="divide-y divide-line border-t border-line">{list.slice(3).map(row)}</ul>
-                    </details>
-                  )}
                 </div>
               );
             })}
           </div>
+          <p className="mt-5 text-sm text-ink-soft">Also: <Link href="/events" className="font-semibold text-brand">corporate events & catering</Link> · <Link href="/technology" className="font-semibold text-brand">websites & automation</Link> · <Link href="/services" className="font-semibold text-brand">every service</Link></p>
         </div>
       </section>
 
       {/* how it works */}
       <section id="how" className="wrap scroll-mt-32 py-10 sm:py-14">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
-        <p className="mt-2 text-ink-soft">From your request to your first visit, usually within a week.</p>
+        <p className="mt-2 text-ink-soft">Ordered online in a few minutes, on the schedule you pick.</p>
         <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {RFP_NEXT_STEPS.map((s, i) => (
+          {STEPS.map((s, i) => (
             <li key={s.t} className="card flex gap-3 py-4 lg:block">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</div>
               <div><div className="font-semibold lg:mt-3">{s.t}</div><p className="mt-1 text-sm text-ink-soft">{s.b}</p></div>
@@ -134,24 +135,22 @@ export default async function BusinessPage({ searchParams }: { searchParams: Pro
         </ol>
       </section>
 
-      {/* features + form */}
-      <section id="quote" className="scroll-mt-32 border-t border-line bg-paper-deep py-10 sm:py-14">
-        <div className="wrap grid gap-10 lg:grid-cols-[1fr_1.15fr]">
+      {/* order */}
+      <section id="order" className="scroll-mt-32 border-t border-line bg-paper-deep py-10 sm:py-14">
+        <div className="wrap grid gap-10 lg:grid-cols-[1.15fr_1fr]">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Request a proposal</h2>
-            <p className="mt-2 text-ink-soft">Three short steps. We call you within one business day to confirm the scope, then walk the site and send one fixed price per site.</p>
-            <div className="mt-5 rounded-2xl border border-line bg-white p-4">
-              <div className="font-semibold">Have these handy (nice to have, not required)</div>
-              <ul className="mt-2 space-y-1.5 text-sm text-ink-soft">{HANDY.map((h) => <li key={h} className="flex gap-2"><span className="text-brand">•</span>{h}</li>)}</ul>
-            </div>
-            <div className="mt-6 font-semibold">Built for facilities teams</div>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Order for your business</h2>
+            <p className="mt-2 text-ink-soft">Pick the service, get your exact price in about a minute and pay a 25% deposit to book it. Your order starts as a business order — just add your company name.</p>
+            <Link href={ORDER} className="btn-primary mt-5 inline-block px-8 py-3 text-base">Order now</Link>
+          </div>
+          <div>
+            <div className="font-semibold">Built for facilities teams</div>
             <div className="mt-3 space-y-2">
               {FEATURES.map(([t, b]) => (
                 <div key={t} className="flex gap-3"><span className="mt-0.5 text-brand">✓</span><div><div className="font-semibold">{t}</div><p className="hidden text-sm text-ink-soft sm:block">{b}</p></div></div>
               ))}
             </div>
           </div>
-          <ProposalForm key={industry ?? ""} industry={industry ?? ""} lead={lead && /^[a-z0-9]{8,40}$/.test(lead) ? lead : null} />
         </div>
       </section>
 

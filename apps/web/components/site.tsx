@@ -25,6 +25,7 @@
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  * UPDATED : 2026-10-27_1800 UTC — Careers (/careers) in the For Pros menu and the footer.
  * UPDATED : 2026-10-28_1630 UTC — Business & Technology opens its own page (/technology) from the menu and footer.
+ * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -65,7 +66,7 @@ export async function SiteHeader() {
         { href: "/events", label: t("Parties & events"), icon: "🎉" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
       ],
-      footer: { href: "/business#quote", label: es ? "Pida una propuesta →" : "Request a proposal →" },
+      footer: { href: "/book?for=business", label: es ? "Ordenar para su negocio →" : "Order for your business →" },
     },
     {
       id: "pros", label: es ? "Para profesionales" : "For Pros",
@@ -98,7 +99,6 @@ export async function SiteHeader() {
     },
   ];
   const links = [
-    { href: "/about", label: es ? "Quiénes somos" : "About us", icon: "ℹ️" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];
   return (
@@ -158,7 +158,6 @@ export async function SiteFooter() {
           { href: "/services", label: es ? `Los ${SERVICES.length} servicios →` : `All ${SERVICES.length} services →` },
         ])}
         {col(t("Company"), [
-          { href: "/about", label: es ? "Quiénes somos" : "About us" },
           { href: "/network", label: es ? "Red Handled" : "Handled Network" },
           { href: "/business", label: t("Commercial accounts") },
           { href: "/events", label: t("Parties & events") },

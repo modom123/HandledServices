@@ -324,6 +324,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 export async function onBooked(job: Job, paymentUrl: string | null) {
   // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
   await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
+  // a business lead from the sales engine ordered: mark it converted (their /business?lead= link rode along in attribution)
+  const bizLead = (job.attribution as Record<string, string> | null)?.biz_lead;
+  if (bizLead) await (await import("./biz-leads")).leadBooked(bizLead, job).catch((e) => console.error("[biz-leads]", e));
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
   const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
