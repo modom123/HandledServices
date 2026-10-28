@@ -26,7 +26,7 @@ import { jobTimeZone, localDate, onCall, serviceText, t as tr, type ProPolicy } 
 import { getLocale } from "@/lib/locale";
 import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
-import { boardFor } from "@/lib/board";
+import { boardFor, boardPreview } from "@/lib/board";
 import { ClaimButton } from "@/components/JobBoard";
 import { balanceOf } from "@/lib/rewards";
 
@@ -88,6 +88,7 @@ export default async function ProHome() {
   const standby = await standbyFor(v.contractorId!).catch(() => []);
   const policy = await getPolicy();
   const board = me?.status === "approved" ? await boardFor(v.contractorId!, es ? "es" : "en") : [];
+  const preview = me && me.status !== "approved" ? await boardPreview(v.contractorId!, es ? "es" : "en").catch(() => []) : [];
   const pts = await balanceOf(v.contractorId!).catch(() => ({ available: 0, pending: 0, lifetime: 0 }));
   const list = (jobs ?? []) as Job[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
@@ -199,6 +200,23 @@ export default async function ProHome() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+      {preview.length > 0 && (
+        <section>
+          <h2 className="font-bold">{es ? "Trabajos cerca de usted" : "Jobs near you"}</h2>
+          <p className="mb-3 text-sm text-ink-soft">{es
+            ? "Así se ve el trabajo en su zona. Podrá tomarlos en cuanto termine su configuración y se apruebe su verificación de antecedentes."
+            : "Here's the work in your area. You can take jobs like these as soon as your setup is done and your background check clears."}</p>
+          <div className="space-y-3">
+            {preview.map((b) => (
+              <div key={b.job_id} className="card flex flex-wrap items-center justify-between gap-4 opacity-90">
+                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span></div>
+                  <div className="text-sm text-ink-soft">{b.city} {b.zip}{b.miles != null ? ` · ${b.miles} mi` : ""} · {b.when}</div></div>
+                <Link href="/pro/onboarding" className="btn-ghost text-sm">{es ? "🔒 Termine la configuración" : "🔒 Finish setup to take it"}</Link>
+              </div>
+            ))}
           </div>
         </section>
       )}

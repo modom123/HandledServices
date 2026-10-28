@@ -75,8 +75,8 @@ export default async function ProsPage() {
     ? [["pay", "Ganancias"], ["how", "Cómo funciona"], ["get", "Lo que recibe"], ["grow", "Crecer"], ["requirements", "Requisitos"], ["faq", "Preguntas"]]
     : [["pay", "Pay"], ["how", "How it works"], ["get", "What you get"], ["grow", "Grow"], ["requirements", "Requirements"], ["faq", "FAQ"]];
   const STEPS = es
-    ? [["Postúlese", "5 minutos: oficios, zona, seguro y dos referencias."], ["Verificación", "Llamada, prueba de habilidades, documentos y antecedentes. Respondemos en 2 días hábiles."], ["Acepte trabajos y cobre", "Ofertas prepagadas en su zona; pago cada lunes."]]
-    : [["Apply", "5 minutes: your trades, area, insurance and two references."], ["Get vetted", "A call, a skills check, documents and a background check. We reply within 2 business days."], ["Take jobs, get paid", "Prepaid offers in your area; paid every Monday."]];
+    ? [["Regístrese", "2 minutos: a qué se dedica y dónde. Su cuenta se abre de inmediato, sin entrevista ni referencias."], ["Identificación y antecedentes", "Foto de su identificación, autorización para la verificación, W-9, acuerdo y su pago. Unos 10 minutos desde el teléfono."], ["Acepte trabajos y cobre", "Vea trabajos cerca mientras se verifica; tómelos en cuanto se apruebe. Pago cada lunes."]]
+    : [["Sign up", "2 minutes: what you do and where. Your account opens right away, with no interview and no references."], ["ID + background check", "A photo of your ID, consent to the check, W-9, agreement and payout. About 10 minutes on your phone."], ["Take jobs, get paid", "See jobs near you while the check runs; take them once it clears. Paid every Monday."]];
   const trades: TradeReq[] = TRADES.flatMap((trade) => {
     const p = TRADE_PROFILES[trade.id];
     if (!p) return [];
@@ -95,7 +95,7 @@ export default async function ProsPage() {
     [t("When do I get paid?"), t("Weekly, for every job that passed photo review. Each job has its own statement.")],
     [t("Can I turn down offers?"), es ? "Sí, cuando quiera y sin costo. Rechazar nunca afecta su nivel, sus puntos ni las ofertas futuras." : "Yes, anytime, for free. Passing never affects your tier, your points or future offers."],
     [es ? "¿Necesito todo el seguro antes de postularme?" : "Do I need every policy before I apply?", es ? "No. Postúlese primero; le decimos exactamente qué cobertura necesita su oficio y le conectamos con corredores." : "No. Apply first; we’ll tell you exactly what your trade needs and connect you with brokers."],
-    [es ? "¿Qué tan rápido puedo empezar?" : "How fast can I start?", es ? `Respondemos en 2 días hábiles. Cuando sus documentos están aprobados, recibe ofertas de prueba (sus primeros ${PROBATION.jobs} trabajos, de menos de $${PROBATION.maxJobPrice}).` : `We reply within 2 business days. Once your documents clear, you get probation offers (your first ${PROBATION.jobs} jobs, each under $${PROBATION.maxJobPrice}).`],
+    [es ? "¿Qué tan rápido puedo empezar?" : "How fast can I start?", es ? `Su cuenta se abre en cuanto se registra. La mayoría de las verificaciones de antecedentes tardan de 1 a 3 días; mientras tanto ve los trabajos cerca de usted. Cuando se aprueba, recibe ofertas de prueba (sus primeros ${PROBATION.jobs} trabajos, de menos de $${PROBATION.maxJobPrice}).` : `Your account opens the moment you sign up. Most background checks take 1 to 3 days, and you can see jobs near you while it runs. Once it clears, you get probation offers (your first ${PROBATION.jobs} jobs, each under $${PROBATION.maxJobPrice}).`],
     [t("What if a customer isn’t happy?"), t("Our team handles the customer. You get the first chance to fix it, and the rules are spelled out in your contractor agreement.")],
   ];
   return (
@@ -233,7 +233,7 @@ export default async function ProsPage() {
       <section id="apply" className="grid scroll-mt-32 gap-8 lg:grid-cols-2">
         <div>
           <h2 className="text-2xl font-bold">{es ? "Postúlese" : "Apply"}</h2>
-          <p className="mt-2 text-ink-soft">{t("We review every application within 2 business days. Don’t have every policy yet? Apply anyway; we’ll tell you exactly what you need and point you to brokers.")}</p>
+          <p className="mt-2 text-ink-soft">{t("Your account opens right away. Don’t have every policy yet? Sign up anyway; your checklist shows exactly what your trade needs and points you to brokers.")}</p>
           <ul className="mt-4 space-y-1 text-sm text-ink-soft">{STEPS.map(([h, b], i) => <li key={h}><b className="text-ink">{i + 1}. {h}</b> — {b}</li>)}</ul>
         </div>
         <ApplyForm locale={l} />

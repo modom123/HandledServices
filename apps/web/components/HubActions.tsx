@@ -495,13 +495,14 @@ export function RecruitingRowActions({ appId, contractorId, stage }: { appId: st
   );
 }
 
-export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; autoActivate: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
+export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instantSignup: boolean; autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; autoActivate: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
   const router = useRouter();
   const [s, setS] = useState({ ...initial, reminderText: initial.reminderDays.join(", ") });
   const [msg, setMsg] = useState("");
   return (
     <div className="card space-y-3 text-sm">
       <div className="font-semibold">Automation</div>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={s.instantSignup} disabled={!canEdit} onChange={(e) => setS({ ...s, instantSignup: e.target.checked })} /> Instant sign-up (Roadie-style): open an account for every applicant the AI doesn’t flag as a decline, with no interview. The ID + background check is the gate (off = score and interview rules below)</label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInvite} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInvite: e.target.checked })} /> Invite strong applicants automatically when the AI score is at least
         <input className="input w-20" type="number" min={0} max={100} value={s.minScore} disabled={!canEdit} onChange={(e) => setS({ ...s, minScore: Number(e.target.value) })} /></label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.interviewRequired} disabled={!canEdit} onChange={(e) => setS({ ...s, interviewRequired: e.target.checked })} /> Screening interview first: email the AI interview link to every applicant the screen doesn’t decline (before any invite)</label>
@@ -514,7 +515,7 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoIn
       </div>
       {canEdit ? <button className="btn-primary" onClick={async () => {
         const reminderDays = s.reminderText.split(/[,\s]+/).map(Number).filter((n) => n > 0);
-        const r = await call("/api/hub/recruiting", "PUT", { autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, autoActivate: s.autoActivate, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
+        const r = await call("/api/hub/recruiting", "PUT", { instantSignup: s.instantSignup, autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, autoActivate: s.autoActivate, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
         setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
       }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
       {msg && <p>{msg}</p>}

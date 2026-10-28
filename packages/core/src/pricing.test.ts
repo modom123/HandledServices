@@ -184,7 +184,7 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
-  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "needs a resume");
+  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, true, "resume is optional (Roadie-style sign-up)");
   assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
@@ -208,7 +208,7 @@ test("1099-NEC: corporations (and LLCs taxed as one) are exempt", async () => {
 
 test("missing uploads: which ones, and when live pros are reminded", async () => {
   const { missingUploads, uploadReminderDue, UPLOAD_REMINDER_MAX } = await import("./compliance.ts");
-  assert.deepEqual(missingUploads({ resume_uploaded_at: null, photo_uploaded_at: null }), ["resume", "photo"]);
+  assert.deepEqual(missingUploads({ resume_uploaded_at: null, photo_uploaded_at: null }), ["photo"], "the optional resume is never chased");
   assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: null }), ["photo"]);
   assert.deepEqual(missingUploads({ resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" }), []);
   const now = new Date("2026-10-18T13:00:00Z");
@@ -632,9 +632,13 @@ test("removal: weight classes, heaviest item and the junk container", async () =
 
 test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
   const { RECRUITING_DEFAULTS: R, autoInviteDecision, pipelineStage, reminderDue, shouldDrop, mergeRecruiting } = await import("./recruiting.ts");
-  assert.equal(autoInviteDecision(R, { recommendation: "approve_after_checks", score: 82 }).invite, true);
-  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, false);
+  assert.equal(R.interviewRequired, false, "Roadie-style: no interview by default");
+  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, true, "instant sign-up: account right away");
+  assert.equal(autoInviteDecision(R, null).invite, true, "instant sign-up even when the AI screen is down");
   assert.equal(autoInviteDecision(R, { recommendation: "decline", score: 90 }).invite, false);
+  const scored = mergeRecruiting({ instantSignup: false });
+  assert.equal(autoInviteDecision(scored, { recommendation: "approve_after_checks", score: 82 }).invite, true);
+  assert.equal(autoInviteDecision(scored, { recommendation: "interview", score: 55 }).invite, false);
   assert.equal(autoInviteDecision(mergeRecruiting({ autoInvite: false }), { recommendation: "approve_after_checks", score: 95 }).invite, false);
   const steps = (done: string[]) => ["w9", "agreement", "specialties", "area", "coi", "background", "payout"].map((key) => ({ key, done: done.includes(key) }));
   assert.equal(pipelineStage({ appStage: "applied" }), "applied");

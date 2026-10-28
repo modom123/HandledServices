@@ -128,7 +128,7 @@ export async function onApplication(appId: string) {
     await logRecruiting("screened", { applicationId: appId }, `AI ${screen.recommendation} · score ${screen.score}`, "ai");
   }
   const settings = await getRecruitingSettings();
-  if (settings.interviewRequired && screen && screen.recommendation !== "decline") {
+  if (!settings.instantSignup && settings.interviewRequired && screen && screen.recommendation !== "decline") {
     const r = await (await import("./interviews")).startInterview(appId, "ai", "auto").catch((e) => ({ ok: false, error: String(e) }));
     if (r.ok) return;
     await logRecruiting("interview_not_sent", { applicationId: appId }, r.error ?? null);
@@ -164,10 +164,10 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
   await logRecruiting("invited", { applicationId: appId, contractorId: pro.id }, why || null, actor);
   const link = await signInUrl(pro.email);
   const lang = await localeOf(pro.profile_id, app.locale);
-  if (lang === "es") await sendEmail(pro.email, `Tiene una invitación de ${BRAND.name}: termine su configuración en unos 15 minutos`,
-    `Hola ${first(app.contact_name)}:\n\nBuenas noticias: tiene una invitación para unirse a ${BRAND.name} como profesional independiente (1099). Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría de los profesionales termina en unos 15 minutos, y las ofertas empiezan el día en que se le aprueba.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
-  else await sendEmail(pro.email, `You're invited to ${BRAND.name} — finish setup in about 15 minutes`,
-    `Hi ${String(app.contact_name).split(" ")[0]},\n\nGood news — you're invited to join ${BRAND.name} as an independent pro (1099). Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 15 minutes, and offers start the day you're approved.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
+  if (lang === "es") await sendEmail(pro.email, `Su cuenta de ${BRAND.name} está abierta: termine la configuración en unos 10 minutos`,
+    `Hola ${first(app.contact_name)}:\n\nSu cuenta de profesional independiente (1099) en ${BRAND.name} está abierta. Trabajos prepagados y con precio fijo en su zona, pago semanal y sin cuotas por clientes.\n\nUn clic inicia su sesión y abre su lista de configuración:\n${link}\n\nLo que necesitará (téngalo a la mano):\n${stepsList(pro as Contractor, "es")}\n\nPuede hacerlo desde su teléfono. La mayoría termina en unos 10 minutos. Verá los trabajos cerca de usted mientras se hace la verificación de antecedentes, y los toma en cuanto se aprueba.\n\nSu camino a su primer pago:\n${roadmapText("es")}\n\nSu lista siempre muestra en qué paso está y qué sigue: ${siteUrl()}/pro/onboarding\n\n¿Preguntas? Responda a este correo.\n\n— ${BRAND.name}`);
+  else await sendEmail(pro.email, `Your ${BRAND.name} account is open — finish setup in about 10 minutes`,
+    `Hi ${String(app.contact_name).split(" ")[0]},\n\nYour ${BRAND.name} independent pro (1099) account is open. Prepaid, pre-priced jobs in your area, paid weekly, no lead fees.\n\nOne click signs you in and opens your setup checklist:\n${link}\n\nWhat you'll need (have these handy):\n${stepsList(pro as Contractor)}\n\nYou can do it on your phone. Most pros finish in about 10 minutes. You'll see jobs near you while your background check runs, and take them as soon as it clears.\n\nYour road to your first paycheck:\n${roadmapText("en")}\n\nYour checklist always shows where you are and what's next: ${siteUrl()}/pro/onboarding\n\nQuestions? Reply to this email.\n\n— ${BRAND.name}`);
   return { ok: true, contractorId: pro.id as string };
 }
 

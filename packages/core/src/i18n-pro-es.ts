@@ -49,6 +49,8 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Trade license verified": "Licencia del oficio verificada",
   "Photo ID verified": "Identificación con foto verificada",
   "Resume uploaded": "Currículum subido",
+  "Resume — optional": "Currículum (opcional)",
+  "Not required. Add your work history if you like (PDF or Word)": "No es obligatorio. Agregue su historial de trabajo si lo desea (PDF o Word)",
   "Profile photo uploaded": "Foto de perfil subida",
   "Your work history and experience (PDF or Word)": "Su historial laboral y experiencia (PDF o Word)",
   "A clear, friendly photo of your face": "Una foto clara y amable de su cara",
