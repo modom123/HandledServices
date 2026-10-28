@@ -6,11 +6,12 @@
  *           money to a Xero account, previews a day's entries, pushes on demand, and shows every document sent
  *           (with links into Xero) and anything that failed. The daily cron does the pushing on its own.
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-28_2210 UTC — Reports: profit and loss by month, read back from Xero (the books of record).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
-import { ACCOUNT_KEYS, DEFAULT_ACCOUNTS, XERO_SCOPES, accountCode, getConnection, xeroConfigured, xeroLink, xeroRedirectUri } from "@/lib/xero";
+import { ACCOUNT_KEYS, DEFAULT_ACCOUNTS, PNL_LINES, XERO_REPORT_SCOPES, XERO_SCOPES, XeroError, accountCode, profitAndLoss, getConnection, xeroConfigured, xeroLink, xeroRedirectUri } from "@/lib/xero";
 import { Badge, Empty, Stat } from "@/components/ui";
 import { AccountingControls, AccountMapping, DayPreview } from "@/components/AccountingUI";
 import { adminOnly } from "@/components/AdminOnly";
@@ -27,6 +28,17 @@ const MSG: Record<string, string> = {
   admin_only: "Only admins can connect Xero.",
   not_configured: "Add XERO_CLIENT_ID and XERO_CLIENT_SECRET in Vercel first (see the setup steps below).",
 };
+
+const usd = (n: number) => `${n < 0 ? "−" : ""}$${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+
+/** Profit and loss by month from Xero, or why it can't be shown. */
+async function loadReport() {
+  try { return { ok: true as const, ...(await profitAndLoss(6)) }; }
+  catch (e) {
+    const denied = e instanceof XeroError && (e.status === 401 || e.status === 403);
+    return { ok: false as const, denied, error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 type Log = { id: string; kind: string; ref: string; day: string | null; status: keyof typeof TONE; xero_id: string | null; amount: number | null; error: string | null; attempts: number; updated_at: string; detail: Record<string, unknown> | null };
 
@@ -45,6 +57,7 @@ export default async function Accounting({ searchParams }: { searchParams: Promi
   const errors = L.filter((l) => l.status === "error");
   const lastDay = L.find((l) => l.kind === "stripe_day" && (l.status === "done" || l.status === "skipped"));
   const connected = Boolean(conn.tenant_id);
+  const report = connected ? await loadReport() : null;
   const mapping = ACCOUNT_KEYS.map((k) => ({ ...DEFAULT_ACCOUNTS[k], key: k, code: accountCode(conn.settings, k) }));
 
   return (
@@ -56,7 +69,8 @@ export default async function Accounting({ searchParams }: { searchParams: Promi
       </div>
 
       {q.xero === "connected" && <div className="card border-emerald-300 bg-emerald-50 text-sm">Connected to <b>{q.org}</b>.{q.others ? ` You authorised ${q.others} other organisation(s); only this one is used.` : ""} Next: check the account mapping below, then click “Create missing accounts”.</div>}
-      {q.xero && q.xero !== "connected" && <div className="card border-rose-300 bg-rose-50 text-sm">{MSG[q.xero] ?? `Xero: ${q.msg ?? q.xero}`}</div>}
+      {q.xero === "scope_error" && <div className="card border-amber-300 bg-amber-50 text-sm">Xero didn&apos;t accept the report permission for this app. <a className="font-semibold underline" href="/api/xero/connect?basic=1">Connect without reports</a> (syncing works the same), or set <code>XERO_REPORT_SCOPES</code> in Vercel to the report scope your Xero app lists and try again.</div>}
+      {q.xero && q.xero !== "connected" && q.xero !== "scope_error" && <div className="card border-rose-300 bg-rose-50 text-sm">{MSG[q.xero] ?? `Xero: ${q.msg ?? q.xero}`}</div>}
 
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Xero" value={connected ? conn.tenant_name ?? "Connected" : "Not connected"} hint={connected ? `by ${conn.connected_by ?? "—"} · ${conn.connected_at?.slice(0, 10) ?? ""}` : xeroConfigured() ? "ready to connect" : "keys missing"} />
@@ -64,6 +78,29 @@ export default async function Accounting({ searchParams }: { searchParams: Promi
         <Stat label="Booked through" value={lastDay?.day ?? "—"} hint={conn.settings.sync_from ? `sync starts ${conn.settings.sync_from}` : "no start date yet"} />
         <Stat label="Needs attention" value={errors.length} hint={errors.length ? "see the log — retried daily" : "all clear"} />
       </div>
+
+      {connected && report && (
+        <section className="card space-y-3 text-sm">
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold">Profit and loss <span className="font-normal text-ink-soft">from Xero, by month</span></h2>
+            <a className="text-brand underline" href="https://go.xero.com/Reports/" target="_blank" rel="noreferrer">All reports in Xero →</a></div>
+          {report.ok ? (
+            <div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="py-2 pr-3"></th>{report.columns.map((c) => <th key={c} className="py-2 pr-3 text-right">{c}</th>)}</tr></thead>
+              <tbody>{PNL_LINES.map((l) => (
+                <tr key={l.key} className={`border-t border-line ${l.key === "gross_profit" || l.key === "net_profit" ? "font-semibold" : ""}`}>
+                  <td className="py-2 pr-3">{l.label}</td>
+                  {report.lines[l.key].map((v, i) => <td key={i} className={`py-2 pr-3 text-right ${l.key === "net_profit" && v < 0 ? "text-rose-700" : ""}`}>{usd(v)}</td>)}
+                </tr>
+              ))}
+                <tr className="border-t border-line text-ink-soft"><td className="py-2 pr-3">Gross margin</td>{report.lines.revenue.map((v, i) => <td key={i} className="py-2 pr-3 text-right">{v ? `${Math.round((report.lines.gross_profit[i] / v) * 100)}%` : "—"}</td>)}</tr>
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-ink-soft">The current month is month to date and only includes days already booked (see “Booked through”).</p></div>
+          ) : report.denied ? (
+            <p className="text-ink-soft">Xero hasn&apos;t given Handled permission to read reports yet. {admin ? <><a className="font-semibold text-brand underline" href="/api/xero/connect">Reconnect Xero</a> and approve report access (<code>{XERO_REPORT_SCOPES || "none set"}</code>).</> : "Ask an admin to reconnect Xero."}</p>
+          ) : <p className="text-rose-700">Couldn&apos;t load the report: {report.error}</p>}
+        </section>
+      )}
 
       <section className="card space-y-3 text-sm">
         <h2 className="font-bold">Connection</h2>
@@ -76,7 +113,7 @@ export default async function Accounting({ searchParams }: { searchParams: Promi
         ) : (
           <AccountingControls admin={admin} connected={connected} syncFrom={conn.settings.sync_from ?? ""} reconciled={Boolean(conn.settings.reconciled)} />
         )}
-        <p className="text-xs text-ink-soft">Permissions asked: <code>{XERO_SCOPES}</code></p>
+        <p className="text-xs text-ink-soft">Permissions asked: <code>{XERO_SCOPES}{XERO_REPORT_SCOPES ? ` ${XERO_REPORT_SCOPES}` : ""}</code></p>
       </section>
 
       <section className="card space-y-3 text-sm">
