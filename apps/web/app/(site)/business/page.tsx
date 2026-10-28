@@ -20,6 +20,8 @@
  *           "we call you / walk the site" steps and "Have these handy" are gone. Sales-email leads (?lead=) are carried
  *           by Attribution and marked converted when they book. Business services trimmed to 8 facility groups (top 3 each);
  *           events, websites/automation and the full list are one link away.
+ * UPDATED : 2026-10-28_1746 UTC — removed the sticky "Who we serve · Services · How it works · Order now" bar (it covered the page
+ *           while scrolling; the hero buttons already go to Services and Order).
  */
 import Link from "next/link";
 import { BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
@@ -28,7 +30,6 @@ import { ThemedIcon } from "@/components/Glyph";
 export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, ordered online with a 25% deposit." };
 
 const PROOF = ["One vendor, every site", "Order online, 25% to start", "Photo proof on every visit", "Backup crews built in"];
-const JUMP: [string, string][] = [["industries", "Who we serve"], ["services", "Services"], ["how", "How it works"], ["order", "Order now"]];
 const ORDER = "/book?for=business";
 // the facility needs businesses order most; events, websites/automation and everything else have their own pages
 const SHOW = ["janitorial", "exterior", "maintenance", "turnovers", "cleanouts", "courier", "transport", "security"];
@@ -70,14 +71,8 @@ export default function BusinessPage() {
         </div>
       </section>
 
-      <nav aria-label="On this page" className="sticky top-16 z-20 overflow-x-auto border-b border-line bg-paper/95 backdrop-blur">
-        <div className="wrap flex min-w-max items-center gap-1 py-2 text-sm font-semibold">
-          {JUMP.map(([id, label]) => <a key={id} href={`#${id}`} className={id === "order" ? "ml-1 rounded-full bg-brand px-4 py-1.5 text-white" : "rounded-full px-3 py-1.5 text-ink hover:bg-white"}>{label}</a>)}
-        </div>
-      </nav>
-
       {/* industries */}
-      <section id="industries" className="wrap scroll-mt-32 py-10 sm:py-14">
+      <section id="industries" className="wrap scroll-mt-24 py-10 sm:py-14">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who we serve</h2>
         <p className="mt-2 text-ink-soft">What businesses like yours order most — tap one to get your price and order it.</p>
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -93,7 +88,7 @@ export default function BusinessPage() {
       </section>
 
       {/* services by need */}
-      <section id="services" className="scroll-mt-32 border-y border-line bg-paper-deep py-10 sm:py-14">
+      <section id="services" className="scroll-mt-24 border-y border-line bg-paper-deep py-10 sm:py-14">
         <div className="wrap">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Business services</h2>
           <p className="mt-2 text-ink-soft">What facilities order most, as recurring visits or one-off jobs. Open any service to see what's included and order it.</p>
@@ -122,7 +117,7 @@ export default function BusinessPage() {
       </section>
 
       {/* how it works */}
-      <section id="how" className="wrap scroll-mt-32 py-10 sm:py-14">
+      <section id="how" className="wrap scroll-mt-24 py-10 sm:py-14">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
         <p className="mt-2 text-ink-soft">Ordered online in a few minutes, on the schedule you pick.</p>
         <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -136,7 +131,7 @@ export default function BusinessPage() {
       </section>
 
       {/* order */}
-      <section id="order" className="scroll-mt-32 border-t border-line bg-paper-deep py-10 sm:py-14">
+      <section id="order" className="scroll-mt-24 border-t border-line bg-paper-deep py-10 sm:py-14">
         <div className="wrap grid gap-10 lg:grid-cols-[1.15fr_1fr]">
           <div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Order for your business</h2>
