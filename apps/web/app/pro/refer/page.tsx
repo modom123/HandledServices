@@ -5,6 +5,7 @@
  * PURPOSE : Pro portal → Refer & earn. "Make money while you wait": a new pro (or any pro) snaps photos of a job someone
  *           needs, fills out the referral ticket and earns the Partner Program share when it's done (25% one-time /
  *           10% repeat / 15% account, core partners.ts). One click makes them a partner; the full history stays on /partner.
+ * UPDATED : 2026-10-29_0715 UTC — commissions go to the pro's job-payout account (no separate partner payout setup).
  */
 import Link from "next/link";
 import { PARTNER_PROGRAM, PARTNER_TIERS, PRO_REFERRAL, SERVICES, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, money, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
@@ -13,7 +14,7 @@ import { getLocale } from "@/lib/locale";
 import { siteUrl } from "@/lib/notify";
 import { partnerFor, partnerLink, partnerStats, payoutsReady } from "@/lib/partners";
 import { Badge, Stat } from "@/components/ui";
-import { CopyButton, PartnerPayoutButton, ReferralTicket } from "@/components/PartnerUI";
+import { CopyButton, ReferralTicket } from "@/components/PartnerUI";
 import { StartEarning } from "@/components/ProWelcome";
 
 export const dynamic = "force-dynamic";
@@ -77,8 +78,8 @@ export default async function Refer() {
               </div>
               <div className="card">
                 <h2 className="font-bold">{es ? "Cobros de referidos" : "Referral payouts"}</h2>
-                <p className="mt-1 text-sm text-ink-soft">{es ? "Configúrelo una vez con Stripe (cuenta bancaria o tarjeta de débito)." : "Set it up once through Stripe (bank account or debit card)."}</p>
-                <div className="mt-3 flex items-center gap-3">{ready ? <Badge tone="green">{es ? "Listo" : "Ready"}</Badge> : <Badge tone="amber">{es ? "Sin configurar" : "Not set up"}</Badge>}<PartnerPayoutButton ready={ready} /></div>
+                <p className="mt-1 text-sm text-ink-soft">{es ? "Sus comisiones llegan los lunes a la misma cuenta que su pago por trabajos. No hay nada más que configurar." : "Your commissions arrive on Mondays in the same account as your job pay. Nothing else to set up."}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">{ready ? <Badge tone="green">{es ? "Listo" : "Ready"}</Badge> : <><Badge tone="amber">{es ? "Falta su configuración de pagos" : "Payout setup not finished"}</Badge><Link href="/pro/onboarding#step-payout" className="btn-ghost text-sm">{es ? "Configurar pagos" : "Set up payouts"}</Link></>}</div>
                 <Link href="/partner" className="mt-3 inline-block text-sm text-brand underline">{es ? "Todos sus tickets y comisiones →" : "All your tickets and commissions →"}</Link>
               </div>
             </section>

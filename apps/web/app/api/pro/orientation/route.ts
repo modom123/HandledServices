@@ -2,7 +2,8 @@
  * FILE    : apps/web/app/api/pro/orientation/route.ts
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-28_2245 UTC
- * PURPOSE : "Welcome to Handled" orientation. POST { lesson, choice }: a right answer marks the lesson done; when the
+ * PURPOSE : "Welcome to Handled" orientation. GET → this pro's progress { lessons: { lessonId: iso }, done, total, complete, next } (the app).
+ *           POST { lesson, choice }: a right answer marks the lesson done; when the
  *           last one is done the onboarding step completes (afterOnboardingStep → "Ready to approve" when the rest is in).
  */
 import { after } from "next/server";
@@ -13,6 +14,15 @@ import { adminClient } from "@/lib/supabase/server";
 import { afterOnboardingStep } from "@/lib/recruiting";
 
 const Body = z.object({ lesson: z.enum(ORIENTATION.map((l) => l.id) as [string, ...string[]]), choice: z.number().int().min(0).max(9) });
+
+export async function GET(req: Request) {
+  const v = await getViewer(req);
+  if (!v?.contractorId) return deny(403, "Pro account required");
+  const { data } = await adminClient().from("contractors").select("orientation").eq("id", v.contractorId).single();
+  const lessons = (data?.orientation as Record<string, string> | null) ?? {};
+  const st = orientationStatus(lessons);
+  return Response.json({ lessons, done: st.done, total: st.total, complete: st.complete, next: st.next?.id ?? null });
+}
 
 export async function POST(req: Request) {
   const v = await getViewer(req);
