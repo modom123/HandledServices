@@ -38,6 +38,7 @@ export default function ProHome() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
+  const [orient, setOrient] = useState<{ done: number; total: number; complete: boolean } | null>(null);
   const [board, setBoard] = useState<BoardCard[]>([]);
   const [standby, setStandby] = useState<Standby[]>([]);
   const [record, setRecord] = useState<{ days: number; free: number; shortNotice: number; late: number; excused: number; noShows: number } | null>(null);
@@ -72,6 +73,7 @@ export default function ProHome() {
   const load = useCallback(async () => {
     setLoading(true);
     api<{ status: string; tier: string }>("/api/pro/fast-track").then((r) => { if (r.ok) setFast(r.data); });
+    api<{ done: number; total: number; complete: boolean }>("/api/pro/orientation").then((r) => setOrient(r.ok ? r.data : null));
     api<{ jobs: BoardCard[] }>(`/api/pro/board?locale=${locale}`).then((r) => setBoard(r.ok ? r.data.jobs ?? [] : []));
     api<{ standby: Standby[] }>("/api/pro/backups").then((r) => setStandby(r.ok ? r.data.standby ?? [] : []));
     api<{ record: NonNullable<typeof record> }>("/api/pro/standing").then((r) => { if (r.ok) setRecord(r.data.record); });
@@ -98,12 +100,31 @@ export default function ProHome() {
     { icon: "📅", label: t("My calendar & days off"), go: () => router.push("/pro/schedule") },
     { icon: "👷", label: t("My crew"), go: () => router.push("/pro/crew") },
     { icon: "🎁", label: t("Rewards"), go: () => router.push("/pro/rewards") },
+    { icon: "💸", label: t("Refer & earn"), go: () => router.push("/pro/refer") },
+    { icon: "👋", label: t("Welcome to Handled"), go: () => router.push("/pro/welcome") },
+    { icon: "🪪", label: t("My info"), go: () => router.push("/pro/info") },
     { icon: "📄", label: t("Setup & documents"), go: () => Linking.openURL(`${API_URL}/pro/onboarding`) },
     { icon: "✍️", label: t("My contracts"), go: () => Linking.openURL(`${API_URL}/pro/contracts`) },
   ];
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.brand} />}>
       {err ? <ErrorState message={err} onRetry={load} /> : null}
+      {orient && !orient.complete && (
+        <Pressable onPress={() => router.push("/pro/welcome")} accessibilityRole="button">
+          <Card style={{ borderColor: C.brand, borderWidth: 2 }}>
+            <Text style={s.b}>👋 {t("Welcome to Handled")} · {orient.done}/{orient.total}</Text>
+            <Text style={s.p}>{t("Six short lessons on how we work. Required before you're approved.")}</Text>
+          </Card>
+        </Pressable>
+      )}
+      {orient && !orient.complete && (
+        <Pressable onPress={() => router.push("/pro/refer")} accessibilityRole="button">
+          <Card style={{ borderColor: C.amber }}>
+            <Text style={s.b}>💸 {t("Make money while you wait")}</Text>
+            <Text style={s.p}>{t("Snap photos of a job, fill out a ticket, get paid when it's done.")}</Text>
+          </Card>
+        </Pressable>
+      )}
       <Card style={{ borderColor: onCall.on ? C.brand : C.line, backgroundColor: onCall.on ? C.tint : C.white, borderWidth: onCall.on ? 2 : 1 }}>
         <Text style={[s.b, { fontSize: 20 }]}>{onCall.on ? `🟢 ${t("You're on call")}` : `⚪ ${t("Off call")}`}</Text>
         <Text style={s.p}>{onCall.on ? `${t("Same-day jobs near you come to you first")}${onCall.until ? ` ${t("until")} ${new Date(onCall.until).toLocaleTimeString(locale === "es" ? "es-US" : "en-US", { hour: "numeric", minute: "2-digit" })}` : ""}.` : t("Go on call to get same-day jobs, even on a day you don't usually work.")}</Text>

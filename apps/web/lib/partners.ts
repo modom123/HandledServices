@@ -16,6 +16,8 @@
  *           Guards: one partner per customer (first wins), no self-referrals, existing customers don't count,
  *           suspended partners earn nothing, refunds reduce or void the commission before it's paid.
  * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
+ * UPDATED : 2026-10-29_0715 UTC — a partner who is also a Handled pro is paid into the Stripe account they already use for
+ *           job payouts (payoutAccount): no second setup.
  * UPDATED : 2026-10-28_0122 UTC — partner-v2: fixed tiers of the job price split 50/50 pro / Handled; the standard referral ticket.
  */
 import "server-only";
@@ -278,6 +280,24 @@ export async function voidCommission(id: string, note: string) {
 
 const mondayOf = (d: Date) => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); };
 
+/**
+ * Where a partner's commissions go: their own Stripe account, or — for a partner who is also a Handled pro (same email)
+ * — the account they already use for job payouts. Remembered on the partner once found.
+ */
+export async function payoutAccount(partner: Partner): Promise<string | null> {
+  if (partner.stripe_account_id) return partner.stripe_account_id;
+  const { data: pro } = await db().from("contractors").select("stripe_account_id").eq("email", partner.email).not("stripe_account_id", "is", null).maybeSingle();
+  const acct = (pro?.stripe_account_id as string | null) ?? null;
+  if (acct) { await db().from("referral_partners").update({ stripe_account_id: acct }).eq("id", partner.id); partner.stripe_account_id = acct; }
+  return acct;
+}
+
+/** Is this partner a Handled pro (paid with their job payouts)? */
+export async function partnerIsPro(partner: Partner): Promise<boolean> {
+  const { count } = await db().from("contractors").select("id", { count: "exact", head: true }).eq("email", partner.email);
+  return (count ?? 0) > 0;
+}
+
 /** Mondays: pay every eligible commission (re-checked against refunds) to partners whose Stripe payouts are ready. */
 export async function runPartnerPayouts(now = new Date()) {
   const s = getStripe();
@@ -303,10 +323,12 @@ export async function runPartnerPayouts(now = new Date()) {
     const { data: p } = await db().from("referral_partners").select("*").eq("id", pid).single();
     const partner = p as Partner;
     if (partner.status !== "active") continue;
-    const ready = s && partner.stripe_account_id ? Boolean((await s.accounts.retrieve(partner.stripe_account_id).catch(() => null))?.payouts_enabled) : false;
+    const acct = await payoutAccount(partner);
+    const ready = s && acct ? Boolean((await s.accounts.retrieve(acct).catch(() => null))?.payouts_enabled) : false;
     if (!s || !ready) {
       waiting++;
-      await sendEmail(partner.email, `${money(amount)} in referral commissions is ready for you`, `Hi ${partner.name.split(" ")[0]},\n\nYou have ${money(amount)} in ${BRAND.name} referral commissions ready to send. Set up payouts (2 minutes, through Stripe) on your partner page: ${siteUrl()}/partner\n\n— ${BRAND.name}`).catch(() => {});
+      const isPro = await partnerIsPro(partner);
+      await sendEmail(partner.email, `${money(amount)} in referral commissions is ready for you`, `Hi ${partner.name.split(" ")[0]},\n\nYou have ${money(amount)} in ${BRAND.name} referral commissions ready to send. ${isPro ? `Finish your payout setup in your pro account and it goes to the same bank as your job pay: ${siteUrl()}/pro/onboarding#step-payout` : `Set up payouts (2 minutes, through Stripe) on your partner page: ${siteUrl()}/partner`}\n\n— ${BRAND.name}`).catch(() => {});
       continue;
     }
     if (funds !== null && funds < amount) { failed.push(`${partner.name}: not enough available in Stripe yet — waits for next week`); continue; }
@@ -320,7 +342,7 @@ export async function runPartnerPayouts(now = new Date()) {
     }
     let t: { id: string };
     try {
-      t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: partner.stripe_account_id!, description: `${BRAND.name} referral commissions — week of ${week}`, metadata: { partner_id: pid, kind: "partner_commission", week_of: week } }, { idempotencyKey: `partner-${pid}-${week}-${stamp}` });
+      t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: acct!, description: `${BRAND.name} referral commissions — week of ${week}`, metadata: { partner_id: pid, kind: "partner_commission", week_of: week } }, { idempotencyKey: `partner-${pid}-${week}-${stamp}` });
     } catch (e) {
       await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", ids);
       failed.push(`${partner.name}: ${e instanceof Error ? e.message : "transfer failed"}`);
@@ -359,8 +381,9 @@ export async function partnerConnectUrl(partner: Partner): Promise<string | null
 
 export async function payoutsReady(partner: Partner) {
   const s = getStripe();
-  if (!s || !partner.stripe_account_id) return false;
-  return Boolean((await s.accounts.retrieve(partner.stripe_account_id).catch(() => null))?.payouts_enabled);
+  const acct = s ? await payoutAccount(partner) : null;
+  if (!s || !acct) return false;
+  return Boolean((await s.accounts.retrieve(acct).catch(() => null))?.payouts_enabled);
 }
 
 /** Totals for the partner page and the Hub. */
