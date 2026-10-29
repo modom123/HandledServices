@@ -41,8 +41,8 @@ approval, and probation on the first jobs.
 ## The pro portal from minute one (2026-10-28_2300)
 - **Portal at sign-up.** The account opens and the sign-in link goes out the moment someone signs up. The AI screen runs
   afterwards and only raises a "Review" alert when it suggests declining; it never blocks the portal.
-- **Welcome to Handled (required).** Six short lessons (who we are, how a job works, pay, quality and standing, conduct in
-  the customer's home, the portal and app), about 14 minutes. Each ends with a question that must be answered correctly.
+- **Welcome to Handled (required).** Six short lessons (who we are, how a job works, pay, quality and standing, conduct on
+  the job site, the portal and app), about 14 minutes. Each ends with a question that must be answered correctly.
   All six are a required onboarding step: no approval without them. Pros approved before this existed aren't affected.
   Content: `packages/core/src/orientation.ts` (numbers come from the live policy constants). Pages: `/pro/welcome`.
 - **My info** (`/pro/info`): profile, trades, area, status and what's left, documents with expiry dates, payout,

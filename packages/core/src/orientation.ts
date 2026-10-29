@@ -2,8 +2,9 @@
  * FILE    : packages/core/src/orientation.ts
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-28_2245 UTC
+ * UPDATED : 2026-10-29_0655 UTC — lesson 5 is "On the job site" (was the customer's home or business).
  * PURPOSE : "Welcome to Handled": the orientation every new pro takes in their portal right after signing up. Six short
- *           lessons (who we are, how jobs work, pay, quality, conduct, the app), each with one question to check it
+ *           lessons (who we are, how jobs work, pay, quality, conduct on the job site, the app), each with one question to check it
  *           landed. Finishing all six is a required onboarding step (compliance.ts) before Handled can approve a pro.
  *           Every number comes from the live policy constants, so the lessons never drift from the rules.
  */
@@ -131,10 +132,10 @@ export const ORIENTATION: Lesson[] = [
   {
     id: "conduct", icon: "🏠", minutes: 2, answer: 1,
     en: {
-      title: "In the customer's home or business",
+      title: "On the job site",
       points: [
         `Introduce yourself by name as the ${BRAND.name} pro. Your profile photo helps the customer know who is at the door.`,
-        "Treat the property like your own: protect floors, clean up, and leave it better than you found it.",
+        "Treat the job site like your own: protect floors and surfaces, clean up, and leave it better than you found it.",
         "No alcohol, drugs or smoking on the job. Only bring crew members listed in My crew.",
         `Never ask a ${BRAND.name} customer to book you directly or pay you outside ${BRAND.name}. Send them back to us; it's in your agreement.`,
         "Damage, injury, or anything unsafe: stop, take photos and tell us right away in the app.",
@@ -143,10 +144,10 @@ export const ORIENTATION: Lesson[] = [
       options: ["Agree and give them your number", `Ask them to book it through ${BRAND.name}`, "Do it but charge less"],
     },
     es: {
-      title: "En la casa o el negocio del cliente",
+      title: "En el sitio de trabajo",
       points: [
         `Preséntese por su nombre como el profesional de ${BRAND.name}. Su foto de perfil ayuda al cliente a saber quién está en la puerta.`,
-        "Trate la propiedad como si fuera suya: proteja los pisos, limpie y déjela mejor de como la encontró.",
+        "Trate el sitio de trabajo como si fuera suyo: proteja los pisos y las superficies, limpie y déjelo mejor de como lo encontró.",
         "Nada de alcohol, drogas ni fumar en el trabajo. Solo lleve a los miembros de su equipo registrados en Mi equipo.",
         `Nunca le pida a un cliente de ${BRAND.name} que lo contrate directamente o que le pague fuera de ${BRAND.name}. Envíelo de vuelta a nosotros; así lo dice su acuerdo.`,
         "Daños, lesiones o cualquier riesgo: deténgase, tome fotos y avísenos de inmediato en la app.",
