@@ -5,11 +5,14 @@
  * PURPOSE : Referral Partner Program controls: public sign-up form (/partners), copy-link, "send us a customer" and
  *           Stripe payout setup (/partner), and the staff controls in Hub → Partners.
  * UPDATED : 2026-10-28_0122 UTC — "send us a customer" is now the standard referral ticket; Hub ticket status buttons.
+ * UPDATED : 2026-11-04_2345 UTC — photos are resized in the browser and sent one at a time (lib/upload-photos.ts): phone
+ *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { uploadPhotos } from "@/lib/upload-photos";
 
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -80,11 +83,11 @@ export function ReferralTicket({ services, jobTypes, timings, contacts, relation
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
     setUploading(true); setMsg(null);
-    const fd = new FormData();
-    [...files].slice(0, 8 - photos.length).forEach((f) => fd.append("photos", f));
-    const r = await fetch("/api/uploads", { method: "POST", body: fd }).then((x) => x.json()).catch(() => ({ error: "Upload failed" }));
+    const list = [...files].slice(0, 8 - photos.length);
+    const r = await uploadPhotos(list);
     setUploading(false);
-    if (r.paths) setPhotos([...photos, ...r.paths].slice(0, 8)); else setMsg({ ok: false, text: r.error ?? "Upload failed" });
+    setPhotos([...photos, ...r.paths].slice(0, 8));
+    if (r.error) setMsg({ ok: false, text: `${list.length - r.paths.length} photo(s) didn't upload: ${r.error}` });
   };
   const photoField = (
     <fieldset className="space-y-2">

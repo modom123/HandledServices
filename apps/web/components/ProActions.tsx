@@ -5,12 +5,15 @@
  * PURPOSE : Pro actions: start job, complete with photos. (Offers are accepted on the
  *           offer page, which requires agreeing to the work order — see WorkOrderView.)
  * UPDATED : 2026-10-02_2225 UTC — Spanish (pro portal): every action takes a locale.
+ * UPDATED : 2026-11-04_2345 UTC — photos are resized in the browser and sent one at a time (lib/upload-photos.ts): phone
+ *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getService, questionVisible, scopeChange, t as tr, type Locale } from "@handled/core";
+import { uploadPhotos } from "@/lib/upload-photos";
 
 /** Pro taps "On my way" (today's job): shares location once and texts the customer a live link. */
 export function OnMyWay({ jobId, sent, locale = "en" }: { jobId: string; sent: boolean; locale?: Locale }) {
@@ -54,13 +57,11 @@ export function CompleteJob({ jobId, locale = "en" }: { jobId: string; locale?: 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
     setBusy(true);
-    const fd = new FormData();
-    Array.from(files).slice(0, 8).forEach((f) => fd.append("photos", f));
-    const res = await fetch("/api/uploads", { method: "POST", body: fd });
-    const json = await res.json();
+    const list = Array.from(files).slice(0, 8);
+    const r = await uploadPhotos(list);
     setBusy(false);
-    if (!res.ok) return setMsg(t(json.error ?? "Upload failed"));
-    setPhotos((p) => [...p, ...json.paths]);
+    setPhotos((p) => [...p, ...r.paths]);
+    if (r.error) setMsg(`${list.length - r.paths.length} ${t("photo(s) didn't upload")}: ${t(r.error)}`);
   }
   async function complete() {
     setBusy(true);
