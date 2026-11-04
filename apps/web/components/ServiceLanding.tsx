@@ -13,6 +13,9 @@
  * UPDATED : 2026-10-28_1700 UTC — no calls: every page leads to ordering ("Order now": price, deposit, start); no phone line;
  *           Business & Technology is ordered with a deposit like every other service.
  * UPDATED : 2026-10-05_0419 UTC — no dollar figures on service pages: "exact and upfront, in about a minute" (every job is priced on its details).
+ * UPDATED : 2026-11-04_2230 UTC — SEO: structured data no longer gives the business an address in every city (Google treats
+ *           that as fake locations); areaServed is the city in its state, or Michigan + Washington; the provider points at
+ *           the one business record (@id …/#business, lib/business-ld.ts).
  */
 import Link from "next/link";
 import { BOOK_NOW, BRAND, CATEGORIES, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
@@ -50,8 +53,8 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
   const where = city ? ` in ${city.name}, ${city.state}` : "";
   const ld = {
     "@context": "https://schema.org", "@type": "Service", name: `${s.name}${where}`, description: s.description, serviceType: s.name,
-    provider: { "@type": "LocalBusiness", name: BRAND.name, telephone: BRAND.supportPhone, url: siteUrl(), ...(city ? { address: { "@type": "PostalAddress", addressLocality: city.name, addressRegion: city.state, postalCode: city.zip, addressCountry: "US" } } : {}) },
-    areaServed: city ? { "@type": "City", name: `${city.name}, ${city.state}` } : { "@type": "Country", name: "United States" },
+    provider: { "@type": "HomeAndConstructionBusiness", "@id": `${siteUrl()}/#business`, name: BRAND.name, telephone: BRAND.supportPhone, url: `${siteUrl()}/home` },
+    areaServed: city ? { "@type": "City", name: city.name, containedInPlace: { "@type": "State", name: city.state === "WA" ? "Washington" : "Michigan" } } : [{ "@type": "State", name: "Michigan" }, { "@type": "State", name: "Washington" }],
     ...(reviews.count >= 3 && reviews.average ? { aggregateRating: { "@type": "AggregateRating", ratingValue: reviews.average, reviewCount: reviews.count, bestRating: 5 } } : {}),
   };
   return (
