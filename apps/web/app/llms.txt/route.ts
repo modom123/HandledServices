@@ -4,7 +4,7 @@
  * CREATED : 2026-11-04_2230 UTC
  * PURPOSE : /llms.txt — a plain-language summary of the business for AI assistants and other machine readers (the
  *           llms.txt convention): what Handled does, every service by category, where it works, how ordering works and
- *           how to reach it (and hours: 24/7). Built from the same facts the site uses (BRAND, BRAND_STORY, SERVICES, the city pages),
+ *           how to reach it (and hours: orders 24/7). Built from the same facts the site uses (BRAND, BRAND_STORY, SERVICES, the city pages),
  *           so it never drifts from the site. Facts only — no instructions to assistants.
  */
 import { BRAND, BRAND_STORY, CATEGORIES, CITY_PAGE_CITIES, SERVICES, isFocusService } from "@handled/core";
@@ -43,7 +43,7 @@ export function GET() {
     ...SERVICES.filter((s) => isFocusService(s.slug)).map((s) => `- ${s.name} — ${site}/services/${s.slug}`),
     "",
     "## Hours",
-    "- Open 24 hours a day, 7 days a week.",
+    "- Orders are taken online 24 hours a day, 7 days a week. The work itself is scheduled for a day and arrival time you pick when you order.",
     "",
     "## Contact",
     `- Phone: ${BRAND.supportPhone}`,
