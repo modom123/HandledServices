@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_0255 UTC — allow geolocation on our own pages (pro "On call" location sharing).
  * UPDATED : 2026-10-06_0726 UTC — security headers: Content-Security-Policy (frame-ancestors, object-src, base-uri, upgrade-insecure-requests)
  *           and Cross-Origin-Opener-Policy.
+ * UPDATED : 2026-11-04_1759 UTC — the migration files ship with /api/hub/setup so the go-live autopilot can run them.
  */
 import type { NextConfig } from "next";
 import path from "node:path";
@@ -14,6 +15,7 @@ const config: NextConfig = {
   turbopack: { root: path.join(process.cwd(), "../..") },
   experimental: { serverActions: { bodySizeLimit: "10mb" } },
   poweredByHeader: false,
+  outputFileTracingIncludes: { "/api/hub/setup": ["../../supabase/migrations/*.sql"] },
   async headers() {
     return [{
       source: "/:path*",
