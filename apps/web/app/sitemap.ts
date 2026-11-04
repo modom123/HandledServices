@@ -5,16 +5,21 @@
  * PURPOSE : sitemap.xml for search engines: main pages, every service, every service × city.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: focus services (MARKETING_FOCUS) and their city pages get higher priority.
  * UPDATED : 2026-10-07_1640 UTC — base URL from lib/site-url (Vercel production URL when NEXT_PUBLIC_SITE_URL is unset, not localhost).
+ * UPDATED : 2026-11-04_2230 UTC — SEO: city pages only for the focus services (Michigan + Washington cities); "/" left out
+ *           (its canonical is /home); lastModified is the deploy time instead of every request.
  */
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/site-url";
-import { SEO_CITIES, SERVICES, isFocusService } from "@handled/core";
+import { CITY_PAGE_CITIES, SERVICES, isFocusService } from "@handled/core";
+
+const BUILT_AT = new Date();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = siteUrl();
-  const now = new Date();
-  const pages = ["", "/home", "/services", "/book", "/business", "/technology", "/events", "/pros", "/plus", "/gift-cards", "/reviews"].map((p) => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "weekly" as const, priority: p === "" || p === "/home" ? 1 : 0.8 }));
+  const now = BUILT_AT; // a real "last changed" date (the deploy), not "now" on every request, so Google can trust it
+  const pages = ["/home", "/services", "/book", "/business", "/technology", "/events", "/pros", "/plus", "/gift-cards", "/reviews"].map((p) => ({ url: `${base}${p}`, lastModified: now, changeFrequency: "weekly" as const, priority: p === "" || p === "/home" ? 1 : 0.8 }));
   const services = SERVICES.map((s) => ({ url: `${base}/services/${s.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: isFocusService(s.slug) ? 0.9 : 0.7 }));
-  const cities = SERVICES.flatMap((s) => SEO_CITIES.map((c) => ({ url: `${base}/services/${s.slug}/in/${c.slug}`, lastModified: now, changeFrequency: (isFocusService(s.slug) ? "weekly" : "monthly") as "weekly" | "monthly", priority: isFocusService(s.slug) ? 0.8 : 0.5 })));
+  // city pages only for the focus services (the others are noindex — see services/[slug]/in/[city])
+  const cities = SERVICES.filter((s) => isFocusService(s.slug)).flatMap((s) => CITY_PAGE_CITIES.map((c) => ({ url: `${base}/services/${s.slug}/in/${c.slug}`, lastModified: now, changeFrequency: (isFocusService(s.slug) ? "weekly" : "monthly") as "weekly" | "monthly", priority: isFocusService(s.slug) ? 0.8 : 0.5 })));
   return [...pages, ...services, ...cities];
 }

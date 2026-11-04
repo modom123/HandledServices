@@ -5,6 +5,10 @@
  * PURPOSE : Cities we publish "<service> in <city>" pages for (search traffic). Launch metro is
  *           Detroit; add a city here when pros cover it and every service gets a page there.
  * UPDATED : 2026-10-06_0606 UTC — surrounding suburbs added (Wayne, Oakland, Macomb): 39 cities, for the cleaning push.
+ * UPDATED : 2026-11-04_2230 UTC — SEO fixes: Washington cities get pages too (WA_SEO_CITIES, the same cities the business sales
+ *           engine searches); CITY_PAGE_CITIES is every city with pages; only focus services' city pages are indexed
+ *           (isFocusService in focus.ts) so Google doesn't see thousands of near-identical "doorway" pages; SERVICE_AREA states.
+ *           SEO_CITIES stays Metro Detroit only (FOCUS_CITIES and the lead engines read it).
  */
 export interface SeoCity { slug: string; name: string; state: string; zip: string }
 
@@ -50,4 +54,27 @@ export const SEO_CITIES: SeoCity[] = [
   { slug: "harper-woods-mi", name: "Harper Woods", state: "MI", zip: "48225" },
 ];
 
-export const SEO_CITY_BY_SLUG: Record<string, SeoCity> = Object.fromEntries(SEO_CITIES.map((c) => [c.slug, c]));
+/** Washington cities with pages (Seattle & Eastside, South Sound, North Sound, Olympia, Vancouver, Spokane). */
+export const WA_SEO_CITIES: SeoCity[] = [
+  { slug: "seattle-wa", name: "Seattle", state: "WA", zip: "98101" },
+  { slug: "bellevue-wa", name: "Bellevue", state: "WA", zip: "98004" },
+  { slug: "redmond-wa", name: "Redmond", state: "WA", zip: "98052" },
+  { slug: "kirkland-wa", name: "Kirkland", state: "WA", zip: "98033" },
+  { slug: "renton-wa", name: "Renton", state: "WA", zip: "98057" },
+  { slug: "kent-wa", name: "Kent", state: "WA", zip: "98032" },
+  { slug: "tacoma-wa", name: "Tacoma", state: "WA", zip: "98402" },
+  { slug: "federal-way-wa", name: "Federal Way", state: "WA", zip: "98003" },
+  { slug: "everett-wa", name: "Everett", state: "WA", zip: "98201" },
+  { slug: "lynnwood-wa", name: "Lynnwood", state: "WA", zip: "98036" },
+  { slug: "olympia-wa", name: "Olympia", state: "WA", zip: "98501" },
+  { slug: "vancouver-wa", name: "Vancouver", state: "WA", zip: "98660" },
+  { slug: "spokane-wa", name: "Spokane", state: "WA", zip: "99201" },
+];
+
+/** Every city with "<service> in <city>" pages. */
+export const CITY_PAGE_CITIES: SeoCity[] = [...SEO_CITIES, ...WA_SEO_CITIES];
+
+export const SEO_CITY_BY_SLUG: Record<string, SeoCity> = Object.fromEntries(CITY_PAGE_CITIES.map((c) => [c.slug, c]));
+
+/** Where Handled works (structured data, llms.txt). */
+export const SERVICE_AREA = [{ name: "Michigan", code: "MI" }, { name: "Washington", code: "WA" }] as const;
