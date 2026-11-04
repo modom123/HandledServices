@@ -34,6 +34,8 @@
  *           phones (swipe row) it opens inside the card (native <details>, no script).
  * UPDATED : 2026-10-27_1500 UTC — cleanup: "Why it works" for customers and pros (replaces the comparison table), a "Who we
  *           are" strip (slogan + mission → /about); the "More from Handled" tiles are gone (the side menu has them).
+ * UPDATED : 2026-10-28_1730 UTC — trimmed repeats: no separate "How it works" (the For customers card says it); Business &
+ *           Technology left out of the category grid (the "We build" band and /technology cover it).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -47,11 +49,6 @@ import { HomeDoors } from "@/components/home/HomeDoors";
 import { WhyItWorks } from "@/components/home/WhyItWorks";
 import { WhoWeAre } from "@/components/home/WhoWeAre";
 
-const STEPS = [
-  { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
-  { n: "2", title: "We send one vetted pro", body: "Insured, background-checked and rated. We pick the best available pro for your job, date and neighborhood." },
-  { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. If it isn’t right, we come back free or refund you." },
-];
 
 
 
@@ -69,7 +66,7 @@ export async function HomeModern() {
   const es = l === "es";
   const top = await popularServices(4);
   const topSlugs = new Set(top.map((s) => s.slug));
-  const cats = CATEGORIES.map((c) => {
+  const cats = CATEGORIES.filter((c) => c.id !== "business").map((c) => {
     const all = SERVICES.filter((s) => s.category === c.id);
     return { ...c, all, list: all.filter((s) => !topSlugs.has(s.slug)) }; // every service not already in Most popular
   }).filter((c) => c.list.length);
@@ -187,25 +184,8 @@ export async function HomeModern() {
         </div>
       </section>
 
-      {/* how it works */}
+      {/* we build: intelligent websites, operating systems, automated businesses */}
       <WeBuild es={l === "es"} compact />
-
-      <section className="reveal border-y border-line bg-paper py-16">
-        <div className="wrap">
-          <div className="eyebrow">{l === "es" ? "Simple" : "Simple"}</div>
-          <h2 className="mt-2 text-3xl font-bold sm:text-4xl">{t("How it works")}</h2>
-          <div className="relative mt-10 grid gap-6 md:grid-cols-3">
-            <div aria-hidden className="absolute left-0 right-0 top-[2.1rem] hidden h-px bg-gradient-to-r from-transparent via-gold/60 to-transparent md:block" />
-            {STEPS.map((s) => (
-              <div key={s.n} className="card relative">
-                <div className="grid h-11 w-11 place-items-center rounded-full bg-brand-deep font-display text-base font-bold text-gold-light ring-4 ring-paper">{s.n}</div>
-                <div className="mt-4 font-semibold">{t(s.title)}</div>
-                <p className="mt-2 text-sm text-ink-soft">{t(s.body)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* who we are: slogan, mission, link to About */}
       <WhoWeAre es={es} />

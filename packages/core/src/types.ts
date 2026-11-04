@@ -151,6 +151,9 @@ export interface Job {
   created_at: string;
   /** Referral partner credited with this job (Referral Partner Program). */
   partner_id?: string | null;
+  /** Partner earnings tier for this job (one_time 25% / repeat 10% / account 15% of the price) and the pro's half of it, taken off their job payout. */
+  partner_tier?: "one_time" | "repeat" | "account" | null;
+  partner_pro_fee?: number | null;
   /** Market pricing: our suggestion, the customer's offer, the booking fee inside price_final. */
   suggested_price?: number | null;
   customer_offer?: number | null;

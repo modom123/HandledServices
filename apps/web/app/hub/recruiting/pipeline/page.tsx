@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-27_1700 UTC — moved to Hub → Recruiting → Pipeline (the Recruiting division; /hub/recruiting is the
  *           Overview now). Two tracks: Independent pros (this pipeline) and Team & client roles (every Talent search's
  *           candidates by stage, our own staff roles first). The Indeed card moved to the Indeed tab.
+ * UPDATED : 2026-10-28_1735 UTC — the interview packet is a link here (no longer its own Recruiting tab).
  */
 import Link from "next/link";
 import { PIPELINE, STAGE_LABEL, TALENT_STAGES, TRADES, type PipelineStage } from "@handled/core";
@@ -60,7 +61,7 @@ export default async function RecruitingPage({ searchParams }: { searchParams: P
     <div className="space-y-6">
       <TrackSwitch on="pro" />
       <div>
-        <h1 className="text-2xl font-bold">Pipeline · Independent pros</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">Pipeline · Independent pros</h1><Link href="/hub/recruiting/packet" className="text-sm font-semibold text-brand">Interview packet →</Link></div>
         <p className="text-sm text-ink-soft">Applicants are screened, interviewed (AI or you), invited, reminded and activated automatically; a person decides who's invited. Click a name for the candidate's full checklist and interview. Indeed posts and imports: <Link href="/hub/recruiting/indeed" className="font-semibold text-brand underline">Indeed</Link>.</p>
       </div>
       <details className="group" open={!total}>

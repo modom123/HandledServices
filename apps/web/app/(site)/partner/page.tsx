@@ -4,16 +4,18 @@
  * CREATED : 2026-10-07_0135 UTC
  * PURPOSE : The referral partner's page: their link and short link, earnings (paid / ready / upcoming), Stripe payout
  *           setup, "send us a customer", the customers credited to them (and until when) and every commission.
+ * UPDATED : 2026-10-28_0122 UTC — partner-v2 rates table (25% one-time / 10% repeat / 15% account); the standard referral
+ *           ticket replaces "send us a customer"; every ticket with its number and status; the rate on every commission.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PARTNER_PROGRAM, SERVICES, getService, money } from "@handled/core";
+import { PARTNER_PROGRAM, PARTNER_TIERS, SERVICES, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
 import { partnerFor, partnerLink, partnerStats, payoutsReady } from "@/lib/partners";
 import { Badge, Empty, Stat } from "@/components/ui";
-import { CopyButton, PartnerPayoutButton, ReferCustomer } from "@/components/PartnerUI";
+import { CopyButton, PartnerPayoutButton, ReferralTicket } from "@/components/PartnerUI";
 
 export const metadata = { title: "Partner page" };
 export const dynamic = "force-dynamic";
@@ -34,18 +36,31 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   const [stats, ready, { data: customers }, { data: comms }] = await Promise.all([
     partnerStats(partner.id),
     payoutsReady(partner),
-    db.from("referral_customers").select("customer_name, customer_email, service_slug, source, first_job_id, expires_at, created_at").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(200),
-    db.from("partner_commissions").select("id, amount, status, eligible_at, paid_at, created_at, jobs(ref, service_slug, completed_at)").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(200),
+    db.from("referral_customers").select("*").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(200),
+    db.from("partner_commissions").select("*, jobs(ref, service_slug, completed_at, contact_email)").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(500),
   ]);
   const link = partnerLink(partner.code), short = `${siteUrl()}/r/${partner.code}`;
   const services = SERVICES.map((s) => [s.slug, s.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
+  type Comm = { id: string; amount: number; status: string; eligible_at: string; paid_at: string | null; tier?: string | null; rate?: number | null; jobs: { ref: string; service_slug: string; completed_at: string | null; contact_email: string } | null };
+  const C = (comms ?? []) as unknown as Comm[];
+  const byCustomer = new Map<string, { completed: number; paid: number }>();
+  for (const c of C) {
+    const k = (c.jobs?.contact_email ?? "").toLowerCase();
+    const x = byCustomer.get(k) ?? { completed: 0, paid: 0 };
+    if (c.status !== "void") x.completed++; if (c.status === "paid") x.paid++; byCustomer.set(k, x);
+  }
+  const rateOf = (c: Comm) => c.tier && c.tier !== "legacy" ? `${tierPct(c.tier as PartnerTier)} · ${PARTNER_TIERS[c.tier as PartnerTier].label}` : "10% of our fee (before Oct 28)";
+  const tone = (st: string) => (st === "paid" || st === "completed" ? "green" : st === "booked" ? "brand" : st === "closed" ? "red" : "amber") as "green" | "brand" | "red" | "amber";
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   return (
     <div className="wrap space-y-6 py-10">
       <div>
         <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]} 👋</h1>
-        <p className="text-sm text-ink-soft">You earn {PARTNER_PROGRAM.pctOfTake * 100}% of our fee on every completed job from your customers, for {PARTNER_PROGRAM.months} months, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee.{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
+        <p className="text-sm text-ink-soft">You earn a fixed share of the job price on every completed job from your customers — the same on every service — paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee.{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
       </div>
+      <div className="grid gap-3 sm:grid-cols-3">{(Object.keys(PARTNER_TIERS) as PartnerTier[]).map((t) => (
+        <div key={t} className="card border-t-4 border-t-gold"><div className="text-3xl font-extrabold">{tierPct(t)}</div><div className="font-semibold">{PARTNER_TIERS[t].label}</div><p className="text-xs text-ink-soft">{PARTNER_TIERS[t].detail}</p></div>
+      ))}</div>
       {q.connect === "done" && <div className="card border-brand bg-brand-tint text-sm">{ready ? "Payouts are set up. You'll be paid every Monday." : "Thanks — Stripe is still checking your details. This page shows when payouts are ready."}</div>}
 
       <div className="grid gap-3 sm:grid-cols-4">
@@ -72,30 +87,33 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       </section>
 
       <section className="card">
-        <h2 className="font-bold">Send us a customer</h2>
-        <p className="mb-3 mt-1 text-sm text-ink-soft">We email them a booking link from you. They&apos;re your customer for {PARTNER_PROGRAM.months} months, even if they book later or on their phone.</p>
-        <ReferCustomer services={services} />
+        <h2 className="font-bold">Referral ticket</h2>
+        <p className="mb-4 mt-1 text-sm text-ink-soft">One form for every referral. You get a ticket number to follow here; we email them a booking link from you and reach out ourselves. They&apos;re your customer for {PARTNER_PROGRAM.months} months, even if they book later or on their phone.</p>
+        <ReferralTicket services={services} jobTypes={Object.entries(TICKET_JOB_TYPES).map(([k, v]) => [k, v.label, v.earns])} timings={Object.entries(TICKET_TIMING)} contacts={Object.entries(TICKET_CONTACT)} relationships={Object.entries(TICKET_RELATIONSHIPS)} />
       </section>
 
       <section>
-        <h2 className="mb-2 font-bold">Your customers</h2>
-        {!(customers ?? []).length ? <Empty>No customers yet. Share your link or send one above.</Empty> : (
+        <h2 className="mb-2 font-bold">Your tickets and customers</h2>
+        {!(customers ?? []).length ? <Empty>No referrals yet. Share your link or fill out a ticket above.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Customer</th><th className="p-3">Interested in</th><th className="p-3">How</th><th className="p-3">Booked?</th><th className="p-3">Earning until</th></tr></thead>
-            <tbody>{((customers ?? []) as { customer_name: string | null; customer_email: string; service_slug: string | null; source: string; first_job_id: string | null; expires_at: string }[]).map((c) => (
-              <tr key={c.customer_email} className="border-t border-line"><td className="p-3">{c.customer_name ?? mask(c.customer_email)}</td><td className="p-3">{c.service_slug ? getService(c.service_slug)?.name ?? "—" : "—"}</td><td className="p-3">{c.source === "direct" ? "You sent them" : c.source === "staff" ? "Credited by us" : "Your link"}</td><td className="p-3">{c.first_job_id ? <Badge tone="green">Booked</Badge> : <Badge>Not yet</Badge>}</td><td className="p-3">{c.expires_at.slice(0, 10)}</td></tr>
-            ))}</tbody>
+            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Ticket</th><th className="p-3">Customer</th><th className="p-3">Needs</th><th className="p-3">How</th><th className="p-3">Status</th><th className="p-3">Earning until</th></tr></thead>
+            <tbody>{((customers ?? []) as { ticket_no?: string | null; customer_name: string | null; customer_email: string; service_slug: string | null; job_type?: string | null; source: string; status?: string | null; first_job_id: string | null; expires_at: string; created_at: string }[]).map((c) => {
+              const st = ticketStage(c, byCustomer.get(c.customer_email.toLowerCase()));
+              return (
+                <tr key={c.customer_email} className="border-t border-line"><td className="p-3 font-mono text-xs">{c.ticket_no ?? "—"}<div className="font-sans text-ink-soft">{c.created_at.slice(0, 10)}</div></td><td className="p-3">{c.customer_name ?? mask(c.customer_email)}</td><td className="p-3">{c.service_slug ? getService(c.service_slug)?.name ?? "—" : "—"}{c.job_type && <div className="text-xs text-ink-soft">{TICKET_JOB_TYPES[c.job_type as keyof typeof TICKET_JOB_TYPES]?.label}</div>}</td><td className="p-3">{c.source === "direct" ? "Your ticket" : c.source === "staff" ? "Credited by us" : "Your link"}</td><td className="p-3"><Badge tone={tone(st)}>{TICKET_STATUSES[st]}</Badge></td><td className="p-3">{c.expires_at.slice(0, 10)}</td></tr>
+              );
+            })}</tbody>
           </table></div>
         )}
       </section>
 
       <section>
         <h2 className="mb-2 font-bold">Commissions</h2>
-        {!(comms ?? []).length ? <Empty>Commissions show here when a referred customer&apos;s job is completed.</Empty> : (
+        {!C.length ? <Empty>Commissions show here when a referred customer&apos;s job is completed.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Job</th><th className="p-3">Completed</th><th className="p-3">Commission</th><th className="p-3">Status</th></tr></thead>
-            <tbody>{((comms ?? []) as unknown as { id: string; amount: number; status: string; eligible_at: string; paid_at: string | null; jobs: { ref: string; service_slug: string; completed_at: string | null } | null }[]).map((c) => (
-              <tr key={c.id} className="border-t border-line"><td className="p-3">{c.jobs ? `${getService(c.jobs.service_slug)?.name ?? ""} · ${c.jobs.ref}` : "—"}</td><td className="p-3">{c.jobs?.completed_at?.slice(0, 10) ?? "—"}</td><td className="p-3 font-semibold">{money(Number(c.amount))}</td>
+            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Job</th><th className="p-3">Completed</th><th className="p-3">Rate</th><th className="p-3">Commission</th><th className="p-3">Status</th></tr></thead>
+            <tbody>{C.map((c) => (
+              <tr key={c.id} className="border-t border-line"><td className="p-3">{c.jobs ? `${getService(c.jobs.service_slug)?.name ?? ""} · ${c.jobs.ref}` : "—"}</td><td className="p-3">{c.jobs?.completed_at?.slice(0, 10) ?? "—"}</td><td className="p-3 text-xs">{rateOf(c)}</td><td className="p-3 font-semibold">{moneyCents(Number(c.amount))}</td>
                 <td className="p-3">{c.status === "paid" ? <Badge tone="green">Paid {c.paid_at?.slice(0, 10)}</Badge> : c.status === "void" ? <Badge tone="red">Cancelled (refund)</Badge> : new Date(c.eligible_at) <= new Date() ? <Badge tone="brand">Ready</Badge> : <Badge tone="amber">Payable {c.eligible_at.slice(0, 10)}</Badge>}</td></tr>
             ))}</tbody>
           </table></div>

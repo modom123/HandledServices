@@ -28,6 +28,12 @@
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  * UPDATED : 2026-10-27_2100 UTC — customers no longer see what the pro earns (internal; it lives in the Hub's job money view).
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 (SITE_VISIT_OVER): no deposit; the order becomes a free site visit (remote: a free
+ *           online scope review, no call) with a note under the price.
+ * UPDATED : 2026-10-28_1800 UTC — `commercial` (from /book?for=business): the order starts as a company order.
+ * UPDATED : 2026-10-28_1730 UTC — step 1 (pick a service): search + one category at a time instead of all 101 services in one list.
+ * UPDATED : 2026-10-28_1700 UTC — no consultation-only mode: Business & Technology shows its price and is ordered with a deposit
+ *           like every service (and the AI check never turns remote work into a visit).
  */
 "use client";
 
@@ -38,7 +44,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, consultOnly,
+  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
 } from "@handled/core";
@@ -79,15 +85,16 @@ export interface BookedQuote { request: string; bid: string; price: number; pro:
 /** One of the signed-in customer's saved homes (My homes). Entry details stay on the server. */
 export interface HomeChoice { id: string; label: string; address: string; city: string; state: string; zip: string; hasAccess: boolean }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null }: { quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null, commercial = false }: { commercial?: boolean; quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
   const [ask, setAsk] = useState(preferred ?? null);
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
+  const [pickCat, setPickCat] = useState<string>(CATEGORIES[0].id);
+  const [find, setFind] = useState("");
   const svc = getService(slug);
-  const consult = consultOnly(slug); // Business & Technology: priced on the free consultation, never shown here
   const [answers, setAnswers] = useState<Answers>(() => {
     if (!svc) return {};
     const known = new Set(svc.questions.map((q) => q.id));
@@ -104,7 +111,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const [access, setAccess] = useState("");
   const [form, setForm] = useState(business
     ? { contact_name: business.contact.name, contact_email: business.contact.email, contact_phone: business.contact.phone, address: business.address, city: business.city, state: business.state, zip: business.zip, customer_type: "commercial", company_name: business.company }
-    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: "residential", company_name: "" });
+    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: commercial && !startHome ? "commercial" : "residential", company_name: "" });
   const pickHome = (h: HomeChoice | null) => {
     setHomeId(h?.id ?? null);
     if (h) { setSaveHome(false); setForm((f) => ({ ...f, address: h.address, city: h.city, state: h.state, zip: h.zip, customer_type: "residential" })); }
@@ -170,7 +177,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
   const bigJob = svc ? sizeNeedsSiteVisit(svc.slug, answers) : null;
-  const siteVisit = !quote && Boolean(svc?.siteVisit || bigJob || ai?.action === "site_visit");
+  // remote work (websites, AI…) is never a visit: it is priced from the answers and ordered with a deposit
+  // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
+  const overLimit = Boolean(est && !svc?.siteVisit && overDepositLimit(est.point));
+  const siteVisit = !quote && Boolean(svc?.siteVisit || bigJob || overLimit || (ai?.action === "site_visit" && !svc?.remote));
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
   // required measurements (yard sq ft, weight, height…) must be filled in before the price step
@@ -225,23 +235,34 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           ))}
         </ol>
 
-        {step === 0 && (
-          <div className="space-y-8">
-            {CATEGORIES.map((c) => (
-              <div key={c.id}>
-                <div className="mb-3 font-semibold">{categoryText(locale, c.id, c).name}</div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {SERVICES.filter((s) => s.category === c.id).map((s) => (
-                    <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
-                      <span className="text-2xl">{s.icon}</span>
-                      <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{priceHint(s.slug, locale)}</span></span>
-                    </button>
+        {step === 0 && (() => {
+          // one category at a time (or a search across all of them) instead of every service in one long list
+          const q = find.trim().toLowerCase();
+          const list = q
+            ? SERVICES.filter((s) => `${serviceText(locale, s.slug, s).name} ${s.name} ${s.tagline}`.toLowerCase().includes(q))
+            : SERVICES.filter((s) => s.category === pickCat);
+          return (
+            <div className="space-y-4">
+              <input className="input" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={es ? "Buscar un servicio (p. ej., limpieza, jardín, sitio web)" : "Search a service (e.g. cleaning, lawn, website)"} aria-label={es ? "Buscar un servicio" : "Search a service"} />
+              {!q && (
+                <div className="-mx-1 flex flex-wrap gap-2" role="tablist" aria-label={es ? "Categorías" : "Categories"}>
+                  {CATEGORIES.map((c) => (
+                    <button key={c.id} type="button" role="tab" aria-selected={pickCat === c.id} onClick={() => setPickCat(c.id)} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${pickCat === c.id ? "border-brand bg-brand-tint text-brand-dark" : "border-line bg-white text-ink hover:border-brand"}`}>{c.icon} {categoryText(locale, c.id, c).name}</button>
                   ))}
                 </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {list.map((s) => (
+                  <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
+                    <span className="text-2xl">{s.icon}</span>
+                    <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{priceHint(s.slug, locale)}</span></span>
+                  </button>
+                ))}
+                {!list.length && <p className="text-sm text-ink-soft">{es ? "Nada coincide. Pruebe otra palabra o elija una categoría." : "Nothing matches. Try another word or pick a category."}</p>}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {step === 1 && svc && (
           <div className="card space-y-5">
@@ -401,12 +422,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Book free consultation" : "Book free site visit") : (() => {
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
                 // what's charged today under the plan this booking actually gets
                 const dp = depositPolicy(svc!.slug, total, date), bn = bookNowPolicy(svc!.slug, total);
                 const p = resolvePlan(plan, dp.allowed, bn.allowed);
@@ -421,9 +442,9 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
 
       {svc && est && price && (
         <aside className="card h-fit lg:sticky lg:top-24">
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{consult ? (es ? "Precio" : "Price") : t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
-          <div className="mt-1 text-3xl font-bold">{consult ? (es ? "Consulta gratis" : "Free consultation") : siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
-          {consult && <p className="mt-1 text-sm text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en la llamada. No paga nada hasta aprobarlo." : "Every solution is different: scope and price are set on the call. Nothing is owed until you approve it."}</p>}
+          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
+          <div className="mt-1 text-3xl font-bold">{siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
+          {overLimit && !quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{t(svc.remote ? "Jobs over $2,500 start with a free scope review — no deposit. A specialist sends the firm price online, and you pay once you approve it." : "Jobs over $2,500 start with a free site visit — no deposit. A pro confirms the firm price, and you pay once you approve it.")}</p>}
           {siteVisit && !svc.remote && <a href={`/quote-request?service=${svc.slug}`} className="mt-1 block text-sm text-brand underline">{es ? "O reciba hasta 3 cotizaciones firmes en 24 horas" : "Or get up to 3 firm quotes in 24 hours"}</a>}
           {quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{es ? `Cotización firme de ${quote.pro}: ${money(quote.price)}, todo incluido. ${quote.pro} recibe el trabajo primero.` : `Firm quote from ${quote.pro}: ${money(quote.price)}, all-in. ${quote.pro} gets the job first.`}</p>}
           {proOffers.length > 0 && (
@@ -463,7 +484,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Includes a ${money(BOOKING_FEE)} booking fee`}</p>
             </div>
           )}
-          {svc.slug !== "event-package" && !consult && (() => {
+          {svc.slug !== "event-package" && (() => {
             const fit = budgetFit(Number(budget), siteVisit ? price.low : ai?.final_price ?? est.point);
             return (
               <div className="mt-3">
@@ -515,15 +536,14 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             );
           })()}
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
-            {consult && <li className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo que eligió" : "What you picked"}</li>}
-            {est.items.filter((i) => !consult || i.amount > 0 && !/booking fee/i.test(i.label)).map((i) => (
-              <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span>{!consult && <span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span>}</li>
+            {est.items.map((i) => (
+              <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span><span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span></li>
             ))}
           </ul>
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ {t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free video consultation — a specialist confirms the scope and firm price, then you pay to start the work." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
+            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
           </p>
         </aside>
       )}

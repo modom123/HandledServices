@@ -35,6 +35,8 @@
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
  * UPDATED : 2026-10-07_0110 UTC — Referral Partner Program: bookings credited to the customer's partner; commission accrued on completion.
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 (SITE_VISIT_OVER): booked as a free site visit / online scope review, no deposit.
+ * UPDATED : 2026-10-28_0122 UTC — partner-v2: the pro's half of the partner's share comes off the job payout line; recurring visits are repeat jobs.
  * UPDATED : 2026-10-07_1640 UTC — onBooked adds a new ZIP to a service area (lib/launch addZipToServiceArea).
  * UPDATED : 2026-10-07_1545 UTC — markPaid: a dispatch error no longer throws back into the Stripe webhook (alert instead).
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
@@ -51,7 +53,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -187,7 +189,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
-  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit));
+  // remote work (websites, AI…) is never a visit: it is ordered with a deposit on the price from the answers
+  // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
+  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || overDepositLimit(est.point) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
@@ -322,6 +326,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 export async function onBooked(job: Job, paymentUrl: string | null) {
   // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
   await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
+  // a business lead from the sales engine ordered: mark it converted (their /business?lead= link rode along in attribution)
+  const bizLead = (job.attribution as Record<string, string> | null)?.biz_lead;
+  if (bizLead) await (await import("./biz-leads")).leadBooked(bizLead, job).catch((e) => console.error("[biz-leads]", e));
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
   const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
@@ -335,14 +342,14 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
 
   const es = (await localeOf(job.customer_id, job.locale)) === "es";
   if (job.status === "site_visit" && svc.remote) {
-    // websites, AI, formation, consulting: a free video consultation instead of a site visit
-    if (es) await sendEmail(job.contact_email, `${BRAND.name}: consulta gratis ${job.ref} reservada`,
-      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} le escribirá para agendar su consulta gratis por video sobre ${svcEs(svc.slug)}. ` +
-      `En la consulta confirmamos el alcance y un precio firme. No debe nada hasta que apruebe la cotización.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
-    else await sendEmail(job.contact_email, `${BRAND.name}: free consultation ${job.ref} booked`,
-      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will reach out to schedule your free video consultation for ${svc.name}. ` +
-      `On the call we confirm the scope and a firm price. Nothing is owed until you approve the quote.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
-    await addEvent(job.id, "site_visit", "Free consultation requested — a specialist will reach out to schedule a video call.", "system", true, "Consulta gratis solicitada: un especialista le escribirá para agendar una videollamada.").catch(() => {});
+    // websites, AI, formation, consulting over $2,500: a free online scope review (no call) instead of a site visit
+    if (es) await sendEmail(job.contact_email, `${BRAND.name}: revisión del alcance ${job.ref} recibida`,
+      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} revisará su pedido de ${svcEs(svc.slug)} y le enviará el precio firme en línea. ` +
+      `No se cobra nada hasta que apruebe el precio.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    else await sendEmail(job.contact_email, `${BRAND.name}: scope review ${job.ref} received`,
+      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will review your ${svc.name} order and send you the firm price online. ` +
+      `Nothing is charged until you approve the price.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    await addEvent(job.id, "site_visit", "Scope review requested — a specialist will send the firm price online.", "system", true, "Revisión del alcance solicitada: un especialista le enviará el precio firme en línea.").catch(() => {});
     await dispatchJob(job.id, { siteVisit: true });
     return;
   }
@@ -579,8 +586,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const ranked = rankContractors((pros ?? []) as Contractor[], job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
   if (!ranked.length) {
     if (getService(job.service_slug)?.remote) {
-      // websites, AI, formation, consulting: no specialist yet — a staff member holds the free consultation
-      await raiseAlert("no_pros", "warn", `${job.ref}: consultation for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. Email ${job.contact_name} (${job.contact_email}) to schedule the free video consultation for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}), or assign it to a specialist.`, job.id);
+      // websites, AI, formation, consulting: no specialist yet — staff start the paid project
+      await raiseAlert("no_pros", "warn", `${job.ref}: paid project for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. ${job.contact_name} (${job.contact_email}) ordered it with a deposit for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}). Start the work and email them the kickoff details, or assign it to a specialist.`, job.id);
       return { offers: 0, reason: "no eligible pros" };
     }
     await raiseAlert("no_pros", "critical", `${job.ref}: no eligible pro`, `No approved, insured pro who works ${job.scheduled_date ?? "that day"} (${job.time_window}) within driving distance of ${job.zip} for ${job.service_slug}. Assign manually, ask a pro to take it, or recruit.`, job.id);
@@ -652,7 +659,7 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const asked = job.preferred_contractor_id === p.id;
     const crewAskHere = crewAsk && p.id === favs[0]?.contractor.id ? crewAsk.name.split(" ")[0] : null;
     const hrs = `${hours} hour${hours === 1 ? "" : "s"}`, hrsEs = `${hours} hora${hours === 1 ? "" : "s"}`;
-    const visitEn = svc.remote ? "consultation" : "site visit", visitEs = svc.remote ? "consulta" : "visita al sitio";
+    const visitEn = svc.remote ? "scope review" : "site visit", visitEs = svc.remote ? "revisión del alcance" : "visita al sitio";
     const lead = offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? visitEn : "job"} · ${pay ? money(pay) : visitEn}`;
     const nameEs = serviceText("es", svc.slug, svc).name;
     const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? (svc.remote ? "Nueva consulta" : "Nueva visita al sitio") : "Nuevo trabajo"} · ${pay ? money(pay) : visitEs}`;
@@ -892,9 +899,13 @@ export async function finalizeJob(jobId: string, summary?: string) {
   // The pro's payout is approved now. "Pay after" included: the balance is charged just below, and collecting it is our
   // job, not the pro's — their pay never waits on the customer's card (pro agreement §3; the hold placed at start makes a
   // failure rare).
+  // Referral Partner Program: the partner's share of this job; the pro's half comes off the job payout (work order term)
+  const partnerCut = job.partner_id ? await (await import("./partners")).partnerSplitForJob(job).catch((e) => { console.error("[partners]", e); return null; }) : null;
   if (job.contractor_id && job.contractor_payout) {
     const ready = Boolean(job.paid_at || job.remedy || job.billed_on_terms || job.payment_plan === "after");
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: ready ? "approved" : "held" });
+    const fee = partnerCut?.fromPro ?? 0;
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: r2(Number(job.contractor_payout) - fee), status: ready ? "approved" : "held",
+      ...(fee ? { reason: `Job pay ${moneyCents(Number(job.contractor_payout))} − ${moneyCents(fee)} referral partner fee (your half)` } : {}) });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
@@ -918,7 +929,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   });
   if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
-  if (job.partner_id) await (await import("./partners")).accrueCommission(job).catch((e) => console.error("[partners]", e));
+  if (job.partner_id) await (await import("./partners")).accrueCommission(job, partnerCut).catch((e) => console.error("[partners]", e));
   await (await import("./loyalty")).earnForJob(job).catch((e) => console.error("[loyalty]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }
@@ -954,6 +965,8 @@ async function scheduleNextVisit(job: Job) {
   const nv = await nextVisitPrice(job);
   const pay: Record<string, unknown> = { payment_plan: "full", deposit_amount: null, deposit_paid_at: null, balance_due_date: null, discount: 0 };
   if ("balance_attempts" in job) Object.assign(pay, { balance_charge_at: null, balance_attempts: 0, balance_hold_intent: null, pay_in_full_discount: 0 });
+  // Referral Partner Program: a recurring visit is a repeat job for the partner (an account stays an account)
+  if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id ? (job.partner_tier === "account" ? "account" : "repeat") : null });
   const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
   if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
   else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {

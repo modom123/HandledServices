@@ -11,7 +11,10 @@
  *             claimFromBoard(pro)  — re-checks, then opens a "board" offer held for 15 minutes so the pro reads
  *                                    the full work order and accepts on the usual offer page (first to accept
  *                                    gets it; acceptOffer is race-safe).
+ *             boardPreview(pro)    — Roadie-style: a pro still in setup sees open jobs in their trades and area (no
+ *                                    claiming) so they know the work is there while the background check runs.
  *           Pros are never required to take board jobs; passing has no effect on their standing.
+ * UPDATED : 2026-10-28_2131 UTC — boardPreview for pros in setup.
  */
 import "server-only";
 import { BOARD, buildWorkOrder, getService, money, onBoard, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job } from "@handled/core";
@@ -85,6 +88,36 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
     });
   }
   return cards.slice(0, 50);
+}
+
+/**
+ * Open jobs a pro in setup would see once cleared: their trades, within their radius (or ZIP list), city and ZIP only,
+ * base pay. Read-only: claiming still needs an approved account.
+ */
+export async function boardPreview(contractorId: string, locale: "en" | "es" = "en"): Promise<BoardCard[]> {
+  const { data } = await db().from("contractors").select("*").eq("id", contractorId).maybeSingle();
+  const pro = data as Contractor | null;
+  if (!pro || pro.status === "approved" || !pro.trades?.length) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: jobs } = await db().from("jobs").select("*").eq("status", "dispatched").is("contractor_id", null)
+    .or(`scheduled_date.is.null,scheduled_date.gte.${today}`).order("scheduled_date", { ascending: true, nullsFirst: false }).limit(200);
+  const cards: BoardCard[] = [];
+  for (const job of (jobs ?? []) as Job[]) {
+    const svc = getService(job.service_slug);
+    if (!svc || !svc.trades.some((t) => pro.trades.includes(t))) continue;
+    const miles = proDistance(pro, job);
+    const inZips = pro.service_zips?.includes(job.zip);
+    if (pro.zips_only ? !inZips : miles != null ? miles > (pro.service_radius_mi ?? 25) : pro.service_zips?.length ? !inZips : false) continue;
+    const pay = job.contractor_payout ?? 0;
+    const wo = buildWorkOrder(job, { reveal: false, payout: pay, locale });
+    cards.push({
+      job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
+      city: job.city, zip: job.zip, when: wo.when, pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
+      scope: wo.scope.slice(0, 3).map((x) => `${x.label}: ${x.value}`), priority: job.priority !== "normal", offerId: null,
+    });
+    if (cards.length >= 10) break;
+  }
+  return cards;
 }
 
 /** Claim a board job: a 15-minute hold, accepted on the usual offer page. */

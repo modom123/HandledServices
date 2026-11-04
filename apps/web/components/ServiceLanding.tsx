@@ -7,10 +7,16 @@
  *           real customer reviews, nearby cities, and search-engine markup (Service + rating).
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-06_2010 UTC — no list of Michigan cities; a national service area (city pages still work for Google).
+ * UPDATED : 2026-10-28_1630 UTC — the page ends in an order step ("Ready to book…?": 3 steps + the button) and related services;
+ *           Business & Technology services speak in consultation terms (no on-site estimate, deposit or redo wording).
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 / site-visit services: no deposit — steps say the firm price comes first (remote: online).
+ * UPDATED : 2026-10-28_1700 UTC — no calls: every page leads to ordering ("Order now": price, deposit, start); no phone line;
+ *           Business & Technology is ordered with a deposit like every other service.
  * UPDATED : 2026-10-05_0419 UTC — no dollar figures on service pages: "exact and upfront, in about a minute" (every job is priced on its details).
  */
 import Link from "next/link";
-import { BRAND, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
+import { BOOK_NOW, BRAND, CATEGORIES, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
+import { categoryHref } from "./site";
 import type { PublicReview } from "@/lib/reviews";
 import { siteUrl } from "@/lib/notify";
 
@@ -18,6 +24,29 @@ const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math
 
 export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service; city?: SeoCity; reviews: { count: number; average: number | null; list: PublicReview[] }; locale?: Locale }) {
   const txt = serviceText(locale, s.slug, s);
+  const es = locale === "es";
+  // remote work (websites, AI, formation, consulting) is ordered like everything else: price, deposit, start
+  const tech = s.category === "business";
+  const cat = CATEGORIES.find((c) => c.id === s.category);
+  const related = SERVICES.filter((x) => x.category === s.category && x.slug !== s.slug).slice(0, 3);
+  const book = `/book?service=${s.slug}`;
+  const pct = `${Math.round(BOOK_NOW.share * 100)}%`;
+  // over $2,500 there's no deposit: a free site visit (remote: an online scope review) sets the firm price first
+  const big = !s.siteVisit && overDepositLimit(estimate({ slug: s.slug, answers: defaultAnswers(s) }).point);
+  const visitFirst = s.siteVisit || big;
+  const limit = `$${SITE_VISIT_OVER.toLocaleString("en-US")}`;
+  const cta = visitFirst ? (es ? tr(locale, "Get my price") : "Get my price") : es ? "Ordenar ahora" : "Order now";
+  const steps = visitFirst
+    ? s.remote
+      ? (es ? [["Responda unas preguntas", "Vea su precio estimado en un minuto."], ["Le enviamos el precio firme", "Un especialista revisa su pedido en línea, sin llamadas."], ["Apruébelo y empezamos", "Sin depósito: paga cuando aprueba el precio."]]
+        : [["Answer a few questions", "See your estimated price in about a minute."], ["We send your firm price", "A specialist reviews your order online — no call."], ["Approve it and we start", "No deposit: you pay once you approve the price."]])
+      : (es ? [["Responda unas preguntas", "Vea su rango de precio en un minuto."], ["Un profesional confirma el precio firme", "En una visita gratis al sitio."], ["Apruébelo y empezamos", "Sin depósito: paga cuando aprueba el precio."]]
+        : [["Answer a few questions", "See your price range in about a minute."], ["A pro confirms the firm price", "On a free visit to the site."], ["Approve it and we start", "No deposit: you pay once you approve the price."]])
+    : tech
+      ? (es ? [["Responda unas preguntas", "Toma alrededor de un minuto."], [`Vea su precio y pague el ${pct}`, "Ese depósito inicia el trabajo. El resto se paga en la entrega."], ["Lo construimos y entregamos", "Lo probamos con usted antes de lanzarlo. Usted es dueño de todo."]]
+        : [["Answer a few questions", "It takes about a minute."], [`See your price and pay ${pct}`, "That deposit starts the work. The rest is due on delivery."], ["We build and deliver it", "Tested with you before launch. You own everything."]])
+      : (es ? [["Responda unas preguntas", "Toma alrededor de un minuto."], [`Vea su precio exacto y pague el ${pct}`, "El resto se cobra cuando esté terminado. Sin cargos sorpresa."], ["Un profesional verificado lo hace", "Con fotos de comprobación y repetición gratis si algo falta."]]
+        : [["Answer a few questions", "It takes about a minute."], [`See your exact price and pay ${pct}`, "The rest is charged when it's done. No surprise fees."], ["A vetted pro does the job", "With photo proof, and a free redo if anything's missed."]]);
   const where = city ? ` in ${city.name}, ${city.state}` : "";
   const ld = {
     "@context": "https://schema.org", "@type": "Service", name: `${s.name}${where}`, description: s.description, serviceType: s.name,
@@ -38,7 +67,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {s.includes.map((i) => <li key={i} className="flex gap-2 text-sm"><span className="text-brand">✓</span>{tr(locale, i)}</li>)}
         </ul>
-        <h2 className="mt-10 font-bold">{locale === "es" ? "Lo que le preguntaremos para su precio" : "Questions we’ll ask for your price"}</h2>
+        <h2 className="mt-10 font-bold">{es ? "Lo que le preguntaremos para su precio" : "Questions we’ll ask for your price"}</h2>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-soft">
           {s.questions.map((q) => <li key={q.id}>{tr(locale, q.label)}{q.help ? <span className="block text-xs">{tr(locale, q.help)}</span> : null}</li>)}
         </ul>
@@ -54,7 +83,8 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
           </>
         )}
       </div>
-      <aside className="card h-fit md:sticky md:top-24">
+      {/* phones: the closing "Ready to book" section below does this job (the card would sit right on top of it) */}
+      <aside className="card hidden h-fit md:sticky md:top-24 md:block">
         <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Your price{where}</div>
         <div className="mt-1 text-2xl font-bold">Exact and upfront, in about a minute</div>
         <div className="mt-1 text-sm text-ink-soft">Answer a few questions about your job and see the full price before you book — no callbacks, no surprise fees{s.frequencies.length > 1 ? " · save up to 20% on a plan" : ""}.</div>
@@ -65,9 +95,31 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
           <Link href="/services/junk-removal" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand">🚛 <b>Want us to do the lifting?</b> Book full-service Junk Removal instead.</Link>
         )}
         {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
-        <Link href={`/book?service=${s.slug}`} className="btn-primary mt-5 w-full py-3">{locale === "es" ? tr(locale, "Get my price") : "Get my exact price"}</Link>
-        <p className="mt-4 text-xs text-ink-soft">{BRAND.promise}</p>
+        {big && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{s.remote ? `Over ${limit}? No deposit — a specialist sends your firm price online first.` : `Over ${limit}? No deposit — a free site visit confirms the firm price first.`}</p>}
+        <Link href={book} className="btn-primary mt-5 w-full py-3">{cta}</Link>
+        <p className="mt-4 text-xs text-ink-soft">{tech ? (es ? `Hasta ${limit}, un depósito del ${pct} inicia el trabajo; el resto se paga en la entrega. Usted es dueño de todo lo que le entregamos.` : `Up to ${limit}, a ${pct} deposit starts the work — pay the rest on delivery. You own everything we deliver.`) : BRAND.promise}</p>
       </aside>
+
+      {/* the end of the page leads into ordering, so nobody has to scroll back up */}
+      <section className="card bg-brand-tint md:col-span-2">
+        <h2 className="text-2xl font-bold">{es ? `¿Listo para ordenar: ${txt.name}?` : `Ready to order ${txt.name}?`}</h2>
+        <ol className="mt-5 grid gap-4 sm:grid-cols-3">{steps.map(([t, d], i) => (
+          <li key={t} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</span><span><span className="block font-semibold">{t}</span><span className="block text-sm text-ink-soft">{d}</span></span></li>
+        ))}</ol>
+        <Link href={book} className="btn-primary mt-6 inline-block px-8 py-3 text-base">{cta}</Link>
+      </section>
+
+      {related.length > 0 && cat && (
+        <section className="md:col-span-2">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <h2 className="text-xl font-bold">{es ? "También le puede interesar" : "You might also need"}</h2>
+            <Link href={categoryHref(cat.id)} className="text-sm font-semibold text-brand">{es ? "Todo en" : "All of"} {categoryText(locale, cat.id, cat).name} →</Link>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">{related.map((r) => (
+            <Link key={r.slug} href={`/services/${r.slug}`} className="card flex flex-col transition hover:border-brand"><div className="text-2xl">{r.icon}</div><div className="mt-2 font-semibold">{serviceText(locale, r.slug, r).name}</div><p className="mt-1 flex-1 text-sm text-ink-soft">{serviceText(locale, r.slug, r).tagline}</p><div className="mt-2 text-sm font-bold text-brand">{priceHint(r.slug, locale)}</div></Link>
+          ))}</div>
+        </section>
+      )}
     </div>
   );
 }

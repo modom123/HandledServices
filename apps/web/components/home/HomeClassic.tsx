@@ -32,7 +32,9 @@
  *           phones (swipe row) it opens inside the card (native <details>, no script).
  * UPDATED : 2026-10-27_1500 UTC — cleanup: "Why it works" for customers and pros (replaces the lead-site comparison table),
  *           a "Who we are" strip (slogan + mission → /about); the "More from Handled" tiles are gone (the side menu has them);
- *           order: hero → doors → trust → why it works → services → how it works → who we are → partner → we build.
+ *           order: hero → doors → trust → why it works → services → who we are → partner → we build.
+ * UPDATED : 2026-10-28_1730 UTC — trimmed repeats: no separate "How it works" (the For customers card says it); Business &
+ *           Technology left out of the category grid (the "We build" band and /technology cover it).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -44,11 +46,6 @@ import { HomeDoors } from "@/components/home/HomeDoors";
 import { WhyItWorks } from "@/components/home/WhyItWorks";
 import { WhoWeAre } from "@/components/home/WhoWeAre";
 
-const STEPS = [
-  { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
-  { n: "2", title: "We send one vetted pro", body: "Insured, background-checked and rated. We pick the best available pro for your job, date and neighborhood." },
-  { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. If it isn’t right, we come back free or refund you." },
-];
 
 
 
@@ -61,7 +58,7 @@ export async function HomeClassic() {
   const es = l === "es";
   const top = await popularServices(4);
   const topSlugs = new Set(top.map((s) => s.slug));
-  const cats = CATEGORIES.map((c) => {
+  const cats = CATEGORIES.filter((c) => c.id !== "business").map((c) => {
     const all = SERVICES.filter((s) => s.category === c.id);
     return { ...c, all, list: all.filter((s) => !topSlugs.has(s.slug)) }; // every service not already in Most popular
   }).filter((c) => c.list.length);
@@ -143,22 +140,6 @@ export async function HomeClassic() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* how it works */}
-      <section className="border-y border-line bg-paper-deep py-14">
-        <div className="wrap">
-          <h2 className="text-3xl font-bold tracking-tight">{t("How it works")}</h2>
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="card">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{s.n}</div>
-                <div className="mt-4 font-semibold">{t(s.title)}</div>
-                <p className="mt-2 text-sm text-ink-soft">{t(s.body)}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 

@@ -3,7 +3,12 @@
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-07_0150 UTC
   PURPOSE : How the Referral Partner Program works, how to turn it on, and how to recruit partners.
+  UPDATED : 2026-10-28_0122 UTC — REPLACED by REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md (partner-v2). Kept for jobs booked before 2026-10-28.
 -->
+
+> **Replaced.** The current program (25% one-time / 10% repeat / 15% account, split between the pro and Handled, and the
+> standard referral ticket) is in [`REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md`](REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md).
+> This page describes partner-v1, which still applies to jobs booked before 2026-10-28.
 
 # Referral Partner Program
 

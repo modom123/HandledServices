@@ -8,11 +8,11 @@
  * PURPOSE : Unit economics — revenue, payouts, gross margin by service; payout queue;
  *           AI cost tracking from ai_runs.
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-10-28_1735 UTC — now the "Unit economics" view of Mastermind → Money (/hub/money?view=economics); was /hub/finance. Payout queue moved to Jobs & payouts.
  */
 import { CARD_FEE, TAKE_MAX, TAKE_MIN, getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat } from "@/components/ui";
-import { PayoutButton } from "@/components/HubActions";
 import { DeductionDecision } from "@/components/Deductions";
 import { adminOnly } from "@/components/AdminOnly";
 
@@ -89,14 +89,6 @@ export default async function Finance() {
             );
           })}</div>
         )}
-      </section>
-      <section>
-        <h2 className="mb-1 font-bold">Payout queue</h2>
-        <p className="mb-3 text-sm text-ink-soft">Pros are paid from money already collected: <b>approved</b> = customer charged · <b>pending</b> = confirm payment received first · <b>held</b> = customer charge failed.</p>
-        {!(payouts ?? []).length && <Empty>Nothing owed.</Empty>}
-        <div className="space-y-2">{(payouts ?? []).map((p: Rec) => (
-          <div key={p.id} className="card flex items-center justify-between p-4 text-sm"><div><span className="font-semibold">{p.contractors?.business_name}</span> · {p.jobs?.ref ?? p.reason} · {p.kind && p.kind !== "job" ? `${String(p.kind).replace("_", "-")} · ` : ""}{p.status}</div><div className="flex items-center gap-3"><b>{money(p.amount)}</b><PayoutButton id={p.id} status={p.status} /></div></div>
-        ))}</div>
       </section>
       <section>
         <h2 className="mb-1 font-bold">Pricing accuracy <span className="text-sm font-normal text-ink-soft">last 90 days</span></h2>
