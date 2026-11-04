@@ -4,15 +4,16 @@ PROJECT : Handled (HandledServices) — AI-run home & business services
 CREATED : 2026-11-03_0711 UTC
 PURPOSE : Draft joint response to City of Detroit RFI No. 550595 (Detroit Housing Resource Helpline) from IEBC (respondent)
           with Handled Services LLC (partner). Companion to docs/RFI_550595_HOUSING_HELPLINE_EVALUATION_2026-11-03_0709.md.
+UPDATED : 2026-11-04_1752 UTC — hard line breaks for the PDF build (scripts/build-iebc-rfi-pdf_2026-11-04_1752.py).
 STATUS  : DRAFT. Fill every [bracket] and delete the internal section before submitting.
 -->
 
 # Response to Request for Information No. 550595: Detroit Housing Resource Helpline
 
-**City of Detroit, Office of Contracting and Procurement (OCP)**
-**Respondent:** Integrated Efficiency Business Consultants, LLC (IEBC)
-**Partner:** Handled Services LLC
-**Tracks addressed:** Call Center Technology/Integration (full response) and Call Center Operation (proposed approach)
+**City of Detroit, Office of Contracting and Procurement (OCP)**\
+**Respondent:** Integrated Efficiency Business Consultants, LLC (IEBC)\
+**Partner:** Handled Services LLC\
+**Tracks addressed:** Call Center Technology/Integration (full response) and Call Center Operation (proposed approach)\
 **Date:** [submission date]
 
 ---
@@ -44,9 +45,9 @@ STATUS  : DRAFT. Fill every [bracket] and delete the internal section before sub
 
 [Date]
 
-City of Detroit, Office of Contracting and Procurement
-Coleman A. Young Municipal Center, 2 Woodward Avenue, Suite 1008
-Detroit, MI 48226
+City of Detroit, Office of Contracting and Procurement\
+Coleman A. Young Municipal Center, 2 Woodward Avenue, Suite 1008\
+Detroit, MI 48226\
 Attn: [Buyer name], RFI No. 550595
 
 Re: Request for Information: Detroit Housing Resource Helpline
@@ -68,8 +69,8 @@ We hope this is useful as the City shapes its RFP(s). We would welcome a follow-
 
 Respectfully,
 
-Mark Odom
-Founder & CEO, Integrated Efficiency Business Consultants, LLC
+Mark Odom\
+Founder & CEO, Integrated Efficiency Business Consultants, LLC\
 [phone] · [email]
 
 ---
@@ -588,5 +589,5 @@ These are offered to help the City get stronger, comparable proposals:
 
 ---
 
-*Respectfully submitted by Integrated Efficiency Business Consultants, LLC, with Handled Services LLC, Detroit, Michigan.*
+*Respectfully submitted by Integrated Efficiency Business Consultants, LLC, with Handled Services LLC, Detroit, Michigan.*\
 *Contact: Mark Odom, Founder & CEO · [phone] · [email]*
