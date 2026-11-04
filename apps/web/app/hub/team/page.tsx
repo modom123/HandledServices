@@ -7,9 +7,11 @@
  * UPDATED : 2026-10-11_0451 UTC — "What each role can do": the admin-only list (money, settings, marketing email, pro approvals).
  * UPDATED : 2026-10-11_2242 UTC — role list: Dispatch board and Payments for dispatchers; marking paid by hand is admin.
  * UPDATED : 2026-10-12_0121 UTC — staff ID (S-…) next to each name.
+ * UPDATED : 2026-11-05_0000 UTC — a Files link per team member (their staff file: ID, contracts, certifications…).
  */
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { TeamAdd, TeamRemove } from "@/components/Team";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +31,7 @@ export default async function Team() {
         {team.map((m) => (
           <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
             <div><div className="font-semibold">{m.full_name ?? m.email}{m.staff_no && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{m.staff_no}</span>}</div><div className="text-xs text-ink-soft">{m.email} · {m.role}{m.id === v?.userId ? " · you" : ""}</div></div>
-            {admin && m.id !== v?.userId && <TeamRemove email={m.email} />}
+            <div className="flex items-center gap-3"><Link className="text-xs underline" href={`/hub/find?type=staff&key=${m.id}`}>Files</Link>{admin && m.id !== v?.userId && <TeamRemove email={m.email} />}</div>
           </div>
         ))}
         {!team.length && <p className="p-3 text-sm text-ink-soft">No team members yet.</p>}

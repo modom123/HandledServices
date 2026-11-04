@@ -12,6 +12,8 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
+ *           (components/PersonFiles.tsx, lib/person-files.ts).
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -29,6 +31,7 @@ import { listCrew } from "@/lib/crew";
 import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
+import { PersonFiles } from "@/components/PersonFiles";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -132,6 +135,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
           ))}
         </tbody></table></div>
       </div>
+      <PersonFiles type="pro" ownerKey={id} title="Pro file: documents & photos" />
     </div>
   );
 }

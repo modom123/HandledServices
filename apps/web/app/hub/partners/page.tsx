@@ -7,6 +7,7 @@
  *           Payouts run on Mondays with the pro payouts (cron sweep).
  * UPDATED : 2026-10-28_2300 UTC — photos on referral tickets (signed links, open for an hour).
  * UPDATED : 2026-10-28_0122 UTC — partner-v2 rates; referral ticket queue (we reached out / close); who pays each commission.
+ * UPDATED : 2026-11-05_0000 UTC — a Files link per partner (their ticket photos and anything staff add).
  */
 import { PARTNER_KINDS, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, partnerRateLines, ticketStage, type PartnerKind, type TicketContact, type TicketJobType, type TicketTiming } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
@@ -100,7 +101,7 @@ export default async function PartnersHub() {
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Partner</th><th className="p-3">Type</th><th className="p-3">Code</th><th className="p-3">Customers</th><th className="p-3">Owed</th><th className="p-3">Paid</th><th className="p-3">Payouts</th><th className="p-3"></th></tr></thead>
             <tbody>{PS.map((p) => { const x = per.get(p.id); return (
               <tr key={p.id} className="border-t border-line align-top">
-                <td className="p-3"><div className="font-semibold">{p.name}</div><div className="text-xs text-ink-soft">{[p.company, p.email, p.phone].filter(Boolean).join(" · ")}</div></td>
+                <td className="p-3"><div className="font-semibold">{p.name} <a className="ml-1 text-xs font-normal underline" href={`/hub/find?type=partner&key=${p.id}`}>Files</a></div><div className="text-xs text-ink-soft">{[p.company, p.email, p.phone].filter(Boolean).join(" · ")}</div></td>
                 <td className="p-3">{PARTNER_KINDS[p.kind] ?? p.kind}</td>
                 <td className="p-3 font-mono">{p.code}</td>
                 <td className="p-3">{x?.customers ?? 0}<span className="text-xs text-ink-soft"> ({x?.booked ?? 0} booked)</span></td>
