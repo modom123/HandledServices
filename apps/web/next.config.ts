@@ -7,6 +7,7 @@
  *           and Cross-Origin-Opener-Policy.
  * UPDATED : 2026-10-28_1810 UTC — /about redirects to /home (the About page was removed).
  * UPDATED : 2026-10-28_1840 UTC — the five Mastermind "moved" stub pages are redirects here instead.
+ * UPDATED : 2026-11-04_1759 UTC — the migration files ship with /api/hub/setup so the go-live autopilot can run them.
  */
 import type { NextConfig } from "next";
 import path from "node:path";
@@ -32,6 +33,7 @@ const config: NextConfig = {
       { source: "/hub/finance", destination: "/hub/money?view=economics", permanent: true },
     ];
   },
+  outputFileTracingIncludes: { "/api/hub/setup": ["../../supabase/migrations/*.sql"] },
   async headers() {
     return [{
       source: "/:path*",

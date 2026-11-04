@@ -54,6 +54,8 @@
  * UPDATED : 2026-10-28_1735 UTC — customer totals view probed; one paste is RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql.
  * UPDATED : 2026-10-28_1558 UTC — recruiting intake / division and partner tickets probed (one paste for everything since setup: RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
+ * UPDATED : 2026-11-04_1759 UTC — "Go-live autopilot" checks: the Vercel and Supabase tokens that let Hub → Go-live setup
+ *           save settings, create webhooks and run migrations itself (lib/golive-autopilot.ts).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -72,6 +74,15 @@ export async function readiness(): Promise<Check[]> {
   const c: Check[] = [];
   const add = (group: string, label: string, ok: boolean | "warn", detail: string, fix?: string) =>
     c.push({ group, label, status: ok === true ? "ok" : ok === "warn" ? "warn" : "fail", detail, fix: ok === true ? undefined : fix });
+
+  // ── Go-live autopilot: the last values pasted by hand — after these, the autopilot button does the rest
+  const vercelOk = has("VERCEL_TOKEN") && has("VERCEL_PROJECT_ID");
+  add("Go-live autopilot", "Vercel connection (saves settings and redeploys for you)", vercelOk ? true : "warn", vercelOk ? `connected${has("VERCEL_TEAM_ID") ? " (team project)" : ""}` : `${!has("VERCEL_TOKEN") ? "VERCEL_TOKEN" : "VERCEL_PROJECT_ID"} missing — secrets, the site URL and the Stripe signing secret must be pasted by hand`,
+    "vercel.com → Account Settings → Tokens → Create (scope: the team that owns this project) → VERCEL_TOKEN; Project → Settings → General → Project ID → VERCEL_PROJECT_ID; for a team project also Team Settings → General → Team ID → VERCEL_TEAM_ID. Redeploy once, then press Run autopilot");
+  add("Go-live autopilot", "Supabase connection (runs database migrations for you)", has("SUPABASE_ACCESS_TOKEN") ? true : "warn", has("SUPABASE_ACCESS_TOKEN") ? "connected" : "SUPABASE_ACCESS_TOKEN missing — missing migrations must be pasted into the SQL editor by hand",
+    "supabase.com/dashboard/account/tokens → Generate new token → SUPABASE_ACCESS_TOKEN in Vercel (server only)");
+  add("Go-live autopilot", "Go-live API key (agents can tick checklist items)", (process.env.GOLIVE_API_KEY?.trim().length ?? 0) >= 24 ? true : "warn", (process.env.GOLIVE_API_KEY?.trim().length ?? 0) >= 24 ? "set" : "not set — Run autopilot generates it",
+    "Run autopilot (it generates GOLIVE_API_KEY), or set GOLIVE_API_KEY (openssl rand -hex 32) in Vercel");
 
   // ── Environment
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/+$/, "");
