@@ -17,6 +17,9 @@
  *             redeploy       — one production redeploy when any Vercel setting changed, so it takes effect
  *           plus autoTickChecklist(): business & legal items that an API can prove are ticked ("Autopilot"), and items
  *           an API can only partly prove get an "Autopilot:" note. A person's tick or note is never overwritten.
+ * UPDATED : 2026-11-04_2015 UTC — Stripe webhook: when STRIPE_WEBHOOK_SECRET is missing but an endpoint already exists,
+ *           the endpoint is replaced (new one created, its secret saved in Vercel, then the old one deleted) instead
+ *           of asking the owner to copy the secret.
  *           One-time tokens that unlock it (all server-only, in Vercel): VERCEL_TOKEN, VERCEL_PROJECT_ID (VERCEL_TEAM_ID
  *           for a team project) and SUPABASE_ACCESS_TOKEN. Never returns secret values.
  */
@@ -170,21 +173,27 @@ export async function runAutopilot(checks: Check[], { dryRun }: { dryRun: boolea
       const { data: hooks } = await stripe.webhookEndpoints.list({ limit: 100 });
       const ours = hooks.find((h) => h.url.replace(/\/$/, "") === want && h.status === "enabled");
       const secretOk = env("STRIPE_WEBHOOK_SECRET").startsWith("whsec_");
-      if (ours) {
+      // endpoints at our address whose secret we don't have: Stripe never shows a secret again, so they can't be used
+      const stale = secretOk ? [] : hooks.filter((h) => h.url.replace(/\/$/, "") === want);
+      if (ours && secretOk) {
         const missing = missingWebhookEvents(ours.enabled_events);
         if (missing.length) {
           if (dryRun) step("stripe_webhook", "Stripe webhook events", "todo", `add ${missing.length} missing event(s) to ${want}`);
           else { await stripe.webhookEndpoints.update(ours.id, { enabled_events: [...new Set([...ours.enabled_events, ...missing])] as Stripe.WebhookEndpointUpdateParams.EnabledEvent[] }); step("stripe_webhook", "Stripe webhook events", "done", `added ${missing.join(", ")}`); }
         } else step("stripe_webhook", "Stripe webhook", "ok", `${want} · every event the app uses`);
-        if (!secretOk) step("stripe_webhook_secret", "Stripe signing secret", "skipped", `Stripe only shows an existing endpoint's secret once. Either paste it from Stripe → Developers → Webhooks → ${want} → Signing secret into STRIPE_WEBHOOK_SECRET, or delete that endpoint and run autopilot again — it will create a new one and save its secret for you`);
       } else if (!vercelReady()) {
-        step("stripe_webhook", "Stripe webhook", "skipped", `${needVercel} — the new endpoint's signing secret has to be saved in Vercel`);
+        step("stripe_webhook", "Stripe webhook", "skipped", `${needVercel} — the endpoint's signing secret has to be saved in Vercel${stale.length ? `. Or by hand: Stripe → Developers → Webhooks → ${want} → Signing secret → Reveal → paste into STRIPE_WEBHOOK_SECRET and redeploy` : ""}`);
       } else if (dryRun) {
-        step("stripe_webhook", "Stripe webhook", "todo", `create ${want} with ${events.length} events and save its signing secret as STRIPE_WEBHOOK_SECRET`);
+        step("stripe_webhook", "Stripe webhook", "todo", stale.length
+          ? `replace ${want}: its signing secret isn't in Vercel and Stripe can't show it again, so create a new endpoint with ${events.length} events, save its secret as STRIPE_WEBHOOK_SECRET, then delete the old one`
+          : `create ${want} with ${events.length} events and save its signing secret as STRIPE_WEBHOOK_SECRET`);
       } else {
         const created = await stripe.webhookEndpoints.create({ url: want, enabled_events: events as Stripe.WebhookEndpointCreateParams.EnabledEvent[], description: `${BRAND.name} (created by Go-live autopilot)` });
-        if (created.secret) { await setVercelEnv("STRIPE_WEBHOOK_SECRET", created.secret); envChanged.push("STRIPE_WEBHOOK_SECRET"); }
-        step("stripe_webhook", "Stripe webhook", "done", `created ${want} (${keyMode(env("STRIPE_SECRET_KEY")) ?? "?"} mode) and saved its signing secret in Vercel`);
+        try { await setVercelEnv("STRIPE_WEBHOOK_SECRET", created.secret!); }
+        catch (e) { await stripe.webhookEndpoints.del(created.id).catch(() => null); throw e; } // no orphan endpoint if the secret can't be saved
+        envChanged.push("STRIPE_WEBHOOK_SECRET");
+        for (const h of stale) await stripe.webhookEndpoints.del(h.id).catch(() => null);
+        step("stripe_webhook", "Stripe webhook", "done", `${stale.length ? `replaced ${stale.length} endpoint(s) with no usable secret: ` : ""}created ${want} (${keyMode(env("STRIPE_SECRET_KEY")) ?? "?"} mode) and saved its signing secret in Vercel`);
       }
     } catch (e) { step("stripe_webhook", "Stripe webhook", "failed", String(e instanceof Error ? e.message : e)); }
 

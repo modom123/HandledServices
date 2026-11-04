@@ -26,7 +26,7 @@ Redeploy once, open Go-live setup and press **Run autopilot**.
 |---|---|
 | `CRON_SECRET`, `INVOICE_SIGNING_SECRET`, `LEAD_INTAKE_SECRET`, `GOLIVE_API_KEY`, `IEBC_API_KEY` | generates random values and saves them in Vercel |
 | `NEXT_PUBLIC_SITE_URL` | set from the Vercel production domain |
-| Stripe webhook | creates `/api/stripe/webhook` with every event the app needs (or adds missing events) and saves the signing secret as `STRIPE_WEBHOOK_SECRET` |
+| Stripe webhook | creates `/api/stripe/webhook` with every event the app needs (or adds missing events) and saves the signing secret as `STRIPE_WEBHOOK_SECRET`. If an endpoint exists but its secret isn't in Vercel, it replaces that endpoint (Stripe never shows a secret twice) |
 | Stripe billing portal | creates it (update card, invoices, cancel Handled Plus at period end) |
 | Twilio incoming texts | points your number / Messaging Service at `/api/webhooks/twilio` |
 | Database migrations | runs every missing one, oldest first, and stops at the first error |
