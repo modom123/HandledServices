@@ -5,9 +5,10 @@
  * PURPOSE : The business itself as schema.org structured data (LocalBusiness), for the home pages, and the shared
  *           reference service pages point at (@id), so Google and AI assistants read one consistent set of facts:
  *           name, legal name, phone, email, logo, and the states served (Michigan, Washington). A street address is
- *           included only when BUSINESS_POSTAL_ADDRESS is set — never a made-up one. No hours: none are published.
+ *           included only when BUSINESS_POSTAL_ADDRESS is set — never a made-up one.
  *           "405 W. Greenlawn Ave. #G11 #4194, Lansing, MI 48910" is split into street / city / state / ZIP; anything
  *           that doesn't fit that shape is passed through as the street line.
+ * UPDATED : 2026-11-04_2300 UTC — hours: open 24/7 (the owner's published hours), as openingHoursSpecification.
  */
 import "server-only";
 import { BRAND, SERVICE_AREA } from "@handled/core";
@@ -44,7 +45,9 @@ export function businessLd() {
     email: BRAND.supportEmail,
     areaServed: SERVICE_AREA.map((s) => ({ "@type": "State", name: s.name })),
     ...(address ? { address: postalAddress(address) } : {}),
-    contactPoint: { "@type": "ContactPoint", contactType: "customer service", telephone: intl(BRAND.supportPhone), email: BRAND.supportEmail, availableLanguage: ["English", "Spanish"] },
+    // open 24 hours, 7 days (schema.org's way to say it: 00:00–23:59 every day)
+    openingHoursSpecification: [{ "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], opens: "00:00", closes: "23:59" }],
+    contactPoint: { "@type": "ContactPoint", contactType: "customer service", telephone: intl(BRAND.supportPhone), email: BRAND.supportEmail, availableLanguage: ["English", "Spanish"], hoursAvailable: { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], opens: "00:00", closes: "23:59" } },
   };
 }
 
