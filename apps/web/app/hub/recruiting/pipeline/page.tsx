@@ -14,8 +14,10 @@
  *           Overview now). Two tracks: Independent pros (this pipeline) and Team & client roles (every Talent search's
  *           candidates by stage, our own staff roles first). The Indeed card moved to the Indeed tab.
  * UPDATED : 2026-10-28_1735 UTC — the interview packet is a link here (no longer its own Recruiting tab).
+ * UPDATED : 2026-11-05_1215 UTC — stage filter is a dropdown (with counts) instead of a row of 12 buttons.
  */
 import Link from "next/link";
+import { FilterSelect } from "@/components/Dropdowns";
 import { PIPELINE, STAGE_LABEL, TALENT_STAGES, TRADES, type PipelineStage } from "@handled/core";
 import { stageLabel } from "@/lib/talent";
 import { getViewer } from "@/lib/auth";
@@ -75,11 +77,11 @@ export default async function RecruitingPage({ searchParams }: { searchParams: P
         <Stat label="Need you" value={count("applied") + count("screened") + count("interviewed")} hint="waiting for a decision" />
       </div>
       <div className="card overflow-x-auto">
-        <div className="flex min-w-max gap-2 text-sm">
-          <Link href="/hub/recruiting/pipeline" className={`rounded-full border px-3 py-1 ${!filter ? "border-brand bg-brand-tint" : "border-line"}`}>Open ({rows.filter((r) => !["active", "rejected"].includes(r.stage)).length})</Link>
-          {[...PIPELINE, "dropped" as PipelineStage, "rejected" as PipelineStage].map((s) => (
-            <Link key={s} href={`/hub/recruiting/pipeline?stage=${s}`} className={`rounded-full border px-3 py-1 ${filter === s ? "border-brand bg-brand-tint" : "border-line"}`}>{STAGE_LABEL[s]} ({count(s)})</Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <FilterSelect label="Show" current={filter ? `/hub/recruiting/pipeline?stage=${filter}` : "/hub/recruiting/pipeline"} options={[
+            { href: "/hub/recruiting/pipeline", label: `Open (${rows.filter((r) => !["active", "rejected"].includes(r.stage)).length})` },
+            ...[...PIPELINE, "dropped" as PipelineStage, "rejected" as PipelineStage].map((s) => ({ href: `/hub/recruiting/pipeline?stage=${s}`, label: `${STAGE_LABEL[s]} (${count(s)})` })),
+          ]} />
         </div>
       </div>
       <div className="space-y-2">
