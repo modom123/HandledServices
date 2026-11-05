@@ -54,6 +54,7 @@
  * UPDATED : 2026-10-28_1735 UTC — customer totals view probed; one paste is RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql.
  * UPDATED : 2026-10-28_1558 UTC — recruiting intake / division and partner tickets probed (one paste for everything since setup: RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
+ * UPDATED : 2026-11-05_0000 UTC — migration 20261105000000_person_files and the person-files storage bucket.
  * UPDATED : 2026-11-04_1759 UTC — "Go-live autopilot" checks: the Vercel and Supabase tokens that let Hub → Go-live setup
  *           save settings, create webhooks and run migrations itself (lib/golive-autopilot.ts).
  */
@@ -237,6 +238,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261028012200_partner_tickets_tiers", "partner rates 25/10/15 and referral tickets (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("referral_customers").select("ticket_no, status").limit(1)],
     ["20261028224500_pro_orientation", "Welcome to Handled orientation and photos on referral tickets (or run supabase/setup/ADD_PRO_WELCOME_2026-10-28_2300.sql)", () => db.from("referral_customers").select("photos").limit(1).then(async (r) => (r.error ? r : await db.from("contractors").select("orientation").limit(1)))],
     ["20261028173500_hub_customer_totals", "Mastermind customer list covers every customer (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("hub_customer_totals").select("email").limit(1)],
+    ["20261105000000_person_files", "person files (Mastermind → anyone's documents & photos)", () => db.from("person_files").select("id").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
@@ -281,7 +283,7 @@ export async function readiness(): Promise<Check[]> {
   const stale = SERVICES.filter((s) => { const r = rows.get(s.slug); return r && (r.name !== s.name || Number(r.minimum) !== s.minimum); }).map((s) => s.slug);
   add("Supabase", "Service catalog synced", missing.length === 0 && stale.length === 0, missing.length ? `${missing.length} missing: ${missing.join(", ")}` : stale.length ? `${stale.length} out of date: ${stale.join(", ")}` : `${SERVICES.length} services`, "Click “Sync service catalog” below");
   const { data: buckets } = await db.storage.listBuckets();
-  for (const b of ["job-photos", "pro-docs"]) add("Supabase", `Storage bucket ${b}`, Boolean(buckets?.some((x) => x.id === b)), buckets?.some((x) => x.id === b) ? "exists (private)" : "missing", "Re-run the migrations — they create the buckets");
+  for (const b of ["job-photos", "pro-docs", "person-files"]) add("Supabase", `Storage bucket ${b}`, Boolean(buckets?.some((x) => x.id === b)), buckets?.some((x) => x.id === b) ? "exists (private)" : "missing", "Re-run the migrations — they create the buckets");
 
   const [{ count: admins }, { data: pros }, { count: demo }, { count: markets }] = await Promise.all([
     db.from("profiles").select("id", { count: "exact", head: true }).in("role", ["admin", "dispatcher"]),

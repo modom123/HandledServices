@@ -193,7 +193,7 @@ export function ApproveProForm({ trades }: { trades: Trade[] }) {
   async function pick(file: File | undefined) {
     setOut(null); setResume(null); setReading("");
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) return setReading("That file is over 4 MB — save it as a smaller PDF.");
+    if (file.size > 3 * 1024 * 1024) return setReading("That file is over 3 MB — save it as a smaller PDF, or have the pro upload it in their setup (up to 10 MB).");
     const r = { data: await toBase64(file), fileName: file.name, contentType: file.type || "application/octet-stream" };
     setResume(r);
     setReading("Reading the résumé…");
@@ -225,7 +225,7 @@ export function ApproveProForm({ trades }: { trades: Trade[] }) {
         <p className="text-ink-soft">You screened the résumé and did the phone interview, and you want them. Upload the résumé, check the details and approve — their pro file is created and the system takes over: invite email, setup checklist, reminders, document checks, background check, going live, job offers and Monday pay.</p>
       </div>
       <label className="block rounded-xl border border-dashed border-brand bg-brand-tint/40 p-3">
-        <span className="label">1 · Their résumé (PDF, Word or a photo, up to 4 MB)</span>
+        <span className="label">1 · Their résumé (PDF, Word or a photo, up to 3 MB)</span>
         <input type="file" className="mt-1 block text-xs" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" onChange={(e) => pick(e.target.files?.[0])} />
         <span className="mt-1 block text-xs text-ink-soft">{reading || (resume ? `📄 ${resume.fileName} — goes into their pro file` : "We read it and fill in the form for you. No résumé? Just fill in the form.")}</span>
       </label>

@@ -2417,3 +2417,37 @@ test("orientation: six lessons, progress, answers", async () => {
   assert.equal(orientationAnswer("pay", 1), false);
   assert.equal(orientationAnswer("nope", 0), false);
 });
+
+test("depth chart: positions fill, cross off and rank like a roster", async () => {
+  const { depthChart, depthSummary, clearedFor } = await import("./depth-chart.ts");
+  const svc = getService("house-cleaning")!;
+  const trade = svc.trades[0];
+  const future = "2099-01-01";
+  const pro = (id: string, extra: Record<string, unknown> = {}) => ({ id, business_name: `Pro ${id}`, contact_name: id, trades: [trade], status: "approved", rating: 4.5, jobs_completed: 10,
+    insured_until: future, license_number: "x", background_checked: true, coverage: {}, base_state: "MI", ...extra }) as never;
+  // cleared vs. not cleared
+  assert.equal(clearedFor(pro("a"), svc), null);
+  assert.match(String(clearedFor(pro("b", { background_checked: false }), svc)), /background/);
+  assert.match(String(clearedFor(pro("c", { insured_until: "2000-01-01" }), svc)), /insurance/);
+  const pos = (list: never[], state?: string) => depthChart({ contractors: list, state }).find((p) => p.slug === "house-cleaning")!;
+  // focus service: 3 deep to cross off
+  assert.equal(pos([]).status, "open");
+  assert.equal(pos([pro("a")]).status, "thin");
+  assert.equal(pos([pro("a"), pro("b"), pro("c")]).status, "covered");
+  // depth order: specialists and better-rated, experienced pros start
+  const ranked = pos([pro("low", { rating: 3.9, jobs_completed: 40 }), pro("high", { rating: 4.9, jobs_completed: 60 })]);
+  assert.deepEqual(ranked.depth.map((p) => p.id), ["high", "low"]);
+  // onboarding pros are "in camp", not on the depth chart; region filter
+  assert.equal(pos([pro("n", { status: "vetting" })]).inCamp.length, 1);
+  assert.equal(pos([pro("a", { base_state: "WA" })], "MI").depth.length, 0);
+  // prospects and the scoreboard
+  assert.equal(depthChart({ contractors: [], prospects: [{ id: "p", name: "Applicant", trades: [trade] }] }).find((p) => p.slug === "house-cleaning")!.prospects.length, 1);
+  // projected depth: cleared first, then not cleared, in camp, prospects — and what it covers once they sign
+  const proj = depthChart({ contractors: [pro("a"), pro("b", { background_checked: false }), pro("c", { status: "vetting" })], prospects: [{ id: "p", name: "Applicant", trades: [trade] }] }).find((p) => p.slug === "house-cleaning")!;
+  assert.deepEqual(proj.projected.map((x) => x.tier), ["cleared", "not_cleared", "in_camp", "prospect"]);
+  assert.equal(proj.status, "thin");
+  assert.equal(proj.projectedStatus, "covered");
+  const sum = depthSummary(depthChart({ contractors: [] }));
+  assert.equal(sum.total, SERVICES.length);
+  assert.equal(sum.open, SERVICES.length);
+});
