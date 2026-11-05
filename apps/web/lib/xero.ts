@@ -9,6 +9,8 @@
  *           Scopes are Xero's granular scopes (required for apps created after 2 March 2026). Override with
  *           XERO_SCOPES only if your Xero app is older and still on the broad accounting.transactions scope.
  *           The account mapping (which Xero account each kind of money goes to) and its defaults live here too.
+ * UPDATED : 2026-11-05_1600 UTC — connection troubleshooting: client id / secret trimmed (copy-paste spaces make Xero
+ *           reject the app with "Something went wrong"); classic-permission mode for older Xero apps (XERO_CLASSIC_SCOPES).
  * UPDATED : 2026-10-28_2210 UTC — reports: profit and loss pulled back from Xero for Hub → Accounting (report scope
  *           XERO_REPORT_SCOPES, asked for on connect; "connect without reports" if Xero rejects it).
  */
@@ -29,7 +31,13 @@ export const XERO_SCOPES = process.env.XERO_SCOPES?.trim() ||
 /** Read-only report permission, asked for on top of XERO_SCOPES unless the admin connects without reports. */
 export const XERO_REPORT_SCOPES = process.env.XERO_REPORT_SCOPES?.trim() ?? "accounting.reports.profitandloss.read";
 
-export const xeroConfigured = () => Boolean(process.env.XERO_CLIENT_ID && process.env.XERO_CLIENT_SECRET);
+export const xeroConfigured = () => Boolean(process.env.XERO_CLIENT_ID?.trim() && process.env.XERO_CLIENT_SECRET?.trim());
+/** The app's id and secret without the stray spaces / line breaks copy-paste leaves (Xero rejects those). */
+const clientId = () => process.env.XERO_CLIENT_ID?.trim() ?? "";
+const clientSecret = () => process.env.XERO_CLIENT_SECRET?.trim() ?? "";
+/** Classic (broad) permissions, for Xero apps created before 2 March 2026, which can't use the granular ones. */
+export const XERO_CLASSIC_SCOPES = "openid profile email offline_access accounting.transactions accounting.contacts accounting.settings accounting.reports.read";
+export type XeroConnectMode = "full" | "basic" | "classic";
 export const xeroRedirectUri = () => process.env.XERO_REDIRECT_URI?.trim() || `${siteUrl()}/api/xero/callback`;
 
 // ─── Account mapping ─────────────────────────────────────────────────────────
@@ -119,16 +127,17 @@ export async function saveSettings(patch: Partial<XeroSettings>) {
 
 // ─── OAuth ───────────────────────────────────────────────────────────────────
 
-export function authorizeUrl(state: string, withReports = true) {
-  const scope = withReports && XERO_REPORT_SCOPES ? `${XERO_SCOPES} ${XERO_REPORT_SCOPES}` : XERO_SCOPES;
-  const q = new URLSearchParams({ response_type: "code", client_id: process.env.XERO_CLIENT_ID!, redirect_uri: xeroRedirectUri(), scope, state });
+export function authorizeUrl(state: string, mode: XeroConnectMode | boolean = "full") {
+  const m: XeroConnectMode = mode === true ? "full" : mode === false ? "basic" : mode;
+  const scope = m === "classic" ? XERO_CLASSIC_SCOPES : m === "full" && XERO_REPORT_SCOPES ? `${XERO_SCOPES} ${XERO_REPORT_SCOPES}` : XERO_SCOPES;
+  const q = new URLSearchParams({ response_type: "code", client_id: clientId(), redirect_uri: xeroRedirectUri(), scope, state });
   return `${AUTHORIZE}?${q}`;
 }
 
 type TokenSet = { access_token: string; refresh_token: string; expires_in: number; scope?: string };
 
 async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
-  const basic = Buffer.from(`${process.env.XERO_CLIENT_ID}:${process.env.XERO_CLIENT_SECRET}`).toString("base64");
+  const basic = Buffer.from(`${clientId()}:${clientSecret()}`).toString("base64");
   const r = await fetch(TOKEN, { method: "POST", headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(body), cache: "no-store" });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.access_token) throw new Error(`Xero token error: ${j.error_description ?? j.error ?? r.status}`);
@@ -161,7 +170,7 @@ export async function disconnect() {
   const { data } = await adminClient().from("xero_connection").select("refresh_token").eq("id", 1).maybeSingle();
   const refresh = open(data?.refresh_token ?? null);
   if (refresh) {
-    const basic = Buffer.from(`${process.env.XERO_CLIENT_ID}:${process.env.XERO_CLIENT_SECRET}`).toString("base64");
+    const basic = Buffer.from(`${clientId()}:${clientSecret()}`).toString("base64");
     await fetch(REVOKE, { method: "POST", headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ token: refresh }) }).catch(() => null);
   }
   await adminClient().from("xero_connection").update({ access_token: null, refresh_token: null, expires_at: null, tenant_id: null, tenant_name: null, connection_id: null, updated_at: new Date().toISOString() }).eq("id", 1);

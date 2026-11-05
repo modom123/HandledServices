@@ -7,6 +7,8 @@
  *           (with links into Xero) and anything that failed. The daily cron does the pushing on its own.
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  * UPDATED : 2026-10-28_2210 UTC — Reports: profit and loss by month, read back from Xero (the books of record).
+ * UPDATED : 2026-11-05_1600 UTC — "Connecting Xero" troubleshooting (not connected yet): the exact redirect URI to register,
+ *           a client id sanity check, and three ways to connect (granular, without reports, classic for older apps).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/auth";
@@ -71,6 +73,8 @@ export default async function Accounting({ searchParams }: { searchParams: Promi
       {q.xero === "connected" && <div className="card border-emerald-300 bg-emerald-50 text-sm">Connected to <b>{q.org}</b>.{q.others ? ` You authorised ${q.others} other organisation(s); only this one is used.` : ""} Next: check the account mapping below, then click “Create missing accounts”.</div>}
       {q.xero === "scope_error" && <div className="card border-amber-300 bg-amber-50 text-sm">Xero didn&apos;t accept the report permission for this app. <a className="font-semibold underline" href="/api/xero/connect?basic=1">Connect without reports</a> (syncing works the same), or set <code>XERO_REPORT_SCOPES</code> in Vercel to the report scope your Xero app lists and try again.</div>}
       {q.xero && q.xero !== "connected" && q.xero !== "scope_error" && <div className="card border-rose-300 bg-rose-50 text-sm">{MSG[q.xero] ?? `Xero: ${q.msg ?? q.xero}`}</div>}
+
+      {admin && !connected && xeroConfigured() && <XeroTroubleshoot />}
 
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Xero" value={connected ? conn.tenant_name ?? "Connected" : "Not connected"} hint={connected ? `by ${conn.connected_by ?? "—"} · ${conn.connected_at?.slice(0, 10) ?? ""}` : xeroConfigured() ? "ready to connect" : "keys missing"} />
@@ -150,5 +154,34 @@ export default async function Accounting({ searchParams }: { searchParams: Promi
         )}
       </section>
     </div>
+  );
+}
+
+/** Not connected yet: what Xero must have on file, and three ways to connect (one of them matches the Xero app). */
+function XeroTroubleshoot() {
+  const raw = process.env.XERO_CLIENT_ID ?? "";
+  const id = raw.trim();
+  const spaces = raw !== id;
+  const shapeOk = /^[A-F0-9]{32}$/i.test(id);
+  const redirect = xeroRedirectUri();
+  return (
+    <section className="card space-y-3 text-sm">
+      <h2 className="text-lg font-bold">Connecting Xero</h2>
+      <p className="text-ink-soft">If Xero&apos;s own page says <i>“Something went wrong”</i>, Xero didn&apos;t recognise this app&apos;s details. Check these against developer.xero.com → My Apps → your app, then try the connect buttons below in order.</p>
+      <ol className="list-decimal space-y-2 pl-5">
+        <li><b>Redirect URI</b> — must be listed in your Xero app <i>exactly</i> (same https, same <code>www</code>, no slash at the end):
+          <div className="mt-1 select-all rounded-lg border border-line bg-paper px-2 py-1 font-mono text-xs">{redirect}</div></li>
+        <li><b>Client id</b> in Vercel (XERO_CLIENT_ID): <span className="font-mono">{id ? `${id.slice(0, 4)}…${id.slice(-4)}` : "missing"}</span>{" "}
+          {shapeOk ? <span className="text-emerald-700">✓ looks like a Xero client id</span> : <span className="text-rose-700">⚠ Xero client ids are 32 letters and numbers — re-copy it from the app&apos;s Configuration page</span>}
+          {spaces && <span className="block text-amber-700">It had spaces or a line break around it — those are now ignored.</span>}</li>
+        <li><b>App type</b> — a <i>Web app</i> (not a Custom connection or Mobile app).</li>
+      </ol>
+      <div className="flex flex-wrap gap-2">
+        <a className="btn-primary" href="/api/xero/connect">1 · Connect Xero</a>
+        <a className="btn-ghost" href="/api/xero/connect?mode=basic">2 · Connect without reports</a>
+        <a className="btn-ghost" href="/api/xero/connect?mode=classic">3 · Connect (Xero app made before March 2026)</a>
+      </div>
+      <p className="text-xs text-ink-soft">Xero apps created after 2 March 2026 use the new “granular” permissions (button 1 or 2); older apps only accept the classic ones (button 3). Syncing works the same either way.</p>
+    </section>
   );
 }
