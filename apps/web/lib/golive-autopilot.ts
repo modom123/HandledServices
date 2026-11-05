@@ -7,6 +7,8 @@
  *             secrets        — generates CRON_SECRET, INVOICE_SIGNING_SECRET, LEAD_INTAKE_SECRET, GOLIVE_API_KEY and
  *                              IEBC_API_KEY when missing and saves them in Vercel (Vercel REST API)
  *             site URL       — NEXT_PUBLIC_SITE_URL from the Vercel production domain
+ *             Google reviews — finds our Google Business Profile by phone (Places API) and saves its "write a review"
+ *                              link as NEXT_PUBLIC_GOOGLE_REVIEW_URL (added 2026-11-05_1240 UTC)
  *             Stripe webhook — creates the endpoint with every event the app uses (or adds missing events) and saves
  *                              the new signing secret straight into Vercel as STRIPE_WEBHOOK_SECRET
  *             Stripe portal  — creates the customer billing portal (Handled Plus manage / cancel)
@@ -121,6 +123,27 @@ async function twilio(url: string, form?: Record<string, string>) {
   return json;
 }
 
+// ─── Google Business Profile ───────────────────────────────────────────────
+
+/** Our listing on Google, matched by phone number (so a similarly named business can never be picked). */
+async function findOurPlace(): Promise<{ id: string; name: string; address: string } | null> {
+  const digits = (x: string) => x.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  const ours = digits(BRAND.supportPhone);
+  const queries = [`${BRAND.legalName}`, `${BRAND.name} ${BRAND.supportPhone}`, `${BRAND.name} home services Michigan`];
+  for (const textQuery of queries) {
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": env("GOOGLE_PLACES_API_KEY"), "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber" },
+      body: JSON.stringify({ textQuery, maxResultCount: 10 }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Google Places ${res.status}: ${j?.error?.message ?? res.statusText}`);
+    const hit = (j.places ?? []).find((p: { nationalPhoneNumber?: string; internationalPhoneNumber?: string }) => [p.nationalPhoneNumber, p.internationalPhoneNumber].some((n) => n && digits(n) === ours));
+    if (hit) return { id: String(hit.id), name: String(hit.displayName?.text ?? BRAND.name), address: String(hit.formattedAddress ?? "") };
+  }
+  return null;
+}
+
 // ─── The run ───────────────────────────────────────────────────────────────
 
 /**
@@ -160,6 +183,23 @@ export async function runAutopilot(checks: Check[], { dryRun }: { dryRun: boolea
   else {
     try { await setVercelEnv("NEXT_PUBLIC_SITE_URL", `https://${prod}`); envChanged.push("NEXT_PUBLIC_SITE_URL"); step("site_url", "Site URL", "done", `set to https://${prod}`); }
     catch (e) { step("site_url", "Site URL", "failed", String(e instanceof Error ? e.message : e)); }
+  }
+
+  // 2b. Google review link: find our Google Business Profile by our phone number (Places API) → the "write a review" link
+  if (env("NEXT_PUBLIC_GOOGLE_REVIEW_URL")) step("google_review", "Google review link", "ok", env("NEXT_PUBLIC_GOOGLE_REVIEW_URL"));
+  else if (!has("GOOGLE_PLACES_API_KEY")) step("google_review", "Google review link", "skipped", "needs GOOGLE_PLACES_API_KEY (the lead engine's key) to find the Google Business Profile — or paste the link from Google Business Profile → Ask for reviews");
+  else if (!vercelReady()) step("google_review", "Google review link", "skipped", needVercel);
+  // the preview runs on every Go-live setup visit: don't spend a Places search on it
+  else if (dryRun) step("google_review", "Google review link", "todo", `look up our Google Business Profile by the phone ${BRAND.supportPhone} and save its review link`);
+  else {
+    try {
+      const place = await findOurPlace();
+      if (!place) step("google_review", "Google review link", "skipped", `no Google Business Profile found with the phone ${BRAND.supportPhone} — create or verify it at business.google.com (service-area business, Michigan & Washington), then run autopilot again`);
+      else {
+        const url = `https://search.google.com/local/writereview?placeid=${place.id}`;
+        { await setVercelEnv("NEXT_PUBLIC_GOOGLE_REVIEW_URL", url); envChanged.push("NEXT_PUBLIC_GOOGLE_REVIEW_URL"); step("google_review", "Google review link", "done", `"${place.name}" → ${url}`); }
+      }
+    } catch (e) { step("google_review", "Google review link", "failed", String(e instanceof Error ? e.message : e)); }
   }
 
   // 3. Stripe webhook + 4. billing portal
