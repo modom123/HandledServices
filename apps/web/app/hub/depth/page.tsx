@@ -10,25 +10,22 @@
  * UPDATED : 2026-11-05_0045 UTC — colors: each slot shows who plays there — green cleared, amber signed but not cleared,
  *           blue in camp (onboarding), purple prospect (recruiting pipeline) — so empty positions show who would fill
  *           them once signed; "Filled if they all sign" shows the roster with the whole pipeline signed.
+ * UPDATED : 2026-11-05_0130 UTC — one job's depth chart (?service=<slug>): every pro who could work it, numbered from
+ *           starter down the bench in depth order, colored by tier, with why the not-cleared ones can't play yet. Opened
+ *           from the job buttons on the Roster (components/DepthJobButtons) or a position's name here.
  */
 import Link from "next/link";
-import { depthChart, depthSummary, type Contractor, type DepthTier, type Position } from "@handled/core";
+import { depthChart, depthSummary, getService, type Contractor, type DepthTier, type Position } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
+import { JobDepth, REGIONS, TIER } from "@/components/DepthViews";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Depth chart" };
 
-const REGIONS = [["", "All"], ["MI", "Michigan"], ["WA", "Washington"]] as const;
 const ORD = ["Starter", "2nd", "3rd"];
-const TIER: Record<DepthTier, { label: string; cls: string }> = {
-  cleared: { label: "Cleared to play", cls: "border-emerald-300 bg-emerald-50 text-emerald-900" },
-  not_cleared: { label: "Signed, not cleared", cls: "border-amber-300 bg-amber-50 text-amber-900" },
-  in_camp: { label: "In camp (onboarding)", cls: "border-sky-300 bg-sky-50 text-sky-900" },
-  prospect: { label: "Prospect (recruiting)", cls: "border-violet-300 bg-violet-50 text-violet-900" },
-};
 
-export default async function DepthChart({ searchParams }: { searchParams: Promise<{ state?: string; show?: string }> }) {
+export default async function DepthChart({ searchParams }: { searchParams: Promise<{ state?: string; show?: string; service?: string }> }) {
   const sp = await searchParams;
   const state = sp.state === "MI" || sp.state === "WA" ? sp.state : "";
   const db = adminClient();
@@ -41,6 +38,8 @@ export default async function DepthChart({ searchParams }: { searchParams: Promi
   const prospects = ((apps.error ? [] : apps.data) ?? []).map((a) => ({ id: String(a.id), name: String(a.business_name || a.contact_name), trades: (a.trades ?? []) as string[], specialties: ((a as { specialties?: string[] | null }).specialties ?? null) }));
   const positions = depthChart({ contractors: (pros ?? []) as Contractor[], prospects, state });
   const sum = depthSummary(positions);
+  const one = sp.service && getService(sp.service) ? positions.find((p) => p.slug === sp.service) : null;
+  if (one) return <JobDepth p={one} state={state} />;
   const open = positions.filter((p) => p.status !== "covered").sort((a, b) => Number(b.focus) - Number(a.focus) || (a.status === "open" ? -1 : 1) - (b.status === "open" ? -1 : 1));
   const showAll = sp.show === "all";
   const q = (extra: Record<string, string>) => `/hub/depth?${new URLSearchParams({ ...(state ? { state } : {}), ...(showAll ? { show: "all" } : {}), ...extra })}`;
@@ -69,7 +68,7 @@ export default async function DepthChart({ searchParams }: { searchParams: Promi
           <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
             {open.slice(0, showAll ? open.length : 18).map((p) => (
               <li key={p.slug} className="flex items-center justify-between gap-2 rounded-xl border border-line p-2">
-                <span>{p.icon} <b>{p.name}</b>{p.focus && <span className="ml-1 rounded bg-brand-tint px-1 text-xs text-brand-dark">focus</span>}<span className="block text-xs text-ink-soft">{p.status === "open" ? "no starter" : `${p.depth.length} of ${p.target}`} · need {p.need}{p.inCamp.length ? ` · ${p.inCamp.length} in camp` : ""}{p.prospects.length ? ` · ${p.prospects.length} prospect${p.prospects.length === 1 ? "" : "s"}` : ""}{p.notCleared.length ? ` · ${p.notCleared.length} not cleared` : ""}</span></span>
+                <span>{p.icon} <Link className="font-bold hover:underline" href={`/hub/depth?service=${p.slug}`}>{p.name}</Link>{p.focus && <span className="ml-1 rounded bg-brand-tint px-1 text-xs text-brand-dark">focus</span>}<span className="block text-xs text-ink-soft">{p.status === "open" ? "no starter" : `${p.depth.length} of ${p.target}`} · need {p.need}{p.inCamp.length ? ` · ${p.inCamp.length} in camp` : ""}{p.prospects.length ? ` · ${p.prospects.length} prospect${p.prospects.length === 1 ? "" : "s"}` : ""}{p.notCleared.length ? ` · ${p.notCleared.length} not cleared` : ""}</span></span>
                 <Link className="shrink-0 text-xs underline" href="/hub/leads">Find pros</Link>
               </li>
             ))}
@@ -99,7 +98,7 @@ function Row({ p }: { p: Position }) {
   return (
     <tr className={`border-t border-line align-top ${covered ? "bg-emerald-50/40" : ""}`}>
       <td className="p-3">
-        <span className={covered ? "text-ink-soft line-through decoration-emerald-600/60" : "font-semibold"}>{p.icon} {p.name}</span>
+        <Link href={`/hub/depth?service=${p.slug}`} className={covered ? "text-ink-soft line-through decoration-emerald-600/60" : "font-semibold hover:underline"}>{p.icon} {p.name}</Link>
         {covered ? <span className="ml-2 text-xs font-semibold text-emerald-700">✓ filled</span> : <span className={`ml-2 rounded px-1.5 text-xs ${p.status === "open" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{p.status === "open" ? "open" : `need ${p.need}`}</span>}
         {p.focus && <span className="ml-1 rounded bg-brand-tint px-1 text-xs text-brand-dark">focus</span>}
         {willFill && <span className="block text-xs text-violet-700">fills once the pipeline signs</span>}
@@ -119,3 +118,4 @@ function Row({ p }: { p: Position }) {
     </tr>
   );
 }
+
