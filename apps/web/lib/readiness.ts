@@ -54,6 +54,8 @@
  * UPDATED : 2026-10-28_1735 UTC — customer totals view probed; one paste is RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql.
  * UPDATED : 2026-10-28_1558 UTC — recruiting intake / division and partner tickets probed (one paste for everything since setup: RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
+ * UPDATED : 2026-11-05_1330 UTC — Sales tax reads Stripe Tax (registrations + STRIPE_TAX); Connect counts as ready when it's
+ *           activated even before any pro is approved.
  * UPDATED : 2026-11-05_1240 UTC — 10-minute dispatch cron is confirmed by its own runs (no DISPATCH_CRON / GitHub secret needed).
  * UPDATED : 2026-11-05_0000 UTC — migration 20261105000000_person_files and the person-files storage bucket.
  * UPDATED : 2026-11-04_1759 UTC — "Go-live autopilot" checks: the Vercel and Supabase tokens that let Hub → Go-live setup
@@ -163,7 +165,20 @@ export async function readiness(): Promise<Check[]> {
       add("Payments (Stripe)", "Stripe account", false, `key rejected: ${e instanceof Error ? e.message : e}`, "Re-copy STRIPE_SECRET_KEY");
     }
     add("Webhooks", "Stripe: signing secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.succeeded (app payments), charge.refunded (refunds made in Stripe), charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, identity.verification_session.verified and identity.verification_session.requires_input (pro ID checks); copy the signing secret`);
-    add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services; turn on before adding states that tax services", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
+    // sales tax: read Stripe Tax itself — where we're registered, and whether checkout adds tax (STRIPE_TAX)
+    try {
+      const regs = (await stripe.tax.registrations.list({ status: "active", limit: 50 })).data;
+      const where = regs.map((r) => (r.country === "US" ? (r.country_options as { us?: { state?: string } }).us?.state ?? "US" : r.country)).filter(Boolean);
+      const on = process.env.STRIPE_TAX === "on";
+      add("Payments (Stripe)", "Sales tax", where.length && on ? true : "warn",
+        where.length ? (on ? `Stripe Tax on · registered in ${where.join(", ")}` : `registered in ${where.join(", ")} in Stripe, but checkout doesn't add tax yet`)
+          : on ? "STRIPE_TAX is on but Stripe has no tax registration — no tax is calculated"
+          : "no tax registration in Stripe. Michigan doesn't tax most home services; Washington taxes many of them (lawn & landscaping, carpet cleaning, repairs and more) — confirm with your accountant",
+        where.length && !on ? "Press Run autopilot (it turns tax on: STRIPE_TAX=on), or set STRIPE_TAX=on in Vercel"
+          : "Stripe → Tax → Registrations → add Washington (and any other state your accountant says), then press Run autopilot — it turns tax on for you");
+    } catch (e) {
+      add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", `couldn't read Stripe Tax: ${e instanceof Error ? e.message : e}`, "Give the key access to Tax, or check Stripe → Tax by hand");
+    }
     await stripeAccountChecks(stripe, add, site || siteUrlNow());
   }
   // ── Pro recruiting (background checks)
@@ -369,8 +384,10 @@ async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
     const linked = list.filter((p) => p.stripe_account_id);
     const ready = (await Promise.all(linked.slice(0, 25).map((p) => connectReady(p.stripe_account_id)))).filter(Boolean).length;
     const sampled = Math.min(linked.length, 25);
-    add(area, "Pros set up for payouts (Connect)", !list.length ? "warn" : ready === list.length ? true : "warn",
-      !list.length ? "no approved pros yet" : `${linked.length} of ${list.length} approved pros started payout setup${sampled ? ` · ${ready} of ${sampled} checked can receive money` : ""}`,
+    // no approved pros yet: what matters now is that Connect works, so each pro can set up payouts when approved
+    const connectOn = !list.length ? await stripe.accounts.list({ limit: 1 }).then(() => true, () => false) : true;
+    add(area, "Pros set up for payouts (Connect)", !list.length ? (connectOn ? true : "warn") : ready === list.length ? true : "warn",
+      !list.length ? (connectOn ? "Connect is on · no approved pros yet — each pro sets up payouts in Pro portal → Earnings when approved" : "no approved pros yet, and Connect isn't activated — pros won't be able to set up payouts") : `${linked.length} of ${list.length} approved pros started payout setup${sampled ? ` · ${ready} of ${sampled} checked can receive money` : ""}`,
       "Pros finish payout setup in Pro portal → Earnings. If no pro can start it, activate Connect in Stripe → Connect → Get started (Express accounts, platform profile)");
     const { data: owed } = await db.from("payouts").select("amount").eq("status", "approved");
     const total = ((owed ?? []) as { amount: number }[]).reduce((a, r) => a + Number(r.amount), 0);
@@ -393,5 +410,5 @@ async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
 
   // year-end 1099-NEC for pros paid through Connect
   add(area, "1099 tax forms for pros", has("STRIPE_1099") ? true : "warn", has("STRIPE_1099") ? "Stripe files 1099-NEC for pros paid through Connect" : "not confirmed — nothing files pros' 1099-NEC in January yet",
-    "Stripe → Connect → Tax forms (Settings → Connect → Tax reporting): turn on 1099-NEC e-filing and delivery, then set STRIPE_1099=on in Vercel");
+    "Needed before January (pros paid $600+ in a year get a 1099-NEC). Stripe → Settings → Connect → Tax reporting: choose 1099-NEC, turn on e-filing and delivery to pros, then set STRIPE_1099=on in Vercel (Stripe doesn't let apps read this switch, so it's confirmed by hand)");
 }
