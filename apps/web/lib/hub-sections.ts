@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-15_0100 UTC
  * PURPOSE : One map of Mastermind (the Handled hub). The sidebar shows Daily Briefing, Dashboard and one link per
- *           section (Pros, Jobs, Clients, Money, Growth, AI team, Settings); the pages inside a section show as tabs
+ *           section (Pros & recruiting, Jobs, Clients & sales, Money, Marketing & AI, Front Office); the pages inside a section show as tabs
  *           across the top (components/HubNav → SectionTabs). Add a page here and it appears in both places.
  *           Shared by the server layout and the client nav, so no server-only imports.
  * UPDATED : 2026-10-15_0200 UTC — four merges, each one tab with a two-way switch (components/ViewSwitch): Roster + Network
@@ -20,6 +20,10 @@
  * UPDATED : 2026-10-28_1735 UTC — Jobs: one "Jobs" tab (List | Schedule | Board); Money: one "Money" tab (Jobs & payouts | Money in & out |
  *           Unit economics); Contracts → Settings; Points → Growth; Interview packet is a link in Pipeline.
  * UPDATED : 2026-10-28_1828 UTC — Contract library is its own menu entry (was a tab under Settings).
+ * UPDATED : 2026-11-05_0030 UTC — consolidated to six sections: Pros & recruiting (one section, built like a football
+ *           team: Depth chart first, then Roster, Pipeline, Onboarding…), Jobs, Clients & sales, Money, Marketing & AI
+ *           (Growth + AI team; Email moved here from Clients) and Front Office (was Settings: Team, Contract library,
+ *           Go-live setup). Every page keeps its address, so links and bookmarks still work.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -42,23 +46,22 @@ export const HUB_TOP: readonly (readonly [href: string, icon: string, label: str
 ];
 
 export const HUB_SECTIONS: readonly HubSection[] = [
-  // Recruiting division, top down: what we need (openings) → where they come from (Indeed first) → the pipeline → the
-  // supporting engines. Fills our pro network, our own team and our clients' roles (Handled Talent).
-  { id: "recruiting", icon: "🎯", label: "Recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]], links: [
-    ["/hub/recruiting", "Overview"],
-    ["/hub/recruiting/openings", "Openings"],
-    ["/hub/recruiting/indeed", "Indeed"],
+  // Pros & recruiting, run like building a football team: the depth chart (every service is a position to fill) first,
+  // then the roster, the pipeline that feeds it, onboarding, and the engines that find more players.
+  { id: "pros", icon: "🏈", label: "Pros & recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]], links: [
+    ["/hub/depth", "Depth chart"],
+    ["/hub/pros", "Roster"],
     ["/hub/recruiting/pipeline", "Pipeline"],
     ["/hub/recruiting/onboarding", "Onboarding"],
     ["/hub/recruiting/files", "Pro files"],
-    ["/hub/talent", "Client searches"],
-    ["/hub/gaps", "Supply gaps"],
+    ["/hub/recruiting/openings", "Openings"],
+    ["/hub/recruiting/indeed", "Indeed"],
     ["/hub/leads", "Pro leads"],
-  ] },
-  { id: "pros", icon: "🧰", label: "Pros", links: [
-    ["/hub/pros", "Roster"],
+    ["/hub/gaps", "Supply gaps"],
     ["/hub/pro-program", "Pro Program"],
     ["/hub/rewards", "Rewards"],
+    ["/hub/recruiting", "Recruiting overview"],
+    ["/hub/talent", "Client searches"],
   ] },
   { id: "jobs", icon: "🗂️", label: "Jobs", links: [
     ["/hub/jobs", "Jobs"],
@@ -67,14 +70,13 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/texts", "Texts"],
     ["/hub/checklists", "Checklists"],
   ] },
-  { id: "clients", icon: "👥", label: "Clients", also: ["/hub/business", "/hub/gov"], links: [
-    ["/hub/inbox", "Lead inbox"],
+  { id: "clients", icon: "👥", label: "Clients & sales", also: ["/hub/business", "/hub/gov"], links: [
     ["/hub/customers", "Customers & B2B"],
+    ["/hub/inbox", "Lead inbox"],
     ["/hub/biz-leads", "Business leads"],
     ["/hub/bids", "Bids & contracts"],
     ["/hub/quotes", "Marketplace & quotes"],
     ["/hub/partners", "Referral partners"],
-    ["/hub/email", "Email"],
   ] },
   { id: "money", icon: "💵", label: "Money", links: [
     ["/hub/money", "Money"],
@@ -82,24 +84,21 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/charges", "Quick Charge"],
     ["/hub/factoring", "Factoring"],
   ] },
-  { id: "growth", icon: "📈", label: "Growth & pricing", links: [
+  { id: "growth", icon: "📈", label: "Marketing & AI", links: [
     ["/hub/growth", "Growth"],
     ["/hub/social", "Social media"],
-    ["/hub/cities", "City scorecard"],
+    ["/hub/email", "Email"],
     ["/hub/loyalty", "Points"],
     ["/hub/pricing", "Pricing"],
+    ["/hub/cities", "City scorecard"],
     ["/hub/site", "Website look"],
-  ] },
-  { id: "ai", icon: "🤖", label: "AI team", links: [
     ["/hub/agents", "AI agents & IEBC"],
     ["/hub/assistant", "AI assistant"],
   ] },
-  // its own menu entry: every customer, business and pro contract, versions and signed copies
-  { id: "contracts", icon: "📜", label: "Contract library", links: [
-    ["/hub/contracts", "Contract library"],
-  ] },
-  { id: "settings", icon: "⚙️", label: "Settings", links: [
+  // the business itself: who works here, the contracts we use, and getting (and staying) ready to operate
+  { id: "front-office", icon: "🏢", label: "Front Office", links: [
     ["/hub/team", "Team"],
+    ["/hub/contracts", "Contract library"],
     ["/hub/setup", "Go-live setup"],
   ] },
 ];
