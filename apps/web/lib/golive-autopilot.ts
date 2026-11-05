@@ -12,6 +12,7 @@
  *             Stripe webhook — creates the endpoint with every event the app uses (or adds missing events) and saves
  *                              the new signing secret straight into Vercel as STRIPE_WEBHOOK_SECRET
  *             Stripe portal  — creates the customer billing portal (Handled Plus manage / cancel)
+ *             sales tax      — STRIPE_TAX=on once Stripe Tax has a registration (added 2026-11-05_1330 UTC)
  *             Twilio         — points the number / Messaging Service "message comes in" webhook at the Hub
  *             migrations     — runs every database migration the readiness check finds missing, oldest first
  *                              (Supabase Management API), stopping at the first error
@@ -236,6 +237,16 @@ export async function runAutopilot(checks: Check[], { dryRun }: { dryRun: boolea
         step("stripe_webhook", "Stripe webhook", "done", `${stale.length ? `replaced ${stale.length} endpoint(s) with no usable secret: ` : ""}created ${want} (${keyMode(env("STRIPE_SECRET_KEY")) ?? "?"} mode) and saved its signing secret in Vercel`);
       }
     } catch (e) { step("stripe_webhook", "Stripe webhook", "failed", String(e instanceof Error ? e.message : e)); }
+
+    // sales tax: registered in Stripe Tax but checkout doesn't add it yet → STRIPE_TAX=on
+    try {
+      const regs = (await stripe.tax.registrations.list({ status: "active", limit: 50 })).data;
+      if (env("STRIPE_TAX") === "on") step("stripe_tax", "Sales tax", "ok", regs.length ? `on · ${regs.length} registration(s)` : "on (no registration in Stripe yet)");
+      else if (!regs.length) step("stripe_tax", "Sales tax", "skipped", "no tax registration in Stripe yet — add the states your accountant names in Stripe → Tax → Registrations, then run autopilot");
+      else if (!vercelReady()) step("stripe_tax", "Sales tax", "skipped", needVercel);
+      else if (dryRun) step("stripe_tax", "Sales tax", "todo", `turn tax on at checkout (STRIPE_TAX=on) — Stripe has ${regs.length} registration(s)`);
+      else { await setVercelEnv("STRIPE_TAX", "on"); envChanged.push("STRIPE_TAX"); step("stripe_tax", "Sales tax", "done", `STRIPE_TAX=on — tax is added at checkout where you're registered (${regs.length})`); }
+    } catch (e) { step("stripe_tax", "Sales tax", "failed", String(e instanceof Error ? e.message : e)); }
 
     try {
       const { data: cfg } = await stripe.billingPortal.configurations.list({ is_default: true, limit: 1 });
