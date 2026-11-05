@@ -8,12 +8,14 @@
  *           the settings. Setup status for the three keys it needs.
  * UPDATED : 2026-10-11_1625 UTC — HUNTER_API_KEY in the setup list (Hunter.io finds emails the website doesn't show).
  * UPDATED : 2026-10-27_1700 UTC — applicants link → Recruiting → Pipeline.
+ * UPDATED : 2026-11-05_1215 UTC — status filter is a dropdown; trades to recruit are a dropdown (components/LeadAdmin).
  */
 import Link from "next/link";
 import { TRADES } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { getLeadSettings, outreachReady } from "@/lib/leads";
 import { Stat } from "@/components/ui";
+import { FilterSelect } from "@/components/Dropdowns";
 import { LeadActions, LeadImport, LeadSettingsPanel } from "@/components/LeadAdmin";
 
 export const dynamic = "force-dynamic";
@@ -73,9 +75,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <section className="card overflow-x-auto">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <b>All leads</b>
-          {["", "queued", "emailing", "clicked", "applied", "call", "replied", "not_interested", "unsubscribed", "bounced", "do_not_contact"].map((s) => (
-            <Link key={s} href={s ? `/hub/leads?status=${s}` : "/hub/leads"} className={`rounded-full px-2.5 py-0.5 text-xs ${filter === s ? "bg-brand text-white" : "bg-paper"}`}>{s ? s.replace(/_/g, " ") : "all"} ({s ? n(s) : leads.length})</Link>
-          ))}
+          <FilterSelect current={filter ? `/hub/leads?status=${filter}` : "/hub/leads"} options={["", "queued", "emailing", "clicked", "applied", "call", "replied", "not_interested", "unsubscribed", "bounced", "do_not_contact"].map((s) => ({ href: s ? `/hub/leads?status=${s}` : "/hub/leads", label: `${s ? s.replace(/_/g, " ") : "All statuses"} (${s ? n(s) : leads.length})` }))} />
         </div>
         <table className="mt-3 w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="py-2">Business</th><th>Trade</th><th>City</th><th>Rating</th><th>Contact</th><th>Score</th><th>Status</th><th /></tr></thead>

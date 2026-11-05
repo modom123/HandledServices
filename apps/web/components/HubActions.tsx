@@ -5,9 +5,11 @@
  * PURPOSE : Interactive controls for the Handled Hub.
  * UPDATED : 2026-10-05_0246 UTC — recruiting settings: screening interview first, auto-invite after an interview.
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
+ * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
  */
 "use client";
 
+import { MultiSelect } from "@/components/Dropdowns";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { JOB_STATUSES, JOB_STATUS_LABEL } from "@handled/core";
@@ -423,11 +425,8 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
         <select className="input" value={p[k].minTier} onChange={(e) => set(k, "minTier", e.target.value)} disabled={!canEdit}><option value="pro">Pro (everyone)</option><option value="pro_plus">Pro+</option><option value="elite">Elite</option></select></label>
       {num(k, "minJobs", "Min. completed jobs")}
       {num(k, "minRating", "Min. rating", 0.05)}
-      <div className="sm:col-span-4"><span className="label">Trades (none selected = all trades)</span>
-        <div className="flex flex-wrap gap-1">{trades.map((t) => {
-          const on = p[k].trades.includes(t.id);
-          return <button type="button" key={t.id} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set(k, "trades", on ? p[k].trades.filter((x) => x !== t.id) : [...p[k].trades, t.id])}>{t.label}</button>;
-        })}</div></div>
+      <div className="sm:col-span-4 max-w-xl"><span className="label">Trades</span>
+        <MultiSelect options={trades.map((t) => ({ value: t.id, label: t.label }))} value={p[k].trades} onChange={(v) => set(k, "trades", v)} noneLabel="All trades" disabled={!canEdit} /></div>
     </div>
   );
   const section = (k: string, title: string, about: string, extra: React.ReactNode) => (
