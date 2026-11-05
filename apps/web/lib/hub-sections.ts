@@ -24,6 +24,9 @@
  *           team: Depth chart first, then Roster, Pipeline, Onboarding…), Jobs, Clients & sales, Money, Marketing & AI
  *           (Growth + AI team; Email moved here from Clients) and Front Office (was Settings: Team, Contract library,
  *           Go-live setup). Every page keeps its address, so links and bookmarks still work.
+ * UPDATED : 2026-11-05_0100 UTC — merged tabs (groups): Pros & recruiting is five tabs — Depth chart (+ Supply gaps), Roster
+ *           (+ Pro Program, Rewards), Pipeline (+ Openings, Indeed, Pro leads, Overview), Onboarding (+ Pro files) and
+ *           Client searches; the merged pages show as a switch under the tabs (groupOf, components/HubNav).
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -37,6 +40,8 @@ export type HubSection = {
   /** Detail pages that should light up a given tab (e.g. a candidate page → Pipeline): [regex source, tab href]. Plain
    *  strings, not RegExp — sections are passed from the server layout to client components and must be serializable. */
   alias?: readonly (readonly [pattern: string, href: string])[];
+  /** Merged tabs: a tab's href → the pages behind it, shown as a switch under the tabs (the first is the tab itself). */
+  groups?: Readonly<Record<string, readonly HubLink[]>>;
 };
 
 /** Always at the top of the sidebar. */
@@ -48,21 +53,20 @@ export const HUB_TOP: readonly (readonly [href: string, icon: string, label: str
 export const HUB_SECTIONS: readonly HubSection[] = [
   // Pros & recruiting, run like building a football team: the depth chart (every service is a position to fill) first,
   // then the roster, the pipeline that feeds it, onboarding, and the engines that find more players.
-  { id: "pros", icon: "🏈", label: "Pros & recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]], links: [
-    ["/hub/depth", "Depth chart"],
-    ["/hub/pros", "Roster"],
-    ["/hub/recruiting/pipeline", "Pipeline"],
-    ["/hub/recruiting/onboarding", "Onboarding"],
-    ["/hub/recruiting/files", "Pro files"],
-    ["/hub/recruiting/openings", "Openings"],
-    ["/hub/recruiting/indeed", "Indeed"],
-    ["/hub/leads", "Pro leads"],
-    ["/hub/gaps", "Supply gaps"],
-    ["/hub/pro-program", "Pro Program"],
-    ["/hub/rewards", "Rewards"],
-    ["/hub/recruiting", "Recruiting overview"],
-    ["/hub/talent", "Client searches"],
-  ] },
+  { id: "pros", icon: "🏈", label: "Pros & recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]],
+    links: [
+      ["/hub/depth", "Depth chart"],
+      ["/hub/pros", "Roster"],
+      ["/hub/recruiting/pipeline", "Pipeline"],
+      ["/hub/recruiting/onboarding", "Onboarding"],
+      ["/hub/talent", "Client searches"],
+    ],
+    groups: {
+      "/hub/depth": [["/hub/depth", "Depth chart"], ["/hub/gaps", "Supply gaps"]],
+      "/hub/pros": [["/hub/pros", "Roster"], ["/hub/pro-program", "Pro Program"], ["/hub/rewards", "Rewards"]],
+      "/hub/recruiting/pipeline": [["/hub/recruiting/pipeline", "Pipeline"], ["/hub/recruiting/openings", "Openings"], ["/hub/recruiting/indeed", "Indeed"], ["/hub/leads", "Pro leads"], ["/hub/recruiting", "Overview"]],
+      "/hub/recruiting/onboarding": [["/hub/recruiting/onboarding", "Onboarding"], ["/hub/recruiting/files", "Pro files"]],
+    } },
   { id: "jobs", icon: "🗂️", label: "Jobs", links: [
     ["/hub/jobs", "Jobs"],
     ["/hub/roster", "Live map"],
@@ -115,8 +119,16 @@ const under = (path: string, href: string) => path === href || path.startsWith(`
 /** Whether a top link is the current page ("/hub" itself and its drill-downs only, not every hub page). */
 export const topActive = (path: string, href: string) => (href === "/hub" ? path === "/hub" || path.startsWith("/hub/stats") : under(path, href));
 export const linkActive = (path: string, href: string) => under(path, href);
-/** The one tab to light up in a section: an alias for detail pages, else the most specific matching tab. */
+/** Every page behind a tab: [page href, tab href] — the tab itself, plus the pages merged into it. */
+const pagesOf = (s: HubSection) => [...s.links.map(([h]) => [h, h] as const), ...Object.entries(s.groups ?? {}).flatMap(([tab, list]) => list.map(([h]) => [h, tab] as const))];
+/** The one tab to light up in a section: an alias for detail pages, else the tab of the most specific matching page. */
 export const activeTab = (s: HubSection, path: string): string | null =>
-  s.alias?.find(([re]) => new RegExp(re).test(path))?.[1] ?? s.links.map(([h]) => h).filter((h) => under(path, h)).sort((a, b) => b.length - a.length)[0] ?? null;
+  s.alias?.find(([re]) => new RegExp(re).test(path))?.[1] ?? pagesOf(s).filter(([h]) => under(path, h)).sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? null;
+/** The switch to show under the tabs: the merged pages of the current tab, when this page is one of them. */
+export const groupOf = (s: HubSection, path: string): readonly HubLink[] | null => {
+  const tab = activeTab(s, path);
+  const list = tab ? s.groups?.[tab] : null;
+  return list && list.some(([h]) => h === path) ? list : null;
+};
 export const sectionOf = (sections: readonly HubSection[], path: string) =>
-  sections.find((s) => s.links.some(([h]) => under(path, h)) || s.also?.some((p) => under(path, p)));
+  sections.find((s) => pagesOf(s).some(([h]) => under(path, h)) || s.also?.some((p) => under(path, p)));
