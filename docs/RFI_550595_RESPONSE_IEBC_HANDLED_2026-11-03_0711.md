@@ -5,6 +5,7 @@ CREATED : 2026-11-03_0711 UTC
 PURPOSE : Draft joint response to City of Detroit RFI No. 550595 (Detroit Housing Resource Helpline) from IEBC (respondent)
           with Handled Services LLC (partner). Companion to docs/RFI_550595_HOUSING_HELPLINE_EVALUATION_2026-11-03_0709.md.
 UPDATED : 2026-11-04_1752 UTC — hard line breaks for the PDF build (scripts/build-iebc-rfi-pdf_2026-11-04_1752.py).
+UPDATED : 2026-11-05_1705 UTC — IEBC contact details filled in (Mark Odom, CEO; Lansing mailing address; phone; website).
 STATUS  : DRAFT. Fill every [bracket] and delete the internal section before submitting.
 -->
 
@@ -54,7 +55,7 @@ Re: Request for Information: Detroit Housing Resource Helpline
 
 Dear [Buyer name]:
 
-Integrated Efficiency Business Consultants, LLC (IEBC) and our partner, Handled Services LLC, thank the City for the chance to share market insight on the Detroit Housing Resource Helpline. Both firms are based in Detroit.
+Integrated Efficiency Business Consultants, LLC (IEBC) and our partner, Handled Services LLC, thank the City for the chance to share market insight on the Detroit Housing Resource Helpline. IEBC is a Michigan firm, and Handled Services operates in Detroit.
 
 - **IEBC** designs and builds AI-assisted business systems: intake and triage logic, multi-channel messaging, dashboards, integrations, and the controls that keep humans in charge of automated tools.
 - **Handled Services** runs a Detroit network of vetted, insured service professionals for cleaning, cleanouts, hauling, repairs and licensed trades. It books, dispatches and verifies work through its own digital intake and tracking platform.
@@ -70,8 +71,8 @@ We hope this is useful as the City shapes its RFP(s). We would welcome a follow-
 Respectfully,
 
 Mark Odom\
-Founder & CEO, Integrated Efficiency Business Consultants, LLC\
-[phone] · [email]
+CEO, Integrated Efficiency Business Consultants, LLC\
+(313) 639-9373 · info@handledsvc.com · iebusinessconsultants.com
 
 ---
 
@@ -109,32 +110,32 @@ Founder & CEO, Integrated Efficiency Business Consultants, LLC\
 | Field | Response |
 |---|---|
 | a. Name | Mark Odom |
-| b. Title | Founder & CEO, IEBC |
-| c. Address | [street], Detroit, MI 48219 |
-| d. E-mail | [business email] |
-| e. Phone | [one number] |
+| b. Title | CEO, IEBC |
+| c. Address | 405 W. Greenlawn Ave. #G11 #4194, Lansing, MI 48910 |
+| d. E-mail | info@handledsvc.com |
+| e. Phone | (313) 639-9373 |
 
 **Partner or manager in charge if awarded**
 
 | Field | Response |
 |---|---|
 | a. Name | Mark Odom (program executive). [Add operations lead or teaming-partner project manager when named.] |
-| b. Title | Founder & CEO, IEBC |
-| c. Address | [street], Detroit, MI 48219 |
-| d. E-mail | [business email] |
-| e. Phone | [one number] |
+| b. Title | CEO, IEBC |
+| c. Address | 405 W. Greenlawn Ave. #G11 #4194, Lansing, MI 48910 |
+| d. E-mail | info@handledsvc.com |
+| e. Phone | (313) 639-9373 |
 
 ### A-2. Respondent background (complete for each party)
 
 | Item | IEBC (respondent) | Handled Services LLC (partner) |
 |---|---|---|
 | a. Legal name | Integrated Efficiency Business Consultants, LLC [confirm against state filing] | Handled Services LLC |
-| b. Principal place of business / place of performance | [street], Detroit, MI 48219. Work is performed in Detroit and remotely. | [street], Detroit, MI [ZIP]. Services are performed in Detroit and Wayne County. |
+| b. Principal place of business / place of performance | Mailing address: 405 W. Greenlawn Ave. #G11 #4194, Lansing, MI 48910. [Principal place of business, if different.] Work is performed in Detroit and remotely. | [street], Detroit, MI [ZIP]. Services are performed in Detroit and Wayne County. |
 | c. Entity type | Limited liability company [confirm] | Limited liability company |
 | d. Tax status / FEIN | [ ] | [ ] |
 | e. State formed | Michigan [confirm] | [Michigan] |
-| f. Company phone | [one number] | (313) 639-9373 |
-| g. Website | [IEBC website] | handledsvc.com |
+| f. Company phone | (313) 639-9373 | (313) 639-9373 |
+| g. Website | iebusinessconsultants.com | handledsvc.com |
 | h. Years in business | Founded 2025. The founder has led sales and marketing operations since 2001. | Founded 2026. |
 | i. Average employees, last 3 years | [2024: n/a · 2025: __ · 2026: __] | [2026: __ staff plus __ independent service professionals] |
 | j. City of Detroit contracts, last 5 years | [None] | [None] |
@@ -152,7 +153,7 @@ If both companies share an owner, add: *"IEBC and Handled Services LLC are under
 >   - Handled's live platform (customer intake, AI-assisted quoting, dispatch, photo QA, partner referrals).
 > - If there are no such projects, use the statement below.
 
-*Suggested statement:* "IEBC and Handled are early-stage Detroit firms. We do not yet have a completed public-sector contact center of this size, and we won't present unrelated work as if it were. For an RFP, we intend to respond as part of a team led by, or including, an operator with documented public-sector helpline experience, and to provide three references that meet the City's standard. Today we can show the systems described in this response working live (Handled's intake, dispatch, messaging and QA platform), and we welcome a demonstration."
+*Suggested statement:* "IEBC and Handled are early-stage Michigan firms. We do not yet have a completed public-sector contact center of this size, and we won't present unrelated work as if it were. For an RFP, we intend to respond as part of a team led by, or including, an operator with documented public-sector helpline experience, and to provide three references that meet the City's standard. Today we can show the systems described in this response working live (Handled's intake, dispatch, messaging and QA platform), and we welcome a demonstration."
 
 **Reference Form #1** [Teaming partner public-sector helpline, if available]: fields a–j.
 **Reference Form #2** [IEBC client project: systems, automation or messaging]: fields a–j.
@@ -589,5 +590,5 @@ These are offered to help the City get stronger, comparable proposals:
 
 ---
 
-*Respectfully submitted by Integrated Efficiency Business Consultants, LLC, with Handled Services LLC, Detroit, Michigan.*\
-*Contact: Mark Odom, Founder & CEO · [phone] · [email]*
+*Respectfully submitted by Integrated Efficiency Business Consultants, LLC, with Handled Services LLC, Michigan.*\
+*Contact: Mark Odom, CEO · (313) 639-9373 · info@handledsvc.com · iebusinessconsultants.com*

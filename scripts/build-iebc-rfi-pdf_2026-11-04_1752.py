@@ -4,6 +4,7 @@
 #           (needs pandoc and Node Playwright/Chromium, both preinstalled in cloud sessions)
 # PROJECT : Handled (HandledServices) / IEBC
 # CREATED : 2026-11-04_1752 UTC
+# UPDATED : 2026-11-05_1705 UTC — IEBC letterhead contact details filled in.
 # PURPOSE : Turns the RFI 550595 response draft (Markdown) into a submission PDF on IEBC letterhead.
 #           Internal "before you submit" sections and "Internal note" blocks are left out; every [bracket]
 #           still to fill is highlighted yellow. Fill the CONTACT values below and re-run to update the letterhead.
@@ -14,11 +15,11 @@ SRC, OUT = sys.argv[1], sys.argv[2]
 
 # ─── Letterhead contact details (fill in, then re-run) ───
 COMPANY = "Integrated Efficiency Business Consultants, LLC"
-STREET = "[street]"
-CITY = "Detroit, Michigan 48219"
-PHONE = "[phone]"
-EMAIL = "[email]"
-WEBSITE = "[website]"
+STREET = "405 W. Greenlawn Ave. #G11 #4194"
+CITY = "Lansing, Michigan 48910"
+PHONE = "(313) 639-9373"
+EMAIL = "info@handledsvc.com"
+WEBSITE = "iebusinessconsultants.com"
 DOC_LABEL = "Response to RFI No. 550595 · Detroit Housing Resource Helpline"
 
 NAVY, ACCENT, INK, MUTED, LINE, TINT = "#13294b", "#1f8a70", "#1a1a1a", "#5b6472", "#d9dee5", "#f3f6f9"
