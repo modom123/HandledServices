@@ -1693,15 +1693,27 @@ test("referral ticket: number, stage, same wording everywhere", async () => {
   for (const t of Object.values(TICKET_JOB_TYPES)) assert.ok(t.earns.includes("15%–30%"));
 });
 
-test("work order shows the pro's half of a referral fee before they accept", async () => {
+test("pros see their net pay only — no referral fee math, no job price", async () => {
   const { buildWorkOrder } = await import("./workorder.ts");
+  const { proNetPay, proReferralFee } = await import("./pro-pay.ts");
   const job = { ref: "H-1", service_slug: "house-cleaning", answers: {}, notes: null, scheduled_date: null, time_window: "morning", address: "1 Main", city: "Detroit", state: "MI", zip: "48201", contact_name: "A", contact_phone: null, company_name: null, contractor_payout: 190, price_final: 300 } as never;
-  assert.ok(!buildWorkOrder(job, { reveal: false }).terms.some((t: string) => t.includes("referral fee")));
-  const w = buildWorkOrder({ ...(job as object), partner_tier: "one_time" } as never, { reveal: false });
-  assert.ok(w.terms.some((t: string) => t.includes("12.5%") && t.includes("$37.50")), "a job booked before partner-v4 keeps its tier rate");
-  // partner-v4: the rate locked on the job
-  const v4 = buildWorkOrder({ ...(job as object), partner_tier: "repeat", partner_rate: 0.2 } as never, { reveal: false });
-  assert.ok(v4.terms.some((t: string) => t.includes("10%") && t.includes("$30.00")));
+  const plain = buildWorkOrder(job, { reveal: false });
+  assert.ok(plain.payout.includes("190"));
+  // partner-v2 job (tier rate 25%): the pro's half ($37.50) is already out → $152.50, and no fee wording at all
+  const v2 = buildWorkOrder({ ...(job as object), partner_id: "p", partner_tier: "one_time" } as never, { reveal: false });
+  assert.ok(v2.payout.includes("152.5") || v2.payout.includes("153"), v2.payout);
+  assert.ok(!v2.terms.some((t: string) => /referral|partner|%/i.test(t)), "no math on the work order");
+  // partner-v4 job: the locked 20% rate → the pro's half is $30 → $160
+  const v4 = { ...(job as object), partner_id: "p", partner_tier: "repeat", partner_rate: 0.2 } as never;
+  assert.equal(proNetPay(v4, 190, "2026-11-v11"), 160);
+  assert.equal(proReferralFee(v4, 190, "2026-11-v11"), 30);
+  assert.equal(proNetPay(v4, 190, "2026-10-v10"), 190, "not on v11 yet: the pro pays nothing on a partner-v4 job");
+  assert.equal(proNetPay({ ...(job as object), partner_id: "p", partner_tier: "one_time" } as never, 190, "2026-10-v10"), 152.5, "v10 covers older tier jobs");
+  // direct sales and non-referred jobs: no fee
+  assert.equal(proNetPay({ ...(v4 as object), partner_sale: true } as never, 190, "2026-11-v11"), 190);
+  assert.equal(proNetPay(job, 190, "2026-11-v11"), 190);
+  // after completion: the fee actually taken
+  assert.equal(proNetPay({ ...(v4 as object), status: "completed", partner_pro_fee: 12 } as never, 190, "2026-11-v11"), 178);
 });
 
 test("measurements pick the calibrated size band and are required", async () => {

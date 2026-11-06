@@ -17,6 +17,8 @@
  * UPDATED : 2026-10-15_0300 UTC — payment panel gets the "pay after" hold / retry fields.
  * UPDATED : 2026-10-27_2100 UTC — 💵 Money card: customer paid → split → every payout line for this job → when the pro
  *           is paid (core jobMoney, same as Hub → Money → Jobs & payouts), with anything that doesn't add up flagged.
+ * UPDATED : 2026-11-06_1800 UTC — internal money: the partner's commission on the job (from the pro / from us) and what
+ *           Handled keeps after the partner. Pros only ever see their net pay.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -72,6 +74,11 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   ]);
   const { data: payLines } = await adminClient().from("payouts").select("id, amount, status, kind, reason, paid_at, week_of, method, created_at, contractors(business_name)").eq("job_id", id).order("created_at");
   const jm = jobMoney(job as never, (payLines ?? []) as never);
+  // internal only: the referral partner's share of this job (pros see only their net pay)
+  const { data: pc } = job.partner_id ? await adminClient().from("partner_commissions").select("*, referral_partners(name, code)").eq("job_id", id).maybeSingle() : { data: null };
+  const pComm = pc as { amount: number; from_pro?: number | null; from_us?: number | null; rate?: number | null; tier?: string | null; status: string; referral_partners: { name: string; code: string } | null } | null;
+  const jr = job as { partner_rate?: number | null; partner_sale?: boolean | null; partner_tier?: string | null };
+  const ourPartnerHalf = pComm ? Number(pComm.from_us ?? pComm.amount ?? 0) : 0;
   const { data: backupRows } = await v.db.from("job_backups").select("rank, status, asked_at, called_at, contractors(id, business_name)").eq("job_id", id).order("rank");
   const { data: cancels } = await v.db.from("pro_standing_events").select("kind, note, created_at, contractors(business_name)").eq("job_id", id).in("kind", ["free_cancel", "short_notice_cancel", "late_cancel", "excused_cancel", "no_show"]).order("created_at");
   const quote = job.ai_quote as AnyRec | null;
@@ -103,6 +110,15 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
             <div><div className="text-xs text-ink-soft">Handled keeps</div><div className="text-lg font-bold">{money(jm.keep)}</div><div className="text-xs text-ink-soft">{jm.takePct != null ? `${Math.round(jm.takePct * 100)}% · ` : ""}{money(jm.keepAfterFees)} after est. card fee</div></div>
             <div><div className="text-xs text-ink-soft">Pro's money</div><div className="text-lg font-bold">{PAYOUT_STAGE_LABEL[jm.stage]}</div><div className="text-xs text-ink-soft">{jm.stage === "paid" && jm.lastPaid ? `paid ${jm.lastPaid.slice(0, 10)}` : jm.payday ? `${money(jm.owed)} on Monday ${jm.payday}` : jm.stage === "not_created" ? "created when the job is done and approved" : ""}</div></div>
           </div>
+          {job.partner_id && (
+            <div className="mt-3 rounded-xl bg-paper p-3 text-xs">
+              <div className="font-semibold">🤝 Partner {pComm?.referral_partners ? `${pComm.referral_partners.name} (${pComm.referral_partners.code})` : ""} · {jr.partner_sale ? "direct sale" : "referral"}{jr.partner_rate != null ? ` · locked rate ${Math.round(Number(jr.partner_rate) * 100)}% of the price` : jr.partner_tier ? ` · ${jr.partner_tier.replace("_", "-")} tier` : ""}</div>
+              {pComm
+                ? <div className="mt-1">Commission {money(Number(pComm.amount))} ({pComm.status}){pComm.rate != null ? ` at ${Math.round(Number(pComm.rate) * 1000) / 10}%` : ""} — from the pro {money(Number(pComm.from_pro ?? 0))}, from us {money(ourPartnerHalf)}. <b>Handled keeps after the partner: {money(jm.keep - ourPartnerHalf)}</b>{jm.keepAfterFees ? ` (${money(jm.keepAfterFees - ourPartnerHalf)} after est. card fee)` : ""}.</div>
+                : <div className="mt-1 text-ink-soft">The commission is recorded when the job is completed.</div>}
+              <div className="mt-1 text-ink-soft">The pro only ever sees their net pay. Job price, our take and this split are internal.</div>
+            </div>
+          )}
           {jm.issues.map((i) => <p key={i} className="mt-2 rounded-lg bg-rose-50 p-2 text-xs font-semibold text-rose-700">⚠ {i}</p>)}
           {(payLines ?? []).length > 0 && (
             <table className="mt-3 w-full text-xs">

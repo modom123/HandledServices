@@ -13,6 +13,7 @@
  * PURPOSE : Pro job sheet — scope, address, customer photos, start/complete, messages.
  * UPDATED : 2026-10-07_1900 UTC — "On my way" shows on the job's own local day (Pacific in Washington).
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, from the customer's saved home) while the job is assigned / in progress.
+ * UPDATED : 2026-11-06_1800 UTC — pros see only their net pay (any referral fee already out); no job price or split.
  */
 import { notFound } from "next/navigation";
 import { TIME_WINDOW_LABEL, buildWorkOrder, getService, jobTimeZone, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
@@ -30,7 +31,7 @@ import { listCrew } from "@/lib/crew";
 import { crewRequest } from "@/lib/favorites";
 import { checklistState, freezeChecklist } from "@/lib/checklists";
 import { ChecklistPanel } from "@/components/Checklist";
-import { crewCanTake, crewReady } from "@handled/core";
+import { crewCanTake, crewReady, proNetPay } from "@handled/core";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -77,7 +78,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
           <div className="mt-2 text-sm text-ink-soft">{job.ref} · {fmtDate(job.scheduled_date)} · {t(TIME_WINDOW_LABEL[job.time_window])}</div>
           <a href={maps} target="_blank" className="mt-2 block text-sm font-semibold text-brand">📍 {job.address}, {job.city} {job.zip}</a>
           <div className="mt-2 text-sm">{t("Customer:")} {job.contact_name}{job.company_name ? ` (${job.company_name})` : ""} · {job.contact_phone}</div>
-          <div className="mt-4 text-xl font-bold">{t("Your payout:")} {money(job.contractor_payout)}</div>
+          <div className="mt-4 text-xl font-bold">{t("Your payout:")} {money(proNetPay(job, job.contractor_payout, me?.agreement_version))}</div>
         </div>
         <div className="card">
           <div className="font-semibold">{t("Scope")}</div>
@@ -91,7 +92,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.instructions && <p className="card bg-brand-tint text-sm text-brand-dark"><b>{t("Instructions:")}</b> {job.instructions}</p>}
         {accessInfo && <div className="card border-amber-300 bg-amber-50 text-sm"><b>🔒 {es ? "Entrada y llaves" : "Entry & keys"}</b><p className="mt-1 whitespace-pre-wrap">{accessInfo}</p><p className="mt-1 text-xs text-ink-soft">{es ? "Solo para usted mientras tenga este trabajo. No lo comparta ni lo anote fuera de la app." : "For you only while this job is yours. Don't share it or write it down outside the app."}</p></div>}
         <ChecklistPanel jobId={job.id} checklist={cl.checklist} checks={cl.checks} es={es} locked={!["assigned", "in_progress"].includes(job.status)} />
-        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder({ ...job, access_info: accessInfo }, { reveal: true, locale: l })} /></div></details>
+        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder({ ...job, access_info: accessInfo }, { reveal: true, locale: l, agreementVersion: me?.agreement_version })} /></div></details>
         <JobThread jobId={job.id} userId={v.userId} as="pro" initial={msgs ?? []} locale={l} />
       </div>
       <div className="space-y-4">

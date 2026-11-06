@@ -14,13 +14,14 @@
  * PURPOSE : Pro job sheet — navigate, start, take completion photos, submit for AI QA.
  * UPDATED : 2026-10-06_0708 UTC — after "On my way" the pro's location streams (~15 s, app open) for the customer's live map.
  * UPDATED : 2026-10-07_1900 UTC — "today" uses the job's time zone (Pacific in Washington).
+ * UPDATED : 2026-11-06_1800 UTC — pay shown is the pro's net pay (any referral fee already out); no job price or split.
  */
 import { shareLocationOnce, useLiveRouteSharing } from "../../lib/location";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { cancelNotice, cancelTier, getService, hoursUntilWindow, jobTimeZone, localDate, money, questionVisible, scopeChange, type Job } from "@handled/core";
+import { cancelNotice, cancelTier, getService, hoursUntilWindow, jobTimeZone, localDate, money, proNetPay, questionVisible, scopeChange, type Job } from "@handled/core";
 
 /** What handing this job back means right now (falls back to device time if time-zone data is missing). */
 function cancelNoticeFor(job: Job, locale: string) {
@@ -41,6 +42,7 @@ export default function ProJob() {
   const { t, locale, svc: svcText } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
+  const [ver, setVer] = useState<string | null>(null); // the pro's signed agreement (for their net pay)
   const [photos, setPhotos] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,6 +57,7 @@ export default function ProJob() {
   const [crew, setCrew] = useState<CrewPick | null>(null);
   const load = useCallback(async () => {
     const { data } = await supabase.from("jobs").select("*").eq("id", id).single();
+    supabase.from("contractors").select("agreement_version").maybeSingle().then(({ data: c }) => setVer((c?.agreement_version as string | null) ?? null));
     setJob(data as Job);
     const m = await api<Materials>(`/api/pro/jobs/${id}/expenses`);
     if (m.ok) setMat(m.data);
@@ -132,7 +135,7 @@ export default function ProJob() {
       <Card style={{ marginTop: 12 }}>
         <Text style={s.b}>{job.contact_name} · {job.contact_phone}</Text>
         <Text style={s.p} onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(`${job.address}, ${job.city} ${job.zip}`)}`)}>📍 {job.address}, {job.city} {job.zip}</Text>
-        <Text style={[s.b, { marginTop: 8 }]}>{t("Payout")} {money(job.contractor_payout)}</Text>
+        <Text style={[s.b, { marginTop: 8 }]}>{t("Payout")} {money(proNetPay(job, job.contractor_payout, ver))}</Text>
       </Card>
       <Card>
         {svc.questions.filter((q) => questionVisible(q, job.answers as Record<string, string | number | boolean>, svc.questions)).map((q) => <Text key={q.id} style={s.p}>{t(q.label)}: <Text style={s.b}>{(() => { const v = job.answers[q.id]; if (v === undefined || v === null) return "—"; if (typeof v === "boolean") return t(v ? "Yes" : "No"); const o = q.type === "select" ? q.options.find((x) => x.value === v) : undefined; return o ? t(o.label) : String(v); })()}</Text></Text>)}

@@ -15,9 +15,10 @@
  *                                    claiming) so they know the work is there while the background check runs.
  *           Pros are never required to take board jobs; passing has no effect on their standing.
  * UPDATED : 2026-10-28_2131 UTC — boardPreview for pros in setup.
+ * UPDATED : 2026-11-06_1800 UTC — cards show the pro's net pay (any referral fee already out).
  */
 import "server-only";
-import { BOARD, buildWorkOrder, getService, money, onBoard, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job } from "@handled/core";
+import { BOARD, buildWorkOrder, getService, money, onBoard, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
 import { adminClient } from "./supabase/server";
 
 const db = () => adminClient();
@@ -78,8 +79,9 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
     if (!qualifies(ctx.pro, ctx.perDay, job)) continue;
     const svc = getService(job.service_slug);
     if (!svc) continue;
-    const pay = payFor(ctx.pro, job);
-    const wo = buildWorkOrder(job, { reveal: false, payout: pay, locale });
+    // the pro sees their net pay only (any referral fee already out)
+    const pay = proNetPay(job, payFor(ctx.pro, job), ctx.pro.agreement_version);
+    const wo = buildWorkOrder(job, { reveal: false, payout: payFor(ctx.pro, job), locale, agreementVersion: ctx.pro.agreement_version });
     const miles = proDistance(ctx.pro, job);
     cards.push({
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
@@ -108,8 +110,8 @@ export async function boardPreview(contractorId: string, locale: "en" | "es" = "
     const miles = proDistance(pro, job);
     const inZips = pro.service_zips?.includes(job.zip);
     if (pro.zips_only ? !inZips : miles != null ? miles > (pro.service_radius_mi ?? 25) : pro.service_zips?.length ? !inZips : false) continue;
-    const pay = job.contractor_payout ?? 0;
-    const wo = buildWorkOrder(job, { reveal: false, payout: pay, locale });
+    const pay = proNetPay(job, job.contractor_payout ?? 0, pro.agreement_version);
+    const wo = buildWorkOrder(job, { reveal: false, payout: job.contractor_payout ?? 0, locale, agreementVersion: pro.agreement_version });
     cards.push({
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
       city: job.city, zip: job.zip, when: wo.when, pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),

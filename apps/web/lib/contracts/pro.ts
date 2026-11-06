@@ -32,7 +32,8 @@
  * UPDATED : 2026-10-07_2000 UTC — Washington pros (RCW 49.62): customer clause limited to soliciting (accepting work a customer offers is allowed), Washington law and courts; agreement v8.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  * UPDATED : 2026-10-28_0122 UTC — agreement v10: referral partner fee (pro pays half of the partner's 25% / 10% / 15%, shown on the work order).
- * UPDATED : 2026-11-06_1800 UTC — v11: referral partner fee is one rate of 15%–30% of the price (pro pays half).
+ * UPDATED : 2026-11-06_1800 UTC — v11: the pay shown to the pro is their net pay; a referral partner's fee (when any) is
+ *           already taken out. No rates or math shown to pros.
  */
 import {
   AGREEMENT_VERSION,
@@ -46,7 +47,6 @@ import {
   ON_CALL_MAX_HOURS,
   PROBATION,
   PRO_POLICY_DEFAULTS,
-  REFERRAL_LADDER,
   PRO_REFERRAL,
   PRO_TIERS,
   STATS_WINDOW_DAYS,
@@ -58,7 +58,6 @@ import {
   money,
   moneyCents,
   necThreshold,
-  partnerSplit,
   splitJob,
   type CoverageKey, DEACTIVATION_RULES, FAST_TRACK } from "@handled/core";
 import type { Contract } from "./types";
@@ -157,7 +156,7 @@ export const PRO_AGREEMENT: Contract = {
     },
     {
       h: "10. Discounts, promotions and tips",
-      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout (the only fee shared with you is the referral partner fee below). Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nReferral partner fee. When a customer was sent to us by a referral partner, the partner earns a share of the job price: the partner's referral rate, from ${REFERRAL_LADDER.baseRate * 100}% to ${REFERRAL_LADDER.topRate * 100}%, set when the job is booked. You pay half of that (${REFERRAL_LADDER.baseRate * 50}% to ${REFERRAL_LADDER.topRate * 50}% of the job price) and we pay the other half. Your half (for example ${moneyCents(partnerSplit({ price: 300, payout: 300, tier: "repeat", rate: REFERRAL_LADDER.baseRate }).fromPro)} on a $300 referred job at ${REFERRAL_LADDER.baseRate * 100}%, or ${moneyCents(partnerSplit({ price: 300, payout: 300, tier: "repeat", rate: REFERRAL_LADDER.topRate }).fromPro)} at ${REFERRAL_LADDER.topRate * 100}%) is shown on the work order before you accept, comes off that job's payout when it's completed, and never exceeds the payout. If the job is later refunded and the partner's share goes down, your half is handed back to match on the next payout. Jobs that weren't referred by a partner have no fee.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
+      p: `Discounts, promo codes, memberships, referral credits and gift cards never reduce your payout (the only fee shared with you is the referral partner fee below). Your payout is based on the job's list price (the agreed price before any promo code or membership savings), and every discount comes out of our share.\n\nReferral partner fee. Some customers come to us through our referral partners. On those jobs, part of the partner's fee comes out of the pro's pay. It is already taken out of the pay we show you: the pay on every offer, work order, the Pro portal and the app is your net pay for the job, and that is what you're paid. If the job is later refunded, the part of the fee that came from you is handed back on your next payout. Jobs that weren't referred by a partner have no fee.\n\nTips are 100% yours. Customers can tip in the app (up to ${money(TIP_MAX)} per job); we pass the full tip to you on the next payout and cover the card fee ourselves. A cash tip a customer offers on their own is yours too — just never ask for one or make the service depend on it.`,
     },
     {
       h: "11. Materials and parts",

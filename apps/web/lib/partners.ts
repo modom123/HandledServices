@@ -292,7 +292,7 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
   }
   const back = Math.round((fromPro - newPro - Number(r.pro_returned ?? 0)) * 100) / 100;
   if (back > 0 && j?.contractor_id) {
-    await db().from("payouts").insert({ contractor_id: j.contractor_id, job_id: r.job_id, amount: back, status: "approved", kind: "partner_fee", reason: `Referral fee handed back — ${j.ref} ${now$ > 0 ? "partly refunded" : "refunded or cancelled"}` });
+    await db().from("payouts").insert({ contractor_id: j.contractor_id, job_id: r.job_id, amount: back, status: "approved", kind: "partner_fee", reason: `Pay adjustment — ${j.ref}` });
   }
   if (now$ <= 0) {
     await db().from("partner_commissions").update({ status: "void", amount: 0, note: voidNote ?? "job refunded or cancelled", ...(r.tier ? { from_pro: 0, from_us: 0, pro_returned: Number(r.pro_returned ?? 0) + Math.max(0, back) } : {}) }).eq("id", r.id);

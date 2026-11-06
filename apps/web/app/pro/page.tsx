@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
+ * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -22,7 +23,7 @@ import { standbyFor } from "@/lib/coverage";
 import { StandbyAnswer } from "@/components/Standby";
 import { getPolicy } from "@/lib/pro-benefits";
 import { OnCallToggle } from "@/components/Roster";
-import { jobTimeZone, localDate, onCall, serviceText, t as tr, type ProPolicy } from "@handled/core";
+import { jobTimeZone, localDate, onCall, proNetPay, serviceText, t as tr, type ProPolicy } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
@@ -80,7 +81,7 @@ export default async function ProHome() {
     return m ? `${t(m[1])} verificado` : label;
   };
   const [{ data: offers }, { data: jobs }, { data: payouts }, { data: me }] = await Promise.all([
-    v.db.from("job_offers").select("id, payout, expires_at, job_id, jobs(ref, service_slug, city, zip, scheduled_date, time_window, answers, notes, status)").eq("status", "offered").order("offered_at", { ascending: false }),
+    v.db.from("job_offers").select("id, payout, expires_at, job_id, jobs(*)").eq("status", "offered").order("offered_at", { ascending: false }),
     v.db.from("jobs").select("*").eq("contractor_id", v.contractorId!).order("scheduled_date"),
     v.db.from("payouts").select("amount, status, created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
@@ -188,7 +189,7 @@ export default async function ProHome() {
             const s = getService(o.jobs?.service_slug ?? "");
             return (
               <div key={o.id} className="card flex flex-wrap items-center justify-between gap-4">
-                <div><div className="font-semibold">{s?.icon} {s ? serviceText(l, s.slug, s).name : ""} · <span className="text-brand">{o.payout ? money(o.payout) : t("site visit")}</span></div>
+                <div><div className="font-semibold">{s?.icon} {s ? serviceText(l, s.slug, s).name : ""} · <span className="text-brand">{o.payout ? money(proNetPay(o.jobs as unknown as Job, o.payout, me?.agreement_version)) : t("site visit")}</span></div>
                   <div className="text-sm text-ink-soft">{o.jobs?.city} {o.jobs?.zip} · {fmtDate(o.jobs?.scheduled_date)} · {o.jobs ? t(TIME_WINDOW_LABEL[o.jobs.time_window]) : ""}</div>
                   {o.jobs?.notes && <div className="mt-1 text-xs text-ink-soft">“{o.jobs.notes}”</div>}
                   <div className="text-xs text-ink-soft">{es ? "Vence a las" : "Expires"} {new Date(o.expires_at).toLocaleTimeString(es ? "es-US" : [], { hour: "numeric", minute: "2-digit" })}</div></div>
@@ -261,7 +262,7 @@ export default async function ProHome() {
           {upcoming.map((j) => (
             <Link key={j.id} href={`/pro/jobs/${j.id}`} className="card flex items-center justify-between gap-3 hover:border-brand">
               <div><div className="font-semibold">{svcName(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address}, {j.city}</div></div>
-              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(j.contractor_payout)}</span><StatusBadge status={j.status} locale={l} /></div>
+              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(proNetPay(j, j.contractor_payout, me?.agreement_version))}</span><StatusBadge status={j.status} locale={l} /></div>
             </Link>
           ))}
         </div>

@@ -4,6 +4,8 @@
   CREATED : 2026-11-06_1649 UTC
   UPDATED : 2026-11-06_1724 UTC — fits partner-v2: referrals keep the 25% / 10% / 15% job-price tiers; the ladder pays
             direct sales only; direct sales count 1.5× toward the level, referrals 1×.
+  UPDATED : 2026-11-06_1800 UTC — pros see only their NET pay (offers, work orders, Pro portal, app); no rates, job price or
+            split. Handled's numbers are internal (Hub → job → Money).
   UPDATED : 2026-11-06_1738 UTC — partner-v4: referrals pay ONE rate on every job, 15% of the price rising to 30% (their
             own ladder, same level credit), locked on the job at booking; pro agreement v11.
   PURPOSE : Field Sales through the Partner Program (partner-v3): the two ways to earn (referrals and direct sales), the
@@ -57,7 +59,7 @@ sent to the AI, which suggests the service and sizes. On send:
    timing, budget and access notes. The customer checks it, accepts the Service Agreement and pays. The AI photo check
    can still adjust the price within the normal limits, and some jobs need a free site visit.
 5. **Paid → job board.** The job dispatches like any booking. Nothing goes to pros before it's paid. The job is
-   marked `partner_sale`, so the pro's work order shows **no referral fee**.
+   marked `partner_sale`, so nothing comes out of the pro's pay.
 6. **Completed → commission** at the partner's ladder rate, payable Monday after the 30-day guarantee.
 
 Unbooked sales tickets expire after 30 days (daily sweep). The customer stays the partner's for 12 months.
@@ -112,8 +114,8 @@ the pro's pay.
   credits, up to 20%.
 - **Same level credit** as the sales ladder (direct-sale profit 1.5×, referral profit 1×), so selling also raises the
   referral rate.
-- **Locked on the job when it's booked** (`jobs.partner_rate`), so the pro sees their half on the work order before
-  accepting. A recurring customer's next visit gets the partner's rate as it is then.
+- **Locked on the job when it's booked** (`jobs.partner_rate`), so the pro's pay is known before they accept. A
+  recurring customer's next visit gets the partner's rate as it is then.
 - **Half from the pro (7.5%–15% of the price), half from Handled.** Handled's half never exceeds what we keep after the
   card fee. A pro pays their half on a partner-v4 job only once they've signed **pro agreement v11**. Until then,
   Handled's half is all the partner gets on that job.
@@ -139,6 +141,13 @@ To change the numbers, edit `PARTNER_LADDER` (sales) or `REFERRAL_LADDER` (refer
 (`baseRate`, `topRate`, `topProfit`, `curve`, `jobsPerStep`, `jobsCapRate`; the credit weights `directCredit` and
 `referralCredit` are on `PARTNER_LADDER`; tests in `pricing.test.ts`), then bump `termsVersion`. A change to what pros
 pay also needs a new `AGREEMENT_VERSION` (pros re-sign). Rates already locked on jobs don't change.
+
+## What pros see: net pay only
+Pros never see the job price, Handled's take or the referral split. Every offer, work order, the Pro portal, the app and
+offer texts/emails show **one number: their net pay**, with any referral fee already taken out (`proNetPay` in
+`packages/core/src/pro-pay.ts`). Counters are typed in net pay, and the server adds the hidden fee back. Payout lines say
+"Job pay" or "Pay adjustment". The pro agreement (v11) says the pay shown is net, with no rates. The full split (partner
+commission from the pro and from us, and what Handled keeps after the partner) is on **Hub → job → Money (internal)**.
 
 ## Where it shows
 
