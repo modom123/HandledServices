@@ -48,6 +48,7 @@
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
+ * UPDATED : 2026-11-06_1638 UTC — Field Sales tickets: BookingSchema.ticket; createJob marks the ticket booked and credits the rep (lib/sales-tickets).
  */
 import "server-only";
 import { z } from "zod";
@@ -121,6 +122,8 @@ export const BookingSchema = z.object({
   access_info: z.string().max(1000).nullable().optional(),
   /** Save this address (and the entry details) to My homes. Signed-in customers only. */
   save_home: z.boolean().optional(),
+  /** Booked from a Field Sales ticket (/book?ticket=…): the ticket is marked booked and the job credited to the rep. */
+  ticket: z.string().regex(/^[\w-]{16,40}$/).nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -149,7 +152,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ticket, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
   const { applyMeasurements, missingMeasurements } = await import("@handled/core");
@@ -312,8 +315,10 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   }
   if (ben?.isGift && ben.promoCode && (await redeemGift(job, ben.promoCode))) job = (await getJob(job.id)) ?? job;
   if (biz && acct?.pilot) await db().from("business_accounts").update({ pilot_jobs_left: Math.max(0, biz.account.pilot_jobs_left - 1) }).eq("id", biz.account.id);
+  // Field Sales ticket: mark it booked and make sure the customer is the rep's (before the partner credit below)
+  if (ticket) await (await import("./sales-tickets")).linkTicketJob(ticket, job).catch((e) => console.error("[sales ticket]", e));
   // Referral Partner Program: credit the job to the customer's partner (existing referral, or a partner link for a new customer)
-  const partnerId = await (await import("./partners")).attributeJob(job).catch((e) => { console.error("[partners]", e); return null; });
+  const partnerId = await (await import("./partners")).attributeJob(job, promo_code).catch((e) => { console.error("[partners]", e); return null; });
   if (partnerId) job = { ...job, partner_id: partnerId };
   return { job, estimate: est, ai, billing: acct ? { onTerms: job.billed_on_terms === true, reason: acct.reason, pilot: acct.pilot } : null };
 }

@@ -5,8 +5,10 @@
  * PURPOSE : Handled Hub → Partners (Referral Partner Program): every partner with their customers and earnings,
  *           pause / reactivate, credit a customer by hand, and the commission queue (void before payout).
  *           Payouts run on Mondays with the pro payouts (cron sweep).
+ * UPDATED : 2026-11-06_1638 UTC — Field Sales: each partner's ladder level/rate and profit generated, the rate on each
+ *           commission, and the latest Field Sales tickets (sent → booked → job).
  */
-import { PARTNER_KINDS, PARTNER_PROGRAM, getService, money, type PartnerKind } from "@handled/core";
+import { PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, getService, money, partnerLevel, type PartnerKind } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Badge, Empty, Stat } from "@/components/ui";
 import { PartnerAssign, PartnerStatusButton, VoidCommission } from "@/components/PartnerUI";
@@ -14,7 +16,7 @@ import { PartnerAssign, PartnerStatusButton, VoidCommission } from "@/components
 export const dynamic = "force-dynamic";
 
 type P = { id: string; code: string; name: string; email: string; phone: string | null; company: string | null; kind: PartnerKind; status: "active" | "suspended"; stripe_account_id: string | null; created_at: string };
-type C = { id: string; partner_id: string; amount: number; take: number; status: string; eligible_at: string; paid_at: string | null; note: string | null; jobs: { ref: string; service_slug: string } | null };
+type C = { id: string; partner_id: string; amount: number; take: number; rate: number | null; source: string | null; status: string; eligible_at: string; paid_at: string | null; note: string | null; jobs: { ref: string; service_slug: string } | null };
 
 export default async function PartnersHub() {
   const db = adminClient();
@@ -23,20 +25,29 @@ export default async function PartnersHub() {
     <div className="card max-w-2xl"><h1 className="text-xl font-bold">The Partner Program isn&apos;t switched on yet</h1>
       <p className="mt-2 text-sm text-ink-soft">Run <code>supabase/setup/ADD_REFERRAL_PARTNERS_2026-10-07_0100.sql</code> once in Supabase → SQL Editor, then reload.</p></div>
   );
-  const [{ data: custs }, { data: comms }] = await Promise.all([
+  const [{ data: custs }, { data: comms }, { data: tix }] = await Promise.all([
     db.from("referral_customers").select("partner_id, first_job_id"),
-    db.from("partner_commissions").select("id, partner_id, amount, take, status, eligible_at, paid_at, note, jobs(ref, service_slug)").order("created_at", { ascending: false }).limit(1000),
+    db.from("partner_commissions").select("id, partner_id, amount, take, rate, source, status, eligible_at, paid_at, note, jobs(ref, service_slug)").order("created_at", { ascending: false }).limit(5000),
+    db.from("sales_tickets").select("id, partner_id, service_slug, customer_name, city, zip, status, created_at, jobs(ref, status, price_final)").order("created_at", { ascending: false }).limit(100),
   ]);
+  type T = { id: string; partner_id: string; service_slug: string | null; customer_name: string; city: string | null; zip: string | null; status: string; created_at: string; jobs: { ref: string; status: string; price_final: number | null } | null };
+  const TIX = (tix ?? []) as unknown as T[];
   const C = (comms ?? []) as unknown as C[];
-  const per = new Map<string, { customers: number; booked: number; paid: number; owed: number }>();
+  const blank = () => ({ customers: 0, booked: 0, paid: 0, owed: 0, profit: 0, jobs: 0, best: 0, tickets: 0 });
+  const per = new Map<string, ReturnType<typeof blank>>();
   for (const c of (custs ?? []) as { partner_id: string; first_job_id: string | null }[]) {
-    const x = per.get(c.partner_id) ?? { customers: 0, booked: 0, paid: 0, owed: 0 };
+    const x = per.get(c.partner_id) ?? blank();
     x.customers++; if (c.first_job_id) x.booked++; per.set(c.partner_id, x);
   }
   for (const c of C) {
-    const x = per.get(c.partner_id) ?? { customers: 0, booked: 0, paid: 0, owed: 0 };
-    if (c.status === "paid") x.paid += Number(c.amount); if (c.status === "pending") x.owed += Number(c.amount); per.set(c.partner_id, x);
+    const x = per.get(c.partner_id) ?? blank();
+    if (c.status === "paid") x.paid += Number(c.amount); if (c.status === "pending") x.owed += Number(c.amount);
+    if (c.status !== "void") { x.profit += Number(c.take); x.jobs++; x.best = Math.max(x.best, Number(c.rate ?? 0)); }
+    per.set(c.partner_id, x);
   }
+  for (const t of TIX) { const x = per.get(t.partner_id) ?? blank(); x.tickets++; per.set(t.partner_id, x); }
+  const rateOf = (id: string) => { const x = per.get(id); return Math.max(partnerLevel(x?.profit ?? 0, x?.jobs ?? 0).rate, Math.min(x?.best ?? 0, PARTNER_LADDER.topRate)); };
+  const pct = (r: number) => `${Math.round(r * 100)}%`;
   const PS = (partners ?? []) as P[];
   const name = new Map(PS.map((p) => [p.id, p.name]));
   const tot = [...per.values()].reduce((t, x) => ({ customers: t.customers + x.customers, paid: t.paid + x.paid, owed: t.owed + x.owed }), { customers: 0, paid: 0, owed: 0 });
@@ -45,7 +56,7 @@ export default async function PartnersHub() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Referral partners</h1>
-        <p className="max-w-3xl text-sm text-ink-soft">Anyone can sign up at <a className="underline" href="/partners" target="_blank">/partners</a>. Partners earn {PARTNER_PROGRAM.pctOfTake * 100}% of our take on every completed job from customers they refer, for {PARTNER_PROGRAM.months} months, paid Mondays via Stripe once the job is {PARTNER_PROGRAM.holdDays} days past completion (refunds reduce or void it first). Balances under {money(PARTNER_PROGRAM.minPayout)} roll over.</p>
+        <p className="max-w-3xl text-sm text-ink-soft">Anyone can sign up at <a className="underline" href="/partners" target="_blank">/partners</a>. Partners earn {pct(PARTNER_LADDER.baseRate)}–{pct(PARTNER_LADDER.topRate)} of our take on every completed job from customers they bring in (the ladder: {pct(PARTNER_LADDER.topRate)} at {money(PARTNER_LADDER.topProfit)} lifetime profit generated, or +1 point per {PARTNER_LADDER.jobsPerStep} jobs up to {pct(PARTNER_LADDER.jobsCapRate)}), for {PARTNER_PROGRAM.months} months, paid Mondays via Stripe once the job is {PARTNER_PROGRAM.holdDays} days past completion (refunds reduce or void it first). Balances under {money(PARTNER_PROGRAM.minPayout)} roll over.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Partners" value={PS.length} hint={`${PS.filter((p) => p.status === "active").length} active`} />
@@ -64,13 +75,15 @@ export default async function PartnersHub() {
         <h2 className="mb-2 font-bold">Partners</h2>
         {!PS.length ? <Empty>No partners yet. Share /partners with realtors and property managers.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Partner</th><th className="p-3">Type</th><th className="p-3">Code</th><th className="p-3">Customers</th><th className="p-3">Owed</th><th className="p-3">Paid</th><th className="p-3">Payouts</th><th className="p-3"></th></tr></thead>
+            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Partner</th><th className="p-3">Type</th><th className="p-3">Code</th><th className="p-3">Customers</th><th className="p-3">Rate</th><th className="p-3">Profit generated</th><th className="p-3">Owed</th><th className="p-3">Paid</th><th className="p-3">Payouts</th><th className="p-3"></th></tr></thead>
             <tbody>{PS.map((p) => { const x = per.get(p.id); return (
               <tr key={p.id} className="border-t border-line align-top">
                 <td className="p-3"><div className="font-semibold">{p.name}</div><div className="text-xs text-ink-soft">{[p.company, p.email, p.phone].filter(Boolean).join(" · ")}</div></td>
                 <td className="p-3">{PARTNER_KINDS[p.kind] ?? p.kind}</td>
                 <td className="p-3 font-mono">{p.code}</td>
                 <td className="p-3">{x?.customers ?? 0}<span className="text-xs text-ink-soft"> ({x?.booked ?? 0} booked)</span></td>
+                <td className="p-3 font-semibold">{pct(rateOf(p.id))}</td>
+                <td className="p-3">{money(x?.profit ?? 0)}<span className="text-xs text-ink-soft"> ({x?.jobs ?? 0} jobs · {x?.tickets ?? 0} tickets)</span></td>
                 <td className="p-3">{money(x?.owed ?? 0)}</td>
                 <td className="p-3">{money(x?.paid ?? 0)}</td>
                 <td className="p-3">{p.stripe_account_id ? <Badge tone="green">Stripe</Badge> : <Badge tone="amber">Not set up</Badge>}</td>
@@ -81,12 +94,27 @@ export default async function PartnersHub() {
       </section>
 
       <section>
+        <h2 className="mb-2 font-bold">Field Sales tickets</h2>
+        <p className="mb-2 text-sm text-ink-soft">Reps&apos; photo tickets. The customer gets a link to see the price and pay; paid jobs go to the job board like any booking. Unbooked tickets expire after 30 days.</p>
+        {!TIX.length ? <Empty>No tickets yet. Field Sales partners write them from their partner page.</Empty> : (
+          <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
+            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Sent</th><th className="p-3">Rep</th><th className="p-3">Customer</th><th className="p-3">Service</th><th className="p-3">Ticket</th><th className="p-3">Job</th></tr></thead>
+            <tbody>{TIX.map((t) => (
+              <tr key={t.id} className="border-t border-line"><td className="p-3">{t.created_at.slice(0, 10)}</td><td className="p-3">{name.get(t.partner_id) ?? "—"}</td><td className="p-3">{t.customer_name}<span className="text-xs text-ink-soft"> {[t.city, t.zip].filter(Boolean).join(" ")}</span></td><td className="p-3">{t.service_slug ? getService(t.service_slug)?.name ?? "—" : "—"}</td>
+                <td className="p-3"><Badge tone={t.status === "booked" ? "green" : t.status === "sent" ? "amber" : t.status === "cancelled" ? "red" : "slate"}>{t.status}</Badge></td>
+                <td className="p-3">{t.jobs ? `${t.jobs.ref} · ${t.jobs.status.replace(/_/g, " ")}${t.jobs.price_final ? ` · ${money(Number(t.jobs.price_final))}` : ""}` : "—"}</td></tr>
+            ))}</tbody>
+          </table></div>
+        )}
+      </section>
+
+      <section>
         <h2 className="mb-2 font-bold">Commission queue</h2>
         {!pending.length ? <Empty>Nothing owed.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Partner</th><th className="p-3">Job</th><th className="p-3">Our take</th><th className="p-3">Commission</th><th className="p-3">Payable</th><th className="p-3"></th></tr></thead>
+            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Partner</th><th className="p-3">Job</th><th className="p-3">How</th><th className="p-3">Our take</th><th className="p-3">Rate</th><th className="p-3">Commission</th><th className="p-3">Payable</th><th className="p-3"></th></tr></thead>
             <tbody>{pending.map((c) => (
-              <tr key={c.id} className="border-t border-line"><td className="p-3">{name.get(c.partner_id) ?? "—"}</td><td className="p-3">{c.jobs ? `${getService(c.jobs.service_slug)?.name ?? ""} · ${c.jobs.ref}` : "—"}</td><td className="p-3">{money(Number(c.take))}</td><td className="p-3 font-semibold">{money(Number(c.amount))}</td><td className="p-3">{c.eligible_at.slice(0, 10)}</td><td className="p-3"><VoidCommission id={c.id} /></td></tr>
+              <tr key={c.id} className="border-t border-line"><td className="p-3">{name.get(c.partner_id) ?? "—"}</td><td className="p-3">{c.jobs ? `${getService(c.jobs.service_slug)?.name ?? ""} · ${c.jobs.ref}` : "—"}</td><td className="p-3">{c.source === "direct" ? <Badge tone="brand">Direct sale</Badge> : <Badge>Referral</Badge>}</td><td className="p-3">{money(Number(c.take))}</td><td className="p-3">{pct(Number(c.rate ?? PARTNER_PROGRAM.pctOfTake))}</td><td className="p-3 font-semibold">{money(Number(c.amount))}</td><td className="p-3">{c.eligible_at.slice(0, 10)}</td><td className="p-3"><VoidCommission id={c.id} /></td></tr>
             ))}</tbody>
           </table></div>
         )}

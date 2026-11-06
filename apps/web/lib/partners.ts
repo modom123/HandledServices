@@ -12,11 +12,16 @@
  *           Guards: one partner per customer (first wins), no self-referrals, existing customers don't count,
  *           suspended partners earn nothing, refunds reduce or void the commission before it's paid.
  * UPDATED : 2026-10-07_1610 UTC — partner payouts: only the transfer decides success (no double pay after a later error); checks the Stripe balance first; per-attempt idempotency keys.
+ * UPDATED : 2026-11-06_1638 UTC — commission ladder: each commission is the partner's ladder rate (10%→45%, from lifetime
+ *           profit generated and completed jobs, counted BEFORE this job) of our take; the rate is stored on the row and
+ *           the Monday re-check uses it. partnerStats() returns the level. Field Sales tickets: lib/sales-tickets.ts.
+ *           A partner code typed in the booking's code box (the customer pays with their rep's code) credits that
+ *           partner for a new customer, ahead of a link cookie.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import {
-  BRAND, PARTNER_PROGRAM, cleanPartnerCode, getService, makePartnerCode, money, partnerCommission, partnerExpiry, partnerTake,
+  BRAND, PARTNER_LADDER, PARTNER_PROGRAM, cleanPartnerCode, getService, makePartnerCode, money, partnerCommission, partnerExpiry, partnerLevel, partnerTake,
   type Job, type PartnerKind,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -60,7 +65,7 @@ export async function signUp(o: { name: string; email: string; phone?: string | 
 async function sendWelcome(partner: Partner, again: boolean) {
   const { signInLink } = await import("./signin");
   const portal = await signInLink(partner.email, "/partner");
-  await sendEmail(partner.email, again ? `Your ${BRAND.name} partner link` : `Welcome to the ${BRAND.name} Partner Program`, `Hi ${partner.name.split(" ")[0]},\n\n${again ? "Here's your partner info again." : "You're in."} Your partner code is ${partner.code}.\n\nShare this link: ${partnerLink(partner.code)}\nShort link for cards and texts: ${siteUrl()}/r/${partner.code}\n\nYou earn ${PARTNER_PROGRAM.pctOfTake * 100}% of ${BRAND.name}'s fee on every job from customers you refer, for ${PARTNER_PROGRAM.months} months, paid weekly once each job is past our ${PARTNER_PROGRAM.holdDays}-day make-it-right window.\n\nYour partner page (send customers directly, track earnings, set up payouts): ${portal}\n\n— ${BRAND.name}`);
+  await sendEmail(partner.email, again ? `Your ${BRAND.name} partner link` : `Welcome to the ${BRAND.name} Partner Program`, `Hi ${partner.name.split(" ")[0]},\n\n${again ? "Here's your partner info again." : "You're in."} Your partner code is ${partner.code}.\n\nShare this link: ${partnerLink(partner.code)}\nShort link for cards and texts: ${siteUrl()}/r/${partner.code}\n\nYou earn ${PARTNER_LADDER.baseRate * 100}% of ${BRAND.name}'s profit on every job from customers you bring us, for ${PARTNER_PROGRAM.months} months, paid weekly once each job is past our ${PARTNER_PROGRAM.holdDays}-day make-it-right window. Your rate rises one point at a time as you grow, up to ${PARTNER_LADDER.topRate * 100}%.\n\nYour partner page (write Field Sales tickets with photos, send customers, track earnings and your level, set up payouts): ${portal}\n\n— ${BRAND.name}`);
 }
 
 /** The signed-in person's partner record (by account, else by email — and link the account on first visit). */
@@ -106,7 +111,7 @@ export async function referCustomer(partner: Partner, c: { name: string; email: 
  * At booking: credit the job to a partner. An existing referral for this email (still inside its 12 months) wins;
  * otherwise a partner link clicked in this browser counts — only for a NEW customer, never the partner themselves.
  */
-export async function attributeJob(job: Job): Promise<string | null> {
+export async function attributeJob(job: Job, typedCode?: string | null): Promise<string | null> {
   const email = lower(job.contact_email);
   const { data: ref } = await db().from("referral_customers").select("id, partner_id, first_job_id, expires_at, referral_partners(status)").eq("customer_email", email).maybeSingle();
   let partnerId: string | null = null;
@@ -115,13 +120,15 @@ export async function attributeJob(job: Job): Promise<string | null> {
     if (active && new Date(ref.expires_at) > new Date()) partnerId = ref.partner_id;
     if (partnerId && !ref.first_job_id) await db().from("referral_customers").update({ first_job_id: job.id }).eq("id", ref.id);
   } else {
-    let code: string | null = null;
-    try { code = cleanPartnerCode((await cookies()).get(PARTNER_COOKIE)?.value); } catch { /* not in a request (cron, app) */ }
+    // the code the customer typed at checkout (their rep's code) wins over a link clicked earlier
+    let code: string | null = typedCode ? cleanPartnerCode(typedCode) : null;
+    if (code) { const { count } = await db().from("referral_partners").select("id", { count: "exact", head: true }).eq("code", code); if (!count) code = null; }
+    if (!code) try { code = cleanPartnerCode((await cookies()).get(PARTNER_COOKIE)?.value); } catch { /* not in a request (cron, app) */ }
     if (!code) return null;
     const { data: p } = await db().from("referral_partners").select("id, email, status").eq("code", code).maybeSingle();
     if (!p || p.status !== "active" || p.email === email) return null;
     if (await isExistingCustomer(email, job.id)) return null;
-    const { error } = await db().from("referral_customers").insert({ partner_id: p.id, customer_email: email, customer_name: job.contact_name, customer_phone: job.contact_phone, service_slug: job.service_slug, source: "link", first_job_id: job.id, expires_at: partnerExpiry(new Date()).toISOString() });
+    const { error } = await db().from("referral_customers").insert({ partner_id: p.id, customer_email: email, customer_name: job.contact_name, customer_phone: job.contact_phone, service_slug: job.service_slug, source: typedCode && cleanPartnerCode(typedCode) === code ? "direct" : "link", first_job_id: job.id, expires_at: partnerExpiry(new Date()).toISOString() });
     if (error) return null; // someone else claimed this customer a moment ago
     partnerId = p.id;
   }
@@ -134,14 +141,20 @@ export async function attributeJob(job: Job): Promise<string | null> {
 /** At completion: record the partner's commission (paid after the make-it-right window). */
 export async function accrueCommission(job: Job) {
   if (!job.partner_id || job.remedy || !(Number(job.price_final) > 0)) return;
-  const { data: ref } = await db().from("referral_customers").select("expires_at").eq("customer_email", lower(job.contact_email)).eq("partner_id", job.partner_id).maybeSingle();
+  const { data: ref } = await db().from("referral_customers").select("expires_at, source").eq("customer_email", lower(job.contact_email)).eq("partner_id", job.partner_id).maybeSingle();
   if (!ref || new Date(job.created_at) > new Date(ref.expires_at)) return; // booked after the 12 months
   const o = { price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) };
-  const amount = partnerCommission(o);
+  // the ladder: the partner's level from everything they'd generated BEFORE this job
+  const { rate } = await lifetimeLevel(job.partner_id);
+  // two ways to earn: a customer the partner sold on a Field Sales ticket (that job and their repeat visits) = direct
+  // sale; link, code or a sent customer = referral
+  const { data: tix } = ref.source === "ticket" ? { data: [1] } : await db().from("sales_tickets").select("id").eq("job_id", job.id).eq("partner_id", job.partner_id).limit(1);
+  const source = tix?.length ? "direct" : "referral";
+  const amount = partnerCommission(o, rate);
   if (amount <= 0) return;
   const done = job.completed_at ? new Date(job.completed_at) : new Date();
   await db().from("partner_commissions").upsert({
-    partner_id: job.partner_id, job_id: job.id, take: partnerTake(o), amount, status: "pending",
+    partner_id: job.partner_id, job_id: job.id, take: partnerTake(o), rate, source, amount, status: "pending",
     eligible_at: new Date(done.getTime() + PARTNER_PROGRAM.holdDays * 86400000).toISOString(),
   }, { onConflict: "job_id", ignoreDuplicates: true });
 }
@@ -152,16 +165,17 @@ const mondayOf = (d: Date) => { const x = new Date(Date.UTC(d.getUTCFullYear(), 
 export async function runPartnerPayouts(now = new Date()) {
   const s = getStripe();
   const week = mondayOf(now);
-  const { data: due } = await db().from("partner_commissions").select("id, partner_id, job_id, amount, jobs(price_final, contractor_payout, amount_refunded, remedy, status)").eq("status", "pending").lte("eligible_at", now.toISOString()).limit(5000);
-  type Row = { id: string; partner_id: string; job_id: string; amount: number; jobs: { price_final: number; contractor_payout: number; amount_refunded: number; remedy: string | null; status: string } | null };
+  const { data: due } = await db().from("partner_commissions").select("id, partner_id, job_id, amount, rate, jobs(price_final, contractor_payout, amount_refunded, remedy, status)").eq("status", "pending").lte("eligible_at", now.toISOString()).limit(5000);
+  type Row = { id: string; partner_id: string; job_id: string; amount: number; rate: number | null; jobs: { price_final: number; contractor_payout: number; amount_refunded: number; remedy: string | null; status: string } | null };
   const byPartner = new Map<string, Row[]>();
   let voided = 0;
   for (const r of (due ?? []) as unknown as Row[]) {
     // refunds after completion come out of our take first → the commission follows it down (never up)
     const j = r.jobs;
-    const now$ = j && j.status === "completed" && !j.remedy ? Math.min(Number(r.amount), partnerCommission({ price: Number(j.price_final), payout: Number(j.contractor_payout), refunded: Number(j.amount_refunded) })) : 0;
-    if (now$ <= 0) { await db().from("partner_commissions").update({ status: "void", amount: 0, note: "job refunded or cancelled" }).eq("id", r.id); voided++; continue; }
-    if (now$ !== Number(r.amount)) { await db().from("partner_commissions").update({ amount: now$, note: "reduced by a refund" }).eq("id", r.id); r.amount = now$; }
+    const o = j ? { price: Number(j.price_final), payout: Number(j.contractor_payout), refunded: Number(j.amount_refunded) } : null;
+    const now$ = o && j!.status === "completed" && !j!.remedy ? Math.min(Number(r.amount), partnerCommission(o, Number(r.rate ?? PARTNER_PROGRAM.pctOfTake))) : 0;
+    if (now$ <= 0) { await db().from("partner_commissions").update({ status: "void", amount: 0, take: 0, note: "job refunded or cancelled" }).eq("id", r.id); voided++; continue; }
+    if (now$ !== Number(r.amount)) { await db().from("partner_commissions").update({ amount: now$, take: partnerTake(o!), note: "reduced by a refund" }).eq("id", r.id); r.amount = now$; }
     byPartner.set(r.partner_id, [...(byPartner.get(r.partner_id) ?? []), r]);
   }
   let paid = 0, total = 0, waiting = 0;
@@ -233,11 +247,25 @@ export async function payoutsReady(partner: Partner) {
   return Boolean((await s.accounts.retrieve(partner.stripe_account_id).catch(() => null))?.payouts_enabled);
 }
 
+/**
+ * The partner's ladder level: lifetime profit generated for Handled (our take on their jobs that weren't voided) and
+ * completed jobs. Levels never go down: a later refund lowers that job's take, so we keep the best level ever stored.
+ */
+export async function lifetimeLevel(partnerId: string) {
+  const { data } = await db().from("partner_commissions").select("take, rate, status").eq("partner_id", partnerId).neq("status", "void").limit(100000);
+  const rows = (data ?? []) as { take: number; rate: number | null }[];
+  const profit = Math.round(rows.reduce((t, r) => t + Number(r.take), 0) * 100) / 100;
+  const lv = partnerLevel(profit, rows.length);
+  const best = rows.reduce((m, r) => Math.max(m, Number(r.rate ?? 0)), 0);
+  return { ...lv, rate: Math.max(lv.rate, Math.min(best, PARTNER_LADDER.topRate)), profit, jobs: rows.length };
+}
+
 /** Totals for the partner page and the Hub. */
 export async function partnerStats(partnerId: string) {
-  const [{ count: customers }, { data: comms }] = await Promise.all([
+  const [{ count: customers }, { data: comms }, level] = await Promise.all([
     db().from("referral_customers").select("id", { count: "exact", head: true }).eq("partner_id", partnerId),
-    db().from("partner_commissions").select("amount, status, eligible_at").eq("partner_id", partnerId),
+    db().from("partner_commissions").select("amount, status, eligible_at, source").eq("partner_id", partnerId),
+    lifetimeLevel(partnerId),
   ]);
   const now = Date.now();
   const sum = (f: (r: { amount: number; status: string; eligible_at: string }) => boolean) => Math.round(((comms ?? []) as { amount: number; status: string; eligible_at: string }[]).filter(f).reduce((t, r) => t + Number(r.amount), 0) * 100) / 100;
@@ -247,5 +275,18 @@ export async function partnerStats(partnerId: string) {
     ready: sum((r) => r.status === "pending" && new Date(r.eligible_at).getTime() <= now),
     upcoming: sum((r) => r.status === "pending" && new Date(r.eligible_at).getTime() > now),
     jobs: (comms ?? []).filter((r: { status: string }) => r.status !== "void").length,
+    level,
+    bySource: {
+      direct: sum((r) => r.status !== "void" && (r as { source?: string }).source === "direct"),
+      referral: sum((r) => r.status !== "void" && (r as { source?: string }).source !== "direct"),
+    },
   };
+}
+
+/** Booking code box: is this an active partner's code? (The customer pays with their rep's code; no discount, just credit.) */
+export async function partnerByCode(raw: string | null | undefined): Promise<{ name: string; code: string } | null> {
+  const code = cleanPartnerCode(raw);
+  if (!code) return null;
+  const { data } = await db().from("referral_partners").select("name, code, status").eq("code", code).maybeSingle();
+  return data && data.status === "active" ? { name: String(data.name), code: String(data.code) } : null;
 }

@@ -3,7 +3,12 @@
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-10-07_0150 UTC
   PURPOSE : How the Referral Partner Program works, how to turn it on, and how to recruit partners.
+  UPDATED : 2026-11-06_1649 UTC — the flat 10% is now the starting rate of the 10% → 45% ladder, and direct sales tickets
+            were added: see docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md.
 -->
+
+> **Update (2026-11-06):** commissions now start at 10% and climb to 45% of our take, and partners can also close
+> sales themselves with tickets. See [`FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md`](FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md).
 
 # Referral Partner Program
 
