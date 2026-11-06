@@ -6,8 +6,11 @@
  *             create · fields · go · upload_url · add_doc · doc_link · delete_doc · read (AI compliance matrix) ·
  *             req (add / edit / check off) · delete_req · lines (pricing + assumptions) · candidates · ask_pros ·
  *             quote_status · use_quotes · review · status · submit · result · benchmark
+ *             proposal writer: profile_save · profile_delete · set_profile · sam_import (pull SAM.gov attachments) · outline ·
+ *             draft_section · section_save · section_approve · section_add · section_delete · section_move · review_proposal
  *           The submit gate is enforced server-side (lib/bids.ts markSubmitted), not only on screen.
  * UPDATED : 2026-10-05_2043 UTC — archive: reopen (revise & resubmit), copy (next cycle), versioned uploads (replaces), solicitation type.
+ * UPDATED : 2026-11-06_0400 UTC — AI proposal writer actions, bidding profiles, SAM.gov attachment import.
  */
 import { z } from "zod";
 import { BID_SOURCES, GO_NO_GO, REQ_KIND_LABEL, RESUBMIT_REASONS, REVIEW_CHECKS, SOLICITATION_TYPES } from "@handled/core";
@@ -16,6 +19,9 @@ import {
   addBenchmark, addDocument, askProsForPrices, candidatePros, createBid, deleteDocument, deleteRequirement, docLink, markSubmitted, readSolicitation,
   copyBid, recordResult, reopenForRevision, saveBidFields, saveLines, saveRequirement, setBidStatus, setGo, setQuoteStatus, signOffReview, uploadUrl, useBestQuotes,
 } from "@/lib/bids";
+import {
+  PROFILE_FIELDS, addSection, approveSection, deleteProfile, deleteSection, draftSection, importSamAttachments, moveSection, outlineProposal, reviewProposal, saveProfile, saveSection, setBidProfile,
+} from "@/lib/proposals";
 
 export const maxDuration = 300;
 
@@ -49,6 +55,19 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reopen"), bid_id: uuid, reason: z.enum(Object.keys(RESUBMIT_REASONS) as [string, ...string[]]), note: z.string().trim().min(5).max(2000) }),
   z.object({ action: z.literal("copy"), bid_id: uuid }),
   z.object({ action: z.literal("result"), bid_id: uuid, result: z.enum(["won", "lost"]), award_amount: money.nullable(), winning_price: money.nullable(), winner: z.string().max(200).nullable(), note: z.string().max(4000).nullable(), unit_awards: z.array(z.object({ line_id: uuid, price: money })).max(100) }),
+  // proposal writer (lib/proposals.ts)
+  z.object({ action: z.literal("profile_save"), id: uuid.optional(), is_default: z.boolean().optional(), ...Object.fromEntries(PROFILE_FIELDS.map((k) => [k, z.string().max(k === "name" ? 120 : 20000).nullable().optional()])) as Record<(typeof PROFILE_FIELDS)[number], z.ZodOptional<z.ZodNullable<z.ZodString>>> }),
+  z.object({ action: z.literal("profile_delete"), id: uuid }),
+  z.object({ action: z.literal("set_profile"), bid_id: uuid, profile_id: uuid.nullable() }),
+  z.object({ action: z.literal("sam_import"), bid_id: uuid }),
+  z.object({ action: z.literal("outline"), bid_id: uuid, replace: z.boolean().optional() }),
+  z.object({ action: z.literal("draft_section"), bid_id: uuid, section_id: uuid, instruction: z.string().trim().max(2000).nullable().optional() }),
+  z.object({ action: z.literal("section_save"), bid_id: uuid, id: uuid, title: z.string().trim().min(1).max(200).optional(), guidance: z.string().max(2000).nullable().optional(), page_limit: z.number().min(0).max(500).nullable().optional(), content: z.string().max(60000).optional() }),
+  z.object({ action: z.literal("section_approve"), bid_id: uuid, id: uuid, approve: z.boolean() }),
+  z.object({ action: z.literal("section_add"), bid_id: uuid, title: z.string().trim().min(1).max(200) }),
+  z.object({ action: z.literal("section_delete"), bid_id: uuid, id: uuid }),
+  z.object({ action: z.literal("section_move"), bid_id: uuid, id: uuid, dir: z.union([z.literal(-1), z.literal(1)]) }),
+  z.object({ action: z.literal("review_proposal"), bid_id: uuid }),
   z.object({ action: z.literal("benchmark"), item: z.string().trim().min(2).max(300), unit: z.string().trim().min(1).max(40), price: money, agency: z.string().max(200).nullable(), source: z.string().max(200).nullable(), award_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), note: z.string().max(1000).nullable() }),
 ]);
 
@@ -85,6 +104,18 @@ export async function POST(req: Request) {
     case "copy": { const r = await copyBid(d.bid_id, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
     case "submit": { const r = await markSubmitted(d.bid_id, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
     case "result": { const { action: _a, bid_id, ...r } = d; const out = await recordResult(bid_id, r, actor); return Response.json(out, { status: out.ok ? 200 : 400 }); }
+    case "profile_save": { const { action: _a, ...p } = d; const r = await saveProfile(p); return Response.json(r, { status: r.ok ? 200 : 400 }); }
+    case "profile_delete": return ok(await deleteProfile(d.id));
+    case "set_profile": return ok(await setBidProfile(d.bid_id, d.profile_id));
+    case "sam_import": { const r = await importSamAttachments(d.bid_id, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
+    case "outline": { const r = await outlineProposal(d.bid_id, Boolean(d.replace), actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
+    case "draft_section": { const r = await draftSection(d.bid_id, d.section_id, d.instruction ?? null, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
+    case "section_save": { const { action: _a, bid_id, ...sec } = d; return ok(await saveSection(bid_id, sec, actor)); }
+    case "section_approve": { const r = await approveSection(d.bid_id, d.id, d.approve, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
+    case "section_add": { const r = await addSection(d.bid_id, d.title); return Response.json(r, { status: r.ok ? 200 : 400 }); }
+    case "section_delete": return ok(await deleteSection(d.bid_id, d.id));
+    case "section_move": return ok(await moveSection(d.bid_id, d.id, d.dir));
+    case "review_proposal": { const r = await reviewProposal(d.bid_id, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
     case "benchmark": { const { action: _a, ...bm } = d; await addBenchmark(bm, actor); return ok(); }
   }
 }

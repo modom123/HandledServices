@@ -63,6 +63,7 @@ export * from "./call-desk.ts";
 export * from "./channels.ts";
 export * from "./pro-rates.ts";
 export * from "./bid-engine.ts";
+export * from "./proposal.ts";
 export * from "./talent.ts";
 export * from "./factoring.ts";
 export * from "./mission.ts";

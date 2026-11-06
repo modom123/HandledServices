@@ -253,3 +253,99 @@ export function CopyText({ text }: { text: string }) {
     </div>
   );
 }
+
+export interface GovTableRow { notice_id: string; title: string; typeLine: string; codeLine: string; flag: string | null; where: string; due: string; status: string; fit_score: number }
+
+/**
+ * The opportunities table with clean-up: tick notices (or use the row's ✕) and set them aside as "Not a fit" (Passed
+ * tab — the daily search never brings them back), restore passed ones, or delete them for good from the Passed tab.
+ * Notices with a bid in progress or a result can't be removed here.
+ */
+export function GovTable({ rows, mode = "new" }: { rows: GovTableRow[]; mode?: "new" | "passed" | "locked" }) {
+  const router = useRouter();
+  const [pick, setPick] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const canPick = mode !== "locked";
+  const run = async (action: "dismiss" | "restore" | "delete", ids: string[]) => {
+    if (!ids.length) return;
+    let reason: string | null = null;
+    if (action === "delete") {
+      if (!confirm(`Delete ${ids.length} notice${ids.length > 1 ? "s" : ""} for good? They won't come back in future searches.`)) return;
+    } else if (action === "dismiss" && ids.length > 1) {
+      reason = prompt(`Why aren't these ${ids.length} a fit? (optional — e.g. "outside Michigan", "needs a clearance")`, "") || null;
+    }
+    setBusy(true); setMsg("");
+    const r = await post({ action, notice_ids: ids, reason });
+    setBusy(false);
+    const done = Number(r.done ?? 0); const skipped = Number(r.skipped ?? 0);
+    setMsg(r.ok ? `${done} ${action === "dismiss" ? "moved to Passed" : action === "restore" ? "back in New" : "deleted"}${skipped ? ` · ${skipped} kept (a bid is in progress or done)` : ""}` : String(r.error ?? "Failed"));
+    setPick([]); router.refresh();
+  };
+  const all = rows.map((r) => r.notice_id);
+  return (
+    <div className="space-y-2">
+      {canPick && rows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={pick.length === all.length} onChange={() => setPick(pick.length === all.length ? [] : all)} /> Select all ({rows.length})</label>
+          {mode === "new" && <button className="btn-ghost py-1 text-xs" disabled={busy || !pick.length} onClick={() => run("dismiss", pick)}>✕ Not a fit ({pick.length})</button>}
+          {mode === "passed" && <button className="btn-ghost py-1 text-xs" disabled={busy || !pick.length} onClick={() => run("restore", pick)}>↩ Restore to New ({pick.length})</button>}
+          {mode === "passed" && <button className="btn-ghost py-1 text-xs text-rose-700" disabled={busy || !pick.length} onClick={() => run("delete", pick)}>🗑 Delete for good ({pick.length})</button>}
+          {msg && <span className="text-xs text-ink-soft">{msg}</span>}
+        </div>
+      )}
+      <div className="card overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr>{canPick && <th className="p-3"></th>}<th className="p-3">Fit</th><th className="p-3">Opportunity</th><th className="p-3">Where</th><th className="p-3">Respond by</th><th className="p-3">Status</th>{canPick && <th className="p-3"></th>}</tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.notice_id} className="border-t border-line align-top">
+                {canPick && <td className="p-3"><input type="checkbox" aria-label={`Select ${r.title}`} checked={pick.includes(r.notice_id)} onChange={() => setPick(toggle(pick, r.notice_id))} /></td>}
+                <td className="p-3"><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${r.fit_score >= 70 ? "bg-green-100 text-green-800" : r.fit_score >= 40 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{r.fit_score}</span></td>
+                <td className="p-3">
+                  <a href={`/hub/gov/${encodeURIComponent(r.notice_id)}`} className="font-semibold text-brand hover:underline">{r.title}</a>
+                  <div className="text-xs text-ink-soft">{r.typeLine}</div>
+                  <div className="text-xs text-ink-soft">{r.codeLine}</div>
+                  {r.flag && <div className="text-xs text-amber-800">⚠ {r.flag}</div>}
+                </td>
+                <td className="p-3 text-xs">{r.where}</td>
+                <td className="p-3 text-xs">{r.due}</td>
+                <td className="p-3 text-xs capitalize">{r.status}</td>
+                {canPick && (
+                  <td className="p-3 text-right">
+                    {mode === "new"
+                      ? <button className="rounded-full border border-line px-2 py-0.5 text-xs hover:bg-rose-50" title="Not a fit — move to Passed" disabled={busy} onClick={() => run("dismiss", [r.notice_id])}>✕ Not a fit</button>
+                      : <button className="rounded-full border border-line px-2 py-0.5 text-xs" title="Back to New" disabled={busy} onClick={() => run("restore", [r.notice_id])}>↩ Restore</button>}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** On a notice's page: set it aside as not a fit (or delete it for good) and go back to the list. */
+export function GovNotFit({ id, status }: { id: string; status: string }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  if (["bidding", "submitted", "won", "lost"].includes(status)) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      {status !== "passed" && <button className="btn-ghost" onClick={async () => {
+        const reason = prompt("Why isn't this a fit? (optional)", "");
+        if (reason === null) return;
+        const r = await post({ action: "dismiss", notice_ids: [id], reason: reason || null });
+        if (r.ok) router.push("/hub/bids?view=gov"); else setMsg(String(r.error ?? "Failed"));
+      }}>✕ Not a fit</button>}
+      <button className="btn-ghost text-rose-700" onClick={async () => {
+        if (!confirm("Delete this notice for good? It won't come back in future searches.")) return;
+        const r = await post({ action: "delete", notice_ids: [id] });
+        if (r.ok) router.push("/hub/bids?view=gov"); else setMsg(String(r.error ?? "Failed"));
+      }}>🗑 Delete</button>
+      {msg && <span className="text-rose-700">{msg}</span>}
+    </div>
+  );
+}
