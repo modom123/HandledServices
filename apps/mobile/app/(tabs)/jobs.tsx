@@ -7,12 +7,13 @@
  * UPDATED : 2026-10-06_0645 UTC — Bookings tab: Upcoming and Past, pull to refresh, a spinner on first load, a plain
  *           "Try again" when the connection drops, a sign-in prompt when signed out, and an empty state that
  *           leads to booking. Live updates keep working.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { TIME_WINDOW_LABEL, getService, money, moneyRange, type Job } from "@handled/core";
-import { supabase, NETWORK_ERROR } from "../../lib/supabase";
+import { api, supabase, NETWORK_ERROR } from "../../lib/supabase";
 import { Button, C, Card, Empty, ErrorState, Loading, Status, s } from "../../components/ui";
 import { useI18n } from "../../lib/i18n";
 import { useSession } from "../../lib/session";
@@ -26,16 +27,19 @@ export default function Jobs() {
   const [err, setErr] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("jobs").select("*").order("scheduled_date", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
-    if (error) { setErr(/fetch|network/i.test(error.message) ? NETWORK_ERROR : "Couldn't load your bookings."); return; }
+    // need-to-know: the customer's own bookings from the server (never pro pay or partner data)
+    const r = await api<{ jobs: Job[]; error?: string }>("/api/account/jobs");
+    if (!r.ok) { setErr(r.status ? "Couldn't load your bookings." : NETWORK_ERROR); return; }
     setErr(null);
-    setJobs((data ?? []) as Job[]);
+    const list = (r.data.jobs ?? []) as Job[];
+    list.sort((a, b) => (a.scheduled_date ?? "9999").localeCompare(b.scheduled_date ?? "9999") || b.created_at.localeCompare(a.created_at));
+    setJobs(list);
   }, []);
   useEffect(() => {
     if (!me) return;
     load();
-    const ch = supabase.channel("my-jobs").on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
   }, [me, load]);
   const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 

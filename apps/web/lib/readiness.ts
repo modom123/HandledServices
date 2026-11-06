@@ -245,6 +245,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261007010000_referral_partners", "referral partner program", () => db.from("partner_commissions").select("id").limit(1)],
     ["20261106163800_field_sales", "direct sales / Field Sales (sales tickets, 10%→45% ladder)", () => db.from("sales_tickets").select("id, answers, quoted_price").limit(1)],
     ["20261106180000_referral_ladder", "referral rate 15%→30% (locked per job)", () => db.from("jobs").select("partner_rate").limit(1)],
+    ["20261106190000_need_to_know", "need-to-know access (pros and customers read jobs through the server)", () => db.rpc("is_admin")],
     ["20261007023000_site_settings_grand_opening", "website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
     ["20261007030000_bid_measurements", "bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
     ["20261007040000_loyalty_points", "Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],

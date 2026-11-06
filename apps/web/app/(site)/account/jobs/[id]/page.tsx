@@ -11,6 +11,7 @@
  * PURPOSE : Customer job detail — live timeline, pro, photos, messages, review.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: 25% to book, then "remaining — charged automatically when the job is done".
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology jobs say "Priced at your consultation" until the firm price is set.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  */
 import { notFound, redirect } from "next/navigation";
 import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job } from "@handled/core";
@@ -27,16 +28,17 @@ import { Reschedule, TipBox, TrackPro } from "@/components/AccountExtras";
 import { FavoriteButton } from "@/components/Favorites";
 import { checklistState } from "@/lib/checklists";
 import { ChecklistView, CustomerRequests } from "@/components/Checklist";
+import { customerEvents, customerJob } from "@/lib/job-access";
 
 export default async function CustomerJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
   if (!v) redirect("/login?next=/account");
   const { id } = await params;
-  const { data } = await v.db.from("jobs").select("*").eq("id", id).maybeSingle();
+  const data = await customerJob(v.userId, id);
   if (!data) notFound();
-  const job = data as Job & { completion_photos: string[] };
+  const job = data as unknown as Job & { completion_photos: string[] };
   const [{ data: events }, { data: msgs }, { data: review }] = await Promise.all([
-    v.db.from("job_events").select("id, message, message_es, created_at").eq("job_id", id).order("created_at"),
+    customerEvents(v.userId, id).then((data) => ({ data })),
     v.db.from("messages").select("id, sender_role, body, created_at").eq("job_id", id).order("created_at"),
     v.db.from("reviews").select("rating, google_clicked_at").eq("job_id", id).maybeSingle(),
   ]);

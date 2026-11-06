@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-03_1311 UTC — "crew": who the pro company is sending (crew accounts).
  * UPDATED : 2026-10-05_0221 UTC — completion is blocked while required checklist items are open.
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
+ * UPDATED : 2026-11-06_1900 UTC — GET: the job as the pro may see it (lib/job-access), for the app.
  */
 import { after } from "next/server";
 import { z } from "zod";
@@ -18,6 +19,7 @@ import { requestScopeChange } from "@/lib/scope";
 import { onMyWay } from "@/lib/visit";
 import { proReleaseJob } from "@/lib/standing";
 import { assignCrew } from "@/lib/crew";
+import { proJob } from "@/lib/job-access";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
@@ -28,6 +30,14 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("scope_change"), answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])), note: z.string().max(1000).default("") }),
   z.object({ action: z.literal("complete"), photos: z.array(z.string()).min(1).max(12), note: z.string().max(2000).nullable().optional() }),
 ]);
+
+/** GET — one job the pro works or was offered, as the pro may see it (need-to-know: NET pay, no price or split). */
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const v = await getViewer(req);
+  if (!v?.contractorId) return deny(403, "Pro account required");
+  const job = await proJob(v.contractorId, (await ctx.params).id);
+  return job ? Response.json({ job }, { headers: { "Cache-Control": "no-store" } }) : deny(404, "Not found");
+}
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const v = await getViewer(req);

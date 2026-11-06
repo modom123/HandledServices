@@ -19,6 +19,7 @@
  *           is paid (core jobMoney, same as Hub → Money → Jobs & payouts), with anything that doesn't add up flagged.
  * UPDATED : 2026-11-06_1800 UTC — internal money: the partner's commission on the job (from the pro / from us) and what
  *           Handled keeps after the partner. Pros only ever see their net pay.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -26,7 +27,7 @@ import { NoShowButton } from "@/components/Standing";
 import { notFound } from "next/navigation";
 import { LATE_CANCEL_FEE, PAYOUT_STAGE_LABEL, SERVICES, jobMoney, TIME_WINDOW_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, questionVisible, moneyRange, type Answers, type Job } from "@handled/core";
 import { isLate } from "@/lib/pro-benefits";
-import { getViewer } from "@/lib/auth";
+import { getViewer, isAdmin } from "@/lib/auth";
 import { signedUrls } from "@/lib/photos";
 import { Badge, StatusBadge, fmtDate } from "@/components/ui";
 import { CancelPanel, ExpenseActions, JobAdmin, OpsRating, PaymentPanel, RemedyPanel } from "@/components/HubActions";
@@ -37,6 +38,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { JobAccessEditor } from "@/components/JobAccessEditor";
 import { TextReply } from "@/components/TextsInbox";
 import { customerNo } from "@/lib/ids";
+import { staffView } from "@/lib/job-access";
 
 type AnyRec = Record<string, unknown>;
 
@@ -44,7 +46,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   const v = await getViewer();
   if (!v) return null;
   const { id } = await params;
-  const { data } = await v.db.from("jobs").select("*").eq("id", id).maybeSingle();
+  const { data } = await adminClient().from("jobs").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const job = data as Job & { completion_photos: string[] };
   const s = getService(job.service_slug)!;
@@ -62,7 +64,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
   const proNo = (proContact as { pro_no?: string | null } | null)?.pro_no ?? null;
   const notices = noticeRes.error ? null : (noticeRes.data ?? []) as { id: string; channel: string; recipient: string; subject: string | null; preview: string | null; status: string; error: string | null; created_at: string }[];
   const [{ data: offers }, { data: events }, { data: msgs }, { data: pros }, { data: opsRating }, { data: custReview }, before, after, { data: expenses }] = await Promise.all([
-    v.db.from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
+    adminClient().from("job_offers").select("id, status, payout, ai_score, ai_reason, offered_at, contractors(business_name)").eq("job_id", id).order("ai_score", { ascending: false }),
     v.db.from("job_events").select("*").eq("job_id", id).order("created_at"),
     v.db.from("messages").select("*").eq("job_id", id).order("created_at"),
     v.db.from("contractors").select("id, business_name, trades").eq("status", "approved"),
@@ -102,7 +104,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="mt-4 grid gap-1 border-t border-line pt-4 text-sm sm:grid-cols-2">{s.questions.filter((q) => questionVisible(q, job.answers as Answers, s.questions)).map((q) => <div key={q.id}><span className="text-ink-soft">{q.label}:</span> {String(job.answers[q.id] ?? "—")}</div>)}</div>
           {job.notes && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm">“{job.notes}”</p>}
         </div>
-        <div id="money" className="card scroll-mt-24 text-sm">
+        {isAdmin(v) && <div id="money" className="card scroll-mt-24 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">💵 Money (internal)</div><Link href="/hub/money" className="text-xs font-semibold text-brand underline">All jobs & payouts →</Link></div>
           <div className="mt-2 grid gap-3 sm:grid-cols-4">
             <div><div className="text-xs text-ink-soft">Customer paid</div><div className="text-lg font-bold">{money(jm.customerNet)}</div><div className="text-xs text-ink-soft">price {money(jm.price)}{jm.refunded ? ` · refunded ${money(jm.refunded)}` : ""}</div></div>
@@ -128,8 +130,8 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
               ))}</tbody>
             </table>
           )}
-        </div>
-        <HubChecklist job={job} />
+        </div>}
+        <HubChecklist job={isAdmin(v) ? job : staffView(job)} />
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="card text-sm"><div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">✨ AI quote</div>
@@ -151,7 +153,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
           <div className="font-semibold">Offers</div>
           <table className="mt-3 w-full text-sm"><tbody>
             {(offers ?? []).map((o: AnyRec) => (
-              <tr key={String(o.id)} className="border-t border-line"><td className="py-2 font-medium">{(o.contractors as AnyRec | null)?.business_name as string}</td><td>{String(o.status)}</td><td>{money(o.payout as number)}</td><td>{String(o.ai_score ?? "")}</td><td className="text-xs text-ink-soft">{String(o.ai_reason ?? "")}</td></tr>
+              <tr key={String(o.id)} className="border-t border-line"><td className="py-2 font-medium">{(o.contractors as AnyRec | null)?.business_name as string}</td><td>{String(o.status)}</td><td>{isAdmin(v) ? money(o.payout as number) : ""}</td><td>{String(o.ai_score ?? "")}</td><td className="text-xs text-ink-soft">{String(o.ai_reason ?? "")}</td></tr>
             ))}
             {!(offers ?? []).length && <tr><td className="py-2 text-ink-soft">No offers yet.</td></tr>}
           </tbody></table>

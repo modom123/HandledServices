@@ -27,6 +27,7 @@
  * UPDATED : 2026-11-05_0100 UTC — merged tabs (groups): Pros & recruiting is five tabs — Depth chart (+ Supply gaps), Roster
  *           (+ Pro Program, Rewards), Pipeline (+ Openings, Indeed, Pro leads, Overview), Onboarding (+ Pro files) and
  *           Client searches; the merged pages show as a switch under the tabs (groupOf, components/HubNav).
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -108,8 +109,8 @@ export const HUB_SECTIONS: readonly HubSection[] = [
 ];
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
-// /hub/money is open to all staff: the page shows dispatchers only its "Money in & out" view
-export const ADMIN_PAGES = new Set(["/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup"]);
+// need-to-know (2026-11-06): money pages and the partner program (commissions) are admin-only too
+export const ADMIN_PAGES = new Set(["/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);

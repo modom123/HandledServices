@@ -6,12 +6,14 @@
  *           components/hub-views/MoneyJobsView, admins), "Money in & out" (unpaid jobs, balances, failed payments,
  *           invoices, refunds — MoneyFlowView, was /hub/payments, all staff) and "Unit economics" (margin by service,
  *           deductions, pricing accuracy — EconomicsView, was /hub/finance, admins). Dispatchers see only Money in & out.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import { ViewSwitch, pickView, type View } from "@/components/ViewSwitch";
 import { getViewer, isAdmin } from "@/lib/auth";
 import MoneyJobsView from "@/components/hub-views/MoneyJobsView";
 import MoneyFlowView from "@/components/hub-views/MoneyFlowView";
 import EconomicsView from "@/components/hub-views/EconomicsView";
+import { adminOnly } from "@/components/AdminOnly";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Money" };
@@ -20,6 +22,7 @@ const ALL: readonly View[] = [["jobs", "Jobs & payouts"], ["flow", "Money in & o
 const STAFF: readonly View[] = [["flow", "Money in & out"]];
 
 export default async function MoneyPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const gate = await adminOnly(); if (gate) return gate; // need-to-know: money is admin-only
   const sp = await searchParams;
   const views = isAdmin(await getViewer()) ? ALL : STAFF;
   const view = pickView(views, sp.view);

@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-28_1735 UTC — every customer, not just the newest jobs: totals come from the hub_customer_totals view
  *           (top 200 by spend listed, full count shown); falls back to rolling up the newest jobs until that SQL is run.
  * UPDATED : 2026-11-06_0630 UTC — profile photos in the list (Avatar; initials when none).
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import Link from "next/link";
 import { customerNos } from "@/lib/ids";
@@ -19,6 +20,7 @@ import { customerSubjectId, noteSummaries } from "@/lib/notes";
 import { Badge, Empty } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { profilePhotos } from "@/lib/person-files";
+import { adminClient } from "@/lib/supabase/server";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -35,7 +37,7 @@ export default async function Customers() {
   let count = totals.count ?? customers.length;
   if (totals.error) {
     // before the 2026-10-28 SQL is run: roll up the newest jobs here (the database returns at most 1,000 rows)
-    const { data: jobs } = await v.db.from("jobs").select("contact_name, contact_email, contact_phone, customer_type, company_name, price_final, status, frequency, created_at").order("created_at", { ascending: false }).limit(1000);
+    const { data: jobs } = await adminClient().from("jobs").select("contact_name, contact_email, contact_phone, customer_type, company_name, price_final, status, frequency, created_at").order("created_at", { ascending: false }).limit(1000);
     const map = new Map<string, Rec>();
     for (const j of (jobs ?? []) as Rec[]) {
       const k = String(j.contact_email).toLowerCase();

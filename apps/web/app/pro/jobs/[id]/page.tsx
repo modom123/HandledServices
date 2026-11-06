@@ -32,6 +32,7 @@ import { crewRequest } from "@/lib/favorites";
 import { checklistState, freezeChecklist } from "@/lib/checklists";
 import { ChecklistPanel } from "@/components/Checklist";
 import { crewCanTake, crewReady, proNetPay } from "@handled/core";
+import { adminClient } from "@/lib/supabase/server";
 
 export default async function ProJob({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
@@ -42,7 +43,8 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
   const fmtDate = (d: string | null | undefined) =>
     d ? new Date(d.length === 10 ? `${d}T12:00:00` : d).toLocaleDateString(es ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric" }) : t("Date TBD");
   const { id } = await params;
-  const { data } = await v.db.from("jobs").select("*").eq("id", id).eq("contractor_id", v.contractorId!).maybeSingle();
+  // need-to-know: read on the server; the pro's own job only (the full row stays on the server, never sent to the browser)
+  const { data } = await adminClient().from("jobs").select("*").eq("id", id).eq("contractor_id", v.contractorId!).maybeSingle();
   if (!data) notFound();
   const job = data as Job;
   const s = getService(job.service_slug)!;
