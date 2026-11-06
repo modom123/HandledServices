@@ -61,6 +61,7 @@
  * UPDATED : 2026-11-05_0000 UTC — migration 20261105000000_person_files and the person-files storage bucket.
  * UPDATED : 2026-11-04_1759 UTC — "Go-live autopilot" checks: the Vercel and Supabase tokens that let Hub → Go-live setup
  *           save settings, create webhooks and run migrations itself (lib/golive-autopilot.ts).
+ * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -241,6 +242,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261006201000_pro_business_address", "pro place of business", () => db.from("contractors").select("base_address, base_city").limit(1)],
     ["20261006215500_xero_accounting", "Xero accounting", () => db.from("xero_sync_log").select("id").limit(1)],
     ["20261007010000_referral_partners", "referral partner program", () => db.from("partner_commissions").select("id").limit(1)],
+    ["20261106163800_field_sales", "direct sales / Field Sales (sales tickets, 10%→45% ladder)", () => db.from("sales_tickets").select("id, answers, quoted_price").limit(1)],
     ["20261007023000_site_settings_grand_opening", "website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
     ["20261007030000_bid_measurements", "bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
     ["20261007040000_loyalty_points", "Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],

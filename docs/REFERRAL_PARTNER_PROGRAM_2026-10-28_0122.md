@@ -4,9 +4,15 @@
   CREATED : 2026-10-28_0122 UTC
   PURPOSE : How the Referral Partner Program works (partner-v2): what partners earn, who pays it, the standard
             referral ticket, how to turn it on and how to run it. Replaces REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md.
+  UPDATED : 2026-11-06_1724 UTC — partner-v3 adds a second way to earn, direct sales (Field Sales), on its own ladder:
+            docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md. Referral rates below are unchanged.
 -->
 
 # Referral Partner Program (partner-v2)
+
+> **Update (2026-11-06):** partners can now also **sell** the job themselves on a sales ticket and earn 10% → 45% of
+> our profit, paid by Handled alone. See [`FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md`](FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md).
+> Referral rates on this page are unchanged.
 
 **Send us a job, get paid on it.** Anyone (realtors, property managers, contractors, business owners, neighbors)
 can sign up at **/partners** and earn on the customers they send.

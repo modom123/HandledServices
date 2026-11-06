@@ -2501,3 +2501,70 @@ test("markets: NY, NJ and Las Vegas city pages, market pages, indexing per marke
   assert.ok(!isIndexedCityPage("furniture-assembly", "las-vegas-nv"));
   assert.ok(isIndexedCityPage("furniture-assembly", "brooklyn-ny"));
 });
+
+test("direct sales ladder: 10% → 45% of our take, 45% at $1M lifetime profit, job fast track to 20%", async () => {
+  const { partnerLevel, ladderThreshold, ladderTable, partnerSaleCommission, LADDER_LEVELS, PARTNER_LADDER } = await import("./partners.ts");
+  assert.equal(LADDER_LEVELS, 35);
+  assert.equal(ladderThreshold(0), 0);
+  assert.equal(ladderThreshold(35), 1_000_000);
+  assert.equal(ladderThreshold(1), 800);
+  assert.equal(ladderThreshold(10), 81_500);
+  assert.equal(ladderThreshold(25), 510_000);
+  const tbl = ladderTable();
+  assert.equal(tbl.length, 36);
+  for (let i = 1; i < tbl.length; i++) assert.ok(tbl[i].profit > tbl[i - 1].profit, `rising at ${i}`);
+  assert.equal(tbl[0].rate, 0.1); assert.equal(tbl[35].rate, 0.45);
+  // by lifetime profit generated
+  assert.equal(partnerLevel(0).rate, 0.1);
+  assert.equal(partnerLevel(799.99).rate, 0.1);
+  assert.equal(partnerLevel(800).rate, 0.11);
+  assert.equal(partnerLevel(999_999).rate, 0.44);
+  assert.equal(partnerLevel(1_000_000).rate, 0.45);
+  assert.equal(partnerLevel(5_000_000).rate, 0.45, "capped at the top");
+  assert.equal(partnerLevel(1_000_000).next, null);
+  // fast track by jobs: +1 point per 10 jobs, never past 20%
+  assert.equal(partnerLevel(0, 9).rate, 0.1);
+  assert.equal(partnerLevel(0, 10).rate, 0.11);
+  assert.equal(partnerLevel(0, 100).rate, 0.2);
+  assert.equal(partnerLevel(0, 10_000).rate, PARTNER_LADDER.jobsCapRate, "jobs alone stop at 20%");
+  assert.equal(partnerLevel(200_000, 300).rate, 0.25, "the higher of the two counts");
+  assert.deepEqual(partnerLevel(500, 3).next, { level: 1, rate: 0.11, profit: 800, profitToGo: 300, jobsToGo: 7 });
+  // commission at the rate
+  assert.equal(partnerSaleCommission({ price: 400, payout: 300 }, 0.45), 45);
+  assert.equal(partnerSaleCommission({ price: 400, payout: 300 }, 0.23), 23);
+  assert.equal(partnerSaleCommission({ price: 400, payout: 300 }, 0.9), 45, "never above the top rate");
+  assert.equal(partnerSaleCommission({ price: 199.99, payout: 150 }, 0.33), 16.49, "rounded down to the cent");
+});
+
+test("field sales ticket: close-ready check", async () => {
+  const { ticketCloseCheck } = await import("./partners.ts");
+  const onsite = SERVICES.find((s) => !s.remote && !s.leadDays && !s.questions.some((q) => q.type === "number" && q.required))!;
+  const remote = SERVICES.find((s) => s.remote)!;
+  const base = { answers: defaultAnswers(onsite), photos: 3, customer_name: "Pat Lee", customer_email: "pat@example.com", customer_phone: "313-555-0101", address: "1 Main St", city: "Detroit", state: "MI", zip: "48201", urgency: "this_week", decision_maker: true };
+  assert.deepEqual(ticketCloseCheck({ ...base, service_slug: onsite.slug }), []);
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, photos: 2 }).some((m) => /photo/.test(m)));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, photos: 5 }).some((m) => /no more than 4/.test(m)));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: null }).includes("the service"));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, decision_maker: false }).some((m) => /decides/.test(m)));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, urgency: null }).includes("when they need it"));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, zip: "" }).includes("the full service address"));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, customer_phone: "555" }).some((m) => /mobile/.test(m)));
+  // remote services sell without photos or a street address
+  assert.deepEqual(ticketCloseCheck({ ...base, service_slug: remote.slug, answers: defaultAnswers(remote), photos: 0, address: null, urgency: remote.leadDays ? null : "month" }), []);
+  // a required measurement blocks the ticket until it's entered
+  const measured = SERVICES.find((s) => s.questions.some((q) => q.type === "number" && q.required));
+  if (measured) assert.ok(ticketCloseCheck({ ...base, service_slug: measured.slug, answers: defaultAnswers(measured), photos: 4 }).length > 0);
+});
+
+test("ladder credit: direct sales count 1.5×, referrals 1×", async () => {
+  const { ladderCredit, partnerLevel } = await import("./partners.ts");
+  assert.deepEqual(ladderCredit({ directProfit: 1000, referralProfit: 500, directJobs: 4, referralJobs: 3 }), { profit: 2000, jobs: 9 });
+  // $36,000 of direct-sale profit counts as $54,000 → 18%; the same $36,000 from referrals → 16%
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 36_000, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit).rate, 0.18);
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 0, referralProfit: 54_000, directJobs: 0, referralJobs: 0 }).profit).rate, 0.18);
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 0, referralProfit: 36_000, directJobs: 0, referralJobs: 0 }).profit).rate, 0.16);
+  // fast track: 7 direct jobs = 10.5 credit → +1 point
+  assert.equal(partnerLevel(0, ladderCredit({ directProfit: 0, referralProfit: 0, directJobs: 7, referralJobs: 0 }).jobs).rate, 0.11);
+  // $1M at the top: about $667k of direct-sale profit
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 666_667, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit).rate, 0.45);
+});

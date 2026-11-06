@@ -19,13 +19,18 @@
  * UPDATED : 2026-10-29_0715 UTC — a partner who is also a Handled pro is paid into the Stripe account they already use for
  *           job payouts (payoutAccount): no second setup.
  * UPDATED : 2026-10-28_0122 UTC — partner-v2: fixed tiers of the job price split 50/50 pro / Handled; the standard referral ticket.
+ * UPDATED : 2026-11-06_1730 UTC — Field Sales (direct sales, lib/sales-tickets.ts): a customer the partner SOLD on a
+ *           close-ready sales ticket (referral_customers.source 'sale', jobs.partner_sale) pays the partner the ladder rate
+ *           (10% → 45% of Handled's take, from their lifetime direct-sale profit, PARTNER_LADDER) — paid by Handled alone,
+ *           no pro fee, tier 'direct'. Referrals keep partner-v2 unchanged. A partner code typed at checkout credits that
+ *           partner for a new customer (ahead of a link cookie). partnerStats() returns the direct-sales level.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import {
   AGREEMENT_VERSION, BRAND, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING,
   cleanPartnerCode, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
-  partnerSplit, partnerTake, partnerTier,
+  ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -166,17 +171,18 @@ export async function setTicketStatus(id: string, status: Extract<TicketStatus, 
  * At booking: credit the job to a partner. An existing referral for this email (still inside its 12 months) wins;
  * otherwise a partner link clicked in this browser counts — only for a NEW customer, never the partner themselves.
  */
-export async function attributeJob(job: Job): Promise<string | null> {
+export async function attributeJob(job: Job, typedCode?: string | null): Promise<string | null> {
   const email = lower(job.contact_email);
-  const { data: ref } = await db().from("referral_customers").select("id, partner_id, first_job_id, expires_at, referral_partners(status)").eq("customer_email", email).maybeSingle();
+  const { data: ref } = await db().from("referral_customers").select("id, partner_id, first_job_id, expires_at, source, referral_partners(status)").eq("customer_email", email).maybeSingle();
   let partnerId: string | null = null;
   if (ref) {
     const active = (ref.referral_partners as unknown as { status: string } | null)?.status === "active";
     if (active && new Date(ref.expires_at) > new Date()) partnerId = ref.partner_id;
     if (partnerId && !ref.first_job_id) await db().from("referral_customers").update({ first_job_id: job.id, updated_at: new Date().toISOString() }).eq("id", ref.id);
   } else {
-    let code: string | null = null;
-    try { code = cleanPartnerCode((await cookies()).get(PARTNER_COOKIE)?.value); } catch { /* not in a request (cron, app) */ }
+    // the partner code the customer typed at checkout wins over a link clicked earlier
+    let code: string | null = (await partnerByCode(typedCode))?.code ?? null;
+    if (!code) try { code = cleanPartnerCode((await cookies()).get(PARTNER_COOKIE)?.value); } catch { /* not in a request (cron, app) */ }
     if (!code) return null;
     const { data: p } = await db().from("referral_partners").select("id, email, status").eq("code", code).maybeSingle();
     if (!p || p.status !== "active" || p.email === email) return null;
@@ -186,6 +192,12 @@ export async function attributeJob(job: Job): Promise<string | null> {
     partnerId = p.id;
   }
   if (!partnerId) return null;
+  // a customer the partner sold on a sales ticket: direct-sale ladder, paid by Handled alone — no tier, no pro fee
+  if (ref?.source === "sale") {
+    const { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_sale: true }).eq("id", job.id);
+    if (error) await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id);
+    return partnerId;
+  }
   const tier = partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(email, partnerId, job.id) });
   const { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier }).eq("id", job.id);
   if (error) await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id); // before the partner-v2 SQL is run
@@ -200,7 +212,7 @@ async function isFirstJob(email: string, partnerId: string, jobId: string) {
 
 // ─── Commissions ─────────────────────────────────────────────────────────────
 
-type Split = { tier: PartnerTier | "legacy"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
+type Split = { tier: PartnerTier | "legacy" | "direct"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
 
 /**
  * At completion, before the pro's payout line is written: the partner's share of this job and who pays it.
@@ -208,10 +220,16 @@ type Split = { tier: PartnerTier | "legacy"; rate: number; fromPro: number; from
  */
 export async function partnerSplitForJob(job: Job): Promise<Split | null> {
   if (!job.partner_id || job.remedy || !(Number(job.price_final) > 0)) return null;
-  const { data: ref } = await db().from("referral_customers").select("expires_at").eq("customer_email", lower(job.contact_email)).eq("partner_id", job.partner_id).maybeSingle();
+  const { data: ref } = await db().from("referral_customers").select("expires_at, source").eq("customer_email", lower(job.contact_email)).eq("partner_id", job.partner_id).maybeSingle();
   if (!ref || new Date(job.created_at) > new Date(ref.expires_at)) return null; // booked after the 12 months
   const o = { price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) };
   const take = partnerTake(o);
+  // direct sale (Field Sales): the partner's ladder rate of our take, paid by Handled alone
+  if (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale) {
+    const { rate } = await directSalesLevel(job.partner_id);
+    const amount = partnerSaleCommission(o, rate);
+    return amount > 0 ? { tier: "direct", rate, fromPro: 0, fromUs: amount, amount, take } : null;
+  }
   if (partnerLegacyJob(job.created_at)) { // partner-v1: 10% of our take, Handled alone
     const amount = partnerCommission(o);
     return amount > 0 ? { tier: "legacy", rate: PARTNER_PROGRAM.legacyPctOfTake, fromPro: 0, fromUs: amount, amount, take } : null;
@@ -238,7 +256,7 @@ export async function accrueCommission(job: Job, sp: Split | null) {
 }
 
 type DueJob = { price_final: number; contractor_payout: number; amount_refunded: number; remedy: string | null; status: string; contractor_id: string | null; ref: string };
-type DueRow = { id: string; partner_id: string; job_id: string; amount: number; tier: string | null; from_pro: number | null; from_us: number | null; pro_returned: number | null; jobs: DueJob | null };
+type DueRow = { id: string; partner_id: string; job_id: string; amount: number; rate?: number | null; tier: string | null; from_pro: number | null; from_us: number | null; pro_returned: number | null; jobs: DueJob | null };
 
 /**
  * A commission re-checked against the job as it is now (refunds after completion). It only ever goes down. When the
@@ -249,7 +267,10 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
   const live = Boolean(j && j.status === "completed" && !j.remedy) && !voidNote;
   const fromPro = Number(r.from_pro ?? 0), fromUs = Number(r.from_us ?? 0);
   let now$: number, newPro = 0, newUs = 0;
-  if (!r.tier || r.tier === "legacy") {
+  if (r.tier === "direct") { // direct sale: the locked ladder rate of our take, Handled alone
+    now$ = live ? Math.min(Number(r.amount), partnerSaleCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) }, Number(r.rate ?? PARTNER_LADDER.baseRate))) : 0;
+    newUs = now$;
+  } else if (!r.tier || r.tier === "legacy") {
     now$ = live ? Math.min(Number(r.amount), partnerCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) })) : 0;
     newUs = now$;
   } else {
@@ -272,7 +293,7 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
 
 /** Hub: cancel an unpaid commission. The pro's half goes back to them. */
 export async function voidCommission(id: string, note: string) {
-  const { data } = await db().from("partner_commissions").select("id, partner_id, job_id, amount, tier, from_pro, from_us, pro_returned, status, jobs(price_final, contractor_payout, amount_refunded, remedy, status, contractor_id, ref)").eq("id", id).maybeSingle();
+  const { data } = await db().from("partner_commissions").select("id, partner_id, job_id, amount, rate, tier, from_pro, from_us, pro_returned, status, jobs(price_final, contractor_payout, amount_refunded, remedy, status, contractor_id, ref)").eq("id", id).maybeSingle();
   if (!data || data.status !== "pending") return "Only unpaid commissions can be voided";
   await recheckCommission(data as unknown as DueRow, note);
   return null;
@@ -303,7 +324,7 @@ export async function runPartnerPayouts(now = new Date()) {
   const s = getStripe();
   const week = mondayOf(now);
   const due$ = (cols: string) => db().from("partner_commissions").select(`id, partner_id, job_id, amount, ${cols}jobs(price_final, contractor_payout, amount_refunded, remedy, status, contractor_id, ref)`).eq("status", "pending").lte("eligible_at", now.toISOString()).limit(5000);
-  let { data: due, error } = await due$("tier, from_pro, from_us, pro_returned, ");
+  let { data: due, error } = await due$("rate, tier, from_pro, from_us, pro_returned, ");
   if (error) ({ data: due } = await due$("")); // before the partner-v2 SQL is run: every row is partner-v1
   const byPartner = new Map<string, DueRow[]>();
   let voided = 0;
@@ -386,11 +407,37 @@ export async function payoutsReady(partner: Partner) {
   return Boolean((await s.accounts.retrieve(acct).catch(() => null))?.payouts_enabled);
 }
 
+/**
+ * The partner's ladder level (the rate their direct sales pay). Both ways to earn build it: lifetime profit generated
+ * for Handled (our take on their commissions that weren't voided) — direct sales count 1.5×, referrals 1× — and the
+ * same weighting for the job-count fast track. Levels never go down: the best direct-sale rate ever locked is kept.
+ */
+export async function directSalesLevel(partnerId: string) {
+  const { data } = await db().from("partner_commissions").select("take, rate, tier").eq("partner_id", partnerId).neq("status", "void").limit(100000);
+  const rows = (data ?? []) as { take: number; rate: number | null; tier: string | null }[];
+  const direct = rows.filter((r) => r.tier === "direct"), referral = rows.filter((r) => r.tier !== "direct");
+  const add = (xs: typeof rows) => Math.round(xs.reduce((t, r) => t + Number(r.take), 0) * 100) / 100;
+  const raw = { directProfit: add(direct), referralProfit: add(referral), directJobs: direct.length, referralJobs: referral.length };
+  const credit = ladderCredit(raw);
+  const lv = partnerLevel(credit.profit, credit.jobs);
+  const best = direct.reduce((m, r) => Math.max(m, Number(r.rate ?? 0)), 0);
+  return { ...lv, rate: Math.max(lv.rate, Math.min(best, PARTNER_LADDER.topRate)), profit: credit.profit, jobs: credit.jobs, raw };
+}
+
+/** Booking code box: is this an active partner's code? (The customer pays with their rep's code: credit, no discount.) */
+export async function partnerByCode(raw: string | null | undefined): Promise<{ name: string; code: string } | null> {
+  const code = cleanPartnerCode(raw);
+  if (!code) return null;
+  const { data } = await db().from("referral_partners").select("name, code, status").eq("code", code).maybeSingle();
+  return data && data.status === "active" ? { name: String(data.name), code: String(data.code) } : null;
+}
+
 /** Totals for the partner page and the Hub. */
 export async function partnerStats(partnerId: string) {
-  const [{ count: customers }, { data: comms }] = await Promise.all([
+  const [{ count: customers }, { data: comms }, level] = await Promise.all([
     db().from("referral_customers").select("id", { count: "exact", head: true }).eq("partner_id", partnerId),
-    db().from("partner_commissions").select("amount, status, eligible_at").eq("partner_id", partnerId),
+    db().from("partner_commissions").select("amount, status, eligible_at, tier").eq("partner_id", partnerId),
+    directSalesLevel(partnerId).catch(() => partnerLevel(0)),
   ]);
   const now = Date.now();
   const sum = (f: (r: { amount: number; status: string; eligible_at: string }) => boolean) => Math.round(((comms ?? []) as { amount: number; status: string; eligible_at: string }[]).filter(f).reduce((t, r) => t + Number(r.amount), 0) * 100) / 100;
@@ -400,5 +447,10 @@ export async function partnerStats(partnerId: string) {
     ready: sum((r) => r.status === "pending" && new Date(r.eligible_at).getTime() <= now),
     upcoming: sum((r) => r.status === "pending" && new Date(r.eligible_at).getTime() > now),
     jobs: (comms ?? []).filter((r: { status: string }) => r.status !== "void").length,
+    level: { profit: 0, jobs: 0, ...level },
+    bySource: {
+      direct: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier === "direct"),
+      referral: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier !== "direct"),
+    },
   };
 }

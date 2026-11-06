@@ -26,6 +26,7 @@
  * UPDATED : 2026-10-27_1800 UTC — Careers (/careers) in the For Pros menu and the footer.
  * UPDATED : 2026-10-28_1630 UTC — Business & Technology opens its own page (/technology) from the menu and footer.
  * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
+ * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -83,7 +84,8 @@ export async function SiteHeader() {
     {
       id: "partners", label: es ? "Socios" : "Partners",
       items: [
-        { href: "/partners", label: es ? "Cómo funciona: 10% por 12 meses" : "How it works: 10% for 12 months", icon: "💸" },
+        { href: "/partners", label: es ? "Cómo funciona: refiera o venda" : "How it works: refer or sell", icon: "💸" },
+        { href: "/partners#field-sales", label: es ? "Ventas directas (medio tiempo o completo)" : "Direct sales (part-time or full-time)", icon: "📸" },
         { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
       ],
       footer: { href: "/partners#join", label: es ? "Hacerme socio →" : "Become a partner →" },
@@ -175,6 +177,7 @@ export async function SiteFooter() {
           { href: "/careers", label: es ? "Empleos" : "Careers" },
           { href: "/pros#rewards", label: t("Pro Rewards & tiers") },
           { href: "/partners#join", label: es ? "Hágase socio" : "Become a partner" },
+          { href: "/partners#field-sales", label: es ? "Ventas directas" : "Field Sales" },
           { href: "/plus", label: "Handled Plus" },
           { href: "/gift-cards", label: t("Gift cards") },
         ])}

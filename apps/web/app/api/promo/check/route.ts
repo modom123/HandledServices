@@ -4,6 +4,7 @@
  * CREATED : 2026-10-02_0316 UTC
  * PURPOSE : Booking screen preview: Plus member saving + promo / gift card / referral code for
  *           this service and price. The same rules run again at booking (priceBenefits).
+ * UPDATED : 2026-11-06_1638 UTC — a Field Sales / referral partner's code: "✓ your rep gets credit" (no discount).
  */
 import { z } from "zod";
 import { RUSH_SURCHARGE, splitJob } from "@handled/core";
@@ -21,5 +22,9 @@ export async function POST(req: Request) {
   const v = await getViewer(req).catch(() => null);
   const { slug, price, rush, email, code } = b.data;
   const r = await priceBenefits({ slug, listPrice: price, payout: splitJob(price, slug).payout, rushFee: rush ? Math.round(price - price / (1 + RUSH_SURCHARGE)) : 0, email: email || v?.email, profileId: v?.userId ?? null, code: code || null });
+  if (code && !r.promoOk) {
+    const rep = await (await import("@/lib/partners")).partnerByCode(code).catch(() => null);
+    if (rep) return Response.json({ ...r, promoOk: true, promoCode: null, promoAmount: 0, partner: true, promoMessage: `Partner code ${rep.code} — ${rep.name.split(" ")[0]} gets credit for this booking.` });
+  }
   return Response.json(r);
 }

@@ -7,15 +7,20 @@
  *             { action: "connect" }                                                       — Stripe payout setup link
  * UPDATED : 2026-10-28_2300 UTC — tickets can carry up to 8 photos of the job (uploaded through /api/uploads).
  * UPDATED : 2026-10-28_0122 UTC — "refer" replaced by the standard referral ticket (ticket number, address, timing, job type, consent).
+ * UPDATED : 2026-11-06_1730 UTC — { action: "sale", … } — a direct-sales ticket, close-ready (lib/sales-tickets): photos[0–4],
+ *           service_slug, answers, frequency, urgency, preferred_date?, time_window, customer_type, company_name?, budget?,
+ *           access_notes?, close_notes?, decision_maker, customer_*, address…, notes?, consent. Returns the pay link + price.
  */
 import { z } from "zod";
-import { TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, getService, isPhotoPath } from "@handled/core";
+import { SALES_TICKET, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, getService, isPhotoPath } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
 import { partnerConnectUrl, partnerFor, submitTicket } from "@/lib/partners";
+import { createTicket } from "@/lib/sales-tickets";
 
 const keys = <T extends Record<string, unknown>>(o: T) => Object.keys(o) as [keyof T & string, ...(keyof T & string)[]];
 const opt = (n: number) => z.string().trim().max(n).optional().nullable();
+const optN = (n: number) => z.string().trim().max(n).optional().nullable().transform((v) => v || null);
 
 const Body = z.discriminatedUnion("action", [
   z.object({
@@ -26,6 +31,24 @@ const Body = z.discriminatedUnion("action", [
     photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   }),
   z.object({ action: z.literal("connect") }),
+  z.object({
+    action: z.literal("sale"),
+    photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(SALES_TICKET.maxPhotos, `Up to ${SALES_TICKET.maxPhotos} photos`).default([]),
+    service_slug: optN(80), notes: optN(2000),
+    answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+    frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).default("once"),
+    urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).nullable().optional().transform((v) => v ?? null),
+    preferred_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal("")).transform((v) => v || null),
+    time_window: z.enum(["morning", "midday", "afternoon", "flexible"]).default("flexible"),
+    customer_type: z.enum(["residential", "commercial"]).default("residential"),
+    company_name: optN(160), access_notes: optN(1000), close_notes: optN(1000),
+    budget: z.coerce.number().min(0).max(10_000_000).nullable().optional().transform((v) => (v && v > 0 ? v : null)),
+    decision_maker: z.boolean().default(false),
+    customer_name: z.string().trim().min(2).max(120), customer_email: z.string().trim().email().max(254), customer_phone: optN(30),
+    address: optN(200), city: optN(80), state: z.string().trim().length(2).optional().nullable().transform((v) => v || null),
+    zip: z.string().trim().regex(/^\d{5}$/, "5-digit ZIP").optional().nullable().or(z.literal("")).transform((v) => v || null),
+    consent: z.literal(true, { message: "Confirm the customer asked us to contact them" }),
+  }),
 ]);
 
 export async function POST(req: Request) {
@@ -41,6 +64,10 @@ export async function POST(req: Request) {
   }
   const limited = await rateLimit(req, "form", `partner:${partner.id}`);
   if (limited) return limited;
+  if (b.data.action === "sale") {
+    const t = await createTicket(partner, { ...b.data, service_slug: b.data.service_slug && getService(b.data.service_slug) ? b.data.service_slug : null });
+    return t.ok ? Response.json({ ok: true, id: t.ticket.id, link: t.link, price: t.price }) : deny(400, t.error);
+  }
   const svc = b.data.service_slug && getService(b.data.service_slug) ? b.data.service_slug : null;
   if (b.data.contact_pref !== "email" && !b.data.phone) return deny(400, "Add their phone number so we can call or text them");
   if (b.data.timing === "date" && !b.data.preferred_date) return deny(400, "Pick the date they need it");
