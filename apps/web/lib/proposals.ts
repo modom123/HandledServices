@@ -14,6 +14,7 @@
  *             reviewProposal      — Claude red-teams the whole draft like an evaluator: gaps, weak spots, risky claims
  *           Nothing here submits anything: a person approves every section, prints the proposal, submits it the way the
  *           solicitation says, and uploads the confirmation (lib/bids.ts gate).
+ * UPDATED : 2026-11-06_0730 UTC — the starting IEBC profile is created here on first use (not in the SQL, which now pastes safely).
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
@@ -36,8 +37,21 @@ export const PROFILE_FIELDS = ["name", "legal_name", "uei", "cage", "address", "
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type BidProfile = { id: string; is_default: boolean; updated_at: string } & Record<ProfileField, string | null>;
 
+/** The starting profile, created by the app on first use (kept out of the SQL so the SQL pastes safely anywhere). */
+const IEBC_STARTER = {
+  name: "IEBC — AI automation", legal_name: "IE Business Consultants", business_size: "Small business", is_default: true,
+  naics: "541511, 541512, 541519, 541611, 541690, 518210",
+  overview: "IE Business Consultants (IEBC) builds and runs governed AI agent workforces that take on an agency's repetitive back-office and constituent-service work. Agency staff stay in control: each agent has a written role, scoped permissions and an autonomy level the agency sets; high-risk actions wait for a named official's approval; every action is logged for audit.",
+  capabilities: "Back-office automation (intake, forms and document extraction, case triage and routing, records clean-up). Constituent service agents (24/7 Tier-1/Tier-2 chat and email with handoff to staff). Finance and audit automation (invoice audit, vendor reconciliation, grant reporting) with a human certifying official. Process mapping of manual SOPs into measured automated workflows. Data integration: read-only connectors first, then least-privilege write access under the agency's ATO.",
+  differentiators: "Proven in production: IEBC agents run dispatch, client care, compliance tracking and finance for Handled, a live multi-trade services company (affiliate). Human oversight built in: suggest / act with approval / autonomous, an approval queue, complete action logs. Fixed-price 30-day pilot with success measures agreed up front. No lock-in: data and workflows exportable; agency data never used to train third-party models. Detroit-based small business.",
+};
+
 export async function listProfiles(): Promise<BidProfile[]> {
-  const { data } = await db().from("bid_profiles").select("*").order("is_default", { ascending: false }).order("name");
+  const { data, error } = await db().from("bid_profiles").select("*").order("is_default", { ascending: false }).order("name");
+  if (!error && !(data ?? []).length) {
+    const { data: made } = await db().from("bid_profiles").insert(IEBC_STARTER).select("*");
+    return (made ?? []) as BidProfile[];
+  }
   return (data ?? []) as BidProfile[];
 }
 
