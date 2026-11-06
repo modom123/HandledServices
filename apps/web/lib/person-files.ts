@@ -16,6 +16,8 @@
  *           Every item carries a short-lived signed link (private buckets; links expire). Staff add files with
  *           fileTicket() (one-time signed upload, the browser sends the file straight to storage — no 4.5 MB limit)
  *           then saveFile(), which checks the file is really there; hideFile() hides one (nothing is destroyed).
+ * UPDATED : 2026-11-06_0600 UTC — profile photo: profilePhoto / setProfilePhoto / clearProfilePhoto (person_profile_photos), so a
+ *           file shows the person's face; pros fall back to their onboarding photo.
  */
 import "server-only";
 import { getService } from "@handled/core";
@@ -236,4 +238,39 @@ export async function findPeople(q: string): Promise<{ type: OwnerType; key: str
     ...((partners.data ?? []) as Record<string, string>[]).map((p) => ({ type: "partner" as const, key: p.id, name: p.name, sub: `Referral partner · ${p.email}` })),
     ...((biz.data ?? []) as Record<string, string>[]).map((b) => ({ type: "business" as const, key: b.id, name: b.company, sub: `Business account · ${b.email}` })),
   ];
+}
+
+// ───────────────────────────── profile photo ─────────────────────────────
+
+/**
+ * The person's picture: the photo staff chose (any photo in their file, or one uploaded as their profile photo); for a
+ * pro with none chosen, their onboarding profile photo. Returns a signed link, or null.
+ */
+export async function profilePhoto(o: Owner, seconds = 3600): Promise<{ url: string; id: string | null; chosen: boolean } | null> {
+  let pick: { bucket: string; path: string } | null = null;
+  let chosen = false;
+  const { data, error } = await db().from("person_profile_photos").select("bucket, path").eq("owner_type", o.type).eq("owner_key", o.key).maybeSingle();
+  if (!error && data) { pick = data as { bucket: string; path: string }; chosen = true; }
+  if (!pick && o.type === "pro") {
+    const { data: d } = await db().from("contractor_documents").select("storage_path").eq("contractor_id", o.key).eq("kind", "photo").not("storage_path", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (d?.storage_path && isImg(String(d.storage_path))) pick = { bucket: "pro-docs", path: String(d.storage_path) };
+  }
+  if (!pick) return null;
+  const { data: s } = await db().storage.from(pick.bucket).createSignedUrl(pick.path, seconds);
+  return s?.signedUrl ? { url: s.signedUrl, id: `${pick.bucket}:${pick.path}`, chosen } : null;
+}
+
+/** Make one of the person's photos (a PersonFile id from listPersonFiles) their profile photo. Only their own photos. */
+export async function setProfilePhoto(o: Owner, fileId: string, by: string): Promise<{ ok: boolean; error?: string }> {
+  const f = (await listPersonFiles(o, 60)).find((x) => x.id === fileId);
+  if (!f) return { ok: false, error: "That photo isn't in this person's file" };
+  if (!f.isImage || /\.hei[cf]$/i.test(f.path)) return { ok: false, error: "Pick a JPG, PNG or WebP photo" };
+  const { error } = await db().from("person_profile_photos").upsert({ owner_type: o.type, owner_key: o.key, bucket: f.bucket, path: f.path, set_by: by, set_at: new Date().toISOString() }, { onConflict: "owner_type,owner_key" });
+  if (error) return { ok: false, error: /relation|schema cache/i.test(error.message) ? "Profile photos aren't set up yet — run supabase/setup/ADD_PROFILE_PHOTOS_2026-11-06_0600.sql" : error.message };
+  return { ok: true };
+}
+
+export async function clearProfilePhoto(o: Owner) {
+  await db().from("person_profile_photos").delete().eq("owner_type", o.type).eq("owner_key", o.key);
+  return { ok: true };
 }
