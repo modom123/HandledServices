@@ -6,6 +6,7 @@
  *           Become a Pro → the application form (/pros#apply), Become a Partner → the sign-up form (/partners#join),
  *           Handled Network → /network (every portal: customers, businesses, pros, partners and the Hub). Theme colors.
  * UPDATED : 2026-10-23_1500 UTC — owner: open the sign-up sections instead of scrolling the home page.
+ * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
  */
 import Link from "next/link";
 
@@ -13,7 +14,7 @@ export function HomeDoors({ es, servicesCount }: { es: boolean; servicesCount: n
   const doors = [
     { href: "/services", icon: "🧽", title: es ? "Servicios" : "Services", body: es ? `Los ${servicesCount} servicios, con precio al instante` : `All ${servicesCount} services, priced instantly`, cta: es ? "Ver servicios" : "See services" },
     { href: "/pros#apply", icon: "🧰", title: es ? "Hágase profesional" : "Become a Pro", body: es ? "Trabajos pagados, pago semanal, sin cuotas" : "Paid jobs, weekly pay, no lead fees", cta: es ? "Postularme" : "Apply now" },
-    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? "Gane el 10% por cada cliente que envíe" : "Earn 10% on every customer you send", cta: es ? "Registrarme" : "Sign up" },
+    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? "Venda o refiera servicios: del 10% al 45% de nuestra ganancia" : "Sell or refer services: earn 10% up to 45% of our profit", cta: es ? "Registrarme" : "Sign up" },
     { href: "/network", icon: "🌐", title: es ? "Red Handled" : "Handled Network", body: es ? "Su portal: clientes, empresas, profesionales, socios y equipo" : "Your portal: customers, businesses, pros, partners & team", cta: es ? "Entrar" : "Sign in" },
   ];
   return (

@@ -15,6 +15,7 @@
  *           and its link works in any browser or phone. Supabase's own email is only the fallback. The code box takes 6–10
  *           digits (whatever the project sends), ignores spaces and dashes, fills from the keyboard's one-time-code
  *           suggestion; "Send a new code" (after 30s) and "Use a different email".
+ * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
  */
 "use client";
 
@@ -104,7 +105,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
     { id: "customer", icon: "🏠", t: es ? "Reservo servicios" : "I book services", d: es ? "Su hogar: reservas, pagos, fotos, mensajes" : "For your home: bookings, payments, photos, messages" },
     { id: "business", icon: "🏢", t: es ? "Tengo una cuenta empresarial" : "I have a business account", d: es ? "Propiedades, reservas del equipo, facturas" : "Properties, team bookings, invoices" },
     { id: "pro", icon: "🧰", t: es ? "Soy profesional" : "I'm a pro", d: es ? "Ofertas, trabajos, pagos, recompensas" : "Offers, jobs, pay, rewards" },
-    { id: "partner", icon: "🤝", t: es ? "Soy socio de referidos" : "I'm a referral partner", d: es ? "Su enlace, clientes referidos y comisiones" : "Your link, referred customers and commissions" },
+    { id: "partner", icon: "🤝", t: es ? "Soy socio (ventas o referidos)" : "I'm a partner (sales or referrals)", d: es ? "Tickets de venta, su enlace, su nivel y comisiones" : "Sales tickets, your link, your level and commissions" },
     { id: "team", icon: "🛠️", t: es ? "Equipo de Handled" : "Handled team", d: es ? "Personal autorizado (Hub)" : "Authorized staff (Hub)" },
   ];
 

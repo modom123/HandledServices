@@ -6,6 +6,7 @@
  *           referral partners and the Handled team (the Hub). One card per role opens that portal (signed-out visitors
  *           are sent to sign in first by the portal itself), plus how to join. Signed-in visitors see their own portal first.
  *           English / Spanish.
+ * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";
@@ -21,7 +22,7 @@ export default async function Network() {
     { key: "customer", icon: "🏠", href: "/account", title: es ? "Clientes" : "Customers", body: es ? "Sus reservas, precios, mensajes con su profesional, fotos y facturas." : "Your bookings, prices, messages with your pro, photos and invoices.", cta: es ? "Mi cuenta" : "My account", join: { href: "/book", label: es ? "Reservar un servicio" : "Book a service" } },
     { key: "business", icon: "🏢", href: "/account/business", title: es ? "Empresas" : "Businesses", body: es ? "Todas sus ubicaciones, órdenes de trabajo y una factura mensual." : "Every location, work orders and one monthly invoice.", cta: es ? "Portal de empresa" : "Business portal", join: { href: "/business", label: es ? "Abrir una cuenta" : "Open an account" } },
     { key: "pro", icon: "🧰", href: "/pro", title: es ? "Profesionales" : "Pros", body: es ? "Ofertas de trabajo, su agenda, ganancias, documentos y recompensas." : "Job offers, your schedule, earnings, documents and rewards.", cta: es ? "Portal de profesionales" : "Pro portal", join: { href: "/pros", label: es ? "Hacerse profesional" : "Become a pro" } },
-    { key: "partner", icon: "💸", href: "/partner", title: es ? "Socios" : "Partners", body: es ? "Su enlace para referir, clientes enviados y pagos de cada lunes." : "Your referral link, customers you sent and Monday payouts.", cta: es ? "Panel de socio" : "Partner dashboard", join: { href: "/partners", label: es ? "Hacerse socio" : "Become a partner" } },
+    { key: "partner", icon: "💸", href: "/partner", title: es ? "Socios" : "Partners", body: es ? "Escriba tickets de venta, su enlace y código, su nivel (10%→45%) y pagos de cada lunes." : "Write sales tickets, your link and code, your level (10%→45%) and Monday payouts.", cta: es ? "Panel de socio" : "Partner dashboard", join: { href: "/partners", label: es ? "Hacerse socio" : "Become a partner" } },
     { key: "team", icon: "🛠️", href: "/hub", title: es ? "Equipo de Handled" : "Handled team", body: es ? "El Hub: trabajos, despacho, profesionales, reclutamiento, finanzas y la fuerza laboral de IA." : "The Hub: jobs, dispatch, pros, recruiting, finance and the AI workforce.", cta: es ? "Abrir el Hub" : "Open the Hub", join: null },
   ];
   const mine = !v ? null : isStaff(v) ? "team" : v.contractorId ? "pro" : "customer";

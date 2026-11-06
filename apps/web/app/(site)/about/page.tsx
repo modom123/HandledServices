@@ -5,6 +5,7 @@
  * PURPOSE : About us — the slogan, our mission statement, who we are, what we stand for (values), the company in numbers,
  *           why it works for customers and pros, and the ways to work with us. All words come from BRAND_STORY in @handled/core (change them there).
  *           English / Spanish.
+ * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
  */
 import Link from "next/link";
 import { BRAND, BRAND_STORY, CATEGORIES, SERVICES } from "@handled/core";
@@ -26,7 +27,7 @@ export default async function About() {
     { href: "/book", icon: "🧽", t: es ? "Reservar un servicio" : "Book a service", d: es ? "Precio al instante, profesional verificado" : "Instant price, vetted pro" },
     { href: "/business", icon: "🏢", t: es ? "Cuentas para empresas" : "Business accounts", d: es ? "Todas sus ubicaciones, un proveedor" : "Every location, one vendor" },
     { href: "/pros#apply", icon: "🧰", t: es ? "Hágase profesional" : "Become a Pro", d: es ? "Trabajos pagados, pago semanal" : "Paid jobs, weekly pay" },
-    { href: "/partners#join", icon: "💸", t: es ? "Hágase socio" : "Become a Partner", d: es ? "Gane el 10% por cada cliente" : "Earn 10% on every customer" },
+    { href: "/partners#join", icon: "💸", t: es ? "Hágase socio" : "Become a Partner", d: es ? "Venda o refiera: del 10% al 45%" : "Sell or refer: earn 10% up to 45%" },
   ];
   return (
     <div>

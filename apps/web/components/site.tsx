@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  * UPDATED : 2026-10-27_1800 UTC — Careers (/careers) in the For Pros menu and the footer.
+ * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -78,7 +79,8 @@ export async function SiteHeader() {
     {
       id: "partners", label: es ? "Socios" : "Partners",
       items: [
-        { href: "/partners", label: es ? "Cómo funciona: 10% por 12 meses" : "How it works: 10% for 12 months", icon: "💸" },
+        { href: "/partners", label: es ? "Cómo funciona: del 10% al 45%" : "How it works: earn 10% up to 45%", icon: "💸" },
+        { href: "/partners#field-sales", label: es ? "Ventas directas (medio tiempo o completo)" : "Direct sales (part-time or full-time)", icon: "📸" },
         { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
       ],
       footer: { href: "/partners#join", label: es ? "Hacerme socio →" : "Become a partner →" },
@@ -166,6 +168,7 @@ export async function SiteFooter() {
           { href: "/careers", label: es ? "Empleos" : "Careers" },
           { href: "/pros#rewards", label: t("Pro Rewards & tiers") },
           { href: "/partners#join", label: es ? "Hágase socio" : "Become a partner" },
+          { href: "/partners#field-sales", label: es ? "Ventas directas" : "Field Sales" },
           { href: "/plus", label: "Handled Plus" },
           { href: "/gift-cards", label: t("Gift cards") },
         ])}

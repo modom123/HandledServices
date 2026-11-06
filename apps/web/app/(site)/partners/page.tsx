@@ -6,6 +6,7 @@
  *           Stripe), who it's for, worked examples, sign-up form and the partner terms.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
  * UPDATED : 2026-10-23_1500 UTC — #join clears the sticky header (the home page's Become a Partner button links straight here).
+ * UPDATED : 2026-11-06_1702 UTC — title and hero cover both ways to earn; Field Sales button in the hero.
  * UPDATED : 2026-11-06_1638 UTC — Field Sales: the 10%→45% ladder (45% at $1M profit generated), photo tickets, and
  *           ?kind=sales_rep pre-selects "Field Sales partner" (the Indeed post links to /partners?kind=sales_rep#join).
  */
@@ -13,7 +14,7 @@ import Link from "next/link";
 import { BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, SALES_TICKET, ladderTable, money, partnerCommission, partnerTerms } from "@handled/core";
 import { PartnerSignUp } from "@/components/PartnerUI";
 
-export const metadata = { title: "Referral Partner Program — get paid for every job you send us", description: `Refer customers to ${BRAND.name} and earn ${PARTNER_LADDER.baseRate * 100}%–${PARTNER_LADDER.topRate * 100}% of our profit on every job they book for ${PARTNER_PROGRAM.months} months, paid weekly. Field Sales: part-time or full-time.` };
+export const metadata = { title: "Partner Program — sell or refer services, earn 10% up to 45%", description: `Refer customers to ${BRAND.name} and earn ${PARTNER_LADDER.baseRate * 100}%–${PARTNER_LADDER.topRate * 100}% of our profit on every job they book for ${PARTNER_PROGRAM.months} months, paid weekly. Field Sales: part-time or full-time.` };
 
 // ladder milestones shown on the page (the full table is on the partner page and in the Indeed post)
 const MILESTONES = [0, 5, 10, 15, 20, 25, 30, 35].map((n) => ladderTable()[n]);
@@ -36,9 +37,9 @@ export default async function Partners({ searchParams }: { searchParams: Promise
       <section className="border-b border-line bg-brand-deep text-white">
         <div className="wrap py-16">
           <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-gold-light ring-1 ring-gold/40">{BRAND.name} Partner Program</span>
-          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">Send us a job. <span className="text-gold-light">Get paid on it.</span></h1>
+          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">Sell it or send it. <span className="text-gold-light">Get paid on every job.</span></h1>
           <p className="mt-4 max-w-2xl text-lg text-white/75">Realtors, property managers, contractors, business owners, neighbors: anyone can join. Earn {L.baseRate * 100}% of our profit on every job from the customers you bring us, rising to {L.topRate * 100}% as you grow, for a full {P.months} months per customer, paid to your bank every week. Want to do it as a part-time or full-time job? <a href="#field-sales" className="underline">Field Sales</a>.</p>
-          <div className="mt-8 flex flex-wrap gap-3"><a href="#join" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Become a partner</a><Link href="/partner" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-gold-light">Partner sign in</Link></div>
+          <div className="mt-8 flex flex-wrap gap-3"><a href="#join" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Become a partner</a><a href="#field-sales" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-gold-light">Field Sales (part-time or full-time)</a><Link href="/partner" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-gold-light">Partner sign in</Link></div>
         </div>
       </section>
 
