@@ -24,13 +24,17 @@
  *           (10% → 45% of Handled's take, from their lifetime direct-sale profit, PARTNER_LADDER) — paid by Handled alone,
  *           no pro fee, tier 'direct'. Referrals keep partner-v2 unchanged. A partner code typed at checkout credits that
  *           partner for a new customer (ahead of a link cookie). partnerStats() returns the direct-sales level.
+ * UPDATED : 2026-11-06_1800 UTC — partner-v4 referrals: one rate on every referred job, 15% → 30% of the price from the
+ *           partner's level credit (referralLevel), locked on the job at booking (jobs.partner_rate) and used for the split,
+ *           the work order and the Monday re-check. A pro pays their half on a partner-v4 job only once they've signed
+ *           agreement v11; on older (tier) jobs, v10 is enough.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import {
   AGREEMENT_VERSION, BRAND, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING,
   cleanPartnerCode, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
-  ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
+  REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
@@ -199,7 +203,10 @@ export async function attributeJob(job: Job, typedCode?: string | null): Promise
     return partnerId;
   }
   const tier = partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(email, partnerId, job.id) });
-  const { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier }).eq("id", job.id);
+  // partner-v4: lock the partner's referral rate (15%–30%) on the job now, so the pro sees their half before accepting
+  const rate = await referralRateNow(partnerId);
+  let { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier, partner_rate: rate }).eq("id", job.id);
+  if (error) ({ error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier }).eq("id", job.id)); // before the partner-v4 SQL
   if (error) await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id); // before the partner-v2 SQL is run
   return partnerId;
 }
@@ -235,9 +242,13 @@ export async function partnerSplitForJob(job: Job): Promise<Split | null> {
     return amount > 0 ? { tier: "legacy", rate: PARTNER_PROGRAM.legacyPctOfTake, fromPro: 0, fromUs: amount, amount, take } : null;
   }
   const tier = job.partner_tier ?? partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(lower(job.contact_email), job.partner_id, job.id) });
-  // the pro pays their half only under the agreement that says so (v10+); otherwise our half is all the partner gets
+  // the pro pays their half only under the agreement that says so: v11+ for a partner-v4 job (its rate is on the job),
+  // v10+ for an older tier job; otherwise our half is all the partner gets
+  const rate = job.partner_rate != null ? Number(job.partner_rate) : null;
   const { data: pro } = job.contractor_id ? await db().from("contractors").select("agreement_version").eq("id", job.contractor_id).maybeSingle() : { data: null };
-  const sp = partnerSplit({ ...o, tier, proPays: pro?.agreement_version === AGREEMENT_VERSION });
+  const signed = String(pro?.agreement_version ?? "");
+  const proPays = rate != null ? signed >= AGREEMENT_VERSION : signed >= "2026-10-v10";
+  const sp = partnerSplit({ ...o, tier, rate, proPays });
   if (sp.amount <= 0) return null;
   if (sp.fromPro > 0) await db().from("jobs").update({ partner_pro_fee: sp.fromPro }).eq("id", job.id);
   return { tier, rate: sp.rate, fromPro: sp.fromPro, fromUs: sp.fromUs, amount: sp.amount, take };
@@ -274,14 +285,14 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
     now$ = live ? Math.min(Number(r.amount), partnerCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) })) : 0;
     newUs = now$;
   } else {
-    const sp = live ? partnerSplit({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded), tier: r.tier as PartnerTier }) : null;
+    const sp = live ? partnerSplit({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded), tier: r.tier as PartnerTier, rate: r.rate ?? null }) : null;
     newPro = sp && fromPro > 0 ? Math.min(fromPro, sp.fromPro) : 0;
     newUs = sp ? Math.min(fromUs, sp.fromUs) : 0;
     now$ = Math.round((newPro + newUs) * 100) / 100;
   }
   const back = Math.round((fromPro - newPro - Number(r.pro_returned ?? 0)) * 100) / 100;
   if (back > 0 && j?.contractor_id) {
-    await db().from("payouts").insert({ contractor_id: j.contractor_id, job_id: r.job_id, amount: back, status: "approved", kind: "partner_fee", reason: `Referral fee handed back — ${j.ref} ${now$ > 0 ? "partly refunded" : "refunded or cancelled"}` });
+    await db().from("payouts").insert({ contractor_id: j.contractor_id, job_id: r.job_id, amount: back, status: "approved", kind: "partner_fee", reason: `Pay adjustment — ${j.ref}` });
   }
   if (now$ <= 0) {
     await db().from("partner_commissions").update({ status: "void", amount: 0, note: voidNote ?? "job refunded or cancelled", ...(r.tier ? { from_pro: 0, from_us: 0, pro_returned: Number(r.pro_returned ?? 0) + Math.max(0, back) } : {}) }).eq("id", r.id);
@@ -424,6 +435,18 @@ export async function directSalesLevel(partnerId: string) {
   return { ...lv, rate: Math.max(lv.rate, Math.min(best, PARTNER_LADDER.topRate)), profit: credit.profit, jobs: credit.jobs, raw };
 }
 
+/** The partner's referral rate right now (partner-v4): 15% → 30% of the job price, from the same level credit. */
+export async function referralRateNow(partnerId: string): Promise<number> {
+  return (await referralLevel(partnerId).catch(() => null))?.rate ?? REFERRAL_LADDER.baseRate;
+}
+
+/** The referral ladder level (same credit as direct sales: direct-sale profit 1.5×, referral profit 1×). */
+export async function referralLevel(partnerId: string) {
+  const d = await directSalesLevel(partnerId);
+  const credit = ladderCredit(d.raw);
+  return { ...partnerLevel(credit.profit, credit.jobs, REFERRAL_LADDER), profit: credit.profit, jobs: credit.jobs };
+}
+
 /** Booking code box: is this an active partner's code? (The customer pays with their rep's code: credit, no discount.) */
 export async function partnerByCode(raw: string | null | undefined): Promise<{ name: string; code: string } | null> {
   const code = cleanPartnerCode(raw);
@@ -448,6 +471,8 @@ export async function partnerStats(partnerId: string) {
     upcoming: sum((r) => r.status === "pending" && new Date(r.eligible_at).getTime() > now),
     jobs: (comms ?? []).filter((r: { status: string }) => r.status !== "void").length,
     level: { profit: 0, jobs: 0, ...level },
+    /** partner-v4 referral rate (15% → 30% of the price) from the same level credit. */
+    referral: partnerLevel(Number((level as { profit?: number }).profit ?? 0), Number((level as { jobs?: number }).jobs ?? 0), REFERRAL_LADDER),
     bySource: {
       direct: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier === "direct"),
       referral: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier !== "direct"),

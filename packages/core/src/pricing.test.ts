@@ -1687,17 +1687,33 @@ test("referral ticket: number, stage, same wording everywhere", async () => {
   assert.equal(ticketStage({ status: "contacted", first_job_id: "j" }), "booked");
   assert.equal(ticketStage({ status: "closed", first_job_id: "j" }, { completed: 1 }), "completed", "a booking beats a closed ticket");
   assert.equal(ticketStage({ first_job_id: "j" }, { completed: 2, paid: 1 }), "paid");
-  assert.deepEqual(partnerRateLines().map((l) => l.split(" ")[0]), ["25%", "10%", "15%"]);
-  assert.ok(partnerTerms()[0].includes("25%") && partnerTerms()[0].includes("10%") && partnerTerms()[0].includes("15%"));
-  assert.ok(TICKET_JOB_TYPES.account.earns.startsWith("15%"));
+  // partner-v4: one referral rate, 15% rising to 30%, in the same words everywhere
+  assert.ok(partnerRateLines()[0].startsWith("15%") && partnerRateLines()[1].includes("30%"));
+  assert.ok(partnerTerms()[0].includes("15%") && partnerTerms()[0].includes("30%"));
+  for (const t of Object.values(TICKET_JOB_TYPES)) assert.ok(t.earns.includes("15%–30%"));
 });
 
-test("work order shows the pro's half of a referral fee before they accept", async () => {
+test("pros see their net pay only — no referral fee math, no job price", async () => {
   const { buildWorkOrder } = await import("./workorder.ts");
+  const { proNetPay, proReferralFee } = await import("./pro-pay.ts");
   const job = { ref: "H-1", service_slug: "house-cleaning", answers: {}, notes: null, scheduled_date: null, time_window: "morning", address: "1 Main", city: "Detroit", state: "MI", zip: "48201", contact_name: "A", contact_phone: null, company_name: null, contractor_payout: 190, price_final: 300 } as never;
-  assert.ok(!buildWorkOrder(job, { reveal: false }).terms.some((t: string) => t.includes("referral fee")));
-  const w = buildWorkOrder({ ...(job as object), partner_tier: "one_time" } as never, { reveal: false });
-  assert.ok(w.terms.some((t: string) => t.includes("12.5%") && t.includes("$37.50")));
+  const plain = buildWorkOrder(job, { reveal: false });
+  assert.ok(plain.payout.includes("190"));
+  // partner-v2 job (tier rate 25%): the pro's half ($37.50) is already out → $152.50, and no fee wording at all
+  const v2 = buildWorkOrder({ ...(job as object), partner_id: "p", partner_tier: "one_time" } as never, { reveal: false });
+  assert.ok(v2.payout.includes("152.5") || v2.payout.includes("153"), v2.payout);
+  assert.ok(!v2.terms.some((t: string) => /referral|partner|%/i.test(t)), "no math on the work order");
+  // partner-v4 job: the locked 20% rate → the pro's half is $30 → $160
+  const v4 = { ...(job as object), partner_id: "p", partner_tier: "repeat", partner_rate: 0.2 } as never;
+  assert.equal(proNetPay(v4, 190, "2026-11-v11"), 160);
+  assert.equal(proReferralFee(v4, 190, "2026-11-v11"), 30);
+  assert.equal(proNetPay(v4, 190, "2026-10-v10"), 190, "not on v11 yet: the pro pays nothing on a partner-v4 job");
+  assert.equal(proNetPay({ ...(job as object), partner_id: "p", partner_tier: "one_time" } as never, 190, "2026-10-v10"), 152.5, "v10 covers older tier jobs");
+  // direct sales and non-referred jobs: no fee
+  assert.equal(proNetPay({ ...(v4 as object), partner_sale: true } as never, 190, "2026-11-v11"), 190);
+  assert.equal(proNetPay(job, 190, "2026-11-v11"), 190);
+  // after completion: the fee actually taken
+  assert.equal(proNetPay({ ...(v4 as object), status: "completed", partner_pro_fee: 12 } as never, 190, "2026-11-v11"), 178);
 });
 
 test("measurements pick the calibrated size band and are required", async () => {
@@ -2567,4 +2583,29 @@ test("ladder credit: direct sales count 1.5×, referrals 1×", async () => {
   assert.equal(partnerLevel(0, ladderCredit({ directProfit: 0, referralProfit: 0, directJobs: 7, referralJobs: 0 }).jobs).rate, 0.11);
   // $1M at the top: about $667k of direct-sale profit
   assert.equal(partnerLevel(ladderCredit({ directProfit: 666_667, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit).rate, 0.45);
+});
+
+test("referral ladder (partner-v4): one rate, 15% → 30% of the job price, half from the pro", async () => {
+  const { REFERRAL_LADDER, ladderLevels, ladderThreshold, ladderTable, partnerLevel, partnerSplit, referralRange, ladderCredit } = await import("./partners.ts");
+  assert.equal(ladderLevels(REFERRAL_LADDER), 15);
+  assert.equal(referralRange(), "15%–30%");
+  assert.equal(ladderThreshold(15, REFERRAL_LADDER), 1_000_000);
+  assert.equal(ladderThreshold(5, REFERRAL_LADDER), 111_000);
+  const t = ladderTable(REFERRAL_LADDER);
+  assert.equal(t[0].rate, 0.15); assert.equal(t[15].rate, 0.3); assert.equal(t.length, 16);
+  assert.equal(partnerLevel(0, 0, REFERRAL_LADDER).rate, 0.15);
+  assert.equal(partnerLevel(1_000_000, 0, REFERRAL_LADDER).rate, 0.3);
+  assert.equal(partnerLevel(9_000_000, 0, REFERRAL_LADDER).rate, 0.3, "capped");
+  assert.equal(partnerLevel(0, 50, REFERRAL_LADDER).rate, 0.2, "job fast track stops at 20%");
+  // direct-sale profit counts 1.5× toward the referral rate too
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 74_000, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit, 0, REFERRAL_LADDER).rate, 0.2);
+  // the split at a locked rate: half from the pro, half from us
+  const sp = partnerSplit({ price: 300, payout: 180, tier: "repeat", rate: 0.15 });
+  assert.equal(sp.rate, 0.15); assert.equal(sp.amount, 45); assert.equal(sp.fromPro, 22.5); assert.equal(sp.fromUs, 22.5);
+  const top = partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: 0.3 });
+  assert.equal(top.amount, 90); assert.equal(top.fromPro, 45);
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: 0.9 }).rate, 0.3, "never above 30%");
+  // jobs booked before partner-v4 (no locked rate) keep their tier rate
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time" }).rate, 0.25);
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: null }).rate, 0.25);
 });

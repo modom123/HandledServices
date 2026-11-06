@@ -12,10 +12,11 @@
  * UPDATED : 2026-10-15_0010 UTC — 🧰 Pros & recruiting is the first section: active roster, candidates in the pipeline,
  *           applications, jobs no pro could take, pro-lead outreach, insurance expiring, drop-offs and applicant → active
  *           conversion, plus the recruiting funnel by stage. Recruiting insights lead the list.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import Link from "next/link";
 import { PIPELINE, getService, money, type PipelineStage } from "@handled/core";
-import { getViewer } from "@/lib/auth";
+import { getViewer, isAdmin } from "@/lib/auth";
 import { aiDrivenRate, aiDrivenTargetNow } from "@/lib/metrics";
 import { pipeline } from "@/lib/recruiting";
 import { adminClient } from "@/lib/supabase/server";
@@ -58,12 +59,12 @@ export default async function HubDashboard() {
   const d14 = new Date(now.getTime() - 14 * 86400000).toISOString();
 
   const [{ data: done }, { data: created }, { data: open }, { data: cancelled }, { data: pays }, { data: pouts }, { data: revs }, { data: apps }, auto, target, { data: factors }] = await Promise.all([
-    v.db.from("jobs").select("service_slug, price_final, contractor_payout, completed_at").eq("status", "completed").gte("completed_at", lastMonthStart).limit(5000),
-    v.db.from("jobs").select("created_at").gte("created_at", d14).limit(5000),
-    v.db.from("jobs").select("status, contractor_id").not("status", "in", "(completed,cancelled)").limit(5000),
-    v.db.from("jobs").select("cancelled_at, cancel_fee").eq("status", "cancelled").gte("cancelled_at", lastMonthStart).limit(5000),
+    adminClient().from("jobs").select("service_slug, price_final, contractor_payout, completed_at").eq("status", "completed").gte("completed_at", lastMonthStart).limit(5000),
+    adminClient().from("jobs").select("created_at").gte("created_at", d14).limit(5000),
+    adminClient().from("jobs").select("status, contractor_id").not("status", "in", "(completed,cancelled)").limit(5000),
+    adminClient().from("jobs").select("cancelled_at, cancel_fee").eq("status", "cancelled").gte("cancelled_at", lastMonthStart).limit(5000),
     v.db.from("payments").select("amount, status, created_at").gte("created_at", lastMonthStart).limit(5000),
-    v.db.from("payouts").select("amount, status, paid_at").or(`status.in.(pending,approved,held),paid_at.gte.${lastMonthStart}`).limit(5000),
+    adminClient().from("payouts").select("amount, status, paid_at").or(`status.in.(pending,approved,held),paid_at.gte.${lastMonthStart}`).limit(5000),
     v.db.from("reviews").select("rating, created_at").gte("created_at", lastMonthStart).limit(5000),
     v.db.from("contractor_applications").select("status, created_at").or(`status.eq.new,created_at.gte.${lastMonthStart}`).limit(5000),
     aiDrivenRate(v.db, monthStart),
@@ -173,6 +174,8 @@ export default async function HubDashboard() {
       { label: "Avg rating (month)", value: rating === null ? "—" : `${rating.toFixed(2)} ★`, hint: `${rv.cur.length} review${rv.cur.length === 1 ? "" : "s"}${lowReviews ? ` · ${lowReviews} at 3★ or below` : ""}`, trend: rating !== null && ratingPrev !== null ? { text: `${rating >= ratingPrev ? "▲" : "▼"} ${Math.abs(rating - ratingPrev).toFixed(2)} vs ${vsMonth}`, good: rating >= ratingPrev } : undefined, href: stat("reviews"), alert: lowReviews > 0 },
     ]],
   ];
+  // need-to-know: revenue, our take and pro payouts are for admins only
+  const shownGroups = isAdmin(v) ? groups : groups.filter(([g]) => g !== "Money");
 
   // Plain-English insights — the few things worth knowing at a glance.
   const insights: { tone: "good" | "warn" | "info"; text: string; href: string }[] = [];
@@ -219,7 +222,7 @@ export default async function HubDashboard() {
         </ul>
       </section>
 
-      {groups.map(([name, tiles], gi) => (
+      {shownGroups.map(([name, tiles], gi) => (
         <section key={name}>
           <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-bold">{name}</h2>{gi === 0 && <Link href="/hub/recruiting" className="text-sm text-brand underline">Open recruiting →</Link>}</div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{tiles.map((t) => <TileCard key={t.label} t={t} />)}</div>

@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-12_0005 UTC — 🏠 My homes: saved home profiles (entry, keys, pets, preferences) used by bookings.
  * UPDATED : 2026-10-12_0121 UTC — Customer ID (C-…) under the email.
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology jobs say "Priced at consultation" until the firm price is set.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -33,6 +34,7 @@ import { MyHomes, type SavedHome } from "@/components/MyHomes";
 import { myCustomerNo } from "@/lib/ids";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
+import { customerJobs } from "@/lib/job-access";
 
 export const metadata = { title: "My bookings" };
 export const dynamic = "force-dynamic";
@@ -42,11 +44,11 @@ export default async function Account() {
   const v = await getViewer();
   if (!v) redirect("/login?next=/account");
   const [{ data: jobs }, { data: plans }, homesRes] = await Promise.all([
-    v.db.from("jobs").select("*").order("created_at", { ascending: false }),
+    customerJobs(v.userId).then((data) => ({ data })),
     v.db.from("recurring_plans").select("*").eq("active", true),
     v.db.from("customer_homes").select("*").eq("customer_id", v.userId).order("created_at"),
   ]);
-  const list = (jobs ?? []) as Job[];
+  const list = (jobs ?? []) as unknown as Job[];
   const biz = await myAccounts(v).catch(() => []);
   const favs = await myFavorites(v.userId).catch(() => []);
   const cno = await myCustomerNo(v.userId, v.email).catch(() => null);

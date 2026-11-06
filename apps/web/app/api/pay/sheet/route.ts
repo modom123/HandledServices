@@ -9,12 +9,14 @@
  *           can pay right after booking.
  *             POST { job_id, email? } → { mode: "sheet", clientSecret, publishableKey, amount, merchantName }
  *                                      | { mode: "checkout", url, amount } | 409 nothing to pay
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  */
 import { z } from "zod";
 import { deny, getViewer } from "@/lib/auth";
 import { getJob } from "@/lib/jobs";
 import { amountDue, createPaymentSheet } from "@/lib/stripe";
 import { rateLimit } from "@/lib/ratelimit";
+import { customerOwnsJob } from "@/lib/job-access";
 
 const Body = z.object({ job_id: z.string().uuid(), email: z.string().email().optional() });
 
@@ -25,9 +27,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return deny(400, "Missing booking");
   const job = await getJob(parsed.data.job_id);
   if (!job) return deny(404, "Booking not found");
-  // who may pay: the signed-in owner (RLS-scoped read), or the person who just booked (same contact email)
+  // who may pay: the signed-in owner, or the person who just booked (same contact email)
   const v = await getViewer(req);
-  const owns = v ? Boolean((await v.db.from("jobs").select("id").eq("id", job.id).maybeSingle()).data) : false;
+  const owns = v ? await customerOwnsJob(v.userId, job.id) : false;
   const sameEmail = Boolean(parsed.data.email) && parsed.data.email!.trim().toLowerCase() === (job.contact_email ?? "").trim().toLowerCase();
   if (!owns && !sameEmail) return deny(403, "Sign in to pay for this booking");
   if (job.status === "cancelled" || job.status === "site_visit" || job.billed_on_terms) return deny(409, "Nothing to pay now");

@@ -6,11 +6,13 @@
  *           late/due), their budget vs our price; filters for ASAP and over-budget.
  * PURPOSE : Jobs board — kanban by status across the whole pipeline.
  * UPDATED : 2026-10-28_1735 UTC — now the "Board" view of Mastermind → Jobs (/hub/jobs?view=board); was the /hub/jobs page.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import Link from "next/link";
 import { JOB_STATUSES, JOB_STATUS_LABEL, URGENCY_LABEL, budgetFit, deadlineRisk, getService, money, moneyRange, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { fmtDate } from "@/components/ui";
+import { adminClient } from "@/lib/supabase/server";
 
 const BOARD = JOB_STATUSES.filter((s) => s !== "cancelled");
 
@@ -21,7 +23,7 @@ export default async function JobsBoard({ searchParams }: { searchParams: Promis
   const q = sp.q?.replace(/[^\w\s-]/g, "").trim();
   const only = sp.only;
   const since = new Date(Date.now() - 14 * 86400000).toISOString();
-  let query = v.db.from("jobs").select("*").or(`status.neq.completed,completed_at.gte.${since}`).neq("status", "cancelled").order("scheduled_date", { ascending: true }).limit(500);
+  let query = adminClient().from("jobs").select("*").or(`status.neq.completed,completed_at.gte.${since}`).neq("status", "cancelled").order("scheduled_date", { ascending: true }).limit(500);
   if (q) query = query.or(`ref.ilike.%${q}%,contact_name.ilike.%${q}%,zip.eq.${q.replace(/\D/g, "") || "0"}`);
   const { data } = await query;
   const all = (data ?? []) as Job[];

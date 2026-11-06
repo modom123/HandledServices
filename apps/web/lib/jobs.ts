@@ -54,7 +54,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -660,8 +660,10 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const pro = byId[p.id];
     const offerId = offerIdFor[p.id];
     if (!pro || !offerId) continue;
-    const pay = payFor(p.id);
-    const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
+    // the pro sees their net pay only (any referral fee already out); the work order gets the gross and nets it itself
+    const gross = payFor(p.id);
+    const pay = proNetPay(job, gross, pro.agreement_version);
+    const order0 = buildWorkOrder(job, { reveal: false, payout: gross, agreementVersion: pro.agreement_version });
     const asked = job.preferred_contractor_id === p.id;
     const crewAskHere = crewAsk && p.id === favs[0]?.contractor.id ? crewAsk.name.split(" ")[0] : null;
     const hrs = `${hours} hour${hours === 1 ? "" : "s"}`, hrsEs = `${hours} hora${hours === 1 ? "" : "s"}`;
@@ -686,7 +688,7 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
         body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}`,
         sms: `${BRAND.name}: ${leadEs} — ${nameEs}, ${job.city} ${job.zip}, ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs} ${siteUrl()}/pro/offers/${offerId}`,
         subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? visitEs : "trabajo"}: ${nameEs} · ${pay ? money(pay) : visitEs} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
-        text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: pay, locale: "es" }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
+        text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: gross, locale: "es", agreementVersion: pro.agreement_version }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
       },
     });
   }
@@ -911,7 +913,8 @@ export async function finalizeJob(jobId: string, summary?: string) {
     const ready = Boolean(job.paid_at || job.remedy || job.billed_on_terms || job.payment_plan === "after");
     const fee = partnerCut?.fromPro ?? 0;
     await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: r2(Number(job.contractor_payout) - fee), status: ready ? "approved" : "held",
-      ...(fee ? { reason: `Job pay ${moneyCents(Number(job.contractor_payout))} − ${moneyCents(fee)} referral partner fee (your half)` } : {}) });
+      // the pro sees their net pay only; the referral split stays on the job (partner_pro_fee) for the Hub
+      ...(fee ? { reason: "Job pay" } : {}) });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
@@ -974,6 +977,8 @@ async function scheduleNextVisit(job: Job) {
   // Referral Partner Program: a recurring visit is a repeat job for the partner (an account stays an account)
   // (a direct sale stays a direct sale: no tier, no pro fee — lib/partners.ts)
   if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id && !(job as { partner_sale?: boolean }).partner_sale ? (job.partner_tier === "account" ? "account" : "repeat") : null });
+  // partner-v4: the next visit gets the partner's referral rate as it is now (their level may have gone up)
+  if ("partner_rate" in job && job.partner_id && !job.partner_sale) Object.assign(pay, { partner_rate: await (await import("./partners")).referralRateNow(job.partner_id).catch(() => job.partner_rate ?? null) });
   const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
   if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
   else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {

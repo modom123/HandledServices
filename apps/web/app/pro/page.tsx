@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
+ * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -29,6 +30,7 @@ import Link2 from "next/link";
 import { boardFor, boardPreview } from "@/lib/board";
 import { ClaimButton } from "@/components/JobBoard";
 import { balanceOf } from "@/lib/rewards";
+import { proJobs, proOffers } from "@/lib/job-access";
 
 /** whyNot() reason in Spanish (fixed reasons from the catalog; the ones with numbers by pattern). */
 function whyNotText(l: string, no: string): string {
@@ -80,8 +82,9 @@ export default async function ProHome() {
     return m ? `${t(m[1])} verificado` : label;
   };
   const [{ data: offers }, { data: jobs }, { data: payouts }, { data: me }] = await Promise.all([
-    v.db.from("job_offers").select("id, payout, expires_at, job_id, jobs(ref, service_slug, city, zip, scheduled_date, time_window, answers, notes, status)").eq("status", "offered").order("offered_at", { ascending: false }),
-    v.db.from("jobs").select("*").eq("contractor_id", v.contractorId!).order("scheduled_date"),
+    // need-to-know: read on the server, each offer with the pro's NET pay (lib/job-access)
+    proOffers(v.contractorId!).then((rows) => ({ data: rows.map((o) => ({ ...o, payout: o.pro_pay })) })),
+    proJobs(v.contractorId!).then((data) => ({ data })),
     v.db.from("payouts").select("amount, status, created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
@@ -90,7 +93,7 @@ export default async function ProHome() {
   const board = me?.status === "approved" ? await boardFor(v.contractorId!, es ? "es" : "en") : [];
   const preview = me && me.status !== "approved" ? await boardPreview(v.contractorId!, es ? "es" : "en").catch(() => []) : [];
   const pts = await balanceOf(v.contractorId!).catch(() => ({ available: 0, pending: 0, lifetime: 0 }));
-  const list = (jobs ?? []) as Job[];
+  const list = (jobs ?? []) as unknown as (Job & { pro_pay: number | null })[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
   const month = new Date().toISOString().slice(0, 7);
   const earned = (payouts ?? []).filter((p: { created_at: string }) => p.created_at.startsWith(month)).reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0);
@@ -261,7 +264,7 @@ export default async function ProHome() {
           {upcoming.map((j) => (
             <Link key={j.id} href={`/pro/jobs/${j.id}`} className="card flex items-center justify-between gap-3 hover:border-brand">
               <div><div className="font-semibold">{svcName(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address}, {j.city}</div></div>
-              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(j.contractor_payout)}</span><StatusBadge status={j.status} locale={l} /></div>
+              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(j.pro_pay ?? 0)}</span><StatusBadge status={j.status} locale={l} /></div>
             </Link>
           ))}
         </div>

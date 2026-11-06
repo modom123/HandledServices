@@ -18,6 +18,8 @@
  * UPDATED : 2026-10-06_2120 UTC — Your cancellations card (last 90 days: late, no-shows, short notice, free, excused).
  * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
+ * UPDATED : 2026-11-06_1800 UTC — pay shown is the pro's net pay (any referral fee already out); no job price or split.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -78,19 +80,20 @@ export default function ProHome() {
     api<{ standby: Standby[] }>("/api/pro/backups").then((r) => setStandby(r.ok ? r.data.standby ?? [] : []));
     api<{ record: NonNullable<typeof record> }>("/api/pro/standing").then((r) => { if (r.ok) setRecord(r.data.record); });
     api<{ onCall: boolean; onCallUntil: string | null }>("/api/pro/schedule?days=7").then((r) => { if (r.ok) setOnCall({ on: r.data.onCall, until: r.data.onCallUntil }); });
+    // need-to-know: the server sends what a pro may see, with their NET pay (pro_pay)
     const [o, j] = await Promise.all([
-      supabase.from("job_offers").select("id, payout, expires_at, jobs(ref, service_slug, city, zip, scheduled_date, time_window, notes)").eq("status", "offered"),
-      supabase.from("jobs").select("*").in("status", ["assigned", "in_progress", "qa_review", "site_visit"]).not("contractor_id", "is", null).order("scheduled_date"),
+      api<{ offers: (Offer & { pro_pay: number | null })[] }>("/api/pro/offers"),
+      api<{ jobs: (Job & { pro_pay: number | null })[] }>("/api/pro/jobs?status=assigned,in_progress,qa_review,site_visit"),
     ]);
-    setErr(o.error || j.error ? "No connection. Check your signal or Wi-Fi and try again." : null);
-    if (!o.error) setOffers((o.data ?? []) as unknown as Offer[]);
-    if (!j.error) setJobs((j.data ?? []) as Job[]);
+    setErr(!o.ok || !j.ok ? "No connection. Check your signal or Wi-Fi and try again." : null);
+    if (o.ok) setOffers((o.data.offers ?? []).map((x) => ({ ...x, payout: x.pro_pay })) as unknown as Offer[]);
+    if (j.ok) setJobs((j.data.jobs ?? []) as Job[]);
     setLoading(false);
   }, [locale]);
   useEffect(() => {
     load();
-    const ch = supabase.channel("pro-offers").on("postgres_changes", { event: "*", schema: "public", table: "job_offers" }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const timer = setInterval(load, 20000); // new offers (push notifications also bring the pro here)
+    return () => clearInterval(timer);
   }, [load]);
 
   const today = localDate(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone); // the phone's own zone (Pacific for Washington pros)
@@ -210,7 +213,7 @@ export default function ProHome() {
           <Card style={j.scheduled_date === today ? { borderColor: C.brand, borderWidth: 2 } : undefined}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}><Text style={[s.b, { flex: 1 }]}>{j.scheduled_date === today ? `${t("Today")} · ` : ""}{(() => { const sv = getService(j.service_slug); return sv ? svc(sv).name : ""; })()}</Text><Status status={j.status} /></View>
             <Text style={s.p}>{j.ref} · {j.scheduled_date} · {j.address}, {j.city}</Text>
-            <Text style={[s.b, { marginTop: 4 }]}>{money(j.contractor_payout)}</Text>
+            <Text style={[s.b, { marginTop: 4 }]}>{money((j as Job & { pro_pay?: number | null }).pro_pay ?? 0)}</Text>
           </Card>
         </Pressable>
       ))}

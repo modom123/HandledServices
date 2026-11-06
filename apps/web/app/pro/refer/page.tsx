@@ -6,9 +6,10 @@
  *           needs, fills out the referral ticket and earns the Partner Program share when it's done (25% one-time /
  *           10% repeat / 15% account, core partners.ts). One click makes them a partner; the full history stays on /partner.
  * UPDATED : 2026-10-29_0715 UTC — commissions go to the pro's job-payout account (no separate partner payout setup).
+ * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  */
 import Link from "next/link";
-import { PARTNER_PROGRAM, PARTNER_TIERS, PRO_REFERRAL, SERVICES, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, money, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
+import { PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, PRO_REFERRAL, SERVICES, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, money, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { siteUrl } from "@/lib/notify";
@@ -41,12 +42,10 @@ export default async function Refer() {
         <li key={h} className="card"><div className="text-2xl">{icon}</div><div className="mt-1 font-semibold">{i + 1}. {h}</div><p className="mt-1 text-sm text-ink-soft">{b}</p></li>
       ))}</ol>
 
-      <div className="grid gap-3 sm:grid-cols-3">{(Object.keys(PARTNER_TIERS) as PartnerTier[]).map((t) => (
-        <div key={t} className="card border-t-4 border-t-gold"><div className="text-3xl font-extrabold">{tierPct(t)}</div><div className="font-semibold">{PARTNER_TIERS[t].label}</div><p className="text-xs text-ink-soft">{PARTNER_TIERS[t].detail}</p></div>
-      ))}</div>
+      <div className="card border-t-4 border-t-gold"><div className="text-3xl font-extrabold">{referralRange()}</div><div className="font-semibold">{es ? "de cada trabajo del cliente que refiere, durante 12 meses" : "of every job from a customer you refer, for 12 months"}</div><p className="text-xs text-ink-soft">{es ? `Empieza en el ${Math.round(REFERRAL_LADDER.baseRate * 100)}% y sube un punto a la vez hasta el ${Math.round(REFERRAL_LADDER.topRate * 100)}% a medida que crece. El mismo en todos los servicios.` : `Starts at ${Math.round(REFERRAL_LADDER.baseRate * 100)}% and goes up one point at a time to ${Math.round(REFERRAL_LADDER.topRate * 100)}% as you grow. The same on every service.`}</p></div>
       <p className="text-sm">{es
-        ? <>Ejemplo: un cliente que refiere reserva una limpieza de {money(example)}. Usted gana <b>{money(example * PARTNER_TIERS.one_time.rate)}</b>. Si luego reserva cada mes, gana {money(example * PARTNER_TIERS.repeat.rate)} por visita durante un año. Pagado cada lunes después de la garantía de {PARTNER_PROGRAM.holdDays} días.</>
-        : <>Example: a customer you refer books a {money(example)} clean. You earn <b>{money(example * PARTNER_TIERS.one_time.rate)}</b>. If they then book monthly, you earn {money(example * PARTNER_TIERS.repeat.rate)} a visit for a year. Paid Mondays once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee.</>}</p>
+        ? <>Ejemplo: un cliente que refiere reserva una limpieza de {money(example)}. Usted gana <b>{money(example * REFERRAL_LADDER.baseRate)}</b> (al {Math.round(REFERRAL_LADDER.baseRate * 100)}%), y lo mismo en cada visita si luego reserva cada mes, durante un año. Pagado cada lunes después de la garantía de {PARTNER_PROGRAM.holdDays} días.</>
+        : <>Example: a customer you refer books a {money(example)} clean. You earn <b>{money(example * REFERRAL_LADDER.baseRate)}</b> (at {Math.round(REFERRAL_LADDER.baseRate * 100)}%), and the same on every visit if they then book monthly, for a year. Paid Mondays once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee.</>}</p>
 
       {!partner ? (
         <section className="card space-y-3">

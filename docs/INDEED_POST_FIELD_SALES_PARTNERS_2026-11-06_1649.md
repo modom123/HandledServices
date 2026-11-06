@@ -7,6 +7,7 @@
             tiers, direct sales on the 10% → 45% ladder in packages/core/src/partners.ts. Have your attorney review
             before posting.
   UPDATED : 2026-11-06_1724 UTC — referral pay at the partner-v2 tiers; the ladder is for direct sales (sales count 1.5×).
+  UPDATED : 2026-11-06_1738 UTC — referrals: one rate, 15% of the job price rising to 30% (partner-v4).
 -->
 
 # Indeed post: Field Sales Partner (Detroit metro)
@@ -49,8 +50,8 @@ independent Field Sales Partners. Work a few hours a week or make it your main i
 - **Direct sales:** a commission on **our profit** for every completed job you sold (the job price minus what the pro is
   paid). You start at **10%** and go up **one point at a time to 45%** as you grow (45% at $1,000,000 of credit). Sales
   count 1.5× toward your next raise. Every 10 jobs also moves you up a point, to 20%. Your rate never goes down.
-- **Referrals:** 25% of a referred customer's first one-time job, 10% of their repeat jobs, or 15% of a business
-  account's jobs, for 12 months.
+- **Referrals:** **15% of the job price** on every job from a customer you refer, for 12 months, rising one point at a
+  time to **30%** as you grow.
 - Paid **weekly** to your bank through Stripe once each job is past our 30-day guarantee.
 - Example direct sale: a $400 job where the pro is paid $300 = $100 profit → **$10 at 10%, $20 at 20%, $45 at 45%**.
   Big jobs (roofs, remodels, commercial cleaning contracts) pay much more.

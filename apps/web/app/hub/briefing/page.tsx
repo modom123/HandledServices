@@ -7,6 +7,7 @@
  *           Moved off the Dashboard, which is now stats and insights only (app/hub/page.tsx).
  * UPDATED : 2026-10-15_0010 UTC — pro candidates waiting on a decision (screened or interviewed) lead the queues.
  * UPDATED : 2026-10-27_1700 UTC — candidates to decide → Recruiting → Pipeline.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import Link from "next/link";
 import { getService, type Job } from "@handled/core";
@@ -14,6 +15,7 @@ import { getViewer } from "@/lib/auth";
 import { Badge, Empty, StatusBadge } from "@/components/ui";
 import { ResolveAlert } from "@/components/HubActions";
 import { pipeline } from "@/lib/recruiting";
+import { adminClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Daily Briefing" };
 
@@ -24,9 +26,9 @@ export default async function Briefing() {
   if (!v) return null;
   const today = new Date().toISOString().slice(0, 10);
   const [{ data: todays }, { data: alerts }, { data: open }, { count: apps }, { count: iebcPending }, funnel] = await Promise.all([
-    v.db.from("jobs").select("*").eq("scheduled_date", today).order("time_window"),
+    adminClient().from("jobs").select("*").eq("scheduled_date", today).order("time_window"),
     v.db.from("ops_alerts").select("*").eq("resolved", false).order("created_at", { ascending: false }).limit(25),
-    v.db.from("jobs").select("status, contractor_id").not("status", "in", "(completed,cancelled)"),
+    adminClient().from("jobs").select("status, contractor_id").not("status", "in", "(completed,cancelled)"),
     v.db.from("contractor_applications").select("id", { count: "exact", head: true }).eq("status", "new"),
     v.db.from("agent_actions").select("id", { count: "exact", head: true }).eq("status", "pending_approval"),
     pipeline(),

@@ -12,7 +12,10 @@
 
 > **Update (2026-11-06):** partners can now also **sell** the job themselves on a sales ticket and earn 10% → 45% of
 > our profit, paid by Handled alone. See [`FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md`](FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md).
-> Referral rates on this page are unchanged.
+> **Update (2026-11-06, partner-v4):** new referred jobs pay **one rate: 15% of the job price, rising to 30%**, locked
+> on the job when it's booked; the pro still pays half (agreement v11). The 25% / 10% / 15% tiers on this page now apply
+> only to jobs booked before that. See the Field Sales guide for the referral ladder. Pros now see only their **net
+> pay** (the fee already taken out), with no fee wording on the work order.
 
 **Send us a job, get paid on it.** Anyone (realtors, property managers, contractors, business owners, neighbors)
 can sign up at **/partners** and earn on the customers they send.

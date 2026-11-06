@@ -9,10 +9,11 @@
  * UPDATED : 2026-11-06_1730 UTC — two ways to earn. Way 1 Referrals (partner-v2 tiers, referral ticket, link, code) and Way 2
  *           Direct sales (close-ready sales ticket, pay link to close on the spot, sales tickets list) paid on the
  *           10% → 45% ladder; the partner's level and progress (direct sales count 1.5×, referrals 1×).
+ * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PARTNER_LADDER, PARTNER_PROGRAM, PARTNER_TIERS, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
+import { PARTNER_LADDER, PARTNER_PROGRAM, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
@@ -59,17 +60,17 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     const x = byCustomer.get(k) ?? { completed: 0, paid: 0 };
     if (c.status !== "void") x.completed++; if (c.status === "paid") x.paid++; byCustomer.set(k, x);
   }
-  const rateOf = (c: Comm) => c.tier === "direct" ? `${pct(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our profit · Direct sale` : c.tier && c.tier !== "legacy" ? `${tierPct(c.tier as PartnerTier)} · ${PARTNER_TIERS[c.tier as PartnerTier].label}` : "10% of our fee (before Oct 28)";
+  const rateOf = (c: Comm) => c.tier === "direct" ? `${pct(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our profit · Direct sale` : c.tier && c.tier !== "legacy" ? `${pct(Number(c.rate ?? PARTNER_TIERS[c.tier as PartnerTier]?.rate ?? 0))} of the job price · Referral` : "10% of our fee (before Oct 28)";
   const tone = (st: string) => (st === "paid" || st === "completed" ? "green" : st === "booked" ? "brand" : st === "closed" ? "red" : "amber") as "green" | "brand" | "red" | "amber";
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   return (
     <div className="wrap space-y-6 py-10">
       <div>
         <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]} 👋</h1>
-        <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn a fixed share of the job price, or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} of our profit (rising to {pct(PARTNER_LADDER.topRate)}).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
+        <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price (rising to {pct(REFERRAL_LADDER.topRate)}), or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} of our profit (rising to {pct(PARTNER_LADDER.topRate)}).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. Up to {tierPct("one_time")} of the job.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
+        <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of the job price today, up to {pct(REFERRAL_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
         <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of our profit today, up to {pct(PARTNER_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
       </div>
 
@@ -86,7 +87,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
             <p className="mt-2 text-sm">Next raise to <b>{pct(n.rate)}</b>: {money(n.profitToGo)} more credit{n.jobsToGo !== null && n.jobsToGo > 0 ? <> — or {n.jobsToGo} more job credit{n.jobsToGo === 1 ? "" : "s"}</> : null}.</p>
           </>);
         })() : <p className="mt-2 text-sm font-semibold text-brand-dark">You&apos;re at the top rate. Thank you for everything you&apos;ve built with us.</p>}
-        <p className="mt-2 text-xs text-ink-soft">Both ways build your level: profit from your direct sales counts {PARTNER_LADDER.directCredit}×, from your referrals {PARTNER_LADDER.referralCredit}×. Profit = the job price minus what the pro is paid and any refunds. Your level sets your direct-sales rate; referrals always pay the rates below. Levels never go down.</p>
+        <p className="mt-2 text-xs text-ink-soft">Both ways build your level: profit from your direct sales counts {PARTNER_LADDER.directCredit}×, from your referrals {PARTNER_LADDER.referralCredit}×. Profit = the job price minus what the pro is paid and any refunds. Your level credit sets both rates: direct sales on this ladder, referrals on the referral ladder below. Levels never go down.</p>
         <details className="mt-3 text-sm"><summary className="cursor-pointer text-ink-soft">See the whole ladder</summary>
           <p className="mt-2 text-xs text-ink-soft">Every level is +1 point. Every {PARTNER_LADDER.jobsPerStep} job credits also moves you up one level, up to {pct(PARTNER_LADDER.jobsCapRate)}.</p>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">{ladderTable().map((r) => (
@@ -96,9 +97,15 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       </section>
 
       <h2 id="referrals" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 1 · Referrals</h2>
-      <div className="grid gap-3 sm:grid-cols-3">{(Object.keys(PARTNER_TIERS) as PartnerTier[]).map((t) => (
-        <div key={t} className="card border-t-4 border-t-gold"><div className="text-3xl font-extrabold">{tierPct(t)}</div><div className="font-semibold">{PARTNER_TIERS[t].label}</div><p className="text-xs text-ink-soft">{PARTNER_TIERS[t].detail}</p></div>
-      ))}</div>
+      <div className="card border-t-4 border-t-gold">
+        <div className="flex flex-wrap items-baseline justify-between gap-2"><div><span className="text-3xl font-extrabold">{pct(stats.referral.rate)}</span> <span className="font-semibold">of every referred job</span></div><span className="text-sm text-ink-soft">{referralRange()} · the same on every service</span></div>
+        <p className="mt-1 text-sm text-ink-soft">Your referral rate is locked on each job when it&apos;s booked, for every job from the customer for {PARTNER_PROGRAM.months} months (half is paid by the pro, half by us).{stats.referral.next ? <> Next raise to <b>{pct(stats.referral.next.rate)}</b>: {money(stats.referral.next.profitToGo)} more level credit.</> : " You're at the top referral rate."}</p>
+        <details className="mt-2 text-sm"><summary className="cursor-pointer text-ink-soft">See the referral ladder</summary>
+          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">{ladderTable(REFERRAL_LADDER).map((r) => (
+            <div key={r.level} className={`flex justify-between ${r.level === stats.referral.level ? "font-bold text-brand-dark" : ""}`}><span>{pct(r.rate)}</span><span className="tabular-nums">{money(r.profit)}</span></div>
+          ))}</div>
+        </details>
+      </div>
       {q.connect === "done" && <div className="card border-brand bg-brand-tint text-sm">{ready ? "Payouts are set up. You'll be paid every Monday." : "Thanks — Stripe is still checking your details. This page shows when payouts are ready."}</div>}
 
       <div className="grid gap-3 sm:grid-cols-4">

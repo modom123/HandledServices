@@ -10,12 +10,14 @@
  * UPDATED : 2026-11-05_0000 UTC — a Files link per partner (their ticket photos and anything staff add).
  * UPDATED : 2026-11-06_1730 UTC — direct sales (Field Sales): each partner's ladder rate and level credit, the sales ticket
  *           feed (sent → booked → job), and direct-sale commissions shown as "Direct sale · X% of profit".
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import { PARTNER_KINDS, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, partnerRateLines, ticketStage, type PartnerKind, type TicketContact, type TicketJobType, type TicketTiming, PARTNER_LADDER, ladderCredit, partnerLevel } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { signedUrls } from "@/lib/photos";
 import { Badge, Empty, Stat } from "@/components/ui";
 import { PartnerAssign, PartnerStatusButton, TicketStatusButtons, VoidCommission } from "@/components/PartnerUI";
+import { adminOnly } from "@/components/AdminOnly";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ type C = { id: string; partner_id: string; amount: number; take: number; status:
 type T = { id: string; partner_id: string; ticket_no: string | null; customer_name: string | null; customer_email: string; customer_phone: string | null; company: string | null; contact_pref: string | null; best_time: string | null; address: string | null; city: string | null; zip: string | null; service_slug: string | null; job_type: string | null; timing: string | null; preferred_date: string | null; details: string | null; photos?: string[] | null; status: string | null; staff_note: string | null; first_job_id: string | null; source: string; created_at: string };
 
 export default async function PartnersHub() {
+  const gate = await adminOnly(); if (gate) return gate; // need-to-know: commissions and payouts are admin-only
   const db = adminClient();
   const { data: partners, error } = await db.from("referral_partners").select("*").order("created_at", { ascending: false });
   if (error) return (

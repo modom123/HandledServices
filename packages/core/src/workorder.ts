@@ -12,9 +12,11 @@
  *           shown (Uber-style); the full address and customer contact unlock on accept.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the pro can start once the 25% is in; their payout never waits on the customer.
  * UPDATED : 2026-10-28_0122 UTC — referred jobs: the pro's half of the partner's share is a job term (v4).
+ * UPDATED : 2026-11-06_1800 UTC — the referral fee uses the rate locked on the job (partner-v4, jobs.partner_rate).
+ * UPDATED : 2026-11-06_1800 UTC — the payout shown is the pro's NET pay; no referral-fee term or math on the work order.
  */
 import { AGREEMENT_VERSION } from "./compliance.ts";
-import { PARTNER_TIERS, partnerSplit } from "./partners.ts";
+import { proNetPay, type ProPayJob } from "./pro-pay.ts";
 import { BRAND } from "./brand.ts";
 import { money, moneyCents } from "./pricing.ts";
 import { getService } from "./services.ts";
@@ -46,7 +48,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & Partial<Pick<Job, "price_final" | "partner_tier">> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & Partial<Pick<Job, "price_final" | "partner_tier" | "partner_rate" | "partner_sale" | "partner_id" | "partner_pro_fee" | "amount_refunded" | "status">> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
 
 /** Spanish for the fixed parts of a work order (pros who chose Spanish). */
 const WO_ES: Record<string, string> = {
@@ -65,17 +67,7 @@ const WO_ES: Record<string, string> = {
   "Start time": "Hora de inicio",
 };
 
-/** Referred job: the pro's half of the partner's earnings, said up front so it's known before the offer is accepted. */
-function partnerFeeTerm(job: WorkOrderJob, payout: number | null | undefined, es: boolean): string {
-  const tier = job.partner_tier!;
-  const fee = partnerSplit({ price: Number(job.price_final ?? 0), payout: Number(payout ?? 0), tier }).fromPro;
-  const half = `${+(PARTNER_TIERS[tier].rate * 50).toFixed(2)}%`;
-  return es
-    ? `Cliente referido por un socio: una comisión de referido del ${half} del precio del trabajo (${moneyCents(fee)}) se descuenta de este pago al completarse; ${BRAND.name} paga la otra mitad. Si hay un reembolso, se le devuelve la parte que corresponda.`
-    : `Partner-referred customer: a referral fee of ${half} of the job price (${moneyCents(fee)}) comes off this payout when the job is completed; ${BRAND.name} pays the other half. If the job is refunded, your share of the fee is handed back to match.`;
-}
-
-export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null }): WorkOrder {
+export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null; agreementVersion?: string | null }): WorkOrder {
   const es = opts.locale === "es";
   const L = (s: string) => (es ? WO_ES[s] ?? tr("es", s) : s);
   const svc = getService(job.service_slug);
@@ -89,12 +81,14 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     return { label: L(q.label), value: q.type === "number" && q.unit === "$" ? `$${value}` : value };
   });
   if (answers.start_time) scope.push({ label: L("Start time"), value: String(answers.start_time) });
-  const payout = opts.payout ?? job.contractor_payout;
+  // the pro sees one number: their net pay (any referral fee already taken out — never the math or our numbers)
+  const gross = opts.payout ?? job.contractor_payout;
+  // pros sign the current agreement before they can accept an offer, so that is the default
+  const payout = gross ? proNetPay(job as ProPayJob, gross, opts.agreementVersion ?? AGREEMENT_VERSION) : gross;
   const date = job.scheduled_date ? new Date(`${job.scheduled_date}T12:00:00`).toLocaleDateString(es ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric" }) : es ? "Fecha por definir" : "Date TBD";
   const terms = [
     es ? `Pago ${payout ? money(payout) : "según la cotización final"} — se aprueba cuando el trabajo está completo y pasa la revisión de fotos, y se paga en el pago semanal. El cliente ya pagó; nunca cobre directamente.`
       : `Payout ${payout ? money(payout) : "per the firm quote"} — approved when the job is complete and passes photo review, paid on the weekly payout run. The customer has prepaid; never take payment directly.`,
-    ...(job.partner_tier ? [partnerFeeTerm(job, payout, es)] : []),
     L("Arrive within the booked window. Running late? Message the customer in the app before the window starts."),
     L("Take before-and-after photos of every area you work on and upload them to complete the job."),
     ...(job.payment_plan === "deposit" && !job.paid_at ? [L("The customer has paid a deposit; we collect the balance before your start date. Don't start until the app shows \"Paid in full\".")] : []),

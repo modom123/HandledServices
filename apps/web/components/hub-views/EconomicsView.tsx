@@ -9,12 +9,14 @@
  *           AI cost tracking from ai_runs.
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  * UPDATED : 2026-10-28_1735 UTC — now the "Unit economics" view of Mastermind → Money (/hub/money?view=economics); was /hub/finance. Payout queue moved to Jobs & payouts.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import { CARD_FEE, TAKE_MAX, TAKE_MIN, getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat } from "@/components/ui";
 import { DeductionDecision } from "@/components/Deductions";
 import { adminOnly } from "@/components/AdminOnly";
+import { adminClient } from "@/lib/supabase/server";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -27,11 +29,11 @@ export default async function Finance() {
   if (!v) return null;
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const [{ data: done }, { data: payouts }, { data: runs }, { data: priced }, { data: deds }] = await Promise.all([
-    v.db.from("jobs").select("service_slug, price_final, contractor_payout").eq("status", "completed").gte("completed_at", since),
-    v.db.from("payouts").select("id, amount, status, kind, reason, created_at, contractors(business_name), jobs(ref)").in("status", ["approved", "pending", "held"]).order("created_at"),
+    adminClient().from("jobs").select("service_slug, price_final, contractor_payout").eq("status", "completed").gte("completed_at", since),
+    adminClient().from("payouts").select("id, amount, status, kind, reason, created_at, contractors(business_name), jobs(ref)").in("status", ["approved", "pending", "held"]).order("created_at"),
     v.db.from("ai_runs").select("kind, input_tokens, output_tokens").gte("created_at", since),
     // pricing accuracy: last 90 days of paid jobs — did the instant price hold up on site?
-    v.db.from("jobs").select("service_slug, price_final, scope_extra, ai_quote, status").not("price_final", "is", null).is("remedy", null).gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()),
+    adminClient().from("jobs").select("service_slug, price_final, scope_extra, ai_quote, status").not("price_final", "is", null).is("remedy", null).gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString()),
     v.db.from("pro_deductions").select("id, amount, reason, source, respond_by, pro_response, responded_at, created_at, contractors(business_name), jobs(ref)").eq("status", "proposed").order("respond_by"),
   ]);
   const acc = new Map<string, { jobs: number; changed: number; extra: number; aiUp: number; aiDown: number; siteVisits: number }>();

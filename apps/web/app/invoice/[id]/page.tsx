@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-15_0300 UTC — "pay after" plan note; the pay-in-full 5% saving as its own line.
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no estimate before the consultation.
  * UPDATED : 2026-10-28_1700 UTC — consultation-only wording removed (Business & Technology is ordered with a deposit).
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,6 +21,7 @@ import { validInvoiceToken } from "@/lib/invoice";
 import { SERVICE_AGREEMENT, SERVICE_AGREEMENT_TITLE } from "@/lib/service-agreement";
 import { addendaForService } from "@/lib/contracts";
 import { PrintButton } from "@/components/PrintButton";
+import { customerOwnsJob } from "@/lib/job-access";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice & Service Agreement", robots: { index: false } };
@@ -31,7 +33,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
   if (!allowed) {
     const v = await getViewer();
     if (isStaff(v)) allowed = true;
-    else if (v) allowed = Boolean((await v.db.from("jobs").select("id").eq("id", id).maybeSingle()).data);
+    else if (v) allowed = await customerOwnsJob(v.userId, id); // the customer's own invoice only
   }
   if (!allowed) notFound();
   const { data } = await adminClient().from("jobs").select("*").eq("id", id).maybeSingle();
