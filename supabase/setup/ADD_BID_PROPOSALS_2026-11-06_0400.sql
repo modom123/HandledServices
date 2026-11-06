@@ -61,7 +61,7 @@ create table if not exists public.bid_proposal_sections (
   guidance text,
   page_limit numeric,
   requirement_ids uuid[] not null default '{}',
-  content text not null default '',
+  content text not null default btrim(' '),  -- empty text, written so it survives copy and paste
   status text not null default 'outline' check (status in ('outline','draft','edited','approved')),
   ai_at timestamptz,
   edited_by text,
@@ -77,15 +77,7 @@ create policy staff_all on public.bid_proposal_sections for all to authenticated
 
 alter table public.gov_opportunities add column if not exists resource_links jsonb;
 
--- A starting profile for IEBC (AI automation). Fill in UEI, CAGE, contacts and past performance in Hub → Bids → Bidding profiles.
-insert into public.bid_profiles (name, legal_name, business_size, naics, overview, capabilities, differentiators, is_default)
-select 'IEBC — AI automation', 'IE Business Consultants', 'Small business',
-  '541511, 541512, 541519, 541611, 541690, 518210',
-  'IE Business Consultants (IEBC) builds and runs governed AI agent workforces that take on an agency''s repetitive back-office and constituent-service work. Agency staff stay in control: each agent has a written role, scoped permissions and an autonomy level the agency sets; high-risk actions wait for a named official''s approval; every action is logged for audit.',
-  'Back-office automation (intake, forms and document extraction, case triage and routing, records clean-up). Constituent service agents (24/7 Tier-1/Tier-2 chat and email with handoff to staff). Finance and audit automation (invoice audit, vendor reconciliation, grant reporting) with a human certifying official. Process mapping of manual SOPs into measured automated workflows. Data integration: read-only connectors first, then least-privilege write access under the agency''s ATO.',
-  'Proven in production: IEBC agents run dispatch, client care, compliance tracking and finance for Handled, a live multi-trade services company (affiliate). Human oversight built in: suggest / act with approval / autonomous, an approval queue, complete action logs. Fixed-price 30-day pilot with success measures agreed up front. No lock-in: data and workflows exportable; agency data never used to train third-party models. Detroit-based small business.',
-  true
-where not exists (select 1 from public.bid_profiles);
+-- The starting IEBC profile is created by the app the first time Hub -> Bids -> Bidding profiles opens (lib/proposals.ts).
 
 -- attachment downloads count against the SAM.gov daily call budget like every other call
 alter table public.gov_api_calls drop constraint if exists gov_api_calls_kind_check;
