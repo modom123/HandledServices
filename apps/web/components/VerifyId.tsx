@@ -4,6 +4,7 @@
  * CREATED : 2026-10-04_1934 UTC
  * PURPOSE : Pro onboarding: start the photo ID check (opens Stripe Identity, or requests a video call),
  *           and the Hub button that marks an ID verified after a video call.
+ * UPDATED : 2026-11-06_0645 UTC — the button says what happened (no more silent refresh when the check can't start).
  */
 "use client";
 
@@ -13,14 +14,20 @@ import { useRouter } from "next/navigation";
 export function VerifyId({ label }: { label: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
   return (
-    <button className="btn-primary" disabled={busy} onClick={async () => {
-      setBusy(true);
-      const r = await fetch("/api/pro/identity", { method: "POST" });
-      const j = await r.json().catch(() => ({}));
-      setBusy(false);
-      if (j.url) window.location.href = j.url; else router.refresh();
-    }}>{busy ? "…" : label}</button>
+    <div className="space-y-2">
+      <button className="btn-primary" disabled={busy} onClick={async () => {
+        setBusy(true); setMsg("");
+        const r = await fetch("/api/pro/identity", { method: "POST" }).catch(() => null);
+        const j = r ? await r.json().catch(() => ({})) : {};
+        setBusy(false);
+        if (j.url) { window.location.href = j.url; return; }
+        setMsg(j.message ?? j.error ?? (r?.ok ? "" : "Something went wrong starting the ID check. Please try again, or contact us and we'll verify you on a short video call."));
+        router.refresh();
+      }}>{busy ? "Opening the ID check…" : label}</button>
+      {msg && <p role="status" className="text-sm">{msg}</p>}
+    </div>
   );
 }
 
