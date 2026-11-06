@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-23_2100 UTC — codes for services 76–100: siding & gutters, flooring, insulation, fencing & paving, pest control,
  *           appliance repair, locksmiths, building inspection, water remediation; window installation now has a catalog service.
  * UPDATED : 2026-10-27_1600 UTC — finish carpentry (238350) maps to Carpentry.
+ * UPDATED : 2026-11-06_0400 UTC — parseSamOpportunity keeps the notice's attachment links (resource_links) so a bid can pull them in.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -150,6 +151,8 @@ export interface GovOpportunity {
   pop_zip: string | null;
   ui_link: string | null;
   description_url: string | null;
+  /** The notice's attachments on SAM.gov (download links; they need the API key). */
+  resource_links: string[];
   contacts: { name: string | null; email: string | null; phone: string | null; type: string | null }[];
   award_amount: number | null;
   awardee: string | null;
@@ -211,6 +214,7 @@ export function parseSamOpportunity(r: Raw): GovOpportunity | null {
     pop_zip: str(pop.zip),
     ui_link: str(r.uiLink),
     description_url: str(r.description),
+    resource_links: (Array.isArray(r.resourceLinks) ? r.resourceLinks : []).map(str).filter((x): x is string => Boolean(x && /^https:\/\/api\.sam\.gov\//.test(x))).slice(0, 25),
     contacts,
     award_amount: Number.isFinite(amount) && amount > 0 ? amount : null,
     awardee: str(obj(award.awardee).name),

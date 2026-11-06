@@ -8,10 +8,12 @@
  *             POST { action: "ticket", type, key, name, mime, size }        → one-time signed upload (browser → storage)
  *             POST { action: "save", type, key, path, kind, label?, job_id? } → record it on the person's file
  *             POST { action: "hide", id }                                     → hide a file added to a person's file
+ *             POST { action: "profile", type, key, file_id } / { action: "profile_clear", type, key } → their profile photo
+ * UPDATED : 2026-11-06_0600 UTC — profile photo (GET returns it as `profile`).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
-import { FILE_KINDS, describeOwner, fileTicket, findPeople, hideFile, listPersonFiles, parseOwner, saveFile } from "@/lib/person-files";
+import { FILE_KINDS, clearProfilePhoto, describeOwner, fileTicket, findPeople, hideFile, listPersonFiles, parseOwner, profilePhoto, saveFile, setProfilePhoto } from "@/lib/person-files";
 
 export const dynamic = "force-dynamic";
 
@@ -23,14 +25,16 @@ export async function GET(req: Request) {
   if (q !== null) return Response.json({ people: await findPeople(q) });
   const o = parseOwner(u.searchParams.get("type") ?? "", u.searchParams.get("key") ?? "");
   if (!o) return deny(400, "Unknown person");
-  const [owner, files] = await Promise.all([describeOwner(o), listPersonFiles(o)]);
-  return Response.json({ owner, files });
+  const [owner, files, profile] = await Promise.all([describeOwner(o), listPersonFiles(o), profilePhoto(o).catch(() => null)]);
+  return Response.json({ owner, files, profile });
 }
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ticket"), type: z.string(), key: z.string(), name: z.string().max(240), mime: z.string().max(120), size: z.number().int().nonnegative() }),
   z.object({ action: z.literal("save"), type: z.string(), key: z.string(), path: z.string().max(400), kind: z.enum(FILE_KINDS), label: z.string().max(200).optional(), job_id: z.string().optional() }),
   z.object({ action: z.literal("hide"), id: z.string() }),
+  z.object({ action: z.literal("profile"), type: z.string(), key: z.string(), file_id: z.string().max(600) }),
+  z.object({ action: z.literal("profile_clear"), type: z.string(), key: z.string() }),
 ]);
 
 export async function POST(req: Request) {
@@ -43,6 +47,8 @@ export async function POST(req: Request) {
   const o = parseOwner(b.data.type, b.data.key);
   if (!o) return deny(400, "Unknown person");
   if (!(await describeOwner(o))) return deny(404, "Nobody with that record");
+  if (b.data.action === "profile") { const r = await setProfilePhoto(o, b.data.file_id, by.name); return r.ok ? Response.json(r) : deny(400, r.error ?? "Couldn't set the photo"); }
+  if (b.data.action === "profile_clear") return Response.json(await clearProfilePhoto(o));
   if (b.data.action === "ticket") {
     try { return Response.json(await fileTicket(o, b.data.name, b.data.mime, b.data.size)); }
     catch (e) { return deny(400, e instanceof Error ? e.message : "Upload failed"); }

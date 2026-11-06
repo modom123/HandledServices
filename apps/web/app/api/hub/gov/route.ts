@@ -8,6 +8,7 @@
  *             { action: "describe", notice_id }        — fetch the full notice text (1 API call)
  *             { action: "summarize", notice_id }       — AI bid / no-bid brief
  *             { action: "status", notice_id, status?, notes?, owner? }
+ *             { action: "dismiss" | "restore" | "delete", notice_ids[], reason? }  — not a fit → Passed; back to New; delete for good
  *             { action: "ask_pros", notice_id, contractor_ids[] }  — email matching pros about the work
  *             { action: "interest", notice_id, contractor_id, status, note? }  — record a pro's answer
  * UPDATED : 2026-10-19_2015 UTC — Contract Awards API:
@@ -20,7 +21,7 @@ import { z } from "zod";
 import { SAM_NOTICE_TYPES, SET_ASIDES } from "@handled/core";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { aiBidSummary, askPros, getGovSettings, govDailyPicks, govReady, loadDescription, runAwardSearch, runGovSearch, setAwardStatus, setGovStatus, setProInterest } from "@/lib/gov";
+import { aiBidSummary, askPros, deleteNotices, dismissNotices, getGovSettings, govDailyPicks, govReady, loadDescription, restoreNotices, runAwardSearch, runGovSearch, setAwardStatus, setGovStatus, setProInterest } from "@/lib/gov";
 
 const naics = z.array(z.string().regex(/^\d{6}$/)).max(20);
 const ptypes = z.array(z.string().refine((p) => p in SAM_NOTICE_TYPES)).max(9);
@@ -35,6 +36,9 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("describe"), notice_id: id }),
   z.object({ action: z.literal("summarize"), notice_id: id }),
   z.object({ action: z.literal("status"), notice_id: id, status: z.enum(["new", "reviewing", "bidding", "submitted", "won", "lost", "passed"]).optional(), notes: z.string().max(5000).nullable().optional(), owner: z.string().max(120).nullable().optional() }),
+  z.object({ action: z.literal("dismiss"), notice_ids: z.array(id).min(1).max(500), reason: z.string().trim().max(300).nullable().optional() }),
+  z.object({ action: z.literal("restore"), notice_ids: z.array(id).min(1).max(500) }),
+  z.object({ action: z.literal("delete"), notice_ids: z.array(id).min(1).max(500), reason: z.string().trim().max(300).nullable().optional() }),
   z.object({ action: z.literal("ask_pros"), notice_id: id, contractor_ids: z.array(z.string().uuid()).min(1).max(50) }),
   z.object({ action: z.literal("interest"), notice_id: id, contractor_id: z.string().uuid(), status: z.enum(["asked", "interested", "not_interested"]), note: z.string().max(1000).nullable().optional() }),
   z.object({ action: z.literal("awards"), naics, state, keywords, months_back: z.number().int().min(1).max(60), pages: z.number().int().min(1).max(20), awardee_uei: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{12}$/).nullable().optional().or(z.literal("").transform(() => null)) }),
@@ -73,6 +77,9 @@ export async function POST(req: Request) {
       await setGovStatus(notice_id, patch);
       return Response.json({ ok: true });
     }
+    case "dismiss": return Response.json({ ok: true, ...(await dismissNotices(d.notice_ids, d.reason ?? null, actor)) });
+    case "restore": return Response.json({ ok: true, ...(await restoreNotices(d.notice_ids)) });
+    case "delete": { const r = await deleteNotices(d.notice_ids, d.reason ?? null, actor); return Response.json(r, { status: r.ok ? 200 : 400 }); }
     case "ask_pros":
       return Response.json({ ok: true, ...(await askPros(d.notice_id, d.contractor_ids, actor)) });
     case "interest":

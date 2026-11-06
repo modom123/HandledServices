@@ -57,6 +57,7 @@ import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWin
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
+  SERVED_AREAS_LABEL,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
@@ -171,7 +172,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
   if (!launch.open) throw new Error(launch.market
     ? `${svc.name} is coming soon to ${launch.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
-    : "We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach your area.");
+    : `We serve ${SERVED_AREAS_LABEL.en} right now. Join the waitlist on the booking page and we'll tell you when we reach your area.`);
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   // request-a-quote: the pro's firm quote is the price (no site visit, no AI re-price)

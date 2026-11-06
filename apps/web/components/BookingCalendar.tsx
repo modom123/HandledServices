@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from "react";
 import { WaitlistForm } from "./WaitlistForm";
-import { RUSH_SURCHARGE, TIME_WINDOW_LABEL, t as tr, type DaySlots, type Locale, type TimeWindow } from "@handled/core";
+import { RUSH_SURCHARGE, SERVED_AREAS_LABEL, TIME_WINDOW_LABEL, t as tr, type DaySlots, type Locale, type TimeWindow } from "@handled/core";
 
 type Avail = { mode: "live" | "request" | "closed"; pros: number; days: DaySlots[]; market?: string | null; openBooking?: boolean };
 const WEEKDAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], es: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] };
@@ -66,7 +66,7 @@ export function BookingCalendar({ service, zip, date, window: win, onChange, tod
     <div className="space-y-3">
       <p className="rounded-xl bg-amber-50 p-3 text-sm">{data.market
         ? (locale === "es" ? `Este servicio llegará pronto a ${data.market}. Déjenos su correo y le avisamos en cuanto abra, con un descuento de lanzamiento.` : `This service is coming soon to ${data.market}. Leave your email and we’ll tell you the day it opens, with a launch discount.`)
-        : (locale === "es" ? `Por ahora atendemos Michigan y Washington. Déjenos su correo y le avisamos cuando lleguemos a ${zip}.` : `We serve Michigan and Washington right now. Leave your email and we’ll tell you when we reach ${zip}.`)}</p>
+        : (locale === "es" ? `Por ahora atendemos ${SERVED_AREAS_LABEL.es}. Déjenos su correo y le avisamos cuando lleguemos a ${zip}.` : `We serve ${SERVED_AREAS_LABEL.en} right now. Leave your email and we’ll tell you when we reach ${zip}.`)}</p>
       <WaitlistForm service={service} zip={zip} locale={locale} />
     </div>
   );

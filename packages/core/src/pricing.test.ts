@@ -1450,6 +1450,7 @@ test("gov contracts: SAM.gov records parse, NAICS map to our services, fit score
   assert.ok(govFit({ ...o, ptype: "a" }, { now }).score <= 15);
   assert.ok(govFit({ ...o, response_deadline: "2026-10-01T00:00:00Z" }, { now }).flags.some((f) => f.includes("passed")));
   assert.equal(parseSamOpportunity({ title: "no id" }), null);
+  assert.deepEqual(parseSamOpportunity({ noticeId: "x", title: "t", resourceLinks: ["https://api.sam.gov/prod/opportunities/v3/resources/files/abc/download", "https://evil.example/x"] })!.resource_links, ["https://api.sam.gov/prod/opportunities/v3/resources/files/abc/download"]);
   const qs = samSearchQueries({ naics: ["561720", "561730", "bad"], state: "mi", ptypes: ["o", "k", "zz"], daysBack: 7, now });
   assert.equal(qs.length, 2);
   const q = new URLSearchParams(qs[0]);
@@ -2017,7 +2018,7 @@ test("gov subcontracting: large primes with a plan and time left rank first; AI 
   assert.ok(subFit({ ...big, ultimate_end: "2026-01-01" }, { now }).score <= 10, "ended contracts don't rank");
   const ai = parseSamAward(rec("541511", "O", "Plan Required - Incentive Not Included", "2028-09-30", "VA", "Arlington"))!;
   assert.ok(subFit(ai, { now }).reasons.some((r) => r.includes("Remote")), "AI work out of state still fits");
-  assert.ok(govFit({ notice_id: "n", title: "AI", solicitation_number: null, agency: null, office: null, notice_type: "Solicitation", ptype: "o", set_aside_code: null, set_aside: null, naics: "541512", psc: null, posted_date: null, response_deadline: null, archive_date: null, active: true, pop_city: "Arlington", pop_state: "VA", pop_zip: null, ui_link: null, description_url: null, contacts: [], award_amount: null, awardee: null }, { now }).score >= 80);
+  assert.ok(govFit({ notice_id: "n", title: "AI", solicitation_number: null, agency: null, office: null, notice_type: "Solicitation", ptype: "o", set_aside_code: null, set_aside: null, naics: "541512", psc: null, posted_date: null, response_deadline: null, archive_date: null, active: true, pop_city: "Arlington", pop_state: "VA", pop_zip: null, ui_link: null, description_url: null, resource_links: [], contacts: [], award_amount: null, awardee: null }, { now }).score >= 80);
   const targets = primeTargets([{ ...small, sub_score: subFit(small, { now }).score }, { ...big, sub_score: bigFit.score }], now);
   assert.equal(targets[0].awardee, "Prime O");
   assert.ok(targets[0].sub_plan);
@@ -2450,4 +2451,53 @@ test("depth chart: positions fill, cross off and rank like a roster", async () =
   const sum = depthSummary(depthChart({ contractors: [] }));
   assert.equal(sum.total, SERVICES.length);
   assert.equal(sum.open, SERVICES.length);
+});
+
+test("proposal writer: outlines, [[NEEDS]] markers, approval gate, RFIs need no price", async () => {
+  const { defaultOutline, needsInput, proposalGate, wordsToPages, pricingRequired } = await import("./proposal.ts");
+  const { submitGate, REVIEW_CHECKS, GO_NO_GO } = await import("./bid-engine.ts");
+  assert.equal(defaultOutline("rfp")[0].title, "Cover letter");
+  assert.ok(defaultOutline("sources_sought").some((s) => s.title === "Capability statement"));
+  assert.deepEqual(needsInput("UEI [[NEEDS: UEI]] and [[needs: reference phone]] and [[NEEDS: UEI]]"), ["UEI", "reference phone"]);
+  assert.deepEqual(needsInput("All facts present."), []);
+  assert.equal(wordsToPages(1000), 2);
+  assert.ok(!pricingRequired("rfi") && !pricingRequired("sources_sought") && pricingRequired("rfp"));
+  // no sections → nothing to check (a price-only bid)
+  assert.deepEqual(proposalGate([]).missing, []);
+  const g = proposalGate([
+    { title: "Cover", status: "approved", content: "Done." },
+    { title: "Tech", status: "draft", content: "We will [[NEEDS: hosting region]].", page_limit: 0.1 },
+    { title: "Past", status: "outline", content: "" },
+  ]);
+  assert.ok(g.missing.some((m) => m.includes("not written")));
+  assert.ok(g.missing.some((m) => m.includes("[[NEEDS]]")));
+  assert.ok(g.missing.some((m) => m.includes("2 proposal sections not approved")));
+  assert.equal(g.markers, 1);
+  // the gate: a sources-sought response with an approved proposal and no price lines can be submitted
+  const allYes = Object.fromEntries(GO_NO_GO.map((x) => [x.id, "yes" as const]));
+  const review = Object.fromEntries(REVIEW_CHECKS.map((c) => [c.id, true]));
+  const base = { go: allYes, requirements: [{ required: true, done: true }], lines: [], review, reviewer: "b@x.com", owner: "a@x.com", confirmationUploaded: true, dueAt: "2026-12-20T18:00:00Z", now: new Date("2026-11-06T12:00:00Z") };
+  const approved = [{ title: "Capability", status: "approved" as const, content: "IEBC builds governed AI agents." }];
+  assert.ok(submitGate({ ...base, solicitationType: "sources_sought", proposal: approved }).canMarkSubmitted);
+  assert.ok(submitGate({ ...base, solicitationType: "rfp", proposal: approved }).missing.includes("No price lines"));
+  assert.ok(!submitGate({ ...base, solicitationType: "rfi", proposal: [{ ...approved[0], status: "draft" }] }).canMarkSubmitted);
+});
+
+test("markets: NY, NJ and Las Vegas city pages, market pages, indexing per market", async () => {
+  const { CITY_PAGE_CITIES, SITE_MARKETS, SEO_CITY_BY_SLUG, marketForCity, SERVICE_AREA } = await import("./seo.ts");
+  const { isIndexedCityPage } = await import("./focus.ts");
+  const { getService } = await import("./services.ts");
+  assert.equal(new Set(CITY_PAGE_CITIES.map((c) => c.slug)).size, CITY_PAGE_CITIES.length, "city slugs are unique");
+  assert.ok(["las-vegas-nv", "brooklyn-ny", "jersey-city-nj"].every((s) => SEO_CITY_BY_SLUG[s]));
+  assert.deepEqual(SERVICE_AREA.map((s) => s.code).sort(), ["MI", "NJ", "NV", "NY", "WA"]);
+  for (const m of SITE_MARKETS) {
+    assert.ok(m.cities.length > 0, `${m.slug} has cities`);
+    for (const f of m.featured) assert.ok(getService(f), `${m.slug} features ${f}, which is in the catalog`);
+    for (const c of m.cities) assert.equal(marketForCity(c)?.slug, m.slug);
+  }
+  // handyman is indexed in Las Vegas (featured there), house cleaning everywhere (focus), a random service nowhere
+  assert.ok(isIndexedCityPage("handyman", "las-vegas-nv"));
+  assert.ok(isIndexedCityPage("house-cleaning", "henderson-nv"));
+  assert.ok(!isIndexedCityPage("furniture-assembly", "las-vegas-nv"));
+  assert.ok(isIndexedCityPage("furniture-assembly", "brooklyn-ny"));
 });

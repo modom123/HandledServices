@@ -13,7 +13,7 @@ import { GOV_NAICS_BY_CODE, SERVICE_BY_SLUG, SET_ASIDES, type GovFit } from "@ha
 import { adminClient } from "@/lib/supabase/server";
 import { matchingPros, noticeTypeLabel, type GovSummary } from "@/lib/gov";
 import { aiEnabled } from "@/lib/ai/client";
-import { GovPros, GovReadButtons, GovStatus } from "@/components/GovAdmin";
+import { GovNotFit, GovPros, GovReadButtons, GovStatus } from "@/components/GovAdmin";
 import { StartBidButton } from "@/components/BidWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +58,7 @@ export default async function GovNotice({ params }: { params: Promise<{ id: stri
         <section className="card space-y-3">
           <h2 className="text-lg font-bold">Pipeline</h2>
           <GovStatus id={o.notice_id} status={o.status} notes={o.notes} />
+          <div className="mt-2"><GovNotFit id={o.notice_id} status={o.status} /></div>
         </section>
       </div>
       <section className="card space-y-3">

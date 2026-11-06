@@ -29,7 +29,7 @@
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
-import { BRAND, BRAND_STORY, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
+import { BRAND, BRAND_STORY, CATEGORIES, SERVICES, SITE_MARKETS, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { LangSwitch } from "./LangSwitch";
 import { SideNav, type NavGroup } from "./SiteNav";
@@ -93,6 +93,7 @@ export async function SiteHeader() {
       items: [
         { href: "/plus", label: "Handled Plus", icon: "⭐" },
         { href: "/gift-cards", label: t("Gift cards"), icon: "🎁" },
+        { href: "/areas", label: es ? "Dónde trabajamos" : "Areas we serve", icon: "📍" },
         { href: "/reviews", label: t("Customer reviews"), icon: "💬" },
         { href: "/contact", label: es ? "Contacto" : "Contact", icon: "✉️" },
       ],
@@ -144,8 +145,8 @@ export async function SiteFooter() {
   );
   return (
     <footer className="mt-24 border-t-2 border-gold/60 bg-paper-deep">
-      <div className="wrap grid gap-10 py-12 md:grid-cols-5">
-        <div className="md:col-span-2">
+      <div className="wrap grid gap-10 py-12 md:grid-cols-3 lg:grid-cols-6">
+        <div className="md:col-span-3 lg:col-span-2">
           <Logo />
           <p className="mt-3 text-lg font-bold text-brand">{BRAND_STORY.slogan[L]}</p>
           <p className="mt-2 max-w-sm text-sm text-ink-soft">{BRAND_STORY.short[L]}</p>
@@ -156,6 +157,10 @@ export async function SiteFooter() {
           ...CATEGORIES.slice(0, 6).map((c) => ({ href: categoryHref(c.id), label: categoryText(l, c.id, c).name })),
           { href: "/technology", label: es ? "Negocios y tecnología" : "Business & Technology" },
           { href: "/services", label: es ? `Los ${SERVICES.length} servicios →` : `All ${SERVICES.length} services →` },
+        ])}
+        {col(es ? "Dónde trabajamos" : "Areas we serve", [
+          ...SITE_MARKETS.map((m) => ({ href: `/areas/${m.slug}`, label: m.name })),
+          { href: "/areas", label: es ? "Todas las áreas →" : "All areas →" },
         ])}
         {col(t("Company"), [
           { href: "/network", label: es ? "Red Handled" : "Handled Network" },

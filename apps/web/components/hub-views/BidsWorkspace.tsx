@@ -7,6 +7,7 @@
  *           we've collected. Start a bid by hand (city, county, state, school…) or from Gov contracts.
  * UPDATED : 2026-10-05_2043 UTC — archive: every RFP / RFQ / bid, searchable by text, type, status and year; version counts.
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Clients → Bids & contracts, "Our bids" view (rendered by app/hub/bids/page.tsx).
+ * UPDATED : 2026-11-06_0400 UTC — link to Bidding profiles; the proposal step in the intro.
  */
 import Link from "next/link";
 import { BID_SOURCES, BID_STATUS_LABEL, SOLICITATION_TYPES, money, type BidSource, type BidStatus, type SolicitationType } from "@handled/core";
@@ -60,8 +61,8 @@ export default async function Bids({ searchParams }: { searchParams: Promise<{ q
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Bids</h1>
-        <p className="max-w-3xl text-sm text-ink-soft">Every public bid goes through the same five steps: <b>go / no-go</b> (eligible, staffed, insured, profitable, time), the <b>compliance matrix</b> (the AI reads the solicitation; a person checks off every item), <b>pricing</b> from pros&apos; written prices up, a <b>review</b> sign-off, and <b>submit</b> with the confirmation saved. A bid can&apos;t be marked submitted until all of it is done.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">Bids</h1><Link href="/hub/bids/profiles" className="btn-ghost text-sm">Bidding profiles (IEBC, Handled) →</Link></div>
+        <p className="max-w-3xl text-sm text-ink-soft">Every public bid goes through the same steps: <b>go / no-go</b> (eligible, staffed, insured, profitable, time), the <b>compliance matrix</b> (the AI reads the solicitation; a person checks off every item), the <b>proposal</b> (the AI outlines and drafts it from the solicitation and your bidding profile; a person fills the gaps and approves each section), <b>pricing</b>, a <b>review</b> sign-off, and <b>submit</b> with the confirmation saved. A bid can&apos;t be marked submitted until all of it is done.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-5">
         <Stat label="Working" value={active.length} />

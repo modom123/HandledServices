@@ -14,11 +14,12 @@
  *           Business & Technology is ordered with a deposit like every other service.
  * UPDATED : 2026-10-05_0419 UTC — no dollar figures on service pages: "exact and upfront, in about a minute" (every job is priced on its details).
  * UPDATED : 2026-11-04_2230 UTC — SEO: structured data no longer gives the business an address in every city (Google treats
- *           that as fake locations); areaServed is the city in its state, or Michigan + Washington; the provider points at
+ *           that as fake locations); areaServed is the city in its state, or every state we serve; the provider points at
  *           the one business record (@id …/#business, lib/business-ld.ts).
+ * UPDATED : 2026-11-06_0500 UTC — city pages link to their market page (/areas/<market>); state names for NY, NJ, NV.
  */
 import Link from "next/link";
-import { BOOK_NOW, BRAND, CATEGORIES, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
+import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
 import { categoryHref } from "./site";
 import type { PublicReview } from "@/lib/reviews";
 import { siteUrl } from "@/lib/notify";
@@ -54,7 +55,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
   const ld = {
     "@context": "https://schema.org", "@type": "Service", name: `${s.name}${where}`, description: s.description, serviceType: s.name,
     provider: { "@type": "HomeAndConstructionBusiness", "@id": `${siteUrl()}/#business`, name: BRAND.name, telephone: BRAND.supportPhone, url: `${siteUrl()}/home` },
-    areaServed: city ? { "@type": "City", name: city.name, containedInPlace: { "@type": "State", name: city.state === "WA" ? "Washington" : "Michigan" } } : [{ "@type": "State", name: "Michigan" }, { "@type": "State", name: "Washington" }],
+    areaServed: city ? { "@type": "City", name: city.name, containedInPlace: { "@type": "State", name: STATE_NAME[city.state] ?? city.state } } : SERVICE_AREA.map((a) => ({ "@type": "State", name: a.name })),
     ...(reviews.count >= 3 && reviews.average ? { aggregateRating: { "@type": "AggregateRating", ratingValue: reviews.average, reviewCount: reviews.count, bestRating: 5 } } : {}),
   };
   return (
@@ -66,6 +67,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         <p className="mt-2 text-lg text-brand">{txt.tagline}</p>
         {reviews.average && reviews.count >= 3 && <p className="mt-2 text-sm"><span className="text-amber-500">{stars(reviews.average)}</span> <b>{reviews.average}</b> from {reviews.count} customer reviews</p>}
         <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? ` We serve ${city.name} and nearby neighborhoods with vetted, insured local pros — book online with an upfront price.` : ""}</p>
+        {city && marketForCity(city) && <p className="mt-2 text-sm"><Link href={`/areas/${marketForCity(city)!.slug}`} className="text-brand underline">{locale === "es" ? `Más servicios en ${marketForCity(city)!.name}` : `More services in ${marketForCity(city)!.name}`} →</Link></p>}
         <h2 className="mt-10 font-bold">{locale === "es" ? "Qué incluye" : "What’s included"}</h2>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {s.includes.map((i) => <li key={i} className="flex gap-2 text-sm"><span className="text-brand">✓</span>{tr(locale, i)}</li>)}
