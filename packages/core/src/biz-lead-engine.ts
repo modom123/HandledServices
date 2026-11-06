@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: property managers and offices lead with cleaning (move-out cleans, recurring office cleaning).
  * UPDATED : 2026-10-07_2030 UTC — job-posting discovery: JOB_POST_AREAS (Michigan + Washington), JOB_POST_QUERIES, parseAdzuna, screenJobPosting
  *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
+ * UPDATED : 2026-11-06_0234 UTC — job-posting searches cover New York, New Jersey and the Las Vegas area too.
  */
 import { BRAND } from "./brand.ts";
 
@@ -170,12 +171,17 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
 // Job sites like Indeed don't allow scraping. Adzuna is a job search engine with a public API that aggregates
 // postings from many boards; we search it daily for businesses hiring for work we do, in the states we serve.
 
-/** Where we look (the states we serve: Michigan and Washington). */
-export const JOB_POST_AREAS: { where: string; state: "MI" | "WA" }[] = [
+/** Where we look (the areas we serve: Michigan, Washington, New York, New Jersey and the Las Vegas area). */
+export const JOB_POST_AREAS: { where: string; state: "MI" | "WA" | "NY" | "NJ" | "NV" }[] = [
   { where: "Detroit, MI", state: "MI" }, { where: "Ann Arbor, MI", state: "MI" }, { where: "Troy, MI", state: "MI" }, { where: "Grand Rapids, MI", state: "MI" },
   { where: "Lansing, MI", state: "MI" }, { where: "Flint, MI", state: "MI" }, { where: "Kalamazoo, MI", state: "MI" }, { where: "Saginaw, MI", state: "MI" },
   { where: "Seattle, WA", state: "WA" }, { where: "Bellevue, WA", state: "WA" }, { where: "Tacoma, WA", state: "WA" }, { where: "Everett, WA", state: "WA" },
   { where: "Spokane, WA", state: "WA" }, { where: "Olympia, WA", state: "WA" }, { where: "Vancouver, WA", state: "WA" }, { where: "Kent, WA", state: "WA" },
+  { where: "New York, NY", state: "NY" }, { where: "Brooklyn, NY", state: "NY" }, { where: "Queens, NY", state: "NY" }, { where: "Yonkers, NY", state: "NY" },
+  { where: "Hempstead, NY", state: "NY" }, { where: "Albany, NY", state: "NY" }, { where: "Buffalo, NY", state: "NY" }, { where: "Rochester, NY", state: "NY" },
+  { where: "Newark, NJ", state: "NJ" }, { where: "Jersey City, NJ", state: "NJ" }, { where: "Paterson, NJ", state: "NJ" }, { where: "Edison, NJ", state: "NJ" },
+  { where: "Trenton, NJ", state: "NJ" }, { where: "Cherry Hill, NJ", state: "NJ" },
+  { where: "Las Vegas, NV", state: "NV" }, { where: "Henderson, NV", state: "NV" }, { where: "North Las Vegas, NV", state: "NV" },
 ];
 /** What we search for (job titles of work we can do as a service). */
 export const JOB_POST_QUERIES = ["cleaner", "janitor", "custodian", "housekeeper", "porter", "maintenance technician", "groundskeeper"] as const;

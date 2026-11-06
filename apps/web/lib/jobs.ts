@@ -48,10 +48,11 @@
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
+ * UPDATED : 2026-11-06_0234 UTC — closed-area message lists every area we serve (SERVED_AREAS).
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { SERVED_AREAS, isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -169,7 +170,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
   if (!launch.open) throw new Error(launch.market
     ? `${svc.name} is coming soon to ${launch.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
-    : "We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach your area.");
+    : `We serve ${SERVED_AREAS.en} right now. Join the waitlist on the booking page and we'll tell you when we reach your area.`);
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   // request-a-quote: the pro's firm quote is the price (no site visit, no AI re-price)

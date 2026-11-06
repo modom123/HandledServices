@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-07_1830 UTC — get_estimate takes the ZIP and applies the area price level.
  * UPDATED : 2026-10-20_0100 UTC — save_lead goes through the Lead inbox (dedupe, instant reply, alert to call).
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology is consultation-only: the catalog and get_estimate never give the AI a price for it.
+ * UPDATED : 2026-11-06_0234 UTC — area pricing note names New York, New Jersey and Las Vegas.
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -44,7 +45,7 @@ const tools = [
       service_slug: z.string(),
       answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).describe("Question id → answer; see list_questions"),
       frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).optional(),
-      zip: z.string().regex(/^\d{5}$/).optional().describe("The customer's 5-digit ZIP if known — prices differ by area (Seattle area and Washington cost more)"),
+      zip: z.string().regex(/^\d{5}$/).optional().describe("The customer's 5-digit ZIP if known — prices differ by area (New York City, Long Island, the Seattle area, Washington, New Jersey and Las Vegas cost more than Michigan)"),
     }),
     run: async ({ service_slug, answers, frequency, zip }) => {
       const svc = getService(service_slug);
@@ -53,7 +54,7 @@ const tools = [
       const region = zip ? await (await import("../launch")).regionFactor(zip, service_slug) : 1;
       if (consultOnly(service_slug)) return JSON.stringify({ consultation_only: true, note: "Business & Technology solutions are scoped on a free video consultation. Never quote a price or range; offer to book the free consultation." });
       const e = estimate({ slug: service_slug, answers: { ...defaults, ...answers }, frequency, region });
-      return JSON.stringify({ range: moneyRange(e.low, e.high), ...(zip ? {} : { note: "Prices vary by area: ask for the ZIP to quote exactly (Washington is higher)." }), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: e.siteVisit, items: e.items });
+      return JSON.stringify({ range: moneyRange(e.low, e.high), ...(zip ? {} : { note: "Prices vary by area: ask for the ZIP to quote exactly (New York, New Jersey, Washington and Las Vegas are higher than Michigan)." }), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: e.siteVisit, items: e.items });
     },
   }),
   betaZodTool({

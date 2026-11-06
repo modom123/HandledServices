@@ -10,16 +10,17 @@
  *             proCalendar()   — each day ahead: working or off (and why), jobs booked vs daily limit
  *           Times are local to our operating area (OPS_TIME_ZONE).
  * UPDATED : 2026-10-07_1900 UTC — Washington runs on Pacific time: timeZoneForZip / jobTimeZone / proTimeZone / zoneLabel; a pro's "today" uses their own zone.
+ * UPDATED : 2026-11-06_0234 UTC — Nevada (889–898, Las Vegas area) is Pacific too; New York and New Jersey are Eastern (the default).
  */
 import type { Contractor, TimeWindow } from "./types.ts";
 
 export const ROSTER_TIME_ZONE = "America/Detroit";
 export const PACIFIC_TIME_ZONE = "America/Los_Angeles";
 
-/** Time zone of a ZIP we serve: Washington (980–994) is Pacific; Michigan (and anything else) is Eastern. */
+/** Time zone of a ZIP we serve: Washington (980–994) and Nevada (889–898) are Pacific; Michigan, New York, New Jersey (and anything else) are Eastern. */
 export function timeZoneForZip(zip?: string | null): string {
   const p = zip && /^\d{3}/.test(zip) ? Number(zip.slice(0, 3)) : NaN;
-  return p >= 980 && p <= 994 ? PACIFIC_TIME_ZONE : ROSTER_TIME_ZONE;
+  return (p >= 980 && p <= 994) || (p >= 889 && p <= 898) ? PACIFIC_TIME_ZONE : ROSTER_TIME_ZONE;
 }
 /** A job's local time zone (from its ZIP). */
 export const jobTimeZone = (j: { zip?: string | null }) => timeZoneForZip(j.zip);

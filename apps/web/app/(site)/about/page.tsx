@@ -5,9 +5,10 @@
  * PURPOSE : About us — the slogan, our mission statement, who we are, what we stand for (values), the company in numbers,
  *           why it works for customers and pros, and the ways to work with us. All words come from BRAND_STORY in @handled/core (change them there).
  *           English / Spanish.
+ * UPDATED : 2026-11-06_0234 UTC — states fact: Michigan, Washington, New York & New Jersey, plus the Las Vegas area.
  */
 import Link from "next/link";
-import { BRAND, BRAND_STORY, CATEGORIES, SERVICES } from "@handled/core";
+import { BRAND, BRAND_STORY, CATEGORIES, SERVED_AREAS, SERVICES } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { WhyItWorks } from "@/components/home/WhyItWorks";
 
@@ -19,7 +20,7 @@ export default async function About() {
   const facts = [
     { n: `${SERVICES.length}`, l: es ? "servicios en un solo lugar" : "services in one place" },
     { n: `${CATEGORIES.length}`, l: es ? "categorías, del hogar al negocio" : "categories, home to business" },
-    { n: "2", l: es ? "estados: Michigan y Washington" : "states: Michigan & Washington" },
+    { n: `${SERVED_AREAS.count}`, l: es ? "estados: Michigan, Washington, Nueva York y Nueva Jersey, más el área de Las Vegas" : "states: Michigan, Washington, New York & New Jersey, plus the Las Vegas area" },
     { n: `${BRAND.guaranteeDays}`, l: es ? "días de garantía en cada trabajo" : "days of guarantee on every job" },
   ];
   const doors = [

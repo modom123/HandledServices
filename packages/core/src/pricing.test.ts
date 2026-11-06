@@ -1753,6 +1753,25 @@ test("Washington runs on Pacific time", async () => {
   assert.equal(Math.round(sea - det), 3);
 });
 
+test("Las Vegas is Pacific; New York and New Jersey are Eastern", async () => {
+  const { timeZoneForZip, zoneLabel } = await import("./roster.ts");
+  assert.equal(timeZoneForZip("89101"), "America/Los_Angeles", "Las Vegas");
+  assert.equal(timeZoneForZip("89052"), "America/Los_Angeles", "Henderson");
+  assert.equal(zoneLabel(timeZoneForZip("89501")), "PT", "Reno is Pacific too (not served yet)");
+  assert.equal(timeZoneForZip("10001"), "America/Detroit", "Manhattan: Eastern");
+  assert.equal(timeZoneForZip("14201"), "America/Detroit", "Buffalo: Eastern");
+  assert.equal(timeZoneForZip("07302"), "America/Detroit", "Jersey City: Eastern");
+  assert.equal(zoneLabel(timeZoneForZip("08401")), "ET", "Atlantic City");
+});
+
+test("New York City price level raises the price and stays within the bound", () => {
+  const ans = { bedrooms: 2, bathrooms: 1 };
+  const base = estimate({ slug: "house-cleaning", answers: ans });
+  const nyc = estimate({ slug: "house-cleaning", answers: ans, region: 1.35 });
+  assert.ok(nyc.low > base.low && nyc.high > base.high, "NYC costs more than Michigan");
+  assert.equal(nyc.region, 1.35);
+});
+
 test("job-posting discovery: parse Adzuna and screen buyers", async () => {
   const { parseAdzuna, screenJobPosting } = await import("./biz-lead-engine.ts");
   const c = parseAdzuna({ results: [

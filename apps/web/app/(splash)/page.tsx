@@ -13,9 +13,10 @@
  * UPDATED : 2026-10-07_2100 UTC — simplified to the logo and the tagline (plus Enter / Get my price); categories and trust
  *           points live on the home page.
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" link in the footer row (Referral Partner Program).
+ * UPDATED : 2026-11-06_0234 UTC — "Now serving" badge lists every area we serve (SERVED_AREAS).
  */
 import Link from "next/link";
-import { BRAND, t as tr } from "@handled/core";
+import { BRAND, SERVED_AREAS, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: { absolute: `${BRAND.name} — ${BRAND.tagline}` }, description: BRAND.pitch };
@@ -37,7 +38,7 @@ export default async function Splash() {
           {es ? "Servicios para hogar y negocio." : "Home & business services."} <span className="text-[#4a9a46]">{t("Handled.")}</span>
         </p>
         <span className="splash-in mt-5 inline-flex items-center gap-2 rounded-full bg-[#0f6b66]/10 px-3 py-1 text-xs font-semibold text-[#0f6b66]" style={{ animationDelay: "0.6s" }}>
-          ● {es ? "Ahora en Michigan y Washington" : "Now serving Michigan & Washington"}
+          ● {es ? `Ahora en ${SERVED_AREAS.short.es}` : `Now serving ${SERVED_AREAS.short.en}`}
         </span>
         <div className="splash-in mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "0.7s" }}>
           <Link href="/home" className="btn bg-[#0f6b66] px-8 py-3.5 text-base text-white hover:bg-[#0c5753]">{t("Enter")} {BRAND.name} →</Link>

@@ -34,6 +34,7 @@
  *                                 and a draft answer (for Unibox) in the alert and the lead's history.
  * UPDATED : 2026-10-20_0015 UTC — logCall (Call desk): saves the outcome, sets when to call again, stops email for a
  *           no / do-not-contact (Instantly block list), alerts the team on an interested business.
+ * UPDATED : 2026-11-06_0234 UTC — Places discovery and job-posting leads cover New York, New Jersey and the Las Vegas area.
  */
 import "server-only";
 import { z } from "zod";
@@ -48,9 +49,14 @@ import { aiEnabled, structured } from "./ai/client";
 import { safeFetch } from "./safe-fetch";
 
 const db = () => adminClient();
-// Michigan (Detroit metro focus) + Washington (Puget Sound and Spokane) — the states we serve
+const SERVED_LEAD_STATES = ["MI", "WA", "NY", "NJ", "NV"];
+// Michigan (Detroit metro focus) + Washington (Puget Sound and Spokane) + New York, New Jersey and the Las Vegas area — where we serve
 const WA_CITIES = ["Seattle", "Bellevue", "Redmond", "Kirkland", "Renton", "Kent", "Tacoma", "Federal Way", "Everett", "Lynnwood", "Olympia", "Vancouver", "Spokane"];
-const METRO = [...FOCUS_CITIES.map((c) => ({ city: c, state: "MI" })), ...WA_CITIES.map((c) => ({ city: c, state: "WA" }))];
+const NY_CITIES = ["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island", "Yonkers", "White Plains", "Hempstead", "Huntington", "Albany", "Buffalo", "Rochester", "Syracuse"];
+const NJ_CITIES = ["Newark", "Jersey City", "Hoboken", "Paterson", "Hackensack", "Elizabeth", "Edison", "New Brunswick", "Morristown", "Trenton", "Toms River", "Cherry Hill"];
+const NV_CITIES = ["Las Vegas", "Henderson", "North Las Vegas", "Summerlin", "Boulder City"];
+const METRO = [...FOCUS_CITIES.map((c) => ({ city: c, state: "MI" })), ...WA_CITIES.map((c) => ({ city: c, state: "WA" })),
+  ...NY_CITIES.map((c) => ({ city: c, state: "NY" })), ...NJ_CITIES.map((c) => ({ city: c, state: "NJ" })), ...NV_CITIES.map((c) => ({ city: c, state: "NV" }))];
 
 export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number }
 export async function getBizLeadSettings(): Promise<BizLeadSettings> {
@@ -138,7 +144,7 @@ export async function discoverJobPostings(s: BizLeadSettings) {
       const company = c.company.trim();
       const k = company.toLowerCase();
       const screen = screenJobPosting(c);
-      if (!screen.keep || !["MI", "WA"].includes(state) || seen.has(k)) { out.skipped++; continue; }
+      if (!screen.keep || !SERVED_LEAD_STATES.includes(state) || seen.has(k)) { out.skipped++; continue; }
       seen.add(k);
       // one lead per company: skip if we already have them (any source)
       const { data: dup } = await db().from("biz_leads").select("id").ilike("business_name", company.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle();
@@ -499,6 +505,6 @@ export async function bizLeadEngine() {
   if (!process.env.GOOGLE_PLACES_API_KEY || !instantlyBizReady())
     await raiseAlert("sales", "info", "Business sales engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing. " : ""}${!instantlyBizReady() ? "INSTANTLY_BIZ_CAMPAIGN_ID (a second Instantly campaign) / INSTANTLY_API_KEY / BUSINESS_POSTAL_ADDRESS missing." : ""}`);
   if (!jobBoardReady() && (s.job_posts_per_day ?? 6) > 0)
-    await raiseAlert("sales", "info", "Job-posting leads are waiting for an Adzuna key", "Get a free key at developer.adzuna.com, then set ADZUNA_APP_ID and ADZUNA_APP_KEY in Vercel. Businesses in Michigan and Washington hiring cleaners, janitors, porters and maintenance techs become leads automatically.");
+    await raiseAlert("sales", "info", "Job-posting leads are waiting for an Adzuna key", "Get a free key at developer.adzuna.com, then set ADZUNA_APP_ID and ADZUNA_APP_KEY in Vercel. Businesses in Michigan, Washington, New York, New Jersey and the Las Vegas area hiring cleaners, janitors, porters and maintenance techs become leads automatically.");
   return { enabled: true, instantly, discovered, jobPosts, emailsFound, sent, purged };
 }

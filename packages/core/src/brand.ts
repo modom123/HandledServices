@@ -13,6 +13,8 @@
  *           English and Spanish. Used by the About page, the home page, the footer and the side menu.
  *           BRAND_STORY.why: what customers get, what pros get, and why the model works for both.
  * UPDATED : 2026-10-27_1600 UTC — "100+ services" (the catalog passed 100).
+ * UPDATED : 2026-11-06_0234 UTC — SERVED_AREAS: one wording for where we work (Michigan, Washington, New York, New Jersey and the
+ *           Las Vegas area), used by the booking messages, splash and About pages.
  */
 
 // Contact details come from env so going live needs no code change:
@@ -31,6 +33,14 @@ try {
 }
 /** True while the placeholder contact details are still in use (flagged on the Hub setup page). */
 export const BRAND_PLACEHOLDERS = supportEmail.endsWith(".example") || supportPhone.includes("555");
+
+/** Where Handled works, in one place (the states and ZIP ranges are in apps/web/lib/launch.ts SERVED_STATES). */
+export const SERVED_AREAS = {
+  count: 4, // states
+  en: "Michigan, Washington, New York, New Jersey and the Las Vegas area",
+  es: "Michigan, Washington, Nueva York, Nueva Jersey y el área de Las Vegas",
+  short: { en: "MI · WA · NY · NJ · Las Vegas", es: "MI · WA · NY · NJ · Las Vegas" },
+} as const;
 
 export const BRAND = {
   name: "Handled",
@@ -70,12 +80,12 @@ export const BRAND_STORY = {
     en: [
       "Handled Services LLC is a home and business services company based in Michigan. We bring more than 100 services into one place — cleaning, repairs, carpentry, masonry, roofing, painting, lawn and snow, moving and hauling, pet care, events, rides and business technology — so you never have to search for, vet and chase a contractor again.",
       "Insured, background-checked local pros do the work. Our AI-powered operations team prices every job up front, sends the right pro, tracks it live, checks the finished work with photos and stands behind it. A small team of real people runs it all and steps in whenever it matters.",
-      "We started in Metro Detroit, we serve Michigan and Washington, and we grow city by city — wherever we can find great pros and keep our promise.",
+      "We started in Metro Detroit, we serve Michigan, Washington, New York, New Jersey and the Las Vegas area, and we grow city by city — wherever we can find great pros and keep our promise.",
     ],
     es: [
       "Handled Services LLC es una empresa de servicios para hogares y negocios con sede en Michigan. Reunimos más de 100 servicios en un solo lugar — limpieza, reparaciones, carpintería, albañilería, techos, pintura, jardín y nieve, mudanzas y acarreos, mascotas, eventos, transporte y tecnología para negocios — para que nunca vuelva a buscar, verificar y perseguir a un contratista.",
       "El trabajo lo hacen profesionales locales asegurados y con verificación de antecedentes. Nuestro equipo de operaciones con inteligencia artificial pone precio a cada trabajo por adelantado, envía al profesional indicado, lo sigue en vivo, revisa el trabajo terminado con fotos y lo respalda. Un pequeño equipo de personas reales lo dirige todo e interviene cuando importa.",
-      "Empezamos en el área metropolitana de Detroit, atendemos Michigan y Washington, y crecemos ciudad por ciudad, donde encontremos excelentes profesionales y podamos cumplir nuestra promesa.",
+      "Empezamos en el área metropolitana de Detroit, atendemos Michigan, Washington, Nueva York, Nueva Jersey y el área de Las Vegas, y crecemos ciudad por ciudad, donde encontremos excelentes profesionales y podamos cumplir nuestra promesa.",
     ],
   },
   /** Why it works — for customers, for pros, and the model that makes both true. */

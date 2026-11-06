@@ -52,6 +52,7 @@
  * UPDATED : 2026-10-21_0130 UTC — Instantly webhook secret optional: replies are pulled from the API without it.
  * UPDATED : 2026-10-21_0030 UTC — migrations from Oct 19–21 probed (one paste: RUN_ONCE_ALL_NEW_2026-10-21_0000.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
+ * UPDATED : 2026-11-06_0234 UTC — service areas include New York, New Jersey and Las Vegas; sales tax must be on before NY/NJ bookings (both tax many services).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -140,7 +141,7 @@ export async function readiness(): Promise<Check[]> {
       add("Payments (Stripe)", "Stripe account", false, `key rejected: ${e instanceof Error ? e.message : e}`, "Re-copy STRIPE_SECRET_KEY");
     }
     add("Webhooks", "Stripe: signing secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.succeeded (app payments), charge.refunded (refunds made in Stripe), charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, identity.verification_session.verified and identity.verification_session.requires_input (pro ID checks); copy the signing secret`);
-    add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services; turn on before adding states that tax services", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
+    add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services, but New York and New Jersey tax many services (cleaning, maintenance, lawn care, repairs): turn it on before taking bookings there", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
     await stripeAccountChecks(stripe, add, site || siteUrlNow());
   }
   // ── Pro recruiting (background checks)
@@ -222,7 +223,7 @@ export async function readiness(): Promise<Check[]> {
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
-  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington). Handled serves Michigan and Washington; a missing ZIP in those states is added when it is first booked");
+  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington) and ADD_NY_NJ_LAS_VEGAS_SERVICE_AREAS_2026-11-06_0234.sql (New York, New Jersey, Las Vegas). Handled serves Michigan, Washington, New York, New Jersey and the Las Vegas area; a missing ZIP in those states is added when it is first booked");
   const results = await Promise.all(probes.map(async ([file, label, run]) => ({ file, label, error: (await run()).error })));
   for (const { file, label, error } of results)
     add(M, label[0].toUpperCase() + label.slice(1), !error, error ? `not applied (${error.message})` : `applied · ${file}`,

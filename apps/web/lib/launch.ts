@@ -13,6 +13,9 @@
  * UPDATED : 2026-10-21_0200 UTC — pro-led rollout: a service outside a city's launch list opens in a ZIP as soon as an approved
  *           pro would be offered it there (dispatch's eligible(): trade, license, insurance, background check, service
  *           area), and closes again if no pro covers it. The waitlist for that service and ZIP is told on the next sweep.
+ * UPDATED : 2026-11-06_0234 UTC — new states: New York (100–149) and New Jersey (070–089) statewide, and Nevada's Las Vegas area
+ *           (889–891: the Las Vegas Valley, Henderson, North Las Vegas, Boulder City, Pahrump, Mesquite, Laughlin). Reno and the
+ *           rest of Nevada stay on the waitlist. A ZIP in these ranges missing from every market is added on first booking.
  */
 import "server-only";
 import { eligible, getService, marketForZip, serviceOpen, type Contractor, type LaunchMarket } from "@handled/core";
@@ -33,6 +36,9 @@ export async function launchMarkets(): Promise<LaunchMarket[]> {
 export const SERVED_STATES: { state: string; name: string; from: number; to: number; priceMultiplier: number }[] = [
   { state: "MI", name: "Michigan", from: 480, to: 499, priceMultiplier: 1 },
   { state: "WA", name: "Washington", from: 980, to: 994, priceMultiplier: 1.2 }, // rest of WA +20% (Seattle-area markets are 1.25)
+  { state: "NJ", name: "New Jersey", from: 70, to: 89, priceMultiplier: 1.15 }, // ZIPs 070xx–089xx; markets 1.10–1.20
+  { state: "NY", name: "New York", from: 100, to: 149, priceMultiplier: 1.1 }, // markets 1.00 upstate – 1.35 New York City
+  { state: "NV", name: "Las Vegas area", from: 889, to: 891, priceMultiplier: 1.1 }, // Clark County + Pahrump; rest of Nevada not yet
 ];
 export const servedState = (zip: string | null | undefined) => {
   const p = zip && /^\d{5}$/.test(zip) ? Number(zip.slice(0, 3)) : NaN;
@@ -40,7 +46,7 @@ export const servedState = (zip: string | null | undefined) => {
 };
 
 /**
- * { open, market } for a service in a ZIP. Outside Michigan and Washington: closed (waitlist). Inside them but in no market
+ * { open, market } for a service in a ZIP. Outside the served states (SERVED_STATES): closed (waitlist). Inside them but in no market
  * yet: open — booking still needs a vetted pro who covers it (no pro → waitlist, nothing charged), and the first booking
  * adds the ZIP to a service area (addZipToServiceArea). Fails open if markets can't be read.
  */
@@ -81,7 +87,7 @@ export async function proCovers(slug: string, zip: string | null | undefined): P
 
 export const clearLaunchCache = () => { cache = null; proCache.clear(); coverCache.clear(); };
 
-/** The area's price level for a ZIP (markets.price_multiplier: Seattle area 1.25, rest of Washington 1.20, Michigan 1). */
+/** The area's price level for a ZIP (markets.price_multiplier: New York City 1.35, Seattle area 1.25, Michigan 1, …). */
 export async function regionFactor(zip: string | null | undefined, slug?: string): Promise<number> {
   if (slug && getService(slug)?.remote) return 1; // remote work costs the same everywhere
   try {

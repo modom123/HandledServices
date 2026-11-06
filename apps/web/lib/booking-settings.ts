@@ -7,6 +7,8 @@
  *           recruit or line up a pro, and the job waits in Dispatch. Off: those customers join the waitlist instead.
  *           Stored in site_settings (key "booking_without_pro"); BOOK_WITHOUT_PRO=off in Vercel is the fallback.
  *           Outside Michigan / Washington and services not launched in a city stay closed either way.
+ * UPDATED : 2026-11-06_0234 UTC — "outside the served areas" now means outside Michigan, Washington, New York, New Jersey and the
+ *           Las Vegas area (lib/launch SERVED_STATES). This switch applies in the new areas too.
  */
 import "server-only";
 import { cache } from "react";
