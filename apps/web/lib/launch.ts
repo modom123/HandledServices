@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-21_0200 UTC — pro-led rollout: a service outside a city's launch list opens in a ZIP as soon as an approved
  *           pro would be offered it there (dispatch's eligible(): trade, license, insurance, background check, service
  *           area), and closes again if no pro covers it. The waitlist for that service and ZIP is told on the next sweep.
+ * UPDATED : 2026-11-06_0500 UTC — New York, New Jersey and Nevada (Las Vegas) are served states.
  */
 import "server-only";
 import { eligible, getService, marketForZip, serviceOpen, type Contractor, type LaunchMarket } from "@handled/core";
@@ -33,6 +34,9 @@ export async function launchMarkets(): Promise<LaunchMarket[]> {
 export const SERVED_STATES: { state: string; name: string; from: number; to: number; priceMultiplier: number }[] = [
   { state: "MI", name: "Michigan", from: 480, to: 499, priceMultiplier: 1 },
   { state: "WA", name: "Washington", from: 980, to: 994, priceMultiplier: 1.2 }, // rest of WA +20% (Seattle-area markets are 1.25)
+  { state: "NY", name: "New York", from: 100, to: 149, priceMultiplier: 1.15 }, // upstate +15% (NYC and the suburbs have their own markets)
+  { state: "NJ", name: "New Jersey", from: 70, to: 89, priceMultiplier: 1.2 },
+  { state: "NV", name: "Nevada", from: 889, to: 898, priceMultiplier: 1.05 }, // Las Vegas Valley
 ];
 export const servedState = (zip: string | null | undefined) => {
   const p = zip && /^\d{5}$/.test(zip) ? Number(zip.slice(0, 3)) : NaN;

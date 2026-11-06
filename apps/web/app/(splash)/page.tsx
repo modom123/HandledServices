@@ -17,7 +17,7 @@
  *           not two with the same title; the business structured data is here too.
  */
 import Link from "next/link";
-import { BRAND, t as tr } from "@handled/core";
+import { BRAND, SERVED_AREAS_LABEL, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { businessLd, ldScript } from "@/lib/business-ld";
 
@@ -41,7 +41,7 @@ export default async function Splash() {
           {es ? "Servicios para hogar y negocio." : "Home & business services."} <span className="text-[#4a9a46]">{t("Handled.")}</span>
         </p>
         <span className="splash-in mt-5 inline-flex items-center gap-2 rounded-full bg-[#0f6b66]/10 px-3 py-1 text-xs font-semibold text-[#0f6b66]" style={{ animationDelay: "0.6s" }}>
-          ● {es ? "Ahora en Michigan y Washington" : "Now serving Michigan & Washington"}
+          ● {es ? `Ahora en ${SERVED_AREAS_LABEL.es}` : `Now serving ${SERVED_AREAS_LABEL.en}`}
         </span>
         <div className="splash-in mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "0.7s" }}>
           <Link href="/home" className="btn bg-[#0f6b66] px-8 py-3.5 text-base text-white hover:bg-[#0c5753]">{t("Enter")} {BRAND.name} →</Link>

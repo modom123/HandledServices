@@ -2482,3 +2482,22 @@ test("proposal writer: outlines, [[NEEDS]] markers, approval gate, RFIs need no 
   assert.ok(submitGate({ ...base, solicitationType: "rfp", proposal: approved }).missing.includes("No price lines"));
   assert.ok(!submitGate({ ...base, solicitationType: "rfi", proposal: [{ ...approved[0], status: "draft" }] }).canMarkSubmitted);
 });
+
+test("markets: NY, NJ and Las Vegas city pages, market pages, indexing per market", async () => {
+  const { CITY_PAGE_CITIES, SITE_MARKETS, SEO_CITY_BY_SLUG, marketForCity, SERVICE_AREA } = await import("./seo.ts");
+  const { isIndexedCityPage } = await import("./focus.ts");
+  const { getService } = await import("./services.ts");
+  assert.equal(new Set(CITY_PAGE_CITIES.map((c) => c.slug)).size, CITY_PAGE_CITIES.length, "city slugs are unique");
+  assert.ok(["las-vegas-nv", "brooklyn-ny", "jersey-city-nj"].every((s) => SEO_CITY_BY_SLUG[s]));
+  assert.deepEqual(SERVICE_AREA.map((s) => s.code).sort(), ["MI", "NJ", "NV", "NY", "WA"]);
+  for (const m of SITE_MARKETS) {
+    assert.ok(m.cities.length > 0, `${m.slug} has cities`);
+    for (const f of m.featured) assert.ok(getService(f), `${m.slug} features ${f}, which is in the catalog`);
+    for (const c of m.cities) assert.equal(marketForCity(c)?.slug, m.slug);
+  }
+  // handyman is indexed in Las Vegas (featured there), house cleaning everywhere (focus), a random service nowhere
+  assert.ok(isIndexedCityPage("handyman", "las-vegas-nv"));
+  assert.ok(isIndexedCityPage("house-cleaning", "henderson-nv"));
+  assert.ok(!isIndexedCityPage("furniture-assembly", "las-vegas-nv"));
+  assert.ok(isIndexedCityPage("furniture-assembly", "brooklyn-ny"));
+});

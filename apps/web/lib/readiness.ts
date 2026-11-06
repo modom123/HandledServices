@@ -267,7 +267,7 @@ export async function readiness(): Promise<Check[]> {
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
-  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington). Handled serves Michigan and Washington; a missing ZIP in those states is added when it is first booked");
+  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington). Handled serves Michigan, New York, New Jersey, Las Vegas and Washington (ADD_NY_NJ_LAS_VEGAS_2026-11-06_0500.sql opens the new three); a missing ZIP in those states is added when it is first booked");
   const results = await Promise.all(probes.map(async ([file, label, run]) => ({ file, label, error: (await run()).error })));
   for (const { file, label, error } of results)
     add(M, label[0].toUpperCase() + label.slice(1), !error, error ? `not applied (${error.message})` : `applied · ${file}`,

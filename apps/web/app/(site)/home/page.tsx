@@ -17,7 +17,7 @@ import { businessLd, ldScript } from "@/lib/business-ld";
 
 export const metadata: Metadata = {
   title: { absolute: `${BRAND.name} — Home & business services in Michigan & Washington` },
-  description: "Cleaning, repairs, painting, lawn and snow, moving, hauling and 100+ more home and business services in Michigan and Washington. Upfront prices, vetted insured pros, and work checked with photos.",
+  description: "Cleaning, repairs, painting, lawn and snow, moving, hauling and 100+ more home and business services in Michigan, New York, New Jersey, Las Vegas and Washington. Upfront prices, vetted insured pros, and work checked with photos.",
   alternates: { canonical: "/home" },
 };
 

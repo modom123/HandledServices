@@ -7,9 +7,10 @@
  * UPDATED : 2026-10-05_0419 UTC — search description: exact price in a minute (no "from $X").
  * UPDATED : 2026-11-04_2230 UTC — SEO: only focus services' city pages are indexed; the rest are noindex,follow with the
  *           service page as canonical (they still work for visitors and ads). Washington cities added (WA_SEO_CITIES).
+ * UPDATED : 2026-11-06_0500 UTC — indexed when the service is a focus service or one its market leads with (isIndexedCityPage).
  */
 import { notFound } from "next/navigation";
-import { BRAND, SEO_CITY_BY_SLUG, getService, isFocusService } from "@handled/core";
+import { BRAND, SEO_CITY_BY_SLUG, getService, isIndexedCityPage } from "@handled/core";
 import { publicReviews } from "@/lib/reviews";
 import { ServiceLanding } from "@/components/ServiceLanding";
 import { getLocale } from "@/lib/locale";
@@ -24,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${s.name} in ${c.name}, ${c.state}`,
     description: `${s.tagline} Vetted, insured ${s.name.toLowerCase()} pros in ${c.name}. Your exact price online in about a minute. ${BRAND.promise}`,
-    // only the focus services' city pages are indexed: thousands of near-identical city pages read as doorway pages
-    ...(isFocusService(s.slug)
+    // indexed: the focus services everywhere + what each market leads with (handyman in Las Vegas…); the rest noindex —
+    // thousands of near-identical city pages read as doorway pages
+    ...(isIndexedCityPage(s.slug, c.slug)
       ? { alternates: { canonical: `/services/${s.slug}/in/${c.slug}` } }
       : { alternates: { canonical: `/services/${s.slug}` }, robots: { index: false, follow: true } }),
   };
