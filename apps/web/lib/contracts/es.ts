@@ -5,6 +5,7 @@
  * PURPOSE : All Spanish translations of the contract library, by contract key. English controls
  *           if they differ (said at the top of every Spanish copy).
  * UPDATED : 2026-10-05_2034 UTC — Handled Talent client agreement (Spanish).
+ * UPDATED : 2026-11-06_0311 UTC — state addenda (New York, New Jersey, Nevada), customers and pros.
  */
 import type { ContractTranslation } from "./types";
 import { CUSTOMER_ES_A } from "./es-customer-a";
@@ -12,5 +13,6 @@ import { CUSTOMER_ES_B } from "./es-customer-b";
 import { PRO_ES_A } from "./es-pro-a";
 import { PRO_ES_B } from "./es-pro-b";
 import { TALENT_CLIENT_AGREEMENT_ES } from "./talent";
+import { STATE_ES } from "./es-state";
 
-export const CONTRACTS_ES: Record<string, ContractTranslation> = { ...CUSTOMER_ES_A, ...CUSTOMER_ES_B, ...PRO_ES_A, ...PRO_ES_B, "talent-client-agreement": TALENT_CLIENT_AGREEMENT_ES };
+export const CONTRACTS_ES: Record<string, ContractTranslation> = { ...CUSTOMER_ES_A, ...CUSTOMER_ES_B, ...PRO_ES_A, ...PRO_ES_B, "talent-client-agreement": TALENT_CLIENT_AGREEMENT_ES, ...STATE_ES };

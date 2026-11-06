@@ -49,6 +49,7 @@
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
  * UPDATED : 2026-11-06_0234 UTC — closed-area message lists every area we serve (SERVED_AREAS).
+ * UPDATED : 2026-11-06_0311 UTC — the booking's accepted contracts include the state addendum for the service address (NY, NJ, NV).
  */
 import "server-only";
 import { z } from "zod";
@@ -302,7 +303,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     if (e) await raiseAlert("job_access", "warn", `Entry details for ${job.ref} not saved — run RUN_ONCE_LATEST_2026-10-12_1525.sql`, `Give these to the assigned pro by hand:\n${access}`, job.id);
   });
   // the contracts accepted with this booking → the customer's "My contracts" (frozen copy of the text)
-  await recordAcceptance(bookingContracts(job.service_slug, input.customer_type === "commercial"), {
+  await recordAcceptance(bookingContracts(job.service_slug, input.customer_type === "commercial", job.zip), {
     profileId: customerId, email: job.contact_email, signerName: job.contact_name, jobId: job.id, method: "booking", ip, locale: input.locale,
   }).catch((e) => console.error("[contracts]", e));
   // booking in Spanish (signed in) → remember it on the account too

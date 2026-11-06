@@ -25,6 +25,7 @@
  *           pro-docs bucket as contractor_documents kinds 'resume' / 'photo' (staff open them in Hub → Pros).
  * UPDATED : 2026-10-18_0415 UTC — w9: LLCs taxed as S/C corporations (llc_s_corp, llc_c_corp). agreement: signed_for (the
  *           business's legal name, blank when signing as yourself) + signer_title — recorded on the pro and every signed copy.
+ * UPDATED : 2026-11-06_0311 UTC — the signed set includes the state addenda for the pro's base and service ZIPs (New York, New Jersey, Nevada).
  */
 import { after } from "next/server";
 import { z } from "zod";
@@ -157,8 +158,8 @@ export async function POST(req: Request) {
     await db.from("contractor_documents").insert({ contractor_id: id, kind: "agreement", status: "verified", verified_by: "e-signature", verified_at: signedAt,
       notes: `Signed v${AGREEMENT_VERSION} by "${b.signer_name}"${signedFor ? `, ${title}, for ${signedFor}` : ""} · ip ${req.headers.get("x-forwarded-for") ?? "?"}` });
     // one e-signature covers the whole set: agreement, policies, consents and the addenda for their trades
-    const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
-    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, onBehalfOf: signedFor, signerTitle: title, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
+    const { data: me } = await db.from("contractors").select("trades, email, profile_id, state, zip, base_state, base_zip, service_zips").eq("id", id).single();
+    await recordAcceptance(proSigningSet((me?.trades ?? []) as string[], { state: me?.state as string | null, zip: me?.zip as string | null, base_state: me?.base_state as string | null, base_zip: me?.base_zip as string | null, service_zips: me?.service_zips as string[] | null }), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, onBehalfOf: signedFor, signerTitle: title, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
   } else if (b.step === "payout") {
     await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id);
   }

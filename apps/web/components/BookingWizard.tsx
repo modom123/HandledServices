@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  * UPDATED : 2026-10-27_2100 UTC — customers no longer see what the pro earns (internal; it lives in the Hub's job money view).
+ * UPDATED : 2026-11-06_0311 UTC — next to the agreement box, a link to the state addendum when the address is in New York, New Jersey or Nevada.
  */
 "use client";
 
@@ -68,6 +69,15 @@ function readAttribution(): Record<string, string> | null {
 type AiResult = { final_price: number; low: number; high: number; customer_summary: string; needs_site_visit: boolean; action?: "price" | "site_visit"; action_reason?: string; changes?: { label: string; from: string; to: string; reason: string }[] } | null;
 
 /** Booking for a business account's property: address and company come from the property. */
+/** The state addendum a service address's ZIP adds to the booking (same ranges as lib/contracts/state.ts). */
+function stateAddendum(zip: string): { key: string; en: string; es: string } | null {
+  const n = /^\d{5}$/.test(zip) ? Number(zip.slice(0, 3)) : NaN;
+  if (n >= 100 && n <= 149) return { key: "addendum-new-york", en: "New York", es: "Nueva York" };
+  if (n >= 70 && n <= 89) return { key: "addendum-new-jersey", en: "New Jersey", es: "Nueva Jersey" };
+  if (n >= 889 && n <= 898) return { key: "addendum-nevada", en: "Nevada", es: "Nevada" };
+  return null;
+}
+
 export interface BusinessBooking { propertyId: string; propertyName: string; company: string; address: string; city: string; state: string; zip: string; billing: string; contact: { name: string; email: string; phone: string } }
 
 /** "Book again with …" (?pro=&crew=): checked server-side against the customer's favorites and past pros. */
@@ -403,6 +413,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
               <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
+            {(() => { const sa = stateAddendum(form.zip); return sa ? <p className="text-xs text-ink-soft">{es ? `Para trabajos en ${sa.es} también acepta el ` : `For work in ${sa.en} you also agree to the `}<a href={`/terms/${sa.key}${es ? "?lang=es" : ""}`} target="_blank" className="font-semibold text-brand underline">{es ? `Anexo de ${sa.es}` : `${sa.en} Addendum`}</a>{sa.key !== "addendum-nevada" ? (es ? " (incluye su derecho a cancelar mejoras del hogar dentro de 3 días hábiles)." : " (it includes your right to cancel home improvement work within 3 business days).") : "."}</p> : null; })()}
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>

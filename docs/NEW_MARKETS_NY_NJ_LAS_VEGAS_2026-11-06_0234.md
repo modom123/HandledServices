@@ -2,6 +2,7 @@
   FILE    : docs/NEW_MARKETS_NY_NJ_LAS_VEGAS_2026-11-06_0234.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-11-06_0234 UTC
+  UPDATED : 2026-11-06_0311 UTC — contracts drafted (state addenda); see STATE_CONTRACTS_NY_NJ_NV_2026-11-06_0311.md.
   PURPOSE : What opening New York, New Jersey and the Las Vegas area changed in the app, how to switch it on, and the
             registrations, licenses and taxes to sort out before taking money there.
 -->
@@ -67,11 +68,6 @@ These are summaries to confirm with a professional, not legal advice.
 - **Taxes:** Nevada generally **does not tax services**. Materials sold are taxable. The Commerce Tax applies only above $4M of Nevada revenue.
 
 ### Contracts and vetting (all three states)
-- **Contracts:** the customer and pro agreements use Michigan law, with a Washington exception. Add NY, NJ and NV sections the way Washington's v2 was done:
-  - Local law and courts.
-  - Sales-tax notes.
-  - NJ home-improvement contract terms.
-  - NY freelance terms.
-  - Have a lawyer review them.
+- **Contracts:** drafted 2026-11-06 as state addenda (`apps/web/lib/contracts/state.ts`, Spanish in `es-state.ts`). See `docs/STATE_CONTRACTS_NY_NJ_NV_2026-11-06_0311.md`. **A lawyer licensed in each state must review them before you take bookings there.**
 - **Vetting:** trade license notes in `packages/core/src/vetting.ts` describe Michigan (LARA) and some Washington (L&I) rules. Until they're updated, staff should check NY/NYC, NJ and NSCB licenses by hand during pro approval.
 - **SEO:** no "service in city" pages were added for the new areas. Add cities to `packages/core/src/seo.ts` once pros cover them.

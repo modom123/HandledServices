@@ -9,6 +9,8 @@
  *           Plus a content hash so a person's frozen copy can be proven unchanged.
  * UPDATED : 2026-10-03_0050 UTC — Spanish: localized(contract, lang) from the translations in es.ts.
  * UPDATED : 2026-10-05_2034 UTC — Handled Talent client agreement (recruiting services).
+ * UPDATED : 2026-11-06_0311 UTC — state addenda (state.ts): New York, New Jersey and Nevada. bookingContracts(slug, business, zip) adds the
+ *           one for the service address; proSigningSet(trades, where) adds the ones for where the pro is based and works.
  */
 import { createHash } from "node:crypto";
 import { getService } from "@handled/core";
@@ -16,12 +18,14 @@ import type { Contract, ContractTranslation } from "./types";
 import { CONTRACTS_ES } from "./es";
 import { BUSINESS_MSA, CUSTOMER_ADDENDA, CUSTOMER_CONTRACTS, MEMBERSHIP_PROMO_TERMS, SERVICE_AGREEMENT, TERMS_OF_USE } from "./customer";
 import { TALENT_CLIENT_AGREEMENT } from "./talent";
+import { STATE_CUSTOMER_ADDENDA, STATE_PRO_ADDENDA, customerStateAddendum, proStateAddenda, type ProWhere } from "./state";
 import { PRO_ADDENDA, PRO_CREW_ADDENDUM, PRO_AGREEMENT, PRO_BACKGROUND_CHECK_NOTICE, PRO_CODE_OF_CONDUCT, PRO_CONTRACTS, PRO_DEACTIVATION_POLICY, PRO_LOCATION_CONSENT } from "./pro";
 
 export type { Contract, ContractSection, ContractAudience, ContractTranslation } from "./types";
 export { BUSINESS_MSA, MEMBERSHIP_PROMO_TERMS, PRO_AGREEMENT, PRO_CREW_ADDENDUM, SERVICE_AGREEMENT, TERMS_OF_USE };
 
-export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, TALENT_CLIENT_AGREEMENT, ...PRO_CONTRACTS];
+export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, ...STATE_CUSTOMER_ADDENDA, TALENT_CLIENT_AGREEMENT, ...PRO_CONTRACTS, ...STATE_PRO_ADDENDA];
+export { STATE_CUSTOMER_ADDENDA, STATE_PRO_ADDENDA, customerStateAddendum, proStateAddenda };
 export { TALENT_CLIENT_AGREEMENT };
 
 export const getContract = (key: string) => ALL_CONTRACTS.find((c) => c.key === key) ?? null;
@@ -34,14 +38,21 @@ export const addendaForService = (slug: string) => CUSTOMER_ADDENDA.filter((a) =
 /** Trade-specific pro addenda. */
 export const addendaForTrades = (trades: string[]) => PRO_ADDENDA.filter((a) => a.trades?.some((t) => trades.includes(t)));
 
-/** Accepted with every booking: Terms of Use, the Service Agreement, the addenda for that service, and the MSA for business bookings. */
-export function bookingContracts(slug: string, business = false): Contract[] {
-  return [TERMS_OF_USE, SERVICE_AGREEMENT, ...(business ? [BUSINESS_MSA] : []), ...(getService(slug) ? addendaForService(slug) : [])];
+/**
+ * Accepted with every booking: Terms of Use, the Service Agreement, the addenda for that service, the MSA for business
+ * bookings, and the state addendum for the service address (New York, New Jersey, Nevada).
+ */
+export function bookingContracts(slug: string, business = false, zip?: string | null): Contract[] {
+  const state = customerStateAddendum(zip);
+  return [TERMS_OF_USE, SERVICE_AGREEMENT, ...(business ? [BUSINESS_MSA] : []), ...(getService(slug) ? addendaForService(slug) : []), ...(state ? [state] : [])];
 }
 
-/** Signed by a pro (one e-signature covers the set): the agreement, its policies, consents and the addenda for their trades. */
-export function proSigningSet(trades: string[]): Contract[] {
-  return [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...addendaForTrades(trades)];
+/**
+ * Signed by a pro (one e-signature covers the set): the agreement, its policies, consents, the addenda for their trades,
+ * and the state addenda for where they're based and the ZIPs they cover (New York, New Jersey, Nevada).
+ */
+export function proSigningSet(trades: string[], where: ProWhere = {}): Contract[] {
+  return [PRO_AGREEMENT, PRO_CODE_OF_CONDUCT, PRO_DEACTIVATION_POLICY, PRO_BACKGROUND_CHECK_NOTICE, PRO_LOCATION_CONSENT, ...addendaForTrades(trades), ...proStateAddenda(where)];
 }
 
 /** SHA-256 of exactly what was shown — stored with each acceptance. */

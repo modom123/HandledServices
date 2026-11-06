@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
  * UPDATED : 2026-10-27_1900 UTC — "Your road to your first paycheck" (core PRO_ROADMAP): setup → documents → background →
  *           live → offers → the job → paid every Monday, with where they are now.
+ * UPDATED : 2026-11-06_0311 UTC — "Your signature also covers" lists the state addenda for where the pro is based and works (NY, NJ, NV).
  */
 import { VerifyId } from "@/components/VerifyId";
 import { BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
@@ -87,7 +88,7 @@ export default async function Onboarding() {
           <div className="mt-3 space-y-3">{ag.sections.map((s) => <div key={s.h}><div className="font-semibold">{s.h}</div><p className="whitespace-pre-line text-ink-soft">{s.p}</p></div>)}</div></details>); })()}
         <div className="mt-3 rounded-xl bg-paper p-3 text-sm">
           <div className="font-semibold">{t("Your signature also covers:")}</div>
-          <ul className="mt-1 list-disc pl-5">{proSigningSet((pro.trades ?? []) as string[]).slice(1).map((c) => <li key={c.key}><a href={`/terms/${c.key}${es ? "?lang=es" : ""}`} target="_blank" rel="noopener noreferrer" className="text-brand underline">{localized(c, l).title}</a></li>)}</ul>
+          <ul className="mt-1 list-disc pl-5">{proSigningSet((pro.trades ?? []) as string[], { state: pro.state, zip: pro.zip, base_state: pro.base_state, base_zip: pro.base_zip, service_zips: pro.service_zips }).slice(1).map((c) => <li key={c.key}><a href={`/terms/${c.key}${es ? "?lang=es" : ""}`} target="_blank" rel="noopener noreferrer" className="text-brand underline">{localized(c, l).title}</a></li>)}</ul>
           <p className="mt-2 text-xs text-ink-soft">{t("Each one starts with a short plain-English version. Copies of everything you sign are saved in My contracts.")}</p>
         </div>
         <StepForm step="agreement" cta={t("Sign agreement")} locale={l}>

@@ -9,6 +9,7 @@
  *           Printable.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" plan note; the pay-in-full 5% saving as its own line.
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no estimate before the consultation.
+ * UPDATED : 2026-11-06_0311 UTC — the state addendum for the job's address (New York, New Jersey, Nevada) prints with the agreement.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,7 +18,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { getViewer, isStaff } from "@/lib/auth";
 import { validInvoiceToken } from "@/lib/invoice";
 import { SERVICE_AGREEMENT, SERVICE_AGREEMENT_TITLE } from "@/lib/service-agreement";
-import { addendaForService } from "@/lib/contracts";
+import { addendaForService, customerStateAddendum } from "@/lib/contracts";
 import { PrintButton } from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +102,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
       <div className="border-t border-line pt-6">
         <h2 className="text-base font-bold">{SERVICE_AGREEMENT_TITLE}</h2>
         <div className="mt-3 space-y-3 text-[15px] leading-relaxed">{SERVICE_AGREEMENT.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="whitespace-pre-line text-ink-soft">{s.p}</span></div>)}</div>
-        {addendaForService(job.service_slug).map((ad) => (
+        {[...addendaForService(job.service_slug), ...[customerStateAddendum(job.zip)].filter((x) => x !== null)].map((ad) => (
           <div key={ad.key} className="mt-6">
             <h3 className="text-base font-bold">{ad.title} (v{ad.version})</h3>
             <div className="mt-2 space-y-3 text-[15px] leading-relaxed">{ad.sections.map((s) => <div key={s.h}><span className="font-semibold">{s.h}.</span> <span className="whitespace-pre-line text-ink-soft">{s.p}</span></div>)}</div>
