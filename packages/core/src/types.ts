@@ -153,6 +153,10 @@ export interface Job {
   partner_id?: string | null;
   /** Partner earnings tier for this job (one_time 25% / repeat 10% / account 15% of the price) and the pro's half of it, taken off their job payout. */
   partner_tier?: "one_time" | "repeat" | "account" | null;
+  /** partner-v4: the partner's referral rate (15%–30% of the price) locked when the job was booked; null before it. */
+  partner_rate?: number | null;
+  /** Direct sale (Field Sales): ladder of our take, paid by Handled alone — no referral fee for the pro. */
+  partner_sale?: boolean | null;
   partner_pro_fee?: number | null;
   /** Market pricing: our suggestion, the customer's offer, the booking fee inside price_final. */
   suggested_price?: number | null;

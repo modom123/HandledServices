@@ -8,15 +8,16 @@
  * UPDATED : 2026-10-23_1500 UTC — owner: open the sign-up sections instead of scrolling the home page.
  * UPDATED : 2026-10-28_1730 UTC — partner door shows the current rate (up to 25%) from @handled/core, not a hard-coded 10%.
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
+ * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  */
 import Link from "next/link";
-import { tierPct } from "@handled/core";
+import { referralRange } from "@handled/core";
 
 export function HomeDoors({ es, servicesCount }: { es: boolean; servicesCount: number }) {
   const doors = [
     { href: "/services", icon: "🧽", title: es ? "Servicios" : "Services", body: es ? `Los ${servicesCount} servicios, con precio al instante` : `All ${servicesCount} services, priced instantly`, cta: es ? "Ver servicios" : "See services" },
     { href: "/pros#apply", icon: "🧰", title: es ? "Hágase profesional" : "Become a Pro", body: es ? "Trabajos pagados, pago semanal, sin cuotas" : "Paid jobs, weekly pay, no lead fees", cta: es ? "Postularme" : "Apply now" },
-    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? `Refiera (hasta el ${tierPct("one_time")} del trabajo) o venda usted mismo (del 10% al 45% de la ganancia)` : `Refer (up to ${tierPct("one_time")} of the job) or sell it yourself (10% up to 45% of profit)`, cta: es ? "Registrarme" : "Sign up" },
+    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? `Refiera (${referralRange()} del trabajo) o venda usted mismo (del 10% al 45% de la ganancia)` : `Refer (${referralRange()} of the job) or sell it yourself (10% up to 45% of profit)`, cta: es ? "Registrarme" : "Sign up" },
     { href: "/network", icon: "🌐", title: es ? "Red Handled" : "Handled Network", body: es ? "Su portal: clientes, empresas, profesionales, socios y equipo" : "Your portal: customers, businesses, pros, partners & team", cta: es ? "Entrar" : "Sign in" },
   ];
   return (

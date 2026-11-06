@@ -5,10 +5,11 @@
  * PURPOSE : Pro mode → Refer & earn ("make money while you wait"): join the Partner Program in one tap, share the
  *           link, and send a photo-first referral ticket (/api/partner). Commissions (25% / 10% / 15%, core
  *           partners.ts) are paid into the same Stripe account as job pay. EN / ES.
+ * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Image, Pressable, RefreshControl, ScrollView, Share, Switch, Text, TextInput, View } from "react-native";
-import { PARTNER_PROGRAM, PARTNER_TIERS, PRO_REFERRAL, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, money, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
+import { PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, PRO_REFERRAL, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, money, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
 import { api } from "../../lib/supabase";
 import { pickAndUpload, type Shot } from "../../lib/photos";
 import { Button, C, Card, s } from "../../components/ui";
@@ -58,10 +59,8 @@ export default function Refer() {
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
       <Text style={s.h1}>💸 {es ? "Gane dinero mientras espera" : "Make money while you wait"}</Text>
       <Text style={s.p}>{es ? "No necesita estar aprobado. Tome fotos de un trabajo que alguien necesita, llene un ticket y cobre cuando se haga." : "You don't need to be approved. Snap photos of a job someone needs, fill out a ticket, and get paid when it's done."}</Text>
-      <View style={{ flexDirection: "row", gap: 6, marginVertical: 8 }}>{(Object.keys(PARTNER_TIERS) as PartnerTier[]).map((t) => (
-        <Card key={t} style={{ flex: 1, padding: 10 }}><Text style={{ fontSize: 22, fontWeight: "800", color: C.deep }}>{tierPct(t)}</Text><Text style={[s.p, { fontSize: 12 }]}>{PARTNER_TIERS[t].label}</Text></Card>
-      ))}</View>
-      <Text style={[s.p, { fontSize: 14 }]}>{es ? `Ejemplo: un trabajo de $300 le paga ${money(75)}. Pagado los lunes, en la misma cuenta que su pago por trabajos, después de la garantía de ${PARTNER_PROGRAM.holdDays} días.` : `Example: a $300 job pays you ${money(75)}. Paid Mondays, into the same account as your job pay, once the ${PARTNER_PROGRAM.holdDays}-day guarantee has passed.`}</Text>
+      <Card style={{ marginVertical: 8, padding: 10 }}><Text style={{ fontSize: 22, fontWeight: "800", color: C.deep }}>{referralRange()}</Text><Text style={[s.p, { fontSize: 12 }]}>{es ? `de cada trabajo del cliente durante ${PARTNER_PROGRAM.months} meses: empieza en el ${Math.round(REFERRAL_LADDER.baseRate * 100)}% y sube hasta el ${Math.round(REFERRAL_LADDER.topRate * 100)}%` : `of every job from the customer for ${PARTNER_PROGRAM.months} months: starts at ${Math.round(REFERRAL_LADDER.baseRate * 100)}% and rises to ${Math.round(REFERRAL_LADDER.topRate * 100)}%`}</Text></Card>
+      <Text style={[s.p, { fontSize: 14 }]}>{es ? `Ejemplo: un trabajo de $300 le paga ${money(300 * REFERRAL_LADDER.baseRate)}. Pagado los lunes, en la misma cuenta que su pago por trabajos, después de la garantía de ${PARTNER_PROGRAM.holdDays} días.` : `Example: a $300 job pays you ${money(300 * REFERRAL_LADDER.baseRate)}. Paid Mondays, into the same account as your job pay, once the ${PARTNER_PROGRAM.holdDays}-day guarantee has passed.`}</Text>
 
       {!d ? <Text style={s.p}>…</Text> : !d.partner ? (
         <Card>

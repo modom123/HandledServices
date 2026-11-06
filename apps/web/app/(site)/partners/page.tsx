@@ -10,25 +10,28 @@
  * UPDATED : 2026-11-06_1730 UTC — two ways to earn: referrals (partner-v2 rates) and direct sales / Field Sales (sell it
  *           yourself on a sales ticket: 10% → 45% of our profit, 45% at $1M; direct sales count 1.5× toward the next
  *           raise). ?kind=sales_rep pre-selects "Field Sales partner" (the Indeed post links to /partners?kind=sales_rep#join).
+ * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  */
 import Link from "next/link";
-import { BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, PARTNER_TIERS, SALES_TICKET, ladderTable, money, moneyCents, partnerSplit, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
+import { BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, SALES_TICKET, ladderTable, money, moneyCents, partnerSplit, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
 import { PartnerSignUp } from "@/components/PartnerUI";
 
-export const metadata = { title: "Partner Program — refer or sell services and get paid on every job", description: `Refer customers to ${BRAND.name} and earn ${tierPct("one_time")} of a one-time job, ${tierPct("repeat")} of repeat jobs or ${tierPct("account")} of a business account's jobs for ${PARTNER_PROGRAM.months} months — or sell the job yourself and earn ${PARTNER_LADDER.baseRate * 100}% up to ${PARTNER_LADDER.topRate * 100}% of our profit. Part-time or full-time, paid weekly.` };
+export const metadata = { title: "Partner Program — refer or sell services and get paid on every job", description: `Refer customers to ${BRAND.name} and earn ${referralRange()} of every job they book for ${PARTNER_PROGRAM.months} months — or sell the job yourself and earn ${PARTNER_LADDER.baseRate * 100}% up to ${PARTNER_LADDER.topRate * 100}% of our profit. Part-time or full-time, paid weekly.` };
 
 // ladder milestones shown on the page (every point is on the partner page and in the Indeed post)
 const MILESTONES = [0, 5, 10, 15, 20, 25, 30, 35].map((n) => ladderTable()[n]);
 
 // the rate is a share of the job price, so the example is the same whatever the service
+// examples at the starting referral rate (15% of the job price — the same on every service)
 const EX = ([
-  { who: "Realtor", what: "Sends 3 sellers a month a one-time move-out clean ($350)", jobs: 3, price: 350, tier: "one_time" },
-  { who: "Property manager", what: "Refers their company's account: 8 unit turnovers a month ($450)", jobs: 8, price: 450, tier: "account" },
-  { who: "Neighbor", what: "Refers a family on bi-weekly cleaning ($180)", jobs: 2, price: 180, tier: "repeat" },
-] as { who: string; what: string; jobs: number; price: number; tier: PartnerTier }[]).map((e) => {
-  const per = partnerSplit({ price: e.price, payout: e.price * 0.6, tier: e.tier }).amount;
+  { who: "Realtor", what: "Sends 3 sellers a month a one-time move-out clean ($350)", jobs: 3, price: 350 },
+  { who: "Property manager", what: "Refers their company's account: 8 unit turnovers a month ($450)", jobs: 8, price: 450 },
+  { who: "Neighbor", what: "Refers a family on bi-weekly cleaning ($180)", jobs: 2, price: 180 },
+] as { who: string; what: string; jobs: number; price: number }[]).map((e) => {
+  const per = partnerSplit({ price: e.price, payout: e.price * 0.6, tier: "repeat", rate: REFERRAL_LADDER.baseRate }).amount;
   return { ...e, per, year: Math.round(per * e.jobs * 12) };
 });
+const REF_MILESTONES = [0, 3, 5, 8, 10, 12, 15].map((n) => ladderTable(REFERRAL_LADDER)[n]);
 
 export default async function Partners({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
   const P = PARTNER_PROGRAM, L = PARTNER_LADDER;
@@ -39,7 +42,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
         <div className="wrap py-16">
           <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-gold-light ring-1 ring-gold/40">{BRAND.name} Partner Program</span>
           <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">Send it or sell it. <span className="text-gold-light">Get paid on every job.</span></h1>
-          <p className="mt-4 max-w-2xl text-lg text-white/75">Realtors, property managers, contractors, business owners, neighbors: anyone can join. Earn {tierPct("one_time")} of a one-time job, {tierPct("repeat")} of every repeat job for {P.months} months, or {tierPct("account")} of every job on a business account you bring us. Or sell the job yourself and earn {L.baseRate * 100}% of our profit, rising to {L.topRate * 100}%. Paid to your bank every week.</p>
+          <p className="mt-4 max-w-2xl text-lg text-white/75">Realtors, property managers, contractors, business owners, neighbors: anyone can join. Earn {referralRange()} of every job from the customers you refer, for {P.months} months. Or sell the job yourself and earn {L.baseRate * 100}% of our profit, rising to {L.topRate * 100}%. Paid to your bank every week.</p>
           <div className="mt-8 flex flex-wrap gap-3"><a href="#join" className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Become a partner</a><a href="#field-sales" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-gold-light">Field Sales (part-time or full-time)</a><Link href="/partner" className="btn border border-white/30 px-6 py-3 text-base text-white hover:border-gold-light">Partner sign in</Link></div>
         </div>
       </section>
@@ -51,7 +54,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
           <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand">
             <div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1 · Referrals</div>
             <h3 className="mt-1 text-lg font-bold">You send them, we sell it</h3>
-            <p className="mt-1 text-sm text-ink-soft">Share your link or your code (customers type it when they pay), or fill out a referral ticket. Earn {tierPct("one_time")} of a one-time job, {tierPct("repeat")} of repeat jobs or {tierPct("account")} of a business account&apos;s jobs for {P.months} months.</p>
+            <p className="mt-1 text-sm text-ink-soft">Share your link or your code (customers type it when they pay), or fill out a referral ticket. Earn {Math.round(REFERRAL_LADDER.baseRate * 100)}% of every job to start, rising to {Math.round(REFERRAL_LADDER.topRate * 100)}%, for {P.months} months.</p>
           </a>
           <a href="#field-sales" className="card border-t-4 border-t-brand hover:border-brand">
             <div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2 · Direct sales</div>
@@ -65,7 +68,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
         {[
           ["1", "Share your link or send a ticket", `Use your link (on cards, texts, listings, QR codes) or fill out a referral ticket on your partner page — one standard form, a ticket number you can follow, and we email them a booking link from you.`],
           ["2", "We do the work", `Insured, background-checked pros, an upfront price, photo proof, and a free redo if anything's missed — so your name looks good.`],
-          ["3", "You get paid weekly", `A fixed share of the price on every completed job — the same on every service. Paid through Stripe once each job is past our ${P.holdDays}-day guarantee.`],
+          ["3", "You get paid weekly", `${referralRange()} of the price on every completed job — the same on every service. Paid through Stripe once each job is past our ${P.holdDays}-day guarantee.`],
         ].map(([n, t, d]) => (
           <div key={n} className="card"><div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep font-bold text-gold-light">{n}</div><h2 className="mt-3 font-bold">{t}</h2><p className="mt-1 text-sm text-ink-soft">{d}</p></div>
         ))}
@@ -73,18 +76,21 @@ export default async function Partners({ searchParams }: { searchParams: Promise
 
       <section className="wrap pb-12">
         <h2 className="text-2xl font-bold">What you earn</h2>
-        <p className="mt-1 text-sm text-ink-soft">A share of what the customer pays for the job. The pro and {BRAND.name} each pay half of it, so it&apos;s the same rate whatever the service.</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">{(Object.keys(PARTNER_TIERS) as PartnerTier[]).map((t) => (
-          <div key={t} className="card"><div className="text-4xl font-extrabold text-brand-deep">{tierPct(t)}</div><div className="mt-1 font-semibold">{PARTNER_TIERS[t].label}</div><p className="text-sm text-ink-soft">Of {PARTNER_TIERS[t].detail}.</p></div>
-        ))}</div>
+        <p className="mt-1 text-sm text-ink-soft">One rate on every referred job: a share of what the customer pays. The pro and {BRAND.name} each pay half of it, so it&apos;s the same rate whatever the service.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1.4fr]">
+          <div className="card"><div className="text-4xl font-extrabold text-brand-deep">{Math.round(REFERRAL_LADDER.baseRate * 100)}% → {Math.round(REFERRAL_LADDER.topRate * 100)}%</div><div className="mt-1 font-semibold">Of every job from your customers, for {P.months} months</div><p className="text-sm text-ink-soft">You start at {Math.round(REFERRAL_LADDER.baseRate * 100)}% and go up one point at a time as you grow. Each job keeps the rate you had when it was booked.</p></div>
+          <div className="card"><table className="w-full text-sm"><thead className="text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="py-1">Referral rate</th><th className="py-1 text-right">Level credit</th></tr></thead>
+            <tbody>{REF_MILESTONES.map((m) => <tr key={m.level} className="border-t border-line"><td className="py-1.5 font-semibold">{Math.round(m.rate * 100)}%</td><td className="py-1.5 text-right tabular-nums">{m.profit ? `${money(m.profit)}+` : "Day one"}</td></tr>)}</tbody></table>
+            <p className="mt-2 text-xs text-ink-soft">Level credit = the lifetime profit you&apos;ve generated for {BRAND.name} (direct sales count {PARTNER_LADDER.directCredit}×), or every {REFERRAL_LADDER.jobsPerStep} job credits up to {Math.round(REFERRAL_LADDER.jobsCapRate * 100)}%.</p></div>
+        </div>
         <h3 className="mt-10 text-xl font-bold">What it adds up to</h3>
-        <p className="mt-1 text-sm text-ink-soft">Examples.</p>
+        <p className="mt-1 text-sm text-ink-soft">Examples at the starting rate. Your rate goes up as you grow.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">{EX.map((e) => (
           <div key={e.who} className="card border-t-4 border-t-gold">
             <div className="text-sm font-semibold text-brand">{e.who}</div>
             <p className="mt-1 text-sm">{e.what}</p>
             <div className="mt-3 text-3xl font-extrabold">{money(e.year)}<span className="text-base font-semibold text-ink-soft"> /year</span></div>
-            <p className="text-xs text-ink-soft">{tierPct(e.tier)} = {moneyCents(e.per)} per job × {e.jobs}/month</p>
+            <p className="text-xs text-ink-soft">{Math.round(REFERRAL_LADDER.baseRate * 100)}% = {moneyCents(e.per)} per job × {e.jobs}/month, at the starting rate</p>
           </div>
         ))}</div>
       </section>

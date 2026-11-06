@@ -974,6 +974,8 @@ async function scheduleNextVisit(job: Job) {
   // Referral Partner Program: a recurring visit is a repeat job for the partner (an account stays an account)
   // (a direct sale stays a direct sale: no tier, no pro fee — lib/partners.ts)
   if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id && !(job as { partner_sale?: boolean }).partner_sale ? (job.partner_tier === "account" ? "account" : "repeat") : null });
+  // partner-v4: the next visit gets the partner's referral rate as it is now (their level may have gone up)
+  if ("partner_rate" in job && job.partner_id && !job.partner_sale) Object.assign(pay, { partner_rate: await (await import("./partners")).referralRateNow(job.partner_id).catch(() => job.partner_rate ?? null) });
   const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
   if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
   else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {

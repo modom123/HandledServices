@@ -12,9 +12,10 @@
  *           shown (Uber-style); the full address and customer contact unlock on accept.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the pro can start once the 25% is in; their payout never waits on the customer.
  * UPDATED : 2026-10-28_0122 UTC — referred jobs: the pro's half of the partner's share is a job term (v4).
+ * UPDATED : 2026-11-06_1800 UTC — the referral fee uses the rate locked on the job (partner-v4, jobs.partner_rate).
  */
 import { AGREEMENT_VERSION } from "./compliance.ts";
-import { PARTNER_TIERS, partnerSplit } from "./partners.ts";
+import { partnerSplit } from "./partners.ts";
 import { BRAND } from "./brand.ts";
 import { money, moneyCents } from "./pricing.ts";
 import { getService } from "./services.ts";
@@ -46,7 +47,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & Partial<Pick<Job, "price_final" | "partner_tier">> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & Partial<Pick<Job, "price_final" | "partner_tier" | "partner_rate">> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
 
 /** Spanish for the fixed parts of a work order (pros who chose Spanish). */
 const WO_ES: Record<string, string> = {
@@ -68,8 +69,9 @@ const WO_ES: Record<string, string> = {
 /** Referred job: the pro's half of the partner's earnings, said up front so it's known before the offer is accepted. */
 function partnerFeeTerm(job: WorkOrderJob, payout: number | null | undefined, es: boolean): string {
   const tier = job.partner_tier!;
-  const fee = partnerSplit({ price: Number(job.price_final ?? 0), payout: Number(payout ?? 0), tier }).fromPro;
-  const half = `${+(PARTNER_TIERS[tier].rate * 50).toFixed(2)}%`;
+  const sp = partnerSplit({ price: Number(job.price_final ?? 0), payout: Number(payout ?? 0), tier, rate: job.partner_rate ?? null });
+  const fee = sp.fromPro;
+  const half = `${+(sp.rate * 50).toFixed(2)}%`;
   return es
     ? `Cliente referido por un socio: una comisión de referido del ${half} del precio del trabajo (${moneyCents(fee)}) se descuenta de este pago al completarse; ${BRAND.name} paga la otra mitad. Si hay un reembolso, se le devuelve la parte que corresponda.`
     : `Partner-referred customer: a referral fee of ${half} of the job price (${moneyCents(fee)}) comes off this payout when the job is completed; ${BRAND.name} pays the other half. If the job is refunded, your share of the fee is handed back to match.`;
