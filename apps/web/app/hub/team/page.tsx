@@ -8,11 +8,14 @@
  * UPDATED : 2026-10-11_2242 UTC — role list: Dispatch board and Payments for dispatchers; marking paid by hand is admin.
  * UPDATED : 2026-10-12_0121 UTC — staff ID (S-…) next to each name.
  * UPDATED : 2026-11-05_0000 UTC — a Files link per team member (their staff file: ID, contracts, certifications…).
+ * UPDATED : 2026-11-06_0630 UTC — profile photos in the list (Avatar; initials when none).
  */
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { TeamAdd, TeamRemove } from "@/components/Team";
+import { Avatar } from "@/components/Avatar";
+import { profilePhotos } from "@/lib/person-files";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +24,7 @@ export default async function Team() {
   const { data } = await adminClient().from("profiles").select("*").in("role", ["admin", "dispatcher"]).order("role").order("email");
   const team = (data ?? []) as { id: string; email: string; full_name: string | null; role: string; created_at: string; staff_no?: string | null }[];
   const admin = v?.role === "admin";
+  const faces = await profilePhotos("staff", team.map((m) => m.id)).catch(() => new Map<string, string>());
   return (
     <div className="max-w-3xl space-y-6">
       <div>
@@ -30,7 +34,7 @@ export default async function Team() {
       <div className="card divide-y divide-line p-0">
         {team.map((m) => (
           <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-            <div><div className="font-semibold">{m.full_name ?? m.email}{m.staff_no && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{m.staff_no}</span>}</div><div className="text-xs text-ink-soft">{m.email} · {m.role}{m.id === v?.userId ? " · you" : ""}</div></div>
+            <div className="flex items-center gap-3"><Avatar url={faces.get(m.id)} name={m.full_name ?? m.email} /><div><div className="font-semibold">{m.full_name ?? m.email}{m.staff_no && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{m.staff_no}</span>}</div><div className="text-xs text-ink-soft">{m.email} · {m.role}{m.id === v?.userId ? " · you" : ""}</div></div></div>
             <div className="flex items-center gap-3"><Link className="text-xs underline" href={`/hub/find?type=staff&key=${m.id}`}>Files</Link>{admin && m.id !== v?.userId && <TeamRemove email={m.email} />}</div>
           </div>
         ))}

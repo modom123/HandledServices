@@ -274,3 +274,31 @@ export async function clearProfilePhoto(o: Owner) {
   await db().from("person_profile_photos").delete().eq("owner_type", o.type).eq("owner_key", o.key);
   return { ok: true };
 }
+
+/**
+ * Profile photos for a whole list at once (customer / pro / staff / partner / business lists): key → signed link.
+ * One query for the chosen photos, one for pros' onboarding photos, one signing call per bucket. Missing = no photo.
+ */
+export async function profilePhotos(type: OwnerType, keys: string[], seconds = 3600): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const ks = [...new Set(keys.map((k) => (type === "customer" ? k.toLowerCase() : k)).filter(Boolean))].slice(0, 500);
+  if (!ks.length) return out;
+  const picks = new Map<string, { bucket: string; path: string }>();
+  const { data, error } = await db().from("person_profile_photos").select("owner_key, bucket, path").eq("owner_type", type).in("owner_key", ks);
+  if (!error) for (const r of (data ?? []) as { owner_key: string; bucket: string; path: string }[]) picks.set(r.owner_key, { bucket: r.bucket, path: r.path });
+  if (type === "pro") {
+    const missing = ks.filter((k) => !picks.has(k) && UUID.test(k));
+    if (missing.length) {
+      const { data: docs } = await db().from("contractor_documents").select("contractor_id, storage_path, created_at").in("contractor_id", missing).eq("kind", "photo").not("storage_path", "is", null).order("created_at", { ascending: false });
+      for (const d of (docs ?? []) as { contractor_id: string; storage_path: string }[])
+        if (!picks.has(d.contractor_id) && isImg(d.storage_path)) picks.set(d.contractor_id, { bucket: "pro-docs", path: d.storage_path });
+    }
+  }
+  const byBucket = new Map<string, [string, string][]>();
+  for (const [k, p] of picks) byBucket.set(p.bucket, [...(byBucket.get(p.bucket) ?? []), [k, p.path]]);
+  await Promise.all([...byBucket].map(async ([bucket, list]) => {
+    const { data: signed } = await db().storage.from(bucket).createSignedUrls(list.map(([, path]) => path), seconds);
+    (signed ?? []).forEach((s, i) => { if (s.signedUrl) out.set(list[i][0], s.signedUrl); });
+  }));
+  return out;
+}
