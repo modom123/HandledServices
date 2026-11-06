@@ -18,13 +18,15 @@
  *           revise and resubmit, copy a bid for the next cycle; files in a submission can't be deleted.
  * UPDATED : 2026-10-07_0300 UTC — the AI reads each price line's measurement (acres, sq ft, cu yd, tons, ft); lines store it for
  *           cost estimates and the deal-maker (packages/core/src/bid-engine.ts).
+ * UPDATED : 2026-11-06_0400 UTC — solicitationContent (shared with the proposal writer; adds the SAM.gov notice text); the
+ *           submit gate now includes the written proposal and lets RFIs / sources-sought go without price lines.
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import {
   BID_SOURCES, BRAND, GO_NO_GO, REQ_KIND_LABEL, REVIEW_CHECKS, SERVICE_BY_SLUG, bestQuotes, learnMarketRates, priceBid, standardRequirements, submitGate,
-  type BidSource, type CostLine, type GoAnswer, type ProQuote, type ReqKind, type ResubmitReason, type SnapshotLine, type SolicitationType,
+  type BidSource, type CostLine, type ProposalSectionLite, type GoAnswer, type ProQuote, type ReqKind, type ResubmitReason, type SnapshotLine, type SolicitationType,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { sendEmail, siteUrl } from "./notify";
@@ -82,13 +84,14 @@ export async function marketRates() {
 }
 
 export async function loadBid(id: string) {
-  const [{ data: bid }, { data: reqs }, { data: lines }, { data: quotes }, { data: docs }, { data: subs }] = await Promise.all([
+  const [{ data: bid }, { data: reqs }, { data: lines }, { data: quotes }, { data: docs }, { data: subs }, { data: secs }] = await Promise.all([
     db().from("bids").select("*").eq("id", id).maybeSingle(),
     db().from("bid_requirements").select("*").eq("bid_id", id).order("kind").order("sort").order("created_at"),
     db().from("bid_cost_lines").select("*").eq("bid_id", id).order("sort").order("created_at"),
     db().from("bid_pro_quotes").select("*, contractor:contractors(business_name, email, phone)").eq("bid_id", id).order("asked_at"),
     db().from("bid_documents").select("*").eq("bid_id", id).order("created_at"),
     db().from("bid_submissions").select("*").eq("bid_id", id).order("number"),
+    db().from("bid_proposal_sections").select("title, status, content, page_limit").eq("bid_id", id).order("sort"),
   ]);
   if (!bid) return null;
   const b = bid as Bid;
@@ -99,8 +102,8 @@ export async function loadBid(id: string) {
   const current = D.filter((d) => !d.superseded_at);
   // after a re-open, the new submission needs its own confirmation
   const confirmation = [...current].reverse().find((d) => d.kind === "confirmation" && (!b.reopened_at || d.created_at > b.reopened_at)) ?? null;
-  const gate = submitGate({ go: b.go ?? {}, requirements: R, lines: L, assumptions: b.assumptions, review: b.review ?? {}, reviewer: b.reviewer, owner: b.owner, confirmationUploaded: Boolean(confirmation), dueAt: b.due_at, marginOverride: b.margin_override });
-  return { bid: b, requirements: R, lines: L, quotes: Q, documents: D, current, confirmation, submissions: (subs ?? []) as Submission[], gate, best: bestQuotes(L, Q), market: await marketRates() };
+  const gate = submitGate({ go: b.go ?? {}, requirements: R, lines: L, assumptions: b.assumptions, review: b.review ?? {}, reviewer: b.reviewer, owner: b.owner, confirmationUploaded: Boolean(confirmation), dueAt: b.due_at, marginOverride: b.margin_override, solicitationType: b.solicitation_type, proposal: (secs ?? []) as ProposalSectionLite[] });
+  return { bid: b, requirements: R, lines: L, quotes: Q, documents: D, current, confirmation, submissions: (subs ?? []) as Submission[], gate, best: bestQuotes(L, Q), market: await marketRates(), proposal: (secs ?? []) as ProposalSectionLite[] };
 }
 
 // ───────────────────────────── documents ─────────────────────────────
@@ -182,20 +185,34 @@ export type AiRead = z.infer<typeof AiReadSchema>;
 
 const AI_TYPES = /\.(pdf|png|jpe?g|webp|gif)$/i;
 
-export async function readSolicitation(bidId: string, actor: string): Promise<{ ok: boolean; error?: string; added?: number; lines?: number }> {
-  if (!aiEnabled()) return { ok: false, error: "AI isn't set up (ANTHROPIC_API_KEY)" };
-  const loaded = await loadBid(bidId);
-  if (!loaded) return { ok: false, error: "Bid not found" };
-  const docs = loaded.documents.filter((d) => ["rfq", "addendum", "price_form"].includes(d.kind) && AI_TYPES.test(d.name)).slice(0, 8);
-  if (!docs.length) return { ok: false, error: "Upload the solicitation (PDF) first — the AI reads PDFs and photos; Word and Excel files can be saved as PDF" };
+/**
+ * What the AI reads for a bid: the current solicitation, addenda and price-form files (PDFs and photos, up to 8), plus
+ * the SAM.gov notice text when the bid came from a notice. Shared by the matrix reader and the proposal writer.
+ */
+export async function solicitationContent(bidId: string, docs: Doc[], noticeId: string | null): Promise<{ blocks: ContentBlocks; used: Doc[] }> {
+  const used = docs.filter((d) => !d.superseded_at && ["rfq", "addendum", "price_form"].includes(d.kind) && AI_TYPES.test(d.name)).slice(0, 8);
   const blocks: ContentBlocks = [];
-  for (const d of docs) {
+  for (const d of used) {
     const { data } = await db().storage.from(BUCKET).createSignedUrl(d.path, 900);
     if (!data?.signedUrl) continue;
     blocks.push(/\.pdf$/i.test(d.name)
       ? { type: "document", source: { type: "url", url: data.signedUrl }, title: `${d.kind === "addendum" ? "ADDENDUM" : d.kind === "price_form" ? "PRICE FORM" : "SOLICITATION"}: ${d.name}` }
       : { type: "image", source: { type: "url", url: data.signedUrl } });
   }
+  if (noticeId) {
+    const { data: n } = await db().from("gov_opportunities").select("description").eq("notice_id", noticeId).maybeSingle();
+    if (n?.description) blocks.push({ type: "text", text: `SAM.GOV NOTICE TEXT:\n<notice>\n${String(n.description).slice(0, 40000)}\n</notice>` });
+  }
+  void bidId;
+  return { blocks, used };
+}
+
+export async function readSolicitation(bidId: string, actor: string): Promise<{ ok: boolean; error?: string; added?: number; lines?: number }> {
+  if (!aiEnabled()) return { ok: false, error: "AI isn't set up (ANTHROPIC_API_KEY)" };
+  const loaded = await loadBid(bidId);
+  if (!loaded) return { ok: false, error: "Bid not found" };
+  const { blocks, used: docs } = await solicitationContent(bidId, loaded.documents, loaded.bid.notice_id);
+  if (!blocks.length) return { ok: false, error: "Upload the solicitation (PDF) first, or pull the attachments from SAM.gov — the AI reads PDFs and photos; Word and Excel files can be saved as PDF" };
   const catalog = Object.values(SERVICE_BY_SLUG).map((s) => `${s.slug} — ${s.name}`).join("\n");
   const r = await structured({
     kind: "bid_read",
@@ -435,6 +452,8 @@ export interface Snapshot {
   review: { checks: Record<string, boolean>; reviewer: string | null; reviewed_at: string | null };
   quotes: { business_name: string; status: string; prices: Record<string, number> }[];
   documents: { id: string; kind: string; name: string; version: number }[];
+  /** The written proposal as sent (bids with a proposal, from 2026-11-06). */
+  proposal?: { title: string; content: string }[];
 }
 
 type Loaded = NonNullable<Awaited<ReturnType<typeof loadBid>>>;
@@ -455,6 +474,7 @@ export function buildSnapshot(l: Loaded): Snapshot {
     review: { checks: b.review ?? {}, reviewer: b.reviewer, reviewed_at: b.reviewed_at },
     quotes: l.quotes.map((q) => ({ business_name: q.contractor?.business_name ?? "—", status: q.status, prices: (q.prices ?? {}) as Record<string, number> })),
     documents: l.current.map((d) => ({ id: d.id, kind: d.kind, name: d.name, version: d.version })),
+    proposal: l.proposal.map((x) => ({ title: x.title, content: x.content })),
   };
 }
 

@@ -8,6 +8,8 @@
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
  * UPDATED : 2026-10-18_0415 UTC — shows only what's left to do (red first, then amber); everything finished folds into
  *           one "Done" list. API keys, database migrations (by file) and webhooks are their own sections.
+ * UPDATED : 2026-11-04_1759 UTC — Go-live autopilot card at the top (preview of what it can fix, then one button); the
+ *           business & legal items an API can prove are ticked automatically on every visit.
  */
 import { readiness } from "@/lib/readiness";
 import { Badge } from "@/components/ui";
@@ -15,10 +17,16 @@ import { SyncCatalogButton } from "@/components/HubActions";
 import { LaunchChecklist } from "@/components/LaunchChecklist";
 import { adminClient } from "@/lib/supabase/server";
 import { adminOnly } from "@/components/AdminOnly";
+import { GoLiveAutopilot } from "@/components/GoLiveAutopilot";
+import { autoTickChecklist, runAutopilot } from "@/lib/golive-autopilot";
 
 export default async function Setup() {
   const gate = await adminOnly(); if (gate) return gate;
   const checks = await readiness();
+  const [plan] = await Promise.all([
+    runAutopilot(checks, { dryRun: true }).then((r) => r.steps, () => []),
+    autoTickChecklist().catch(() => null),
+  ]);
   const ticks = process.env.SUPABASE_SERVICE_ROLE_KEY ? ((await adminClient().from("launch_checklist").select("*")).data ?? []) : [];
   const fails = checks.filter((c) => c.status === "fail").length;
   const warns = checks.filter((c) => c.status === "warn").length;
@@ -31,6 +39,7 @@ export default async function Setup() {
         <div><h1 className="text-2xl font-bold">Go-live setup</h1><p className="text-sm text-ink-soft">What's left to do, checked live — items drop off as soon as they're done. Fix red first, then amber.</p></div>
         <Badge tone={fails ? "red" : warns ? "amber" : "green"}>{fails ? `${fails} blocking · ${warns} to finish` : warns ? `${warns} to finish` : "Ready to launch"}</Badge>
       </div>
+      <GoLiveAutopilot plan={plan} />
       {!todo.length && <div className="card text-sm">✅ Every integration, migration and webhook checks out.</div>}
       {groupsOf(todo).map((g) => (
         <div key={g} className="card">

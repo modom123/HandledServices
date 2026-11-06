@@ -11,12 +11,18 @@
  *           Recruiting, which reviews, interviews, invites and declines; this page links there with the count.
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Pros → Roster, "All pros" view (rendered by app/hub/pros/page.tsx).
  * UPDATED : 2026-10-27_1700 UTC — applications link → Recruiting → Pipeline.
+ * UPDATED : 2026-11-05_0130 UTC — "Depth chart by job": a button per job, colored by how filled it is; each opens that
+ *           job's depth chart (components/DepthJobButtons).
+ * UPDATED : 2026-11-06_0630 UTC — profile photos in the list (Avatar; initials when none).
  */
 import Link from "next/link";
-import { TRADES, nextTierProgress, proTier, type Contractor } from "@handled/core";
+import { TRADES, depthChart, nextTierProgress, proTier, type Contractor } from "@handled/core";
+import { DepthJobButtons } from "@/components/DepthJobButtons";
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/auth";
 import { Badge } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+import { profilePhotos } from "@/lib/person-files";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const tradeLabel = (id: string) => TRADES.find((t) => t.id === id)?.label ?? id;
@@ -29,14 +35,17 @@ export default async function Pros() {
     v.db.from("contractors").select("*").order("status").order("rating", { ascending: false }),
   ]);
   const { data: bals } = await adminClient().from("reward_balances").select("contractor_id, available, pending");
+  const faces = await profilePhotos("pro", ((pros ?? []) as Rec[]).map((p) => String(p.id))).catch(() => new Map<string, string>());
   const points = new Map(((bals ?? []) as Rec[]).map((b) => [b.contractor_id as string, b]));
   const soon = new Date(Date.now() + 30 * 86400000);
+  const positions = depthChart({ contractors: (pros ?? []) as Contractor[] });
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-2xl font-bold">Pro roster</h1><p className="text-sm text-ink-soft">Every pro on file — performance, tier, points, insurance and status.</p></div>
         <Link href="/hub/recruiting/pipeline" className="btn-ghost">🧲 {(apps ?? []).length} application{(apps ?? []).length === 1 ? "" : "s"} to review in Recruiting →</Link>
       </div>
+      <DepthJobButtons positions={positions} />
       <section>
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
@@ -46,7 +55,7 @@ export default async function Pros() {
                 const ins = p.insured_until ? new Date(p.insured_until) : null;
                 return (
                   <tr key={p.id} className="border-t border-line align-top">
-                    <td className="p-3"><a href={`/hub/pros/${p.id}`} className="font-semibold underline">{p.business_name}</a>{p.pro_no && <span className="ml-2 font-mono text-xs text-ink-soft">{p.pro_no}</span>}<div className="text-xs text-ink-soft">{p.contact_name} · {p.phone}</div></td>
+                    <td className="p-3"><div className="flex gap-3"><Avatar url={faces.get(String(p.id))} name={String(p.contact_name ?? p.business_name)} /><div className="min-w-0"><a href={`/hub/pros/${p.id}`} className="font-semibold underline">{p.business_name}</a>{p.pro_no && <span className="ml-2 font-mono text-xs text-ink-soft">{p.pro_no}</span>}<div className="text-xs text-ink-soft">{p.contact_name} · {p.phone}</div></div></div></td>
                     <td className="p-3 text-xs">{(p.trades as string[]).map(tradeLabel).join(", ")}</td>
                     <td className="p-3">{p.rating} ★</td>
                     <td className="p-3">{p.jobs_completed}</td>

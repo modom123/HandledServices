@@ -5,12 +5,14 @@
  * PURPOSE : Hub → Pro leads controls: engine settings, run now, CSV import, and call-list actions.
  * UPDATED : 2026-10-03_0332 UTC — lean-setup guidance for the daily cap.
  * UPDATED : 2026-10-06_0606 UTC — label: with no trades checked, the engine recruits cleaners (marketing focus).
+ * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TRADES } from "@handled/core";
+import { MultiSelect } from "@/components/Dropdowns";
 
 async function post(body: unknown) {
   const r = await fetch("/api/hub/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -31,12 +33,9 @@ export function LeadSettingsPanel({ initial }: { initial: LeadSettingsForm }) {
     <div className="card space-y-3">
       <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={s.enabled} onChange={(e) => setS({ ...s, enabled: e.target.checked })} /> Lead engine on (weekdays 10:30am)</label>
       <div className="grid gap-3 sm:grid-cols-4">{num("discover_per_day", "Searches / day")}{num("emails_per_day", "Emails / day")}{num("min_rating", "Min. Google rating", 0.1)}{num("min_reviews", "Min. reviews")}</div>
-      <div>
-        <div className="label">Trades to recruit (none checked = wherever Supply gaps shows a shortage, plus cleaners across the metro: the marketing focus)</div>
-        <div className="flex flex-wrap gap-1.5">{TRADES.map((t) => {
-          const on = s.trades.includes(t.id);
-          return <button type="button" key={t.id} className={`rounded-full border px-2.5 py-1 text-xs ${on ? "border-brand bg-brand-tint font-semibold" : "border-line"}`} onClick={() => setS({ ...s, trades: on ? s.trades.filter((x) => x !== t.id) : [...s.trades, t.id] })}>{t.label}</button>;
-        })}</div>
+      <div className="max-w-xl">
+        <MultiSelect label="Trades to recruit" options={TRADES.map((t) => ({ value: t.id, label: t.label }))} value={s.trades} onChange={(trades) => setS({ ...s, trades })}
+          noneLabel="Automatic: wherever Supply gaps shows a shortage, plus cleaners across the metro" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button className="btn-primary" onClick={async () => { const r = await post({ action: "settings", ...s }); setMsg(r.ok ? "Saved" : r.data.error ?? "Failed"); router.refresh(); }}>Save settings</button>

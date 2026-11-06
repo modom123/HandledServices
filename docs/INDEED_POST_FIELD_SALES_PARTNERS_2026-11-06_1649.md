@@ -3,8 +3,10 @@
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-11-06_1649 UTC
   PURPOSE : Ready-to-paste Indeed post recruiting Field Sales partners (independent, commission-only, flexible hours:
-            a few hours a week or a main income). Matches the partner terms (partner-v2) and the 10% → 45% ladder in
-            packages/core/src/partners.ts. Have your attorney review before posting.
+            a few hours a week or a main income). Matches the partner terms (partner-v3): referrals at the partner-v2
+            tiers, direct sales on the 10% → 45% ladder in packages/core/src/partners.ts. Have your attorney review
+            before posting.
+  UPDATED : 2026-11-06_1724 UTC — referral pay at the partner-v2 tiers; the ladder is for direct sales (sales count 1.5×).
 -->
 
 # Indeed post: Field Sales Partner (Detroit metro)
@@ -38,18 +40,20 @@ independent Field Sales Partners. Work a few hours a week or make it your main i
 
 **Two ways to earn**
 - **Direct sales.** Meet a homeowner, landlord or business with a job. With their OK, snap 3–4 photos on your phone and
-  fill out a ticket on your partner page. You see the upfront price right there. The customer pays Handled on your phone
+  fill out a sales ticket on your partner page. You see the upfront price right there. The customer pays Handled on your phone
   or from the text we send them. You never handle money.
-- **Referrals.** Share your link or your code. When someone new books, every completed job from them pays you for
-  12 months, repeat visits included.
+- **Referrals.** Share your link or your code, or send us a referral ticket. When someone new books, you earn on every
+  completed job from them for 12 months, repeat visits included.
 
 **How you're paid**
-- Commission on **our profit** for every completed job: the job price minus what the pro is paid.
-- You start at **10%** and go up **one point at a time to 45%** as the profit you generate grows (45% at $1,000,000).
-  Every 10 completed jobs also moves you up a point, to 20%. Your rate never goes down.
+- **Direct sales:** a commission on **our profit** for every completed job you sold (the job price minus what the pro is
+  paid). You start at **10%** and go up **one point at a time to 45%** as you grow (45% at $1,000,000 of credit). Sales
+  count 1.5× toward your next raise. Every 10 jobs also moves you up a point, to 20%. Your rate never goes down.
+- **Referrals:** 25% of a referred customer's first one-time job, 10% of their repeat jobs, or 15% of a business
+  account's jobs, for 12 months.
 - Paid **weekly** to your bank through Stripe once each job is past our 30-day guarantee.
-- Example: a $400 job where the pro is paid $300 = $100 profit → **$10 at 10%, $20 at 20%, $45 at 45%**. Big jobs
-  (roofs, remodels, commercial cleaning contracts) pay much more.
+- Example direct sale: a $400 job where the pro is paid $300 = $100 profit → **$10 at 10%, $20 at 20%, $45 at 45%**.
+  Big jobs (roofs, remodels, commercial cleaning contracts) pay much more.
 
 *Earnings are estimates, not a guarantee. This is a commission-only, independent role, and what you earn depends on
 the jobs you close.*
@@ -67,7 +71,7 @@ the jobs you close.*
 
 **How it works**
 1. Sign up at the link (2 minutes). You get your partner page, code and link right away.
-2. Write your first ticket or share your link.
+2. Write your first sales ticket, send a referral, or share your link.
 3. Track every ticket, job, commission and your next raise on your partner page.
 
 You're an independent partner, not an employee: no fee, no quota, no set schedule. We send a 1099 if you earn

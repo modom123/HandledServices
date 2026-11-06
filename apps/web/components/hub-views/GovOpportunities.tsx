@@ -8,13 +8,14 @@
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Clients → Bids & contracts, "Find federal (SAM.gov)" view (was /hub/gov — now redirects).
  * UPDATED : 2026-10-21_0030 UTC — link to Awards & recompetes (Contract Awards API, subcontract targets); "Today's bids" (the AI
  *           bid desk's daily picks with their draft bids); bids-to-pick-per-day setting.
+ * UPDATED : 2026-11-06_0430 UTC — clean-up: ✕ Not a fit per row, tick-and-dismiss in bulk, restore or delete for good from Passed.
  */
 import Link from "next/link";
 import { GOV_BID_CHECKLIST, GOV_NAICS_BY_CODE, SET_ASIDES } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { callsToday, getGovSettings, govReady, noticeTypeLabel } from "@/lib/gov";
 import { Stat } from "@/components/ui";
-import { GovSearchForm } from "@/components/GovAdmin";
+import { GovSearchForm, GovTable, type GovTableRow } from "@/components/GovAdmin";
 
 type Row = { picked_at: string | null; owner: string | null; notice_id: string; title: string; agency: string | null; office: string | null; ptype: string | null; notice_type: string | null; set_aside_code: string | null; set_aside: string | null; naics: string | null; response_deadline: string | null; pop_city: string | null; pop_state: string | null; fit_score: number; fit: { flags?: string[]; biddable?: boolean } | null; status: string; posted_date: string | null };
 
@@ -40,29 +41,13 @@ export default async function GovContracts({ searchParams }: { searchParams: Pro
   const active = rows.filter((r) => ["reviewing", "bidding", "submitted"].includes(r.status) && !picksToday.includes(r));
   const list = rows.filter((r) => (status ? r.status === status : r.status === "new" && (all ? true : open(r) && r.fit?.biddable !== false)));
   const n = (st: string) => rows.filter((r) => r.status === st).length;
-  const table = (items: Row[]) => (
-    <div className="card overflow-x-auto p-0">
-      <table className="w-full text-sm">
-        <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Fit</th><th className="p-3">Opportunity</th><th className="p-3">Where</th><th className="p-3">Respond by</th><th className="p-3">Status</th></tr></thead>
-        <tbody>
-          {items.map((r) => (
-            <tr key={r.notice_id} className="border-t border-line align-top">
-              <td className="p-3"><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${r.fit_score >= 70 ? "bg-green-100 text-green-800" : r.fit_score >= 40 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{r.fit_score}</span></td>
-              <td className="p-3">
-                <Link href={`/hub/gov/${encodeURIComponent(r.notice_id)}`} className="font-semibold text-brand hover:underline">{r.title}</Link>
-                <div className="text-xs text-ink-soft">{noticeTypeLabel(r.ptype, r.notice_type)} · {r.agency ?? "—"}{r.office ? ` / ${r.office}` : ""}</div>
-                <div className="text-xs text-ink-soft">NAICS {r.naics ?? "—"}{r.naics && GOV_NAICS_BY_CODE[r.naics] ? ` · ${GOV_NAICS_BY_CODE[r.naics].title}` : ""}{r.set_aside_code ? ` · ${SET_ASIDES[r.set_aside_code]?.label ?? r.set_aside ?? r.set_aside_code}` : " · open to all"}</div>
-                {r.fit?.flags?.[0] && <div className="text-xs text-amber-800">⚠ {r.fit.flags[0]}</div>}
-              </td>
-              <td className="p-3 text-xs">{[r.pop_city, r.pop_state].filter(Boolean).join(", ") || "—"}</td>
-              <td className="p-3 text-xs">{due(r.response_deadline)}</td>
-              <td className="p-3 text-xs capitalize">{r.status}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const toRow = (r: Row): GovTableRow => ({
+    notice_id: r.notice_id, title: r.title, fit_score: r.fit_score, status: r.status, due: due(r.response_deadline),
+    typeLine: `${noticeTypeLabel(r.ptype, r.notice_type)} · ${r.agency ?? "—"}${r.office ? ` / ${r.office}` : ""}`,
+    codeLine: `NAICS ${r.naics ?? "—"}${r.naics && GOV_NAICS_BY_CODE[r.naics] ? ` · ${GOV_NAICS_BY_CODE[r.naics].title}` : ""}${r.set_aside_code ? ` · ${SET_ASIDES[r.set_aside_code]?.label ?? r.set_aside ?? r.set_aside_code}` : " · open to all"}`,
+    flag: r.fit?.flags?.[0] ?? null, where: [r.pop_city, r.pop_state].filter(Boolean).join(", ") || "—",
+  });
+  const table = (items: Row[], mode: "new" | "passed" | "locked" = "locked") => <GovTable rows={items.map(toRow)} mode={mode} />;
   const tab = (href: string, label: string, on: boolean) => <Link href={href} className={`rounded-full border px-3 py-1 text-xs ${on ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{label}</Link>;
   return (
     <div className="space-y-6">
@@ -87,16 +72,17 @@ export default async function GovContracts({ searchParams }: { searchParams: Pro
         <GovSearchForm s={{ enabled: s.enabled, naics: s.naics, state: s.state, keywords: s.keywords, ptypes: s.ptypes, days_back: s.days_back, daily_call_budget: s.daily_call_budget, certifications: s.certifications, daily_picks: s.daily_picks }} ready={govReady()} callsLeft={Math.max(0, s.daily_call_budget - used)} />
         {s.last_run_at && <p className="mt-2 text-xs text-ink-soft">Last daily run: {new Date(s.last_run_at).toLocaleString("en-US", { timeZone: "America/Detroit" })}</p>}
       </section>
-      {picksToday.length > 0 && <section><h2 className="mb-1 text-lg font-bold">Today’s bids (AI bid desk)</h2><p className="mb-2 text-sm text-ink-soft">Picked this morning: open, biddable, 5+ days to respond, best fit first. Each has a draft bid in <Link href="/hub/bids" className="text-brand underline">Our bids</Link>: upload the solicitation from SAM.gov and the AI builds the compliance matrix and price lines.</p>{table(picksToday)}</section>}
+      {picksToday.length > 0 && <section><h2 className="mb-1 text-lg font-bold">Today’s bids (AI bid desk)</h2><p className="mb-2 text-sm text-ink-soft">Picked this morning: open, biddable, 5+ days to respond, best fit first. Each has a draft bid in <Link href="/hub/bids" className="text-brand underline">Our bids</Link>: upload the solicitation from SAM.gov and the AI builds the compliance matrix and price lines.</p>{table(picksToday, "new")}</section>}
       {active.length > 0 && <section><h2 className="mb-2 text-lg font-bold">In progress</h2>{table(active)}</section>}
       <section>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h2 className="mr-2 text-lg font-bold">Opportunities</h2>
           {tab("/hub/bids?view=gov", "New & open", !status && !all)}
           {tab("/hub/bids?view=gov&all=1", "All new", !status && Boolean(all))}
-          {["won", "lost", "passed"].map((x) => tab(`/hub/bids?view=gov&status=${x}`, x[0].toUpperCase() + x.slice(1), status === x))}
+          {["won", "lost", "passed"].map((x) => tab(`/hub/bids?view=gov&status=${x}`, x[0].toUpperCase() + x.slice(1) + (x === "passed" ? ` (${n("passed")})` : ""), status === x))}
         </div>
-        {list.length ? table(list.slice(0, 200)) : <p className="text-sm text-ink-soft">Nothing here yet. Pick the work we can fill above and search, or switch on the daily search.</p>}
+        <p className="mb-2 text-xs text-ink-soft">Not a fit? Press ✕ on the row, or tick several and press “Not a fit”. They move to <b>Passed</b> and the daily search won’t bring them back. From Passed you can restore them, or delete them for good.</p>
+        {list.length ? table(list.slice(0, 200), status === "passed" ? "passed" : !status ? "new" : "locked") : <p className="text-sm text-ink-soft">Nothing here yet. Pick the work we can fill above and search, or switch on the daily search.</p>}
       </section>
       <section className="card">
         <h2 className="text-lg font-bold">Before we bid</h2>

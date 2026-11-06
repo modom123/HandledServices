@@ -7,6 +7,9 @@
  * UPDATED : 2026-10-04_1934 UTC — commercial accounts open their Hub account page (billing, properties, members, dedicated pros).
  * UPDATED : 2026-10-05_2146 UTC — each customer opens their page (bookings + permanent notes history); latest note shown.
  * UPDATED : 2026-10-12_0121 UTC — customer ID (C-…) next to each name.
+ * UPDATED : 2026-10-28_1735 UTC — every customer, not just the newest jobs: totals come from the hub_customer_totals view
+ *           (top 200 by spend listed, full count shown); falls back to rolling up the newest jobs until that SQL is run.
+ * UPDATED : 2026-11-06_0630 UTC — profile photos in the list (Avatar; initials when none).
  */
 import Link from "next/link";
 import { customerNos } from "@/lib/ids";
@@ -14,37 +17,47 @@ import { getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { customerSubjectId, noteSummaries } from "@/lib/notes";
 import { Badge, Empty } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+import { profilePhotos } from "@/lib/person-files";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export default async function Customers() {
   const v = await getViewer();
   if (!v) return null;
-  const [{ data: jobs }, { data: biz }, { data: leads }] = await Promise.all([
-    v.db.from("jobs").select("contact_name, contact_email, contact_phone, customer_type, company_name, price_final, status, frequency, created_at").order("created_at", { ascending: false }).limit(2000),
+  const [totals, { data: biz }, { data: leads }] = await Promise.all([
+    // every customer, totalled in the database (hub_customer_totals); the top 200 by spend are listed
+    v.db.from("hub_customer_totals").select("*", { count: "exact" }).order("spend", { ascending: false }).limit(200),
     v.db.from("business_accounts").select("*").order("created_at", { ascending: false }),
     v.db.from("leads").select("*").order("created_at", { ascending: false }).limit(50),
   ]);
-  const map = new Map<string, Rec>();
-  for (const j of (jobs ?? []) as Rec[]) {
-    const k = String(j.contact_email).toLowerCase();
-    const c = map.get(k) ?? { name: j.company_name ?? j.contact_name, email: k, phone: j.contact_phone, type: j.customer_type, jobs: 0, spend: 0, recurring: false, last: j.created_at };
-    c.jobs++;
-    if (j.status === "completed") c.spend += Number(j.price_final ?? 0);
-    if (j.frequency !== "once") c.recurring = true;
-    map.set(k, c);
+  let customers: Rec[] = (totals.data ?? []) as Rec[];
+  let count = totals.count ?? customers.length;
+  if (totals.error) {
+    // before the 2026-10-28 SQL is run: roll up the newest jobs here (the database returns at most 1,000 rows)
+    const { data: jobs } = await v.db.from("jobs").select("contact_name, contact_email, contact_phone, customer_type, company_name, price_final, status, frequency, created_at").order("created_at", { ascending: false }).limit(1000);
+    const map = new Map<string, Rec>();
+    for (const j of (jobs ?? []) as Rec[]) {
+      const k = String(j.contact_email).toLowerCase();
+      const c = map.get(k) ?? { name: j.company_name ?? j.contact_name, email: k, phone: j.contact_phone, type: j.customer_type, jobs: 0, spend: 0, recurring: false, last: j.created_at };
+      c.jobs++;
+      if (j.status === "completed") c.spend += Number(j.price_final ?? 0);
+      if (j.frequency !== "once") c.recurring = true;
+      map.set(k, c);
+    }
+    customers = [...map.values()].sort((a, b) => b.spend - a.spend);
+    count = customers.length;
   }
-  const customers = [...map.values()].sort((a, b) => b.spend - a.spend);
-  const shown: Rec[] = customers.slice(0, 200).map((c) => ({ ...c, sid: customerSubjectId(String(c.email)) }));
-  const [notes, nos] = await Promise.all([noteSummaries("customer", shown.map((c) => c.sid)), customerNos(shown.map((c) => String(c.email)))]);
+  const shown: Rec[] = customers.slice(0, 200).map((c) => ({ ...c, spend: Number(c.spend), sid: customerSubjectId(String(c.email)) }));
+  const [notes, nos, faces, bizFaces] = await Promise.all([noteSummaries("customer", shown.map((c) => c.sid)), customerNos(shown.map((c) => String(c.email))), profilePhotos("customer", shown.map((c) => String(c.email))).catch(() => new Map<string, string>()), profilePhotos("business", ((biz ?? []) as Rec[]).map((b) => String(b.id))).catch(() => new Map<string, string>())]);
   return (
     <div className="space-y-10">
       <section>
-        <h1 className="mb-4 text-2xl font-bold">Customers <span className="text-base font-normal text-ink-soft">({customers.length})</span></h1>
+        <h1 className="mb-4 text-2xl font-bold">Customers <span className="text-base font-normal text-ink-soft">({count})</span></h1>
         <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Customer</th><th className="p-3">Type</th><th className="p-3">Jobs</th><th className="p-3">Lifetime spend</th><th className="p-3">Plan</th><th className="p-3">Last booking</th></tr></thead>
           <tbody>{shown.map((c) => (
-            <tr key={c.email} className="border-t border-line"><td className="p-3"><Link href={`/hub/customers/${encodeURIComponent(c.email)}`} className="font-semibold text-brand hover:underline">{c.name}</Link>{nos.get(String(c.email).toLowerCase()) && <span className="ml-2 font-mono text-xs text-ink-soft">{nos.get(String(c.email).toLowerCase())}</span>}<div className="text-xs text-ink-soft">{c.email} · {c.phone} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(c.email)}`}>contracts</Link></div>{notes[c.sid] && <div className="mt-1 line-clamp-1 text-xs text-ink-soft">📝 {notes[c.sid].count} · {new Date(notes[c.sid].last.at).toLocaleDateString()}: {notes[c.sid].last.body}</div>}</td><td className="p-3">{c.type}</td><td className="p-3">{c.jobs}</td><td className="p-3">{money(c.spend)}</td><td className="p-3">{c.recurring ? <Badge tone="green">recurring</Badge> : "—"}</td><td className="p-3 text-xs">{new Date(c.last).toLocaleDateString()}</td></tr>
+            <tr key={c.email} className="border-t border-line"><td className="p-3"><div className="flex gap-3"><Avatar url={faces.get(String(c.email).toLowerCase())} name={String(c.name ?? c.email)} /><div className="min-w-0"><Link href={`/hub/customers/${encodeURIComponent(c.email)}`} className="font-semibold text-brand hover:underline">{c.name}</Link>{nos.get(String(c.email).toLowerCase()) && <span className="ml-2 font-mono text-xs text-ink-soft">{nos.get(String(c.email).toLowerCase())}</span>}<div className="text-xs text-ink-soft">{c.email} · {c.phone} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(c.email)}`}>contracts</Link></div>{notes[c.sid] && <div className="mt-1 line-clamp-1 text-xs text-ink-soft">📝 {notes[c.sid].count} · {new Date(notes[c.sid].last.at).toLocaleDateString()}: {notes[c.sid].last.body}</div>}</div></div></td><td className="p-3">{c.type}</td><td className="p-3">{c.jobs}</td><td className="p-3">{money(c.spend)}</td><td className="p-3">{c.recurring ? <Badge tone="green">recurring</Badge> : "—"}</td><td className="p-3 text-xs">{new Date(c.last).toLocaleDateString()}</td></tr>
           ))}</tbody>
         </table></div>
       </section>
@@ -52,7 +65,7 @@ export default async function Customers() {
         <h2 className="mb-4 text-xl font-bold">Commercial accounts</h2>
         {!(biz ?? []).length && <Empty>No business accounts yet.</Empty>}
         <div className="grid gap-3 md:grid-cols-2">{(biz ?? []).map((b: Rec) => (
-          <Link key={b.id} href={`/hub/business/${b.id}`} className="card block text-sm transition hover:border-brand"><div className="flex justify-between"><span className="font-semibold">{b.company}</span><Badge tone={b.status === "active" ? "green" : "amber"}>{b.status}</Badge></div>
+          <Link key={b.id} href={`/hub/business/${b.id}`} className="card block text-sm transition hover:border-brand"><div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2 font-semibold"><Avatar url={bizFaces.get(String(b.id))} name={String(b.company)} size={28} />{b.company}</span><Badge tone={b.status === "active" ? "green" : "amber"}>{b.status}</Badge></div>
             <div className="text-ink-soft">{b.contact_name} · {b.email} · {b.locations} location(s)</div>
             <div className="mt-1">{(b.services_needed as string[]).map((s) => getService(s)?.name ?? s).join(", ")}</div>
             {b.monthly_value && <div className="mt-1 font-semibold">{money(b.monthly_value)}/mo</div>}

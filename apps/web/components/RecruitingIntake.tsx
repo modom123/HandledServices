@@ -10,9 +10,11 @@
  *           (lawn: mowing, edging, landscaping, shrubs, planting, sod…), on both the add form and the candidate page.
  * UPDATED : 2026-10-27_1900 UTC — ApproveProForm: upload the résumé (the AI fills in the form), "I interviewed them",
  *           approve → their pro file is created with the résumé and they're invited (api/hub/recruiting/approve).
+ * UPDATED : 2026-11-05_1215 UTC — trade pickers are a dropdown (up to 5, searchable) instead of 70 buttons.
  */
 "use client";
 
+import { MultiSelect } from "@/components/Dropdowns";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TRADE_PROFILES } from "@handled/core";
@@ -73,7 +75,7 @@ export function RecruitingIntake({ trades }: { trades: Trade[] }) {
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState<{ ok: boolean; text: string; detail?: Outcome } | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
-  const toggle = (id: string) => { const trades = f.trades.includes(id) ? f.trades.filter((t) => t !== id) : [...f.trades, id].slice(0, 5); setF({ ...f, trades, specialties: keepSkills(f.specialties, trades) }); };
+  const setTrades = (list: string[]) => { const trades = list.slice(0, 5); setF({ ...f, trades, specialties: keepSkills(f.specialties, trades) }); };
 
   async function submit() {
     setBusy(true); setOut(null);
@@ -108,9 +110,7 @@ export function RecruitingIntake({ trades }: { trades: Trade[] }) {
           </div>
           <div>
             <span className="label">Trades (up to 5)</span>
-            <div className="mt-1 flex flex-wrap gap-1.5">{trades.map((t) => (
-              <button key={t.id} type="button" onClick={() => toggle(t.id)} className={`rounded-full border px-2.5 py-0.5 text-xs ${f.trades.includes(t.id) ? "border-brand bg-brand text-white" : "border-line"}`}>{t.label}</button>
-            ))}</div>
+            <div className="mt-1"><MultiSelect options={trades.map((t) => ({ value: t.id, label: t.label }))} value={f.trades} onChange={setTrades} max={5} placeholder="Pick their trades" /></div>
           </div>
           <SkillPicker trades={f.trades} labels={trades} value={f.specialties} onChange={(specialties) => setF({ ...f, specialties })} />
           <label className="block"><span className="label">Notes (job they applied for, résumé highlights, how you met)</span><textarea className="input min-h-20" value={f.notes} onChange={set("notes")} /></label>
@@ -151,13 +151,11 @@ export function TradesEditor({ appId, initial, initialSkills = [], trades }: { a
   const [sel, setSel] = useState(initial);
   const [skills, setSkills] = useState(initialSkills);
   const [msg, setMsg] = useState("");
-  const toggle = (id: string) => { const next = sel.includes(id) ? sel.filter((t) => t !== id) : [...sel, id].slice(0, 5); setSel(next); setSkills(keepSkills(skills, next)); };
+  const setTrades = (list: string[]) => { const next = list.slice(0, 5); setSel(next); setSkills(keepSkills(skills, next)); };
   return (
     <details className="mt-2 text-xs" open={!initial.length || !initialSkills.length}>
       <summary className="cursor-pointer font-semibold text-brand">{!initial.length ? "⚠ Set this candidate's trades" : initialSkills.length ? "Change trades & skills" : "⚠ Check off this candidate's skills"}</summary>
-      <div className="mt-2 flex flex-wrap gap-1.5">{trades.map((t) => (
-        <button key={t.id} type="button" onClick={() => toggle(t.id)} className={`rounded-full border px-2.5 py-0.5 ${sel.includes(t.id) ? "border-brand bg-brand text-white" : "border-line"}`}>{t.label}</button>
-      ))}</div>
+      <div className="mt-2 max-w-md"><MultiSelect options={trades.map((t) => ({ value: t.id, label: t.label }))} value={sel} onChange={setTrades} max={5} placeholder="Pick their trades" /></div>
       <div className="mt-2"><SkillPicker trades={sel} labels={trades} value={skills} onChange={setSkills} /></div>
       <button className="btn-primary mt-2 px-3 py-1 text-xs" disabled={!sel.length} onClick={async () => {
         const r = await fetch(`/api/hub/applications/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trades: sel, specialties: skills }) });
@@ -185,7 +183,7 @@ export function ApproveProForm({ trades }: { trades: Trade[] }) {
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState<{ ok: boolean; text: string; contractorId?: string } | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
-  const toggle = (id: string) => { const t = f.trades.includes(id) ? f.trades.filter((x) => x !== id) : [...f.trades, id].slice(0, 5); setF({ ...f, trades: t, specialties: keepSkills(f.specialties, t) }); };
+  const setTrades = (list: string[]) => { const t = list.slice(0, 5); setF({ ...f, trades: t, specialties: keepSkills(f.specialties, t) }); };
   const call = async (body: unknown) => {
     const r = await fetch("/api/hub/recruiting/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     return { ok: r.ok, j: (await r.json().catch(() => ({}))) as { error?: string; contractorId?: string; resumeFiled?: boolean; note?: string; read?: { readable: boolean; full_name: string; email: string; phone: string; zip: string; business_name: string; years_experience: number; trades: string[]; specialties: string[]; summary: string } | null } };
@@ -193,7 +191,7 @@ export function ApproveProForm({ trades }: { trades: Trade[] }) {
   async function pick(file: File | undefined) {
     setOut(null); setResume(null); setReading("");
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) return setReading("That file is over 4 MB — save it as a smaller PDF.");
+    if (file.size > 3 * 1024 * 1024) return setReading("That file is over 3 MB — save it as a smaller PDF, or have the pro upload it in their setup (up to 10 MB).");
     const r = { data: await toBase64(file), fileName: file.name, contentType: file.type || "application/octet-stream" };
     setResume(r);
     setReading("Reading the résumé…");
@@ -225,7 +223,7 @@ export function ApproveProForm({ trades }: { trades: Trade[] }) {
         <p className="text-ink-soft">You screened the résumé and did the phone interview, and you want them. Upload the résumé, check the details and approve — their pro file is created and the system takes over: invite email, setup checklist, reminders, document checks, background check, going live, job offers and Monday pay.</p>
       </div>
       <label className="block rounded-xl border border-dashed border-brand bg-brand-tint/40 p-3">
-        <span className="label">1 · Their résumé (PDF, Word or a photo, up to 4 MB)</span>
+        <span className="label">1 · Their résumé (PDF, Word or a photo, up to 3 MB)</span>
         <input type="file" className="mt-1 block text-xs" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp" onChange={(e) => pick(e.target.files?.[0])} />
         <span className="mt-1 block text-xs text-ink-soft">{reading || (resume ? `📄 ${resume.fileName} — goes into their pro file` : "We read it and fill in the form for you. No résumé? Just fill in the form.")}</span>
       </label>
@@ -242,9 +240,7 @@ export function ApproveProForm({ trades }: { trades: Trade[] }) {
       </div>
       <div>
         <span className="label">Trades * (what they'll get offers for)</span>
-        <div className="mt-1 flex flex-wrap gap-1.5">{trades.map((t) => (
-          <button key={t.id} type="button" onClick={() => toggle(t.id)} className={`rounded-full border px-2.5 py-0.5 text-xs ${f.trades.includes(t.id) ? "border-brand bg-brand text-white" : "border-line"}`}>{t.label}</button>
-        ))}</div>
+        <div className="mt-1"><MultiSelect options={trades.map((t) => ({ value: t.id, label: t.label }))} value={f.trades} onChange={setTrades} max={5} placeholder="Pick their trades" /></div>
       </div>
       <SkillPicker trades={f.trades} labels={trades} value={f.specialties} onChange={(specialties) => setF({ ...f, specialties })} />
       <div className="label">3 · Your phone interview</div>

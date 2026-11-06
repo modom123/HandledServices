@@ -5,7 +5,7 @@
  * PURPOSE : Careers — every open role in one public list, the landing page for our Indeed posts: independent pro trades
  *           (apply → /pros, tagged with the trade), roles on the Handled team, and roles we're filling for clients
  *           (company kept confidential). Team and client roles open /careers/[id] to apply. English / Spanish.
- * UPDATED : 2026-11-06_1702 UTC — Field Sales Partner listing (commission only, two ways to earn, 10%→45%) → /partners.
+ * UPDATED : 2026-11-06_1730 UTC — Field Sales Partner listing (commission only; direct sales 10%→45% of profit, plus referrals) → /partners.
  */
 import Link from "next/link";
 import { BRAND, BRAND_STORY, applyUrl, type Track } from "@handled/core";
@@ -42,7 +42,7 @@ export default async function Careers() {
           <Link href="/partners?kind=sales_rep&utm_source=careers#field-sales" className="card mt-5 flex flex-col transition hover:border-brand sm:max-w-2xl">
             <span className="font-bold">{es ? "Socio de ventas — servicios para hogares y negocios" : "Field Sales Partner — home & business services"}</span>
             <span className="mt-1 text-sm text-ink-soft">{es ? "Área de Detroit · en persona o desde cualquier lugar (referidos)" : "Detroit metro · in person, or from anywhere (referrals)"}</span>
-            <span className="mt-2 text-sm">{es ? "Dos formas de ganar: venda cualquier servicio con un ticket (fotos, precio al instante, el cliente paga en el momento) o refiera clientes. Del 10% al 45% de nuestra ganancia en cada trabajo, pagado cada lunes." : "Two ways to earn: sell any service with a ticket (photos, instant price, the customer pays on the spot) or refer customers. 10% up to 45% of our profit on every job, paid every Monday."}</span>
+            <span className="mt-2 text-sm">{es ? "Venda cualquier servicio con un ticket (fotos, precio al instante, el cliente paga en el momento) y gane del 10% al 45% de nuestra ganancia en cada trabajo. También puede referir clientes y ganar hasta el 25% del trabajo. Pagado cada lunes." : "Sell any service on a ticket (photos, instant price, the customer pays on the spot) and earn 10% up to 45% of our profit on every job. You can also refer customers and earn up to 25% of the job. Paid every Monday."}</span>
             <span className="mt-3 text-sm font-semibold text-brand">{es ? "Ver cómo funciona y unirme →" : "See how it works & join →"}</span>
           </Link>
         </section>

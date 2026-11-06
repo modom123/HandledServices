@@ -5,9 +5,11 @@
  * PURPOSE : Interactive controls for the Handled Hub.
  * UPDATED : 2026-10-05_0246 UTC — recruiting settings: screening interview first, auto-invite after an interview.
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
+ * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
  */
 "use client";
 
+import { MultiSelect } from "@/components/Dropdowns";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { JOB_STATUSES, JOB_STATUS_LABEL } from "@handled/core";
@@ -423,11 +425,8 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
         <select className="input" value={p[k].minTier} onChange={(e) => set(k, "minTier", e.target.value)} disabled={!canEdit}><option value="pro">Pro (everyone)</option><option value="pro_plus">Pro+</option><option value="elite">Elite</option></select></label>
       {num(k, "minJobs", "Min. completed jobs")}
       {num(k, "minRating", "Min. rating", 0.05)}
-      <div className="sm:col-span-4"><span className="label">Trades (none selected = all trades)</span>
-        <div className="flex flex-wrap gap-1">{trades.map((t) => {
-          const on = p[k].trades.includes(t.id);
-          return <button type="button" key={t.id} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set(k, "trades", on ? p[k].trades.filter((x) => x !== t.id) : [...p[k].trades, t.id])}>{t.label}</button>;
-        })}</div></div>
+      <div className="sm:col-span-4 max-w-xl"><span className="label">Trades</span>
+        <MultiSelect options={trades.map((t) => ({ value: t.id, label: t.label }))} value={p[k].trades} onChange={(v) => set(k, "trades", v)} noneLabel="All trades" disabled={!canEdit} /></div>
     </div>
   );
   const section = (k: string, title: string, about: string, extra: React.ReactNode) => (
@@ -495,18 +494,19 @@ export function RecruitingRowActions({ appId, contractorId, stage }: { appId: st
   );
 }
 
-export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; autoActivate: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
+export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instantSignup: boolean; autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
   const router = useRouter();
   const [s, setS] = useState({ ...initial, reminderText: initial.reminderDays.join(", ") });
   const [msg, setMsg] = useState("");
   return (
     <div className="card space-y-3 text-sm">
       <div className="font-semibold">Automation</div>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={s.instantSignup} disabled={!canEdit} onChange={(e) => setS({ ...s, instantSignup: e.target.checked })} /> Instant sign-up (Roadie-style): open an account for every applicant the AI doesn’t flag as a decline, with no interview. The ID + background check is the gate (off = score and interview rules below)</label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInvite} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInvite: e.target.checked })} /> Invite strong applicants automatically when the AI score is at least
         <input className="input w-20" type="number" min={0} max={100} value={s.minScore} disabled={!canEdit} onChange={(e) => setS({ ...s, minScore: Number(e.target.value) })} /></label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.interviewRequired} disabled={!canEdit} onChange={(e) => setS({ ...s, interviewRequired: e.target.checked })} /> Screening interview first: email the AI interview link to every applicant the screen doesn’t decline (before any invite)</label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInviteAfterInterview} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInviteAfterInterview: e.target.checked })} /> Invite automatically when the interview result is “advance” (off = a person decides every time — recommended)</label>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoActivate} disabled={!canEdit} onChange={(e) => setS({ ...s, autoActivate: e.target.checked })} /> Activate pros automatically once every step is done, documents verified and background clear</label>
+      <p className="text-ink-soft">Pros never go live on their own: once the resume, photo ID and every step are verified you get a “Ready to approve” alert, and a person activates them in Hub → Pros.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block"><span className="label">Setup reminders (days after invite)</span><input className="input" value={s.reminderText} disabled={!canEdit} onChange={(e) => setS({ ...s, reminderText: e.target.value })} /></label>
         <label className="block"><span className="label">Mark dropped after (days)</span><input className="input" type="number" value={s.dropAfterDays} disabled={!canEdit} onChange={(e) => setS({ ...s, dropAfterDays: Number(e.target.value) })} /></label>
@@ -514,7 +514,7 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoIn
       </div>
       {canEdit ? <button className="btn-primary" onClick={async () => {
         const reminderDays = s.reminderText.split(/[,\s]+/).map(Number).filter((n) => n > 0);
-        const r = await call("/api/hub/recruiting", "PUT", { autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, autoActivate: s.autoActivate, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
+        const r = await call("/api/hub/recruiting", "PUT", { instantSignup: s.instantSignup, autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
         setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
       }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
       {msg && <p>{msg}</p>}

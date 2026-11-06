@@ -10,7 +10,8 @@
  * UPDATED : 2026-10-05_0447 UTC — ?photos=&notes= from Snap & post a job (photos limited to our upload folder).
  * UPDATED : 2026-10-12_0005 UTC — signed-in customers pick one of My homes (?home=<id> preselects it).
  * UPDATED : 2026-10-20_0200 UTC — ?quote=&bid=: book a request-a-quote at the pro's locked price.
- * UPDATED : 2026-11-06_1638 UTC — ?ticket=<token>: a Field Sales ticket — the rep's photos, notes and the customer's details pre-filled.
+ * UPDATED : 2026-10-28_1800 UTC — ?for=business starts the order as a commercial (company) order; ?lead= is kept out of the answers.
+ * UPDATED : 2026-11-06_1730 UTC — ?ticket=<token>: a Field Sales ticket — everything the partner set up with the customer pre-filled.
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { t } from "@handled/core";
@@ -78,7 +79,7 @@ async function bookedQuote(token?: string, bid?: string): Promise<{ quote: Booke
 export const metadata = { title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, ticket: ticketToken, ...rest } = await searchParams;
+  const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, for: forWho, lead: _lead, ticket: ticketToken, ...rest } = await searchParams;
   const quoted = await bookedQuote(quoteToken, bid);
   const ticket = await ticketForBooking(ticketToken).catch(() => null);
   const service = quoted?.service ?? ticket?.service ?? svcParam;
@@ -94,7 +95,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
     <div className="wrap py-12">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t(locale, "Get your price & book")}</h1>
       {ticket && <p className="-mt-5 mb-6 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{ticket.rep ? (locale === "es" ? `${ticket.rep} preparó su servicio. ` : `${ticket.rep} set this up with you. `) : ""}{locale === "es" ? "Todo lo que hablaron ya está lleno: revise, acepte y pague. Usted paga a Handled directamente." : "Everything you discussed is filled in — check it, accept and pay. You pay Handled directly."}</p>}
-      <BookingWizard quote={quoted?.quote ?? null} business={business} initialService={service} prefill={ticket ? { ...ticket.answers, ...prefill } : prefill} initialUrgency={ticket?.urgency ?? when} initialBudget={ticket?.budget ?? budget} initialPromo={promo} initialFrequency={ticket?.frequency ?? frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={ticket?.notes || notes?.slice(0, 1500)} ticket={ticket ? { token: ticket.token, contact: ticket.contact, date: ticket.date, window: ticket.window, access: ticket.access } : undefined} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} />
+      <BookingWizard quote={quoted?.quote ?? null} business={business} initialService={service} prefill={ticket ? { ...ticket.answers, ...prefill } : prefill} initialUrgency={ticket?.urgency ?? when} initialBudget={ticket?.budget ?? budget} initialPromo={promo} initialFrequency={ticket?.frequency ?? frequency} locale={locale} preferred={preferred} initialPhotos={initialPhotos} initialNotes={ticket?.notes || notes?.slice(0, 1500)} ticket={ticket ? { token: ticket.token, contact: ticket.contact, date: ticket.date, window: ticket.window, access: ticket.access } : undefined} homes={saved.homes} initialHome={home} signedIn={saved.signedIn} commercial={forWho === "business"} />
     </div>
   );
 }

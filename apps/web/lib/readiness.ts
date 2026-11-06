@@ -51,8 +51,17 @@
  *           duplicate warning names which endpoint(s) to delete.
  * UPDATED : 2026-10-21_0130 UTC — Instantly webhook secret optional: replies are pulled from the API without it.
  * UPDATED : 2026-10-21_0030 UTC — migrations from Oct 19–21 probed (one paste: RUN_ONCE_ALL_NEW_2026-10-21_0000.sql).
+ * UPDATED : 2026-10-28_1735 UTC — customer totals view probed; one paste is RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql.
+ * UPDATED : 2026-10-28_1558 UTC — recruiting intake / division and partner tickets probed (one paste for everything since setup: RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql).
  * UPDATED : 2026-10-20_0100 UTC — omnichannel checks: lead intake, Meta / Google lead forms, conversion tracking, social posting.
- * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
+ * UPDATED : 2026-11-05_1530 UTC — address lookup uses the free US Census geocoder; no Google Maps key needed.
+ * UPDATED : 2026-11-05_1330 UTC — Sales tax reads Stripe Tax (registrations + STRIPE_TAX); Connect counts as ready when it's
+ *           activated even before any pro is approved.
+ * UPDATED : 2026-11-05_1240 UTC — 10-minute dispatch cron is confirmed by its own runs (no DISPATCH_CRON / GitHub secret needed).
+ * UPDATED : 2026-11-05_0000 UTC — migration 20261105000000_person_files and the person-files storage bucket.
+ * UPDATED : 2026-11-04_1759 UTC — "Go-live autopilot" checks: the Vercel and Supabase tokens that let Hub → Go-live setup
+ *           save settings, create webhooks and run migrations itself (lib/golive-autopilot.ts).
+ * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -72,11 +81,20 @@ export async function readiness(): Promise<Check[]> {
   const add = (group: string, label: string, ok: boolean | "warn", detail: string, fix?: string) =>
     c.push({ group, label, status: ok === true ? "ok" : ok === "warn" ? "warn" : "fail", detail, fix: ok === true ? undefined : fix });
 
+  // ── Go-live autopilot: the last values pasted by hand — after these, the autopilot button does the rest
+  const vercelOk = has("VERCEL_TOKEN") && has("VERCEL_PROJECT_ID");
+  add("Go-live autopilot", "Vercel connection (saves settings and redeploys for you)", vercelOk ? true : "warn", vercelOk ? `connected${has("VERCEL_TEAM_ID") ? " (team project)" : ""}` : `${!has("VERCEL_TOKEN") ? "VERCEL_TOKEN" : "VERCEL_PROJECT_ID"} missing — secrets, the site URL and the Stripe signing secret must be pasted by hand`,
+    "vercel.com → Account Settings → Tokens → Create (scope: the team that owns this project) → VERCEL_TOKEN; Project → Settings → General → Project ID → VERCEL_PROJECT_ID; for a team project also Team Settings → General → Team ID → VERCEL_TEAM_ID. Redeploy once, then press Run autopilot");
+  add("Go-live autopilot", "Supabase connection (runs database migrations for you)", has("SUPABASE_ACCESS_TOKEN") ? true : "warn", has("SUPABASE_ACCESS_TOKEN") ? "connected" : "SUPABASE_ACCESS_TOKEN missing — missing migrations must be pasted into the SQL editor by hand",
+    "supabase.com/dashboard/account/tokens → Generate new token → SUPABASE_ACCESS_TOKEN in Vercel (server only)");
+  add("Go-live autopilot", "Go-live API key (agents can tick checklist items)", (process.env.GOLIVE_API_KEY?.trim().length ?? 0) >= 24 ? true : "warn", (process.env.GOLIVE_API_KEY?.trim().length ?? 0) >= 24 ? "set" : "not set — Run autopilot generates it",
+    "Run autopilot (it generates GOLIVE_API_KEY), or set GOLIVE_API_KEY (openssl rand -hex 32) in Vercel");
+
   // ── Environment
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/+$/, "");
   add("Website & Vercel", "Site URL", site.startsWith("https://") && !site.includes("localhost") ? true : false, site ? (site.includes("localhost") ? `${site} — email links would point to localhost; using ${siteUrlNow()} for now` : site) : `not set — using ${siteUrlNow()} for now`, "Vercel → Settings → Environment Variables → NEXT_PUBLIC_SITE_URL = https://your-domain (used in every email link)");
   add("Website & Vercel", "Support email & phone", !BRAND_PLACEHOLDERS, BRAND_PLACEHOLDERS ? "still the placeholder support@handled.example / (555)" : "set", "Set NEXT_PUBLIC_SUPPORT_EMAIL and NEXT_PUBLIC_SUPPORT_PHONE in Vercel (and EXPO_PUBLIC_… for the app)");
-  add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Google Business Profile → Ask for reviews → copy the link → set NEXT_PUBLIC_GOOGLE_REVIEW_URL in Vercel and EXPO_PUBLIC_GOOGLE_REVIEW_URL for the app");
+  add("Website & Vercel", "Google review link", BRAND.googleReviewUrl ? true : "warn", BRAND.googleReviewUrl || "not set — customers aren't asked to review us on Google", "Press Run autopilot: it finds your Google Business Profile by your phone number and saves the review link (needs GOOGLE_PLACES_API_KEY). No profile yet? Create one at business.google.com first. Or paste the link from Google Business Profile → Ask for reviews into NEXT_PUBLIC_GOOGLE_REVIEW_URL");
   add("Pro recruiting", "Lead engine: finding pros", has("GOOGLE_PLACES_API_KEY") ? true : "warn", has("GOOGLE_PLACES_API_KEY") ? "Google Places key set" : "not set — CSV import only", "Google Cloud → enable Places API (New) → create an API key (restrict it to Places API) → GOOGLE_PLACES_API_KEY in Vercel. Then turn the engine on in Hub → Pro leads");
   add("Business sales", "Government contracts (SAM.gov)", has("SAM_API_KEY") ? true : "warn", has("SAM_API_KEY") ? "SAM.gov key set" : "not set — no contract search", "SAM.gov → sign in → Workspace → your profile → Public API Key → SAM_API_KEY in Vercel. Then pick the work and switch on the daily search in Hub → Gov contracts. Register Handled as an entity in SAM.gov (free) to bid and to get ~1,000 calls a day");
   add("Pro recruiting", "Lead engine: invitations (Instantly)", has("INSTANTLY_API_KEY") && has("INSTANTLY_CAMPAIGN_ID") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("INSTANTLY_API_KEY") ? "not set — no invitation emails" : !has("INSTANTLY_CAMPAIGN_ID") ? "INSTANTLY_CAMPAIGN_ID missing" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing" : has("INSTANTLY_WEBHOOK_SECRET") ? "set (replies by webhook)" : "set (replies pulled from Instantly every 10 minutes — no webhook needed)", `Instantly: connect warmed-up inboxes on a separate domain, create the campaign (steps {{subject_1}}/{{body_1}} … see docs/LEAD_ENGINE_SETUP_*), API key (v2) → INSTANTLY_API_KEY, campaign id → INSTANTLY_CAMPAIGN_ID, webhook ${site || "https://your-domain"}/api/webhooks/instantly?secret=… → INSTANTLY_WEBHOOK_SECRET; plus BUSINESS_POSTAL_ADDRESS (CAN-SPAM)`);
@@ -97,7 +115,7 @@ export async function readiness(): Promise<Check[]> {
   add("Email", "Resend", has("RESEND_API_KEY") && has("EMAIL_FROM") ? true : "warn", has("RESEND_API_KEY") ? `from ${process.env.EMAIL_FROM ?? "(EMAIL_FROM missing)"}` : has("SMTP_USER") && has("SMTP_PASSWORD") ? "not set — booking emails go from the company mailbox instead" : "missing — emails are only logged", "Add RESEND_API_KEY + EMAIL_FROM and verify your sending domain in Resend (or connect the company mailbox below)");
   add("Access", "Owner admin (OWNER_EMAILS)", has("OWNER_EMAILS") ? true : "warn", has("OWNER_EMAILS") ? "set" : "not set — make yourself admin by adding your email", "In Vercel set OWNER_EMAILS=you@handledsvc.com (comma-separated for more), sign in once and you're an admin; add other staff in Hub → Team");
   add("Site", "Business mailing address", has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", has("BUSINESS_POSTAL_ADDRESS") ? "shown in the footer and on /contact" : "not set — the footer and /contact show no address (also required on marketing email)", "In Vercel set BUSINESS_POSTAL_ADDRESS=\"123 Main St, Detroit, MI 48201\" (a PO box or registered-agent address is fine)");
-  add("Site", "Address lookup (Google Maps)", has("GOOGLE_MAPS_API_KEY") ? true : "warn", has("GOOGLE_MAPS_API_KEY") ? "set — pro distance uses exact addresses" : "not set — distances use ZIP centers (less precise dispatch)", "Google Cloud → enable the Geocoding API → API key → GOOGLE_MAPS_API_KEY in Vercel");
+  add("Site", "Address lookup", true, `free US Census geocoder (no key)${has("GOOGLE_MAPS_API_KEY") ? " · Google Maps as backup" : ""} — exact distances from street addresses, ZIP centers if an address can't be matched`);
   add("Email", "Company mailbox (Email Center)", has("SMTP_USER") && has("SMTP_PASSWORD") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("SMTP_USER") || !has("SMTP_PASSWORD") ? "not connected — no marketing email or inbox" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required on marketing email)" : `connected: ${process.env.SMTP_USER}`, "In Vercel set SMTP_USER=info@handledsvc.com and SMTP_PASSWORD (the Hostinger mailbox password), then Hub → Email Center → Check mailbox & domain (SPF, DKIM, DMARC)");
   const signinMail = has("SUPABASE_SERVICE_ROLE_KEY") && (has("RESEND_API_KEY") || (has("SMTP_USER") && has("SMTP_PASSWORD")));
   add("Email", "Sign-in emails", signinMail ? true : "warn", signinMail ? "Handled sends the code + a link that works on any device" : "falling back to Supabase's email — links only work in the same browser, and the code shows only if the templates include it", "Set SUPABASE_SERVICE_ROLE_KEY and RESEND_API_KEY (or SMTP_USER + SMTP_PASSWORD) in Vercel; add https://YOUR-DOMAIN/auth/confirm to Supabase → Authentication → URL Configuration → Redirect URLs");
@@ -115,12 +133,20 @@ export async function readiness(): Promise<Check[]> {
       "Twilio Console → Account info: Account SID (AC…) into TWILIO_ACCOUNT_SID; Auth Token into TWILIO_AUTH_TOKEN (or an API key: SK… into TWILIO_API_KEY, its secret into TWILIO_API_SECRET); your number (+1…) into TWILIO_FROM or a Messaging Service SID (MG…) into TWILIO_MESSAGING_SERVICE_SID; register A2P 10DLC");
     if (ok && !has("TWILIO_AUTH_TOKEN")) add("Text messages", "Incoming texts verified", "warn", "TWILIO_AUTH_TOKEN not set — texts sent to your number are refused (Twilio signs them with the Auth Token, not the API key)", "Twilio Console → Account info → Auth Token: copy it into TWILIO_AUTH_TOKEN");
   }
-  const dispatchCron = process.env.DISPATCH_CRON === "github" ? "GitHub Actions" : process.env.VERCEL_PLAN === "pro" ? "Vercel Pro" : "";
-  add("Website & Vercel", "10-minute dispatch cron", dispatchCron ? true : "warn", dispatchCron || "not confirmed — without it, unanswered offers wait for the daily sweep", "In GitHub → Settings → Secrets and variables → Actions, add secret CRON_SECRET (same as Vercel) and variable HANDLED_URL, then set DISPATCH_CRON=github in Vercel");
+  // the 10-minute run proves itself: /api/cron/dispatch records every run (site_settings cron_dispatch)
+  const lastRun = supabaseConfigured && has("SUPABASE_SERVICE_ROLE_KEY")
+    ? ((await adminClient().from("site_settings").select("value").eq("key", "cron_dispatch").maybeSingle().then((r) => r.data?.value, () => null)) as { at?: string; via?: string } | null)
+    : null;
+  const minsAgo = lastRun?.at ? Math.round((Date.now() - new Date(lastRun.at).getTime()) / 60000) : null;
+  const running = minsAgo != null && minsAgo <= 30;
+  const dispatchCron = running ? `running — last run ${minsAgo} min ago (${lastRun?.via === "github" ? "GitHub Actions" : "scheduled job"})` : process.env.DISPATCH_CRON === "github" ? "GitHub Actions" : process.env.VERCEL_PLAN === "pro" ? "Vercel Pro" : "";
+  add("Website & Vercel", "10-minute dispatch cron", running ? true : "warn",
+    running ? dispatchCron : minsAgo != null ? `last run ${minsAgo} min ago — it should run every 10 minutes` : "no run seen yet — without it, unanswered offers wait for the daily sweep",
+    "Nothing to copy: the GitHub job (.github/workflows/dispatch-cron_*.yml) signs in with a GitHub Actions token. Check GitHub → Actions → Dispatch cron: it runs every 10 minutes from the main branch; press Run workflow to start one now");
   add("Mobile app", "Apple Pay / Google Pay in the app", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? true : "warn", has("STRIPE_PUBLISHABLE_KEY") || has("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ? "publishable key set" : "missing — the app falls back to the Stripe Checkout page", "Stripe → Developers → API keys → copy the publishable key into STRIPE_PUBLISHABLE_KEY; add the payment_intent.succeeded event to the webhook")
   add("Mobile app", "Push notifications", has("EXPO_ACCESS_TOKEN") ? true : "warn", has("EXPO_ACCESS_TOKEN") ? "Expo access token set" : "works without it; add EXPO_ACCESS_TOKEN for signed push requests", "expo.dev → Account → Access tokens → create → add EXPO_ACCESS_TOKEN in Vercel");
   add("IEBC workforce", "IEBC API key", has("IEBC_API_KEY") ? true : "warn", has("IEBC_API_KEY") ? "set" : "missing — IEBC agents can't connect", "Add IEBC_API_KEY (openssl rand -hex 32) and paste the same key in IEBC MasterHub → Handled Ops");
-  add("IEBC workforce", "Allowed origin", has("IEBC_ALLOWED_ORIGIN") ? true : "warn", process.env.IEBC_ALLOWED_ORIGIN ?? "* (any website may call with the key)", "Set IEBC_ALLOWED_ORIGIN to the MasterHub's web address");
+  add("IEBC workforce", "Allowed origin", has("IEBC_ALLOWED_ORIGIN") ? true : "warn", process.env.IEBC_ALLOWED_ORIGIN ?? "* (any website may call with the key)", "MasterHub calls Handled from the browser. In Vercel set IEBC_ALLOWED_ORIGIN = https://modom123.github.io, null — GitHub Pages (where the MasterHub is published from the IEBC-MASTERHUB repo) and the MasterHub file opened from a computer. Use only the site address (no folder or file), comma-separated");
 
   // ── Accounting (Xero is the books; Stripe activity is pushed daily)
   const xeroConn = supabaseConfigured && has("SUPABASE_SERVICE_ROLE_KEY") ? await getConnection().catch(() => null) : null;
@@ -141,7 +167,20 @@ export async function readiness(): Promise<Check[]> {
       add("Payments (Stripe)", "Stripe account", false, `key rejected: ${e instanceof Error ? e.message : e}`, "Re-copy STRIPE_SECRET_KEY");
     }
     add("Webhooks", "Stripe: signing secret", has("STRIPE_WEBHOOK_SECRET"), has("STRIPE_WEBHOOK_SECRET") ? "set" : "missing — paid bookings won't dispatch", `Stripe → Developers → Webhooks → endpoint ${site || "https://your-domain"}/api/stripe/webhook, events checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.succeeded (app payments), charge.refunded (refunds made in Stripe), charge.dispute.created, charge.dispute.updated, charge.dispute.closed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, identity.verification_session.verified and identity.verification_session.requires_input (pro ID checks); copy the signing secret`);
-    add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", process.env.STRIPE_TAX === "on" ? "Stripe Tax on — tax added where the service is taxable" : "off — fine in Michigan for most services; turn on before adding states that tax services", "Stripe → Tax → add your registrations, then set STRIPE_TAX=on");
+    // sales tax: read Stripe Tax itself — where we're registered, and whether checkout adds tax (STRIPE_TAX)
+    try {
+      const regs = (await stripe.tax.registrations.list({ status: "active", limit: 50 })).data;
+      const where = regs.map((r) => (r.country === "US" ? (r.country_options as { us?: { state?: string } }).us?.state ?? "US" : r.country)).filter(Boolean);
+      const on = process.env.STRIPE_TAX === "on";
+      add("Payments (Stripe)", "Sales tax", where.length && on ? true : "warn",
+        where.length ? (on ? `Stripe Tax on · registered in ${where.join(", ")}` : `registered in ${where.join(", ")} in Stripe, but checkout doesn't add tax yet`)
+          : on ? "STRIPE_TAX is on but Stripe has no tax registration — no tax is calculated"
+          : "no tax registration in Stripe. Michigan doesn't tax most home services; Washington taxes many of them (lawn & landscaping, carpet cleaning, repairs and more) — confirm with your accountant",
+        where.length && !on ? "Press Run autopilot (it turns tax on: STRIPE_TAX=on), or set STRIPE_TAX=on in Vercel"
+          : "Stripe → Tax → Registrations → add Washington (and any other state your accountant says), then press Run autopilot — it turns tax on for you");
+    } catch (e) {
+      add("Payments (Stripe)", "Sales tax", process.env.STRIPE_TAX === "on" ? true : "warn", `couldn't read Stripe Tax: ${e instanceof Error ? e.message : e}`, "Give the key access to Tax, or check Stripe → Tax by hand");
+    }
     await stripeAccountChecks(stripe, add, site || siteUrlNow());
   }
   // ── Pro recruiting (background checks)
@@ -203,7 +242,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261006201000_pro_business_address", "pro place of business", () => db.from("contractors").select("base_address, base_city").limit(1)],
     ["20261006215500_xero_accounting", "Xero accounting", () => db.from("xero_sync_log").select("id").limit(1)],
     ["20261007010000_referral_partners", "referral partner program", () => db.from("partner_commissions").select("id").limit(1)],
-    ["20261106163800_field_sales", "Field Sales (tickets, 10%→45% ladder) — run ADD_FIELD_SALES_2026-11-06_1638.sql", () => db.from("sales_tickets").select("id, answers, quoted_price").limit(1)],
+    ["20261106163800_field_sales", "direct sales / Field Sales (sales tickets, 10%→45% ladder)", () => db.from("sales_tickets").select("id, answers, quoted_price").limit(1)],
     ["20261007023000_site_settings_grand_opening", "website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
     ["20261007030000_bid_measurements", "bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
     ["20261007040000_loyalty_points", "Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],
@@ -221,10 +260,16 @@ export async function readiness(): Promise<Check[]> {
     ["20261020001500_call_desk", "Call desk (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("biz_leads").select("next_call_at, call_attempts").limit(1)],
     ["20261020010000_omnichannel", "Lead inbox & social media (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("social_posts").select("id").limit(1)],
     ["20261020020000_pro_marketplace", "pro prices & request-a-quote (or run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql)", () => db.from("quote_bids").select("id").limit(1)],
+    ["20261023110000_recruiting_intake", "recruiting intake: add candidates by hand, CSV import, Indeed Apply (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql for every change since setup)", () => db.from("contractor_applications").select("external_source, screener, added_by").limit(1)],
+    ["20261027170000_recruiting_division", "Recruiting division: internal roles, /careers, Indeed postings (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("recruiting_postings").select("opening_key").limit(1)],
+    ["20261028012200_partner_tickets_tiers", "partner rates 25/10/15 and referral tickets (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("referral_customers").select("ticket_no, status").limit(1)],
+    ["20261028224500_pro_orientation", "Welcome to Handled orientation and photos on referral tickets (or run supabase/setup/ADD_PRO_WELCOME_2026-10-28_2300.sql)", () => db.from("referral_customers").select("photos").limit(1).then(async (r) => (r.error ? r : await db.from("contractors").select("orientation").limit(1)))],
+    ["20261028173500_hub_customer_totals", "Mastermind customer list covers every customer (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("hub_customer_totals").select("email").limit(1)],
+    ["20261105000000_person_files", "person files (Mastermind → anyone's documents & photos)", () => db.from("person_files").select("id").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);
-  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington). Handled serves Michigan and Washington; a missing ZIP in those states is added when it is first booked");
+  add("Supabase", "Service areas", (areas ?? 0) > 1 ? true : "warn", `${areas ?? 0} active market(s)`, "Run supabase/setup/ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_2026-10-07_1640.sql (rest of Michigan) and ADD_WASHINGTON_SERVICE_AREAS_2026-10-07_1700.sql (Washington). Handled serves Michigan, New York, New Jersey, Las Vegas and Washington (ADD_NY_NJ_LAS_VEGAS_2026-11-06_0500.sql opens the new three); a missing ZIP in those states is added when it is first booked");
   const results = await Promise.all(probes.map(async ([file, label, run]) => ({ file, label, error: (await run()).error })));
   for (const { file, label, error } of results)
     add(M, label[0].toUpperCase() + label.slice(1), !error, error ? `not applied (${error.message})` : `applied · ${file}`,
@@ -265,7 +310,7 @@ export async function readiness(): Promise<Check[]> {
   const stale = SERVICES.filter((s) => { const r = rows.get(s.slug); return r && (r.name !== s.name || Number(r.minimum) !== s.minimum); }).map((s) => s.slug);
   add("Supabase", "Service catalog synced", missing.length === 0 && stale.length === 0, missing.length ? `${missing.length} missing: ${missing.join(", ")}` : stale.length ? `${stale.length} out of date: ${stale.join(", ")}` : `${SERVICES.length} services`, "Click “Sync service catalog” below");
   const { data: buckets } = await db.storage.listBuckets();
-  for (const b of ["job-photos", "pro-docs"]) add("Supabase", `Storage bucket ${b}`, Boolean(buckets?.some((x) => x.id === b)), buckets?.some((x) => x.id === b) ? "exists (private)" : "missing", "Re-run the migrations — they create the buckets");
+  for (const b of ["job-photos", "pro-docs", "person-files"]) add("Supabase", `Storage bucket ${b}`, Boolean(buckets?.some((x) => x.id === b)), buckets?.some((x) => x.id === b) ? "exists (private)" : "missing", "Re-run the migrations — they create the buckets");
 
   const [{ count: admins }, { data: pros }, { count: demo }, { count: markets }] = await Promise.all([
     db.from("profiles").select("id", { count: "exact", head: true }).in("role", ["admin", "dispatcher"]),
@@ -342,8 +387,10 @@ async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
     const linked = list.filter((p) => p.stripe_account_id);
     const ready = (await Promise.all(linked.slice(0, 25).map((p) => connectReady(p.stripe_account_id)))).filter(Boolean).length;
     const sampled = Math.min(linked.length, 25);
-    add(area, "Pros set up for payouts (Connect)", !list.length ? "warn" : ready === list.length ? true : "warn",
-      !list.length ? "no approved pros yet" : `${linked.length} of ${list.length} approved pros started payout setup${sampled ? ` · ${ready} of ${sampled} checked can receive money` : ""}`,
+    // no approved pros yet: what matters now is that Connect works, so each pro can set up payouts when approved
+    const connectOn = !list.length ? await stripe.accounts.list({ limit: 1 }).then(() => true, () => false) : true;
+    add(area, "Pros set up for payouts (Connect)", !list.length ? (connectOn ? true : "warn") : ready === list.length ? true : "warn",
+      !list.length ? (connectOn ? "Connect is on · no approved pros yet — each pro sets up payouts in Pro portal → Earnings when approved" : "no approved pros yet, and Connect isn't activated — pros won't be able to set up payouts") : `${linked.length} of ${list.length} approved pros started payout setup${sampled ? ` · ${ready} of ${sampled} checked can receive money` : ""}`,
       "Pros finish payout setup in Pro portal → Earnings. If no pro can start it, activate Connect in Stripe → Connect → Get started (Express accounts, platform profile)");
     const { data: owed } = await db.from("payouts").select("amount").eq("status", "approved");
     const total = ((owed ?? []) as { amount: number }[]).reduce((a, r) => a + Number(r.amount), 0);
@@ -366,5 +413,5 @@ async function stripeAccountChecks(stripe: Stripe, add: Add, site: string) {
 
   // year-end 1099-NEC for pros paid through Connect
   add(area, "1099 tax forms for pros", has("STRIPE_1099") ? true : "warn", has("STRIPE_1099") ? "Stripe files 1099-NEC for pros paid through Connect" : "not confirmed — nothing files pros' 1099-NEC in January yet",
-    "Stripe → Connect → Tax forms (Settings → Connect → Tax reporting): turn on 1099-NEC e-filing and delivery, then set STRIPE_1099=on in Vercel");
+    "Needed before January (pros paid $600+ in a year get a 1099-NEC). Stripe → Settings → Connect → Tax reporting: choose 1099-NEC, turn on e-filing and delivery to pros, then set STRIPE_1099=on in Vercel (Stripe doesn't let apps read this switch, so it's confirmed by hand)");
 }

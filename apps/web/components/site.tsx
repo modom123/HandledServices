@@ -24,11 +24,13 @@
  * UPDATED : 2026-10-23_1430 UTC — More menu: Handled Network (/network, every portal including the Hub).
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" button in the header on wide screens (Referral Partner Program, /partners).
  * UPDATED : 2026-10-27_1800 UTC — Careers (/careers) in the For Pros menu and the footer.
- * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
+ * UPDATED : 2026-10-28_1630 UTC — Business & Technology opens its own page (/technology) from the menu and footer.
+ * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
+ * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
-import { BRAND, BRAND_STORY, CATEGORIES, SERVICES, categoryText, t as tr } from "@handled/core";
+import { BRAND, BRAND_STORY, CATEGORIES, SERVICES, SITE_MARKETS, categoryText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { LangSwitch } from "./LangSwitch";
 import { SideNav, type NavGroup } from "./SiteNav";
@@ -43,6 +45,9 @@ export function Logo({ className = "" }: { className?: string }) {
   );
 }
 
+/** Business & Technology has its own page (/technology); every other category opens on the Services page. */
+export const categoryHref = (id: string) => (id === "business" ? "/technology" : `/services?cat=${id}`);
+
 export async function SiteHeader() {
   const l = await getLocale();
   const es = l === "es";
@@ -50,7 +55,7 @@ export async function SiteHeader() {
   const groups: NavGroup[] = [
     {
       id: "services", label: t("Services"),
-      items: CATEGORIES.map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name, icon: c.icon })),
+      items: CATEGORIES.map((c) => ({ href: categoryHref(c.id), label: categoryText(l, c.id, c).name, icon: c.icon })),
       footer: { href: "/services", label: es ? `Ver los ${SERVICES.length} servicios →` : `See all ${SERVICES.length} services →` },
     },
     {
@@ -62,7 +67,7 @@ export async function SiteHeader() {
         { href: "/events", label: t("Parties & events"), icon: "🎉" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
       ],
-      footer: { href: "/business#quote", label: es ? "Pida una propuesta →" : "Request a proposal →" },
+      footer: { href: "/book?for=business", label: es ? "Ordenar para su negocio →" : "Order for your business →" },
     },
     {
       id: "pros", label: es ? "Para profesionales" : "For Pros",
@@ -79,7 +84,7 @@ export async function SiteHeader() {
     {
       id: "partners", label: es ? "Socios" : "Partners",
       items: [
-        { href: "/partners", label: es ? "Cómo funciona: del 10% al 45%" : "How it works: earn 10% up to 45%", icon: "💸" },
+        { href: "/partners", label: es ? "Cómo funciona: refiera o venda" : "How it works: refer or sell", icon: "💸" },
         { href: "/partners#field-sales", label: es ? "Ventas directas (medio tiempo o completo)" : "Direct sales (part-time or full-time)", icon: "📸" },
         { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
       ],
@@ -90,13 +95,13 @@ export async function SiteHeader() {
       items: [
         { href: "/plus", label: "Handled Plus", icon: "⭐" },
         { href: "/gift-cards", label: t("Gift cards"), icon: "🎁" },
+        { href: "/areas", label: es ? "Dónde trabajamos" : "Areas we serve", icon: "📍" },
         { href: "/reviews", label: t("Customer reviews"), icon: "💬" },
         { href: "/contact", label: es ? "Contacto" : "Contact", icon: "✉️" },
       ],
     },
   ];
   const links = [
-    { href: "/about", label: es ? "Quiénes somos" : "About us", icon: "ℹ️" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];
   return (
@@ -142,8 +147,8 @@ export async function SiteFooter() {
   );
   return (
     <footer className="mt-24 border-t-2 border-gold/60 bg-paper-deep">
-      <div className="wrap grid gap-10 py-12 md:grid-cols-5">
-        <div className="md:col-span-2">
+      <div className="wrap grid gap-10 py-12 md:grid-cols-3 lg:grid-cols-6">
+        <div className="md:col-span-3 lg:col-span-2">
           <Logo />
           <p className="mt-3 text-lg font-bold text-brand">{BRAND_STORY.slogan[L]}</p>
           <p className="mt-2 max-w-sm text-sm text-ink-soft">{BRAND_STORY.short[L]}</p>
@@ -151,11 +156,15 @@ export async function SiteFooter() {
           <p className="mt-3 text-xs text-ink-soft">{BRAND.partner}</p>
         </div>
         {col(t("Services"), [
-          ...CATEGORIES.slice(0, 6).map((c) => ({ href: `/services?cat=${c.id}`, label: categoryText(l, c.id, c).name })),
+          ...CATEGORIES.slice(0, 6).map((c) => ({ href: categoryHref(c.id), label: categoryText(l, c.id, c).name })),
+          { href: "/technology", label: es ? "Negocios y tecnología" : "Business & Technology" },
           { href: "/services", label: es ? `Los ${SERVICES.length} servicios →` : `All ${SERVICES.length} services →` },
         ])}
+        {col(es ? "Dónde trabajamos" : "Areas we serve", [
+          ...SITE_MARKETS.map((m) => ({ href: `/areas/${m.slug}`, label: m.name })),
+          { href: "/areas", label: es ? "Todas las áreas →" : "All areas →" },
+        ])}
         {col(t("Company"), [
-          { href: "/about", label: es ? "Quiénes somos" : "About us" },
           { href: "/network", label: es ? "Red Handled" : "Handled Network" },
           { href: "/business", label: t("Commercial accounts") },
           { href: "/events", label: t("Parties & events") },

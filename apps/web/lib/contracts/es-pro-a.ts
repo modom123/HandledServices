@@ -27,6 +27,7 @@ import {
   ON_CALL_MAX_HOURS,
   PROBATION,
   PRO_POLICY_DEFAULTS,
+  PARTNER_TIERS,
   PRO_REFERRAL,
   PRO_TIERS,
   FAST_TRACK,
@@ -37,7 +38,9 @@ import {
   TRADES,
   TRADE_PROFILES,
   money,
+  moneyCents,
   necThreshold,
+  partnerSplit,
   splitJob,
   type CoverageKey,
 } from "@handled/core";
@@ -124,7 +127,7 @@ export const PRO_ES_A: Record<string, ContractTranslation> = {
       },
       {
         h: "10. Descuentos, promociones y propinas",
-        p: `Los descuentos, códigos promocionales, membresías, créditos por recomendación y tarjetas de regalo nunca reducen su pago. Su pago se basa en el precio de lista del trabajo (el precio acordado antes de cualquier código promocional o ahorro de membresía), y todo descuento sale de nuestra parte.\n\nLas propinas son 100% suyas. Los clientes pueden dar propina en la aplicación (hasta ${money(TIP_MAX)} por trabajo); le pasamos la propina completa en el siguiente pago y nosotros cubrimos la comisión de la tarjeta. Una propina en efectivo que un cliente ofrezca por su cuenta también es suya — solo nunca la pida ni condicione el servicio a ella.`,
+        p: `Los descuentos, códigos promocionales, membresías, créditos por recomendación y tarjetas de regalo nunca reducen su pago (la única comisión que se comparte con usted es la comisión de socios de referidos que se explica abajo). Su pago se basa en el precio de lista del trabajo (el precio acordado antes de cualquier código promocional o ahorro de membresía), y todo descuento sale de nuestra parte.\n\nComisión de socios de referidos. Cuando un socio de referidos nos envió al cliente, el socio gana una parte fija del precio del trabajo: el ${PARTNER_TIERS.one_time.rate * 100}% del primer trabajo del cliente cuando es un trabajo único, el ${PARTNER_TIERS.repeat.rate * 100}% de los trabajos repetidos o recurrentes, o el ${PARTNER_TIERS.account.rate * 100}% de los trabajos de una cuenta de negocio o de propiedades. Usted paga la mitad y nosotros pagamos la otra mitad. Su mitad (por ejemplo ${moneyCents(partnerSplit({ price: 300, payout: 300, tier: "one_time" }).fromPro)} en un trabajo único referido de $300) aparece en la orden de trabajo antes de que usted acepte, se descuenta del pago de ese trabajo cuando se completa y nunca supera el pago. Si después se reembolsa el trabajo y baja la parte del socio, se le devuelve su mitad en la misma proporción en el siguiente pago. Los trabajos que no fueron referidos por un socio no tienen esta comisión.\n\nLas propinas son 100% suyas. Los clientes pueden dar propina en la aplicación (hasta ${money(TIP_MAX)} por trabajo); le pasamos la propina completa en el siguiente pago y nosotros cubrimos la comisión de la tarjeta. Una propina en efectivo que un cliente ofrezca por su cuenta también es suya — solo nunca la pida ni condicione el servicio a ella.`,
       },
       {
         h: "11. Materiales y piezas",

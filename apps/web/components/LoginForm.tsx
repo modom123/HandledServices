@@ -15,7 +15,7 @@
  *           and its link works in any browser or phone. Supabase's own email is only the fallback. The code box takes 6–10
  *           digits (whatever the project sends), ignores spaces and dashes, fills from the keyboard's one-time-code
  *           suggestion; "Send a new code" (after 30s) and "Use a different email".
- * UPDATED : 2026-11-06_1702 UTC — Partner Program: two ways to earn (direct sales + referrals), 10% rising to 45% of our profit.
+ * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  */
 "use client";
 

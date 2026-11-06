@@ -2,29 +2,33 @@
   FILE    : docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-11-06_1649 UTC
-  PURPOSE : Field Sales through the Partner Program: the two ways to earn (direct sales and referrals), the close-ready
-            ticket, paying with a rep's code, the 10% → 45% commission ladder (45% at $1M profit generated), how to
+  UPDATED : 2026-11-06_1724 UTC — fits partner-v2: referrals keep the 25% / 10% / 15% job-price tiers; the ladder pays
+            direct sales only; direct sales count 1.5× toward the level, referrals 1×.
+  PURPOSE : Field Sales through the Partner Program (partner-v3): the two ways to earn (referrals and direct sales), the
+            close-ready sales ticket, paying with a partner's code, the 10% → 45% direct-sales ladder (45% at $1M), how to
             turn it on, and the legal checks before recruiting on Indeed.
 -->
 
 # Field Sales: the Partner Program sales force
 
-Partners earn on every completed job they bring to Handled. There are **two ways to earn**, and both pay the same
-ladder rate and count toward the partner's next raise.
+Partners earn on every completed job they bring to Handled. There are **two ways to earn**:
 
-| | Way 1: Direct sales | Way 2: Referrals |
+| | Way 1: Referrals | Way 2: Direct sales |
 |---|---|---|
-| Who sells | The partner sells the service and writes a **ticket** | Handled sells; the partner sends the customer |
-| How | Partner page → **Write a ticket** | Link `/r/CODE`, the code typed at checkout, or **Send us a customer** |
-| The customer pays | On the rep's phone right then (**Pay now on this phone**), or from the text/email we send | When they book |
-| Shown as | `Direct sale` (that job and the customer's repeat visits) | `Referral` |
+| Who sells | Handled sells; the partner sends the customer | The partner sells the service and writes a **sales ticket** |
+| How | Referral ticket, link `/r/CODE`, or the partner's code typed at checkout | Partner page → **Write a sales ticket** |
+| The customer pays | When they book | On the partner's phone right then (**Pay now on this phone**), or from the text/email we send |
+| Pay | **partner-v2 tiers of the job price**: 25% of a first one-time job, 10% of repeat/recurring jobs, 15% of a business account's jobs, half paid by the pro (see [`REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md`](REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md)) | **The ladder: 10% → 45% of Handled's profit** on the job, paid by Handled alone (no pro fee) |
+| Shown as | The partner-v2 tier | `Direct sale · X% of profit` |
+| Counts toward the ladder level | **1×** its profit | **1.5×** its profit |
 
-Every customer belongs to one partner (the first one) for 12 months, repeat and recurring visits included. Partners
-never take payment. Customers always pay Handled through Stripe checkout.
+Every customer belongs to one partner (the first one) for 12 months, repeat and recurring visits included. Repeat
+visits from a customer the partner sold are also direct sales. Partners never take payment. Customers always pay
+Handled through Stripe checkout.
 
-## Way 1: the close-ready ticket
+## Way 2: the close-ready sales ticket
 
-A rep can sell **any service in the catalog**. The ticket can't be sent until it holds everything needed to close,
+A partner can sell **any service in the catalog**. The ticket can't be sent until it holds everything needed to close,
 so the customer pays without being asked anything again (`ticketCloseCheck` in `packages/core/src/partners.ts`):
 
 | Required | Why |
@@ -41,37 +45,41 @@ Optional: how often (recurring plans are sales too), preferred day and arrival w
 company), budget, gate code / pets / parking (only the assigned pro sees it), and **what's holding them back**. That
 last one goes to ops for follow-up.
 
-While the rep fills it in, the form shows the **live upfront price** from the same engine as booking. Photos are sent
-to the AI, which suggests the service and sizes. On send:
+While the partner fills it in, the form shows the **live upfront price** from the same engine as booking. Photos are
+sent to the AI, which suggests the service and sizes. On send:
 
-1. The customer is claimed for the rep (new customers only, not already another partner's).
+1. The customer is claimed for the partner (new customers only, not already another partner's).
 2. The customer gets a text and email: *"your [service] is ready, $X, review & pay"* → `/book?ticket=…`.
-3. The rep sees **Pay now on this phone** and **Copy pay link**, so they can close on the spot.
+3. The partner sees **Pay now on this phone** and **Copy pay link**, so they can close on the spot.
 4. The booking opens with everything filled in: service, sizes, frequency, photos, notes, contact, address,
    timing, budget and access notes. The customer checks it, accepts the Service Agreement and pays. The AI photo check
    can still adjust the price within the normal limits, and some jobs need a free site visit.
-5. **Paid → job board.** The job dispatches like any booking. Nothing goes to pros before it's paid.
-6. **Completed → commission** at the rep's rate, payable Monday after the 30-day guarantee.
+5. **Paid → job board.** The job dispatches like any booking. Nothing goes to pros before it's paid. The job is
+   marked `partner_sale`, so the pro's work order shows **no referral fee**.
+6. **Completed → commission** at the partner's ladder rate, payable Monday after the 30-day guarantee.
 
-Unbooked tickets expire after 30 days (daily sweep). The customer stays the rep's for 12 months.
+Unbooked sales tickets expire after 30 days (daily sweep). The customer stays the partner's for 12 months.
 
-### Paying with the rep's code
+### Paying with the partner's code
 Any new customer can type a partner's code (e.g. `JANE7K2Q`) in the booking's code box. The booking shows *"✓ Partner
-code JANE7K2Q — Jane gets credit"* (no discount), and the job is credited to that partner. A typed code beats an
-earlier link click.
+code JANE7K2Q — Jane gets credit"* (no discount), and the job is credited to that partner as a **referral**. A typed
+code beats an earlier link click.
 
-## The commission ladder: 10% → 45% of profit
+## The direct-sales ladder: 10% → 45% of profit
 
-**Profit** = job price − pro payout − refunds (Handled's take). It comes out of our share, never the pro's pay.
+**Profit** = job price − pro payout − refunds (Handled's take). Direct-sale commissions come out of our share, never
+the pro's pay.
 
 - Every level is **+1 point**, from 10% (level 0) to 45% (level 35).
-- A level is reached by the partner's **lifetime profit generated** for Handled on this curve:
-  **threshold(n) = $1,000,000 × (n ÷ 35)²**, rounded. Raises come quickly at the start, and the top rate is at $1M.
-- **Fast track:** every **10 completed jobs** is also +1 point, **up to 20%**, so steady sellers move up early. Only
-  profit takes anyone past 20%. The higher of the two counts.
-- The rate is **locked when each job is completed** (from what they'd generated before that job) and **never goes down**.
+- A level is reached by **level credit**: lifetime profit generated for Handled, where **direct-sale profit counts
+  1.5×** and **referral profit counts 1×**. The curve is **threshold(n) = $1,000,000 × (n ÷ 35)²**, rounded, so raises
+  come quickly at the start and the top rate is at $1M of credit. That's about **$667k of direct-sale profit**.
+- **Fast track:** every **10 job credits** (a direct-sale job is 1.5, a referral job is 1) is also +1 point, **up to
+  20%**. Only profit takes anyone past 20%. The higher of the two counts.
+- The rate is **locked when each direct-sale job is completed** and **never goes down**.
+- The ladder sets the **direct-sales rate only**. Referrals always pay the partner-v2 tiers.
 
-| Rate | Lifetime profit generated | Rate | Lifetime profit generated |
+| Rate | Level credit | Rate | Level credit |
 |---|---|---|---|
 | 10% | $0 (day one) | 11% | $800 |
 | 12% | $3,300 | 13% | $7,300 |
@@ -95,25 +103,31 @@ earlier link click.
 **What it means per job.** For a $400 job where the pro is paid $300, profit is $100:
 10% = $10 · 20% = $20 · 30% = $30 · 45% = $45. At the top rate Handled still keeps 55% of the profit.
 
-**Reaching 45%.** With our take at about 25% of the price, $1M of profit is roughly **$4M in completed job sales**.
+**Direct sales vs. referrals, same $300 one-time job.** A referral pays 25% of the price ($75: $37.50 from the pro, $37.50
+from us). A direct sale pays the ladder rate of our profit ($7.50 at 10% on $75 of profit). The ladder is built for
+volume and repeat business: the rate grows, it's never shared with the pro, and the sales credit counts 1.5×. If you
+want direct sales to pay more than referrals from day one, change `PARTNER_LADDER` (see below).
 
-To change the numbers, edit `PARTNER_LADDER` in `packages/core/src/partners.ts` (tests in `pricing.test.ts`) and bump
+To change the numbers, edit `PARTNER_LADDER` in `packages/core/src/partners.ts` (`baseRate`, `topRate`, `topProfit`,
+`curve`, `jobsPerStep`, `jobsCapRate`, `directCredit`, `referralCredit`; tests in `pricing.test.ts`) and bump
 `termsVersion`. Rates already locked on completed jobs don't change.
 
 ## Where it shows
 
 | Page | What's there |
 |---|---|
-| `/partners` (public) | Two ways to earn, how direct sales work, ladder milestones, sign-up. `?kind=sales_rep` pre-selects *Field Sales partner* |
-| `/partner` (the partner) | Level, rate, profit generated and progress to the next raise; full ladder; **Way 1** ticket form + tickets (price shown, pay link, job status); **Way 2** link, code, send a customer, customers; payouts; commissions with rate and how earned |
+| `/partners` (public) | Two ways to earn, referral rates, how direct sales work, ladder milestones, sign-up. `?kind=sales_rep` pre-selects *Field Sales partner* |
+| `/partner` (the partner) | Way 1 / Way 2 cards with earnings; direct-sales level and progress to the next raise; full ladder; referral ticket, link and code; **sales ticket form** and sales tickets (price shown, pay link, job status); payouts; commissions with rate |
 | `/book?ticket=…` (the customer) | Everything pre-filled; "Jane set this up with you… you pay Handled directly" |
-| Hub → Referral partners | Each partner's rate, profit generated, jobs and tickets; the Field Sales ticket feed; commission queue with rate and Direct sale / Referral |
+| Hub → Referral partners | Each partner's direct-sales rate and sales; the direct-sales ticket feed (with what's holding the customer back); commission queue (direct sales show "Direct sale · X% of our profit") |
+| Home, header menu, footer, Careers, Network, Contact, sign-in | Both ways to earn; a Field Sales Partner listing on `/careers` |
 
 ## Turning it on
-1. Supabase → SQL Editor → run `supabase/setup/ADD_FIELD_SALES_2026-11-06_1638.sql` once (safe to run twice).
-2. Twilio set up (Hub → Go-live setup) so tickets text the pay link. Without it, the email still goes out.
-3. Deploy. The daily sweep expires old tickets, and Monday payouts already include ticket commissions.
-4. Have your attorney review the updated partner terms (`partner-v2`) and the Indeed post before you recruit.
+1. Supabase → SQL Editor → run `supabase/setup/ADD_FIELD_SALES_2026-11-06_1638.sql` once (after the partner-v2 file,
+   `ADD_PARTNER_TICKETS_2026-10-28_0122.sql`). Safe to run twice. The Hub's go-live setup page shows it until it's run.
+2. Twilio set up (Hub → Go-live setup) so sales tickets text the pay link. Without it, the email still goes out.
+3. Deploy. The daily sweep expires old sales tickets, and Monday payouts already include direct-sale commissions.
+4. Have your attorney review the updated partner terms (`partner-v3`) and the Indeed post before you recruit.
 
 ## Before you recruit on Indeed: talk to your attorney and CPA
 - **Contractor vs. employee.** Partners are independent (1099), commission-only, set their own hours, and have no
@@ -123,5 +137,5 @@ To change the numbers, edit `PARTNER_LADDER` in `packages/core/src/partners.ts` 
   before you lean on that.
 - **Commission-only must be clear** in the post, with no guaranteed pay.
 - **Texts:** only customers who asked to be contacted (the ticket requires that checkbox). Every text includes STOP.
-- **Licensing:** reps sell Handled's services and never quote outside the app or promise work we didn't price.
+- **Licensing:** partners sell Handled's services and never quote outside the app or promise work we didn't price.
 - **1099s:** Stripe Connect collects tax details. Anyone paid $600+ in a year gets a 1099-NEC.

@@ -2,19 +2,21 @@
 -- FILE    : supabase/setup/ADD_FIELD_SALES_2026-11-06_1638.sql
 -- PROJECT : Handled (HandledServices) - AI-run home & business services
 -- CREATED : 2026-11-06_1638 UTC
--- PURPOSE : Run once in Supabase -> SQL Editor (same as migration 20261106163800_field_sales.sql). Field Sales (Partner Program). A partner (part-time / full-time sales rep) takes 3-4 photos and writes a
---           ticket for a customer; the customer gets a link to see the price, accept the terms and pay; the paid job
---           goes to the job board like any booking. Commissions climb a ladder from 10% to 45% of Handled's take
---           (rules: packages/core/src/partners.ts, PARTNER_LADDER).
---             sales_tickets              - the rep's ticket: everything needed to close (service + measurements, photos,
---                                          customer, address, timing, budget, decision maker, quoted price);
---                                          status sent -> booked / expired / cancelled. Remote services need no photos.
---             jobs paid with a rep's code - typing a partner code at checkout credits that partner (lib/partners.ts)
---             partner_commissions.rate   - the ladder rate locked in when the job was completed
---             partner_commissions.source - 'direct' (a ticket the partner closed) or 'referral' (the two ways to earn)
---             referral_partners.kind     - + 'sales_rep'
---             referral_customers.source  - + 'ticket'
---           Staff read/write through the Hub; reps see their own tickets through the server. Safe to run twice.
+-- UPDATED : 2026-11-06_1730 UTC - fits partner-v2 (20261028012200_partner_tickets_tiers.sql must run first).
+-- PURPOSE : Run once in Supabase -> SQL Editor, after ADD_PARTNER_TICKETS_2026-10-28_0122.sql
+--           (same as migration 20261106163800_field_sales.sql).
+--           Direct sales / Field Sales (Partner Program, partner-v3). Two ways to earn:
+--             referrals   - partner-v2 tiers (25% / 10% / 15% of the job price, half from the pro), unchanged
+--             direct sales - the partner closes the sale on a close-ready SALES TICKET (photos, service + sizes, customer,
+--                            address, timing, decision maker, price shown); the customer pays Handled (on the partner's
+--                            phone or from our text); the paid job goes to the job board. Paid on the ladder: 10% -> 45%
+--                            of Handled's take (rules: packages/core/src/partners.ts, PARTNER_LADDER), by Handled alone.
+--             sales_tickets                     - the sales ticket: sent -> booked / expired / cancelled
+--             jobs.partner_sale                 - this job is a direct sale (no partner tier, no pro fee)
+--             partner_commissions.tier          - + 'direct' (rate = the ladder rate locked at completion)
+--             referral_customers.source         - + 'sale' (a customer the partner sold)
+--             referral_partners.kind            - + 'sales_rep'
+--           Staff read/write through the Hub; partners see their own tickets through the server. Safe to run twice.
 -- ============================================================================
 alter table public.referral_partners drop constraint if exists referral_partners_kind_check;
 alter table public.referral_partners add constraint referral_partners_kind_check
@@ -22,17 +24,19 @@ alter table public.referral_partners add constraint referral_partners_kind_check
 
 alter table public.referral_customers drop constraint if exists referral_customers_source_check;
 alter table public.referral_customers add constraint referral_customers_source_check
-  check (source in ('link','direct','staff','ticket'));
+  check (source in ('link','direct','staff','sale'));
 
-alter table public.partner_commissions add column if not exists rate numeric(5,4) not null default 0.10
-  check (rate >= 0 and rate <= 0.45);
--- the two ways to earn: 'direct' = a Field Sales ticket the partner closed, 'referral' = link / code / sent customer
-alter table public.partner_commissions add column if not exists source text not null default 'referral'
-  check (source in ('direct','referral'));
+alter table public.partner_commissions add column if not exists tier text;
+alter table public.partner_commissions add column if not exists rate numeric(5,4);
+alter table public.partner_commissions drop constraint if exists partner_commissions_tier_check;
+alter table public.partner_commissions add constraint partner_commissions_tier_check
+  check (tier is null or tier in ('one_time','repeat','account','legacy','direct'));
+
+alter table public.jobs add column if not exists partner_sale boolean not null default false;
 
 create table if not exists public.sales_tickets (
   id uuid primary key default gen_random_uuid(),
-  token text not null unique,                -- the customer's private link (/book?ticket=...)
+  token text not null unique,                -- the customer's private pay link (/book?ticket=...)
   partner_id uuid not null references public.referral_partners(id) on delete cascade,
   service_slug text,
   photos text[] not null default '{}',

@@ -6,6 +6,8 @@
  *           3. compliance matrix → 4. pricing → 5. pros' written prices → 6. review & submit → result. The gate at the top
  *           says exactly what's still missing.
  * UPDATED : 2026-10-05_2043 UTC — archive: submissions & versions, document versions, confirmation per version, link to the earlier bid.
+ * UPDATED : 2026-11-06_0400 UTC — 3b. Proposal (AI writer: outline → drafts → [[NEEDS]] → approve → evaluator review → print);
+ *           "Pull the attachments from SAM.gov" on bids that came from a notice.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,6 +18,8 @@ import {
   BidDocuments, BidFields, BidPricing, BidProQuotes, BidResult, BidStatusButtons, ComplianceMatrix, GoNoGo, ReviewSubmit, SubmissionHistory,
   type WsBid, type WsDoc, type WsLine, type WsQuote, type WsReq, type WsSubmission,
 } from "@/components/BidWorkspace";
+import { ProposalWriter, SamImportButton, type WsReview, type WsSection } from "@/components/ProposalWriter";
+import { loadProposal } from "@/lib/proposals";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +35,7 @@ function Step({ n, title, done, children, open = true }: { n: string; title: str
 export default async function BidPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
-  const d = await loadBid(id);
+  const [d, prop] = await Promise.all([loadBid(id), loadProposal(id)]);
   if (!d) notFound();
   const b = d.bid;
   const go = goDecision(b.go ?? {});
@@ -74,9 +78,12 @@ export default async function BidPage({ params }: { params: Promise<{ id: string
       )}
       <Step n="0" title="Details" open={!b.due_at}><BidFields b={ws} /></Step>
       <Step n="1" title={`Go / no-go${go.decision === "go" ? " — go" : go.decision === "no_go" ? " — no go" : ""}`} done={go.decision === "go"} open={go.decision !== "go"}><GoNoGo b={ws} /></Step>
-      <Step n="2" title={`Documents (${d.current.length})`} done={d.current.some((x) => x.kind === "rfq")}><BidDocuments bidId={b.id} docs={d.documents as WsDoc[]} aiReady={aiEnabled()} locked={locked} /></Step>
+      <Step n="2" title={`Documents (${d.current.length})`} done={d.current.some((x) => x.kind === "rfq")}>{b.notice_id && !closed && <div className="mb-3"><SamImportButton bidId={b.id} /></div>}<BidDocuments bidId={b.id} docs={d.documents as WsDoc[]} aiReady={aiEnabled()} locked={locked} /></Step>
       <Step n="3" title={`Compliance matrix (${open} open)`} done={d.requirements.length > 0 && open === 0}><ComplianceMatrix bidId={b.id} reqs={d.requirements as WsReq[]} /></Step>
-      <Step n="4" title={`Pricing${d.gate.pricing.totals.totalPrice ? ` — ${d.gate.pricing.totals.totalPrice.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` : ""}`} done={priced}><BidPricing b={ws} lines={d.lines as WsLine[]} best={d.best} market={d.market} /></Step>
+      <Step n="3b" title={`Proposal — AI writer${prop.sections.length ? ` (${prop.sections.filter((x) => x.status === "approved").length}/${prop.sections.length} approved)` : ""}`} done={prop.sections.length > 0 && prop.sections.every((x) => x.status === "approved")} open={!closed}>
+        <ProposalWriter bidId={b.id} sections={prop.sections as WsSection[]} profiles={prop.profiles.map((p) => ({ id: p.id, name: p.name, is_default: p.is_default }))} profileId={prop.profileId} format={prop.format} review={prop.review as WsReview | null} reqs={d.requirements.map((r) => ({ id: r.id, text: r.text, required: r.required }))} aiReady={aiEnabled()} closed={closed} />
+      </Step>
+      <Step n="4" title={`Pricing${b.solicitation_type === "rfi" || b.solicitation_type === "sources_sought" ? " (not needed for an RFI / sources sought)" : ""}${d.gate.pricing.totals.totalPrice ? ` — ${d.gate.pricing.totals.totalPrice.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` : ""}`} done={priced}><BidPricing b={ws} lines={d.lines as WsLine[]} best={d.best} market={d.market} /></Step>
       <Step n="5" title={`Pros' written prices (${committed} committed)`} done={committed > 0} open={!closed}><BidProQuotes bidId={b.id} quotes={d.quotes as unknown as WsQuote[]} lines={d.lines as WsLine[]} /></Step>
       <Step n="6" title="Review & submit" done={["submitted", "won", "lost"].includes(b.status)}><ReviewSubmit b={ws} gate={d.gate} hasConfirmation={hasConfirmation} /></Step>
       <Step n="7" title={`Submissions & versions (${d.submissions.length})`} done={d.submissions.length > 0} open={d.submissions.length > 0 || Boolean(b.reopened_at)}><SubmissionHistory b={ws} subs={d.submissions as unknown as WsSubmission[]} /></Step>

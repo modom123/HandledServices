@@ -4159,8 +4159,8 @@ export const SERVICES: Service[] = [
   },
 
   // ───────────────────────── BUSINESS & TECHNOLOGY (remote) ─────────────────────────
-  // Done remotely by Handled staff or vetted specialists: any US ZIP, no driving radius, a free video consultation sets
-  // the firm price (siteVisit). onDemand: a consultation booked inside 48 hours is never a rush job.
+  // Done remotely by Handled staff or vetted specialists: any US ZIP, no driving radius. Ordered like every other service:
+  // the price from the answers, a deposit to start, the rest on delivery. onDemand: a start inside 48 hours is never a rush job.
   {
     slug: "website-design",
     insuranceOptional: true,
@@ -4168,8 +4168,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🌐",
     tagline: "A website that works for you — answers visitors, captures every lead and books appointments, 24/7.",
-    description: "We build intelligent websites: fast, mobile-friendly and designed around your brand, with an AI assistant that answers visitors' questions, captures every lead and books appointments around the clock. Add instant follow-up so every inquiry gets a reply in seconds by text and email. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. A free video consultation confirms the scope and the firm price before any work starts.",
-    includes: ["Free video consultation", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups), quoted at the consultation"],
+    description: "We build intelligent websites: fast, mobile-friendly and designed around your brand, with an AI assistant that answers visitors' questions, captures every lead and books appointments around the clock. Add instant follow-up so every inquiry gets a reply in seconds by text and email. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. See your price online and pay a deposit to start; the rest is due when it's delivered.",
+    includes: ["Upfront price — a deposit starts the work", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups), offered after launch"],
     notesHint: "Your business and who it serves, sites you like, the pages you need, your domain if you have one, and any deadline",
     questions: [
       {
@@ -4193,7 +4193,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 1500,
     spread: [0.9, 1.25],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],
@@ -4221,8 +4221,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🧠",
     tagline: "One system that runs your business — customers, booking, scheduling, dispatch, invoicing and dashboards.",
-    description: "We build a business operating system around how your company actually works: your customer list, online booking, scheduling and dispatch, job tracking, invoicing and payments, your team's to-dos and a live dashboard — in one place instead of ten apps and a spreadsheet. Add AI agents, accounting sync and a branded mobile app as you grow. It's the same kind of system Handled runs on. You own your data. A free video consultation maps your operation and sets the firm price.",
-    includes: ["Free video consultation", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support quoted at the consultation"],
+    description: "We build a business operating system around how your company actually works: your customer list, online booking, scheduling and dispatch, job tracking, invoicing and payments, your team's to-dos and a live dashboard — in one place instead of ten apps and a spreadsheet. Add AI agents, accounting sync and a branded mobile app as you grow. It's the same kind of system Handled runs on. You own your data. See your price online and pay a deposit to start; the rest is due when it's delivered.",
+    includes: ["Upfront price — a deposit starts the work", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support offered after launch"],
     notesHint: "What your business does, how work comes in and gets done today, the apps and spreadsheets you use, how many people would use it, and what you'd most like to stop doing by hand",
     questions: [
       {
@@ -4243,7 +4243,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 7500,
     spread: [0.9, 1.35],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],
@@ -4268,8 +4268,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🚀",
     tagline: "A business that runs itself — website, operating system, AI agents and automations, built end to end.",
-    description: "We automate your business from end to end, the way Handled is run: an intelligent website that brings in and books customers, a business operating system for the work, AI agents that answer leads, handle customer service, schedule and follow up, and automations for the busywork in between — with a dashboard showing everything the AI did and a person whenever it matters. Launch a new business, automate the one you have, or scale across locations. A free video consultation maps what to automate first and sets the firm price.",
-    includes: ["Free video consultation", "Automation plan for your business", "Intelligent website", "Business operating system", "AI agents that answer, book and follow up", "Automations for the busywork", "Dashboard of everything the AI did", "Monthly hosting, AI usage & support quoted at the consultation"],
+    description: "We automate your business from end to end, the way Handled is run: an intelligent website that brings in and books customers, a business operating system for the work, AI agents that answer leads, handle customer service, schedule and follow up, and automations for the busywork in between — with a dashboard showing everything the AI did and a person whenever it matters. Launch a new business, automate the one you have, or scale across locations. See your price online and pay a deposit to start; the rest is due when it's delivered.",
+    includes: ["Upfront price — a deposit starts the work", "Automation plan for your business", "Intelligent website", "Business operating system", "AI agents that answer, book and follow up", "Automations for the busywork", "Dashboard of everything the AI did", "Monthly hosting, AI usage & support offered after launch"],
     notesHint: "What the business does (or will do), how customers find and buy from you, who does what today, the tasks that eat the most time, and your goals for the next 12 months",
     questions: [
       {
@@ -4289,7 +4289,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 12000,
     spread: [0.9, 1.35],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],
@@ -4313,7 +4313,7 @@ export const SERVICES: Service[] = [
     icon: "🏛️",
     tagline: "Start your LLC or corporation the right way — filed, with your EIN and paperwork done.",
     description: "We prepare and file your LLC, corporation or nonprofit with the state, get your EIN from the IRS, and hand you an operating agreement or bylaws template, a compliance calendar and a checklist for your business bank account. Add a registered agent, license and permit research, or an S-corp election. State filing fees are passed through at cost — never marked up. Handled is not a law firm and doesn't give legal or tax advice; for those questions we'll point you to an attorney or accountant.",
-    includes: ["Free video consultation", "State filing prepared and submitted", "EIN from the IRS", "Operating agreement or bylaws template", "Compliance calendar (annual reports & deadlines)", "Business bank account checklist", "State fees at cost, never marked up"],
+    includes: ["Upfront price — a deposit starts the work", "State filing prepared and submitted", "EIN from the IRS", "Operating agreement or bylaws template", "Compliance calendar (annual reports & deadlines)", "Business bank account checklist", "State fees at cost, never marked up"],
     notesHint: "Business name (and a backup), what the business does, owners' names and percentages, the business address, and whether you need it by a date",
     questions: [
       {
@@ -4345,7 +4345,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 299,
     spread: [1, 1.1],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],
@@ -4372,8 +4372,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "📈",
     tagline: "Plans, pricing, marketing and bids — a consultant who helps you grow.",
-    description: "Work with an experienced business consultant on what matters most right now: a strategy session with a written action plan, a startup plan with pricing and a launch checklist, a growth and operations plan, a 90-day marketing plan, or a bid or RFP proposal written for you. Packages have a fixed price, or book by the hour. A free video consultation confirms the scope and the firm price first.",
-    includes: ["Free video consultation", "Experienced business consultant", "Written plan you keep", "Follow-up call after delivery", "Fixed-price packages or by the hour"],
+    description: "Work with an experienced business consultant on what matters most right now: a strategy session with a written action plan, a startup plan with pricing and a launch checklist, a growth and operations plan, a 90-day marketing plan, or a bid or RFP proposal written for you. Packages have a fixed price, or book by the hour. See your price online and pay a deposit to start; the rest is due when it's delivered.",
+    includes: ["Upfront price — a deposit starts the work", "Experienced business consultant", "Written plan you keep", "Follow-up call after delivery", "Fixed-price packages or by the hour"],
     notesHint: "Your business, where it is today, what you want to fix or grow, any numbers you can share, and deadlines (bid due dates)",
     questions: [
       {
@@ -4395,7 +4395,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 300,
     spread: [0.95, 1.15],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],
@@ -4420,8 +4420,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "⚙️",
     tagline: "Put repetitive work on autopilot — lead follow-up, scheduling, invoicing and reports.",
-    description: "We connect the apps you already use and let AI handle the busywork: new leads answered and logged in seconds, appointments booked, invoices and reminders sent, data entered, reports built every morning. Each workflow is built, tested with you and documented, with 30 days of fixes after launch. Start with a process audit to find where you're losing the most time. A free video consultation confirms the scope and the firm price first.",
-    includes: ["Free video consultation", "Works with the apps you already use", "Tested with you before it goes live", "Written how-it-works guide", "30 days of fixes after launch", "Monthly support plans quoted at the consultation"],
+    description: "We connect the apps you already use and let AI handle the busywork: new leads answered and logged in seconds, appointments booked, invoices and reminders sent, data entered, reports built every morning. Each workflow is built, tested with you and documented, with 30 days of fixes after launch. Start with a process audit to find where you're losing the most time. See your price online and pay a deposit to start; the rest is due when it's delivered.",
+    includes: ["Upfront price — a deposit starts the work", "Works with the apps you already use", "Tested with you before it goes live", "Written how-it-works guide", "30 days of fixes after launch", "Monthly support plans offered after launch"],
     notesHint: "What you do by hand today, step by step, the apps involved (email, CRM, calendar, invoicing, spreadsheets), and how often it happens",
     questions: [
       { id: "workflows", label: "Workflows to automate", type: "number", min: 1, max: 20, default: 1, help: "One workflow = one job done end to end, e.g. new web lead → CRM → text back → booked on your calendar." },
@@ -4441,7 +4441,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 675,
     spread: [0.9, 1.3],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],
@@ -4464,8 +4464,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🤖",
     tagline: "An AI assistant that answers customers, books appointments and works inside your tools — 24/7.",
-    description: "We build an AI agent trained on your business: a chat assistant on your website that answers questions and captures leads, a customer service agent for email and chat, an AI receptionist that answers your phone and books appointments, or an operations agent that works inside your CRM, calendar and invoicing. It hands off to a person whenever it isn't sure, and every conversation is logged for you. Built, tested with you and tuned for 30 days after launch. A free video consultation confirms the scope and the firm price first.",
-    includes: ["Free video consultation", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage quoted at the consultation"],
+    description: "We build an AI agent trained on your business: a chat assistant on your website that answers questions and captures leads, a customer service agent for email and chat, an AI receptionist that answers your phone and books appointments, or an operations agent that works inside your CRM, calendar and invoicing. It hands off to a person whenever it isn't sure, and every conversation is logged for you. Built, tested with you and tuned for 30 days after launch. See your price online and pay a deposit to start; the rest is due when it's delivered.",
+    includes: ["Upfront price — a deposit starts the work", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage offered after launch"],
     notesHint: "What the agent should handle, the questions customers ask most, the tools it should connect to (website, phone, CRM, calendar), and when it should hand off to a person",
     questions: [
       {
@@ -4485,7 +4485,7 @@ export const SERVICES: Service[] = [
     ],
     minimum: 2500,
     spread: [0.9, 1.3],
-    siteVisit: true,
+    siteVisit: false,
     remote: true,
     onDemand: true,
     frequencies: ["once"],

@@ -8,6 +8,8 @@
  *           properties, members, dedicated pros and recent jobs.
  * UPDATED : 2026-10-05_2141 UTC — Notes & history: permanent conversation log for the account, plus its history as a lead.
  * UPDATED : 2026-10-12_0121 UTC — business client ID (B-…) in the header.
+ * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
+ *           (components/PersonFiles.tsx, lib/person-files.ts).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,6 +19,7 @@ import { openBalance, type BusinessAccount, type Property } from "@/lib/business
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { timeline } from "@/lib/notes";
 import { AddNote, Timeline } from "@/components/AccountNotes";
+import { PersonFiles } from "@/components/PersonFiles";
 import { AddMemberHub, AddPropertyHub, DedicatedHub, PilotControl, RunInvoices, StatusSelect, TermsControl, Toggle } from "@/components/HubBusiness";
 
 export const dynamic = "force-dynamic";
@@ -115,6 +118,7 @@ export default async function HubBusinessAccount({ params }: { params: Promise<{
         <AddNote subjectType="business_account" subjectId={id} />
         <Timeline items={history} />
       </section>
+      <PersonFiles type="business" ownerKey={id} title="Account file: documents & photos" />
     </div>
   );
 }

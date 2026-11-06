@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-06_0625 UTC — easier to read: category list, card titles and descriptions one size up on the site's
  *           scale (base / lg), bold or semibold, in dark ink instead of light grey; counts in a pill.
  * UPDATED : 2026-10-11_0608 UTC — remote services show "free consultation" instead of "free site visit".
+ * UPDATED : 2026-10-28_1630 UTC — no doubled "Free consultation · free consultation".
  */
 "use client";
 
@@ -72,7 +73,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
                   <div className="text-3xl">{s.icon}</div>
                   <div className="mt-3 text-lg font-bold leading-snug text-ink">{s.name}</div>
                   <p className="mt-1.5 flex-1 text-base leading-relaxed text-ink/90">{s.tagline}</p>
-                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit ? (s.remote ? " · free consultation" : " · free site visit") : ""}</div>
+                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit && !/consult/i.test(s.from) ? (s.remote ? " · free consultation" : " · free site visit") : ""}</div>
                 </Link>
               ))}
             </div>

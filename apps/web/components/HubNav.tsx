@@ -9,13 +9,14 @@
  *           (Pros, Jobs, Clients, Money, Growth, AI team, Settings) — 9 links instead of 41. The pages inside the current
  *           section show as tabs across the top of the page (SectionTabs). The map lives in lib/hub-sections.
  * UPDATED : 2026-10-27_1700 UTC — the section's tab lights up by the most specific match or an alias (activeTab).
+ * UPDATED : 2026-11-05_0100 UTC — merged tabs: the pages behind the current tab show as a switch under the tabs (groupOf).
  */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { HUB_TOP, activeTab, sectionOf, topActive, type HubSection } from "@/lib/hub-sections";
+import { HUB_TOP, activeTab, groupOf, sectionOf, topActive, type HubSection } from "@/lib/hub-sections";
 
 const item = (on: boolean) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${on ? "bg-white/15 font-semibold text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`;
 
@@ -57,6 +58,7 @@ export function SectionTabs({ sections }: { sections: HubSection[] }) {
   const s = sectionOf(sections, path);
   if (!s) return null;
   const tab = activeTab(s, path);
+  const group = groupOf(s, path);
   return (
     <div className="mb-6 -mt-1 border-b border-line">
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{s.icon} {s.label}</div>
@@ -69,6 +71,14 @@ export function SectionTabs({ sections }: { sections: HubSection[] }) {
           );
         })}
       </nav>
+      {group && (
+        <nav className="mt-3 mb-3 inline-flex flex-wrap rounded-xl border border-line bg-white p-1" aria-label="View">
+          {group.map(([href, label]) => (
+            <Link key={href} href={href} aria-current={href === path ? "page" : undefined}
+              className={`rounded-lg px-4 py-1.5 text-sm ${href === path ? "bg-brand font-semibold text-white" : "text-ink-soft hover:text-ink"}`}>{label}</Link>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

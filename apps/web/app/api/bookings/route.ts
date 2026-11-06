@@ -17,7 +17,7 @@ import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";
 import { getViewer } from "@/lib/auth";
 import { paymentCheckoutUrl } from "@/lib/stripe";
-import { getService, photoProblem } from "@handled/core";
+import { SERVED_AREAS_LABEL, getService, photoProblem } from "@handled/core";
 import { GET as availability } from "../availability/route";
 import { rateLimit } from "@/lib/ratelimit";
 import { bookingWithoutPro } from "@/lib/booking-settings";
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   const a = await (await availability(new Request(`http://local/api/availability?service=${parsed.data.service_slug}&zip=${parsed.data.zip}`))).json();
   if (a.mode === "closed") return Response.json({ error: a.market
     ? `${svcDef.name} is coming soon to ${a.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
-    : `We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach ${parsed.data.zip}.`, waitlist: true }, { status: 409 });
+    : `We serve ${SERVED_AREAS_LABEL.en} right now. Join the waitlist on the booking page and we'll tell you when we reach ${parsed.data.zip}.`, waitlist: true }, { status: 409 });
   // remote services are taken by Handled staff when no specialist has signed up yet
   const noPro = a.mode === "request" && !svcDef.remote && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (noPro && !(await bookingWithoutPro()))

@@ -10,7 +10,7 @@
  *           bookable; it just isn't what we advertise first. Change the focus here.
  */
 import type { BizSegment } from "./biz-lead-engine.ts";
-import { SEO_CITIES } from "./seo.ts";
+import { SEO_CITIES, SEO_CITY_BY_SLUG, marketForCity } from "./seo.ts";
 
 export const MARKETING_FOCUS = {
   label: "Cleaning in Metro Detroit",
@@ -26,3 +26,13 @@ export const MARKETING_FOCUS = {
 export const FOCUS_CITIES: string[] = SEO_CITIES.map((c) => c.name);
 
 export const isFocusService = (slug: string) => MARKETING_FOCUS.services.includes(slug);
+
+/**
+ * Is a "<service> in <city>" page indexed? The marketing focus services everywhere, plus the services the city's market
+ * leads with (SITE_MARKETS.featured — e.g. handyman in Las Vegas). The rest stay noindex,follow (no doorway pages).
+ */
+export const isIndexedCityPage = (slug: string, citySlug: string) => {
+  if (isFocusService(slug)) return true;
+  const c = SEO_CITY_BY_SLUG[citySlug];
+  return Boolean(c && marketForCity(c)?.featured.includes(slug));
+};

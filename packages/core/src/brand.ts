@@ -70,12 +70,12 @@ export const BRAND_STORY = {
     en: [
       "Handled Services LLC is a home and business services company based in Michigan. We bring more than 100 services into one place — cleaning, repairs, carpentry, masonry, roofing, painting, lawn and snow, moving and hauling, pet care, events, rides and business technology — so you never have to search for, vet and chase a contractor again.",
       "Insured, background-checked local pros do the work. Our AI-powered operations team prices every job up front, sends the right pro, tracks it live, checks the finished work with photos and stands behind it. A small team of real people runs it all and steps in whenever it matters.",
-      "We started in Metro Detroit, we serve Michigan and Washington, and we grow city by city — wherever we can find great pros and keep our promise.",
+      "We started in Metro Detroit, we serve Michigan, New York, New Jersey, Las Vegas and Washington, and we grow city by city — wherever we can find great pros and keep our promise.",
     ],
     es: [
       "Handled Services LLC es una empresa de servicios para hogares y negocios con sede en Michigan. Reunimos más de 100 servicios en un solo lugar — limpieza, reparaciones, carpintería, albañilería, techos, pintura, jardín y nieve, mudanzas y acarreos, mascotas, eventos, transporte y tecnología para negocios — para que nunca vuelva a buscar, verificar y perseguir a un contratista.",
       "El trabajo lo hacen profesionales locales asegurados y con verificación de antecedentes. Nuestro equipo de operaciones con inteligencia artificial pone precio a cada trabajo por adelantado, envía al profesional indicado, lo sigue en vivo, revisa el trabajo terminado con fotos y lo respalda. Un pequeño equipo de personas reales lo dirige todo e interviene cuando importa.",
-      "Empezamos en el área metropolitana de Detroit, atendemos Michigan y Washington, y crecemos ciudad por ciudad, donde encontremos excelentes profesionales y podamos cumplir nuestra promesa.",
+      "Empezamos en el área metropolitana de Detroit, atendemos Michigan, Nueva York, Nueva Jersey, Las Vegas y Washington, y crecemos ciudad por ciudad, donde encontremos excelentes profesionales y podamos cumplir nuestra promesa.",
     ],
   },
   /** Why it works — for customers, for pros, and the model that makes both true. */

@@ -87,7 +87,7 @@ export async function createTicket(partner: Partner, i: TicketInput): Promise<{ 
     if (await isExistingCustomer(email)) return { ok: false, error: `This customer already uses ${BRAND.name}, so they can't be credited to a new partner.` };
     const { error } = await db().from("referral_customers").insert({
       partner_id: partner.id, customer_email: email, customer_name: i.customer_name, customer_phone: i.customer_phone, service_slug: svc?.slug ?? null,
-      note: i.notes, source: "ticket", expires_at: partnerExpiry(new Date()).toISOString(),
+      note: i.notes, source: "sale", expires_at: partnerExpiry(new Date()).toISOString(),
     });
     if (error) return { ok: false, error: /duplicate|unique/i.test(error.message) ? "This customer was just claimed by another partner." : error.message };
   }
@@ -151,7 +151,7 @@ export async function linkTicketJob(token: string, job: Job): Promise<void> {
     const { count } = await db().from("jobs").select("id", { count: "exact", head: true }).ilike("contact_email", email).not("paid_at", "is", null).neq("id", job.id);
     if ((count ?? 0) === 0) await db().from("referral_customers").insert({
       partner_id: data.partner_id, customer_email: email, customer_name: job.contact_name, customer_phone: job.contact_phone, service_slug: job.service_slug,
-      source: "ticket", first_job_id: job.id, expires_at: partnerExpiry(new Date()).toISOString(),
+      source: "sale", first_job_id: job.id, expires_at: partnerExpiry(new Date()).toISOString(),
     }).then(() => undefined, () => undefined);
   }
 }

@@ -8,6 +8,8 @@
  *           back to each pro's ZIP list, so nothing stops if the lookup is down.
  * UPDATED : 2026-10-06_2010 UTC — geocodeAddress(): exact street-address location (Google Geocoding) for jobs and pros'
  *           places of business, falling back to the ZIP centroid.
+ * UPDATED : 2026-11-05_1530 UTC — free address lookup first: the US Census Bureau geocoder (no key, no card, US street
+ *           addresses). Google Geocoding is only a backup when a key happens to be set; then the ZIP centroid.
  */
 import "server-only";
 import { adminClient } from "./supabase/server";
@@ -35,15 +37,38 @@ export async function zipCentroid(zip: string | null | undefined): Promise<{ lat
   }
 }
 
+/** US Census Bureau geocoder (free, no key): a US street address → coordinates, or null when it can't match it. */
+export async function censusGeocode(a: { address: string; city?: string | null; state?: string | null; zip?: string | null }): Promise<{ lat: number; lng: number } | null> {
+  const q = new URLSearchParams({ street: a.address.trim(), benchmark: "Public_AR_Current", format: "json" });
+  if (a.city) q.set("city", a.city.trim());
+  if (a.state) q.set("state", a.state.trim());
+  if (a.zip) q.set("zip", a.zip.trim());
+  try {
+    const res = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/address?${q}`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { result?: { addressMatches?: { coordinates?: { x?: number; y?: number } }[] } };
+    const c = j.result?.addressMatches?.[0]?.coordinates;
+    const lat = Number(c?.y), lng = Number(c?.x);
+    return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A street address → coordinates, for exact distances (the customer's job, the pro's place of business).
- * Uses Google's Geocoding API when GOOGLE_MAPS_API_KEY (or GOOGLE_PLACES_API_KEY with the Geocoding API enabled) is
- * set; otherwise — or if the lookup fails — the ZIP centroid, so dispatch always has a location.
+ * Free US Census geocoder first; Google's Geocoding API as a backup only when GOOGLE_MAPS_API_KEY (or a Places key
+ * with Geocoding enabled) is set; otherwise — or if both fail — the ZIP centroid, so dispatch always has a location.
  */
 export async function geocodeAddress(a: { address?: string | null; city?: string | null; state?: string | null; zip?: string | null }): Promise<{ lat: number; lng: number; exact: boolean } | null> {
+  const hasStreet = Boolean(a.address && a.address.trim().length > 3);
+  if (hasStreet) {
+    const c = await censusGeocode({ address: a.address!, city: a.city, state: a.state, zip: a.zip });
+    if (c) return { ...c, exact: true };
+  }
   const key = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
   const line = [a.address, a.city, [a.state, a.zip].filter(Boolean).join(" ")].filter((x) => x && String(x).trim()).join(", ");
-  if (key && a.address && a.address.trim().length > 3) {
+  if (key && hasStreet) {
     try {
       const u = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(line)}&components=country:US&key=${key}`;
       const res = await fetch(u, { signal: AbortSignal.timeout(4000) });

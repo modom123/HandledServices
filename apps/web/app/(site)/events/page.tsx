@@ -69,7 +69,7 @@ export default function Events() {
                 <div className="mt-3 font-semibold">{s.name}</div>
                 <p className="mt-1 flex-1 text-sm text-ink-soft">{s.tagline}</p>
                 <div className="mt-3 text-sm"><span className="text-ink-soft">Typical:</span> <b>{s.siteVisit ? moneyRange(e.low, e.high) : money(e.point)}</b></div>
-                <div className="mt-4 flex gap-2"><Link href={`/book?service=${s.slug}`} className="btn-primary px-4 py-2">{s.siteVisit ? "Free consultation" : "Get my price"}</Link><Link href={`/services/${s.slug}`} className="btn-ghost px-4 py-2">Details</Link></div>
+                <div className="mt-4 flex gap-2"><Link href={`/book?service=${s.slug}`} className="btn-primary px-4 py-2">Get my price</Link><Link href={`/services/${s.slug}`} className="btn-ghost px-4 py-2">Details</Link></div>
               </div>
             );
           })}

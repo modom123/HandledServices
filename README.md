@@ -12,8 +12,8 @@
             & dryer vent, tile & grout, trash bins, chimney sweep, sprinklers, holiday lights, pools, pest control, wildlife
             removal, laundry pickup and home watch, with none overlapping an existing service.
   UPDATED : 2026-10-27_1600 UTC — 101 services: Carpentry (finish carpentry); side menu, About page, slogan and mission.
-  UPDATED : 2026-11-06_1649 UTC — Field Sales through the Partner Program: two ways to earn (direct sales tickets and
-            referrals), close-ready tickets, pay with a rep's code, and the 10% → 45% commission ladder.
+  UPDATED : 2026-11-06_1724 UTC — Field Sales through the Partner Program: two ways to earn (referrals at the partner-v2
+            tiers, and direct sales on close-ready sales tickets paid 10% → 45% of our take), pay with a partner's code.
 -->
 
 # Handled — AI-run home & business services
@@ -41,8 +41,8 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 | **Customer portal** | `/account` | Jobs, live timeline, completion photos, messages with the pro, reviews, recurring plans |
 | **Pro portal** | `/pro` (+ mobile Pro mode) | Offers with payout (accept/pass), schedule, start → photos → complete, earnings |
 | **Handled Hub** | `/hub` (staff only) | AI-driven-rate KPI, AI morning brief, alerts, jobs board, job control panel, pros & vetting, customers & B2B, finance & payouts, **IEBC Workforce**, AI assistant |
-| **Referral Partner Program** | `/partners`, `/partner`, `/hub/partners`, `lib/partners.ts` | Anyone signs up, shares a link (`/r/CODE`) or code, or sends a customer, and earns on that customer's jobs for 12 months, paid Mondays via Stripe after the 30-day guarantee. Guide: [`docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md`](docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md) |
-| **Field Sales (partner sales force)** | `/partner`, `/book?ticket=`, `lib/sales-tickets.ts`, `PARTNER_LADDER` | Two ways to earn: **direct sales** (any service; close-ready ticket with 3–4 photos for on-site work, live price, customer pays on the rep's phone or from our text → job board once paid) and **referrals**. Commission climbs **10% → 45% of our take** with lifetime profit generated ($1M × (level/35)², 45% at $1M; +1 point per 10 jobs up to 20%). Guide: [`docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md`](docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md) · Indeed post: [`docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md`](docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md) |
+| **Referral Partner Program** | `/partners`, `/partner`, `/hub/partners`, `lib/partners.ts` | Anyone signs up, shares a link (`/r/CODE`) or sends a standard referral ticket (`RT-…`), and earns a share of the job price: 25% of a one-time first job, 10% of repeat/recurring jobs or 15% of a business account's jobs for 12 months. The pro and Handled each pay half. Paid Mondays via Stripe after the 30-day guarantee. Guide: [`docs/REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md`](docs/REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md) |
+| **Field Sales (direct sales)** | `/partner`, `/book?ticket=`, `lib/sales-tickets.ts`, `PARTNER_LADDER` | The second way to earn: partners sell any service on a close-ready **sales ticket** (service + sizes, 3–4 photos for on-site work, customer, address, timing, decision maker, live price). The customer pays on the partner's phone or from our text; paid jobs go to the job board. Paid **10% → 45% of our take** by Handled alone (no pro fee); level from lifetime profit ($1M × (level/35)², direct sales count 1.5×, referrals 1×). Partner codes typed at checkout credit the partner. Guide: [`docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md`](docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md) · Indeed post: [`docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md`](docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md) |
 | **Accounting (Xero + Stripe)** | `/hub/accounting`, `lib/accounting.ts` | Xero is the books: every finished day of Stripe activity is pushed each morning (sales, tips, gift cards, sales tax, fees, refunds, chargebacks, per-pro payout spends, payouts as bank transfers); business invoices on terms become Xero invoices with their payments. Guide: [`docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md`](docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md) |
 | **Invoice & Service Agreement** | `/invoice/[id]`, `/terms/service-agreement` | Every job's invoice carries the customer terms; accepted at booking (version, time and IP recorded); signed login-free link in every email; printable |
 | **Pro Network & 1099** | `/hub/network`, `/hub/pros/[id]`, `/pro/onboarding`, `/pro/earnings` | Pros as the core asset: onboarding (W-9, contractor agreement, COI, license, background, payout), work & payout ledger, value generated, blended ratings, year-end 1099 worksheet |
@@ -86,7 +86,7 @@ recurring visit booked with the same pro.
 
 Follow **[`docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md`](docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md)** top to bottom. In short:
 
-1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project.
+1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project. **Existing project?** Paste `supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql` once: every database change since that setup, safe to run twice. Hub → Setup shows what's still missing.
 2. **Vercel:** root directory `apps/web`, production branch `main`, environment variables from `apps/web/.env.example`.
 3. **Stripe** webhook → `/api/stripe/webhook` (`checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`). **Resend** domain + SMTP for Supabase auth emails.
 4. Sign in, make yourself admin, open **Handled Hub → Go-live setup** (`/hub/setup`) and fix every red/amber item.
