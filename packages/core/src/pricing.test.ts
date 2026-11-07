@@ -410,7 +410,7 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
 test("business & technology: remote, ordered with a deposit, state fees at cost", async () => {
   const { buildAvailability } = await import("./availability.ts");
   const remote = SERVICES.filter((s) => s.category === "business");
-  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "business-consulting", "business-formation", "business-operating-system", "website-design"]);
+  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "brand-ambassador", "business-consulting", "business-formation", "business-operating-system", "content-creator", "social-media-ads", "social-media-manager", "website-design"]);
   for (const s of remote) assert.ok(s.remote && !s.siteVisit && s.onDemand, `${s.slug}: remote, ordered with a price (no consultation), no rush fee`);
   const { bookNowPolicy } = await import("./pricing.ts");
   assert.ok(bookNowPolicy("website-design", 1500).allowed, "a deposit starts the work");
@@ -2253,7 +2253,7 @@ test("services 76–100: priced, licensed where Michigan requires it, and no dup
   const { sizeNeedsSiteVisit } = await import("./intake.ts");
   const { CHECKLISTS } = await import("./checklists.ts");
   const base = (slug: string, a: Record<string, unknown>) => { const svc = getService(slug)!; return svc.price({ ...defaultAnswers(svc), ...a } as Answers).base; };
-  assert.equal(SERVICES.length, 101, "101 services (100 + Carpentry)");
+  assert.equal(SERVICES.length, 105, "105 services (100 + Carpentry + 4 social media)");
   assert.equal(new Set(SERVICES.map((s) => s.slug)).size, SERVICES.length, "unique slugs");
   assert.equal(new Set(SERVICES.map((s) => s.name.toLowerCase())).size, SERVICES.length, "unique names");
   // spot prices (Detroit-metro 2026)

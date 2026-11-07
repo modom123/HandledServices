@@ -27,6 +27,7 @@
  *           flooring (M&A licensed), pest (MDARD), live wildlife (DNR permit), paving, appliance, garage door, locksmith,
  *           inspection, water damage, duct cleaning, chimney sweep, irrigation, holiday lights, pool, laundry.
  * UPDATED : 2026-10-27_1600 UTC — carpentry trade (state contractor license over $600 in Michigan, L&I registration in Washington).
+ * UPDATED : 2026-11-07_0037 UTC — vetting for the new social_media trade (managers, content creators, brand ambassadors, ads managers).
  */
 import { BRAND } from "./brand.ts";
 
@@ -607,6 +608,12 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     specialties: [{ id: "workflows", label: "Workflow automation", slug: "ai-automation" }, { id: "agents", label: "AI chat & voice agents", slug: "ai-agents" }, { id: "integrations", label: "CRM & app integrations" }, { id: "data", label: "Reports & dashboards" }],
     license: null, preferred: ["Professional liability (E&O) / cyber insurance", "Security and data-privacy practices", "Spanish-language agents"], glMin: GL1, requires: [], conditional: [],
     skillsCheck: "Two automations or agents they built (demo or recording), how they handle client logins and data, and 2 client references.",
+  },
+  social_media: {
+    does: "Remote social media professionals: account managers, content creators (photo and short video), brand ambassadors and paid social ads managers.",
+    specialties: [{ id: "management", label: "Social media management", slug: "social-media-manager" }, { id: "content", label: "Photo & short-video content", slug: "content-creator" }, { id: "ambassador", label: "Brand ambassador (own audience)", slug: "brand-ambassador" }, { id: "ads", label: "Paid social ads", slug: "social-media-ads" }],
+    license: null, preferred: ["Professional liability (E&O) insurance", "Meta / TikTok ads certification", "Spanish-language content"], glMin: GL1, requires: [], conditional: [],
+    skillsCheck: "Links to 3 accounts or campaigns they ran (with results), sample posts or videos, how they handle client logins, and 2 client references. Ambassadors: their own accounts and audience stats.",
   },
   venue: {
     does: "Event spaces for parties, meetings and celebrations.",

@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-23_1900 UTC — checklists for landscaping, furniture assembly, roofing, masonry, concrete and demolition.
  * UPDATED : 2026-10-23_2100 UTC — checklists for 16 of services 76–100; the rest use the generic checklist built from what they include.
  * UPDATED : 2026-10-27_1600 UTC — carpentry checklist.
+ * UPDATED : 2026-11-07_0038 UTC — checklists for the four social media services.
  */
 import { getService } from "./services.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -903,6 +904,72 @@ export const CHECKLISTS: Record<string, ChecklistTemplate> = {
         i("ai_assistant", "AI assistant trained on the client's approved information; answers, captures leads and books in tests; hands off to a person", "Asistente de IA entrenado con la información aprobada por el cliente; responde, capta clientes y agenda en pruebas; pasa a una persona", { when: { q: "ai_assistant", in: [true] }, required: true }),
         i("followup", "Instant follow-up tested: a test inquiry gets the text and email reply within a minute", "Respuesta inmediata probada: una consulta de prueba recibe el texto y el correo en menos de un minuto", { when: { q: "followup", in: [true] }, required: true }),
         i("live", "Site live on the client's domain with HTTPS", "Sitio publicado en el dominio del cliente con HTTPS", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "social-media-manager": {
+    service: "social-media-manager", version: 1, title: { en: "Social media management checklist", es: "Lista de manejo de redes sociales" },
+    sections: [
+      FRAMES.business[0],
+      { id: "month", en: "This month", es: "Este mes", items: [
+        i("calendar", "Content calendar for the month approved by the client before anything is posted", "Calendario de contenido del mes aprobado por el cliente antes de publicar", { required: true }),
+        i("profiles", "Profiles complete and on-brand: photo, bio, link, hours and contact info", "Perfiles completos y con la marca: foto, biografía, enlace, horario y contacto", { required: true }),
+        i("posts", "Every booked post written, designed and scheduled on each platform", "Cada publicación reservada redactada, diseñada y programada en cada red", { required: true }),
+        i("replies", "Comments and messages answered every day; anything sensitive passed to the client", "Comentarios y mensajes respondidos a diario; lo delicado pasado al cliente", { when: { q: "community", in: [true] }, required: true }),
+        i("spanish", "Spanish posts reviewed by a fluent speaker", "Publicaciones en español revisadas por un hablante con fluidez", { when: { q: "bilingual", in: [true] }, required: true }),
+        i("report", "Monthly report sent: followers, reach, engagement and top posts", "Informe mensual enviado: seguidores, alcance, interacción y mejores publicaciones", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "content-creator": {
+    service: "content-creator", version: 1, title: { en: "Content creation checklist", es: "Lista de creación de contenido" },
+    sections: [
+      FRAMES.business[0],
+      { id: "create", en: "Create & deliver", es: "Crear y entregar", items: [
+        i("shotlist", "Shot list and style agreed with the client before filming", "Lista de tomas y estilo acordados con el cliente antes de filmar", { required: true }),
+        i("shoot", "On-location shoot done at the agreed time; nothing filmed that the client didn't approve", "Sesión en el local hecha a la hora acordada; nada filmado sin aprobación del cliente", { when: { q: "onsite", in: [true] }, required: true, photo: true }),
+        i("edit", "Every booked photo and video edited with music, captions and the client's branding", "Cada foto y video reservado editado con música, subtítulos y la marca del cliente", { required: true }),
+        i("rights", "Music and footage licensed for business use; people on camera agreed to appear", "Música y tomas con licencia para uso comercial; las personas en cámara aceptaron aparecer", { required: true }),
+        i("captions", "Captions and hashtags written for each piece", "Textos y hashtags redactados para cada pieza", { when: { q: "captions", in: [true] }, required: true }),
+        i("sizes", "Files delivered in each platform's size (vertical, square, landscape)", "Archivos entregados en el tamaño de cada red (vertical, cuadrado, horizontal)", { required: true }),
+        i("changes", "One round of changes made on each piece the client asked about", "Una ronda de cambios hecha en cada pieza que el cliente pidió", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "brand-ambassador": {
+    service: "brand-ambassador", version: 1, title: { en: "Brand ambassador checklist", es: "Lista de embajadores de marca" },
+    sections: [
+      FRAMES.business[0],
+      { id: "month", en: "This month", es: "Este mes", items: [
+        i("brief", "Ambassadors briefed on the offer, the key points and what never to say", "Embajadores informados sobre la oferta, los puntos clave y lo que nunca deben decir", { required: true }),
+        i("approve", "Every post and story approved by the client before it goes up", "Cada publicación e historia aprobada por el cliente antes de subirla", { required: true }),
+        i("disclose", "Each post clearly marked as a paid partnership (#ad or the platform's label)", "Cada publicación indicada claramente como colaboración pagada (#ad o la etiqueta de la red)", { required: true }),
+        i("posts", "4 posts and 8 stories per ambassador published and tagged", "4 publicaciones y 8 historias por embajador publicadas y etiquetadas", { required: true }),
+        i("live", "Live session held and the recording link sent", "Transmisión en vivo hecha y el enlace de la grabación enviado", { when: { q: "live", in: [true] }, required: true }),
+        i("review", "Review video posted and shared with the client", "Video de reseña publicado y compartido con el cliente", { when: { q: "review", in: [true] }, required: true }),
+        i("report", "Monthly report sent: every link, reach and engagement", "Informe mensual enviado: cada enlace, alcance e interacción", { required: true }),
+      ] },
+      FRAMES.business[1],
+    ],
+  },
+
+  "social-media-ads": {
+    service: "social-media-ads", version: 1, title: { en: "Paid social ads checklist", es: "Lista de anuncios en redes sociales" },
+    sections: [
+      FRAMES.business[0],
+      { id: "ads", en: "Campaigns", es: "Campañas", items: [
+        i("budget", "Monthly ad budget, goal and audience agreed in writing; budget paid on the client's own card", "Presupuesto mensual, objetivo y público acordados por escrito; presupuesto pagado con la tarjeta del cliente", { required: true }),
+        i("tracking", "Pixel and conversion tracking installed and tested", "Píxel y seguimiento de conversiones instalados y probados", { when: { q: "tracking", in: [true] }, required: true }),
+        i("creative", "New ad designs and short videos approved by the client", "Nuevos diseños de anuncios y videos cortos aprobados por el cliente", { when: { q: "creative", in: [true] }, required: true }),
+        i("policy", "Ads follow each platform's ad policies (no rejected or flagged ads left running)", "Los anuncios cumplen las políticas de cada plataforma (ninguno rechazado o marcado sigue activo)", { required: true }),
+        i("weekly", "Budgets and ads adjusted every week based on results", "Presupuestos y anuncios ajustados cada semana según los resultados", { required: true }),
+        i("report", "Monthly report sent: spend, results, cost per lead or sale, and next month's plan", "Informe mensual enviado: gasto, resultados, costo por cliente o venta, y el plan del próximo mes", { required: true }),
       ] },
       FRAMES.business[1],
     ],

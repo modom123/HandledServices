@@ -17,6 +17,7 @@
  *           facilities / operations / office manager for business customers; confident, own domain, never jobs/HR/billing).
  * UPDATED : 2026-10-23_1900 UTC — search phrases and words for the new trades (roofing, masonry, concrete, demolition, furniture assembly); lawn includes landscaping.
  * UPDATED : 2026-10-27_1600 UTC — recruiting search and wording for carpentry.
+ * UPDATED : 2026-11-07_0037 UTC — search terms for the new social_media trade.
  */
 import { BRAND } from "./brand.ts";
 
@@ -37,7 +38,7 @@ export const TRADE_SEARCH: Record<string, string> = {
   food_truck: "food truck", dj_music: "DJ service", rentals: "party rental", venue: "event venue",
   security: "security guard company",
   recruiter: "independent recruiter",
-  web_design: "web design agency", business_formation: "business formation service", consulting: "small business consultant", ai_automation: "AI automation agency",
+  web_design: "web design agency", business_formation: "business formation service", consulting: "small business consultant", ai_automation: "AI automation agency", social_media: "social media marketing agency",
   freight: "trucking company",
 };
 
@@ -57,7 +58,7 @@ export const TRADE_WORD: Record<string, string> = {
   event_planner: "event planning", catering: "catering", food_truck: "food truck", dj_music: "DJ and music", rentals: "event rentals", venue: "event venue",
   security: "event security",
   recruiter: "recruiting",
-  web_design: "web design", business_formation: "business formation", consulting: "business consulting", ai_automation: "AI automation",
+  web_design: "web design", business_formation: "business formation", consulting: "business consulting", ai_automation: "AI automation", social_media: "social media marketing",
   freight: "freight delivery",
 };
 

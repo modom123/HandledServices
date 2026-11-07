@@ -60,6 +60,8 @@
  *           home & Wi-Fi, water damage, locksmith, property inspection, duct & dryer vent cleaning, tile & grout, trash bins,
  *           chimney sweep, sprinklers, holiday lights, pools, pest control, live wildlife removal, laundry pickup, home watch.
  * UPDATED : 2026-10-27_1600 UTC — Carpentry (finish carpentry: trim, interior doors, built-ins, stairs & railings, framing) and the carpentry trade; decks and exterior doors stay with Deck Building and Window & Door Replacement.
+ * UPDATED : 2026-11-07_0037 UTC — four Business & Technology social media services: Social Media Manager, Content Creator, Brand Ambassadors and
+ *           Paid Social Ads Manager (monthly, remote, ordered with a deposit); new trade social_media.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -4500,6 +4502,155 @@ export const SERVICES: Service[] = [
       return { items, base: sum(items), hours: hrs + extra * 6 + (b(a, "bilingual") ? 6 : 0) };
     },
   },
+  {
+    slug: "social-media-manager",
+    insuranceOptional: true,
+    name: "Social Media Manager",
+    category: "business",
+    icon: "📱",
+    tagline: "Your social media run for you: a plan, posts on schedule and replies to comments and messages.",
+    description: "A social media manager who runs your accounts every month: a monthly content calendar you approve, posts written, designed and scheduled on each platform, comments and messages answered, and a monthly report on what grew. We set up or clean up your profiles in the first month. You approve everything before it goes out, and every account stays in your name. See your price online and pay a deposit to start.",
+    includes: ["Upfront monthly price — a deposit starts the work", "Monthly content calendar you approve", "Posts written, designed and scheduled", "Profiles set up or cleaned up in month one", "Monthly results report", "Every account stays in your name"],
+    notesHint: "Your business, who your customers are, the platforms you use now (with links), the look and tone you want, and anything you never want posted",
+    questions: [
+      {
+        id: "posts",
+        label: "Posts per week",
+        type: "select",
+        default: "3",
+        options: [
+          { value: "3", label: "3 posts a week" },
+          { value: "5", label: "5 posts a week" },
+          { value: "7", label: "Every day (7 posts a week)" },
+        ],
+      },
+      { id: "platforms", label: "Platforms", type: "number", min: 1, max: 6, default: 2, help: "Facebook, Instagram, TikTok, LinkedIn, X, YouTube… Two are included; each additional one is added to the price." },
+      { id: "community", label: "Reply to comments & messages every day", type: "toggle", default: true },
+      { id: "bilingual", label: "English + Spanish", type: "toggle", default: false },
+    ],
+    minimum: 900,
+    spread: [0.9, 1.2],
+    siteVisit: false,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once", "monthly"],
+    trades: ["social_media"],
+    price: (a) => {
+      const per = s(a, "posts", "3");
+      const [amount, hrs] = ({ "3": [900, 20], "5": [1400, 30], "7": [2000, 42] } as Record<string, [number, number]>)[per] ?? [900, 20];
+      const items: LineItem[] = [{ label: `Social media management — ${per} posts a week`, amount }];
+      const extra = Math.max(0, n(a, "platforms", 2) - 2);
+      if (extra) items.push({ label: `Additional platforms — ${extra}`, amount: extra * 200 });
+      if (b(a, "community")) items.push({ label: "Daily replies to comments & messages", amount: 400 });
+      if (b(a, "bilingual")) items.push({ label: "English + Spanish", amount: 300 });
+      return { items, base: sum(items), hours: hrs + extra * 4 + (b(a, "community") ? 10 : 0) + (b(a, "bilingual") ? 6 : 0) };
+    },
+  },
+  {
+    slug: "content-creator",
+    insuranceOptional: true,
+    name: "Content Creator",
+    category: "business",
+    icon: "🎬",
+    tagline: "Photos and short videos made for your social media, ready to post every month.",
+    description: "A content creator who makes the photos and short videos (Reels, TikToks, Shorts) your accounts need each month: shot list planned with you, filmed, edited with music, captions and your branding, and delivered sized for every platform. Send products or footage, or add a local on-location shoot. You get every file to keep and use anywhere. See your price online and pay a deposit to start.",
+    includes: ["Upfront monthly price — a deposit starts the work", "Shot list planned with you", "Edited with music, captions and your branding", "Sized for every platform", "One round of changes on each piece", "You keep every file"],
+    notesHint: "What you sell, the look you like (links to accounts or videos you admire), products or places to film, and where the content will be posted",
+    questions: [
+      {
+        id: "package",
+        label: "Monthly content",
+        type: "select",
+        default: "mix",
+        options: [
+          { value: "photo", label: "Photos — 20 edited photos" },
+          { value: "video", label: "Short videos — 4 Reels / TikToks" },
+          { value: "mix", label: "Mix — 12 photos + 4 short videos" },
+          { value: "pro", label: "Pro — 20 photos + 8 short videos" },
+        ],
+      },
+      { id: "onsite", label: "On-location shoot (half day, local)", type: "toggle", default: false },
+      { id: "captions", label: "Captions & hashtags written for each post", type: "toggle", default: true },
+      { id: "bilingual", label: "English + Spanish", type: "toggle", default: false },
+    ],
+    minimum: 600,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once", "monthly"],
+    trades: ["social_media"],
+    price: (a) => {
+      const pkg = s(a, "package", "mix");
+      const [label, amount, hrs] = ({ photo: ["20 edited photos", 600, 12], video: ["4 short videos", 900, 18], mix: ["12 photos + 4 short videos", 1200, 24], pro: ["20 photos + 8 short videos", 2000, 40] } as Record<string, [string, number, number]>)[pkg] ?? ["12 photos + 4 short videos", 1200, 24];
+      const items: LineItem[] = [{ label: `Content creation — ${label}`, amount }];
+      if (b(a, "onsite")) items.push({ label: "On-location shoot (half day)", amount: 350 });
+      if (b(a, "captions")) items.push({ label: "Captions & hashtags", amount: 150 });
+      if (b(a, "bilingual")) items.push({ label: "English + Spanish", amount: 200 });
+      return { items, base: sum(items), hours: hrs + (b(a, "onsite") ? 5 : 0) + (b(a, "captions") ? 3 : 0) + (b(a, "bilingual") ? 3 : 0) };
+    },
+  },
+  {
+    slug: "brand-ambassador",
+    insuranceOptional: true,
+    name: "Brand Ambassadors",
+    category: "business",
+    icon: "🌟",
+    tagline: "Vetted creators who recommend your business to their own followers every month.",
+    description: "Brand ambassadors are vetted local creators who post about your business on their own social accounts: an honest review, stories and posts each month, tagged and clearly marked as a partnership. We match ambassadors whose followers fit your customers, brief them, approve each post with you and send you the links and reach every month. See your price online and pay a deposit to start.",
+    includes: ["Upfront monthly price — a deposit starts the work", "Ambassadors matched to your customers", "4 posts and 8 stories each per month", "Every post approved by you first", "Partnerships clearly disclosed", "Monthly links and reach report"],
+    notesHint: "Your business and offer, the customers you want to reach, the area you serve, and anything ambassadors should always (or never) say",
+    questions: [
+      { id: "ambassadors", label: "Ambassadors", type: "number", min: 1, max: 10, default: 1, help: "Each ambassador posts 4 times and shares 8 stories a month." },
+      { id: "live", label: "Monthly live session (Instagram or TikTok Live)", type: "toggle", default: false },
+      { id: "review", label: "Product or service review video", type: "toggle", default: false },
+    ],
+    minimum: 700,
+    spread: [0.9, 1.25],
+    siteVisit: false,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once", "monthly"],
+    trades: ["social_media"],
+    price: (a) => {
+      const count = Math.max(1, n(a, "ambassadors", 1));
+      const items: LineItem[] = [{ label: `Brand ambassadors — ${count}`, amount: count * 700 }];
+      if (b(a, "live")) items.push({ label: "Monthly live session", amount: count * 250 });
+      if (b(a, "review")) items.push({ label: "Review video", amount: count * 300 });
+      return { items, base: sum(items), hours: count * (10 + (b(a, "live") ? 3 : 0) + (b(a, "review") ? 4 : 0)) };
+    },
+  },
+  {
+    slug: "social-media-ads",
+    insuranceOptional: true,
+    name: "Paid Social Ads Manager",
+    category: "business",
+    icon: "📣",
+    tagline: "Facebook, Instagram and TikTok ads set up, run and improved every week to bring in customers.",
+    description: "An ads manager who runs your paid social campaigns every month: audience and offer planned with you, ads written and designed, tracking set up so you see which ads bring customers, budgets adjusted every week, and a monthly results report. Your ad budget is paid straight to the platforms on your own card — our price is the management only. See your price online and pay a deposit to start.",
+    includes: ["Upfront monthly price — a deposit starts the work", "Ad budget paid to the platforms on your card", "Audience and offer planned with you", "Ads adjusted every week", "Monthly results report", "Ad accounts stay in your name"],
+    notesHint: "What you want more of (calls, bookings, sales), your monthly ad budget, the area you serve, and any ads you've run before",
+    questions: [
+      { id: "platforms", label: "Ad platforms", type: "number", min: 1, max: 4, default: 1, help: "Facebook & Instagram count as one; TikTok, YouTube or LinkedIn are each another. The first is included." },
+      { id: "creative", label: "New ad designs & short videos every month", type: "toggle", default: true },
+      { id: "tracking", label: "Tracking setup (pixel, conversions & reports)", type: "toggle", default: false, help: "Needed once, usually in the first month." },
+    ],
+    minimum: 750,
+    spread: [0.9, 1.2],
+    siteVisit: false,
+    remote: true,
+    onDemand: true,
+    frequencies: ["once", "monthly"],
+    trades: ["social_media"],
+    price: (a) => {
+      const extra = Math.max(0, n(a, "platforms", 1) - 1);
+      const items: LineItem[] = [{ label: "Paid social ads management", amount: 750 }];
+      if (extra) items.push({ label: `Additional ad platforms — ${extra}`, amount: extra * 300 });
+      if (b(a, "creative")) items.push({ label: "Ad designs & short videos", amount: 400 });
+      if (b(a, "tracking")) items.push({ label: "Tracking setup", amount: 350 });
+      return { items, base: sum(items), hours: 16 + extra * 6 + (b(a, "creative") ? 8 : 0) + (b(a, "tracking") ? 6 : 0) };
+    },
+  },
 ];
 
 export const SERVICE_BY_SLUG: Record<string, Service> = Object.fromEntries(SERVICES.map((sv) => [sv.slug, sv]));
@@ -4582,5 +4733,6 @@ export const TRADES: { id: string; label: string }[] = [
   { id: "business_formation", label: "Business formation & filings (remote)" },
   { id: "consulting", label: "Business consulting (remote)" },
   { id: "ai_automation", label: "AI automation & AI agents (remote)" },
+  { id: "social_media", label: "Social media management & content (remote)" },
   { id: "freight", label: "Freight carrier (USDOT authority)" },
 ];

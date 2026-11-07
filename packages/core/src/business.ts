@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-11_0608 UTC — "Websites, AI & business setup" group (Business & Technology services).
  * UPDATED : 2026-10-11_1405 UTC — "Freight & pallet delivery" group (licensed carriers, e.g. 3 Lakes Logistics).
  * UPDATED : 2026-10-23_1600 UTC — "Roofing, masonry & carpentry" group for business accounts.
+ * UPDATED : 2026-11-07_0037 UTC — the four social media services join the tech group.
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -33,7 +34,7 @@ export const BUSINESS_GROUPS: BusinessGroup[] = [
   { id: "transport", title: "Corporate transportation", icon: "🚘", blurb: "Executive cars, airport runs, event shuttles, team charters and client outings to the game or a concert.", slugs: ["private-driver", "airport-transfer", "event-shuttle", "charter-bus", "game-day-rides"] },
   { id: "events", title: "Corporate events & catering", icon: "🍽️", blurb: "Team lunches, client dinners, company BBQs and holiday parties, start to finish.", slugs: ["catering", "event-planning", "food-truck", "event-venue", "event-rentals", "dj-music"] },
   { id: "security", title: "Security guards & patrol", icon: "🛡️", blurb: "Licensed guards for your building, job site or lot: a standing post, nightly patrols, fire watch, or security for your event.", slugs: ["security-guard", "event-security", "camera-install"] },
-  { id: "tech", title: "Intelligent websites, operating systems & automation", icon: "💼", blurb: "We build intelligent websites, business operating systems and automated businesses — plus AI agents, automations, your LLC filed and a consultant for plans and bids. Done remotely.", slugs: ["website-design", "business-operating-system", "automated-business", "ai-agents", "ai-automation", "business-formation", "business-consulting"] },
+  { id: "tech", title: "Intelligent websites, operating systems & automation", icon: "💼", blurb: "We build intelligent websites, business operating systems and automated businesses — plus AI agents, automations, social media management, content and ads, your LLC filed and a consultant for plans and bids. Done remotely.", slugs: ["website-design", "business-operating-system", "automated-business", "ai-agents", "ai-automation", "business-formation", "business-consulting", "social-media-manager", "content-creator", "brand-ambassador", "social-media-ads"] },
   { id: "fleet", title: "Fleet & staff perks", icon: "🚗", blurb: "On-site detailing for company vehicles — or as a perk in your lot.", slugs: ["mobile-car-detailing", "personal-assistant"] },
 ];
 

@@ -25,6 +25,7 @@
  * UPDATED : 2026-10-23_1900 UTC — Spanish for the six new services (landscaping, furniture assembly, roofing, masonry, concrete, demolition).
  * UPDATED : 2026-10-23_2100 UTC — Spanish for services 76–100 and the updated category blurbs.
  * UPDATED : 2026-10-27_1600 UTC — Carpentry.
+ * UPDATED : 2026-11-07_0037 UTC — Spanish names and taglines for the four social media services.
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -447,6 +448,10 @@ const ES_SERVICE: Record<string, [string, string]> = {
   "business-formation": ["Formación de empresas (LLC y corporación)", "Cree su LLC o corporación correctamente: registrada, con su EIN y los documentos listos."],
   "business-consulting": ["Consultoría de negocios", "Planes, precios, mercadeo y licitaciones: un consultor que le ayuda a crecer."],
   "ai-automation": ["Automatización con IA", "Ponga en piloto automático el trabajo repetitivo: seguimiento de clientes, citas, facturas e informes."],
+  "social-media-manager": ["Administrador de redes sociales", "Sus redes sociales manejadas por usted: un plan, publicaciones a tiempo y respuestas a comentarios y mensajes."],
+  "content-creator": ["Creador de contenido", "Fotos y videos cortos hechos para sus redes sociales, listos para publicar cada mes."],
+  "brand-ambassador": ["Embajadores de marca", "Creadores verificados que recomiendan su negocio a sus propios seguidores cada mes."],
+  "social-media-ads": ["Administrador de anuncios en redes", "Anuncios en Facebook, Instagram y TikTok creados, manejados y mejorados cada semana para traerle clientes."],
   "ai-agents": ["Agentes de IA a la medida", "Un asistente de IA que atiende clientes, agenda citas y trabaja dentro de sus herramientas, 24/7."],
   "event-security": ["Seguridad para eventos", "Seguridad uniformada y con licencia para fiestas, salones y eventos."],
   "event-rentals": ["Alquiler de sillas y fiestas", "Sillas, mesas, manteles, carpas y pistas de baile, entregadas e instaladas."],

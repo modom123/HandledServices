@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-11_0608 UTC — "business" trade group (remote specialists) with portfolio and client-data questions.
  * UPDATED : 2026-10-23_1900 UTC — new trades (roofing, masonry, concrete, demolition, furniture assembly) use the repair interview track.
  * UPDATED : 2026-10-27_1600 UTC — carpentry uses the repair interview track.
+ * UPDATED : 2026-11-07_0037 UTC — social_media trade uses the business interview.
  */
 import { BRAND } from "./brand.ts";
 
@@ -50,7 +51,7 @@ const GROUP_OF: Record<string, TradeGroup> = {
   plumbing: "licensed", electrical: "licensed", hvac: "licensed",
   pet_care: "pets", transportation: "transport", errands: "errands", medical_courier: "errands",
   event_planner: "events", catering: "events", food_truck: "events", dj_music: "events", rentals: "events", venue: "events", security: "security", recruiter: "recruiting",
-  web_design: "business", business_formation: "business", consulting: "business", ai_automation: "business",
+  web_design: "business", business_formation: "business", consulting: "business", ai_automation: "business", social_media: "business",
 };
 export const tradeGroups = (trades: string[]): TradeGroup[] => [...new Set(trades.map((t) => GROUP_OF[t]).filter(Boolean))] as TradeGroup[];
 
