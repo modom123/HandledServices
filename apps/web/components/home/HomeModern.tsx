@@ -36,6 +36,9 @@
  *           are" strip (slogan + mission → /about); the "More from Handled" tiles are gone (the side menu has them).
  * UPDATED : 2026-10-28_1730 UTC — trimmed repeats: no separate "How it works" (the For customers card says it); Business &
  *           Technology left out of the category grid (the "We build" band and /technology cover it).
+ * UPDATED : 2026-11-07_0021 UTC — owner: after Enter, the home page is services and partners only. The "We build" band (websites,
+ *           operating systems, automation) is off the home page; it and every Business & Technology service are on
+ *           /technology, reached from the menu (For Business → Websites & automation, Services → Business & Technology).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -43,7 +46,6 @@ import { Glyph } from "@/components/Glyph";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { popularServices } from "@/lib/popular";
-import { WeBuild } from "@/components/home/WeBuild";
 import { PartnerBand } from "@/components/home/PartnerBand";
 import { HomeDoors } from "@/components/home/HomeDoors";
 import { WhyItWorks } from "@/components/home/WhyItWorks";
@@ -183,9 +185,6 @@ export async function HomeModern() {
           ))}
         </div>
       </section>
-
-      {/* we build: intelligent websites, operating systems, automated businesses */}
-      <WeBuild es={l === "es"} compact />
 
       {/* who we are: slogan, mission, link to About */}
       <WhoWeAre es={es} />
