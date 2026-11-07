@@ -5,6 +5,7 @@
  * PURPOSE : The website's "Get a quote / call me" form → Lead inbox (channel from the visitor's first touch: an ad,
  *           social, Google, Yelp… or the website). Speed to lead runs right away. Rate limited; texts only with the
  *           consent box ticked.
+ * UPDATED : 2026-11-07_1614 UTC — accepts a campaign (e.g. "post-project" from /post).
  */
 import { z } from "zod";
 import { channelOf } from "@handled/core";
@@ -20,6 +21,7 @@ const Body = z.object({
   company: s(160),
   zip: s(10),
   service: s(80),
+  campaign: s(80),
   message: s(3000),
   sms_consent: z.boolean().optional(),
   attribution: z.record(z.string(), z.string().max(300)).nullable().optional(),

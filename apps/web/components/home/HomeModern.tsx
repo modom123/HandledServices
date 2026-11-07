@@ -39,6 +39,7 @@
  * UPDATED : 2026-11-07_0021 UTC — owner: after Enter, the home page is services and partners only. The "We build" band (websites,
  *           operating systems, automation) is off the home page; it and every Business & Technology service are on
  *           /technology, reached from the menu (For Business → Websites & automation, Services → Business & Technology).
+ * UPDATED : 2026-11-07_1614 UTC — "Post a project" button in the hero (/post).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -87,6 +88,7 @@ export async function HomeModern() {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{es ? "Profesionales asegurados y verificados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Insured, background-checked local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/book" className="btn-primary px-7 py-3.5 text-base shadow-lg shadow-brand/20">{t("Get my price")} →</Link>
+              <Link href="/post" className="btn-ghost px-6 py-3.5 text-base">📝 {es ? "Publique su proyecto" : "Post a project"}</Link>
               <Link href="/services" className="btn-ghost px-6 py-3.5 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-soft">

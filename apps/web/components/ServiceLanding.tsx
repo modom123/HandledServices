@@ -17,6 +17,7 @@
  *           that as fake locations); areaServed is the city in its state, or every state we serve; the provider points at
  *           the one business record (@id …/#business, lib/business-ld.ts).
  * UPDATED : 2026-11-06_0500 UTC — city pages link to their market page (/areas/<market>); state names for NY, NJ, NV.
+ * UPDATED : 2026-11-07_1614 UTC — "Post your project" link under the order button (/post?service=).
  */
 import Link from "next/link";
 import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
@@ -102,6 +103,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
         {big && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{s.remote ? `Over ${limit}? No deposit — a specialist sends your firm price online first.` : `Over ${limit}? No deposit — a free site visit confirms the firm price first.`}</p>}
         <Link href={book} className="btn-primary mt-5 w-full py-3">{cta}</Link>
+        <Link href={`/post?service=${s.slug}`} className="mt-2 block text-center text-sm font-semibold text-brand">{es ? "¿Proyecto distinto? Publíquelo y le llamamos →" : "Something different? Post your project and we'll call you →"}</Link>
         <p className="mt-4 text-xs text-ink-soft">{tech ? (es ? `Hasta ${limit}, un depósito del ${pct} inicia el trabajo; el resto se paga en la entrega. Usted es dueño de todo lo que le entregamos.` : `Up to ${limit}, a ${pct} deposit starts the work — pay the rest on delivery. You own everything we deliver.`) : BRAND.promise}</p>
       </aside>
 

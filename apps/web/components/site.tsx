@@ -27,6 +27,7 @@
  * UPDATED : 2026-10-28_1630 UTC — Business & Technology opens its own page (/technology) from the menu and footer.
  * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
+ * UPDATED : 2026-11-07_1614 UTC — "Post a project" link in the side menu (/post).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -102,6 +103,7 @@ export async function SiteHeader() {
     },
   ];
   const links = [
+    { href: "/post", label: es ? "Publique su proyecto" : "Post a project", icon: "📝" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];
   return (
