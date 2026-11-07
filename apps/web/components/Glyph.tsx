@@ -5,6 +5,7 @@
  * PURPOSE : Modern look: the catalog keeps its emoji (they're data, and the apps and emails still use them); on the website
  *           each emoji is drawn as one consistent line icon (Lucide) in a soft green tile with a gold option.
  *           Unknown emoji fall back to a neutral icon so the set never mixes styles.
+ * UPDATED : 2026-11-07_0039 UTC — line icons for the social media services (📱 🎬 🌟 📣).
  */
 import {
   AppWindow, Armchair, Banknote, Bath, BrickWall, Brush, Building, Building2, Bus, BusFront, Camera, Car, Cctv, Church, ClipboardList,
@@ -12,7 +13,7 @@ import {
   Hammer, Hand, HandCoins, Handshake, Headphones, Hotel, House, KeyRound, Landmark, Leaf, Lightbulb, LockKeyhole, MessageCircle, Package,
   Paintbrush, Palette, PartyPopper, PawPrint, Pill, Plane, Repeat, Shield, ShieldCheck, ShoppingBag, ShoppingBasket, Siren, Snowflake,
   Sofa, Sparkles, SprayCan, Sprout, Star, Stethoscope, Store, Ticket, Trash2, TreeDeciduous, Trophy, Truck, UtensilsCrossed, Wine, Wrench,
-  CircleCheck, type LucideIcon,
+  CircleCheck, Smartphone, Clapperboard, Megaphone, type LucideIcon,
 } from "lucide-react";
 
 const MAP: Record<string, LucideIcon> = {
@@ -21,7 +22,7 @@ const MAP: Record<string, LucideIcon> = {
   "🐾": PawPrint, "🦮": Dog, "🐶": Dog, "🐕": Dog,
   "🚛": Truck, "🚚": Truck, "📦": Package, "🛋️": Sofa, "🗑️": Trash2, "🛢️": Container, "🧤": Hand,
   "🔧": Wrench, "🔑": KeyRound, "🚰": Droplet, "🔥": Flame, "💡": Lightbulb, "📹": Cctv, "🌀": Fan, "⚙️": Cog, "🚪": DoorOpen,
-  "🧯": FireExtinguisher, "🖌️": Paintbrush, "🎨": Palette, "🧱": BrickWall, "🛁": Bath, "🍳": CookingPot, "🏗️": Construction,
+  "📱": Smartphone, "🎬": Clapperboard, "🌟": Star, "📣": Megaphone, "🧯": FireExtinguisher, "🖌️": Paintbrush, "🎨": Palette, "🧱": BrickWall, "🛁": Bath, "🍳": CookingPot, "🏗️": Construction,
   "🛍️": ShoppingBag, "💊": Pill, "🗂️": FolderOpen,
   "🚘": Car, "🚗": Car, "🚨": Siren, "✈️": Plane, "🚌": Bus, "🚐": BusFront, "🏟️": Ticket,
   "🎉": PartyPopper, "🎈": PartyPopper, "🥂": Wine, "🍽️": UtensilsCrossed, "🎧": Headphones, "🪑": Armchair,
