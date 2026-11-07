@@ -21,6 +21,10 @@
  *           30% (REFERRAL_LADDER: 30% at $1M of level credit, threshold(n) = $1M × (n/15)²), still half from the pro. The
  *           rate is locked on the job when it's booked (jobs.partner_rate) so the pro sees their half before accepting.
  *           The partner-v2 tiers (PARTNER_TIERS) stay only for jobs booked before this, which have no partner_rate.
+ * UPDATED : 2026-11-07_1500 UTC — Post & earn: someone who posts a project on /post (tick-box, checked by default) joins
+ *           the Partner Program and gets FIRST_PROJECT_REWARD back on their OWN first project — 10% of the price, up to
+ *           $250, paid by Handled alone (referral_customers.source 'self', partner_commissions.tier 'self'). The one
+ *           exception to "referring yourself doesn't count".
  */
 import { BRAND } from "./brand.ts";
 import { CARD_FEE } from "./pricing.ts";
@@ -59,6 +63,32 @@ export const PARTNER_KINDS = {
   other: "Someone else",
 } as const;
 export type PartnerKind = keyof typeof PARTNER_KINDS;
+
+// ─── Post & earn: the first-project reward ───────────────────────────────────
+
+/**
+ * Post your project → you're a partner, and your own first project pays you back: 10% of the job price (minus refunds),
+ * up to $250, paid by Handled alone (the pro pays nothing). Only the poster's first job, only for someone new to Handled.
+ * Like every commission it never exceeds what Handled keeps on the job after card fees, and it's paid in the weekly run
+ * once the job is past the make-it-right window.
+ */
+export const FIRST_PROJECT_REWARD = { rate: 0.10, cap: 250 } as const;
+
+/** The first-project reward on one job, in dollars (rounded down to the cent). Pass payout to apply the our-fee limit. */
+export function firstProjectReward(o: { price: number; payout?: number; refunded?: number }): number {
+  const c = (n: number) => Math.round(n * 100);
+  const base = Math.max(0, c(o.price) - c(o.refunded ?? 0));
+  const target = Math.min(Math.floor(base * FIRST_PROJECT_REWARD.rate), c(FIRST_PROJECT_REWARD.cap));
+  if (o.payout == null) return target / 100;
+  const card = base > 0 ? Math.round(base * CARD_FEE.pct + CARD_FEE.fixed * 100) : 0;
+  const room = Math.max(0, base - c(o.payout) - card);
+  return Math.min(target, room) / 100;
+}
+
+/** "10% back, up to $250" — the same words everywhere. */
+export const firstProjectLine = (es = false) =>
+  es ? `${Math.round(FIRST_PROJECT_REWARD.rate * 100)}% de reembolso, hasta $${FIRST_PROJECT_REWARD.cap}`
+     : `${Math.round(FIRST_PROJECT_REWARD.rate * 100)}% back, up to $${FIRST_PROJECT_REWARD.cap}`;
 
 // ─── Direct sales (Field Sales): the commission ladder ───────────────────────
 
@@ -346,7 +376,7 @@ export function partnerTerms(): string[] {
     `A customer counts as yours when they book through your link (within ${p.cookieDays} days of clicking it), type your partner code when they pay, or after you send them to us on a referral ticket or a sales ticket from your partner page, and they are new to ${BRAND.name}. Each customer belongs to one partner: the first one.`,
     `Sales tickets: only photograph property with the owner's or manager's permission, only submit customers who asked to hear from us, and never take payment yourself. Once a job is paid, it goes to our pros.`,
     `Commissions are paid weekly through Stripe once the job is ${p.holdDays} days past completion (our make-it-right window). Balances under $${p.minPayout} carry over to the next week. Refunds and chargebacks reduce or cancel the commission on that job.`,
-    "Referring yourself, your own household or your own business doesn't count. Only send a referral ticket for someone who has agreed to be contacted by us. No spam, fake reviews, or promises about price or service that we didn't make. Breaking these rules ends the partnership and any unpaid commissions.",
+    `Referring yourself, your own household or your own business doesn't count, with one exception: when you post your own project on our Post your project page and join there, your own first project earns ${firstProjectLine()} (${Math.round(FIRST_PROJECT_REWARD.rate * 100)}% of the price minus refunds, paid by ${BRAND.name} alone and never more than ${BRAND.name} keeps on the job after card fees), once, if you're new to ${BRAND.name}. Only send a referral ticket for someone who has agreed to be contacted by us. No spam, fake reviews, or promises about price or service that we didn't make. Breaking these rules ends the partnership and any unpaid commissions.`,
     `You're an independent referral partner, not an employee or agent of ${BRAND.name}. If we pay you $600 or more in a year, we'll need your tax details (collected by Stripe) and send you a 1099.`,
     "We may change these terms with 30 days' notice by email. Commissions already earned are paid under the terms in place when the job was booked.",
   ];

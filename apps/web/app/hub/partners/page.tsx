@@ -53,7 +53,7 @@ export default async function PartnersHub() {
   // the direct-sales ladder per partner (same rule as lib/partners.ts directSalesLevel)
   const lad = new Map<string, { directProfit: number; referralProfit: number; directJobs: number; referralJobs: number; best: number }>();
   for (const c of C) {
-    if (c.status === "void") continue;
+    if (c.status === "void" || c.tier === "self") continue; // the first-project reward doesn't build level credit
     const x = lad.get(c.partner_id) ?? { directProfit: 0, referralProfit: 0, directJobs: 0, referralJobs: 0, best: 0 };
     if (c.tier === "direct") { x.directProfit += Number(c.take); x.directJobs++; x.best = Math.max(x.best, Number(c.rate ?? 0)); }
     else { x.referralProfit += Number(c.take); x.referralJobs++; }
@@ -156,7 +156,7 @@ export default async function PartnersHub() {
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Partner</th><th className="p-3">Job</th><th className="p-3">Rate</th><th className="p-3">From pro / us</th><th className="p-3">Commission</th><th className="p-3">Payable</th><th className="p-3"></th></tr></thead>
             <tbody>{pending.map((c) => (
-              <tr key={c.id} className="border-t border-line"><td className="p-3">{name.get(c.partner_id) ?? "—"}</td><td className="p-3">{c.jobs ? `${getService(c.jobs.service_slug)?.name ?? ""} · ${c.jobs.ref}` : "—"}</td><td className="p-3">{c.tier === "direct" ? `Direct sale · ${pctR(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our ${money(Number(c.take))} profit` : c.tier && c.tier !== "legacy" ? `${Math.round(Number(c.rate) * 1000) / 10}% · ${c.tier.replace("_", "-")}` : `10% of our ${money(Number(c.take))} fee`}</td><td className="p-3 text-xs">{moneyCents(Number(c.from_pro ?? 0))} / {moneyCents(Number(c.from_us ?? c.amount))}</td><td className="p-3 font-semibold">{moneyCents(Number(c.amount))}</td><td className="p-3">{c.eligible_at.slice(0, 10)}</td><td className="p-3"><VoidCommission id={c.id} /></td></tr>
+              <tr key={c.id} className="border-t border-line"><td className="p-3">{name.get(c.partner_id) ?? "—"}</td><td className="p-3">{c.jobs ? `${getService(c.jobs.service_slug)?.name ?? ""} · ${c.jobs.ref}` : "—"}</td><td className="p-3">{c.tier === "self" ? `Own first project · 10% back (Post & earn)` : c.tier === "direct" ? `Direct sale · ${pctR(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our ${money(Number(c.take))} profit` : c.tier && c.tier !== "legacy" ? `${Math.round(Number(c.rate) * 1000) / 10}% · ${c.tier.replace("_", "-")}` : `10% of our ${money(Number(c.take))} fee`}</td><td className="p-3 text-xs">{moneyCents(Number(c.from_pro ?? 0))} / {moneyCents(Number(c.from_us ?? c.amount))}</td><td className="p-3 font-semibold">{moneyCents(Number(c.amount))}</td><td className="p-3">{c.eligible_at.slice(0, 10)}</td><td className="p-3"><VoidCommission id={c.id} /></td></tr>
             ))}</tbody>
           </table></div>
         )}

@@ -2,6 +2,7 @@
  * FILE    : apps/web/app/(site)/partners/page.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0130 UTC
+ * UPDATED : 2026-11-07_1500 UTC — "Got a project of your own? Post it" (Post & earn: 10% back, up to $250).
  * PURPOSE : Public page for the Referral Partner Program: what partners earn (25% one-time / 10% repeat / 15% account,
  *           of the job price, weekly via Stripe), who it's for, worked examples, sign-up form and the partner terms.
  * UPDATED : 2026-10-09_0300 UTC — Handled +5 points paid by customers (commission about 20% → 37%, take band 15–40%; pro pay unchanged).
@@ -13,7 +14,7 @@
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  */
 import Link from "next/link";
-import { BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, SALES_TICKET, ladderTable, money, moneyCents, partnerSplit, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
+import { firstProjectLine, BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, SALES_TICKET, ladderTable, money, moneyCents, partnerSplit, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
 import { PartnerSignUp } from "@/components/PartnerUI";
 
 export const metadata = { title: "Partner Program — refer or sell services and get paid on every job", description: `Refer customers to ${BRAND.name} and earn ${referralRange()} of every job they book for ${PARTNER_PROGRAM.months} months — or sell the job yourself and earn ${PARTNER_LADDER.baseRate * 100}% up to ${PARTNER_LADDER.topRate * 100}% of our profit. Part-time or full-time, paid weekly.` };
@@ -125,6 +126,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
           <div>
             <h2 className="text-2xl font-bold">Join in two minutes</h2>
             <p className="mt-2 text-sm text-ink-soft">No fee, no quota. You get your link right away.</p>
+            <p className="mt-2 text-sm">📝 <b>Got a project of your own?</b> <a href="/post" className="font-semibold text-brand underline">Post it</a>, tick the partner box and get {firstProjectLine()} on your first project.</p>
             <div className="mt-4"><PartnerSignUp kinds={Object.entries(PARTNER_KINDS).filter(([k]) => k !== "pro")} defaultKind={kind && kind in PARTNER_KINDS && kind !== "pro" ? kind : undefined} /></div>
           </div>
           <div>

@@ -28,12 +28,15 @@
  *           partner's level credit (referralLevel), locked on the job at booking (jobs.partner_rate) and used for the split,
  *           the work order and the Monday re-check. A pro pays their half on a partner-v4 job only once they've signed
  *           agreement v11; on older (tier) jobs, v10 is enough.
+ * UPDATED : 2026-11-07_1500 UTC — Post & earn: enrollFromPost() signs up someone who posts a project (tick-box on /post)
+ *           and claims their own email as source 'self'. attributeJob credits only their FIRST job; partnerSplitForJob pays
+ *           firstProjectReward (10% back, up to $250, Handled alone, tier 'self'); self rewards don't build level credit.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import {
   AGREEMENT_VERSION, BRAND, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING,
-  cleanPartnerCode, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
+  cleanPartnerCode, firstProjectReward, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
   REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
 } from "@handled/core";
@@ -72,6 +75,31 @@ export async function signUp(o: { name: string; email: string; phone?: string | 
   await sendWelcome(partner, false);
   if (opsEmail()) await sendEmail(opsEmail(), `New referral partner: ${partner.name}${partner.company ? ` (${partner.company})` : ""}`, `${partner.kind} · ${email} · code ${partner.code}\n${partner.how ?? ""}\n\nHub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { partner, existing: false };
+}
+
+/**
+ * Post & earn: someone posting a project on /post with the box ticked joins the Partner Program, and — when they're new
+ * to Handled and nobody referred them first — their own first project earns 10% back, up to $250 (source 'self').
+ * Never throws: a lead must never fail because the partner step did.
+ */
+export async function enrollFromPost(o: { name: string; email: string; phone?: string | null; service_slug?: string | null; ip: string | null }): Promise<{ code: string; reward: boolean } | null> {
+  try {
+    const email = lower(o.email);
+    const { partner } = await signUp({ name: o.name, email, phone: o.phone, kind: "customer", how: "Post your project", ip: o.ip });
+    if (partner.status !== "active") return { code: partner.code, reward: false };
+    const { data: taken } = await db().from("referral_customers").select("partner_id, source").eq("customer_email", email).maybeSingle();
+    if (taken) return { code: partner.code, reward: taken.partner_id === partner.id && taken.source === "self" };
+    if (await isExistingCustomer(email)) return { code: partner.code, reward: false };
+    const { error } = await db().from("referral_customers").insert({
+      partner_id: partner.id, customer_email: email, customer_name: o.name, customer_phone: o.phone || null,
+      service_slug: o.service_slug || null, source: "self", note: "Post your project — first-project reward",
+      expires_at: partnerExpiry(new Date()).toISOString(),
+    });
+    return { code: partner.code, reward: !error }; // error: the post-and-earn SQL isn't run yet, or a race
+  } catch (e) {
+    console.error("enrollFromPost", e);
+    return null;
+  }
 }
 
 /** The partner's code, link and a one-tap sign-in to their partner page (sent at sign-up, and again if they sign up twice). */
@@ -181,6 +209,8 @@ export async function attributeJob(job: Job, typedCode?: string | null): Promise
   let partnerId: string | null = null;
   if (ref) {
     const active = (ref.referral_partners as unknown as { status: string } | null)?.status === "active";
+    // the partner's own project (Post & earn): only their first job, and only while they're new to Handled
+    if (ref.source === "self" && ((ref.first_job_id && ref.first_job_id !== job.id) || await isExistingCustomer(email, job.id))) return null;
     if (active && new Date(ref.expires_at) > new Date()) partnerId = ref.partner_id;
     if (partnerId && !ref.first_job_id) await db().from("referral_customers").update({ first_job_id: job.id, updated_at: new Date().toISOString() }).eq("id", ref.id);
   } else {
@@ -196,6 +226,11 @@ export async function attributeJob(job: Job, typedCode?: string | null): Promise
     partnerId = p.id;
   }
   if (!partnerId) return null;
+  // the partner's own first project: the first-project reward, paid by Handled alone — no tier, no rate, no pro fee
+  if (ref?.source === "self") {
+    await db().from("jobs").update({ partner_id: partnerId, partner_tier: null }).eq("id", job.id);
+    return partnerId;
+  }
   // a customer the partner sold on a sales ticket: direct-sale ladder, paid by Handled alone — no tier, no pro fee
   if (ref?.source === "sale") {
     const { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_sale: true }).eq("id", job.id);
@@ -219,7 +254,7 @@ async function isFirstJob(email: string, partnerId: string, jobId: string) {
 
 // ─── Commissions ─────────────────────────────────────────────────────────────
 
-type Split = { tier: PartnerTier | "legacy" | "direct"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
+type Split = { tier: PartnerTier | "legacy" | "direct" | "self"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
 
 /**
  * At completion, before the pro's payout line is written: the partner's share of this job and who pays it.
@@ -231,6 +266,11 @@ export async function partnerSplitForJob(job: Job): Promise<Split | null> {
   if (!ref || new Date(job.created_at) > new Date(ref.expires_at)) return null; // booked after the 12 months
   const o = { price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) };
   const take = partnerTake(o);
+  // Post & earn: the partner's own first project — 10% back, up to $250, Handled alone
+  if (ref.source === "self") {
+    const amount = firstProjectReward(o);
+    return amount > 0 ? { tier: "self", rate: 0.1, fromPro: 0, fromUs: amount, amount, take } : null;
+  }
   // direct sale (Field Sales): the partner's ladder rate of our take, paid by Handled alone
   if (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale) {
     const { rate } = await directSalesLevel(job.partner_id);
@@ -278,7 +318,10 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
   const live = Boolean(j && j.status === "completed" && !j.remedy) && !voidNote;
   const fromPro = Number(r.from_pro ?? 0), fromUs = Number(r.from_us ?? 0);
   let now$: number, newPro = 0, newUs = 0;
-  if (r.tier === "direct") { // direct sale: the locked ladder rate of our take, Handled alone
+  if (r.tier === "self") { // Post & earn: the first-project reward, Handled alone
+    now$ = live ? Math.min(Number(r.amount), firstProjectReward({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) })) : 0;
+    newUs = now$;
+  } else if (r.tier === "direct") { // direct sale: the locked ladder rate of our take, Handled alone
     now$ = live ? Math.min(Number(r.amount), partnerSaleCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) }, Number(r.rate ?? PARTNER_LADDER.baseRate))) : 0;
     newUs = now$;
   } else if (!r.tier || r.tier === "legacy") {
@@ -426,7 +469,8 @@ export async function payoutsReady(partner: Partner) {
 export async function directSalesLevel(partnerId: string) {
   const { data } = await db().from("partner_commissions").select("take, rate, tier").eq("partner_id", partnerId).neq("status", "void").limit(100000);
   const rows = (data ?? []) as { take: number; rate: number | null; tier: string | null }[];
-  const direct = rows.filter((r) => r.tier === "direct"), referral = rows.filter((r) => r.tier !== "direct");
+  // the first-project reward (tier 'self') is the partner's own job: it pays, but doesn't build level credit
+  const direct = rows.filter((r) => r.tier === "direct"), referral = rows.filter((r) => r.tier !== "direct" && r.tier !== "self");
   const add = (xs: typeof rows) => Math.round(xs.reduce((t, r) => t + Number(r.take), 0) * 100) / 100;
   const raw = { directProfit: add(direct), referralProfit: add(referral), directJobs: direct.length, referralJobs: referral.length };
   const credit = ladderCredit(raw);

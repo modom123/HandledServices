@@ -60,7 +60,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     const x = byCustomer.get(k) ?? { completed: 0, paid: 0 };
     if (c.status !== "void") x.completed++; if (c.status === "paid") x.paid++; byCustomer.set(k, x);
   }
-  const rateOf = (c: Comm) => c.tier === "direct" ? `${pct(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our profit · Direct sale` : c.tier && c.tier !== "legacy" ? `${pct(Number(c.rate ?? PARTNER_TIERS[c.tier as PartnerTier]?.rate ?? 0))} of the job price · Referral` : "10% of our fee (before Oct 28)";
+  const rateOf = (c: Comm) => c.tier === "self" ? "10% back on your own first project · Post & earn" : c.tier === "direct" ? `${pct(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our profit · Direct sale` : c.tier && c.tier !== "legacy" ? `${pct(Number(c.rate ?? PARTNER_TIERS[c.tier as PartnerTier]?.rate ?? 0))} of the job price · Referral` : "10% of our fee (before Oct 28)";
   const tone = (st: string) => (st === "paid" || st === "completed" ? "green" : st === "booked" ? "brand" : st === "closed" ? "red" : "amber") as "green" | "brand" | "red" | "amber";
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   return (
@@ -145,7 +145,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
             <tbody>{((customers ?? []) as { ticket_no?: string | null; customer_name: string | null; customer_email: string; service_slug: string | null; job_type?: string | null; source: string; status?: string | null; first_job_id: string | null; expires_at: string; created_at: string }[]).map((c) => {
               const st = ticketStage(c, byCustomer.get(c.customer_email.toLowerCase()));
               return (
-                <tr key={c.customer_email} className="border-t border-line"><td className="p-3 font-mono text-xs">{c.ticket_no ?? "—"}<div className="font-sans text-ink-soft">{c.created_at.slice(0, 10)}</div></td><td className="p-3">{c.customer_name ?? mask(c.customer_email)}</td><td className="p-3">{c.service_slug ? getService(c.service_slug)?.name ?? "—" : "—"}{c.job_type && <div className="text-xs text-ink-soft">{TICKET_JOB_TYPES[c.job_type as keyof typeof TICKET_JOB_TYPES]?.label}</div>}</td><td className="p-3">{c.source === "direct" ? "Your referral ticket" : c.source === "sale" ? "Your sale" : c.source === "staff" ? "Credited by us" : "Your link or code"}</td><td className="p-3"><Badge tone={tone(st)}>{TICKET_STATUSES[st]}</Badge></td><td className="p-3">{c.expires_at.slice(0, 10)}</td></tr>
+                <tr key={c.customer_email} className="border-t border-line"><td className="p-3 font-mono text-xs">{c.ticket_no ?? "—"}<div className="font-sans text-ink-soft">{c.created_at.slice(0, 10)}</div></td><td className="p-3">{c.customer_name ?? mask(c.customer_email)}</td><td className="p-3">{c.service_slug ? getService(c.service_slug)?.name ?? "—" : "—"}{c.job_type && <div className="text-xs text-ink-soft">{TICKET_JOB_TYPES[c.job_type as keyof typeof TICKET_JOB_TYPES]?.label}</div>}</td><td className="p-3">{c.source === "direct" ? "Your referral ticket" : c.source === "sale" ? "Your sale" : c.source === "self" ? "Your own project (10% back)" : c.source === "staff" ? "Credited by us" : "Your link or code"}</td><td className="p-3"><Badge tone={tone(st)}>{TICKET_STATUSES[st]}</Badge></td><td className="p-3">{c.expires_at.slice(0, 10)}</td></tr>
               );
             })}</tbody>
           </table></div>

@@ -2609,3 +2609,15 @@ test("referral ladder (partner-v4): one rate, 15% → 30% of the job price, half
   assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time" }).rate, 0.25);
   assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: null }).rate, 0.25);
 });
+
+test("post & earn: first-project reward is 10% back, up to $250, never more than our fee", async () => {
+  const { firstProjectReward, firstProjectLine, FIRST_PROJECT_REWARD, partnerTerms } = await import("./partners.ts");
+  assert.deepEqual(FIRST_PROJECT_REWARD, { rate: 0.1, cap: 250 });
+  assert.equal(firstProjectReward({ price: 1000, payout: 700 }), 100, "10% of the price");
+  assert.equal(firstProjectReward({ price: 5000, payout: 3500 }), 250, "capped at $250");
+  assert.equal(firstProjectReward({ price: 1000, payout: 400, refunded: 400 }), 60, "refunds lower it");
+  assert.equal(firstProjectReward({ price: 300, payout: 300 }), 0, "never more than what Handled keeps");
+  assert.equal(firstProjectReward({ price: 199.99 }), 19.99, "rounded down to the cent");
+  assert.equal(firstProjectLine(), "10% back, up to $250");
+  assert.ok(partnerTerms().some((t) => t.includes("Post your project") && t.includes("10% back, up to $250")), "terms carve-out");
+});

@@ -7,11 +7,13 @@
  *           "post-project") with the visitor's source (utm / ref links), so Handled gets the lead, replies in seconds
  *           and calls within minutes. Leads are never sold or shared. After sending, a known service links straight to
  *           its instant price. English / Spanish.
+ * UPDATED : 2026-11-07_1500 UTC — Post & earn: a tick-box (checked by default) joins the Partner Program and pays 10%
+ *           back, up to $250, on the poster's own first project (needs an email). The done state shows their code.
  */
 "use client";
 
 import { useState } from "react";
-import { BRAND } from "@handled/core";
+import { BRAND, firstProjectLine } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 
 type Opt = { slug: string; name: string };
@@ -19,6 +21,8 @@ type Opt = { slug: string; name: string };
 export function PostProjectForm({ es, services, preset }: { es: boolean; services: Opt[]; preset?: string | null }) {
   const [f, setF] = useState({ service: preset ?? "", details: "", timing: "", budget: "", zip: "", name: "", email: "", phone: "", website: "" });
   const [sms, setSms] = useState(false);
+  const [earn, setEarn] = useState(true);
+  const [partner, setPartner] = useState<{ code: string; reward: boolean } | null>(null);
   const [state, setState] = useState<"idle" | "busy" | "done">("idle");
   const [err, setErr] = useState("");
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
@@ -34,6 +38,14 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         <div className="text-2xl">✅</div>
         <div className="mt-2 text-lg font-bold">{L("Your project is posted. We're on it.", "Su proyecto está publicado. Nos encargamos.")}</div>
         <p className="mt-1 text-sm text-ink-soft">{L("Check your email for our reply. A real person will call you shortly", "Revise su correo: ya le respondimos. Una persona real le llamará pronto")}{BRAND.supportPhone ? ` ${L("from", "desde el")} ${BRAND.supportPhone}` : ""}.</p>
+        {partner && (
+          <div className="mt-4 rounded-xl border border-line bg-paper p-3 text-left text-sm">
+            <div className="font-semibold">🎉 {L("You're a Handled partner", "Ya es socio de Handled")} · {L("code", "código")} <span className="font-mono">{partner.code}</span></div>
+            <p className="mt-1 text-ink-soft">{partner.reward
+              ? L(`When we complete this project, you get ${firstProjectLine()} — paid to you in our weekly payout after the ${BRAND.guaranteeDays}-day make-it-right window. We emailed you a link to your partner page to set up payouts and share your link with friends.`, `Cuando terminemos este proyecto, recibe ${firstProjectLine(true)}, pagado en nuestro pago semanal después de la garantía de ${BRAND.guaranteeDays} días. Le enviamos por correo el enlace a su página de socio para configurar pagos y compartir su enlace.`)
+              : L("We emailed you your partner page. Share your link and earn on every job from people you send us.", "Le enviamos su página de socio por correo. Comparta su enlace y gane en cada trabajo de las personas que nos envíe.")}</p>
+          </div>
+        )}
         {svc && <a href={`/book?service=${svc.slug}&utm_source=post_project`} className="btn-primary mt-4 inline-block">{L(`See your instant price for ${svc.name}`, `Vea su precio al instante: ${svc.name}`)} →</a>}
       </div>
     );
@@ -52,11 +64,12 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       ].filter(Boolean).join("\n");
       const r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         name: f.name, email: f.email || null, phone: f.phone || null, zip: f.zip || null, service: f.service || null, message,
-        campaign: "post-project", sms_consent: sms && Boolean(f.phone), attribution: readAttribution(), website: f.website,
+        campaign: "post-project", sms_consent: sms && Boolean(f.phone), partner_optin: earn && Boolean(f.email), attribution: readAttribution(), website: f.website,
       }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { setState("idle"); setErr(String(j.error ?? L("Couldn't send — try again", "No se pudo enviar; intente de nuevo"))); return; }
       trackConversion("Lead", { id: `post-${Date.now()}` });
+      if (j.partner) setPartner(j.partner);
       setState("done");
     }}>
       <div>
@@ -87,6 +100,12 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         <input className="input" type="tel" placeholder={L("Phone", "Teléfono")} value={f.phone} onChange={set("phone")} />
       </div>
       <input className="hidden" tabIndex={-1} autoComplete="off" aria-hidden value={f.website} onChange={set("website")} />
+      <label className="flex items-start gap-2 rounded-xl border border-line bg-paper p-3 text-sm">
+        <input type="checkbox" className="mt-1" checked={earn} onChange={(e) => setEarn(e.target.checked)} />
+        <span><b>{L(`Get ${firstProjectLine()} on this project`, `Reciba ${firstProjectLine(true)} en este proyecto`)}</b> — {L("make me a Handled partner. When we complete your first project, we pay you 10% of the price (up to $250) in cash, and you earn on every job from people you send us. Needs your email.", "hágame socio de Handled. Cuando terminemos su primer proyecto, le pagamos el 10% del precio (hasta $250) en efectivo, y gana en cada trabajo de las personas que nos envíe. Requiere su correo.")}{" "}
+          <span className="text-xs text-ink-soft">{L("By ticking this you agree to the", "Al marcar esto acepta los")} <a href="/partners#join" target="_blank" className="underline">{L("partner terms", "términos de socio")}</a>.</span>
+        </span>
+      </label>
       <label className="flex items-start gap-2 text-xs text-ink-soft">
         <input type="checkbox" className="mt-0.5" checked={sms} onChange={(e) => setSms(e.target.checked)} />
         <span>{L(`Text me about my project. By checking this, you agree to receive text messages from ${BRAND.name} at the number above about your request. Message and data rates may apply; reply STOP to opt out. Consent isn't required to buy.`, `Envíenme mensajes de texto sobre mi proyecto. Al marcar esto, acepta recibir mensajes de ${BRAND.name} al número indicado sobre su solicitud. Pueden aplicar tarifas de mensajes y datos; responda STOP para cancelar. No es necesario para comprar.`)}</span>
