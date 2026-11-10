@@ -8,6 +8,8 @@
             before posting.
   UPDATED : 2026-11-06_1724 UTC — referral pay at the partner-v2 tiers; the ladder is for direct sales (sales count 1.5×).
   UPDATED : 2026-11-06_1738 UTC — referrals: one rate, 15% of the job price rising to 30% (partner-v4).
+  UPDATED : 2026-11-10_0355 UTC — SUPERSEDED: Indeed flagged this commission-only version as an opportunity. Post
+            docs/INDEED_JOB_FIELD_SALES_REP_2026-11-10_0355.md (a job: duties, schedule, $10 per lead + commission) instead.
 -->
 
 # Indeed post: Field Sales Partner (Detroit metro)

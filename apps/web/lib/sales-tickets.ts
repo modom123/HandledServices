@@ -14,10 +14,11 @@
  *           The CUSTOMER accepts the Service Agreement and pays Handled directly (on their phone, or the rep's link/QR right
  *           there). Once paid, the job goes to the job board (dispatch) like any booking; when it's completed the rep's
  *           commission accrues at their ladder rate (lib/partners.ts → accrueCommission). Reps never take money.
+ * UPDATED : 2026-11-10_0400 UTC — every lead records a $10 draw (lead pay; partner_draws), up to 25 a week.
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { BRAND, SALES_TICKET, estimate, getService, isPhotoPath, money, partnerExpiry, ticketCloseCheck, type Answers, type Job } from "@handled/core";
+import { BRAND, SALES_DRAW, SALES_TICKET, estimate, getService, isPhotoPath, money, partnerExpiry, ticketCloseCheck, type Answers, type Job } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { sendSms } from "./sms";
@@ -105,6 +106,8 @@ export async function createTicket(partner: Partner, i: TicketInput): Promise<{ 
   }).select("*").single();
   if (error || !data) return { ok: false, error: error?.message ?? "Couldn't save the ticket — try again." };
   const ticket = data as SalesTicket;
+  // lead pay: $10 for this lead (a draw against its commission), up to the weekly cap; paid once unlocked (lib/partners)
+  await recordLeadDraw(partner.id, ticket.id).catch((e) => console.error("[lead pay]", e));
 
   const first = i.customer_name.split(" ")[0];
   const what = svc ? svc.name.toLowerCase() : "your service";
@@ -118,6 +121,14 @@ export async function createTicket(partner: Partner, i: TicketInput): Promise<{ 
   if (opsEmail()) await sendEmail(opsEmail(), `Field Sales ticket: ${svc?.name ?? "service"} — ${i.customer_name} (${partner.name})${price ? ` · ${money(price)}` : ""}`,
     `${partner.name} (${partner.code}) wrote a ticket.\nCustomer: ${i.customer_name} · ${email} · ${i.customer_phone ?? "no phone"}\n${[i.address, i.city, i.state, i.zip].filter(Boolean).join(", ")}\n${i.notes ?? ""}${i.close_notes ? `\nTo close: ${i.close_notes}` : ""}\n\nHub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { ok: true, ticket, link, price };
+}
+
+/** A lead's $10 draw (pending until the partner's lead pay unlocks). Skipped past the weekly cap. */
+async function recordLeadDraw(partnerId: string, ticketId: string) {
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const { count } = await db().from("partner_draws").select("id", { count: "exact", head: true }).eq("partner_id", partnerId).gte("created_at", weekAgo);
+  if ((count ?? 0) >= SALES_DRAW.weeklyCap) return;
+  await db().from("partner_draws").insert({ partner_id: partnerId, ticket_id: ticketId, amount: SALES_DRAW.perLead, status: "pending" });
 }
 
 /** /book?ticket=TOKEN: what to pre-fill. Only open tickets; anything else books normally. */

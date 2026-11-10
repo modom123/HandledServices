@@ -11,6 +11,7 @@
  *           every service (English and Spanish), Snap / Ask actions, popular cleaning in Metro Detroit
  *           (MARKETING_FOCUS) as big tiles, and category chips that show one category at a time instead of
  *           one long list. Bookings, Pro and Account moved to the tab bar.
+ * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
  */
 import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
@@ -86,7 +87,7 @@ export default function Home() {
             <Pressable onPress={() => router.push("/snap")} accessibilityRole="button" style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.85 : 1 }]}>
               <Card style={{ backgroundColor: C.deep, borderColor: C.deep, marginBottom: 0, minHeight: 96 }}>
                 <Text style={{ fontSize: 26 }}>📸</Text>
-                <Text style={[s.b, { color: C.white, marginTop: 4 }]}>{t("Snap a photo")}</Text>
+                <Text style={[s.b, { color: C.white, marginTop: 4 }]}>{t("Snap a photo, post a job")}</Text>
                 <Text style={{ color: "#cfe9e1", fontSize: 14 }}>{t("We'll price the job")}</Text>
               </Card>
             </Pressable>

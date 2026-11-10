@@ -65,6 +65,8 @@
  * UPDATED : 2026-11-10_0250 UTC — house cleaning: "Other (describe it)" type of clean; otherNote / otherMissing helpers.
  * UPDATED : 2026-11-10_0310 UTC — number questions can have a lower minimum when another answer matches (minWhen): house
  *           cleaning "Other" goes down to 50 sq ft. numberMin / clampToMins helpers.
+ * UPDATED : 2026-11-10_0345 UTC — no general liability certificate needed (insuranceOptional) for house cleaning, dog walking,
+ *           dog sitting, pet waste removal, furniture assembly, event planning / packages and DJ & music (owner decision).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -262,6 +264,7 @@ export const SERVICES: Service[] = [
   // ───────────────────────────── CLEANING ─────────────────────────────
   {
     slug: "house-cleaning",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "House & Office Cleaning",
     category: "cleaning",
     icon: "🧽",
@@ -1042,6 +1045,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "dog-walking",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Dog Walking",
     category: "pets",
     icon: "🦮",
@@ -1080,6 +1084,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "dog-sitting",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Dog Sitting & Pet Watching",
     category: "pets",
     icon: "🐶",
@@ -1123,6 +1128,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "pet-waste-removal",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Dog Poop Removal",
     category: "pets",
     icon: "🐕",
@@ -1704,6 +1710,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "furniture-assembly",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Furniture Assembly & TV Mounting",
     category: "repair_remodel",
     icon: "🪑",
@@ -3743,6 +3750,7 @@ export const SERVICES: Service[] = [
   // ───────────────────────────── PARTIES & EVENTS ─────────────────────────────
   {
     slug: "event-package",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Plan My Event (by Budget)",
     category: "events",
     icon: "🎈",
@@ -3778,6 +3786,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "event-planning",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Event Planning & Coordination",
     category: "events",
     icon: "🎉",
@@ -3904,6 +3913,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "dj-music",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "DJ & Live Music",
     category: "events",
     icon: "🎧",
