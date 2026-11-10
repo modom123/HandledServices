@@ -1047,7 +1047,12 @@ test("market pricing: booking fee, sliding commission, counters, learning, offer
   // name-your-price bounds
   assert.equal(offerCheck(100, 100).level, "ok");
   assert.equal(offerCheck(85, 100).level, "low");
-  assert.equal(offerCheck(70, 100).ok, false);
+  // below the usual minimum (75%): still taken, straight to the job board for 30 days; below the 30% floor: refused
+  assert.equal(offerCheck(70, 100).ok, true);
+  assert.equal(offerCheck(70, 100).level, "board");
+  assert.equal(offerCheck(30, 100).level, "board");
+  assert.equal(offerCheck(29, 100).ok, false);
+  assert.equal(offerCheck(29, 100).floor, 30);
   assert.equal(offerCheck(400, 100).ok, false);
 });
 
@@ -2620,4 +2625,43 @@ test("post & earn: first-project reward is 10% back, up to $250, never more than
   assert.equal(firstProjectReward({ price: 199.99 }), 19.99, "rounded down to the cent");
   assert.equal(firstProjectLine(), "10% back, up to $250");
   assert.ok(partnerTerms().some((t) => t.includes("Post your project") && t.includes("10% back, up to $250")), "terms carve-out");
+});
+
+test("house cleaning: \"Other\" type of clean starts at the standard price and needs a description", async () => {
+  const { otherMissing, otherNote, OTHER_OPTION } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const level = svc.questions.find((q) => q.id === "level")!;
+  assert.ok(level.type === "select" && level.options.some((o) => o.value === OTHER_OPTION));
+  const std = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "standard" } });
+  const other = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: OTHER_OPTION } });
+  assert.equal(other.point, std.point);
+  const a = { ...defaultAnswers(svc), level: OTHER_OPTION };
+  assert.equal(otherMissing(svc.questions, a, {}).length, 1);
+  assert.equal(otherMissing(svc.questions, a, { level: "post-construction" }).length, 0);
+  assert.equal(otherNote(svc.questions, a, { level: " post-construction " }), "Type of clean: post-construction");
+  assert.equal(otherNote(svc.questions, { ...a, level: "deep" }, { level: "x" }), "", "only when Other is picked");
+});
+
+test("open offers (low name-your-price jobs) are on the job board at once, for 30 days, whatever the date", async () => {
+  const { onBoard } = await import("./board.ts");
+  const now = new Date("2026-11-10T12:00:00Z");
+  const base = { status: "dispatched", contractor_id: null, paid_at: "2026-11-10T00:00:00Z", scheduled_date: "2027-03-01" };
+  assert.equal(onBoard(base, [], now), false, "a normal job 4 months out isn't on the board");
+  assert.equal(onBoard({ ...base, open_offer_until: "2026-12-10T12:00:00Z" }, [], now), true);
+  assert.equal(onBoard({ ...base, scheduled_date: "2026-11-01", open_offer_until: "2026-12-10T12:00:00Z" }, [], now), true, "even if the picked day passed");
+  assert.equal(onBoard({ ...base, open_offer_until: "2026-11-09T12:00:00Z" }, [], now), false, "expired");
+  assert.equal(onBoard({ ...base, paid_at: null, open_offer_until: "2026-12-10T12:00:00Z" }, [], now), false, "unpaid never");
+  assert.equal(onBoard({ ...base, contractor_id: "p", open_offer_until: "2026-12-10T12:00:00Z" }, [], now), false, "taken");
+});
+
+test("house cleaning \"Other\": square feet can go below 400 (down to 50); other types keep 400", async () => {
+  const { numberMin, clampToMins } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const sq = svc.questions.find((q) => q.id === "sqft")!;
+  assert.equal(numberMin(sq, { level: "standard" }), 400);
+  assert.equal(numberMin(sq, { level: "other" }), 50);
+  assert.deepEqual(clampToMins(svc.questions, { ...defaultAnswers(svc), level: "standard", sqft: 120 }).sqft, 400, "leaving Other raises it back");
+  assert.deepEqual(clampToMins(svc.questions, { ...defaultAnswers(svc), level: "other", sqft: 120 }).sqft, 120);
+  const small = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "other", sqft: 120, bedrooms: 0, bathrooms: 1 } });
+  assert.ok(small.point >= svc.minimum, "the visit minimum still applies");
 });

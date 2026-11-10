@@ -11,6 +11,7 @@
  *               next booking goes to that pro first for a short window, then to everyone. Never forced:
  *               the pro can pass at no cost, and a requested crew member is a request to the company
  *               owner, who decides who goes.
+ * UPDATED : 2026-11-10_0310 UTC — open offers (low name-your-price jobs) are on the board right away for 30 days, any date.
  */
 
 export const BOARD = {
@@ -32,13 +33,17 @@ export const FAVORITES = {
 /** Offer kinds that are a first look for one specific pro (or a business's team): the board waits for them. */
 export const FIRST_LOOK_KINDS = ["recurring", "redo", "account", "favorite"] as const;
 
-export interface BoardJob { status: string; contractor_id: string | null; paid_at?: string | null; deposit_paid_at?: string | null; billed_on_terms?: boolean | null; remedy?: string | null; scheduled_date: string | null }
+export interface BoardJob { status: string; contractor_id: string | null; paid_at?: string | null; deposit_paid_at?: string | null; billed_on_terms?: boolean | null; remedy?: string | null; scheduled_date: string | null;
+  /** A low name-your-price offer: on the board at the customer's price until this time (no targeted offers). */
+  open_offer_until?: string | null }
 export interface BoardOffer { kind?: string | null; status: string; offered_at: string }
 
 /** Is this job on the open board right now? */
 export function onBoard(job: BoardJob, offers: BoardOffer[], now = new Date()): boolean {
   if (job.status !== "dispatched" || job.contractor_id) return false;
   if (!job.paid_at && !job.deposit_paid_at && !job.billed_on_terms && !job.remedy) return false;
+  // a low name-your-price offer: straight to the board, for its whole window (the pro confirms the day with the customer)
+  if (job.open_offer_until) return new Date(job.open_offer_until) > now;
   if (job.scheduled_date) {
     const day = new Date(`${job.scheduled_date}T23:59:59`);
     if (day < now || day.getTime() - now.getTime() > BOARD.horizonDays * 86400000) return false;

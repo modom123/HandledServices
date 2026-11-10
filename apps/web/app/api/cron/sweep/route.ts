@@ -22,6 +22,7 @@
  * UPDATED : 2026-10-11_2242 UTC — prunes notification log rows older than 180 days.
  * UPDATED : 2026-10-18_0248 UTC — live pros missing their resume or profile photo get a reminder (lib/recruiting).
  * UPDATED : 2026-10-19_1308 UTC — renewal reminders for active pros' insurance, coverages and licenses (lib/recruiting renewalSweep).
+ * UPDATED : 2026-11-10_0310 UTC — daily: low name-your-price offers nobody took in 30 days are cancelled and refunded.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
 
   // 1. Expired offers → re-dispatch (also runs every 10 minutes: /api/cron/dispatch)
   const { expired, redispatched } = await redispatchExpired();
+  const openOffersExpired = await (await import("@/lib/jobs")).expireOpenOffers().catch((e) => { console.error("[open offers]", e); return null; }); // name-your-price jobs nobody took in 30 days
 
   // 2. Unassigned jobs within 24h → critical alert (once per job)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -93,5 +95,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }
