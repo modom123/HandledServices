@@ -56,6 +56,9 @@
  * UPDATED : 2026-11-10_0310 UTC — name your price below our usual minimum: the job is paid as usual, goes straight to the job
  *           board for 30 days (jobs.open_offer_until, no targeted offers), and expireOpenOffers() cancels + refunds it if unclaimed.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-10_1915 UTC — checkout never fails on a missing optional column (open_offer_until for name-your-price offers
+ *           below our usual price, priced_by / pro_rate_pct, home_id): the booking is saved without it and staff get a critical
+ *           alert naming the SQL to run.
  */
 import "server-only";
 import { z } from "zod";
@@ -303,6 +306,21 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       terms_accepted_ip: ip,
     };
   let { data, error } = await db().from("jobs").insert(row).select("*").single();
+  // Columns that only some bookings send. If the live database hasn't had a recent migration yet, book the customer
+  // anyway without that column (and tell staff which SQL to run) instead of failing their checkout.
+  const OPTIONAL_COLUMNS: Record<string, string> = {
+    open_offer_until: "supabase/setup/ADD_OPEN_OFFERS_2026-11-10_0310.sql (migration 20261110031000_open_offers): name-your-price offers below our usual price",
+    priced_by: "migration 20261020020000_pro_marketplace: pro prices and quotes",
+    pro_rate_pct: "migration 20261020020000_pro_marketplace: pro prices",
+    home_id: "the saved-homes migration",
+  };
+  for (let tries = 0; error && tries < 4; tries++) {
+    const col = Object.keys(OPTIONAL_COLUMNS).find((c) => c in row && error!.message.includes(c));
+    if (!col) break;
+    await raiseAlert("setup", "critical", `Run ${OPTIONAL_COLUMNS[col]}`, `A booking was saved without jobs.${col} because the column is missing in the database: ${error.message}${col === "open_offer_until" ? "\nThis job went to pros the normal way at the customer's offer instead of the 30-day job board." : ""}`).catch(() => {});
+    delete row[col];
+    ({ data, error } = await db().from("jobs").insert(row).select("*").single());
+  }
   if (error && (later || saving) && /payment_plan|pay_in_full_discount|balance_/.test(error.message)) {
     // the book-now migration hasn't been run yet: book the old way (full price, no saving) rather than fail the customer
     await raiseAlert("setup", "critical", "Run ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql", `Booking fell back to pay-in-full without the 5% saving: ${error.message}`).catch(() => {});
