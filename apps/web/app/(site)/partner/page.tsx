@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0400 UTC — lead pay status ($10 per lead, unlock progress: 10 leads + first paid-out sale, waiting / paid).
+ * UPDATED : 2026-11-10_1415 UTC — a "Step 1: set up your payouts" banner at the top until Stripe payouts are ready.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -68,6 +69,16 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   return (
     <div className="wrap space-y-6 py-10">
+      {/* payouts first: until Stripe is set up we can't pay them (pros are paid with their job payouts) */}
+      {!ready && q.connect !== "done" && (
+        <div id="payouts-first" className="card flex flex-wrap items-center justify-between gap-3 border-2 border-amber-300 bg-amber-50">
+          <div className="min-w-0">
+            <div className="font-bold text-amber-900">Step 1: set up your payouts</div>
+            <p className="text-sm text-amber-900/90">We can only pay your commissions once this is done. About 2 minutes with Stripe: add a bank account or debit card. {stats.ready ? <b>{money(stats.ready)} is already waiting for you.</b> : "Do it now, before your first customer books."}</p>
+          </div>
+          <PartnerPayoutButton ready={ready} />
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]}<span className="pro:hidden"> 👋</span></h1>
         <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price (rising to {pct(REFERRAL_LADDER.topRate)}), or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} of our profit (rising to {pct(PARTNER_LADDER.topRate)}).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>

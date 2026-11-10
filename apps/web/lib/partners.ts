@@ -34,6 +34,8 @@
  * UPDATED : 2026-11-10_0400 UTC — lead pay: each lead's $10 draw is repaid out of its commission (recoverLeadDraw); pending draws
  *           join the weekly payout once unlocked (10 leads + one paid-out sale, leadPayStatus).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-10_1415 UTC — full partner welcome email (payouts first; core partnerWelcomeEmail) and partnerPayoutReminders()
+ *           (daily: days 1, 3, 7 and 14 after sign-up while payouts aren't set up).
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -42,7 +44,7 @@ import {
   cleanPartnerCode, firstProjectReward, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
   REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
-  SALES_DRAW, drawRecovery, drawUnlocked,
+  SALES_DRAW, drawRecovery, drawUnlocked, partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
@@ -110,7 +112,35 @@ export async function enrollFromPost(o: { name: string; email: string; phone?: s
 async function sendWelcome(partner: Partner, again: boolean) {
   const { signInLink } = await import("./signin");
   const portal = await signInLink(partner.email, "/partner");
-  await sendEmail(partner.email, again ? `Your ${BRAND.name} partner link` : `Welcome to the ${BRAND.name} Partner Program`, `Hi ${partner.name.split(" ")[0]},\n\n${again ? "Here's your partner info again." : "You're in."} Your partner code is ${partner.code}.\n\nShare this link: ${partnerLink(partner.code)}\nShort link for cards and texts: ${siteUrl()}/r/${partner.code}\n\nWhat you earn on every completed job from customers you refer (a share of the job price, the same on every service):\n${partnerRateLines().map((l) => `• ${l}`).join("\n")}\nPaid weekly once each job is past our ${PARTNER_PROGRAM.holdDays}-day make-it-right window.\n\nYour partner page (fill out a referral ticket, track every ticket and payment, set up payouts): ${portal}\n\n— ${BRAND.name}`);
+  // the full welcome (core partner-welcome.ts): payouts first, code and links, both ways to earn, how the rate climbs,
+  // what counts, when they're paid, tips for their kind of partner, the rules. Pros already have a payout account.
+  const isPro = await partnerIsPro(partner).catch(() => false);
+  const ready = again ? await payoutsReady(partner).catch(() => false) : false;
+  const w = partnerWelcomeEmail(partner, { site: siteUrl(), portalUrl: portal, isPro, payoutsReady: ready });
+  await sendEmail(partner.email, again ? `Your ${BRAND.name} partner info${ready || isPro ? "" : " (payouts not set up yet)"}` : w.subject, w.text);
+}
+
+/**
+ * Daily: remind partners whose payouts aren't set up yet, on PAYOUT_REMINDER_DAYS after sign-up (1, 3, 7, 14), with a
+ * one-tap link to their partner page and what's already waiting for them. Pros are skipped (they're paid with their
+ * job payouts). The Monday run separately emails anyone with money waiting.
+ */
+export async function partnerPayoutReminders(now = new Date()) {
+  const oldest = new Date(now.getTime() - (PAYOUT_REMINDER_DAYS[PAYOUT_REMINDER_DAYS.length - 1] + 1) * 86400000).toISOString();
+  const { data } = await db().from("referral_partners").select("*").eq("status", "active").gte("created_at", oldest).limit(2000);
+  let sent = 0;
+  for (const partner of (data ?? []) as Partner[]) {
+    const day = payoutReminderDay(partner.created_at, now);
+    if (day === null) continue;
+    if (await partnerIsPro(partner).catch(() => false)) continue;
+    if (await payoutsReady(partner).catch(() => false)) continue;
+    const { data: owed } = await db().from("partner_commissions").select("amount").eq("partner_id", partner.id).eq("status", "pending");
+    const waiting = Math.round(((owed ?? []) as { amount: number }[]).reduce((t, r) => t + Number(r.amount), 0) * 100) / 100;
+    const { signInLink } = await import("./signin");
+    const r = partnerPayoutReminder(partner, { portalUrl: await signInLink(partner.email, "/partner"), day, waiting: waiting || undefined });
+    if (await sendEmail(partner.email, r.subject, r.text).catch(() => false)) sent++;
+  }
+  return { sent };
 }
 
 /** The signed-in person's partner record (by account, else by email — and link the account on first visit). */

@@ -2712,3 +2712,24 @@ test("pro welcome email: their services (cleared and not yet), how it works, pay
   assert.match(esMail.subject, /^Bienvenido a la Red Handled, Dana/);
   assert.ok(esMail.text.includes("CÓMO FUNCIONA SU PORTAL") && esMail.text.includes("lun, mar, mié, jue, vie"));
 });
+
+test("partner welcome: payouts first, both ways to earn, lead pay for Field Sales; payout reminders on set days (2026-11-10)", async () => {
+  const { partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS } = await import("./partner-welcome.ts");
+  const base = { site: "https://handledsvc.com/", portalUrl: "https://handledsvc.com/auth/x" };
+  const m = partnerWelcomeEmail({ name: "Jane Smith", code: "JANE7K2Q", kind: "realtor" }, base);
+  assert.match(m.subject, /set up your payouts first/);
+  assert.ok(m.text.indexOf("STEP 1: SET UP YOUR PAYOUTS") < m.text.indexOf("YOUR CODE AND LINKS"), "payout setup comes first");
+  for (const k of ["Hi Jane,", "JANE7K2Q", "https://handledsvc.com/r/JANE7K2Q", "https://handledsvc.com/auth/x", "15% of the job price", "30%", "10% of our profit", "45%", "every Monday", "listing"])
+    assert.ok(m.text.includes(k), "has: " + k);
+  assert.ok(!m.text.includes("lead pay"), "lead pay is only for Field Sales");
+  const rep = partnerWelcomeEmail({ name: "Sam", code: "SAM1", kind: "sales_rep" }, base);
+  assert.ok(rep.text.includes("Field Sales lead pay: $10 for every lead"));
+  const pro = partnerWelcomeEmail({ name: "Pat", code: "PAT1", kind: "pro" }, { ...base, isPro: true });
+  assert.ok(pro.text.includes("You're already set up") && !pro.text.includes("Tap \"Set up payouts\""));
+  const signed = new Date("2026-11-01T12:00:00Z");
+  assert.equal(payoutReminderDay(signed, new Date("2026-11-02T13:00:00Z")), 1);
+  assert.equal(payoutReminderDay(signed, new Date("2026-11-03T13:00:00Z")), null);
+  assert.equal(payoutReminderDay(signed, new Date("2026-11-15T13:00:00Z")), PAYOUT_REMINDER_DAYS[PAYOUT_REMINDER_DAYS.length - 1]);
+  const r = partnerPayoutReminder({ name: "Jane" }, { portalUrl: "u", day: 3, waiting: 42.5 });
+  assert.match(r.subject, /\$42\.50 is waiting/);
+});
