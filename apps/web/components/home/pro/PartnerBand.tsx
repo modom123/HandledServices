@@ -9,8 +9,10 @@
  * UPDATED : 2026-11-09_0130 UTC — shorter band.
  * UPDATED : 2026-11-09_0200 UTC — no emoji in the badge; squarer corners.
  * UPDATED : 2026-11-09_0330 UTC — part of the Professional look (lib/theme.ts "pro"); the original look keeps components/home/*.
+ * UPDATED : 2026-11-10_0100 UTC — synced with main: two ways to earn (referrals at the referral range, direct sales 10%–45% of profit).
  */
 import Link from "next/link";
+import { PARTNER_PROGRAM, referralRange } from "@handled/core";
 
 export function PartnerBand({ es }: { es: boolean }) {
   return (
@@ -20,12 +22,17 @@ export function PartnerBand({ es }: { es: boolean }) {
         <div className="relative grid items-center gap-6 md:grid-cols-[1.4fr_1fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-gold-light ring-1 ring-white/20">{es ? "Programa de socios" : "Partner Program"}</span>
-            <h2 className="mt-3 text-2xl font-extrabold sm:text-3xl">{es ? "Hágase socio. Gane por cada cliente que envíe." : "Become a partner. Get paid for every customer you send."}</h2>
-            <p className="mt-3 max-w-xl text-white/80">{es ? "Comparta su enlace o envíenos un cliente y gane el 10% de nuestra tarifa en sus trabajos durante 12 meses, pagado cada lunes. Gratis para unirse, ideal para agentes inmobiliarios, administradores de propiedades, negocios locales y cualquiera con una red." : "Share your link or send us a customer and earn 10% of our fee on their jobs for 12 months, paid every Monday. Free to join, great for realtors, property managers, local businesses and anyone with a network."}</p>
+            <h2 className="mt-3 text-2xl font-extrabold sm:text-3xl">{es ? "Hágase socio. Gane refiriendo o vendiendo." : "Become a partner. Get paid to refer or sell."}</h2>
+            <p className="mt-2 max-w-xl text-white/80">{es ? `Comparta su enlace o envíenos un cliente y gane del ${referralRange()} de cada trabajo durante ${PARTNER_PROGRAM.months} meses, pagado cada lunes. Su tasa sube a medida que crece.` : `Share your link or send us a customer and earn ${referralRange()} of every job they book for ${PARTNER_PROGRAM.months} months, paid every Monday. Your rate climbs as you grow.`}</p>
+            <div className="mt-4 grid max-w-xl gap-2 text-sm sm:grid-cols-2">
+              <div className="rounded-lg bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "1 · Referidos" : "1 · Referrals"}</b><br />{es ? `Usted los envía, nosotros vendemos: del ${referralRange()} del trabajo.` : `You send them, we sell it: ${referralRange()} of the job.`}</div>
+              <div className="rounded-lg bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "2 · Ventas directas" : "2 · Direct sales"}</b><br />{es ? "Usted vende con un ticket y el cliente paga en el momento: del 10% al 45% de nuestra ganancia." : "You sell it on a ticket and the customer pays on the spot: 10% up to 45% of our profit."}</div>
+            </div>
           </div>
           <div className="flex flex-col gap-3 md:items-end">
             <Link href="/partners#join" className="btn bg-white px-6 py-3 text-base font-bold text-brand-deep shadow-lg hover:bg-gold-light">{es ? "Hacerme socio" : "Become a partner"} →</Link>
             <span className="text-sm text-white/70">{es ? "Gratis · pagos cada lunes" : "Free to join · paid every Monday"}</span>
+            <Link href="/partners" className="text-sm font-semibold text-gold-light underline">{es ? "Cómo funciona" : "How it works"}</Link>
           </div>
         </div>
       </div>

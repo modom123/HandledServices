@@ -17,9 +17,10 @@
  * UPDATED : 2026-10-23_2100 UTC — services 76–100 (fences to home watch).
  * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  * UPDATED : 2026-11-07_0037 UTC — Spanish for the four social media services.
+ * UPDATED : 2026-11-10_0600 UTC — Business & Technology "included" lines: free consultation and a fixed price in writing.
  */
 export const ES_CATALOG: Record<string, string> = {
-  "Upfront monthly price — a deposit starts the work": "Precio mensual fijo: un depósito inicia el trabajo",
+  "Free consultation — a fixed monthly price in writing before work starts": "Consulta gratis: un precio mensual fijo por escrito antes de empezar",
   "Monthly content calendar you approve": "Calendario mensual de contenido que usted aprueba",
   "Posts written, designed and scheduled": "Publicaciones redactadas, diseñadas y programadas",
   "Profiles set up or cleaned up in month one": "Perfiles creados o actualizados el primer mes",
@@ -935,7 +936,7 @@ export const ES_CATALOG: Record<string, string> = {
   "Envelopes: enter 1. Up to 50 lb fits a car; heavier goes in an SUV or truck.": "Sobres: escriba 1. Hasta 50 lb cabe en un auto; más pesado va en una SUV o camioneta.",
   "Longest side": "Lado más largo",
   "Optional. Anything over 36 in may need a larger vehicle.": "Opcional. Lo que mida más de 36 pulgadas puede necesitar un vehículo más grande.",
-  "Upfront price — a deposit starts the work": "Precio por adelantado — un depósito inicia el trabajo",
+  "Free consultation — a fixed price in writing before work starts": "Consulta gratis: un precio fijo por escrito antes de empezar",
   "Mobile-friendly custom design": "Diseño a la medida, adaptado a celulares",
   "Contact forms, maps & click-to-call": "Formularios de contacto, mapas y llamada con un toque",
   "Two rounds of revisions": "Dos rondas de cambios",

@@ -37,23 +37,19 @@
  * UPDATED : 2026-11-09_0200 UTC — professional polish: line icons (Glyph) instead of emoji on tiles and category cards, plain-text service lists.
  * UPDATED : 2026-11-09_0330 UTC — part of the Professional look (lib/theme.ts "pro"); the original look keeps components/home/*.
  * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
+ * UPDATED : 2026-11-10_0100 UTC — synced with main: Business & Technology has its own door (not in the service grid), a "Post a project"
+ *           button in the hero, and no "How it works" or "We build" sections (main removed them).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { popularServices } from "@/lib/popular";
-import { WeBuild } from "./WeBuild";
 import { PartnerBand } from "./PartnerBand";
 import { HomeDoors } from "./HomeDoors";
 import { WhyItWorks } from "./WhyItWorks";
 import { WhoWeAre } from "./WhoWeAre";
-import { Glyph } from "@/components/Glyph";
+import { Glyph, Ico } from "@/components/Glyph";
 
-const STEPS = [
-  { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
-  { n: "2", title: "We send one vetted pro", body: "Insured, background-checked and rated. We pick the best available pro for your job, date and neighborhood." },
-  { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. If it isn’t right, we come back free or refund you." },
-];
 
 
 
@@ -66,7 +62,7 @@ export async function HomePro() {
   const es = l === "es";
   const top = await popularServices(4);
   const topSlugs = new Set(top.map((s) => s.slug));
-  const cats = CATEGORIES.map((c) => {
+  const cats = CATEGORIES.filter((c) => c.id !== "business").map((c) => {
     const all = SERVICES.filter((s) => s.category === c.id);
     return { ...c, all, list: all.filter((s) => !topSlugs.has(s.slug)) }; // every service not already in Most popular
   }).filter((c) => c.list.length);
@@ -83,6 +79,7 @@ export async function HomePro() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
+            <Link href="/post" className="btn-ghost px-6 py-3 text-base"><Ico i="📝" className="mr-1" />{es ? "Publique su proyecto" : "Post a project"}</Link>
           </div>
         </div>
         <div>
@@ -151,29 +148,13 @@ export async function HomePro() {
         </div>
       </section>
 
-      {/* how it works */}
-      <section className="border-y border-line bg-paper-deep py-10">
-        <div className="wrap">
-          <h2 className="text-3xl font-bold tracking-tight">{t("How it works")}</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="card">
-                <div className="flex items-center gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-deep text-sm font-bold text-white">{s.n}</span><span className="font-semibold leading-tight">{t(s.title)}</span></div>
-                <p className="mt-2 text-sm text-ink-soft">{t(s.body)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* who we are: slogan, mission, link to About */}
+      {/* who we are: slogan and mission */}
       <WhoWeAre es={es} />
 
       {/* become a partner — Referral Partner Program */}
       <PartnerBand es={es} />
 
-      {/* we build: intelligent websites, operating systems, automated businesses */}
-      <WeBuild es={l === "es"} compact />
     </>
   );
 }

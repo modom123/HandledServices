@@ -62,6 +62,8 @@
  * UPDATED : 2026-10-27_1600 UTC — Carpentry (finish carpentry: trim, interior doors, built-ins, stairs & railings, framing) and the carpentry trade; decks and exterior doors stay with Deck Building and Window & Door Replacement.
  * UPDATED : 2026-11-07_0037 UTC — four Business & Technology social media services: Social Media Manager, Content Creator, Brand Ambassadors and
  *           Paid Social Ads Manager (monthly, remote, ordered with a deposit); new trade social_media.
+ * UPDATED : 2026-11-10_0600 UTC — Business & Technology copy: "Free consultation — a fixed price in writing" instead of "a deposit
+ *           starts the work"; descriptions say a free consultation sets the scope and price (consultation-only again).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -4162,7 +4164,7 @@ export const SERVICES: Service[] = [
 
   // ───────────────────────── BUSINESS & TECHNOLOGY (remote) ─────────────────────────
   // Done remotely by Handled staff or vetted specialists: any US ZIP, no driving radius. Ordered like every other service:
-  // the price from the answers, a deposit to start, the rest on delivery. onDemand: a start inside 48 hours is never a rush job.
+  // custom work: a free consultation sets the scope and a fixed price (consultOnly, 2026-11-10); the answers brief the specialist. onDemand: a start inside 48 hours is never a rush job.
   {
     slug: "website-design",
     insuranceOptional: true,
@@ -4170,8 +4172,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🌐",
     tagline: "A website that works for you — answers visitors, captures every lead and books appointments, 24/7.",
-    description: "We build intelligent websites: fast, mobile-friendly and designed around your brand, with an AI assistant that answers visitors' questions, captures every lead and books appointments around the clock. Add instant follow-up so every inquiry gets a reply in seconds by text and email. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. See your price online and pay a deposit to start; the rest is due when it's delivered.",
-    includes: ["Upfront price — a deposit starts the work", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups), offered after launch"],
+    description: "We build intelligent websites: fast, mobile-friendly and designed around your brand, with an AI assistant that answers visitors' questions, captures every lead and books appointments around the clock. Add instant follow-up so every inquiry gets a reply in seconds by text and email. Pick a starter site, a full business site or an online store. You own the site, the domain and every login. Every project is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed price in writing before work starts", "Mobile-friendly custom design", "AI assistant that answers and books (option)", "Contact forms, maps & click-to-call", "Two rounds of revisions", "You own the site, domain and logins", "30 days of fixes after launch", "Optional care plan (hosting, updates, backups), offered after launch"],
     notesHint: "Your business and who it serves, sites you like, the pages you need, your domain if you have one, and any deadline",
     questions: [
       {
@@ -4223,8 +4225,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🧠",
     tagline: "One system that runs your business — customers, booking, scheduling, dispatch, invoicing and dashboards.",
-    description: "We build a business operating system around how your company actually works: your customer list, online booking, scheduling and dispatch, job tracking, invoicing and payments, your team's to-dos and a live dashboard — in one place instead of ten apps and a spreadsheet. Add AI agents, accounting sync and a branded mobile app as you grow. It's the same kind of system Handled runs on. You own your data. See your price online and pay a deposit to start; the rest is due when it's delivered.",
-    includes: ["Upfront price — a deposit starts the work", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support offered after launch"],
+    description: "We build a business operating system around how your company actually works: your customer list, online booking, scheduling and dispatch, job tracking, invoicing and payments, your team's to-dos and a live dashboard — in one place instead of ten apps and a spreadsheet. Add AI agents, accounting sync and a branded mobile app as you grow. It's the same kind of system Handled runs on. You own your data. Every project is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed price in writing before work starts", "Built around how your business works", "Customers, booking, scheduling & invoicing in one place", "Live dashboard", "Training for your team", "You own your data", "60 days of support after launch", "Monthly hosting & support offered after launch"],
     notesHint: "What your business does, how work comes in and gets done today, the apps and spreadsheets you use, how many people would use it, and what you'd most like to stop doing by hand",
     questions: [
       {
@@ -4270,8 +4272,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🚀",
     tagline: "A business that runs itself — website, operating system, AI agents and automations, built end to end.",
-    description: "We automate your business from end to end, the way Handled is run: an intelligent website that brings in and books customers, a business operating system for the work, AI agents that answer leads, handle customer service, schedule and follow up, and automations for the busywork in between — with a dashboard showing everything the AI did and a person whenever it matters. Launch a new business, automate the one you have, or scale across locations. See your price online and pay a deposit to start; the rest is due when it's delivered.",
-    includes: ["Upfront price — a deposit starts the work", "Automation plan for your business", "Intelligent website", "Business operating system", "AI agents that answer, book and follow up", "Automations for the busywork", "Dashboard of everything the AI did", "Monthly hosting, AI usage & support offered after launch"],
+    description: "We automate your business from end to end, the way Handled is run: an intelligent website that brings in and books customers, a business operating system for the work, AI agents that answer leads, handle customer service, schedule and follow up, and automations for the busywork in between — with a dashboard showing everything the AI did and a person whenever it matters. Launch a new business, automate the one you have, or scale across locations. Every project is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed price in writing before work starts", "Automation plan for your business", "Intelligent website", "Business operating system", "AI agents that answer, book and follow up", "Automations for the busywork", "Dashboard of everything the AI did", "Monthly hosting, AI usage & support offered after launch"],
     notesHint: "What the business does (or will do), how customers find and buy from you, who does what today, the tasks that eat the most time, and your goals for the next 12 months",
     questions: [
       {
@@ -4315,7 +4317,7 @@ export const SERVICES: Service[] = [
     icon: "🏛️",
     tagline: "Start your LLC or corporation the right way — filed, with your EIN and paperwork done.",
     description: "We prepare and file your LLC, corporation or nonprofit with the state, get your EIN from the IRS, and hand you an operating agreement or bylaws template, a compliance calendar and a checklist for your business bank account. Add a registered agent, license and permit research, or an S-corp election. State filing fees are passed through at cost — never marked up. Handled is not a law firm and doesn't give legal or tax advice; for those questions we'll point you to an attorney or accountant.",
-    includes: ["Upfront price — a deposit starts the work", "State filing prepared and submitted", "EIN from the IRS", "Operating agreement or bylaws template", "Compliance calendar (annual reports & deadlines)", "Business bank account checklist", "State fees at cost, never marked up"],
+    includes: ["Free consultation — a fixed price in writing before work starts", "State filing prepared and submitted", "EIN from the IRS", "Operating agreement or bylaws template", "Compliance calendar (annual reports & deadlines)", "Business bank account checklist", "State fees at cost, never marked up"],
     notesHint: "Business name (and a backup), what the business does, owners' names and percentages, the business address, and whether you need it by a date",
     questions: [
       {
@@ -4374,8 +4376,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "📈",
     tagline: "Plans, pricing, marketing and bids — a consultant who helps you grow.",
-    description: "Work with an experienced business consultant on what matters most right now: a strategy session with a written action plan, a startup plan with pricing and a launch checklist, a growth and operations plan, a 90-day marketing plan, or a bid or RFP proposal written for you. Packages have a fixed price, or book by the hour. See your price online and pay a deposit to start; the rest is due when it's delivered.",
-    includes: ["Upfront price — a deposit starts the work", "Experienced business consultant", "Written plan you keep", "Follow-up call after delivery", "Fixed-price packages or by the hour"],
+    description: "Work with an experienced business consultant on what matters most right now: a strategy session with a written action plan, a startup plan with pricing and a launch checklist, a growth and operations plan, a 90-day marketing plan, or a bid or RFP proposal written for you. Packages have a fixed price, or book by the hour. Every project is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed price in writing before work starts", "Experienced business consultant", "Written plan you keep", "Follow-up call after delivery", "Fixed-price packages or by the hour"],
     notesHint: "Your business, where it is today, what you want to fix or grow, any numbers you can share, and deadlines (bid due dates)",
     questions: [
       {
@@ -4422,8 +4424,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "⚙️",
     tagline: "Put repetitive work on autopilot — lead follow-up, scheduling, invoicing and reports.",
-    description: "We connect the apps you already use and let AI handle the busywork: new leads answered and logged in seconds, appointments booked, invoices and reminders sent, data entered, reports built every morning. Each workflow is built, tested with you and documented, with 30 days of fixes after launch. Start with a process audit to find where you're losing the most time. See your price online and pay a deposit to start; the rest is due when it's delivered.",
-    includes: ["Upfront price — a deposit starts the work", "Works with the apps you already use", "Tested with you before it goes live", "Written how-it-works guide", "30 days of fixes after launch", "Monthly support plans offered after launch"],
+    description: "We connect the apps you already use and let AI handle the busywork: new leads answered and logged in seconds, appointments booked, invoices and reminders sent, data entered, reports built every morning. Each workflow is built, tested with you and documented, with 30 days of fixes after launch. Start with a process audit to find where you're losing the most time. Every project is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed price in writing before work starts", "Works with the apps you already use", "Tested with you before it goes live", "Written how-it-works guide", "30 days of fixes after launch", "Monthly support plans offered after launch"],
     notesHint: "What you do by hand today, step by step, the apps involved (email, CRM, calendar, invoicing, spreadsheets), and how often it happens",
     questions: [
       { id: "workflows", label: "Workflows to automate", type: "number", min: 1, max: 20, default: 1, help: "One workflow = one job done end to end, e.g. new web lead → CRM → text back → booked on your calendar." },
@@ -4466,8 +4468,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🤖",
     tagline: "An AI assistant that answers customers, books appointments and works inside your tools — 24/7.",
-    description: "We build an AI agent trained on your business: a chat assistant on your website that answers questions and captures leads, a customer service agent for email and chat, an AI receptionist that answers your phone and books appointments, or an operations agent that works inside your CRM, calendar and invoicing. It hands off to a person whenever it isn't sure, and every conversation is logged for you. Built, tested with you and tuned for 30 days after launch. See your price online and pay a deposit to start; the rest is due when it's delivered.",
-    includes: ["Upfront price — a deposit starts the work", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage offered after launch"],
+    description: "We build an AI agent trained on your business: a chat assistant on your website that answers questions and captures leads, a customer service agent for email and chat, an AI receptionist that answers your phone and books appointments, or an operations agent that works inside your CRM, calendar and invoicing. It hands off to a person whenever it isn't sure, and every conversation is logged for you. Built, tested with you and tuned for 30 days after launch. Every project is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed price in writing before work starts", "Trained on your business information", "Hands off to a person when it isn't sure", "Every conversation logged for you", "30 days of tuning after launch", "Monthly hosting & usage offered after launch"],
     notesHint: "What the agent should handle, the questions customers ask most, the tools it should connect to (website, phone, CRM, calendar), and when it should hand off to a person",
     questions: [
       {
@@ -4509,8 +4511,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "📱",
     tagline: "Your social media run for you: a plan, posts on schedule and replies to comments and messages.",
-    description: "A social media manager who runs your accounts every month: a monthly content calendar you approve, posts written, designed and scheduled on each platform, comments and messages answered, and a monthly report on what grew. We set up or clean up your profiles in the first month. You approve everything before it goes out, and every account stays in your name. See your price online and pay a deposit to start.",
-    includes: ["Upfront monthly price — a deposit starts the work", "Monthly content calendar you approve", "Posts written, designed and scheduled", "Profiles set up or cleaned up in month one", "Monthly results report", "Every account stays in your name"],
+    description: "A social media manager who runs your accounts every month: a monthly content calendar you approve, posts written, designed and scheduled on each platform, comments and messages answered, and a monthly report on what grew. We set up or clean up your profiles in the first month. You approve everything before it goes out, and every account stays in your name. Every plan is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed monthly price in writing before work starts", "Monthly content calendar you approve", "Posts written, designed and scheduled", "Profiles set up or cleaned up in month one", "Monthly results report", "Every account stays in your name"],
     notesHint: "Your business, who your customers are, the platforms you use now (with links), the look and tone you want, and anything you never want posted",
     questions: [
       {
@@ -4553,8 +4555,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🎬",
     tagline: "Photos and short videos made for your social media, ready to post every month.",
-    description: "A content creator who makes the photos and short videos (Reels, TikToks, Shorts) your accounts need each month: shot list planned with you, filmed, edited with music, captions and your branding, and delivered sized for every platform. Send products or footage, or add a local on-location shoot. You get every file to keep and use anywhere. See your price online and pay a deposit to start.",
-    includes: ["Upfront monthly price — a deposit starts the work", "Shot list planned with you", "Edited with music, captions and your branding", "Sized for every platform", "One round of changes on each piece", "You keep every file"],
+    description: "A content creator who makes the photos and short videos (Reels, TikToks, Shorts) your accounts need each month: shot list planned with you, filmed, edited with music, captions and your branding, and delivered sized for every platform. Send products or footage, or add a local on-location shoot. You get every file to keep and use anywhere. Every plan is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed monthly price in writing before work starts", "Shot list planned with you", "Edited with music, captions and your branding", "Sized for every platform", "One round of changes on each piece", "You keep every file"],
     notesHint: "What you sell, the look you like (links to accounts or videos you admire), products or places to film, and where the content will be posted",
     questions: [
       {
@@ -4597,8 +4599,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "🌟",
     tagline: "Vetted creators who recommend your business to their own followers every month.",
-    description: "Brand ambassadors are vetted local creators who post about your business on their own social accounts: an honest review, stories and posts each month, tagged and clearly marked as a partnership. We match ambassadors whose followers fit your customers, brief them, approve each post with you and send you the links and reach every month. See your price online and pay a deposit to start.",
-    includes: ["Upfront monthly price — a deposit starts the work", "Ambassadors matched to your customers", "4 posts and 8 stories each per month", "Every post approved by you first", "Partnerships clearly disclosed", "Monthly links and reach report"],
+    description: "Brand ambassadors are vetted local creators who post about your business on their own social accounts: an honest review, stories and posts each month, tagged and clearly marked as a partnership. We match ambassadors whose followers fit your customers, brief them, approve each post with you and send you the links and reach every month. Every plan is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed monthly price in writing before work starts", "Ambassadors matched to your customers", "4 posts and 8 stories each per month", "Every post approved by you first", "Partnerships clearly disclosed", "Monthly links and reach report"],
     notesHint: "Your business and offer, the customers you want to reach, the area you serve, and anything ambassadors should always (or never) say",
     questions: [
       { id: "ambassadors", label: "Ambassadors", type: "number", min: 1, max: 10, default: 1, help: "Each ambassador posts 4 times and shares 8 stories a month." },
@@ -4627,8 +4629,8 @@ export const SERVICES: Service[] = [
     category: "business",
     icon: "📣",
     tagline: "Facebook, Instagram and TikTok ads set up, run and improved every week to bring in customers.",
-    description: "An ads manager who runs your paid social campaigns every month: audience and offer planned with you, ads written and designed, tracking set up so you see which ads bring customers, budgets adjusted every week, and a monthly results report. Your ad budget is paid straight to the platforms on your own card — our price is the management only. See your price online and pay a deposit to start.",
-    includes: ["Upfront monthly price — a deposit starts the work", "Ad budget paid to the platforms on your card", "Audience and offer planned with you", "Ads adjusted every week", "Monthly results report", "Ad accounts stay in your name"],
+    description: "An ads manager who runs your paid social campaigns every month: audience and offer planned with you, ads written and designed, tracking set up so you see which ads bring customers, budgets adjusted every week, and a monthly results report. Your ad budget is paid straight to the platforms on your own card — our price is the management only. Every plan is custom: a free consultation sets the scope and a fixed price in writing before we start.",
+    includes: ["Free consultation — a fixed monthly price in writing before work starts", "Ad budget paid to the platforms on your card", "Audience and offer planned with you", "Ads adjusted every week", "Monthly results report", "Ad accounts stay in your name"],
     notesHint: "What you want more of (calls, bookings, sales), your monthly ad budget, the area you serve, and any ads you've run before",
     questions: [
       { id: "platforms", label: "Ad platforms", type: "number", min: 1, max: 4, default: 1, help: "Facebook & Instagram count as one; TikTok, YouTube or LinkedIn are each another. The first is included." },
