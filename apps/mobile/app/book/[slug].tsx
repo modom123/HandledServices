@@ -21,12 +21,14 @@
  * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  * UPDATED : 2026-11-10_0250 UTC — Yes / No buttons for yes-no questions; "Other" choices (cleaning type) get a text box,
  *           added to the notes, and must be filled in before booking.
+ * UPDATED : 2026-11-10_2130 UTC — Business & Technology is consultation-only, as on the website (consultOnly): no price, range,
+ *           name-your-price, budget or payment; the button books a free consultation (the server already books it that way).
  * UPDATED : 2026-11-10_0310 UTC — name your price: low offers (down to 30%) go on the pro job board for 30 days, refunded if untaken.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
+import { BRAND, consultOnly, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
 import { payForJob } from "../../lib/pay";
@@ -117,7 +119,7 @@ function BookService({ slug: _slug }: { slug: string }) {
   const listTotal = named ? offerNum : suggested;
   const dp = depositPolicy(svc.slug, listTotal, date);
   const bn = bookNowPolicy(svc.slug, listTotal);
-  const quoteLater = svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, answers));
+  const quoteLater = consultOnly(svc.slug) || svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, answers));
   // 25% now and the rest when it's done (default), in full now with 5% off, or a deposit (events, site-visit work)
   const payPlan = quoteLater ? "full" : resolvePlan(plan, dp.allowed, bn.allowed);
   const useDeposit = payPlan === "deposit";
@@ -128,7 +130,8 @@ function BookService({ slug: _slug }: { slug: string }) {
   const rule = photoRule(svc.slug);
   const photosMissing = photoProblem(svc.slug, photos.length, locale);
   const bigJob = sizeNeedsSiteVisit(svc.slug, answers);
-  const siteVisit = svc.siteVisit || Boolean(bigJob);
+  const consult = consultOnly(svc.slug); // Business & Technology: custom work, scoped and priced on a free consultation
+  const siteVisit = consult || svc.siteVisit || Boolean(bigJob);
 
   /** Before paying: required photos, then the AI price check (books at exactly the price shown). */
   async function checkAndBook() {
@@ -206,7 +209,7 @@ function BookService({ slug: _slug }: { slug: string }) {
   if (!siteVisit && offerChk && !offerChk.ok) problems.push({ key: "offer", msg: t("Adjust your price offer") });
   if (!agreed) problems.push({ key: "agree", msg: t("Agree to the Service Agreement") });
   const errFor = (k: string) => (tried ? problems.find((x) => x.key === k)?.msg ?? null : null);
-  const payTitle = busy ? t("Checking your price…") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : payPlan === "after" ? (es ? `Pagar ${money(dueNow)} (25%) y reservar` : `Pay ${money(dueNow)} (25%) & book`) : (es ? `Pagar ${money(dueNow)} y reservar` : `Pay ${money(dueNow)} & book`);
+  const payTitle = busy ? t("Checking your price…") : consult ? (es ? "Reservar consulta gratis" : "Book free consultation") : siteVisit ? t("Book free site visit") : useDeposit ? (es ? `Pagar depósito de ${money(dp.amount)} y reservar` : `Pay ${money(dp.amount)} deposit & book`) : payPlan === "after" ? (es ? `Pagar ${money(dueNow)} (25%) y reservar` : `Pay ${money(dueNow)} (25%) & book`) : (es ? `Pagar ${money(dueNow)} y reservar` : `Pay ${money(dueNow)} & book`);
   function submit() {
     if (problems.length) {
       haptic("warning");
@@ -222,8 +225,8 @@ function BookService({ slug: _slug }: { slug: string }) {
       <StickyBar>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View style={{ minWidth: 92 }}>
-            <Text style={[s.label, { marginBottom: 0 }]}>{t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
-            <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }} accessibilityLiveRegion="polite">{siteVisit ? moneyRange(est.low, est.high) : money(dueNow)}</Text>
+            <Text style={[s.label, { marginBottom: 0 }]}>{consult ? (es ? "Precio" : "Price") : t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: C.ink }} accessibilityLiveRegion="polite">{consult ? (es ? "Gratis" : "Free") : siteVisit ? moneyRange(est.low, est.high) : money(dueNow)}</Text>
           </View>
           <Button title={problems.length ? problems[0].msg : payTitle} busy={busy} onPress={submit} kind={problems.length ? "dark" : "primary"} style={{ flex: 1 }} />
         </View>
@@ -236,9 +239,9 @@ function BookService({ slug: _slug }: { slug: string }) {
         </Pressable>
       ) : null}
       <Card style={{ marginTop: 12, backgroundColor: C.tint, borderColor: C.brand }}>
-        <Text style={s.label}>{t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
-        <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{siteVisit ? moneyRange(est.low, est.high) : money(listTotal)}</Text>
-        <Text style={s.p}>{siteVisit ? t("Free site visit confirms the firm price.") : t(BRAND.promise)}</Text>
+        <Text style={s.label}>{consult ? (es ? "Hecho a su medida" : "Built for your business") : t(siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</Text>
+        <Text style={{ fontSize: 30, fontWeight: "800", color: C.ink }}>{consult ? (es ? "Consulta gratis" : "Free consultation") : siteVisit ? moneyRange(est.low, est.high) : money(listTotal)}</Text>
+        <Text style={s.p}>{consult ? (es ? "Cada solución es distinta. En una videollamada gratis vemos lo que necesita y le enviamos el alcance y un precio fijo por escrito. No paga nada hasta aprobarlo." : "Every solution is different. On a free video call we learn what you need, then send the scope and a fixed price in writing. You pay nothing until you approve it.") : siteVisit ? t("Free site visit confirms the firm price.") : t(BRAND.promise)}</Text>
         {svc.category === "events" && svc.slug !== "event-package" && Number(answers.guests) >= 50 ? (() => {
           const g = Number(answers.guests), bar = answers.bar === true, sure = bar || g >= 150;
           const sec = securityAdvice({ guests: g, alcohol: bar || g < 150 });
@@ -271,7 +274,7 @@ function BookService({ slug: _slug }: { slug: string }) {
             <Text style={[s.p, { fontSize: 14, marginTop: 6 }]}>{es ? `Su profesional gana ${money(splitJob(listTotal, slug).payout)} · incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Your pro earns ${money(splitJob(listTotal, slug).payout)} · includes a ${money(BOOKING_FEE)} booking fee`}</Text>
           </View>
         )}
-        {svc.slug !== "event-package" && (
+        {svc.slug !== "event-package" && !consult && (
           <>
             <Field label={t("Your budget (optional, $)")} value={budget} onChangeText={(v) => setBudget(v.replace(/[^\d.]/g, ""))} keyboardType="decimal-pad" placeholder={t("What you'd like to spend")} />
             {(() => { const fit = budgetFit(Number(budget), siteVisit ? est.low : listTotal); return fit.status === "none" ? null : <Text style={[s.p, { color: fit.status === "fits" ? C.brand : fit.status === "close" ? "#b45309" : "#be123c" }]}>{fit.status === "fits" ? "✓ " : ""}{es ? budgetMessage(locale, fit, Number(budget)) : fit.message}</Text>; })()}
