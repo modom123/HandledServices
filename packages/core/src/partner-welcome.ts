@@ -11,9 +11,11 @@
  *                                    — the days after sign-up we remind a partner whose payouts aren't set up yet
  *                                      (the daily sweep, no extra state needed), and the reminder itself
  *           Every number comes from the shared rules (PARTNER_PROGRAM, REFERRAL_LADDER, PARTNER_LADDER, SALES_DRAW).
+ * UPDATED : 2026-11-10_1450 UTC — the welcome includes their Partner Success roadmap (partner-success.ts) and /partner/grow.
  */
 import { BRAND } from "./brand.ts";
 import { PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, SALES_DRAW, ladderTable, type PartnerKind } from "./partners.ts";
+import { roadmapFor, serviceName } from "./partner-success.ts";
 
 const pct = (r: number) => `${+(r * 100).toFixed(2)}%`;
 const usd = (n: number) => `$${n % 1 ? n.toFixed(2) : n.toLocaleString("en-US")}`;
@@ -91,6 +93,11 @@ export function partnerWelcomeEmail(p: { name: string; code: string; kind: Partn
     "",
     "WHERE TO FIND CUSTOMERS",
     ...TIPS[kind].map((t) => `  • ${t}`),
+    "",
+    `YOUR ROADMAP: ${roadmapFor(kind).name.toUpperCase()}`,
+    `${roadmapFor(kind).promise} Step by step, with goals tracked from your real numbers: ${site}/partner/grow`,
+    ...roadmapFor(kind).stages.map((st, i) => `  ${i + 1}. ${st.name}: ${st.goals.map((g) => g.label.toLowerCase()).join(", ")}`),
+    `The fastest way to grow is selling more kinds of services to the same customers. After a ${serviceName("house-cleaning").toLowerCase()}, suggest ${serviceName("window-cleaning").toLowerCase()} and ${serviceName("carpet-cleaning").toLowerCase()}; after a lawn, gutters and power washing.`,
     "",
     "THE RULES",
     "  • Only send people who agreed to hear from us, and only photograph property with the owner's OK.",

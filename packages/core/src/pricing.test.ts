@@ -2733,3 +2733,24 @@ test("partner welcome: payouts first, both ways to earn, lead pay for Field Sale
   const r = partnerPayoutReminder({ name: "Jane" }, { portalUrl: "u", day: 3, waiting: 42.5 });
   assert.match(r.subject, /\$42\.50 is waiting/);
 });
+
+test("partner success: 3 roadmaps with real services, the right one per kind, progress from real stats (2026-11-10)", async () => {
+  const { PARTNER_ROADMAPS, SERVICE_PLAYS, SEASONAL_CALENDAR, roadmapFor, roadmapProgress } = await import("./partner-success.ts");
+  const { PARTNER_KINDS } = await import("./partners.ts");
+  assert.equal(PARTNER_ROADMAPS.length, 3);
+  const slugs = [...PARTNER_ROADMAPS.flatMap((r) => r.stages.flatMap((s) => s.sell)), ...SERVICE_PLAYS.flatMap((p) => p.services), ...SEASONAL_CALENDAR.flatMap((c) => c.services)];
+  for (const s of slugs) assert.ok(getService(s), "real service: " + s);
+  for (const k of Object.keys(PARTNER_KINDS)) assert.ok(PARTNER_ROADMAPS.some((r) => r.kinds.includes(k as never)), "a roadmap for " + k);
+  assert.equal(roadmapFor("sales_rep").id, "field_sales");
+  assert.equal(roadmapFor("realtor").id, "property");
+  assert.equal(roadmapFor("nobody").id, "neighborhood");
+  const zero = { payoutsReady: false, customers: 0, jobs: 0, categories: 0, recurring: 0, accounts: 0, leads: 0, directJobs: 0, earned: 0, referralRate: 0.15, salesRate: 0.1 };
+  const p0 = roadmapProgress(roadmapFor("customer"), zero);
+  assert.equal(p0.current, 0);
+  assert.equal(p0.nextGoal?.metric, "payoutsReady", "payouts first");
+  const p1 = roadmapProgress(roadmapFor("customer"), { ...zero, payoutsReady: true, customers: 6, recurring: 1 });
+  assert.equal(p1.stages[1].done, true);
+  assert.equal(p1.current, 2, "on to cross-selling");
+  const all = roadmapProgress(roadmapFor("customer"), { ...zero, payoutsReady: true, customers: 30, recurring: 6, categories: 4, jobs: 40, referralRate: 0.2 });
+  assert.equal(all.complete, true);
+});

@@ -36,6 +36,7 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-10_1415 UTC — full partner welcome email (payouts first; core partnerWelcomeEmail) and partnerPayoutReminders()
  *           (daily: days 1, 3, 7 and 14 after sign-up while payouts aren't set up).
+ * UPDATED : 2026-11-10_1445 UTC — partnerGrowthStats(): the numbers the Partner Success roadmaps measure (/partner/grow).
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -44,7 +45,7 @@ import {
   cleanPartnerCode, firstProjectReward, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
   REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
-  SALES_DRAW, drawRecovery, drawUnlocked, partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS
+  SALES_DRAW, drawRecovery, drawUnlocked, partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS, type PartnerGrowthStats
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
@@ -611,5 +612,29 @@ export async function partnerStats(partnerId: string) {
       direct: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier === "direct"),
       referral: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier !== "direct"),
     },
+  };
+}
+
+/**
+ * Partner Success (core partner-success.ts): the numbers a roadmap measures — payouts, customers, paying jobs, the
+ * service categories and recurring plans their customers have, accounts, leads, direct-sale jobs, earnings and rates.
+ */
+export async function partnerGrowthStats(partner: Partner): Promise<PartnerGrowthStats> {
+  const [stats, lead, ready, { data: rows }] = await Promise.all([
+    partnerStats(partner.id),
+    leadPayStatus(partner.id).catch(() => ({ leads: 0, paidSales: 0 })),
+    payoutsReady(partner).catch(() => false),
+    db().from("partner_commissions").select("tier, status, jobs(service_slug, frequency, plan_id, business_account_id, contact_email)").eq("partner_id", partner.id).neq("status", "void").limit(5000),
+  ]);
+  type Row = { tier: string | null; jobs: { service_slug: string; frequency: string | null; plan_id: string | null; business_account_id: string | null; contact_email: string | null } | null };
+  const list = ((rows ?? []) as unknown as Row[]).filter((r) => r.jobs);
+  const cats = new Set(list.map((r) => getService(r.jobs!.service_slug)?.category).filter(Boolean));
+  const recurring = new Set(list.filter((r) => (r.jobs!.frequency ?? "once") !== "once" || r.jobs!.plan_id).map((r) => (r.jobs!.contact_email ?? "").toLowerCase()));
+  const accounts = new Set(list.map((r) => r.jobs!.business_account_id).filter(Boolean));
+  return {
+    payoutsReady: ready, customers: stats.customers, jobs: stats.jobs, categories: cats.size, recurring: recurring.size, accounts: accounts.size,
+    leads: lead.leads, directJobs: list.filter((r) => r.tier === "direct").length,
+    earned: Math.round((stats.paid + stats.ready + stats.upcoming) * 100) / 100,
+    referralRate: stats.referral.rate, salesRate: stats.level.rate,
   };
 }
