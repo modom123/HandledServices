@@ -9,6 +9,7 @@
  *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
  * UPDATED : 2026-11-06_1730 UTC — SalesTicketForm: close-ready direct-sales tickets (any service; 3–4 photos for on-site
  *           work), live price, and a pay link the partner can open on the spot.
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  */
 "use client";
 
@@ -316,7 +317,7 @@ export function SalesTicketForm({ services, minPhotos, maxPhotos, repCode }: { s
           <label key={q.id} className="block text-sm">{q.label}{q.type === "number" && q.required && <span className="text-rose-700"> *</span>}
             {q.type === "number" && <span className="mt-1 flex items-center gap-2"><input className="input" type="number" min={q.min} max={q.max} value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: Number(e.target.value) })} />{q.unit && <span className="text-xs text-ink-soft">{q.unit}</span>}</span>}
             {q.type === "select" && <select className="input mt-1" value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
-            {q.type === "toggle" && <span className="mt-1 flex items-center gap-2"><input type="checkbox" checked={Boolean(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.checked })} /> Yes</span>}
+            {q.type === "toggle" && <span className="mt-1 flex gap-2">{([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => <button key={label} type="button" aria-pressed={Boolean(answers[q.id] ?? q.default) === val} onClick={() => setAnswers({ ...answers, [q.id]: val })} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${Boolean(answers[q.id] ?? q.default) === val ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{label}</button>)}</span>}
           </label>
         ))}
         {svc && svc.frequencies.length > 1 && <label className="block text-sm">How often<select className="input mt-1" value={f.frequency} onChange={set("frequency")}>{svc.frequencies.map((x) => <option key={x} value={x}>{FREQ[x]}</option>)}</select></label>}

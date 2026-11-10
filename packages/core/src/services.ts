@@ -62,6 +62,7 @@
  * UPDATED : 2026-10-27_1600 UTC — Carpentry (finish carpentry: trim, interior doors, built-ins, stairs & railings, framing) and the carpentry trade; decks and exterior doors stay with Deck Building and Window & Door Replacement.
  * UPDATED : 2026-11-07_0037 UTC — four Business & Technology social media services: Social Media Manager, Content Creator, Brand Ambassadors and
  *           Paid Social Ads Manager (monthly, remote, ordered with a deposit); new trade social_media.
+ * UPDATED : 2026-11-10_0250 UTC — house cleaning: "Other (describe it)" type of clean; otherNote / otherMissing helpers.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -82,6 +83,19 @@ export type Question =
     }
   | { id: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string; help?: string; showIf?: ShowIf }
   | { id: string; label: string; type: "toggle"; default: boolean; help?: string; showIf?: ShowIf };
+
+/** A select option the customer describes in their own words ("Other"). */
+export const OTHER_OPTION = "other";
+/** The customer's description of an "Other" pick, as one line for the job notes (pro, AI price check, invoice). */
+export function otherNote(questions: Question[], answers: Answers, texts: Record<string, string>): string {
+  return questions
+    .filter((q) => q.type === "select" && answers[q.id] === OTHER_OPTION && (texts[q.id] ?? "").trim())
+    .map((q) => `${q.label}: ${texts[q.id]!.trim()}`).join("\n");
+}
+/** "Other" picks still waiting for a description. */
+export function otherMissing(questions: Question[], answers: Answers, texts: Record<string, string>): Question[] {
+  return questions.filter((q) => q.type === "select" && answers[q.id] === OTHER_OPTION && questionVisible(q, answers, questions) && !(texts[q.id] ?? "").trim());
+}
 
 /** Should this question be shown for these answers? A size band filled in from a measurement is never asked. */
 export function questionVisible(q: Question, answers: Answers, all: Question[] = []): boolean {
@@ -251,6 +265,9 @@ export const SERVICES: Service[] = [
           { value: "standard", label: "Standard" },
           { value: "deep", label: "Deep clean" },
           { value: "move", label: "Move-in / move-out" },
+          // Something else (post-construction, Airbnb turnover, one room…): starts at the standard price; the customer
+          // describes it, it goes in the job notes, and the AI price check reviews it before payment.
+          { value: "other", label: "Other (describe it)" },
         ],
       },
       { id: "pets", label: "Pets in the home", type: "toggle", default: false },

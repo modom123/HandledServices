@@ -2621,3 +2621,18 @@ test("post & earn: first-project reward is 10% back, up to $250, never more than
   assert.equal(firstProjectLine(), "10% back, up to $250");
   assert.ok(partnerTerms().some((t) => t.includes("Post your project") && t.includes("10% back, up to $250")), "terms carve-out");
 });
+
+test("house cleaning: \"Other\" type of clean starts at the standard price and needs a description", async () => {
+  const { otherMissing, otherNote, OTHER_OPTION } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const level = svc.questions.find((q) => q.id === "level")!;
+  assert.ok(level.type === "select" && level.options.some((o) => o.value === OTHER_OPTION));
+  const std = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "standard" } });
+  const other = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: OTHER_OPTION } });
+  assert.equal(other.point, std.point);
+  const a = { ...defaultAnswers(svc), level: OTHER_OPTION };
+  assert.equal(otherMissing(svc.questions, a, {}).length, 1);
+  assert.equal(otherMissing(svc.questions, a, { level: "post-construction" }).length, 0);
+  assert.equal(otherNote(svc.questions, a, { level: " post-construction " }), "Type of clean: post-construction");
+  assert.equal(otherNote(svc.questions, { ...a, level: "deep" }, { level: "x" }), "", "only when Other is picked");
+});

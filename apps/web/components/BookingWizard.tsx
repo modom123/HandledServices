@@ -35,6 +35,9 @@
  * UPDATED : 2026-10-28_1730 UTC — step 1 (pick a service): search + one category at a time instead of all 101 services in one list.
  * UPDATED : 2026-10-28_1700 UTC — no consultation-only mode: Business & Technology shows its price and is ordered with a deposit
  *           like every service (and the AI check never turns remote work into a visit).
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-10_0250 UTC — "Other" choices (cleaning type): a text box for the customer's own words, added to the
+ *           notes (the AI price check reviews it); Continue waits until it's filled in.
  */
 "use client";
 
@@ -47,8 +50,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
-} from "@handled/core";
+  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, otherMissing, otherNote } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -105,6 +107,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   });
   const [frequency, setFrequency] = useState<Frequency>(() => (svc?.frequencies.includes(initialFrequency as Frequency) ? (initialFrequency as Frequency) : "once"));
   const [notes, setNotes] = useState(initialNotes);
+  // "Other" picks (e.g. cleaning type): the customer's own words, sent with the notes
+  const [otherText, setOtherText] = useState<Record<string, string>>({});
+  const otherLine = svc ? otherNote(svc.questions, answers, otherText) : "";
+  const notesOut = [otherLine, notes.trim()].filter(Boolean).join("\n");
   const [photos, setPhotos] = useState<string[]>(initialPhotos);
   const [date, setDate] = useState(ticket?.date && ticket.date >= defaultDate() ? ticket.date : defaultDate());
   const [win, setWin] = useState<TimeWindow>((["morning", "midday", "afternoon"] as string[]).includes(ticket?.window ?? "") ? (ticket!.window as TimeWindow) : "morning");
@@ -170,14 +176,14 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   async function runAi() {
     setAiTried(true);
     setAiBusy(true);
-    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes, photos, ai: true, locale, ...(/^\d{5}$/.test(form.zip) ? { zip: form.zip } : {}) }) });
+    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes: notesOut, photos, ai: true, locale, ...(/^\d{5}$/.test(form.zip) ? { zip: form.zip } : {}) }) });
     const json = await res.json().catch(() => ({}));
     setAiBusy(false);
     setAi(json.ai ?? null);
     setQuoteToken(json.quote_token ?? null);
   }
   // the AI price check runs automatically before payment whenever there are photos or notes
-  const needsCheck = Boolean(!quote && svc && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notes.trim() || photos.length));
+  const needsCheck = Boolean(!quote && svc && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notesOut.trim() || photos.length));
   useEffect(() => {
     if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -190,6 +196,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
   // required measurements (yard sq ft, weight, height…) must be filled in before the price step
   const measuresMissing = svc ? missingMeasurements(svc.questions, answers) : [];
+  const othersMissing = svc ? otherMissing(svc.questions, answers, otherText) : [];
 
   async function book() {
     setBusy(true);
@@ -197,7 +204,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
     });
     const json = await res.json();
     setBusy(false);
@@ -289,8 +296,17 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                     ))}
                   </div>
                 )}
+                {q.type === "select" && answers[q.id] === OTHER_OPTION && (
+                  <input className="input mt-2" autoFocus value={otherText[q.id] ?? ""} onChange={(e) => { setOtherText({ ...otherText, [q.id]: e.target.value }); resetAi(); }}
+                    placeholder={es ? "Cuéntenos qué necesita (p. ej., limpieza después de obra, cambio de Airbnb)" : "Tell us what you need (e.g. post-construction, Airbnb turnover, just the kitchen)"} maxLength={300} />
+                )}
                 {q.type === "toggle" && (
-                  <button onClick={() => { setAnswers({ ...answers, [q.id]: !answers[q.id] }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{answers[q.id] ? t("Yes") : t("No")}</button>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t(q.label)}>
+                    {([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => {
+                      const on = Boolean(answers[q.id] ?? q.default) === val;
+                      return <button key={label} type="button" role="radio" aria-checked={on} onClick={() => { setAnswers({ ...answers, [q.id]: val }); resetAi(); }} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(label)}</button>;
+                    })}
+                  </div>
                 )}
                 {q.help && <p className="mt-1 text-xs text-ink-soft">{t(q.help)}</p>}
                 {q.type === "number" && q.required && !(Number(answers[q.id] ?? 0) > 0) && <p className="mt-1 text-xs font-semibold text-rose-700">{es ? "Escriba la medida para ver su precio." : "Enter the measurement to see your price."}</p>}
@@ -321,7 +337,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-1 text-xs text-ink-soft">{t("Our AI checks your photos so the price fits the job — no surprises on the day.")}</p>
               {photosMissing && photos.length > 0 && <p className="mt-1 text-xs text-amber-800">{photosMissing}</p>}
             </div>
-            <button className="btn-primary" disabled={Boolean(photosMissing) || measuresMissing.length > 0} onClick={() => setStep(2)}>{measuresMissing.length ? (es ? `Falta: ${measuresMissing.map((q) => t(q.label)).join(", ")}` : `Enter: ${measuresMissing.map((q) => t(q.label)).join(", ")}`) : photosMissing ? (es ? `Agregue ${rule!.min - photos.length} foto(s) más para continuar` : `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue`) : t("Continue")}</button>
+            <button className="btn-primary" disabled={Boolean(photosMissing) || measuresMissing.length > 0 || othersMissing.length > 0} onClick={() => setStep(2)}>{othersMissing.length ? (es ? "Describa lo que necesita para continuar" : "Describe what you need to continue") : measuresMissing.length ? (es ? `Falta: ${measuresMissing.map((q) => t(q.label)).join(", ")}` : `Enter: ${measuresMissing.map((q) => t(q.label)).join(", ")}`) : photosMissing ? (es ? `Agregue ${rule!.min - photos.length} foto(s) más para continuar` : `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue`) : t("Continue")}</button>
           </div>
         )}
 

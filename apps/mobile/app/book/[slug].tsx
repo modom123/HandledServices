@@ -18,11 +18,14 @@
  *           keeps the booking with Pay now / Later; Checkout is the fallback.
  * UPDATED : 2026-10-07_0235 UTC — required measurements (yard sq ft, weight, height…) block booking until entered.
  * UPDATED : 2026-10-07_1830 UTC — area price level (region) from /api/market, same as the server.
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-10_0250 UTC — Yes / No buttons for yes-no questions; "Other" choices (cleaning type) get a text box,
+ *           added to the notes, and must be filled in before booking.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow } from "@handled/core";
+import { BRAND, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow, OTHER_OPTION, otherMissing, otherNote } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
 import { payForJob } from "../../lib/pay";
@@ -66,6 +69,9 @@ function BookService({ slug: _slug }: { slug: string }) {
   const [date, setDate] = useState(new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
   const [win, setWin] = useState<TimeWindow>("morning");
   const [notes, setNotes] = useState(snapNotes ?? "");
+  // "Other" picks (e.g. cleaning type): the customer's own words, sent with the notes
+  const [otherText, setOtherText] = useState<Record<string, string>>({});
+  const notesOut = [otherNote(svc.questions, answers, otherText), notes.trim()].filter(Boolean).join("\n");
   const [shots, setShots] = useState<Shot[]>(parse<Shot[]>(snapShots, []).filter((x) => typeof x?.path === "string" && x.path.startsWith("booking/")).slice(0, 8));
   const photos = shots.map((x) => x.path);
   const [f, setF] = useState({ contact_name: "", contact_email: "", contact_phone: "", address: "", city: "", state: "MI", zip: "" });
@@ -126,11 +132,11 @@ function BookService({ slug: _slug }: { slug: string }) {
   /** Before paying: required photos, then the AI price check (books at exactly the price shown). */
   async function checkAndBook() {
     if (photosMissing) return Alert.alert(t("Photos needed"), photosMissing);
-    if (siteVisit || (!notes.trim() && !photos.length)) return book(null);
+    if (siteVisit || (!notesOut.trim() && !photos.length)) return book(null);
     setBusy(true);
     const q = await api<{ ai: { final_price: number; action?: string; action_reason?: string; customer_summary?: string; changes?: { label: string; from: string; to: string }[] } | null; quote_token: string | null }>("/api/quote", {
       method: "POST",
-      body: JSON.stringify({ service_slug: svc.slug, answers, frequency, scheduled_date: date, notes, photos, ai: true, locale, ...(zipOk ? { zip: f.zip } : {}) }),
+      body: JSON.stringify({ service_slug: svc.slug, answers, frequency, scheduled_date: date, notes: notesOut, photos, ai: true, locale, ...(zipOk ? { zip: f.zip } : {}) }),
     });
     setBusy(false);
     if (q.offline) return Alert.alert(t("No connection"), t(q.data.error ?? "Check your signal or Wi-Fi and try again."));
@@ -172,7 +178,7 @@ function BookService({ slug: _slug }: { slug: string }) {
     setBusy(true);
     const r = await api<{ id: string; ref: string; status: string; checkout: string | null; price: number | null; error?: string }>("/api/bookings", {
       method: "POST",
-      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notes || null, photos, source: "mobile", accept_terms: agreed, payment_plan: payPlan, quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
+      body: JSON.stringify({ ...f, service_slug: svc.slug, answers, frequency, scheduled_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : tomorrow(), time_window: win, notes: notesOut || null, photos, source: "mobile", accept_terms: agreed, payment_plan: payPlan, quote_token: quoteToken, promo_code: promo || null, locale, urgency: svc.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named && !siteVisit ? offerNum : null, preferred_pro_id: ask && pro ? pro : null, requested_crew_member_id: ask && pro && crew ? crew : null }),
     });
     setBusy(false);
     if (!r.ok) { haptic("error"); return Alert.alert(t("Couldn't book"), t(r.data.error ?? "Please check the form")); }
@@ -186,6 +192,7 @@ function BookService({ slug: _slug }: { slug: string }) {
   const phoneOk = f.contact_phone.replace(/\D/g, "").length >= 10;
   const problems: { key: string; msg: string }[] = [];
   // required measurements (yard sq ft, weight, height…) — same rule as the website and the server
+  for (const q of otherMissing(svc.questions, answers, otherText)) problems.push({ key: `o_${q.id}`, msg: es ? `Describa: ${t(q.label)}` : `Describe: ${t(q.label)}` });
   for (const q of missingMeasurements(svc.questions, answers)) problems.push({ key: `m_${q.id}`, msg: es ? `Escriba: ${t(q.label)}` : `Enter: ${t(q.label)}` });
   if (!svc.leadDays && !urgency) problems.push({ key: "when", msg: t("Choose when you need it done") });
   if (photosMissing) problems.push({ key: "photos", msg: es ? `Agregue ${rule.min - photos.length} foto(s) más` : `Add ${rule.min - photos.length} more photo(s)` });
@@ -284,7 +291,8 @@ function BookService({ slug: _slug }: { slug: string }) {
             </View>
           )}
           {q.type === "select" && <View style={s.row}>{q.options.map((o) => <Chip key={o.value} label={t(o.label)} on={answers[q.id] === o.value} onPress={() => setAnswers({ ...answers, [q.id]: o.value })} />)}</View>}
-          {q.type === "toggle" && <View style={s.row}><Chip label={answers[q.id] ? t("Yes") : t("No")} on={Boolean(answers[q.id])} onPress={() => setAnswers({ ...answers, [q.id]: !answers[q.id] })} /></View>}
+          {q.type === "select" && answers[q.id] === OTHER_OPTION && <Field label={t("Tell us what you need")} value={otherText[q.id] ?? ""} onChangeText={(v) => setOtherText({ ...otherText, [q.id]: v })} placeholder={t("e.g. post-construction, Airbnb turnover, just the kitchen")} />}
+          {q.type === "toggle" && <View style={s.row}><Chip label={t("Yes")} on={Boolean(answers[q.id] ?? q.default)} onPress={() => setAnswers({ ...answers, [q.id]: true })} /><Chip label={t("No")} on={!(answers[q.id] ?? q.default)} onPress={() => setAnswers({ ...answers, [q.id]: false })} /></View>}
         </View>
       ))}
       {svc.frequencies.length > 1 && (

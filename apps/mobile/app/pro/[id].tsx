@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-07_1900 UTC — "today" uses the job's time zone (Pacific in Washington).
  * UPDATED : 2026-11-06_1800 UTC — pay shown is the pro's net pay (any referral fee already out); no job price or split.
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  */
 import { shareLocationOnce, useLiveRouteSharing } from "../../lib/location";
 import { useCallback, useEffect, useState } from "react";
@@ -189,7 +190,7 @@ export default function ProJob() {
                     <Text style={s.label}>{t(q.label)}</Text>
                     {q.type === "number" ? <TextInput style={s.input} keyboardType="number-pad" value={String(scope[q.id] ?? q.default)} onChangeText={(v) => setScope({ ...scope, [q.id]: Math.min(q.max, Math.max(q.min, Number(v) || q.min)) })} />
                       : q.type === "select" ? <View style={s.row}>{q.options.map((o) => <Chip key={o.value} label={t(o.label)} on={scope[q.id] === o.value} onPress={() => setScope({ ...scope, [q.id]: o.value })} />)}</View>
-                      : <View style={s.row}><Chip label={t(scope[q.id] ? "Yes" : "No")} on={Boolean(scope[q.id])} onPress={() => setScope({ ...scope, [q.id]: !scope[q.id] })} /></View>}
+                      : <View style={s.row}><Chip label={t("Yes")} on={Boolean(scope[q.id])} onPress={() => setScope({ ...scope, [q.id]: true })} /><Chip label={t("No")} on={!scope[q.id]} onPress={() => setScope({ ...scope, [q.id]: false })} /></View>}
                   </View>
                 ))}
                 <TextInput style={[s.input, { marginTop: 10 }]} placeholder={t("What you found (the customer sees this)")} value={scopeNote} onChangeText={setScopeNote} multiline />

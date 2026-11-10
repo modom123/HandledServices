@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-02_2225 UTC — Spanish (pro portal): every action takes a locale.
  * UPDATED : 2026-11-04_2345 UTC — photos are resized in the browser and sent one at a time (lib/upload-photos.ts): phone
  *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  */
 "use client";
 
@@ -184,7 +185,7 @@ export function ScopeChange({ jobId, slug, booked, frequency, locale = "en" }: {
           <span className="label">{t(q.label)}</span>
           {q.type === "number" ? <input className="input" type="number" min={q.min} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />
             : q.type === "select" ? <select className="input" value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}</select>
-            : <input type="checkbox" checked={Boolean(vals[q.id])} onChange={(e) => setVals({ ...vals, [q.id]: e.target.checked })} />}
+            : <div className="flex gap-2">{([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => <button key={label} type="button" aria-pressed={Boolean(vals[q.id]) === val} onClick={() => setVals({ ...vals, [q.id]: val })} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${Boolean(vals[q.id]) === val ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(label)}</button>)}</div>}
         </label>
       ))}
       <textarea className="input min-h-16" placeholder={t("What you found (the customer sees this)")} value={note} onChange={(e) => setNote(e.target.value)} />
