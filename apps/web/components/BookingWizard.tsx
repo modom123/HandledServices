@@ -45,6 +45,8 @@
  *           notes (the AI price check reviews it); Continue waits until it's filled in.
  * UPDATED : 2026-11-10_0310 UTC — name your price: offers below the usual minimum are allowed (down to 30%) with a note that
  *           the job goes on the pro job board for 30 days and is fully refunded if no one takes it.
+ * UPDATED : 2026-11-10_1500 UTC — checkout never gets stuck: a non-JSON server error or a dropped connection shows a clear message
+ *           (with the support number) and frees the button, instead of leaving "Finalizing your price…" spinning.
  */
 "use client";
 
@@ -214,10 +216,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
-    });
-    const json = await res.json();
+    }).catch(() => null);
+    if (!res) { setBusy(false); return setError(es ? "Sin conexión: revise su internet e intente de nuevo." : "No connection: check your internet and try again."); }
+    // a server error page (not JSON) used to throw here and leave the button stuck on "Finalizing your price…"
+    const json = await res.json().catch(() => ({} as Record<string, unknown>)) as { error?: string; checkout?: string; ref?: string; billing?: { onTerms?: boolean } };
     setBusy(false);
-    if (!res.ok) return setError(json.error ?? "Booking failed");
+    if (!res.ok || (!json.checkout && !json.ref)) return setError(json.error ?? (es ? `No pudimos completar la reserva (error ${res.status}). Intente de nuevo o llámenos al ${BRAND.supportPhone}.` : `We couldn't finish your booking (error ${res.status}). Try again, or call us at ${BRAND.supportPhone}.`));
     if (json.checkout) window.location.href = json.checkout;
     else router.push(`/book/confirmed?ref=${json.ref}${json.billing?.onTerms ? "&billed=1" : ""}`);
   }
