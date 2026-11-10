@@ -63,6 +63,8 @@
  * UPDATED : 2026-11-07_0037 UTC — four Business & Technology social media services: Social Media Manager, Content Creator, Brand Ambassadors and
  *           Paid Social Ads Manager (monthly, remote, ordered with a deposit); new trade social_media.
  * UPDATED : 2026-11-10_0250 UTC — house cleaning: "Other (describe it)" type of clean; otherNote / otherMissing helpers.
+ * UPDATED : 2026-11-10_0310 UTC — number questions can have a lower minimum when another answer matches (minWhen): house
+ *           cleaning "Other" goes down to 50 sq ft. numberMin / clampToMins helpers.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -76,6 +78,8 @@ export type ShowIf = { id: string; is: (string | boolean)[] };
 export type Question =
   | {
       id: string; label: string; type: "number"; min: number; max: number; default: number; unit?: string; help?: string; showIf?: ShowIf;
+      /** a lower minimum when another answer matches (e.g. cleaning "Other": one small room is fine) */
+      minWhen?: { id: string; is: (string | boolean)[]; min: number };
       /** a real measurement the customer must enter (0 = not entered yet) */
       required?: boolean;
       /** this measurement picks the size band of another (select) question: [up to and including, option value] */
@@ -83,6 +87,19 @@ export type Question =
     }
   | { id: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string; help?: string; showIf?: ShowIf }
   | { id: string; label: string; type: "toggle"; default: boolean; help?: string; showIf?: ShowIf };
+
+/** The smallest number this question takes for these answers (its `minWhen` lower minimum, when that applies). */
+export function numberMin(q: Question, answers: Answers): number {
+  if (q.type !== "number") return 0;
+  const w = q.minWhen;
+  return w && w.is.includes(answers[w.id] as string | boolean) ? Math.min(q.min, w.min) : q.min;
+}
+/** Numbers raised back to their minimum after another answer changed (e.g. leaving cleaning "Other" below 400 sq ft). */
+export function clampToMins(questions: Question[], answers: Answers): Answers {
+  const out: Answers = { ...answers };
+  for (const q of questions) if (q.type === "number" && typeof out[q.id] === "number" && (out[q.id] as number) > 0 && (out[q.id] as number) < numberMin(q, out)) out[q.id] = numberMin(q, out);
+  return out;
+}
 
 /** A select option the customer describes in their own words ("Other"). */
 export const OTHER_OPTION = "other";
@@ -255,7 +272,9 @@ export const SERVICES: Service[] = [
     questions: [
       { id: "bedrooms", label: "Bedrooms (or offices)", type: "number", min: 0, max: 10, default: 3 },
       { id: "bathrooms", label: "Bathrooms", type: "number", min: 1, max: 8, default: 2 },
-      { id: "sqft", label: "Square feet", type: "number", min: 400, max: 20000, default: 1800, unit: "sq ft", help: "Finished living or office space. Not sure? Use the number on your listing or tax record." },
+      { id: "sqft", label: "Square feet", type: "number", min: 400, max: 20000, default: 1800, unit: "sq ft", help: "Finished living or office space. Not sure? Use the number on your listing or tax record.",
+        // "Other" (just the kitchen, one room, an RV…): smaller than 400 sq ft is fine; the visit minimum still applies
+        minWhen: { id: "level", is: ["other"], min: 50 } },
       {
         id: "level",
         label: "Type of clean",

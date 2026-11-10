@@ -51,10 +51,12 @@
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
  * UPDATED : 2026-11-06_1638 UTC — Field Sales tickets: BookingSchema.ticket; createJob marks the ticket booked and credits the rep (lib/sales-tickets).
+ * UPDATED : 2026-11-10_0310 UTC — name your price below our usual minimum: the job is paid as usual, goes straight to the job
+ *           board for 30 days (jobs.open_offer_until, no targeted offers), and expireOpenOffers() cancels + refunds it if unclaimed.
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -214,10 +216,13 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   if (proPick && proPick.price !== Math.round(pro_choice!.price)) throw new Error(`Prices just updated: ${proPick.name} is now ${money(proPick.price)} for this job. Check the price and book again.`);
   // Name your price: the customer's offer replaces our suggestion (within bounds); pros see the pay it makes and decide
   let offer: number | null = null;
+  let openOfferUntil: string | null = null;
   if (suggested && !proPick && !quoted && customer_offer && Math.round(customer_offer) !== suggested) {
     const chk = offerCheck(Math.round(customer_offer), suggested);
-    if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.min)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
+    if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.floor)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
     offer = Math.round(customer_offer);
+    // below our usual minimum: straight to the job board at the customer's price for 30 days (refunded if nobody takes it)
+    if (chk.level === "board") openOfferUntil = new Date(Date.now() + OFFER_BOUNDS.boardDays * 86400000).toISOString();
   }
   const listPrice = proPick?.price ?? offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
@@ -286,6 +291,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       balance_due_date: plan?.balanceDue ?? null,
       suggested_price: suggested,
       customer_offer: offer,
+      ...(openOfferUntil ? { open_offer_until: openOfferUntil } : {}),
       // only sent when used, so bookings keep working before the marketplace migration is run
       ...(quoted ? { priced_by: "quote" } : proPick ? { priced_by: "pro_rate", pro_rate_pct: proPick.pct } : {}),
       booking_fee: listPrice ? bookingFeeOf(listPrice) : 0,
@@ -571,6 +577,15 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     await raiseAlert("unpaid_dispatch", "info", `${job.ref} not dispatched — unpaid`, "Jobs go to pros only after payment.", job.id);
     return { offers: 0, reason: "unpaid" };
   }
+  // a low name-your-price offer: no targeted offers — it goes on the open job board at the customer's price
+  if (job.open_offer_until && !opts.siteVisit) {
+    if (job.status !== "dispatched") {
+      await db().from("jobs").update({ status: "dispatched" }).eq("id", job.id);
+      await addEvent(job.id, "dispatch", `Posted on the pro job board at your price until ${job.open_offer_until.slice(0, 10)}. If no pro takes it by then, it's cancelled and fully refunded.`, "system", true,
+        `Publicado en el tablero de trabajos al precio que usted ofreció hasta el ${job.open_offer_until.slice(0, 10)}. Si ningún profesional lo toma para entonces, se cancela y se reembolsa por completo.`);
+    }
+    return { offers: 0, reason: "open offer on the job board" };
+  }
   const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
   const sameDay = job.scheduled_date
     ? (await db().from("jobs").select("contractor_id").eq("scheduled_date", job.scheduled_date).not("contractor_id", "is", null)).data ?? []
@@ -712,6 +727,29 @@ async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: s
  * Offers past their expiry → expired; any job left with no open offer and no pro goes out again
  * to the next pros (excluding everyone already tried). Runs every 10 minutes and in the daily sweep.
  */
+/**
+ * Daily: low name-your-price offers nobody took within their 30 days — cancelled with a full refund, and the customer is
+ * invited to book again at our price.
+ */
+export async function expireOpenOffers(now = new Date()): Promise<number> {
+  const { data } = await db().from("jobs").select("id").not("open_offer_until", "is", null).lt("open_offer_until", now.toISOString()).is("contractor_id", null).in("status", ["dispatched", "scheduled", "requested"]).limit(500);
+  let n = 0;
+  for (const { id } of (data ?? []) as { id: string }[]) {
+    const r = await (await import("./pro-benefits")).cancelJob(id, "ops", "system", "No pro took this job at the offered price within 30 days.").catch(() => null);
+    if (!r?.ok) continue;
+    n++;
+    const job = await getJob(id);
+    if (!job) continue;
+    const svc = getService(job.service_slug);
+    const again = `${siteUrl()}/book?service=${job.service_slug}`;
+    const es = (await localeOf(job.customer_id, job.locale)) === "es";
+    await (es
+      ? sendEmail(job.contact_email, `${BRAND.name}: su oferta ${job.ref} venció — reembolso completo`, `Hola ${job.contact_name.split(" ")[0]}:\n\nNingún profesional tomó su ${svcEs(job.service_slug).toLowerCase()} al precio que ofreció en 30 días, así que lo cancelamos y le reembolsamos todo.\n\n¿Lo intentamos de nuevo? Reserve al precio sugerido y le asignamos un profesional enseguida: ${again}\n\n— ${BRAND.name}`)
+      : sendEmail(job.contact_email, `${BRAND.name}: your offer ${job.ref} expired — full refund`, `Hi ${job.contact_name.split(" ")[0]},\n\nNo pro took your ${(svc?.name ?? "job").toLowerCase()} at the price you offered within 30 days, so we've cancelled it and refunded you in full.\n\nWant to try again? Book at our suggested price and we'll match a pro right away: ${again}\n\n— ${BRAND.name}`)).catch(() => {});
+  }
+  return n;
+}
+
 export async function redispatchExpired() {
   const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id, contractor_id, kind");
   // a backup who didn't answer their call in time: call the next backup (not the whole market)

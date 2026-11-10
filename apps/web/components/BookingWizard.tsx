@@ -38,6 +38,8 @@
  * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  * UPDATED : 2026-11-10_0250 UTC — "Other" choices (cleaning type): a text box for the customer's own words, added to the
  *           notes (the AI price check reviews it); Continue waits until it's filled in.
+ * UPDATED : 2026-11-10_0310 UTC — name your price: offers below the usual minimum are allowed (down to 30%) with a note that
+ *           the job goes on the pro job board for 30 days and is fully refunded if no one takes it.
  */
 "use client";
 
@@ -50,7 +52,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, otherMissing, otherNote } from "@handled/core";
+  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -286,13 +288,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <div key={q.id}>
                 <label className="label">{t(q.label)}{q.type === "number" && q.required && <span className="text-rose-700"> *</span>}</label>
                 {q.type === "number" && (
-                  <NumberField min={q.min} max={q.max} unit={q.unit ? t(q.unit) : undefined} value={Number(answers[q.id] ?? q.default)}
+                  <NumberField min={numberMin(q, answers)} max={q.max} unit={q.unit ? t(q.unit) : undefined} value={Number(answers[q.id] ?? q.default)}
                     onChange={(v) => { setAnswers((cur) => ({ ...cur, [q.id]: v })); resetAi(); }} />
                 )}
                 {q.type === "select" && (
                   <div className="flex flex-wrap gap-2">
                     {q.options.map((o) => (
-                      <button key={o.value} onClick={() => { setAnswers({ ...answers, [q.id]: o.value }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] === o.value ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(o.label)}</button>
+                      <button key={o.value} onClick={() => { setAnswers(clampToMins(svc.questions, { ...answers, [q.id]: o.value })); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] === o.value ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(o.label)}</button>
                     ))}
                   </div>
                 )}
@@ -495,11 +497,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               </div>
               <p className="mt-1 text-xs text-ink-soft">{locale === "es" ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</p>
               <div className="mt-2 flex items-center gap-2">
-                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).min, Math.round(listTotal * 0.95))))}>−5%</button>
+                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).floor, Math.round(listTotal * 0.95))))}>−5%</button>
                 <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer || String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, ""))} aria-label={t("Your price")} /></div>
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
               </div>
-              {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.min)} para este trabajo.` : `Offers start at ${money(offerChk.min)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
+              {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.` : `Offers start at ${money(offerChk.floor)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
+              {offerChk?.ok && offerChk.level === "board" && <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">📋 {locale === "es" ? "Por debajo de nuestro precio habitual: publicaremos su trabajo en el tablero de profesionales a este precio por 30 días. El primer profesional que lo tome confirma el día con usted. Si nadie lo toma, le reembolsamos todo." : "Below our usual price: we'll post your job on the pro job board at this price for 30 days. The first pro who takes it confirms the day with you. If no one takes it, you get a full refund."}</p>}
               {offerChk?.ok && offerChk.level === "low" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
               {offerChk?.ok && offerNum > suggested && <p className="mt-1 text-xs text-brand-dark">✓ {t("A higher offer usually gets a pro faster.")}</p>}
               <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Includes a ${money(BOOKING_FEE)} booking fee`}</p>

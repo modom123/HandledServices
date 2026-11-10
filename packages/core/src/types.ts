@@ -155,6 +155,8 @@ export interface Job {
   partner_tier?: "one_time" | "repeat" | "account" | null;
   /** partner-v4: the partner's referral rate (15%–30% of the price) locked when the job was booked; null before it. */
   partner_rate?: number | null;
+  /** Low name-your-price offer: on the job board at the customer's price until this time; cancelled + refunded after. */
+  open_offer_until?: string | null;
   /** Direct sale (Field Sales): ladder of our take, paid by Handled alone — no referral fee for the pro. */
   partner_sale?: boolean | null;
   partner_pro_fee?: number | null;

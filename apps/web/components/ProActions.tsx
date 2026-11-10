@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getService, questionVisible, scopeChange, t as tr, type Locale } from "@handled/core";
+import { getService, questionVisible, scopeChange, t as tr, type Locale, numberMin } from "@handled/core";
 import { uploadPhotos } from "@/lib/upload-photos";
 
 /** Pro taps "On my way" (today's job): shares location once and texts the customer a live link. */
@@ -183,7 +183,7 @@ export function ScopeChange({ jobId, slug, booked, frequency, locale = "en" }: {
       {svc.questions.filter((q) => questionVisible(q, { ...booked, ...vals }, svc.questions)).map((q) => (
         <label key={q.id} className="block">
           <span className="label">{t(q.label)}</span>
-          {q.type === "number" ? <input className="input" type="number" min={q.min} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />
+          {q.type === "number" ? <input className="input" type="number" min={numberMin(q, vals)} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />
             : q.type === "select" ? <select className="input" value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}</select>
             : <div className="flex gap-2">{([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => <button key={label} type="button" aria-pressed={Boolean(vals[q.id]) === val} onClick={() => setVals({ ...vals, [q.id]: val })} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${Boolean(vals[q.id]) === val ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(label)}</button>)}</div>}
         </label>

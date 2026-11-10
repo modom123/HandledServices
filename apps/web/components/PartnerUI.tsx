@@ -14,7 +14,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { URGENCY, defaultAnswers, getService, money, questionVisible, ticketCloseCheck, type Answers, type Frequency } from "@handled/core";
+import { URGENCY, defaultAnswers, getService, money, numberMin, questionVisible, ticketCloseCheck, type Answers, type Frequency } from "@handled/core";
 import { PhotoPicker } from "./PhotoPicker";
 import { useRouter } from "next/navigation";
 import { uploadPhotos } from "@/lib/upload-photos";
@@ -315,7 +315,7 @@ export function SalesTicketForm({ services, minPhotos, maxPhotos, repCode }: { s
         <select className="input" value={f.service_slug} onChange={(e) => pickService(e.target.value)}><option value="">Pick a service (or add photos and we&apos;ll suggest one)</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select>
         {svc && svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
           <label key={q.id} className="block text-sm">{q.label}{q.type === "number" && q.required && <span className="text-rose-700"> *</span>}
-            {q.type === "number" && <span className="mt-1 flex items-center gap-2"><input className="input" type="number" min={q.min} max={q.max} value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: Number(e.target.value) })} />{q.unit && <span className="text-xs text-ink-soft">{q.unit}</span>}</span>}
+            {q.type === "number" && <span className="mt-1 flex items-center gap-2"><input className="input" type="number" min={numberMin(q, answers)} max={q.max} value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: Number(e.target.value) })} />{q.unit && <span className="text-xs text-ink-soft">{q.unit}</span>}</span>}
             {q.type === "select" && <select className="input mt-1" value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
             {q.type === "toggle" && <span className="mt-1 flex gap-2">{([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => <button key={label} type="button" aria-pressed={Boolean(answers[q.id] ?? q.default) === val} onClick={() => setAnswers({ ...answers, [q.id]: val })} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${Boolean(answers[q.id] ?? q.default) === val ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{label}</button>)}</span>}
           </label>
