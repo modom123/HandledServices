@@ -4,6 +4,7 @@
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Accessibility statement: our WCAG 2.1 AA goal, what we do, known limits, and how to get help or report a barrier.
  *           TEMPLATE — have counsel review before launch.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";
@@ -12,7 +13,7 @@ export const metadata = { title: "Accessibility" };
 
 export default function Accessibility() {
   return (
-    <div className="wrap max-w-3xl py-14">
+    <div className="wrap max-w-3xl py-14 pro:py-10">
       <h1 className="text-3xl font-extrabold tracking-tight">Accessibility</h1>
       <p className="mt-2 text-ink-soft">{BRAND.legalName} wants everyone to be able to book and manage services, including people who use screen readers, keyboard navigation, magnification or voice control.</p>
       <div className="mt-8 space-y-5">

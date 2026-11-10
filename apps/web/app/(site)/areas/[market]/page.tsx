@@ -7,8 +7,11 @@
  *           standing, booking and checkout. The services the market leads with first (SITE_MARKETS.featured), its cities
  *           (each linking to "<service> in <city>"), how it works, and a book button. Ads, Google Business Profiles and
  *           print can point here.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
+ * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
+import { Ico } from "@/components/Glyph";
 import { notFound } from "next/navigation";
 import { BRAND, SERVICES, SITE_MARKETS, SITE_MARKET_BY_SLUG, STATE_NAME, getService, priceHint, serviceText } from "@handled/core";
 import { getLocale } from "@/lib/locale";
@@ -52,7 +55,7 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
         <a href={`tel:${BRAND.supportPhone.replace(/[^\d+]/g, "")}`} className="btn-ghost">{BRAND.supportPhone}</a>
       </div>
 
-      <h2 className="mt-12 text-2xl font-bold">{es ? `Lo más pedido en ${m.name}` : `Most booked in ${m.name}`}</h2>
+      <h2 className="mt-12 pro:mt-8 text-2xl font-bold">{es ? `Lo más pedido en ${m.name}` : `Most booked in ${m.name}`}</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {featured.map((s) => {
           const txt = serviceText(l, s.slug, s);
@@ -71,7 +74,7 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
         })}
       </div>
 
-      <h2 className="mt-12 text-2xl font-bold">{es ? "Cómo funciona" : "How it works"}</h2>
+      <h2 className="mt-12 pro:mt-8 text-2xl font-bold">{es ? "Cómo funciona" : "How it works"}</h2>
       <ol className="mt-4 grid gap-4 sm:grid-cols-3">
         {(es
           ? [["Responda unas preguntas", "Toma alrededor de un minuto. Vea su precio exacto antes de reservar."], ["Un profesional verificado hace el trabajo", "Con seguro y antecedentes verificados, de su zona."], ["Revisamos el trabajo", "Fotos al terminar; se cobra cuando está hecho."]]
@@ -79,13 +82,13 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
         ).map(([h, d], i) => <li key={h} className="card"><div className="text-sm font-bold text-brand">{i + 1}</div><div className="mt-1 font-semibold">{h}</div><p className="mt-1 text-sm text-ink-soft">{d}</p></li>)}
       </ol>
 
-      <h2 className="mt-12 text-2xl font-bold">{es ? `Ciudades que atendemos en ${m.name}` : `Cities we serve in ${m.name}`}</h2>
+      <h2 className="mt-12 pro:mt-8 text-2xl font-bold">{es ? `Ciudades que atendemos en ${m.name}` : `Cities we serve in ${m.name}`}</h2>
       <p className="mt-2 text-sm text-ink-soft">{es ? `Y los vecindarios cercanos en ${m.region}. Escriba su código postal al reservar para ver si un profesional cubre su zona.` : `And nearby neighborhoods across ${m.region}. Enter your ZIP when you book to confirm a pro covers it.`}</p>
       <ul className="mt-4 grid gap-2 text-sm sm:grid-cols-3 lg:grid-cols-4">
-        {m.cities.map((c) => <li key={c.slug}><Link href={`/services/${featured[0]?.slug ?? "handyman"}/in/${c.slug}`} className="hover:text-brand">📍 {c.name}, {c.state}</Link></li>)}
+        {m.cities.map((c) => <li key={c.slug}><Link href={`/services/${featured[0]?.slug ?? "handyman"}/in/${c.slug}`} className="hover:text-brand"><Ico i="📍" />{c.name}, {c.state}</Link></li>)}
       </ul>
 
-      <h2 className="mt-12 text-2xl font-bold">{es ? "Más servicios" : "More services"}</h2>
+      <h2 className="mt-12 pro:mt-8 text-2xl font-bold">{es ? "Más servicios" : "More services"}</h2>
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
         {more.map((s) => <Link key={s.slug} href={home ? `/services/${s.slug}/in/${home.slug}` : `/services/${s.slug}`} className="rounded-full border border-line px-3 py-1 hover:border-brand">{s.icon} {serviceText(l, s.slug, s).name}</Link>)}
         <Link href="/services" className="rounded-full border border-brand px-3 py-1 font-semibold text-brand">{es ? `Los ${SERVICES.length} servicios →` : `All ${SERVICES.length} services →`}</Link>

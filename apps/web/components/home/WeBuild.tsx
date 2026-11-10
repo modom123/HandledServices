@@ -7,6 +7,7 @@
  *           English / Spanish.
  * UPDATED : 2026-10-23_1100 UTC — no prices on the pillars (Business & Technology is consultation-only); each card says Free consultation.
  * UPDATED : 2026-10-28_1700 UTC — ordered, not consulted: each pillar shows its starting price and "Order →".
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again: "Free consultation →", no order / deposit wording.
  */
 import Link from "next/link";
 import { priceHint } from "@handled/core";
@@ -29,7 +30,7 @@ export const BUILD_PILLARS = [
   },
 ] as const;
 
-/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. Each shows its starting price and links to its page, where it is ordered with a deposit. */
+/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. Each links to its page, where a free consultation is booked (no price: custom work). */
 export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolean }) {
   return (
     <section className={compact ? "border-y border-line bg-paper py-14" : "py-2"}>
@@ -50,12 +51,12 @@ export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolea
                 <div className="text-3xl">{p.icon}</div>
                 <div className="mt-3 text-lg font-bold">{txt.t}</div>
                 <p className="mt-1.5 flex-1 text-sm leading-relaxed text-ink/90">{txt.d}</p>
-                <div className="mt-4 text-sm font-bold text-brand">{priceHint(p.slug, es ? "es" : "en")} · {es ? "Ordenar →" : "Order →"}</div>
+                <div className="mt-4 text-sm font-bold text-brand">{priceHint(p.slug, es ? "es" : "en")} →</div>
               </Link>
             );
           })}
         </div>
-        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Vea su precio en un minuto. Hasta $2,500, un depósito del 25% inicia el trabajo; los proyectos más grandes reciben primero una revisión gratis en línea, sin depósito." : "See your price in a minute. Up to $2,500, a 25% deposit starts the work; bigger projects get a free online scope review first — no deposit."}</p>}
+        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Cada solución es a la medida: el alcance y un precio fijo se acuerdan en una consulta gratis por video, antes de empezar." : "Every solution is custom: scope and a fixed price are agreed on a free video consultation, before any work starts."}</p>}
       </div>
     </section>
   );

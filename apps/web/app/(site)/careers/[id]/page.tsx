@@ -5,6 +5,7 @@
  * PURPOSE : One open role on our team or with a client (a public Talent search): what it is, pay, must-haves, and the
  *           apply form. This is where Indeed's "Apply on company website" link lands (?utm_source=indeed is kept as the
  *           candidate's source). Client roles never show the company.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,7 +25,7 @@ export default async function Role({ params, searchParams }: { params: Promise<{
   const internal = Boolean((s.talent_clients as { internal?: boolean } | null)?.internal);
   const pay = s.salary_min || s.salary_max ? `$${Number(s.salary_min ?? s.salary_max).toLocaleString("en-US")}${s.salary_min && s.salary_max ? ` – $${Number(s.salary_max).toLocaleString("en-US")}` : ""} a year` : null;
   return (
-    <div className="wrap grid gap-10 py-12 lg:grid-cols-[1.3fr_1fr]">
+    <div className="wrap grid gap-10 pro:gap-8 py-12 lg:grid-cols-[1.3fr_1fr]">
       <div>
         <Link href="/careers" className="text-sm text-brand">← All roles</Link>
         <div className="mt-4 text-xs font-bold uppercase tracking-widest text-brand">{internal ? `${BRAND.name} team` : `${BRAND.name} Talent · confidential client`}</div>

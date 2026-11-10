@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish (locale prop).
  * UPDATED : 2026-10-02_2237 UTC — after rating, everyone is invited to review us on Google (GoogleReviewAsk).
  * PURPOSE : Live job messages between customer, pro and ops (Supabase realtime + RLS).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
@@ -60,7 +61,7 @@ export function ReviewForm({ jobId, contractorId, locale = "en" }: { jobId: stri
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [done, setDone] = useState(false);
-  if (done) return <div className="card space-y-3 text-sm"><div>{t("Thanks for the review!")} ⭐</div>{rating <= 3 && <p className="text-ink-soft">{t("Sorry it wasn’t great — our team will reach out to make it right.")}</p>}<GoogleReviewAsk jobId={jobId} locale={locale} /></div>;
+  if (done) return <div className="card space-y-3 text-sm"><div>{t("Thanks for the review!")}<span className="pro:hidden"> ⭐</span></div>{rating <= 3 && <p className="text-ink-soft">{t("Sorry it wasn’t great — our team will reach out to make it right.")}</p>}<GoogleReviewAsk jobId={jobId} locale={locale} /></div>;
   return (
     <form className="card space-y-3" onSubmit={async (e) => {
       e.preventDefault();

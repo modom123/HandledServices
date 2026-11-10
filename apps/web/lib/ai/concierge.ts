@@ -11,16 +11,17 @@
  * UPDATED : 2026-10-20_0100 UTC — save_lead goes through the Lead inbox (dedupe, instant reply, alert to call).
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology is consultation-only: the catalog and get_estimate never give the AI a price for it.
  * UPDATED : 2026-10-28_1700 UTC — Business & Technology is priced and ordered like every service again (no consultation-only answers).
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again: the chat never quotes a price for these services; it offers the free consultation.
  */
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { BRAND, SERVICES, estimate, getService, moneyRange } from "@handled/core";
+import { BRAND, SERVICES, estimate, getService, moneyRange, consultOnly } from "@handled/core";
 import { FALLBACK, MODEL, aiEnabled, anthropic, logRun } from "./client";
 import { systemFor } from "./agent-tasks";
 
-const catalog = SERVICES.map((s) => `- ${s.slug}: ${s.name} — ${s.tagline} (from $${s.minimum}${s.siteVisit ? ", firm price after site visit" : ""})`).join("\n");
+const catalog = SERVICES.map((s) => `- ${s.slug}: ${s.name} — ${s.tagline} (${consultOnly(s.slug) ? "no price quoted: custom work, a free video consultation sets the scope and a fixed price" : `from $${s.minimum}${s.siteVisit ? ", firm price after site visit" : ""}`})`).join("\n");
 
 const SYSTEM = `You are the ${BRAND.name} concierge. ${BRAND.pitch}
 Services (slug: name):
@@ -50,6 +51,7 @@ const tools = [
     run: async ({ service_slug, answers, frequency, zip }) => {
       const svc = getService(service_slug);
       if (!svc) return `Unknown service ${service_slug}`;
+      if (consultOnly(service_slug)) return JSON.stringify({ consultation_only: true, note: "Business & Technology work is custom: never quote a price. Offer a free video consultation, where a specialist sets the scope and a fixed price in writing. Book it at /book?service=" + service_slug });
       const defaults = Object.fromEntries(svc.questions.map((q) => [q.id, q.default]));
       const region = zip ? await (await import("../launch")).regionFactor(zip, service_slug) : 1;
       const e = estimate({ slug: service_slug, answers: { ...defaults, ...answers }, frequency, region });

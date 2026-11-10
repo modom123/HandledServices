@@ -6,6 +6,7 @@
  *           (apply → /pros, tagged with the trade), roles on the Handled team, and roles we're filling for clients
  *           (company kept confidential). Team and client roles open /careers/[id] to apply. English / Spanish.
  * UPDATED : 2026-11-06_1730 UTC — Field Sales Partner listing (commission only; direct sales 10%→45% of profit, plus referrals) → /partners.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BRAND, BRAND_STORY, applyUrl, type Track } from "@handled/core";
@@ -29,7 +30,7 @@ export default async function Careers() {
   return (
     <div>
       <section className="bg-brand-deep text-white">
-        <div className="wrap py-14">
+        <div className="wrap py-14 pro:py-10">
           <div className="text-xs font-bold uppercase tracking-widest text-gold-light">{es ? "Empleos" : "Careers"}</div>
           <h1 className="mt-3 text-4xl font-extrabold tracking-tight sm:text-5xl">{es ? `Trabaje con ${BRAND.name}` : `Work with ${BRAND.name}`}</h1>
           <p className="mt-4 max-w-2xl text-lg text-white/85">{BRAND_STORY.mission[es ? "es" : "en"]}</p>

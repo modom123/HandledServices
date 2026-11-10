@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-07_0235 UTC — three switchable looks (lib/theme.ts): Modern uses components/home/HomeModern; Original and
  *           Green-white-gold share components/home/HomeClassic (colors come from the theme).
+ * UPDATED : 2026-11-09_0330 UTC — the Professional look ("pro") uses components/home/pro/HomePro.
  * PURPOSE : Home page (the first page after the splash).
  * UPDATED : 2026-11-04_2230 UTC — SEO: this is the main page search engines index (the splash at / points here as its
  *           canonical): its own title and description naming Michigan & Washington, and the business as structured data.
@@ -13,6 +14,7 @@ import { BRAND } from "@handled/core";
 import { getTheme } from "@/lib/theme";
 import { HomeClassic } from "@/components/home/HomeClassic";
 import { HomeModern } from "@/components/home/HomeModern";
+import { HomePro } from "@/components/home/pro/HomePro";
 import { businessLd, ldScript } from "@/lib/business-ld";
 
 export const metadata: Metadata = {
@@ -22,10 +24,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
+  const theme = await getTheme();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={ldScript(businessLd())} />
-      {(await getTheme()) === "modern" ? <HomeModern /> : <HomeClassic />}
+      {theme === "pro" ? <HomePro /> : theme === "modern" ? <HomeModern /> : <HomeClassic />}
     </>
   );
 }

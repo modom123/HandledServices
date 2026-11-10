@@ -16,10 +16,12 @@
  *           digits (whatever the project sends), ignores spaces and dashes, fills from the keyboard's one-time-code
  *           suggestion; "Send a new code" (after 30s) and "Use a different email".
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useEffect, useState } from "react";
+import { ThemedIcon } from "@/components/Glyph";
 import { browserClient } from "@/lib/supabase/browser";
 
 type Who = "customer" | "business" | "pro" | "partner" | "team";
@@ -119,7 +121,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
           <div className="grid gap-2">
             {CHOICES.map((c) => (
               <button key={c.id} type="button" onClick={() => setWho(c.id)} className={`flex items-start gap-3 rounded-xl border p-3 text-left ${who === c.id ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
-                <span className="text-xl">{c.icon}</span><span><span className="block text-sm font-semibold">{c.t}</span><span className="block text-xs text-ink-soft">{c.d}</span></span>
+                <span className="text-xl"><ThemedIcon icon={c.icon} /></span><span><span className="block text-sm font-semibold">{c.t}</span><span className="block text-xs text-ink-soft">{c.d}</span></span>
               </button>
             ))}
           </div>

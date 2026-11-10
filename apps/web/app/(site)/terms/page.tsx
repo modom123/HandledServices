@@ -5,6 +5,7 @@
  * PURPOSE : Index of every current agreement — for customers, businesses and pros — each with its
  *           plain-English short version. Signed copies live in each person's account.
  * UPDATED : 2026-10-03_0051 UTC — English / Spanish.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { ALL_CONTRACTS, AUDIENCE_LABEL, localized, type Contract } from "@/lib/contracts";
@@ -19,12 +20,12 @@ export default async function TermsIndex({ searchParams }: { searchParams: Promi
   const q = es ? "?lang=es" : "";
   const groups: Contract["audience"][] = ["customer", "business", "pro"];
   return (
-    <div className="wrap max-w-4xl py-14">
+    <div className="wrap max-w-4xl py-14 pro:py-10">
       <h1 className="text-3xl font-extrabold tracking-tight">{es ? "Términos y acuerdos" : "Terms & agreements"}</h1>
       {es ? <p className="mt-2 text-ink-soft">Todos los acuerdos que usamos, en lenguaje sencillo. Cada uno empieza con una versión corta. Sus copias firmadas están en su cuenta, en <Link href="/account/contracts" className="text-brand underline">Mis contratos</Link> (profesionales: <Link href="/pro/contracts" className="text-brand underline">Portal → Mis contratos</Link>). Si una traducción difiere del inglés, prevalece la versión en inglés. <Link href="/terms?lang=en" className="text-brand underline">English</Link></p>
         : <p className="mt-2 text-ink-soft">Every agreement we use, in plain English. Each one starts with a short version. Your signed copies are in your account under <Link href="/account/contracts" className="text-brand underline">My contracts</Link> (pros: <Link href="/pro/contracts" className="text-brand underline">Pro portal → My contracts</Link>). <Link href="/terms?lang=es" className="text-brand underline">Español</Link></p>}
       {groups.map((g) => (
-        <section key={g} className="mt-10">
+        <section key={g} className="mt-10 pro:mt-8">
           <h2 className="text-xl font-bold">{es ? AUDIENCE_ES[g] : AUDIENCE_LABEL[g]}</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {ALL_CONTRACTS.filter((c) => c.audience === g).map((c) => {

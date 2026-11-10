@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Floating AI concierge chat on every public page.
+ * UPDATED : 2026-11-09_0430 UTC — the chat button is icon-only on booking and service pages at every screen size, so it never covers the price panel.
  */
 "use client";
 
@@ -15,7 +16,9 @@ type Turn = { role: "user" | "assistant"; content: string };
 
 export function Concierge({ locale = "en" }: { locale?: Locale }) {
   const t = (s: string) => tr(locale, s);
-  const compact = (usePathname() ?? "").startsWith("/book");
+  const path = usePathname() ?? "";
+  // booking and service pages: a small round chat button so it never sits on top of the price panel or the booking buttons
+  const compact = path.startsWith("/book") || path.startsWith("/services/");
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([{ role: "assistant", content: t("Hi! What can we take off your plate? Tell me the job and I’ll give you a price.") }]);
   const [text, setText] = useState("");
@@ -59,8 +62,8 @@ export function Concierge({ locale = "en" }: { locale?: Locale }) {
           </form>
         </div>
       )}
-      {/* on phones, an icon only while booking, so it never covers the booking buttons */}
-      <button onClick={() => setOpen(!open)} aria-label={t("Ask for a price")} className={`btn-dark ml-auto flex shadow-lg ${compact ? "h-12 w-12 p-0 sm:h-auto sm:w-auto sm:px-5 sm:py-3" : "px-5 py-3"}`}>💬<span className={compact ? "hidden sm:inline" : ""}> {t("Ask for a price")}</span></button>
+      {/* an icon only on booking and service pages (every screen size), so it never covers their buttons */}
+      <button onClick={() => setOpen(!open)} aria-label={t("Ask for a price")} className={`btn-dark ml-auto flex shadow-lg ${compact ? "h-12 w-12 p-0" : "px-5 py-3"}`}>💬<span className={compact ? "sr-only" : ""}> {t("Ask for a price")}</span></button>
     </div>
   );
 }

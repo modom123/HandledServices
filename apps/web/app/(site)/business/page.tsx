@@ -22,10 +22,11 @@
  *           events, websites/automation and the full list are one link away.
  * UPDATED : 2026-10-28_1746 UTC — removed the sticky "Who we serve · Services · How it works · Order now" bar (it covered the page
  *           while scrolling; the hero buttons already go to Services and Order).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
-import { ThemedIcon } from "@/components/Glyph";
+import { Ico, ThemedIcon } from "@/components/Glyph";
 
 export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, ordered online with a 25% deposit." };
 
@@ -55,7 +56,7 @@ export default function BusinessPage() {
     <div>
       {/* hero */}
       <section className="bg-brand-deep text-white">
-        <div className="wrap grid items-center gap-8 py-10 md:grid-cols-[1.3fr_1fr] md:py-16">
+        <div className="wrap grid items-center gap-8 py-10 md:grid-cols-[1.3fr_1fr] md:py-16 pro:md:py-10">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-gold-light">Handled for Business</p>
             <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Commercial cleaning and facilities, one vendor.</h1>
@@ -72,7 +73,7 @@ export default function BusinessPage() {
       </section>
 
       {/* industries */}
-      <section id="industries" className="wrap scroll-mt-24 py-10 sm:py-14">
+      <section id="industries" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who we serve</h2>
         <p className="mt-2 text-ink-soft">What businesses like yours order most — tap one to get your price and order it.</p>
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -88,7 +89,7 @@ export default function BusinessPage() {
       </section>
 
       {/* services by need */}
-      <section id="services" className="scroll-mt-24 border-y border-line bg-paper-deep py-10 sm:py-14">
+      <section id="services" className="scroll-mt-24 border-y border-line bg-paper-deep py-10 sm:py-14 pro:sm:py-10">
         <div className="wrap">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Business services</h2>
           <p className="mt-2 text-ink-soft">What facilities order most, as recurring visits or one-off jobs. Open any service to see what's included and order it.</p>
@@ -117,7 +118,7 @@ export default function BusinessPage() {
       </section>
 
       {/* how it works */}
-      <section id="how" className="wrap scroll-mt-24 py-10 sm:py-14">
+      <section id="how" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
         <p className="mt-2 text-ink-soft">Ordered online in a few minutes, on the schedule you pick.</p>
         <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -131,8 +132,8 @@ export default function BusinessPage() {
       </section>
 
       {/* order */}
-      <section id="order" className="scroll-mt-24 border-t border-line bg-paper-deep py-10 sm:py-14">
-        <div className="wrap grid gap-10 lg:grid-cols-[1.15fr_1fr]">
+      <section id="order" className="scroll-mt-24 border-t border-line bg-paper-deep py-10 sm:py-14 pro:sm:py-10">
+        <div className="wrap grid gap-10 pro:gap-8 lg:grid-cols-[1.15fr_1fr]">
           <div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Order for your business</h2>
             <p className="mt-2 text-ink-soft">Pick the service, get your exact price in about a minute and pay a 25% deposit to book it. Your order starts as a business order — just add your company name.</p>
@@ -151,7 +152,7 @@ export default function BusinessPage() {
 
       <section className="wrap py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <div><b>🤝 Hiring? Handled Talent recruits for you.</b> <span className="text-ink-soft">Contingency search: 25% of first-year base salary, only if you hire. 90-day guarantee.</span></div>
+          <div><b><Ico i="🤝" />Hiring? Handled Talent recruits for you.</b> <span className="text-ink-soft">Contingency search: 25% of first-year base salary, only if you hire. 90-day guarantee.</span></div>
           <Link href="/talent" className="btn-ghost">Start a search</Link>
         </div>
       </section>

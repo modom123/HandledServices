@@ -10,6 +10,7 @@
  *           Direct sales (close-ready sales ticket, pay link to close on the spot, sales tickets list) paid on the
  *           10% → 45% ladder; the partner's level and progress (direct sales count 1.5×, referrals 1×).
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -36,7 +37,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   if (!v) redirect("/login?next=/partner");
   const partner = await partnerFor(v);
   if (!partner) return (
-    <div className="wrap py-20"><div className="card mx-auto max-w-lg text-center">
+    <div className="wrap py-20 pro:py-12"><div className="card mx-auto max-w-lg text-center">
       <h1 className="text-xl font-bold">You&apos;re not a partner yet</h1>
       <p className="mt-2 text-sm text-ink-soft">{v.email} isn&apos;t in the Partner Program. Join in two minutes. If you signed up with a different email, sign in with that one.</p>
       <Link href="/partners#join" className="btn-primary mt-4 inline-block">Become a partner</Link>
@@ -66,7 +67,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   return (
     <div className="wrap space-y-6 py-10">
       <div>
-        <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]} 👋</h1>
+        <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]}<span className="pro:hidden"> 👋</span></h1>
         <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price (rising to {pct(REFERRAL_LADDER.topRate)}), or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} of our profit (rising to {pct(PARTNER_LADDER.topRate)}).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

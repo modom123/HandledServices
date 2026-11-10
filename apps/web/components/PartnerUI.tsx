@@ -9,10 +9,13 @@
  *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
  * UPDATED : 2026-11-06_1730 UTC — SalesTicketForm: close-ready direct-sales tickets (any service; 3–4 photos for on-site
  *           work), live price, and a pay link the partner can open on the spot.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useEffect, useState } from "react";
+import { Ico } from "@/components/Glyph";
 import { URGENCY, defaultAnswers, getService, money, questionVisible, ticketCloseCheck, type Answers, type Frequency } from "@handled/core";
 import { PhotoPicker } from "./PhotoPicker";
 import { useRouter } from "next/navigation";
@@ -31,7 +34,7 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
   const [done, setDone] = useState<{ code?: string; link?: string; existing?: boolean } | null>(null);
   if (done) return (
     <div className="card border-brand bg-brand-tint">
-      <h3 className="text-lg font-bold">You&apos;re in 🎉</h3>
+      <h3 className="text-lg font-bold">You&apos;re in<span className="pro:hidden"> 🎉</span></h3>
       {done.existing ? <p className="mt-2 text-sm">This email is already a partner. We just re-sent your code and partner page link — check your inbox.</p> : (
         <>
           <p className="mt-2 text-sm">Your partner code: <b className="font-mono text-base">{done.code}</b></p>
@@ -99,7 +102,7 @@ export function ReferralTicket({ services, jobTypes, timings, contacts, relation
       <p className="text-sm text-ink-soft">The yard, the gutters, the room, the junk pile: up to 8 photos. Photos help us price the job and book it faster.</p>
       <input type="file" accept="image/*" capture="environment" multiple disabled={uploading || photos.length >= 8} onChange={(e) => { upload(e.target.files); e.target.value = ""; }} className="text-sm" />
       {uploading && <p className="text-sm text-ink-soft">Uploading…</p>}
-      {photos.length > 0 && <p className="text-sm">📷 {photos.length} photo{photos.length > 1 ? "s" : ""} added <button type="button" className="ml-2 text-xs text-ink-soft underline" onClick={() => setPhotos([])}>remove all</button></p>}
+      {photos.length > 0 && <p className="text-sm"><Ico i="📷" />{photos.length} photo{photos.length > 1 ? "s" : ""} added <button type="button" className="ml-2 text-xs text-ink-soft underline" onClick={() => setPhotos([])}>remove all</button></p>}
     </fieldset>
   );
   const n = (i: number) => (photosFirst ? i + 1 : i);
@@ -327,7 +330,7 @@ export function SalesTicketForm({ services, minPhotos, maxPhotos, repCode }: { s
         <legend className="text-sm font-semibold">2. Photos {svc?.remote ? "(optional for this service)" : `(${minPhotos}–${maxPhotos})`}</legend>
         {!svc?.remote && <p className="text-xs text-ink-soft">Wide shot, close-ups of the problem, and something for size. Only with the owner&apos;s OK.</p>}
         <PhotoPicker value={photos} onChange={onPhotos} max={maxPhotos} onError={(m) => setMsg({ ok: false, text: m })} />
-        {hint && <p className="text-xs text-brand-dark">✨ {hint}</p>}
+        {hint && <p className="text-xs text-brand-dark"><Ico i="✨" />{hint}</p>}
       </fieldset>
 
       <fieldset className="space-y-2">

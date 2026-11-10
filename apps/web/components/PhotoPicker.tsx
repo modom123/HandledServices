@@ -9,10 +9,12 @@
  *               iPhone HEIC becomes JPEG the AI can read), then uploaded one at a time with
  *               progress; thumbnails with remove.
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish (locale prop).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Ico } from "@/components/Glyph";
 import { t as tr, type Locale } from "@handled/core";
 
 const MAX_SIDE = 1600;
@@ -99,8 +101,8 @@ export function PhotoPicker({ value, onChange, max = 8, uploadUrl = "/api/upload
       <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
       <input ref={libRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
       <div className="flex flex-wrap items-center gap-2">
-        {touch && <button type="button" className="btn-primary" disabled={Boolean(busy) || value.length >= max} onClick={() => camRef.current?.click()}>📷 {t("Take photo")}</button>}
-        <button type="button" className={touch ? "btn-ghost" : "btn-primary"} disabled={Boolean(busy) || value.length >= max} onClick={() => libRef.current?.click()}>🖼️ {t(touch ? "Choose from library" : "Choose photos")}</button>
+        {touch && <button type="button" className="btn-primary" disabled={Boolean(busy) || value.length >= max} onClick={() => camRef.current?.click()}><Ico i="📷" className="mr-0" />{t("Take photo")}</button>}
+        <button type="button" className={touch ? "btn-ghost" : "btn-primary"} disabled={Boolean(busy) || value.length >= max} onClick={() => libRef.current?.click()}><Ico i="🖼️" className="mr-0" />{t(touch ? "Choose from library" : "Choose photos")}</button>
         <span className="text-xs text-ink-soft">{busy || (touch ? `${value.length}/${max} ${t("added")}` : `${t("or drag & drop, or paste (Ctrl/⌘+V)")} · ${value.length}/${max}`)}</span>
       </div>
       {value.length > 0 && (

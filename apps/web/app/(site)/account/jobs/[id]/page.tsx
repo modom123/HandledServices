@@ -12,9 +12,12 @@
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: 25% to book, then "remaining — charged automatically when the job is done".
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology jobs say "Priced at your consultation" until the firm price is set.
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology (consultOnly): no estimate before the consultation; the price is set on the call.
  */
 import { notFound, redirect } from "next/navigation";
-import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job } from "@handled/core";
+import { Ico } from "@/components/Glyph";
+import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job, consultOnly } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer, type Viewer } from "@/lib/auth";
@@ -55,7 +58,7 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <div className="mt-2 text-sm text-ink-soft">{job.ref} · {fmtDate(job.scheduled_date)} · {t(TIME_WINDOW_LABEL[job.time_window])}</div>
           <div className="mt-1 text-sm text-ink-soft">{job.address}, {job.city} {job.zip}</div>
           <a href={`/invoice/${job.id}`} className="mt-2 inline-block text-sm font-semibold text-brand underline">{t("Invoice & service agreement")}</a>
-          <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : moneyRange(job.estimate_low, job.estimate_high)}</div>
+          <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : consultOnly(job.service_slug) ? (l === "es" ? "Precio en la consulta" : "Priced on your consultation") : moneyRange(job.estimate_low, job.estimate_high)}</div>
         </div>
         {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && (
           <PayNow jobId={job.id} amount={money((job.payment_plan === "deposit" || job.payment_plan === "after") && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
@@ -141,7 +144,7 @@ async function JobChecklistCard({ job, es }: { job: Job; es: boolean }) {
   const canEdit = ["requested", "quoted", "scheduled", "dispatched", "assigned", "site_visit"].includes(job.status);
   return (
     <div className="card space-y-3">
-      <div className="font-semibold">✅ {es ? cl.checklist.title_es : cl.checklist.title}</div>
+      <div className="font-semibold"><Ico i="✅" />{es ? cl.checklist.title_es : cl.checklist.title}</div>
       <p className="text-xs text-ink-soft">{es ? "Su profesional marca cada punto al terminarlo, con fotos de antes y después." : "Your pro checks off each item as it's done, with before-and-after photos."}</p>
       <div><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Sus solicitudes especiales" : "Your special requests"}</div><CustomerRequests jobId={job.id} extra={job.checklist_extra ?? []} es={es} canEdit={canEdit} /></div>
       <details open={started}><summary className="cursor-pointer text-sm font-semibold">{started ? (es ? "Progreso" : "Progress") : (es ? "Qué incluye" : "What's included")}</summary><div className="mt-2"><ChecklistView checklist={cl.checklist} checks={started ? cl.checks : undefined} es={es} compact /></div></details>

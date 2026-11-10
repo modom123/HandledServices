@@ -33,6 +33,9 @@
  *           (remote: an online scope review) and are paid once the firm price is approved.
  * UPDATED : 2026-10-28_1700 UTC — consultOnly removed: Business & Technology is ordered like every service (price from the
  *           answers, deposit to start, rest on delivery); priceHint says "From $X".
+ * UPDATED : 2026-11-09_1600 UTC — consultOnly is back (owner's decision): Business & Technology is custom work, so no price is
+ *           shown anywhere; priceHint says "Free consultation" and the booking is a free consultation (no deposit) where a
+ *           specialist sets the scope and a fixed price in writing.
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: BOOK_NOW (25% at booking; the balance is held on the card when the pro
  *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
  */
@@ -490,9 +493,13 @@ export function typicalProShare(slug: string): number {
 }
 
 
+/** Business & Technology: every solution is custom, scoped and priced on a free consultation, so customers never see a price before it. */
+export const consultOnly = (slug: string | null | undefined): boolean => Boolean(slug && getService(slug)?.category === "business");
+
 export function priceHint(slug: string, locale: string = "en"): string {
   const es = locale === "es";
   if (slug === "event-package") return es ? "Según su presupuesto" : "By budget";
+  if (consultOnly(slug)) return es ? "Consulta gratis" : "Free consultation";
   // remote work (websites, AI, formation, consulting): the starting price
   const svc = getService(slug);
   if (svc?.remote) { const from = money(Math.round(svc.minimum * upliftFactor(svc.minimum, slug) / 5) * 5); return es ? `Desde ${from}` : `From ${from}`; }

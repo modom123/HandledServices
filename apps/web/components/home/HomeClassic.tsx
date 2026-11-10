@@ -39,6 +39,8 @@
  *           operating systems, automation) is off the home page; it and every Business & Technology service are on
  *           /technology, reached from the menu (For Business → Websites & automation, Services → Business & Technology).
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" button in the hero (/post).
+ *           order: hero → doors → trust → why it works → services → how it works → who we are → partner → we build.
+ * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -139,7 +141,7 @@ export async function HomeClassic() {
                 )}
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
+                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : c.id === "business" ? (l === "es" ? "Consulta gratis" : "Free consultation") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
                 <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.all.length} →</Link>
               </div>
             </div>

@@ -6,10 +6,12 @@
  *           2) the AI names the service and fills in the job details → 3) pick when it needs to be done →
  *           continue into the booking flow with everything filled in (address, exact price, pay) → the paid job goes
  *           out to matching pros to accept. Works on phones (camera) and desktops. English / Spanish.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/Glyph";
 import { SERVICES, URGENCY, getService, serviceText, t as tr, type Locale, type Urgency } from "@handled/core";
 import { PhotoPicker } from "./PhotoPicker";
 
@@ -52,7 +54,7 @@ export function SnapJob({ locale = "en" }: { locale?: Locale }) {
   return (
     <div className="card mx-auto max-w-2xl space-y-5">
       <div>
-        <h1 className="text-2xl font-extrabold">📸 {es ? "Tome una foto y publique su trabajo" : "Snap a photo, post your job"}</h1>
+        <h1 className="text-2xl font-extrabold"><Ico i="📸" />{es ? "Tome una foto y publique su trabajo" : "Snap a photo, post your job"}</h1>
         <p className="text-sm text-ink-soft">{es ? "Muéstrenos qué hay que hacer. Le decimos qué servicio es, llenamos los detalles y usted elige cuándo. Ve el precio exacto antes de pagar, y el trabajo va a profesionales verificados cerca de usted." : "Show us what needs doing. We'll tell you which service it is, fill in the details, and you choose when. You see the exact price before you pay, and the job goes to vetted pros near you."}</p>
       </div>
 
@@ -85,7 +87,7 @@ export function SnapJob({ locale = "en" }: { locale?: Locale }) {
             <div className="grid gap-2 sm:grid-cols-2">
               {URGENCY.map((u) => (
                 <button key={u.id} type="button" onClick={() => setWhen(u.id)} className={`rounded-xl border p-3 text-left text-sm ${when === u.id ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
-                  <div className="font-semibold">{u.id === "asap" ? "⚡ " : ""}{t(u.label)}</div><div className="text-xs text-ink-soft">{t(u.hint)}</div>
+                  <div className="font-semibold">{u.id === "asap" && <Ico i="⚡" />}{t(u.label)}</div><div className="text-xs text-ink-soft">{t(u.hint)}</div>
                 </button>
               ))}
             </div>

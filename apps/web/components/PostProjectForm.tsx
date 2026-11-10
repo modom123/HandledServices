@@ -9,10 +9,12 @@
  *           its instant price. English / Spanish.
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: a tick-box (checked by default) joins the Partner Program and pays 10%
  *           back, up to $250, on the poster's own first project (needs an email). The done state shows their code.
+ * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useState } from "react";
+import { Ico, ThemedIcon } from "@/components/Glyph";
 import { BRAND, firstProjectLine } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 
@@ -35,12 +37,12 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
     const svc = services.find((s) => s.slug === f.service);
     return (
       <div className="card text-center">
-        <div className="text-2xl">✅</div>
+        <div className="text-2xl"><ThemedIcon icon="✅" size="md" /></div>
         <div className="mt-2 text-lg font-bold">{L("Your project is posted. We're on it.", "Su proyecto está publicado. Nos encargamos.")}</div>
         <p className="mt-1 text-sm text-ink-soft">{L("Check your email for our reply. A real person will call you shortly", "Revise su correo: ya le respondimos. Una persona real le llamará pronto")}{BRAND.supportPhone ? ` ${L("from", "desde el")} ${BRAND.supportPhone}` : ""}.</p>
         {partner && (
           <div className="mt-4 rounded-xl border border-line bg-paper p-3 text-left text-sm">
-            <div className="font-semibold">🎉 {L("You're a Handled partner", "Ya es socio de Handled")} · {L("code", "código")} <span className="font-mono">{partner.code}</span></div>
+            <div className="font-semibold"><Ico i="🎉" />{L("You're a Handled partner", "Ya es socio de Handled")} · {L("code", "código")} <span className="font-mono">{partner.code}</span></div>
             <p className="mt-1 text-ink-soft">{partner.reward
               ? L(`When we complete this project, you get ${firstProjectLine()} — paid to you in our weekly payout after the ${BRAND.guaranteeDays}-day make-it-right window. We emailed you a link to your partner page to set up payouts and share your link with friends.`, `Cuando terminemos este proyecto, recibe ${firstProjectLine(true)}, pagado en nuestro pago semanal después de la garantía de ${BRAND.guaranteeDays} días. Le enviamos por correo el enlace a su página de socio para configurar pagos y compartir su enlace.`)
               : L("We emailed you your partner page. Share your link and earn on every job from people you send us.", "Le enviamos su página de socio por correo. Comparta su enlace y gane en cada trabajo de las personas que nos envíe.")}</p>

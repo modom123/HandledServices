@@ -40,6 +40,7 @@
  *           operating systems, automation) is off the home page; it and every Business & Technology service are on
  *           /technology, reached from the menu (For Business → Websites & automation, Services → Business & Technology).
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" button in the hero (/post).
+ * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -180,7 +181,7 @@ export async function HomeModern() {
                 )}
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
+                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : c.id === "business" ? (l === "es" ? "Consulta gratis" : "Free consultation") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
                 <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.all.length} →</Link>
               </div>
             </div>

@@ -7,8 +7,11 @@
  *           ?service= preselects a service; utm / ref links record where the post came from (Hub → Lead inbox → Links
  *           to share). English / Spanish.
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: "Get 10% back, up to $250" (posting can make you a partner).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
+ * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
+import { Ico } from "@/components/Glyph";
 import { BRAND, SERVICES, firstProjectLine, serviceText } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { PostProjectForm } from "@/components/PostProjectForm";
@@ -29,10 +32,10 @@ export default async function PostProject({ searchParams }: { searchParams: Prom
     ? [["Publique su proyecto", "Díganos qué necesita, cuándo y su presupuesto. Toma un minuto."], ["Le llamamos en minutos", "Una persona de Handled le llama con un plan y un precio fijo, o agenda una visita gratis para trabajos grandes."], ["Un profesional verificado lo hace", "Asegurado y con verificación de antecedentes. Fotos al terminar y lo rehacemos gratis si algo falta."], ["Le devolvemos dinero", `Marque la casilla de socio y le pagamos ${firstProjectLine(true)} cuando terminemos su proyecto, más una parte de cada trabajo de las personas que nos envíe.`]]
     : [["Post your project", "Tell us what you need, when, and your budget. It takes a minute."], ["We call you within minutes", "A real Handled person calls with a plan and an upfront price — or books a free visit for big jobs."], ["One vetted pro does it", "Insured and background-checked. Photo check-out after every job, and a free redo if anything's missed."], ["Get paid back", `Tick the partner box and we pay you ${firstProjectLine()} once your project is done, plus a share of every job from people you send us.`]];
   return (
-    <div className="wrap grid gap-10 py-12 lg:grid-cols-[1fr_1.15fr]">
+    <div className="wrap grid gap-10 pro:gap-8 py-12 lg:grid-cols-[1fr_1.15fr]">
       <div>
-        <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">📝 {es ? "Gratis y sin compromiso" : "Free, no obligation"}</span>
-        <span className="ml-2 inline-flex items-center gap-2 rounded-full bg-gold-light/30 px-3 py-1 text-xs font-semibold">💵 {es ? `Reciba ${firstProjectLine(true)}` : `Get ${firstProjectLine()}`}</span>
+        <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark"><Ico i="📝" className="mr-0" />{es ? "Gratis y sin compromiso" : "Free, no obligation"}</span>
+        <span className="ml-2 inline-flex items-center gap-2 rounded-full bg-gold-light/30 px-3 py-1 text-xs font-semibold"><Ico i="💵" className="mr-0" />{es ? `Reciba ${firstProjectLine(true)}` : `Get ${firstProjectLine()}`}</span>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{es ? "Publique su proyecto." : "Post your project."} <span className="text-brand">{es ? "Nosotros nos encargamos." : "We'll handle it."}</span></h1>
         <p className="mt-4 text-lg text-ink-soft">{es ? "Cualquier trabajo para su hogar o negocio, grande o pequeño. A diferencia de los sitios de clientes potenciales, no vendemos su información a cinco contratistas: Handled se encarga del trabajo de principio a fin." : "Any job for your home or business, big or small. Unlike lead sites, we don't sell your details to five contractors — Handled takes the job from first call to finished work."}</p>
         <ol className="mt-8 space-y-5">{steps.map(([t, d], i) => (

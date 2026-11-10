@@ -6,6 +6,7 @@
  *           and where to go for bookings, pros, businesses and partners.
  * UPDATED : 2026-10-20_0100 UTC — "Get a quote — we'll call you" form (Lead inbox, speed to lead).
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";
@@ -16,7 +17,7 @@ export const metadata = { title: "Contact us" };
 export default function Contact() {
   const address = process.env.BUSINESS_POSTAL_ADDRESS?.trim();
   return (
-    <div className="wrap max-w-3xl py-14">
+    <div className="wrap max-w-3xl py-14 pro:py-10">
       <h1 className="text-3xl font-extrabold tracking-tight">Contact us</h1>
       <p className="mt-2 text-ink-soft">Real people answer. Most messages get a reply within one business day.</p>
       <div className="mt-8"><LeadForm business /></div>

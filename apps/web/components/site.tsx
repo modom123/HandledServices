@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" link in the side menu (/post).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -149,7 +150,7 @@ export async function SiteFooter() {
   );
   return (
     <footer className="mt-24 border-t-2 border-gold/60 bg-paper-deep">
-      <div className="wrap grid gap-10 py-12 md:grid-cols-3 lg:grid-cols-6">
+      <div className="wrap grid gap-10 pro:gap-8 py-12 md:grid-cols-3 lg:grid-cols-6">
         <div className="md:col-span-3 lg:col-span-2">
           <Logo />
           <p className="mt-3 text-lg font-bold text-brand">{BRAND_STORY.slogan[L]}</p>

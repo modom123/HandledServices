@@ -6,6 +6,7 @@
  *           (from core TALENT_TERMS), the guarantee, fair-hiring promise, the founder's background, and the intake form.
  *           Recruiters are pointed to apply as pros (trade: Recruiter).
  * UPDATED : 2026-10-12_1525 UTC — third pricing card: flat fee per hire ($2,500 / $5,000 / $9,500 by the role's pay).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
 import { BRAND, FAIR_HIRING_RULES, FLAT_FEE_TIERS, TALENT_TERMS as T } from "@handled/core";
@@ -24,8 +25,8 @@ export default function Talent() {
   return (
     <>
       <section className="border-b border-line bg-brand-deep text-white">
-        <div className="wrap py-16">
-          <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🤝 {BRAND.name} Talent</span>
+        <div className="wrap py-16 pro:py-10">
+          <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold"><span className="pro:hidden">🤝 </span>{BRAND.name} Talent</span>
           <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">The right hire, <span className="text-gold-light">handled.</span></h1>
           <p className="mt-4 max-w-2xl text-lg text-white/75">Recruiting for operations, skilled trades, office, technical and leadership roles. Led by a recruiter with experience at Korn Ferry International and Hall Kinion, with a network of vetted independent recruiters.</p>
           <div className="mt-8 flex flex-wrap gap-3"><a href="#start" className="btn-primary">Start a search</a><Link href="/terms/talent-client-agreement" className="btn-ghost border-white/30 text-white">Read our client agreement</Link></div>

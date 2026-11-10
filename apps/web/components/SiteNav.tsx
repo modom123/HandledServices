@@ -11,6 +11,7 @@
  *           menu down the left (Book now and Snap a photo at the top, each section an accordion that opens on the page you're
  *           on, account / language / contact at the bottom). Phones and tablets: a slim top bar (logo, Book now, ☰) whose ☰
  *           slides the same menu in from the left. DesktopNav / MobileNav stay for the pro portal's header.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
@@ -18,7 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ThemedIcon } from "./Glyph";
+import { Ico, ThemedIcon } from "./Glyph";
 
 export type NavItem = { href: string; label: string; icon?: string; hint?: string };
 export type NavGroup = { id: string; label: string; items: NavItem[]; footer?: NavItem; wide?: boolean };
@@ -98,7 +99,7 @@ export function MobileNav({ groups, lang, cta }: { groups: NavGroup[]; lang: Rea
               {section === g.id && (
                 <ul className={`pb-3 ${g.wide ? "grid grid-cols-2 gap-1" : "space-y-1"}`}>
                   {[...g.items, ...(g.footer ? [g.footer] : [])].map((it) => (
-                    <li key={it.href}><Link href={it.href} className="flex items-center gap-2 rounded-xl bg-white px-3 py-3 text-[15px] font-semibold text-ink ring-1 ring-line">{it.icon && <span>{it.icon}</span>}{it.label}</Link></li>
+                    <li key={it.href}><Link href={it.href} className="flex items-center gap-2 rounded-xl bg-white px-3 py-3 text-[15px] font-semibold text-ink ring-1 ring-line">{it.icon && <span><Ico i={it.icon} className="mr-0" /></span>}{it.label}</Link></li>
                   ))}
                 </ul>
               )}
@@ -156,7 +157,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
         </div>
         <div className="shrink-0 space-y-2 px-4 pt-4">
           <Link href={primary.href} className="btn-primary w-full justify-center">{primary.label}</Link>
-          <Link href={secondary.href} className="btn-ghost w-full justify-center text-sm">{secondary.icon} {secondary.label}</Link>
+          <Link href={secondary.href} className="btn-ghost w-full justify-center text-sm">{secondary.icon && <Ico i={secondary.icon} className="mr-0" />}{secondary.label}</Link>
         </div>
         <nav className="mt-3 flex-1 overflow-y-auto px-3 pb-4 text-[15px]">
           {groups.map((g) => (
@@ -169,7 +170,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
                   {[...g.items, ...(g.footer ? [g.footer] : [])].map((it, i) => (
                     <li key={it.href + i}>
                       <Link href={it.href} aria-current={here(it.href) ? "page" : undefined} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${here(it.href) ? "bg-brand-tint font-semibold text-brand-dark" : it === g.footer ? "font-semibold text-brand hover:bg-paper" : "text-ink-soft hover:bg-paper hover:text-ink"}`}>
-                        {it.icon && <span className="w-5 text-center">{it.icon}</span>}<span className="leading-snug">{it.label}</span>
+                        {it.icon && <span className="w-5 text-center"><Ico i={it.icon} className="mr-0" /></span>}<span className="leading-snug">{it.label}</span>
                       </Link>
                     </li>
                   ))}
@@ -179,7 +180,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
           ))}
           <ul className="mt-2 space-y-0.5 border-t border-line pt-2">
             {links.map((it) => (
-              <li key={it.href}><Link href={it.href} aria-current={here(it.href) ? "page" : undefined} className={`flex items-center gap-2 rounded-lg px-2 py-2 font-semibold ${here(it.href) ? "bg-brand-tint text-brand-dark" : "text-ink hover:bg-paper hover:text-brand"}`}>{it.icon && <span className="w-5 text-center">{it.icon}</span>}{it.label}</Link></li>
+              <li key={it.href}><Link href={it.href} aria-current={here(it.href) ? "page" : undefined} className={`flex items-center gap-2 rounded-lg px-2 py-2 font-semibold ${here(it.href) ? "bg-brand-tint text-brand-dark" : "text-ink hover:bg-paper hover:text-brand"}`}>{it.icon && <span className="w-5 text-center"><Ico i={it.icon} className="mr-0" /></span>}{it.label}</Link></li>
             ))}
           </ul>
         </nav>

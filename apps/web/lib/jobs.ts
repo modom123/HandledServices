@@ -51,6 +51,8 @@
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
  * UPDATED : 2026-11-06_1638 UTC — Field Sales tickets: BookingSchema.ticket; createJob marks the ticket booked and credits the rep (lib/sales-tickets).
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again (consultOnly): every booking is a free
+ *           consultation (no deposit, no AI price check); the email books the call and quotes no price.
  */
 import "server-only";
 import { z } from "zod";
@@ -58,8 +60,7 @@ import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWin
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
-  SERVED_AREAS_LABEL,
-} from "@handled/core";
+  SERVED_AREAS_LABEL, consultOnly } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
 import { geocodeAddress } from "./geo";
@@ -188,14 +189,15 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const q = readQuoteToken(quote_token);
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
     && JSON.stringify(q.photos) === JSON.stringify(input.photos) && (q.notes ?? null) === (input.notes?.trim() || null) && q.rush === rush;
-  const { ai } = svc.siteVisit || quoted
+  const consult = consultOnly(svc.slug); // Business & Technology: custom work, scoped and priced on a free consultation
+  const { ai } = svc.siteVisit || quoted || consult
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
   // remote work (websites, AI…) is never a visit: it is ordered with a deposit on the price from the answers
   // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
-  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || overDepositLimit(est.point) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
+  const siteVisit = !quoted && (consult || svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || overDepositLimit(est.point) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
@@ -347,6 +349,18 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   if (ai?.risk_flags?.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes ?? null, job.id);
 
   const es = (await localeOf(job.customer_id, job.locale)) === "es";
+  if (job.status === "site_visit" && consultOnly(svc.slug)) {
+    // Business & Technology: a free consultation (video call) sets the scope and a fixed price — no price in the email
+    if (es) await sendEmail(job.contact_email, `${BRAND.name}: consulta gratis ${job.ref} reservada`,
+      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} le escribirá para agendar su consulta gratis por video sobre ${svcEs(svc.slug)}. ` +
+      `En la consulta vemos lo que necesita y le enviamos el alcance y un precio fijo por escrito. No debe nada hasta que lo apruebe.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    else await sendEmail(job.contact_email, `${BRAND.name}: free consultation ${job.ref} booked`,
+      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will reach out to schedule your free video consultation for ${svc.name}. ` +
+      `On the call we learn what you need, then send the scope and a fixed price in writing. Nothing is owed until you approve it.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    await addEvent(job.id, "site_visit", "Free consultation requested — a specialist will reach out to schedule a video call.", "system", true, "Consulta gratis solicitada: un especialista le escribirá para agendar una videollamada.").catch(() => {});
+    await dispatchJob(job.id, { siteVisit: true });
+    return;
+  }
   if (job.status === "site_visit" && svc.remote) {
     // websites, AI, formation, consulting over $2,500: a free online scope review (no call) instead of a site visit
     if (es) await sendEmail(job.contact_email, `${BRAND.name}: revisión del alcance ${job.ref} recibida`,

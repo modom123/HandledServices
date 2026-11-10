@@ -5,10 +5,12 @@
  * PURPOSE : "My homes" on the customer account page (client): saved home profiles — address, how to get in, key /
  *           lockbox, who has a key, pets, parking and preferences — added, edited or removed through /api/account/homes.
  *           Bookings can start from a saved home. English / Spanish.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/Glyph";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -44,7 +46,7 @@ export function MyHomes({ homes, es }: { homes: SavedHome[]; es: boolean }) {
   return (
     <div className="mt-8">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold">🏠 {L("My homes", "Mis casas")}</h2>
+        <h2 className="font-bold"><Ico i="🏠" />{L("My homes", "Mis casas")}</h2>
         {!edit && <button className="text-sm font-semibold text-brand" onClick={() => setEdit({ ...blank })}>+ {L("Add a home", "Agregar una casa")}</button>}
       </div>
       <p className="mb-3 text-xs text-ink-soft">{L("Save how to get in, keys, pets and how you like things done — every booking at that home uses it. Entry details and lockbox codes go only to the pro assigned to your job, never to pros deciding whether to take it.", "Guarde cómo entrar, llaves, mascotas y cómo le gustan las cosas: cada reserva en esa casa lo usa. Los detalles de entrada y códigos solo los ve el profesional asignado a su trabajo.")}</p>
@@ -52,7 +54,7 @@ export function MyHomes({ homes, es }: { homes: SavedHome[]; es: boolean }) {
         <div className="card space-y-3">
           <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">{field("label", L("Name", "Nombre"), L("Home, Mom's house, Lake cottage", "Casa, Casa de mamá"))}{field("address", L("Street address", "Dirección"))}</div>
           <div className="grid grid-cols-[1fr_70px_100px] gap-3">{field("city", L("City", "Ciudad"))}{field("state", L("State", "Estado"))}{field("zip", "ZIP")}</div>
-          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">🔒 {L("Only for your assigned pro", "Solo para su profesional asignado")}</p>
+          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft"><Ico i="🔒" />{L("Only for your assigned pro", "Solo para su profesional asignado")}</p>
           {field("entry_instructions", L("How to get in", "Cómo entrar"), L("Side door, gate code 1234, alarm code…", "Puerta lateral, código del portón…"), true)}
           <div className="grid gap-3 sm:grid-cols-2">{field("key_info", L("Key / lockbox", "Llave / caja de seguridad"), L("Lockbox on the back porch, code 4821", "Caja en el porche trasero, código 4821"))}{field("key_holder", L("Who has a key", "Quién tiene llave"), L("Neighbor Pat, (248) 555-0100", "Vecino Pat, (248) 555-0100"))}</div>
           <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{L("Every pro sees these before accepting", "Todos los profesionales ven esto antes de aceptar")}</p>

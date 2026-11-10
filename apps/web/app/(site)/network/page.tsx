@@ -7,8 +7,10 @@
  *           are sent to sign in first by the portal itself), plus how to join. Signed-in visitors see their own portal first.
  *           English / Spanish.
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
+import { ThemedIcon } from "@/components/Glyph";
 import { BRAND } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { getViewer, isStaff } from "@/lib/auth";
@@ -35,10 +37,10 @@ export default async function Network() {
         <p className="mt-3 text-lg text-ink-soft">{es ? "Elija su portal. Si no ha iniciado sesión, le enviamos un enlace de un clic a su correo." : "Pick your portal. If you're not signed in, we email you a one-click sign-in link."}</p>
         {v && <p className="mt-3 text-sm">{es ? "Sesión iniciada como" : "Signed in as"} <b>{v.email}</b></p>}
       </div>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 pro:mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((d) => (
           <div key={d.key} className={`card flex flex-col ${d.key === mine ? "border-brand ring-2 ring-brand/30" : ""}`}>
-            <div className="flex items-center justify-between"><span className="text-4xl">{d.icon}</span>{d.key === mine && <span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{es ? "Su portal" : "Your portal"}</span>}</div>
+            <div className="flex items-center justify-between"><span className="text-4xl"><ThemedIcon icon={d.icon} size="md" /></span>{d.key === mine && <span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{es ? "Su portal" : "Your portal"}</span>}</div>
             <div className="mt-3 text-xl font-bold">{d.title}</div>
             <p className="mt-1 flex-1 text-sm text-ink-soft">{d.body}</p>
             <div className="mt-4 flex flex-col items-start gap-2">

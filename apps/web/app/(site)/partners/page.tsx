@@ -12,8 +12,11 @@
  *           yourself on a sales ticket: 10% → 45% of our profit, 45% at $1M; direct sales count 1.5× toward the next
  *           raise). ?kind=sales_rep pre-selects "Field Sales partner" (the Indeed post links to /partners?kind=sales_rep#join).
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
+ * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
+import { Ico } from "@/components/Glyph";
 import { firstProjectLine, BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, SALES_TICKET, ladderTable, money, moneyCents, partnerSplit, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
 import { PartnerSignUp } from "@/components/PartnerUI";
 
@@ -40,7 +43,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
   return (
     <>
       <section className="border-b border-line bg-brand-deep text-white">
-        <div className="wrap py-16">
+        <div className="wrap py-16 pro:py-10">
           <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-gold-light ring-1 ring-gold/40">{BRAND.name} Partner Program</span>
           <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">Send it or sell it. <span className="text-gold-light">Get paid on every job.</span></h1>
           <p className="mt-4 max-w-2xl text-lg text-white/75">Realtors, property managers, contractors, business owners, neighbors: anyone can join. Earn {referralRange()} of every job from the customers you refer, for {P.months} months. Or sell the job yourself and earn {L.baseRate * 100}% of our profit, rising to {L.topRate * 100}%. Paid to your bank every week.</p>
@@ -84,7 +87,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
             <tbody>{REF_MILESTONES.map((m) => <tr key={m.level} className="border-t border-line"><td className="py-1.5 font-semibold">{Math.round(m.rate * 100)}%</td><td className="py-1.5 text-right tabular-nums">{m.profit ? `${money(m.profit)}+` : "Day one"}</td></tr>)}</tbody></table>
             <p className="mt-2 text-xs text-ink-soft">Level credit = the lifetime profit you&apos;ve generated for {BRAND.name} (direct sales count {PARTNER_LADDER.directCredit}×), or every {REFERRAL_LADDER.jobsPerStep} job credits up to {Math.round(REFERRAL_LADDER.jobsCapRate * 100)}%.</p></div>
         </div>
-        <h3 className="mt-10 text-xl font-bold">What it adds up to</h3>
+        <h3 className="mt-10 pro:mt-8 text-xl font-bold">What it adds up to</h3>
         <p className="mt-1 text-sm text-ink-soft">Examples at the starting rate. Your rate goes up as you grow.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">{EX.map((e) => (
           <div key={e.who} className="card border-t-4 border-t-gold">
@@ -126,7 +129,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
           <div>
             <h2 className="text-2xl font-bold">Join in two minutes</h2>
             <p className="mt-2 text-sm text-ink-soft">No fee, no quota. You get your link right away.</p>
-            <p className="mt-2 text-sm">📝 <b>Got a project of your own?</b> <a href="/post" className="font-semibold text-brand underline">Post it</a>, tick the partner box and get {firstProjectLine()} on your first project.</p>
+            <p className="mt-2 text-sm"><Ico i="📝" /><b>Got a project of your own?</b> <a href="/post" className="font-semibold text-brand underline">Post it</a>, tick the partner box and get {firstProjectLine()} on your first project.</p>
             <div className="mt-4"><PartnerSignUp kinds={Object.entries(PARTNER_KINDS).filter(([k]) => k !== "pro")} defaultKind={kind && kind in PARTNER_KINDS && kind !== "pro" ? kind : undefined} /></div>
           </div>
           <div>

@@ -14,10 +14,12 @@
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the pro application's mobile number.
  * UPDATED : 2026-10-27_1800 UTC — pro application: utm_source becomes the source (Indeed applicants counted as Indeed), and
  *           ?opening=pro:<trade> / ?trade= pre-selects that trade.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji, and the trade picker scrolls in a short box.
  */
 "use client";
 
 import { SmsConsent } from "./SmsConsent";
+import { ThemedIcon } from "@/components/Glyph";
 import { useEffect, useState } from "react";
 import { COVERAGES, MAX_TRADES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
 
@@ -37,7 +39,8 @@ function useSubmit(url: string) {
 function Chips({ options, value, onChange, max }: { options: { id: string; label: string }[]; value: string[]; onChange: (v: string[]) => void; max?: number }) {
   const full = max != null && value.length >= max;
   return (
-    <div className="flex flex-wrap gap-2">
+    // Professional look: long lists (the 80+ trades on the Pro application) scroll inside a short box instead of stretching the form
+    <div className={`flex flex-wrap gap-2 ${options.length > 24 ? "pro:max-h-72 pro:overflow-y-auto pro:rounded-xl pro:border pro:border-line pro:bg-white/60 pro:p-2" : ""}`}>
       {options.map((o) => {
         const on = value.includes(o.id);
         return (
@@ -72,7 +75,7 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
   const tradeOptions = TRADES.map((x) => ({ id: x.id, label: t(x.label) }));
   const needs = [...new Set(trades.flatMap((t) => TRADE_PROFILES[t] ? [...TRADE_PROFILES[t].requires, ...(TRADE_PROFILES[t].license ? ["license"] : [])] : []))];
   if (state === "done") return (
-    <div className="card text-center"><div className="text-3xl">🎉</div><h2 className="mt-2 text-xl font-bold">{t("You’re signed up")}</h2>
+    <div className="card text-center"><div className="text-3xl"><ThemedIcon icon="🎉" size="lg" /></div><h2 className="mt-2 text-xl font-bold">{t("You’re signed up")}</h2>
       <p className="mt-2 text-sm text-ink-soft">{t("Check your email in a few minutes: one click opens your account. Upload your resume, verify your photo ID, consent to the background check, sign the W-9 and agreement and set up payout (about 15 minutes on your phone). A person at Handled then reviews your file and approves you; you’ll see jobs near you meanwhile.")}</p></div>
   );
   return (

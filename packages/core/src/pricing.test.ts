@@ -407,13 +407,15 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
   assert.equal(a.contractor.id, "y", "specialist ranks first");
 });
 
-test("business & technology: remote, ordered with a deposit, state fees at cost", async () => {
+test("business & technology: remote, consultation-only (no price shown), state fees at cost", async () => {
   const { buildAvailability } = await import("./availability.ts");
   const remote = SERVICES.filter((s) => s.category === "business");
   assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "brand-ambassador", "business-consulting", "business-formation", "business-operating-system", "content-creator", "social-media-ads", "social-media-manager", "website-design"]);
-  for (const s of remote) assert.ok(s.remote && !s.siteVisit && s.onDemand, `${s.slug}: remote, ordered with a price (no consultation), no rush fee`);
-  const { bookNowPolicy } = await import("./pricing.ts");
-  assert.ok(bookNowPolicy("website-design", 1500).allowed, "a deposit starts the work");
+  for (const s of remote) assert.ok(s.remote && s.onDemand, `${s.slug}: remote, no rush fee`);
+  // custom work: no price before the free consultation (2026-11-09)
+  const { consultOnly, priceHint } = await import("./pricing.ts");
+  for (const s of remote) assert.ok(consultOnly(s.slug) && priceHint(s.slug) === "Free consultation" && priceHint(s.slug, "es") === "Consulta gratis", `${s.slug}: free consultation, no price`);
+  assert.ok(!consultOnly("house-cleaning") && !consultOnly(null) && priceHint("house-cleaning") !== "Free consultation");
   // a Seattle specialist can take a Detroit website job: no driving radius or service area for remote work
   const far: Contractor = {
     id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design"], service_zips: ["98101"], status: "approved",
@@ -2321,8 +2323,9 @@ test("no deposit over $2,500: those jobs start with a free site visit / scope re
   assert.ok(!bookNowPolicy("kitchen-remodel", 900).allowed, "site-visit services: no deposit");
 });
 
-test("Business & Technology shows a starting price (ordered, not consulted)", () => {
-  assert.match(priceHint("website-design"), /^From \$/);
+test("Business & Technology shows no price: free consultation (owner's decision 2026-11-09, replaces 'From $X')", () => {
+  assert.equal(priceHint("website-design"), "Free consultation");
+  assert.doesNotMatch(priceHint("ai-agents"), /\$/);
 });
 
 test("carpentry: licensed finish work priced by size; decks and exterior doors live in their own services", async () => {

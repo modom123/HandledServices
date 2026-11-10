@@ -6,6 +6,7 @@
  *           /auth/callback. The tap matters: email security scanners (Outlook Safe Links, Defender, Mimecast) open links
  *           to check them, and a link that signed in on open would be used up before the person got there.
  *           Works in any browser or phone — nothing has to be remembered from where the code was requested.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import { getLocale } from "@/lib/locale";
 import { safeNext } from "@/lib/safe-redirect";
@@ -17,14 +18,14 @@ export default async function Confirm({ searchParams }: { searchParams: Promise<
   const es = (await getLocale()) === "es";
   const next = safeNext(q.next, "https://handled.local");
   if (!q.token_hash) return (
-    <div className="wrap py-20"><div className="card mx-auto max-w-md text-center">
+    <div className="wrap py-20 pro:py-12"><div className="card mx-auto max-w-md text-center">
       <h1 className="text-xl font-bold">{es ? "Enlace incompleto" : "This link is incomplete"}</h1>
       <p className="mt-2 text-sm text-ink-soft">{es ? "Pida un código nuevo para entrar." : "Ask for a new sign-in code."}</p>
       <a className="btn-primary mt-4 inline-block" href={`/login?next=${encodeURIComponent(next)}`}>{es ? "Ir a iniciar sesión" : "Go to sign in"}</a>
     </div></div>
   );
   return (
-    <div className="wrap py-20"><div className="card mx-auto max-w-md text-center">
+    <div className="wrap py-20 pro:py-12"><div className="card mx-auto max-w-md text-center">
       <h1 className="text-xl font-bold">{es ? "Termine de iniciar sesión" : "Finish signing in"}</h1>
       <p className="mt-2 text-sm text-ink-soft">{es ? "Toque el botón para entrar a su cuenta." : "Tap the button to open your account."}</p>
       <form method="post" action="/auth/callback" className="mt-5">
