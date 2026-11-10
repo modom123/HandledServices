@@ -130,6 +130,7 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 | `partners` | `partners.list`, `partners.message` | Lucas Thorne (Partner Success) |
 | `pro_success` | `pro_success.pros`, `pro_success.message` | Grace O'Connor (Pro Success), Leo Fitzgerald (at-risk watch, suggest) |
 | `bids` | `bids.pipeline`, `bids.decide`† | Veronica Chase (gov capture), Margaret Okonkwo |
+| `social` | `social.calendar`, `social.new_pros`, `social.draft_post`, `social.edit_post`, `social.write_week`, `social.set_status` (approve = †, it publishes) | Samantha Lee (Brand & Social) |
 | `legal` | `legal.contracts`, `legal.disputes`, `legal.licensing`, `legal.flag` | Legal & Compliance: Olivia Grant (clients & contracts, suggest), Rafael Ortiz (pros, + `recruiting`), Margaret Okonkwo (city/state regs & permits, suggest) |
 
 † high-risk: always waits for human approval. \* cancelling a job is high-risk.

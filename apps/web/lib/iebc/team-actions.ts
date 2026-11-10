@@ -11,21 +11,27 @@
  *                           and "needs attorney review" flags. Legal agents only draft and flag: they never send legal
  *                           advice to customers or pros, and every write they make waits for human approval (suggest /
  *                           approval autonomy) — the binding call is a licensed attorney's.
+ *             social      — Samantha Lee, Brand & Social (added 2026-11-10_2300): the posting calendar and settings, draft /
+ *                           edit / skip posts, write the week's drafts, opted-in new pros to announce. Approving a post
+ *                           publishes it publicly, so it is high-risk and always waits for a person; TikTok is posted
+ *                           by hand from the app, then marked posted.
  *           Merged into ACTIONS (actions.ts); the gateway enforces scopes, autonomy and the audit log as for every action.
  */
 import "server-only";
 import { z } from "zod";
-import { AGREEMENT_VERSION, BRAND, LICENSED_TRADES, SERVICE_AGREEMENT_VERSION, SERVICES, SITE_MARKETS, roadmapFor, roadmapProgress } from "@handled/core";
+import { AGREEMENT_VERSION, BRAND, SOCIAL_CHANNELS, fitCaption, LICENSED_TRADES, SERVICE_AGREEMENT_VERSION, SERVICES, SITE_MARKETS, roadmapFor, roadmapProgress } from "@handled/core";
 import { adminClient } from "../supabase/server";
 import { sendEmail } from "../notify";
 import { raiseAlert } from "../jobs";
 import { logRecruiting } from "../recruiting";
 import { partnerGrowthStats, type Partner } from "../partners";
+import { facebookReady, generateWeek, getSocialSettings, instagramReady, setPostStatus, updatePost, weekStart } from "../social";
+import { featuredPros } from "../showcase";
 import type { ActionCtx, ActionDef } from "./actions";
 
 const db = () => adminClient();
 const def = <P extends z.ZodType>(d: Omit<ActionDef, "params" | "run" | "scope"> & { scope: TeamScope; params: P; run: (p: z.infer<P>, ctx: ActionCtx) => Promise<unknown> }) => d as unknown as ActionDef;
-export type TeamScope = "partners" | "pro_success" | "bids" | "legal";
+export type TeamScope = "partners" | "pro_success" | "bids" | "legal" | "social";
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
 const daysSince = (iso: string | null | undefined) => (iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null);
 const signoff = (actor: string) => `\n\n— ${actor.replace(/ \(IEBC\).*$/, "")}, ${BRAND.name}\n${BRAND.supportPhone} · ${BRAND.supportEmail}`;
@@ -137,6 +143,63 @@ export const TEAM_ACTIONS: Record<string, ActionDef> = {
       await db().from("gov_opportunities").update({ status: decision, owner: ctx.actor, notes: [o.notes, note].filter(Boolean).join("\n"), updated_at: new Date().toISOString() }).eq("notice_id", notice_id);
       return `${notice_id} → ${decision}`;
     },
+  }),
+
+  // ─── social (Brand & Social) ───
+  "social.calendar": def({
+    scope: "social", write: false, risk: "low",
+    description: "The social calendar: settings (on, auto-publish, posts per week, themes), whether Facebook / Instagram are connected, and posts from `from_days_ago` (default 7) to `to_days_ahead` (default 21) with status, caption, hashtags, media and errors.",
+    params: z.object({ from_days_ago: z.number().int().min(0).max(90).optional(), to_days_ahead: z.number().int().min(0).max(90).optional(), status: z.enum(["draft", "approved", "posted", "failed", "skipped"]).optional() }),
+    run: async ({ from_days_ago, to_days_ahead, status }) => {
+      let q = db().from("social_posts").select("id, channel, scheduled_for, status, caption, hashtags, media_idea, media_url, service_slug, error, created_by, approved_by, posted_at")
+        .gte("scheduled_for", daysAgo(from_days_ago ?? 7)).lte("scheduled_for", new Date(Date.now() + (to_days_ahead ?? 21) * 86400000).toISOString()).order("scheduled_for").limit(200);
+      if (status) q = q.eq("status", status);
+      const [settings, { data }] = await Promise.all([getSocialSettings(), q]);
+      return { settings, connected: { facebook: facebookReady(), instagram: instagramReady(), tiktok: "posted by hand from the TikTok app" }, rules: SOCIAL_CHANNELS, posts: data ?? [] };
+    },
+  }),
+  "social.draft_post": def({
+    scope: "social", write: true, risk: "low",
+    description: "Add a draft post to the calendar (e.g. a new-pro announcement, a seasonal service, a review). Drafts never go out until a person approves them. Instagram and TikTok need media (a public photo URL; TikTok a video posted by hand).",
+    params: z.object({ channel: z.enum(["facebook", "instagram", "tiktok"]), scheduled_for: z.string().datetime({ offset: true }), caption: z.string().min(10).max(5000), hashtags: z.array(z.string().max(40)).max(30).optional(), media_idea: z.string().max(600).optional(), media_url: z.string().url().optional(), service_slug: z.string().optional() }),
+    run: async (p, ctx) => {
+      const tags = p.hashtags ?? [];
+      const max = SOCIAL_CHANNELS[p.channel].maxCaption;
+      if (fitCaption(p.channel, p.caption, tags).length > max) throw new Error(`Caption plus hashtags is over ${max} characters for ${p.channel}`);
+      const { data, error } = await db().from("social_posts").insert({ channel: p.channel, scheduled_for: p.scheduled_for, status: "draft", caption: p.caption, hashtags: tags, media_idea: p.media_idea ?? null, media_url: p.media_url ?? null, service_slug: p.service_slug ?? null, created_by: ctx.actor }).select("id").single();
+      if (error) throw new Error(error.message);
+      return { draft_id: data.id };
+    },
+  }),
+  "social.edit_post": def({
+    scope: "social", write: true, risk: "low",
+    description: "Edit a draft or failed post: caption, hashtags, photo URL or time. Approved and posted posts can't be edited here.",
+    params: z.object({ id: z.string().uuid(), caption: z.string().min(10).max(5000).optional(), hashtags: z.array(z.string().max(40)).max(30).optional(), media_url: z.string().url().nullable().optional(), scheduled_for: z.string().datetime({ offset: true }).optional() }),
+    run: async ({ id, ...patch }) => {
+      const { data: post } = await db().from("social_posts").select("status").eq("id", id).maybeSingle();
+      if (!post) throw new Error("No such post");
+      if (!["draft", "failed"].includes(post.status)) throw new Error(`This post is ${post.status}; only drafts and failed posts can be edited`);
+      await updatePost(id, patch);
+      return "updated";
+    },
+  }),
+  "social.set_status": def({
+    scope: "social", write: true, risk: "low",
+    description: "approve (publishes at its time: always waits for human approval), skip, back to draft, or posted (after posting a TikTok by hand).",
+    params: z.object({ id: z.string().uuid(), status: z.enum(["approved", "skipped", "draft", "posted"]) }),
+    run: async ({ id, status }, ctx) => { await setPostStatus(id, status, ctx.actor); return `post → ${status}`; },
+  }),
+  "social.write_week": def({
+    scope: "social", write: true, risk: "low",
+    description: "Have the AI social writer fill a week (default: this week) with draft posts for the channels and themes in the settings. Drafts only (unless the owner turned on auto-publish).",
+    params: z.object({ week_of: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }),
+    run: async ({ week_of }, ctx) => generateWeek(weekStart(week_of ? new Date(`${week_of}T12:00:00Z`) : new Date()), ctx.actor),
+  }),
+  "social.new_pros": def({
+    scope: "social", write: false, risk: "low",
+    description: "Approved pros who opted in to be featured (Pro portal → My info): public name, area, up to 5 services, joined date, rating. Only these pros may be named or pictured in posts; never post a pro who isn't on this list.",
+    params: z.object({ state: z.string().length(2).optional(), limit: z.number().int().min(1).max(24).optional() }),
+    run: async ({ state, limit }) => (await featuredPros({ state, limit })).map(({ photo, ...c }) => ({ ...c, has_photo: Boolean(photo) })),
   }),
 
   // ─── legal (Legal & Compliance) ───

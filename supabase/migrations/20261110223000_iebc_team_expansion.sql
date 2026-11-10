@@ -4,7 +4,7 @@
 -- CREATED : 2026-11-10_2230 UTC
 -- PURPOSE : Expanded IEBC team for Handled (IEBC repo: workforce/HANDLED_STAFFING_AND_LEGAL_TEAM_2026-11-10_2200.md).
 --           Six from the 50-person IEBC workforce, plus the new 3-person Legal & Compliance team. New scopes
---           (apps/web/lib/iebc/team-actions.ts): partners, pro_success, bids, legal.
+--           (apps/web/lib/iebc/team-actions.ts): partners, pro_success, bids, legal, social (Samantha Lee, added 2026-11-10_2300).
 --           Everyone starts on "approval" or "suggest": every write waits for a person in Hub → AI agents & IEBC →
 --           IEBC Workforce & approvals. The Legal & Compliance team stays suggest / approval only: they draft and flag,
 --           and a licensed attorney makes the binding call.
@@ -20,7 +20,7 @@ insert into public.iebc_agents (iebc_employee_id, name, title, iebc_dept, role_h
   ('veronica', 'Veronica Chase',    'VP Enterprise AI Sales',           'Sales',              'Government capture: bid / no-bid, teaming partners, deadlines',
      array['read','bids'], 'approval'),
   ('samantha', 'Samantha Lee',      'Dir. Global Brand AI',             'Strategy & Growth',  'Brand & social: Facebook / Instagram / TikTok, weekly posts, Google Business Profile, new-pro announcements',
-     array['read','sales'], 'approval'),
+     array['read','social','sales'], 'approval'),
   ('sofia',    'Sofia Rossi',       'Dir. Fin Automation',              'Finance',            'Payments & reconciliation: Stripe payouts, refunds, chargebacks, the Monday pro pay run (under Eleanor)',
      array['read','finance'], 'approval'),
   ('olivia',   'Olivia Grant',      'Head of Legal & Compliance',       'Legal & Compliance', 'Clients & contracts: service agreement, B2B and government contracts, disputes, chargeback evidence',
