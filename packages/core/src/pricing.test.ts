@@ -2674,3 +2674,15 @@ test("house cleaning \"Other\": square feet can go below 400 (down to 50); other
   const small = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "other", sqft: 120, bedrooms: 0, bathrooms: 1 } });
   assert.ok(small.point >= svc.minimum, "the visit minimum still applies");
 });
+
+test("lead pay: $10 per lead, unlocked after 10 leads + one paid-out sale, repaid from that lead's commission", async () => {
+  const { SALES_DRAW, drawUnlocked, drawRecovery, partnerTerms } = await import("./partners.ts");
+  assert.equal(SALES_DRAW.perLead, 10);
+  assert.equal(drawUnlocked({ leads: 9, paidSales: 3 }), false, "needs 10 leads");
+  assert.equal(drawUnlocked({ leads: 40, paidSales: 0 }), false, "needs one sale actually paid out");
+  assert.equal(drawUnlocked({ leads: 10, paidSales: 1 }), true);
+  assert.equal(drawRecovery({ commission: 45, drawOutstanding: 10 }), 10, "the $10 comes back out of the commission");
+  assert.equal(drawRecovery({ commission: 6.5, drawOutstanding: 10 }), 6.5, "never more than the commission");
+  assert.equal(drawRecovery({ commission: 45, drawOutstanding: 0 }), 0, "already repaid");
+  assert.ok(partnerTerms().some((t) => t.includes("Lead pay") && t.includes("10 leads")));
+});

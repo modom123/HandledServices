@@ -11,6 +11,8 @@
   PURPOSE : Field Sales through the Partner Program (partner-v3): the two ways to earn (referrals and direct sales), the
             close-ready sales ticket, paying with a partner's code, the 10% → 45% direct-sales ladder (45% at $1M), how to
             turn it on, and the legal checks before recruiting on Indeed.
+  UPDATED : 2026-11-10_0400 UTC — lead pay: $10 per lead as a draw against that lead's commission, unlocked after 10 leads
+            and the first paid-out sale (partner-v5). Indeed post rewritten as a job: INDEED_JOB_FIELD_SALES_REP_2026-11-10_0355.
 -->
 
 # Field Sales: the Partner Program sales force
@@ -68,6 +70,17 @@ Unbooked sales tickets expire after 30 days (daily sweep). The customer stays th
 Any new customer can type a partner's code (e.g. `JANE7K2Q`) in the booking's code box. The booking shows *"✓ Partner
 code JANE7K2Q — Jane gets credit"* (no discount), and the job is credited to that partner as a **referral**. A typed
 code beats an earlier link click.
+
+## Lead pay ($10 per lead, a draw)
+- **$10 for every lead**: every close-ready sales ticket for a new customer earns $10, up to 25 leads a week.
+- **It's a draw:** an advance against that lead's commission. When the lead's job pays a commission, the $10 is taken
+  back out of it. If the lead never books, the partner keeps the $10.
+- **Unlocks after 10 leads AND one sale that has closed and been paid out.** Until then it builds up on the partner's
+  page ("$X is building up"). Once unlocked, the whole balance goes out on the next Monday payout, and every new lead is
+  paid weekly after that.
+- **Fake or duplicate leads:** admins void a lead's unpaid lead pay in Hub → Referral partners → Direct-sales tickets.
+- Setup: run `supabase/setup/ADD_LEAD_PAY_2026-11-10_0400.sql` (after the Field Sales SQL). Rules: `SALES_DRAW` in
+  `packages/core/src/partners.ts`; partner terms `partner-v5`.
 
 ## The direct-sales ladder: 10% → 45% of profit
 

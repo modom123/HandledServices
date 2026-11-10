@@ -232,6 +232,17 @@ export function VoidCommission({ id }: { id: string }) {
   }}>Void</button>;
 }
 
+/** Hub (admins): void a fake or duplicate lead's unpaid $10 lead pay. */
+export function VoidLeadPay({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
+  return <button className="text-xs text-rose-700 underline" onClick={async () => {
+    const note = prompt("Why are you voiding this lead's $10 lead pay? (fake or duplicate lead)");
+    if (!note) return;
+    const r = await post("/api/hub/partners", { action: "void_draw", ticket_id: ticketId, note });
+    if (!r.ok) alert(r.error); router.refresh();
+  }}>Void lead pay</button>;
+}
+
 /**
  * Field Sales ticket (/partner), added 2026-11-06_1638 UTC. A rep can sell any service. The ticket holds everything it
  * takes to close the sale, so the customer pays without being asked anything again:

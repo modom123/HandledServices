@@ -25,6 +25,8 @@
  *           the Partner Program and gets FIRST_PROJECT_REWARD back on their OWN first project — 10% of the price, up to
  *           $250, paid by Handled alone (referral_customers.source 'self', partner_commissions.tier 'self'). The one
  *           exception to "referring yourself doesn't count".
+ * UPDATED : 2026-11-10_0400 UTC — partner-v5: lead pay — $10 per lead as a draw against that lead's commission, unlocked
+ *           after 10 leads and one paid-out sale (SALES_DRAW, drawUnlocked, drawRecovery).
  */
 import { BRAND } from "./brand.ts";
 import { CARD_FEE } from "./pricing.ts";
@@ -45,7 +47,7 @@ export const PARTNER_PROGRAM = {
   holdDays: BRAND.guaranteeDays, // paid after the make-it-right window, so refunds come first
   minPayout: 25,           // smaller balances roll to the next weekly run (keeps Stripe fees sensible)
   cookieDays: 90,          // a click on a partner link counts for this long
-  termsVersion: "partner-v4",
+  termsVersion: "partner-v5",
   /** Jobs booked before this keep the partner-v1 rule (10% of Handled's take, paid by Handled alone). */
   effectiveAt: "2026-10-28T00:00:00Z",
   /** partner-v1, for jobs booked before effectiveAt. */
@@ -183,6 +185,23 @@ export function partnerSaleCommission(o: { price: number; payout: number; refund
   const r = Math.max(0, Math.min(PARTNER_LADDER.topRate, rate));
   const take = Math.max(0, Math.round(o.price * 100) - Math.round(o.payout * 100) - Math.round((o.refunded ?? 0) * 100));
   return Math.floor(Math.round(take * r * 1e6) / 1e6) / 100;
+}
+
+/**
+ * Lead pay (a draw): $10 for every lead — every close-ready sales ticket for a new customer — paid weekly, as an advance
+ * against that lead's commission. It UNLOCKS only once the partner has written 10 leads AND at least one of their sales
+ * has closed and been paid out; until then it builds up, and the whole balance is paid on the next weekly run after
+ * unlocking. When a lead's job pays a commission, its $10 is taken back out of that commission. A lead that never closes
+ * keeps its $10. At most 25 leads a week earn lead pay (abuse guard); admins can void a fake lead's pay.
+ */
+export const SALES_DRAW = { perLead: 10, unlockLeads: 10, unlockPaidSales: 1, weeklyCap: 25 } as const;
+/** Is the partner's lead pay unlocked? */
+export function drawUnlocked(o: { leads: number; paidSales: number }): boolean {
+  return o.leads >= SALES_DRAW.unlockLeads && o.paidSales >= SALES_DRAW.unlockPaidSales;
+}
+/** How much of a commission repays its lead's draw: the draw still outstanding, never more than the commission. */
+export function drawRecovery(o: { commission: number; drawOutstanding: number }): number {
+  return Math.max(0, Math.min(Math.round(o.commission * 100), Math.round(o.drawOutstanding * 100))) / 100;
 }
 
 /** Sales tickets: what the partner sells → the customer's own link to pay (or pay on the partner's phone). */
@@ -374,6 +393,7 @@ export function partnerTerms(): string[] {
     `Half of what you earn is paid by the pro who does the job and half by ${BRAND.name}. ${BRAND.name}'s half never exceeds what ${BRAND.name} keeps on the job after card fees, so on the rare job where our fee is too thin, you earn less than the full rate.`,
     `Direct sales: when you sell a customer yourself on a sales ticket (they pay ${BRAND.name} directly, on your phone or from our text), you earn a share of ${BRAND.name}'s profit on the job (the price minus what the pro is paid and any refunds) instead, on every completed job from that customer for ${p.months} months, paid by ${BRAND.name} alone. Your share starts at ${PARTNER_LADDER.baseRate * 100}% and rises one point at a time to ${PARTNER_LADDER.topRate * 100}% as the lifetime profit from your direct sales grows (${PARTNER_LADDER.topRate * 100}% at $${PARTNER_LADDER.topProfit.toLocaleString("en-US")}), or every ${PARTNER_LADDER.jobsPerStep} completed direct-sale jobs up to ${PARTNER_LADDER.jobsCapRate * 100}%. Your rate is set when each job is completed and never goes down.`,
     `A customer counts as yours when they book through your link (within ${p.cookieDays} days of clicking it), type your partner code when they pay, or after you send them to us on a referral ticket or a sales ticket from your partner page, and they are new to ${BRAND.name}. Each customer belongs to one partner: the first one.`,
+    `Lead pay: you earn $${SALES_DRAW.perLead} for every lead (a complete sales ticket for a new customer), paid weekly, up to ${SALES_DRAW.weeklyCap} leads a week. It's an advance (a draw) against that lead's commission: when the lead's job pays you a commission, the $${SALES_DRAW.perLead} is taken back out of it; if the lead never books, you keep it. Lead pay starts once you've written ${SALES_DRAW.unlockLeads} leads and at least ${SALES_DRAW.unlockPaidSales} of your sales has closed and been paid out; what you built up before then is paid on the next weekly payout. Fake or duplicate leads earn nothing and can end the partnership.`,
     `Sales tickets: only photograph property with the owner's or manager's permission, only submit customers who asked to hear from us, and never take payment yourself. Once a job is paid, it goes to our pros.`,
     `Commissions are paid weekly through Stripe once the job is ${p.holdDays} days past completion (our make-it-right window). Balances under $${p.minPayout} carry over to the next week. Refunds and chargebacks reduce or cancel the commission on that job.`,
     `Referring yourself, your own household or your own business doesn't count, with one exception: when you post your own project on our Post your project page and join there, your own first project earns ${firstProjectLine()} (${Math.round(FIRST_PROJECT_REWARD.rate * 100)}% of the price minus refunds, paid by ${BRAND.name} alone and never more than ${BRAND.name} keeps on the job after card fees), once, if you're new to ${BRAND.name}. Only send a referral ticket for someone who has agreed to be contacted by us. No spam, fake reviews, or promises about price or service that we didn't make. Breaking these rules ends the partnership and any unpaid commissions.`,
