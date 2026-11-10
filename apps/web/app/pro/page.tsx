@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
  * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
+ * UPDATED : 2026-11-10_0500 UTC — orientation: eight lessons; approved pros see an optional catch-up card for new lessons.
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -120,13 +121,24 @@ export default async function ProHome() {
           <div className="text-sm text-ink-soft">{setup.steps.filter((x) => !x.done || x.expiring).map((x) => stepLabel(x.label)).join(" · ")}</div>
         </Link>
       )}
+      {me && me.status === "approved" && (() => {
+        // approved pros who finished an older orientation: the new lessons are an optional catch-up
+        const o = orientationStatus((me as { orientation?: Record<string, string> | null }).orientation);
+        if (o.complete || !o.done) return null;
+        return (
+          <Link href={`/pro/welcome/${o.next?.id ?? ""}`} className="card block border-brand/40 hover:border-brand">
+            <div className="font-semibold">🆕 {es ? `${o.total - o.done} lecciones nuevas en Bienvenida a Handled` : `${o.total - o.done} new lessons in Welcome to Handled`}</div>
+            <div className="text-sm text-ink-soft">{es ? "Sus herramientas, su zona y cómo ganar más con Refiera y gane. Unos minutos; opcional para usted." : "Your tools, your area, and how to earn more with Refer & earn. A few minutes; optional for you."}</div>
+          </Link>
+        );
+      })()}
       {me && me.status !== "approved" && (() => {
         const o = orientationStatus((me as { orientation?: Record<string, string> | null }).orientation);
         return (
           <div className="grid gap-3 md:grid-cols-2">
             <Link href="/pro/welcome" className={`card block hover:border-brand ${o.complete ? "border-brand/40" : "border-brand"}`}>
               <div className="font-semibold">{o.complete ? "✅" : "👋"} {es ? "Bienvenida a Handled" : "Welcome to Handled"} · {o.done}/{o.total}</div>
-              <div className="text-sm text-ink-soft">{o.complete ? (es ? "Orientación terminada." : "Orientation done.") : (es ? "Seis lecciones cortas sobre cómo trabajamos. Obligatorias antes de su aprobación." : "Six short lessons on how we work. Required before you're approved.")}</div>
+              <div className="text-sm text-ink-soft">{o.complete ? (es ? "Orientación terminada." : "Orientation done.") : (es ? "Ocho lecciones cortas sobre cómo trabajamos. Obligatorias antes de su aprobación." : "Eight short lessons on how we work. Required before you're approved.")}</div>
             </Link>
             <Link href="/pro/refer" className="card block border-gold/60 hover:border-brand">
               <div className="font-semibold">💸 {es ? "Gane dinero mientras espera" : "Make money while you wait"}</div>

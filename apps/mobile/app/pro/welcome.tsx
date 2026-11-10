@@ -4,6 +4,7 @@
  * CREATED : 2026-10-29_0715 UTC
  * PURPOSE : Pro mode → Welcome to Handled: the six required orientation lessons (core orientation.ts), each with its
  *           question. A right answer is saved (/api/pro/orientation) and moves to the next lesson. EN / ES.
+ * UPDATED : 2026-11-10_0500 UTC — orientation is eight lessons (adds your business: tools, area, schedule; and earn more).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -71,8 +72,8 @@ export default function Welcome() {
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
       <Text style={s.h1}>👋 {es ? "Bienvenida a Handled" : "Welcome to Handled"}</Text>
       <Text style={s.p}>{es
-        ? `Seis lecciones cortas sobre cómo trabajamos (unos ${ORIENTATION_MINUTES} minutos). Cada una termina con una pregunta. Son obligatorias antes de que Handled lo apruebe.`
-        : `Six short lessons on how we work (about ${ORIENTATION_MINUTES} minutes). Each ends with one question. Required before Handled can approve you.`}</Text>
+        ? `Ocho lecciones cortas sobre cómo trabajamos (unos ${ORIENTATION_MINUTES} minutos). Cada una termina con una pregunta. Son obligatorias antes de que Handled lo apruebe.`
+        : `Eight short lessons on how we work (about ${ORIENTATION_MINUTES} minutes). Each ends with one question. Required before Handled can approve you.`}</Text>
       <Card>
         <Text style={s.b}>{p ? `${p.done} / ${p.total}` : "…"} · {pct}%</Text>
         <View style={{ height: 8, borderRadius: 4, backgroundColor: C.paper, marginTop: 8 }}><View style={{ height: 8, borderRadius: 4, backgroundColor: C.brand, width: `${pct}%` }} /></View>

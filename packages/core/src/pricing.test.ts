@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-27_1600 UTC — carpentry.
  * UPDATED : 2026-10-27_1900 UTC — pro roadmap (invite → first Monday pay).
  * UPDATED : 2026-10-27_2100 UTC — job money (split, payout stage, issues).
+ * UPDATED : 2026-11-10_0500 UTC — orientation test: eight lessons, new business and earn lessons.
  */
 
 import { test } from "node:test";
@@ -2431,16 +2432,24 @@ test("job money: customer paid → split → pro payout lines → Monday", async
   assert.equal(jobMoney({ status: "cancelled", price_final: 100, contractor_payout: 70 }).stage, "none");
 });
 
-test("orientation: six lessons, progress, answers", async () => {
+test("orientation: eight lessons, progress, answers", async () => {
   const { ORIENTATION, orientationStatus, orientationAnswer } = await import("./orientation.ts");
-  assert.equal(ORIENTATION.length, 6);
+  assert.equal(ORIENTATION.length, 8);
+  assert.deepEqual(ORIENTATION.map((l) => l.id), ["welcome", "jobs", "business", "pay", "earn", "quality", "conduct", "app"]);
+  // the new lessons cover equipment, service area and the partner program (Refer & earn)
+  const biz = ORIENTATION.find((l) => l.id === "business")!, earn = ORIENTATION.find((l) => l.id === "earn")!;
+  assert.ok(biz.en.points.some((p) => /tools, equipment/.test(p)) && biz.en.points.some((p) => /service area/.test(p)));
+  assert.ok(earn.en.points.some((p) => /Refer & earn/.test(p) && /15%–30%/.test(p)));
+  assert.equal(orientationAnswer("business", 0), true);
+  assert.equal(orientationAnswer("earn", 1), true);
   for (const l of ORIENTATION) {
     assert.ok(l.answer >= 0 && l.answer < l.en.options.length, l.id);
     assert.equal(l.en.options.length, l.es.options.length, `${l.id}: same choices in Spanish`);
     assert.equal(l.en.points.length, l.es.points.length, `${l.id}: same points in Spanish`);
   }
-  assert.deepEqual(orientationStatus(null), { done: 0, total: 6, complete: false, next: ORIENTATION[0] });
-  assert.equal(orientationStatus({ welcome: "x", jobs: "x" }).next?.id, "pay");
+  assert.deepEqual(orientationStatus(null), { done: 0, total: 8, complete: false, next: ORIENTATION[0] });
+  assert.equal(orientationStatus({ welcome: "x", jobs: "x" }).next?.id, "business");
+  assert.equal(orientationStatus({ welcome: "x", jobs: "x", business: "x" }).next?.id, "pay");
   assert.equal(orientationStatus(Object.fromEntries(ORIENTATION.map((l) => [l.id, "x"]))).complete, true);
   assert.equal(orientationAnswer("pay", 0), true);
   assert.equal(orientationAnswer("pay", 1), false);

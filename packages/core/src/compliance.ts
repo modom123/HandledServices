@@ -30,9 +30,10 @@
  * UPDATED : 2026-11-10_0345 UTC — insurance blocks activation only when every service the pro does needs it; otherwise the COI
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
+ * UPDATED : 2026-11-10_0500 UTC — orientation step shows the live lesson minutes (eight lessons).
  */
 import { SERVICES } from "./services.ts";
-import { ORIENTATION, orientationStatus } from "./orientation.ts";
+import { ORIENTATION, ORIENTATION_MINUTES, orientationStatus } from "./orientation.ts";
 import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
 export const AGREEMENT_VERSION = "2026-11-v11"; // v11: the pay shown to the pro is their NET pay — a referral partner's fee (half of the partner's 15%–30% of the price, locked when the job is booked) is already taken out, with no math shown; v10: referral partner fee — the pro pays half of a partner's 25% one-time / 10% repeat / 15% account share, shown on the work order; v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
@@ -135,7 +136,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
   const o = orientationStatus(c.orientation);
   const steps: Step[] = [
-    { key: "orientation", label: "Welcome to Handled (orientation)", done: o.complete || c.status === "approved", detail: o.complete ? `All ${o.total} lessons done` : `${o.done} of ${ORIENTATION.length} lessons done · about 15 minutes` },
+    { key: "orientation", label: "Welcome to Handled (orientation)", done: o.complete || c.status === "approved", detail: o.complete ? `All ${o.total} lessons done` : `${o.done} of ${ORIENTATION.length} lessons done · about ${ORIENTATION_MINUTES} minutes` },
     { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },

@@ -4,6 +4,7 @@
  * CREATED : 2026-10-28_2300 UTC
  * PURPOSE : "Welcome to Handled": the orientation every new pro finishes before Handled can approve them. Six short
  *           lessons with a question each (core orientation.ts), progress, and what's next once it's done.
+ * UPDATED : 2026-11-10_0500 UTC — orientation is eight lessons (adds your business: tools, area, schedule; and earn more).
  */
 import Link from "next/link";
 import { ORIENTATION, ORIENTATION_MINUTES, orientationStatus, type Contractor } from "@handled/core";
@@ -26,8 +27,8 @@ export default async function Welcome() {
       <div>
         <h1 className="text-2xl font-bold">{es ? `Bienvenido a Handled, ${me?.contact_name?.split(" ")[0] ?? ""} 👋` : `Welcome to Handled, ${me?.contact_name?.split(" ")[0] ?? ""} 👋`}</h1>
         <p className="mt-1 text-sm text-ink-soft">{es
-          ? `Seis lecciones cortas sobre cómo trabajamos (unos ${ORIENTATION_MINUTES} minutos). Cada una termina con una pregunta. Terminarlas es obligatorio antes de que Handled lo apruebe para trabajos pagados.`
-          : `Six short lessons on how we work (about ${ORIENTATION_MINUTES} minutes). Each ends with one question. Finishing them is required before Handled can approve you for paid work.`}</p>
+          ? `Ocho lecciones cortas sobre cómo trabajamos (unos ${ORIENTATION_MINUTES} minutos). Cada una termina con una pregunta. Terminarlas es obligatorio antes de que Handled lo apruebe para trabajos pagados.`
+          : `Eight short lessons on how we work (about ${ORIENTATION_MINUTES} minutes). Each ends with one question. Finishing them is required before Handled can approve you for paid work.`}</p>
       </div>
       <div className="card">
         <div className="flex items-center justify-between text-sm"><b>{es ? `${s.done} de ${s.total} lecciones` : `${s.done} of ${s.total} lessons`}</b><span className="text-ink-soft">{pct}%</span></div>
