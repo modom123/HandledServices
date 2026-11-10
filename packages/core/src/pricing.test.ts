@@ -2689,3 +2689,26 @@ test("lead pay: $10 per lead, unlocked after 10 leads + one paid-out sale, repai
   assert.equal(drawRecovery({ commission: 45, drawOutstanding: 0 }), 0, "already repaid");
   assert.ok(partnerTerms().some((t) => t.includes("Lead pay") && t.includes("10 leads")));
 });
+
+test("pro welcome email: their services (cleared and not yet), how it works, pay, partner program, EN and ES (2026-11-10)", async () => {
+  const { proWelcomeEmail, proServiceSummary } = await import("./pro-welcome.ts");
+  const { PRO_POLICY_DEFAULTS } = await import("./pro-policy.ts");
+  const { PRO_REFERRAL } = await import("./pro-program.ts");
+  const c = {
+    id: "p1", profile_id: null, business_name: "Sparkle Clean Co.", contact_name: "Dana Reyes", email: "d@x", phone: "1", trades: ["cleaning", "handyman"],
+    service_zips: ["48201"], status: "approved", rating: 5, jobs_completed: 0, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01",
+    license_number: null, background_checked: true, daily_capacity: 3, notes: null, base_city: "Detroit", base_state: "MI", base_zip: "48201",
+    service_radius_mi: 20, availability: { days: [1, 2, 3, 4, 5], windows: ["morning", "afternoon"] }, specialties: ["deep cleans"],
+  } as unknown as Contractor;
+  const s = proServiceSummary(c);
+  assert.ok(s.cleared.some((x) => x.slug === "house-cleaning"), "a cleaner is cleared for house cleaning");
+  assert.ok(!s.cleared.concat(s.notYet).some((x) => x.slug === "lawn-care"), "services outside their trades are left out");
+  const en = proWelcomeEmail(c, { site: "https://handledsvc.com/", policy: PRO_POLICY_DEFAULTS });
+  assert.match(en.subject, /Welcome to the Handled Network, Dana/);
+  const bonusLine = "$" + PRO_REFERRAL.bonus + " when a pro you referred finishes " + PRO_REFERRAL.afterJobs + " jobs";
+  for (const k of ["WHAT YOU TOLD US", "House & Office Cleaning", "Mon, Tue, Wed, Thu, Fri", "up to 20 miles", "HOW YOUR PRO PORTAL WORKS", "every Monday", "Pro+", "Partner Program", bonusLine, "15%–30%", "10%–45%", "https://handledsvc.com/docs/handled-pro-network-welcome.pdf"])
+    assert.ok(en.text.includes(k), "EN has: " + k);
+  const esMail = proWelcomeEmail(c, { site: "https://handledsvc.com", policy: PRO_POLICY_DEFAULTS, lang: "es" });
+  assert.match(esMail.subject, /^Bienvenido a la Red Handled, Dana/);
+  assert.ok(esMail.text.includes("CÓMO FUNCIONA SU PORTAL") && esMail.text.includes("lun, mar, mié, jue, vie"));
+});

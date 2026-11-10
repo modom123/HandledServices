@@ -27,9 +27,12 @@
  *           title didn't say): they'd become a pro who never gets an offer. Staff set the trade on the candidate page first.
  * UPDATED : 2026-10-27_1900 UTC — the invite and "You're live" emails spell out the road to the first paycheck (core
  *           PRO_ROADMAP): setup, document checks, background, live, offers, the job, paid every Monday.
+ * UPDATED : 2026-11-10_1330 UTC — activation sends the full "Welcome to the Handled Network" email (core proWelcomeEmail):
+ *           the services they're cleared for, how the portal works, pay, tiers, rewards, referrals, Partner Program, help and
+ *           the PDF guide. The push notification stays short.
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings } from "@handled/core";
+import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -291,11 +294,18 @@ export async function activatePro(contractorId: string, actor: string) {
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
   await db().from("ops_alerts").update({ resolved: true }).eq("contractor_id", contractorId).eq("kind", "approve_pro").eq("resolved", false);
-  await notify(c.profile_id, { title: "You're live 🎉", body: "Setup is complete. Job offers in your area start now.", data: { type: "pro_home" },
-    email: { to: c.email, subject: `You're live on ${BRAND.name}`, text: `Welcome aboard, ${String(c.contact_name).split(" ")[0]} — your setup is complete and verified. You'll start getting job offers in your area and specialties right away.\n\nHow it works from here:\n${roadmapText("en", LIVE_FROM)}\n\nTurn on notifications in the ${BRAND.name} app so you never miss an offer.\nYour dashboard: ${siteUrl()}/pro\n\n— ${BRAND.name}` },
-    locale: await appLocale(c),
-    es: { title: "¡Ya está activo! 🎉", body: "Su configuración está completa. Las ofertas de trabajo en su zona empiezan ahora.",
-      subject: `Ya está activo en ${BRAND.name}`, text: `Le damos la bienvenida, ${first(c.contact_name)}. Su configuración está completa y verificada. Empezará a recibir ofertas de trabajo en su zona y especialidades de inmediato.\n\nCómo funciona a partir de ahora:\n${roadmapText("es", LIVE_FROM)}\n\nActive las notificaciones en la app de ${BRAND.name} para no perderse ninguna oferta.\nSu panel: ${siteUrl()}/pro\n\n— ${BRAND.name}` } });
+  // the full welcome: what they told us and the services they're cleared for, how the portal works, pay, tiers, rewards,
+  // referrals and the Partner Program (core pro-welcome.ts), with the PDF guide (docs/HANDLED_PRO_NETWORK_WELCOME_*)
+  const { getPolicy } = await import("./pro-benefits");
+  const policy = await getPolicy().catch(() => PRO_POLICY_DEFAULTS);
+  const lang = await appLocale(c);
+  const fresh = { ...c, status: "approved" } as Contractor;
+  const en = proWelcomeEmail(fresh, { site: siteUrl(), policy, lang: "en" });
+  const es = proWelcomeEmail(fresh, { site: siteUrl(), policy, lang: "es" });
+  await notify(c.profile_id, { title: "You're live 🎉", body: "Welcome to the Handled Network. Job offers in your area start now.", data: { type: "pro_home" },
+    email: { to: c.email, subject: en.subject, text: en.text },
+    locale: lang,
+    es: { title: "¡Ya está activo! 🎉", body: "Bienvenido a la Red Handled. Las ofertas de trabajo en su zona empiezan ahora.", subject: es.subject, text: es.text } });
   return true;
 }
 

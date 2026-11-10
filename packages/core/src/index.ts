@@ -78,3 +78,4 @@ export * from "./recruiting-division.ts";
 export * from "./job-money.ts";
 export * from "./orientation.ts";
 export * from "./depth-chart.ts";
+export * from "./pro-welcome.ts";
