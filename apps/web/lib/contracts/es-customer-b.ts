@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-05_0439 UTC — Seguridad para eventos en el anexo de eventos.
  * UPDATED : 2026-10-05_1433 UTC — anexo de guardias de seguridad y patrullaje.
  * UPDATED : 2026-10-07_2000 UTC — Acuerdo de Servicios para Empresas v2 — Washington (ley y tribunales locales, impuesto sobre las ventas, libertad de trabajo de los profesionales).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import {
   BOOKING_FEE,
@@ -54,7 +55,7 @@ export const CUSTOMER_ES_B: Record<string, ContractTranslation> = {
     summary: [
       "Este es el acuerdo marco de su cuenta empresarial. Cada formulario de pedido, propuesta o reserva es un trabajo independiente bajo este acuerdo.",
       "Por defecto, se paga por adelantado con tarjeta o ACH. Plazos de pago a crédito solo si un formulario de pedido lo indica.",
-      "Cada profesional tiene verificación de antecedentes, seguro y licencia cuando el oficio lo exige. Certificados de seguro a solicitud.",
+      "Cada profesional tiene antecedentes revisados y está verificado. Los profesionales tienen seguro y licencia cuando el trabajo lo exige. Certificados de seguro a solicitud.",
       "Mantenemos confidenciales sus llaves, códigos e información, y usted hace lo mismo con los nuestros. Información de pacientes solo con un BAA de HIPAA firmado.",
       "Los niveles de servicio son metas. Si no los cumplimos, repetimos el trabajo o le damos un crédito.",
       "Por favor, no contrate directamente a nuestros profesionales durante 12 meses; de lo contrario, se aplica un cargo por conversión.",

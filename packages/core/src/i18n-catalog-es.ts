@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-23_2100 UTC — services 76–100 (fences to home watch).
  * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  * UPDATED : 2026-11-07_0037 UTC — Spanish for the four social media services.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 export const ES_CATALOG: Record<string, string> = {
   "Upfront monthly price — a deposit starts the work": "Precio mensual fijo: un depósito inicia el trabajo",
@@ -142,8 +143,8 @@ export const ES_CATALOG: Record<string, string> = {
   "Background-checked, bonded assistant": "Asistente verificado y afianzado",
   "Background-checked, bonded runner": "Mensajero verificado y afianzado",
   "Background-checked, bonded shopper": "Comprador verificado y afianzado",
-  "Background-checked, insured sitter": "Cuidador verificado y asegurado",
-  "Background-checked, insured walker": "Paseador con verificación de antecedentes y asegurado",
+  "Background-checked, vetted sitter": "Cuidador verificado y con antecedentes revisados",
+  "Background-checked, vetted walker": "Paseador verificado y con antecedentes revisados",
   "Backup equipment": "Equipo de respaldo",
   "Bagged at the curb or hauled away": "Embolsado en la acera o retirado",
   "Banquet / event hall": "Salón de banquetes / eventos",
@@ -1113,7 +1114,7 @@ export const ES_CATALOG: Record<string, string> = {
   "Bare or thin lawn to seed": "Césped sin pasto o ralo a sembrar",
   "Weed the beds first": "Deshierbar las jardineras primero",
   "Haul away the debris (not bagged at the curb)": "Retirar los desechos (no embolsados en la banqueta)",
-  "Vetted, insured assembler": "Armador verificado y asegurado",
+  "Background-checked, vetted assembler": "Armador verificado y con antecedentes revisados",
   "Own tools and drill": "Herramientas y taladro propios",
   "Tall pieces anchored to the wall": "Muebles altos anclados a la pared",
   "Boxes broken down": "Cajas desarmadas",

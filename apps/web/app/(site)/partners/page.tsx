@@ -12,6 +12,7 @@
  *           yourself on a sales ticket: 10% → 45% of our profit, 45% at $1M; direct sales count 1.5× toward the next
  *           raise). ?kind=sales_rep pre-selects "Field Sales partner" (the Indeed post links to /partners?kind=sales_rep#join).
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { firstProjectLine, BRAND, PARTNER_KINDS, PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, referralRange, SALES_TICKET, ladderTable, money, moneyCents, partnerSplit, partnerTerms, tierPct, type PartnerTier } from "@handled/core";
@@ -68,7 +69,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
       <section id="referrals" className="wrap scroll-mt-20 grid gap-4 py-12 md:grid-cols-3">
         {[
           ["1", "Share your link or send a ticket", `Use your link (on cards, texts, listings, QR codes) or fill out a referral ticket on your partner page — one standard form, a ticket number you can follow, and we email them a booking link from you.`],
-          ["2", "We do the work", `Insured, background-checked pros, an upfront price, photo proof, and a free redo if anything's missed — so your name looks good.`],
+          ["2", "We do the work", `Background-checked, vetted pros, an upfront price, photo proof, and a free redo if anything's missed — so your name looks good.`],
           ["3", "You get paid weekly", `${referralRange()} of the price on every completed job — the same on every service. Paid through Stripe once each job is past our ${P.holdDays}-day guarantee.`],
         ].map(([n, t, d]) => (
           <div key={n} className="card"><div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep font-bold text-gold-light">{n}</div><h2 className="mt-3 font-bold">{t}</h2><p className="mt-1 text-sm text-ink-soft">{d}</p></div>
