@@ -4,6 +4,7 @@
  * CREATED : 2026-10-20_0200 UTC
  * PURPOSE : The customer's private quotes page: their request and every firm quote so far (all-in price, pro, rating,
  *           earliest date, note), cheapest first; "Book this quote" goes to the normal checkout at that locked price.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -43,7 +44,7 @@ export default async function Quotes({ params }: { params: Promise<{ token: stri
           ))}
         </div>
       ) : <p className="card text-sm text-ink-soft">No quotes yet. {waiting ? `${waiting} pro${waiting === 1 ? " is" : "s are"} looking at your job — quotes usually arrive within 24 hours, and we'll email you each one.` : "We're finding the right pros and will email you."}</p>}
-      <p className="text-xs text-ink-soft">Every quote is a firm, all-in price from a vetted, insured pro. You pay when you book; the pro is paid after the job is done and checked.</p>
+      <p className="text-xs text-ink-soft">Every quote is a firm, all-in price from a background-checked, vetted pro. You pay when you book; the pro is paid after the job is done and checked.</p>
     </div>
   );
 }

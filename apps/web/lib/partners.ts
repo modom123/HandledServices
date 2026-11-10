@@ -33,6 +33,7 @@
  *           firstProjectReward (10% back, up to $250, Handled alone, tier 'self'); self rewards don't build level credit.
  * UPDATED : 2026-11-10_0400 UTC — lead pay: each lead's $10 draw is repaid out of its commission (recoverLeadDraw); pending draws
  *           join the weekly payout once unlocked (10 leads + one paid-out sale, leadPayStatus).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -170,7 +171,7 @@ export async function submitTicket(partner: Partner, t: Ticket): Promise<{ ok: t
   const svc = t.service_slug ? getService(t.service_slug) : null;
   const book = `${siteUrl()}/book?${svc ? `service=${svc.slug}&` : ""}partner=${partner.code}`;
   await sendEmail(email, `${partner.name} recommended ${BRAND.name}${svc ? ` for ${svc.name.toLowerCase()}` : ""}`,
-    `Hi ${t.name.split(" ")[0]},\n\n${partner.name}${partner.company ? ` (${partner.company})` : ""} thought you'd like ${BRAND.name}${svc ? ` for your ${svc.name.toLowerCase()}` : ""}: insured, background-checked local pros, an upfront price in 60 seconds, photo proof when it's done, and a free redo if anything's missed.\n\nSee your price and book: ${book}\n${t.note ? `\nNote from ${partner.name.split(" ")[0]}: ${t.note}\n` : ""}\nWe'll also reach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}${t.best_time ? ` (${t.best_time})` : ""}. Questions? Just reply.\n\n— ${BRAND.name}`).catch(() => {});
+    `Hi ${t.name.split(" ")[0]},\n\n${partner.name}${partner.company ? ` (${partner.company})` : ""} thought you'd like ${BRAND.name}${svc ? ` for your ${svc.name.toLowerCase()}` : ""}: background-checked, vetted local pros, an upfront price in 60 seconds, photo proof when it's done, and a free redo if anything's missed.\n\nSee your price and book: ${book}\n${t.note ? `\nNote from ${partner.name.split(" ")[0]}: ${t.note}\n` : ""}\nWe'll also reach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}${t.best_time ? ` (${t.best_time})` : ""}. Questions? Just reply.\n\n— ${BRAND.name}`).catch(() => {});
   const summary = ticketText({ ...row, ticket_no: ticketNo });
   await sendEmail(partner.email, `Referral ticket ${ticketNo} received — ${t.name}`, `Hi ${partner.name.split(" ")[0]},\n\nThanks — we've got it. We emailed ${t.name.split(" ")[0]} a booking link from you and we'll reach out ourselves too.\n\n${summary}\n\nWhat you'll earn: ${TICKET_JOB_TYPES[t.job_type].earns}.\n\nFollow this ticket: ${siteUrl()}/partner\n\n— ${BRAND.name}`).catch(() => {});
   if (opsEmail()) await sendEmail(opsEmail(), `Referral ticket ${ticketNo}: ${t.name}${svc ? ` — ${svc.name}` : ""} (${partner.name})`, `${summary}${t.photos?.length ? `\n${t.photos.length} photo(s) of the job: see the ticket in Hub → Partners` : ""}\n\nPartner: ${partner.name}${partner.company ? ` (${partner.company})` : ""} · ${partner.email} · code ${partner.code}\n\nReach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}, then mark it "We reached out" in Hub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});

@@ -12,6 +12,7 @@
  *           Reminder emails carry a one-click unsubscribe (email_optouts); booking messages
  *           (payment links, schedule changes) still go. Seasonal reminders are email + app push
  *           only — no marketing texts without separate SMS consent.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import "server-only";
 import {
@@ -73,10 +74,10 @@ export async function saveQuote(q: { email: string; slug: string; answers: Answe
   const price = range ?? money(est.point);
   if (q.locale === "es")
     await reminderEmail(q.email, "es", `Su precio de ${BRAND.name}: ${name} — ${price}`,
-      `Aquí está su precio para ${name}: ${price}${q.frequency !== "once" ? " por visita" : ""}.\n\nReserve cuando esté listo — sus respuestas ya están guardadas:\n${link}\n\nProfesionales verificados y asegurados. Pague por adelantado para asegurar a su profesional. ¿No quedó bien? Lo repetimos gratis o le devolvemos su dinero dentro de ${BRAND.guaranteeDays} días.`);
+      `Aquí está su precio para ${name}: ${price}${q.frequency !== "once" ? " por visita" : ""}.\n\nReserve cuando esté listo — sus respuestas ya están guardadas:\n${link}\n\nProfesionales verificados y con antecedentes revisados. Pague por adelantado para asegurar a su profesional. ¿No quedó bien? Lo repetimos gratis o le devolvemos su dinero dentro de ${BRAND.guaranteeDays} días.`);
   else
     await reminderEmail(q.email, "en", `Your ${BRAND.name} price: ${name} — ${price}`,
-      `Here's your price for ${name}: ${price}${q.frequency !== "once" ? " per visit" : ""}.\n\nBook whenever you're ready — your answers are saved:\n${link}\n\nVetted, insured pros. ${BRAND.promise}`);
+      `Here's your price for ${name}: ${price}${q.frequency !== "once" ? " per visit" : ""}.\n\nBook whenever you're ready — your answers are saved:\n${link}\n\nBackground-checked, vetted pros. ${BRAND.promise}`);
   return data.id as string;
 }
 
@@ -98,10 +99,10 @@ export async function sendQuoteFollowups(limit = 300): Promise<number> {
     const last = i === QUOTE_FOLLOWUPS.length - 1;
     if (q.locale === "es")
       await reminderEmail(q.email, "es", last ? `¿Todavía necesita ${name.toLowerCase()}?` : `Su precio para ${name} sigue aquí`,
-        `${last ? `Solo un último recordatorio: su precio de ${money(q.price)} para ${name.toLowerCase()} sigue guardado.` : `Guardamos su precio de ${money(q.price)} para ${name.toLowerCase()}.`} Elija una fecha en un minuto:\n${link}\n\n${last ? "¿Tiene preguntas o el precio no le funciona? Responda a este correo: lo lee una persona." : "Profesionales verificados y asegurados, con garantía de satisfacción."}`);
+        `${last ? `Solo un último recordatorio: su precio de ${money(q.price)} para ${name.toLowerCase()} sigue guardado.` : `Guardamos su precio de ${money(q.price)} para ${name.toLowerCase()}.`} Elija una fecha en un minuto:\n${link}\n\n${last ? "¿Tiene preguntas o el precio no le funciona? Responda a este correo: lo lee una persona." : "Profesionales verificados y con antecedentes revisados, con garantía de satisfacción."}`);
     else
       await reminderEmail(q.email, "en", last ? `Still need ${name.toLowerCase()}?` : `Your ${name} price is still here`,
-        `${last ? `One last nudge: your ${money(q.price)} price for ${name.toLowerCase()} is still saved.` : `We saved your ${money(q.price)} price for ${name.toLowerCase()}.`} Pick a date in a minute:\n${link}\n\n${last ? "Questions, or the price doesn't work for you? Just reply — a person reads it." : "Vetted, insured pros, backed by our guarantee."}`);
+        `${last ? `One last nudge: your ${money(q.price)} price for ${name.toLowerCase()} is still saved.` : `We saved your ${money(q.price)} price for ${name.toLowerCase()}.`} Pick a date in a minute:\n${link}\n\n${last ? "Questions, or the price doesn't work for you? Just reply — a person reads it." : "Background-checked, vetted pros, backed by our guarantee."}`);
     sent++;
   }
   return sent;

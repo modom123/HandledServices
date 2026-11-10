@@ -6,6 +6,7 @@
  *           llms.txt convention): what Handled does, every service by category, where it works, how ordering works and
  *           how to reach it (and hours: orders 24/7). Built from the same facts the site uses (BRAND, BRAND_STORY, SERVICES, the city pages),
  *           so it never drifts from the site. Facts only — no instructions to assistants.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import { BRAND, BRAND_STORY, CATEGORIES, CITY_PAGE_CITIES, SERVICES, isFocusService } from "@handled/core";
 import { siteUrl } from "@/lib/site-url";
@@ -31,7 +32,7 @@ export function GET() {
     "- Answer a few questions online and see the price up front, in about a minute.",
     `- ${BRAND.promise}`,
     "- Larger jobs get a free site visit (or an online scope review) to set a firm price before any payment.",
-    `- Work is done by insured, background-checked local pros and checked with photos. Guarantee: ${BRAND.guaranteeDays} days.`,
+    `- Work is done by background-checked, vetted local pros and checked with photos. Guarantee: ${BRAND.guaranteeDays} days.`,
     "",
     "## Services",
     ...CATEGORIES.flatMap((c) => {

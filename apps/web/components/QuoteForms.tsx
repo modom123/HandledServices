@@ -4,6 +4,7 @@
  * CREATED : 2026-10-20_0200 UTC
  * PURPOSE : Request-a-quote forms: the customer's request (service, description, photos, ZIP, date, contact) and the
  *           pro's firm quote (their pay → the customer's all-in price shown live, earliest date, note) or decline.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 "use client";
 
@@ -50,7 +51,7 @@ export function QuoteRequestForm({ initialService }: { initialService?: string }
       </div>
       <button className="btn-primary w-full" disabled={busy}>{busy ? "Sending…" : `Get up to ${QUOTE_REQUEST.maxPros} firm quotes`}</button>
       {err && <p className="text-sm text-rose-700">{err}</p>}
-      <p className="text-xs text-ink-soft">Free, no obligation. Vetted, insured local pros send firm, all-in prices within {QUOTE_REQUEST.replyHours} hours. You pay only when you book one.</p>
+      <p className="text-xs text-ink-soft">Free, no obligation. Background-checked, vetted local pros send firm, all-in prices within {QUOTE_REQUEST.replyHours} hours. You pay only when you book one.</p>
     </form>
   );
 }

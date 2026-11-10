@@ -53,6 +53,7 @@
  * UPDATED : 2026-11-06_1638 UTC — Field Sales tickets: BookingSchema.ticket; createJob marks the ticket booked and credits the rep (lib/sales-tickets).
  * UPDATED : 2026-11-10_0310 UTC — name your price below our usual minimum: the job is paid as usual, goes straight to the job
  *           board for 30 days (jobs.open_offer_until, no targeted offers), and expireOpenOffers() cancels + refunds it if unclaimed.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import "server-only";
 import { z } from "zod";
@@ -821,14 +822,14 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) will handle your ${svc?.name} — ${when}${changed ? " (same time)" : ""}.`,
     data: { type: "job", jobId: job.id },
     sms: { to: job.contact_phone, body: `${BRAND.name}: ${changed ? "your new pro is confirmed" : "you're covered"} ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) will do your ${svc?.name} — ${when}. ${siteUrl()}/account/jobs/${job.id}` },
-    email: { to: job.contact_email, subject: changed ? `Your new pro is confirmed — ${job.ref}` : `Your job is covered — ${job.ref}`, text: `${changed ? "You're all set again — same time as before. " : ""}Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
+    email: { to: job.contact_email, subject: changed ? `Your new pro is confirmed — ${job.ref}` : `Your job is covered — ${job.ref}`, text: `${changed ? "You're all set again — same time as before. " : ""}Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, background-checked & vetted) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
     locale: job.locale,
     es: {
       title: "Su trabajo está cubierto ✓",
       body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) se encargará de su ${nameEs} — ${whenEs}.`,
       sms: `${BRAND.name}: está cubierto ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) hará su ${nameEs} — ${whenEs}. ${siteUrl()}/account/jobs/${job.id}`,
       subject: `Su trabajo está cubierto — ${job.ref}`,
-      text: `Buenas noticias: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, verificado y asegurado) se encargará de su ${nameEs} el ${whenEs}.\n\nSiga su reserva y escriba a su profesional: ${siteUrl()}/account\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}`,
+      text: `Buenas noticias: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, verificado y con antecedentes revisados) se encargará de su ${nameEs} el ${whenEs}.\n\nSiga su reserva y escriba a su profesional: ${siteUrl()}/account\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}`,
     },
   });
   // pro: confirmed, here is the full work order

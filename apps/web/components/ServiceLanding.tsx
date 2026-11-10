@@ -18,6 +18,7 @@
  *           the one business record (@id …/#business, lib/business-ld.ts).
  * UPDATED : 2026-11-06_0500 UTC — city pages link to their market page (/areas/<market>); state names for NY, NJ, NV.
  * UPDATED : 2026-11-07_1614 UTC — "Post your project" link under the order button (/post?service=).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service } from "@handled/core";
@@ -67,7 +68,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{txt.name}{locale === "es" && city ? ` en ${city.name}, ${city.state}` : where}</h1>
         <p className="mt-2 text-lg text-brand">{txt.tagline}</p>
         {reviews.average && reviews.count >= 3 && <p className="mt-2 text-sm"><span className="text-amber-500">{stars(reviews.average)}</span> <b>{reviews.average}</b> from {reviews.count} customer reviews</p>}
-        <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? ` We serve ${city.name} and nearby neighborhoods with vetted, insured local pros — book online with an upfront price.` : ""}</p>
+        <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? ` We serve ${city.name} and nearby neighborhoods with background-checked, vetted local pros — book online with an upfront price.` : ""}</p>
         {city && marketForCity(city) && <p className="mt-2 text-sm"><Link href={`/areas/${marketForCity(city)!.slug}`} className="text-brand underline">{locale === "es" ? `Más servicios en ${marketForCity(city)!.name}` : `More services in ${marketForCity(city)!.name}`} →</Link></p>}
         <h2 className="mt-10 font-bold">{locale === "es" ? "Qué incluye" : "What’s included"}</h2>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">

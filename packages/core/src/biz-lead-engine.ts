@@ -22,6 +22,7 @@
  *           letter; no discount promises (the pilot isn't applied to online orders); 25% to book, same-day price on reply.
  * UPDATED : 2026-10-07_2030 UTC — job-posting discovery: JOB_POST_AREAS (Michigan + Washington), JOB_POST_QUERIES, parseAdzuna, screenJobPosting
  *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import { BRAND } from "./brand.ts";
 
@@ -103,9 +104,9 @@ function employerLetter(c: BizLeadEmailCtx, closing: string, reply: string): { s
 
 I saw that ${c.businessName} is hiring ${a} ${title}${c.city ? ` in ${c.city}` : " in the Detroit area"}${where}. Before you spend the next few weeks screening applicants, onboarding and covering shifts, here's a faster way to get the ${need.work} done, starting as soon as this week.
 
-${BRAND.name} sends vetted, insured pros to do the job on the schedule you choose: nightly, weekly or one-time. You get the result of the hire, without the hiring:
+${BRAND.name} sends background-checked, vetted pros to do the job on the schedule you choose: nightly, weekly or one-time. You get the result of the hire, without the hiring:
 
-• No recruiting, payroll, taxes or workers' comp. Our pros are independent, insured businesses.
+• No recruiting, payroll, taxes or workers' comp. Our pros are independent, background-checked businesses.
 • No gaps when someone can't make it: a backup crew is dispatched automatically.
 • Before-and-after photos of every visit in your account.
 • An exact price up front: 25% books it, the rest is charged when the work is done. Approved accounts with a track record can move to monthly invoicing.
@@ -135,7 +136,7 @@ Every day a unit sits empty costs you rent, and every extra vendor costs you tim
 • Repairs and maintenance: handyman, plumbing, appliance and lighting work, by licensed trades where required
 • Clean-outs and haul-away between tenants
 • An exact price online, 25% to book, the rest when it's done. Larger projects start with a free site visit and no deposit
-• Every property and invoice in one account. Insured, background-checked pros, backup crews and a ${BRAND.guaranteeDays}-day make-it-right guarantee
+• Every property and invoice in one account. Background-checked, vetted pros, backup crews and a ${BRAND.guaranteeDays}-day make-it-right guarantee
 
 Have a turnover coming up? ${reply} Or book it now: ${c.signupUrl}
 
@@ -169,7 +170,7 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
     const again = hi === `Hi ${c.businessName} team,` ? "Hi again," : hi;
     return pick([
       employerLetter(c, `Best regards,\n${team}`, replyLine(BRAND.supportPhone)),
-      { subject: `Re: your ${title} posting`, text: `${again}\n\nQuick follow-up. If the ${title} role is still open, we can cover the ${need.work} while you look, or instead of hiring: vetted, insured pros, an exact price up front and 25% to book.\n\nBook a first visit: ${c.signupUrl}\n${replyLine(BRAND.supportPhone)}\n\n${team}` },
+      { subject: `Re: your ${title} posting`, text: `${again}\n\nQuick follow-up. If the ${title} role is still open, we can cover the ${need.work} while you look, or instead of hiring: background-checked, vetted pros, an exact price up front and 25% to book.\n\nBook a first visit: ${c.signupUrl}\n${replyLine(BRAND.supportPhone)}\n\n${team}` },
       { subject: `Last note from ${BRAND.name}`, text: `${again === "Hi again," ? "Hello," : again}\n\nI won't keep emailing. Whenever you need ${need.work} done, while the role is open or when someone calls out, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
     ]);
   }
@@ -183,7 +184,7 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
   return pick([
     {
       subject: `${seg.pilotJob[0].toUpperCase()}${seg.pilotJob.slice(1)}, booked in a minute`,
-      text: `${hi}\n\nI'm reaching out from ${BRAND.name}, a home and business services company${where}. We handle ${seg.hook}.\n\n• Vetted, insured, background-checked pros\n• An exact price up front, booked online in about a minute: 25% to book, the rest when it's done\n• Every property on one business account; your favorite pros get your jobs first\n• If a job isn't right, we redo it free or refund it\n\nBook ${seg.pilotJob}: ${c.signupUrl}\nOr reply and I'll get you a price.\n\nThanks,\n${team}`,
+      text: `${hi}\n\nI'm reaching out from ${BRAND.name}, a home and business services company${where}. We handle ${seg.hook}.\n\n• Background-checked, vetted pros\n• An exact price up front, booked online in about a minute: 25% to book, the rest when it's done\n• Every property on one business account; your favorite pros get your jobs first\n• If a job isn't right, we redo it free or refund it\n\nBook ${seg.pilotJob}: ${c.signupUrl}\nOr reply and I'll get you a price.\n\nThanks,\n${team}`,
     },
     {
       subject: `Re: ${seg.pilotJob}`,

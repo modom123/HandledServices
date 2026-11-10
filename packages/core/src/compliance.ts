@@ -29,6 +29,7 @@
  *           approved before it existed count as done.
  * UPDATED : 2026-11-10_0345 UTC — insurance blocks activation only when every service the pro does needs it; otherwise the COI
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
+ * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  */
 import { SERVICES } from "./services.ts";
 import { ORIENTATION, orientationStatus } from "./orientation.ts";
@@ -36,7 +37,7 @@ import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor,
 
 export const AGREEMENT_VERSION = "2026-11-v11"; // v11: the pay shown to the pro is their NET pay — a referral partner's fee (half of the partner's 15%–30% of the price, locked when the job is booked) is already taken out, with no math shown; v10: referral partner fee — the pro pays half of a partner's 25% one-time / 10% repeat / 15% account share, shown on the work order; v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v8"; // v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
+export const SERVICE_AGREEMENT_VERSION = "2026-11-v9"; // v9: pros are background-checked and vetted; insurance and licenses where the work requires them; v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 

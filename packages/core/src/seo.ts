@@ -11,6 +11,7 @@
  *           SEO_CITIES stays Metro Detroit only (FOCUS_CITIES and the lead engines read it).
  * UPDATED : 2026-11-06_0500 UTC — New York, New Jersey and Las Vegas cities; SITE_MARKETS (a page per market at /areas/<slug>,
  *           each with the services it leads with); SERVICE_AREA now MI, NY, NJ, NV, WA; SERVED_AREAS_LABEL for customer messages.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 export interface SeoCity { slug: string; name: string; state: string; zip: string }
 
@@ -126,13 +127,13 @@ export interface SiteMarket { slug: string; name: string; region: string; states
 
 export const SITE_MARKETS: SiteMarket[] = [
   { slug: "michigan", name: "Michigan", region: "Metro Detroit and across Michigan", states: ["MI"], cities: SEO_CITIES, featured: ["house-cleaning", "carpet-cleaning", "window-cleaning", "unit-turnover", "handyman"],
-    intro: "Where Handled started. Cleaning, repairs, lawn and snow, moving, hauling and 100+ more services from vetted, insured local pros across Metro Detroit and the rest of Michigan." },
+    intro: "Where Handled started. Cleaning, repairs, lawn and snow, moving, hauling and 100+ more services from background-checked, vetted local pros across Metro Detroit and the rest of Michigan." },
   { slug: "new-york", name: "New York", region: "New York City, Westchester and Long Island", states: ["NY"], cities: NY_SEO_CITIES, featured: ["handyman", "house-cleaning", "furniture-assembly"],
-    intro: "Apartment and home services across the five boroughs, Westchester and Long Island: repairs, mounting and assembly, cleaning and more, priced upfront and done by vetted, insured pros." },
+    intro: "Apartment and home services across the five boroughs, Westchester and Long Island: repairs, mounting and assembly, cleaning and more, priced upfront and done by background-checked, vetted pros." },
   { slug: "new-jersey", name: "New Jersey", region: "North and Central Jersey", states: ["NJ"], cities: NJ_SEO_CITIES, featured: ["handyman", "house-cleaning", "furniture-assembly"],
     intro: "Home and business services from Jersey City and Hoboken to Newark, Edison and Trenton: repairs, assembly, cleaning and more, with your exact price before you book." },
   { slug: "las-vegas", name: "Las Vegas", region: "the Las Vegas Valley", states: ["NV"], cities: NV_SEO_CITIES, featured: ["handyman"],
-    intro: "Handyman services across Las Vegas, Henderson, North Las Vegas and Summerlin: repairs, mounting, assembly, doors, drywall and the punch list, from vetted, insured local pros with an exact price in about a minute." },
+    intro: "Handyman services across Las Vegas, Henderson, North Las Vegas and Summerlin: repairs, mounting, assembly, doors, drywall and the punch list, from background-checked, vetted local pros with an exact price in about a minute." },
   { slug: "washington", name: "Washington", region: "Seattle, the Eastside, Tacoma, Spokane and the rest of Washington", states: ["WA"], cities: WA_SEO_CITIES, featured: ["house-cleaning", "carpet-cleaning", "window-cleaning", "unit-turnover", "handyman"],
     intro: "Cleaning, repairs, yard work, moving and 100+ more services across Washington, from Seattle and Bellevue to Tacoma, Olympia and Spokane." },
 ];

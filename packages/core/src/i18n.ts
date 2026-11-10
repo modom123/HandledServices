@@ -26,6 +26,7 @@
  * UPDATED : 2026-10-23_2100 UTC — Spanish for services 76–100 and the updated category blurbs.
  * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  * UPDATED : 2026-11-07_0037 UTC — Spanish names and taglines for the four social media services.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import type { CategoryId } from "./types.ts";
 import { ES_CATALOG } from "./i18n-catalog-es.ts";
@@ -48,7 +49,7 @@ const ES: Record<string, string> = {
   // home — cleaning push
   "Launching in Metro Detroit · expanding nationwide": "Comenzamos en Metro Detroit · creciendo en todo el país",
   "Home & office cleaning, done right.": "Limpieza de casas y oficinas, bien hecha.",
-  "Standard, deep and move-out cleaning, carpets and windows, by insured, background-checked local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.": "Limpieza estándar, profunda y de mudanza, alfombras y ventanas, por personal local asegurado y con verificación de antecedentes. Precio por adelantado en 60 segundos, fotos al terminar cada limpieza y una nueva limpieza gratis si algo faltó.",
+  "Standard, deep and move-out cleaning, carpets and windows, by background-checked, vetted local cleaners. An upfront price in 60 seconds, a photo check-out after every clean, and a free redo if anything's missed.": "Limpieza estándar, profunda y de mudanza, alfombras y ventanas, por personal local verificado y con antecedentes revisados. Precio por adelantado en 60 segundos, fotos al terminar cada limpieza y una nueva limpieza gratis si algo faltó.",
   "Book a cleaning": "Reservar una limpieza", "Office & property cleaning": "Limpieza de oficinas y propiedades",
   "Standard clean": "Limpieza estándar", "Kitchen, baths, dusting, floors": "Cocina, baños, polvo y pisos",
   "Deep clean": "Limpieza profunda", "Baseboards, buildup, every corner": "Zócalos, suciedad acumulada, cada rincón",
@@ -60,14 +61,14 @@ const ES: Record<string, string> = {
   "Pick your city to see house cleaning near you.": "Elija su ciudad para ver la limpieza de casas cerca de usted.",
   "Everything else, handled too": "Todo lo demás, también resuelto",
   "Enter": "Entrar a", "Get my price": "Ver mi precio", "services · one account": "servicios · una sola cuenta",
-  "Vetted, insured pros": "Profesionales verificados y asegurados", "Background-checked, licensed where required, and rated on every job.": "Con verificación de antecedentes, licencia cuando se requiere y calificados en cada trabajo.",
+  "Background-checked, vetted pros": "Profesionales verificados y con antecedentes revisados", "Background-checked, licensed where required, and rated on every job.": "Con verificación de antecedentes, licencia cuando se requiere y calificados en cada trabajo.",
   "Upfront, all-in price": "Precio total por adelantado", "Your real price in about a minute. No callbacks, no surprise invoices.": "Su precio real en un minuto. Sin esperas ni facturas sorpresa.",
   "Make-it-right guarantee": "Garantía de satisfacción", "Not right? A free redo or your money back within": "¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero dentro de",
   "days.": "días.", "For businesses": "Para empresas", "Skip intro": "Saltar introducción",
   "See all": "Ver los", "Browse by category": "Explorar por categoría", "How it works": "Cómo funciona", "from": "desde", "By budget": "Según presupuesto",
   "Get a real price in 60 seconds": "Precio real en 60 segundos", "We send one vetted pro": "Enviamos un profesional verificado", "Track it like a delivery": "Sígalo como un envío",
   "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback.": "Responda unas preguntas o tome fotos. Nuestra IA revisa los detalles y le da un precio por adelantado, sin esperar llamadas.",
-  "Insured, background-checked and rated. We pick the best available pro for your job, date and neighborhood.": "Asegurado, verificado y calificado. Elegimos al mejor profesional disponible para su trabajo, fecha y vecindario.",
+  "Background-checked, vetted and rated. We pick the best available pro for your job, date and neighborhood.": "Verificado, con antecedentes revisados y calificado. Elegimos al mejor profesional disponible para su trabajo, fecha y vecindario.",
   "Live status, messages and before/after photos in the app. If it isn’t right, we come back free or refund you.": "Estado en vivo, mensajes y fotos de antes y después. Si no queda bien, volvemos gratis o le devolvemos el dinero.",
   // booking
   "Get your price & book": "Vea su precio y reserve", "Service": "Servicio", "Details": "Detalles", "When & where": "Cuándo y dónde", "Review": "Revisar",

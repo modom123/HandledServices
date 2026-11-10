@@ -8,6 +8,7 @@
  *           to share). English / Spanish.
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: "Get 10% back, up to $250" (posting can make you a partner).
  * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BRAND, SERVICES, firstProjectLine, serviceText } from "@handled/core";
@@ -16,7 +17,7 @@ import { PostProjectForm } from "@/components/PostProjectForm";
 
 export const metadata = {
   title: "Post your project",
-  description: `Tell ${BRAND.name} what you need done — cleaning, repairs, remodeling, moving, business services and more. We call you within minutes with a plan and an upfront price, and send one vetted, insured pro.`,
+  description: `Tell ${BRAND.name} what you need done — cleaning, repairs, remodeling, moving, business services and more. We call you within minutes with a plan and an upfront price, and send one background-checked, vetted pro.`,
   alternates: { canonical: "/post" },
 };
 
@@ -27,8 +28,8 @@ export default async function PostProject({ searchParams }: { searchParams: Prom
   const services = SERVICES.map((s) => ({ slug: s.slug, name: serviceText(l, s.slug, s).name })).sort((a, b) => a.name.localeCompare(b.name));
   const preset = services.some((s) => s.slug === service) ? service! : null;
   const steps = es
-    ? [["Publique su proyecto", "Díganos qué necesita, cuándo y su presupuesto. Toma un minuto."], ["Le llamamos en minutos", "Una persona de Handled le llama con un plan y un precio fijo, o agenda una visita gratis para trabajos grandes."], ["Un profesional verificado lo hace", "Asegurado y con verificación de antecedentes. Fotos al terminar y lo rehacemos gratis si algo falta."], ["Le devolvemos dinero", `Marque la casilla de socio y le pagamos ${firstProjectLine(true)} cuando terminemos su proyecto, más una parte de cada trabajo de las personas que nos envíe.`]]
-    : [["Post your project", "Tell us what you need, when, and your budget. It takes a minute."], ["We call you within minutes", "A real Handled person calls with a plan and an upfront price — or books a free visit for big jobs."], ["One vetted pro does it", "Insured and background-checked. Photo check-out after every job, and a free redo if anything's missed."], ["Get paid back", `Tick the partner box and we pay you ${firstProjectLine()} once your project is done, plus a share of every job from people you send us.`]];
+    ? [["Publique su proyecto", "Díganos qué necesita, cuándo y su presupuesto. Toma un minuto."], ["Le llamamos en minutos", "Una persona de Handled le llama con un plan y un precio fijo, o agenda una visita gratis para trabajos grandes."], ["Un profesional verificado lo hace", "Verificado y con antecedentes revisados. Fotos al terminar y lo rehacemos gratis si algo falta."], ["Le devolvemos dinero", `Marque la casilla de socio y le pagamos ${firstProjectLine(true)} cuando terminemos su proyecto, más una parte de cada trabajo de las personas que nos envíe.`]]
+    : [["Post your project", "Tell us what you need, when, and your budget. It takes a minute."], ["We call you within minutes", "A real Handled person calls with a plan and an upfront price — or books a free visit for big jobs."], ["One vetted pro does it", "Background-checked and vetted. Photo check-out after every job, and a free redo if anything's missed."], ["Get paid back", `Tick the partner box and we pay you ${firstProjectLine()} once your project is done, plus a share of every job from people you send us.`]];
   return (
     <div className="wrap grid gap-10 py-12 lg:grid-cols-[1fr_1.15fr]">
       <div>

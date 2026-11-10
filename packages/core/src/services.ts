@@ -67,6 +67,7 @@
  *           cleaning "Other" goes down to 50 sq ft. numberMin / clampToMins helpers.
  * UPDATED : 2026-11-10_0345 UTC — no general liability certificate needed (insuranceOptional) for house cleaning, dog walking,
  *           dog sitting, pet waste removal, furniture assembly, event planning / packages and DJ & music (owner decision).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -1051,7 +1052,7 @@ export const SERVICES: Service[] = [
     icon: "🦮",
     tagline: "Same walker, every walk — GPS photo updates after each one.",
     description: "Background-checked walkers for daily or occasional walks. Fresh water, treats if you allow them, and a photo + note after every walk. Book a one-off walk or a weekly schedule.",
-    includes: ["Background-checked, insured walker", "Leash-on, door-to-door", "Fresh water & paw wipe", "Photo + note after every walk"],
+    includes: ["Background-checked, vetted walker", "Leash-on, door-to-door", "Fresh water & paw wipe", "Photo + note after every walk"],
     questions: [
       {
         id: "length",
@@ -1090,7 +1091,7 @@ export const SERVICES: Service[] = [
     icon: "🐶",
     tagline: "Drop-in visits, daytime watching or overnight stays in your home.",
     description: "Trusted, background-checked sitters while you're at work or away: feeding, walks, play, meds and a photo update every visit. Overnight sitters stay in your home so your dog keeps its routine.",
-    includes: ["Background-checked, insured sitter", "Feeding, fresh water & meds", "Walks & playtime", "Photo update every visit", "Meet & greet before the first booking"],
+    includes: ["Background-checked, vetted sitter", "Feeding, fresh water & meds", "Walks & playtime", "Photo update every visit", "Meet & greet before the first booking"],
     questions: [
       {
         id: "type",
@@ -1716,7 +1717,7 @@ export const SERVICES: Service[] = [
     icon: "🪑",
     tagline: "Flat-pack to finished, priced per piece.",
     description: "Beds, dressers, desks, bookcases, cribs, patio sets, gym equipment and playsets assembled, leveled and anchored to the wall, plus TV mounting with the wires hidden. Priced per piece, so you know the total before we arrive.",
-    includes: ["Vetted, insured assembler", "Own tools and drill", "Tall pieces anchored to the wall", "Boxes broken down", "Before & after photos"],
+    includes: ["Background-checked, vetted assembler", "Own tools and drill", "Tall pieces anchored to the wall", "Boxes broken down", "Before & after photos"],
     notesHint: "The pieces (store and model if you have them), which rooms, and stairs or elevator access",
     questions: [
       { id: "small", label: "Small pieces (nightstand, chair, side table, shelf)", type: "number", min: 0, max: 50, default: 0 },

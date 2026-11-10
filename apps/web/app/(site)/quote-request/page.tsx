@@ -4,6 +4,7 @@
  * CREATED : 2026-10-20_0200 UTC
  * PURPOSE : Request-a-quote for big jobs: describe it (photos help), and up to 3 vetted local pros send firm, all-in
  *           quotes within 24 hours. ?service= preselects the service.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import { QuoteRequestForm } from "@/components/QuoteForms";
 
@@ -14,7 +15,7 @@ export default async function QuoteRequestPage({ searchParams }: { searchParams:
   return (
     <div className="wrap max-w-3xl py-12">
       <h1 className="text-3xl font-extrabold tracking-tight">Get firm quotes for a big job</h1>
-      <p className="mt-2 text-ink-soft">Remodels, painting a whole house, construction, big cleanouts, commercial cleaning… Tell us about it and up to 3 vetted, insured local pros send a firm, all-in price. Compare them side by side and book the one you like — still one upfront price, paid when you book.</p>
+      <p className="mt-2 text-ink-soft">Remodels, painting a whole house, construction, big cleanouts, commercial cleaning… Tell us about it and up to 3 background-checked, vetted local pros send a firm, all-in price. Compare them side by side and book the one you like — still one upfront price, paid when you book.</p>
       <div className="mt-8"><QuoteRequestForm initialService={service} /></div>
     </div>
   );
