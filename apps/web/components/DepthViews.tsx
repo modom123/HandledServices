@@ -5,11 +5,17 @@
  * PURPOSE : Depth chart pieces shared by Mastermind → Depth chart (app/hub/depth): the tier colors (green cleared, amber
  *           signed but not cleared, blue in camp, purple prospect), the region switch, and JobDepth — one job's full
  *           depth chart, everyone who could work it numbered from starter down the bench.
+ * UPDATED : 2026-11-10_0700 UTC — any state from the coverage map (depthState / regionsFor) and an On-the-map link.
  */
 import Link from "next/link";
 import { getService, type DepthTier, type Position } from "@handled/core";
 
 export const REGIONS = [["", "All"], ["MI", "Michigan"], ["WA", "Washington"]] as const;
+
+/** Any US state code (from the coverage map) or "" for all. */
+export const depthState = (v: string | undefined) => (/^[A-Za-z]{2}$/.test(v ?? "") ? v!.toUpperCase() : "");
+/** The region switch: All / Michigan / Washington, plus the state that was opened from the map. */
+export const regionsFor = (state: string): readonly (readonly [string, string])[] => (state && !REGIONS.some(([k]) => k === state) ? [...REGIONS, [state, state] as const] : REGIONS);
 
 export const TIER: Record<DepthTier, { label: string; cls: string }> = {
   cleared: { label: "Cleared to play", cls: "border-emerald-300 bg-emerald-50 text-emerald-900" },
@@ -33,7 +39,7 @@ export function JobDepth({ p, state }: { p: Position; state: string }) {
           <h1 className="text-2xl font-bold">{p.icon} {p.name} <span className="text-base font-normal text-ink-soft">depth chart</span></h1>
           <p className="text-sm text-ink-soft">{covered ? `✓ Filled: ${p.depth.length} cleared (needs ${p.target})` : p.status === "open" ? `Open: nobody cleared yet (needs ${p.target})` : `Thin: ${p.depth.length} of ${p.target} cleared — need ${p.need} more`}{p.projectedStatus === "covered" && !covered ? " · fills once the pipeline signs" : ""} · trades: {svc.trades.join(", ")}{svc.licensed ? " · license required" : ""}{svc.insuranceOptional ? " · insurance optional" : ""}</p>
         </div>
-        <div className="flex gap-1 text-sm">{REGIONS.map(([k, l]) => <Link key={k} href={`/hub/depth?service=${p.slug}${k ? `&state=${k}` : ""}`} className={`rounded-full px-3 py-1 ${state === k ? "bg-brand text-white" : "bg-paper"}`}>{l}</Link>)}</div>
+        <div className="flex flex-wrap items-center gap-1 text-sm">{regionsFor(state).map(([k, l]) => <Link key={k} href={`/hub/depth?service=${p.slug}${k ? `&state=${k}` : ""}`} className={`rounded-full px-3 py-1 ${state === k ? "bg-brand text-white" : "bg-paper"}`}>{l}</Link>)}<Link href={`/hub/map?service=${p.slug}${state ? `&state=${state}` : ""}`} className="ml-1 text-xs text-brand underline">On the map</Link></div>
       </div>
       <div className="flex flex-wrap gap-2 text-xs">{counts.map(([k, n]) => <span key={k} className={`rounded-full border px-2 py-0.5 ${TIER[k].cls}`}>{TIER[k].label}: {n}</span>)}</div>
       {!p.projected.length ? (

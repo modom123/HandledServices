@@ -13,12 +13,13 @@
  * UPDATED : 2026-11-05_0130 UTC — one job's depth chart (?service=<slug>): every pro who could work it, numbered from
  *           starter down the bench in depth order, colored by tier, with why the not-cleared ones can't play yet. Opened
  *           from the job buttons on the Roster (components/DepthJobButtons) or a position's name here.
+ * UPDATED : 2026-11-10_0700 UTC — any state (?state= from the coverage map), not only MI / WA; an On-the-map link.
  */
 import Link from "next/link";
 import { depthChart, depthSummary, getService, type Contractor, type DepthTier, type Position } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
-import { JobDepth, REGIONS, TIER } from "@/components/DepthViews";
+import { JobDepth, TIER, depthState, regionsFor } from "@/components/DepthViews";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Depth chart" };
@@ -27,7 +28,7 @@ const ORD = ["Starter", "2nd", "3rd"];
 
 export default async function DepthChart({ searchParams }: { searchParams: Promise<{ state?: string; show?: string; service?: string }> }) {
   const sp = await searchParams;
-  const state = sp.state === "MI" || sp.state === "WA" ? sp.state : "";
+  const state = depthState(sp.state); // MI, WA, or any state opened from the coverage map
   const db = adminClient();
   const [{ data: pros }, apps] = await Promise.all([
     db.from("contractors").select("*").in("status", ["approved", "applied", "vetting"]).limit(5000),
@@ -51,7 +52,7 @@ export default async function DepthChart({ searchParams }: { searchParams: Promi
           <h1 className="text-2xl font-bold">Depth chart</h1>
           <p className="max-w-3xl text-sm text-ink-soft">Every service is a position on the roster. Fill each one with a starter and backups; it’s crossed off when it’s filled to depth: 3 deep for the focus services, 2 for the rest. Only pros cleared to work (trade, insurance, background check, license and coverages) count.</p>
         </div>
-        <div className="flex gap-1 text-sm">{REGIONS.map(([k, l]) => <Link key={k} href={`/hub/depth${k ? `?state=${k}` : ""}`} className={`rounded-full px-3 py-1 ${state === k ? "bg-brand text-white" : "bg-paper"}`}>{l}</Link>)}</div>
+        <div className="flex flex-wrap items-center gap-1 text-sm">{regionsFor(state).map(([k, l]) => <Link key={k} href={`/hub/depth${k ? `?state=${k}` : ""}`} className={`rounded-full px-3 py-1 ${state === k ? "bg-brand text-white" : "bg-paper"}`}>{l}</Link>)}<Link href={`/hub/map${state ? `?state=${state}` : ""}`} className="ml-1 text-xs text-brand underline">On the map</Link></div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
