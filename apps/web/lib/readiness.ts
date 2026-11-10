@@ -64,6 +64,7 @@
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  * UPDATED : 2026-11-06_1800 UTC — readiness check for the partner-v4 referral ladder (jobs.partner_rate).
  * UPDATED : 2026-11-10_2000 UTC — checks 20261110200000_pro_showcase (opt-in "new pros" chain on the website).
+ * UPDATED : 2026-11-10_2230 UTC — checks 20261110223000_iebc_team_expansion (the 9 new IEBC agents, incl. Legal & Compliance).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -250,6 +251,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261110031000_open_offers", "name-your-price open offers (job board, 30 days)", () => db.from("jobs").select("open_offer_until").limit(1)],
     ["20261110040000_lead_pay", "Field Sales lead pay ($10 per lead, a draw)", () => db.from("partner_draws").select("id").limit(1)],
     ["20261110200000_pro_showcase", "new pros on the website (opt-in showcase)", () => db.from("contractors").select("showcase_opt_in").limit(1)],
+    ["20261110223000_iebc_team_expansion", "expanded IEBC team: Partner & Pro Success, gov capture, Legal & Compliance (or run supabase/setup/ADD_IEBC_TEAM_2026-11-10_2230.sql)", () => db.from("iebc_agents").select("id").eq("iebc_employee_id", "olivia").limit(1).then((r) => (r.error ? r : { error: r.data?.length ? null : { message: "not added yet" } }))],
     ["20261007023000_site_settings_grand_opening", "website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
     ["20261007030000_bid_measurements", "bid measurements", () => db.from("bid_cost_lines").select("measure_size, measure_unit").limit(1)],
     ["20261007040000_loyalty_points", "Handled Points (loyalty)", () => db.from("loyalty_ledger").select("id").limit(1)],

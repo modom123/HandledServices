@@ -3,6 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-01_1800 UTC
  * PURPOSE : Staff: change an IEBC agent's autonomy, scopes or pause it.
+ * UPDATED : 2026-11-10_2230 UTC — new scopes: partners, pro_success, bids, legal (IEBC team expansion).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -11,7 +12,7 @@ import { adminClient } from "@/lib/supabase/server";
 const Patch = z.object({
   autonomy: z.enum(["suggest", "approval", "autonomous"]).optional(),
   active: z.boolean().optional(),
-  scopes: z.array(z.enum(["read", "ops", "finance", "recruiting", "retention", "sales"])).optional(),
+  scopes: z.array(z.enum(["read", "ops", "finance", "recruiting", "retention", "sales", "partners", "pro_success", "bids", "legal"])).optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

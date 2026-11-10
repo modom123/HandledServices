@@ -126,9 +126,15 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 | `finance` | `finance.payout_queue`, `finance.set_job_price`†, `finance.mark_payout_paid`† | Eleanor Wei |
 | `recruiting` | `recruiting.pipeline`, `recruiting.history`, `recruiting.documents`, `recruiting.nudge_pro`, `recruiting.revive_pro`, `recruiting.add_note`, `recruiting.order_background_check`, `recruiting.decide_application`†, `recruiting.verify_document`†, `recruiting.activate_pro`†, `recruiting.flag_expiring_insurance` | Tyler Walsh (pipeline & follow-up, autonomous), Marcus Hill (documents & background checks, autonomous) |
 | `retention` | `retention.message_customer`, `retention.email_customer`† | Diego Martinez (autonomous) |
-| `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account` | Elena Markov, Clara Dubois (autonomous) |
+| `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account` | Elena Markov, Clara Dubois (autonomous), Samantha Lee |
+| `partners` | `partners.list`, `partners.message` | Lucas Thorne (Partner Success) |
+| `pro_success` | `pro_success.pros`, `pro_success.message` | Grace O'Connor (Pro Success), Leo Fitzgerald (at-risk watch, suggest) |
+| `bids` | `bids.pipeline`, `bids.decide`† | Veronica Chase (gov capture), Margaret Okonkwo |
+| `legal` | `legal.contracts`, `legal.disputes`, `legal.licensing`, `legal.flag` | Legal & Compliance: Olivia Grant (clients & contracts, suggest), Rafael Ortiz (pros, + `recruiting`), Margaret Okonkwo (city/state regs & permits, suggest) |
 
 † high-risk: always waits for human approval. \* cancelling a job is high-risk.
+Sofia Rossi (payments & reconciliation) shares `finance` with Eleanor Wei. The Legal & Compliance agents draft and flag only;
+a licensed attorney makes the binding call. Added 2026-11-10 (migration 20261110223000_iebc_team_expansion).
 Autonomy: `suggest` / `approval` → every write is queued. `autonomous` → low-risk writes run immediately.
 Change assignments, autonomy or pause an agent in **Handled Hub → IEBC Workforce**. That page also has the
 monthly usage meter used for IEBC invoicing.

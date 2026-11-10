@@ -12,6 +12,7 @@
  *           its risk. The gateway (gateway.ts) enforces scopes + autonomy and logs
  *           everything to agent_actions.
  * UPDATED : 2026-10-18_0415 UTC — read.tax_1099 flags each pro file / under / exempt (corporation).
+ * UPDATED : 2026-11-10_2230 UTC — partners, pro_success, bids and legal scopes (team-actions.ts) for the expanded IEBC team.
  */
 import "server-only";
 import { z } from "zod";
@@ -21,9 +22,11 @@ import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
 import { sendEmail } from "../notify";
 import { localeOf } from "../push";
+import { TEAM_ACTIONS } from "./team-actions";
 import { decideDocument, maybeActivate, inviteApplicant, logRecruiting, nudgePro, orderBackgroundCheck, pipeline, rejectApplicant, revivePro } from "../recruiting";
 
-export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales";
+export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales" | "partners" | "pro_success" | "bids" | "legal";
+export const SCOPES: Scope[] = ["read", "ops", "finance", "recruiting", "retention", "sales", "partners", "pro_success", "bids", "legal"];
 
 export interface ActionDef {
   scope: Scope;
@@ -387,7 +390,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     scope: "sales", write: true, risk: "low", description: "Update a commercial account's stage, monthly value or notes.",
     params: z.object({ id: z.string().uuid(), status: z.enum(["lead", "proposal", "active", "paused", "lost"]).optional(), monthly_value: z.number().min(0).optional(), notes: z.string().max(4000).optional() }),
     run: async ({ id, ...patch }) => { await db().from("business_accounts").update(patch).eq("id", id); return "updated"; },
-  }),
+  }),  ...TEAM_ACTIONS,
 };
 
 /** Writes that are high-risk only for certain params. */
