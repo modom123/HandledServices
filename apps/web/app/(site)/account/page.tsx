@@ -18,6 +18,7 @@
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology (consultOnly): no estimate before the consultation; the price is set on the call.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
@@ -116,7 +117,7 @@ async function Welcome({ locale, name }: { locale: Locale; name: (slug: string) 
   const popular = LAUNCH_SET_RECOMMENDED.filter((slug) => getService(slug)).slice(0, 6);
   const steps = es
     ? [["1", "Reserve en 2 minutos", "Elija el servicio, la fecha y vea el precio antes de confirmar."], ["2", "Un profesional verificado llega", "Con seguro y verificación de antecedentes. Le avisamos cuando va en camino."], ["3", "Pague cuando esté hecho", "Fotos del trabajo terminado, factura y mensajes, todo aquí."]]
-    : [["1", "Book in 2 minutes", "Pick a service and a date, and see the price before you confirm."], ["2", "A vetted pro shows up", "Insured and background-checked. We let you know when they're on the way."], ["3", "Pay when it's done", "Photos of the finished work, your invoice and messages, all right here."]];
+    : [["1", "Book in 2 minutes", "Pick a service and a date, and see the price before you confirm."], ["2", "A vetted pro shows up", "Background-checked and vetted. We let you know when they're on the way."], ["3", "Pay when it's done", "Photos of the finished work, your invoice and messages, all right here."]];
   return (
     <div className="mt-8 space-y-4">
       <div className="card border-brand bg-brand-tint">

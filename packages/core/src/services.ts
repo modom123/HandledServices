@@ -64,6 +64,12 @@
  *           Paid Social Ads Manager (monthly, remote, ordered with a deposit); new trade social_media.
  * UPDATED : 2026-11-10_0600 UTC — Business & Technology copy: "Free consultation — a fixed price in writing" instead of "a deposit
  *           starts the work"; descriptions say a free consultation sets the scope and price (consultation-only again).
+ * UPDATED : 2026-11-10_0250 UTC — house cleaning: "Other (describe it)" type of clean; otherNote / otherMissing helpers.
+ * UPDATED : 2026-11-10_0310 UTC — number questions can have a lower minimum when another answer matches (minWhen): house
+ *           cleaning "Other" goes down to 50 sq ft. numberMin / clampToMins helpers.
+ * UPDATED : 2026-11-10_0345 UTC — no general liability certificate needed (insuranceOptional) for house cleaning, dog walking,
+ *           dog sitting, pet waste removal, furniture assembly, event planning / packages and DJ & music (owner decision).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -77,6 +83,8 @@ export type ShowIf = { id: string; is: (string | boolean)[] };
 export type Question =
   | {
       id: string; label: string; type: "number"; min: number; max: number; default: number; unit?: string; help?: string; showIf?: ShowIf;
+      /** a lower minimum when another answer matches (e.g. cleaning "Other": one small room is fine) */
+      minWhen?: { id: string; is: (string | boolean)[]; min: number };
       /** a real measurement the customer must enter (0 = not entered yet) */
       required?: boolean;
       /** this measurement picks the size band of another (select) question: [up to and including, option value] */
@@ -84,6 +92,32 @@ export type Question =
     }
   | { id: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string; help?: string; showIf?: ShowIf }
   | { id: string; label: string; type: "toggle"; default: boolean; help?: string; showIf?: ShowIf };
+
+/** The smallest number this question takes for these answers (its `minWhen` lower minimum, when that applies). */
+export function numberMin(q: Question, answers: Answers): number {
+  if (q.type !== "number") return 0;
+  const w = q.minWhen;
+  return w && w.is.includes(answers[w.id] as string | boolean) ? Math.min(q.min, w.min) : q.min;
+}
+/** Numbers raised back to their minimum after another answer changed (e.g. leaving cleaning "Other" below 400 sq ft). */
+export function clampToMins(questions: Question[], answers: Answers): Answers {
+  const out: Answers = { ...answers };
+  for (const q of questions) if (q.type === "number" && typeof out[q.id] === "number" && (out[q.id] as number) > 0 && (out[q.id] as number) < numberMin(q, out)) out[q.id] = numberMin(q, out);
+  return out;
+}
+
+/** A select option the customer describes in their own words ("Other"). */
+export const OTHER_OPTION = "other";
+/** The customer's description of an "Other" pick, as one line for the job notes (pro, AI price check, invoice). */
+export function otherNote(questions: Question[], answers: Answers, texts: Record<string, string>): string {
+  return questions
+    .filter((q) => q.type === "select" && answers[q.id] === OTHER_OPTION && (texts[q.id] ?? "").trim())
+    .map((q) => `${q.label}: ${texts[q.id]!.trim()}`).join("\n");
+}
+/** "Other" picks still waiting for a description. */
+export function otherMissing(questions: Question[], answers: Answers, texts: Record<string, string>): Question[] {
+  return questions.filter((q) => q.type === "select" && answers[q.id] === OTHER_OPTION && questionVisible(q, answers, questions) && !(texts[q.id] ?? "").trim());
+}
 
 /** Should this question be shown for these answers? A size band filled in from a measurement is never asked. */
 export function questionVisible(q: Question, answers: Answers, all: Question[] = []): boolean {
@@ -233,6 +267,7 @@ export const SERVICES: Service[] = [
   // ───────────────────────────── CLEANING ─────────────────────────────
   {
     slug: "house-cleaning",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "House & Office Cleaning",
     category: "cleaning",
     icon: "🧽",
@@ -243,7 +278,9 @@ export const SERVICES: Service[] = [
     questions: [
       { id: "bedrooms", label: "Bedrooms (or offices)", type: "number", min: 0, max: 10, default: 3 },
       { id: "bathrooms", label: "Bathrooms", type: "number", min: 1, max: 8, default: 2 },
-      { id: "sqft", label: "Square feet", type: "number", min: 400, max: 20000, default: 1800, unit: "sq ft", help: "Finished living or office space. Not sure? Use the number on your listing or tax record." },
+      { id: "sqft", label: "Square feet", type: "number", min: 400, max: 20000, default: 1800, unit: "sq ft", help: "Finished living or office space. Not sure? Use the number on your listing or tax record.",
+        // "Other" (just the kitchen, one room, an RV…): smaller than 400 sq ft is fine; the visit minimum still applies
+        minWhen: { id: "level", is: ["other"], min: 50 } },
       {
         id: "level",
         label: "Type of clean",
@@ -253,6 +290,9 @@ export const SERVICES: Service[] = [
           { value: "standard", label: "Standard" },
           { value: "deep", label: "Deep clean" },
           { value: "move", label: "Move-in / move-out" },
+          // Something else (post-construction, Airbnb turnover, one room…): starts at the standard price; the customer
+          // describes it, it goes in the job notes, and the AI price check reviews it before payment.
+          { value: "other", label: "Other (describe it)" },
         ],
       },
       { id: "pets", label: "Pets in the home", type: "toggle", default: false },
@@ -1008,12 +1048,13 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "dog-walking",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Dog Walking",
     category: "pets",
     icon: "🦮",
     tagline: "Same walker, every walk — GPS photo updates after each one.",
     description: "Background-checked walkers for daily or occasional walks. Fresh water, treats if you allow them, and a photo + note after every walk. Book a one-off walk or a weekly schedule.",
-    includes: ["Background-checked, insured walker", "Leash-on, door-to-door", "Fresh water & paw wipe", "Photo + note after every walk"],
+    includes: ["Background-checked, vetted walker", "Leash-on, door-to-door", "Fresh water & paw wipe", "Photo + note after every walk"],
     questions: [
       {
         id: "length",
@@ -1046,12 +1087,13 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "dog-sitting",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Dog Sitting & Pet Watching",
     category: "pets",
     icon: "🐶",
     tagline: "Drop-in visits, daytime watching or overnight stays in your home.",
     description: "Trusted, background-checked sitters while you're at work or away: feeding, walks, play, meds and a photo update every visit. Overnight sitters stay in your home so your dog keeps its routine.",
-    includes: ["Background-checked, insured sitter", "Feeding, fresh water & meds", "Walks & playtime", "Photo update every visit", "Meet & greet before the first booking"],
+    includes: ["Background-checked, vetted sitter", "Feeding, fresh water & meds", "Walks & playtime", "Photo update every visit", "Meet & greet before the first booking"],
     questions: [
       {
         id: "type",
@@ -1089,6 +1131,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "pet-waste-removal",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Dog Poop Removal",
     category: "pets",
     icon: "🐕",
@@ -1670,12 +1713,13 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "furniture-assembly",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Furniture Assembly & TV Mounting",
     category: "repair_remodel",
     icon: "🪑",
     tagline: "Flat-pack to finished, priced per piece.",
     description: "Beds, dressers, desks, bookcases, cribs, patio sets, gym equipment and playsets assembled, leveled and anchored to the wall, plus TV mounting with the wires hidden. Priced per piece, so you know the total before we arrive.",
-    includes: ["Vetted, insured assembler", "Own tools and drill", "Tall pieces anchored to the wall", "Boxes broken down", "Before & after photos"],
+    includes: ["Background-checked, vetted assembler", "Own tools and drill", "Tall pieces anchored to the wall", "Boxes broken down", "Before & after photos"],
     notesHint: "The pieces (store and model if you have them), which rooms, and stairs or elevator access",
     questions: [
       { id: "small", label: "Small pieces (nightstand, chair, side table, shelf)", type: "number", min: 0, max: 50, default: 0 },
@@ -3709,6 +3753,7 @@ export const SERVICES: Service[] = [
   // ───────────────────────────── PARTIES & EVENTS ─────────────────────────────
   {
     slug: "event-package",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Plan My Event (by Budget)",
     category: "events",
     icon: "🎈",
@@ -3744,6 +3789,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "event-planning",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "Event Planning & Coordination",
     category: "events",
     icon: "🎉",
@@ -3870,6 +3916,7 @@ export const SERVICES: Service[] = [
   },
   {
     slug: "dj-music",
+    insuranceOptional: true, // no general liability certificate needed (owner decision 2026-11-10)
     name: "DJ & Live Music",
     category: "events",
     icon: "🎧",

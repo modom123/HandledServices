@@ -1,5 +1,5 @@
 <!--
-  FILE    : docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-10_0546.md
+  FILE    : docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-11-06_1649 UTC
   PURPOSE : Ready-to-paste Indeed post recruiting Field Sales partners (independent, commission-only, flexible hours:
@@ -8,8 +8,8 @@
             before posting.
   UPDATED : 2026-11-06_1724 UTC — referral pay at the partner-v2 tiers; the ladder is for direct sales (sales count 1.5×).
   UPDATED : 2026-11-06_1738 UTC — referrals: one rate, 15% of the job price rising to 30% (partner-v4).
-  UPDATED : 2026-11-10_0546 UTC — renamed with today's timestamp; live domain (handledsvc.com) in the apply links; "How your
-            rate climbs" with the real milestones from PARTNER_LADDER and REFERRAL_LADDER (ladderTable); a referral example.
+  UPDATED : 2026-11-10_0355 UTC — SUPERSEDED: Indeed flagged this commission-only version as an opportunity. Post
+            docs/INDEED_JOB_FIELD_SALES_REP_2026-11-10_0355.md (a job: duties, schedule, $10 per lead + commission) instead.
 -->
 
 # Indeed post: Field Sales Partner (Detroit metro)
@@ -23,7 +23,7 @@
 | Location | Detroit, MI (add Dearborn, Southfield, Warren, Livonia if Indeed allows). Remote: No |
 | Pay | **Commission only.** If Indeed requires a number, use a conservative range you can back up from your first partners' real results (don't publish one you can't support) |
 | Benefits | Leave unchecked |
-| Application | "Apply on company website" → `https://handledsvc.com/partners?kind=sales_rep&utm_source=indeed&utm_campaign=field_sales#join` |
+| Application | "Apply on company website" → `https://YOUR-DOMAIN/partners?kind=sales_rep&utm_source=indeed&utm_campaign=field_sales#join` |
 | Screening questions | "Do you have a smartphone with a camera?" · "Have you done in-person or door-to-door sales?" (optional) |
 
 **About "part-time / full-time":** the post says *work a few hours a week or make it your main income* instead. That
@@ -57,25 +57,6 @@ independent Field Sales Partners. Work a few hours a week or make it your main i
 - Paid **weekly** to your bank through Stripe once each job is past our 30-day guarantee.
 - Example direct sale: a $400 job where the pro is paid $300 = $100 profit → **$10 at 10%, $20 at 20%, $45 at 45%**.
   Big jobs (roofs, remodels, commercial cleaning contracts) pay much more.
-- Example referral: a $400 job → **$60 at 15%, $80 at 20%, $120 at 30%**, on every job that customer books for 12 months.
-
-**How your rate climbs**
-
-Your level is built from **credit**: the profit your jobs bring in, with direct sales counting 1.5× and referrals 1×. Every
-level is +1 point, the first raises come quickly, and **your rate never goes down**.
-
-| Direct sales (share of our profit) | Credit needed | | Referrals (share of the job price) | Credit needed |
-|---|---|---|---|---|
-| **10%** to start | $0 | | **15%** to start | $0 |
-| 11% | $800 | | 16% | $4,400 |
-| 12% | $3,300 | | 17% | $18,000 |
-| 15% | $20,500 | | 18% | $40,000 |
-| 20% | $81,500 | | 20% | $111,000 |
-| 30% | $327,000 | | 25% | $444,000 |
-| **45%** (top) | $1,000,000 | | **30%** (top) | $1,000,000 |
-
-**Fast track:** every 10 job credits also moves you up one point, up to 20% (a direct sale counts as 1.5 job credits,
-so about 7 sales per point). The higher of the two always counts.
 
 *Earnings are estimates, not a guarantee. This is a commission-only, independent role, and what you earn depends on
 the jobs you close.*
@@ -96,8 +77,7 @@ the jobs you close.*
 2. Write your first sales ticket, send a referral, or share your link.
 3. Track every ticket, job, commission and your next raise on your partner page.
 
-You're an independent partner, not an employee: no fee, no quota, no set schedule. Your partner page shows your level,
-your rate and exactly how much more credit gets you the next raise. We send a 1099 if you earn
+You're an independent partner, not an employee: no fee, no quota, no set schedule. We send a 1099 if you earn
 $600+ in a year.
 
-**Apply:** `https://handledsvc.com/partners?kind=sales_rep&utm_source=indeed&utm_campaign=field_sales#join`
+**Apply:** `https://YOUR-DOMAIN/partners?kind=sales_rep&utm_source=indeed&utm_campaign=field_sales#join`

@@ -27,6 +27,9 @@
  *           a verified photo ID and a Handled staff approval.
  * UPDATED : 2026-10-28_2245 UTC — "Welcome to Handled" orientation (core orientation.ts) is a required step; pros
  *           approved before it existed count as done.
+ * UPDATED : 2026-11-10_0345 UTC — insurance blocks activation only when every service the pro does needs it; otherwise the COI
+ *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
+ * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  */
 import { SERVICES } from "./services.ts";
 import { ORIENTATION, orientationStatus } from "./orientation.ts";
@@ -34,7 +37,7 @@ import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor,
 
 export const AGREEMENT_VERSION = "2026-11-v11"; // v11: the pay shown to the pro is their NET pay — a referral partner's fee (half of the partner's 15%–30% of the price, locked when the job is booked) is already taken out, with no math shown; v10: referral partner fee — the pro pays half of a partner's 25% one-time / 10% repeat / 15% account share, shown on the work order; v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
-export const SERVICE_AGREEMENT_VERSION = "2026-10-v8"; // v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
+export const SERVICE_AGREEMENT_VERSION = "2026-11-v9"; // v9: pros are background-checked and vetted; insurance and licenses where the work requires them; v8: book now, pay after (25% at booking, hold when the pro starts, rest when done) or pay in full for 5% off; v7: favorites and asking for a pro or crew member (first look, never guaranteed); v6: name your price, pro counters, raises, booking fee (v5: full plain-English agreement + addenda)
 /** Cancellation inside 24 hours of the arrival window, or a lockout, keeps this fee. */
 export const LATE_CANCEL_FEE = 49;
 
@@ -110,12 +113,19 @@ export interface Step {
 }
 
 /**
- * Does this pro need a general liability certificate? Yes when any service their trades can take requires it
- * (or their trades match no service at all); no when every one of those services is insuranceOptional.
+ * Does this pro need a general liability certificate to become active? Only when EVERY service their trades can take
+ * requires one (or their trades match no service at all). When at least one of their services is insuranceOptional,
+ * they can go active without it: dispatch then offers them only the services that don't need insurance until a
+ * certificate is on file (dispatch.ts checks insurance per service).
  */
 export function insuranceRequired(trades: string[]): boolean {
   const theirs = SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)));
-  return !theirs.length || theirs.some((s) => !s.insuranceOptional);
+  return !theirs.length || theirs.every((s) => !s.insuranceOptional);
+}
+
+/** The pro's services that DO need a general liability certificate (what they unlock by uploading one). */
+export function servicesNeedingInsurance(trades: string[]): string[] {
+  return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && !s.insuranceOptional).map((s) => s.name);
 }
 
 const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
@@ -134,7 +144,10 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     insuranceRequired(c.trades)
       ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
-      : { key: "coi", label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : "Not required for your work (remote work, errands, courier, assistant)" },
+      : (() => {
+          const unlocks = servicesNeedingInsurance(c.trades);
+          return { key: "coi" as const, label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : unlocks.length ? `Not needed to start. Add one to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` : "Not required for your work" };
+        })(),
   ];
   // trade-specific coverage (commercial auto, bond, food license…) + workers' comp or a no-employees statement
   const required = requiredCoverages(c.trades);

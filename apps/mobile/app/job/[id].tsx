@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-06_2120 UTC — "Confirming your backup pro" while a handed-back job is being re-covered.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the 25% is what's due first; after it, "the rest is charged when the job is done".
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
@@ -162,7 +163,7 @@ export default function Booking() {
         <Card style={{ marginTop: 14, backgroundColor: C.tint, borderColor: C.brand }}>
           <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>{t("Covered ✓")}</Text>
           <Text style={s.b}>{pro.business_name}{pro.contact_first_name ? ` · ${pro.contact_first_name}` : ""}</Text>
-          <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} {t("jobs completed · vetted & insured")}</Text>
+          <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} {t("jobs completed · background-checked & vetted")}</Text>
           {crew ? <Text style={s.p}>{es ? `Viene ${crew.first_name}` : `${crew.first_name} is coming`}</Text> : null}
           {(() => {
             const name = pro.contact_first_name || pro.business_name;

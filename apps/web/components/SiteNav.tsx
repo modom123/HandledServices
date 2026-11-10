@@ -12,6 +12,7 @@
  *           on, account / language / contact at the bottom). Phones and tablets: a slim top bar (logo, Book now, ☰) whose ☰
  *           slides the same menu in from the left. DesktopNav / MobileNav stay for the pro portal's header.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0320 UTC — the side menu's second button label is centered when it wraps ("Snap a photo, post a job").
  */
 "use client";
 
@@ -157,7 +158,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
         </div>
         <div className="shrink-0 space-y-2 px-4 pt-4">
           <Link href={primary.href} className="btn-primary w-full justify-center">{primary.label}</Link>
-          <Link href={secondary.href} className="btn-ghost w-full justify-center text-sm">{secondary.icon && <Ico i={secondary.icon} className="mr-0" />}{secondary.label}</Link>
+          <Link href={secondary.href} className="btn-ghost w-full justify-center text-sm"><span className="text-center leading-snug">{secondary.icon && <Ico i={secondary.icon} className="mr-0" />}{secondary.label}</span></Link>
         </div>
         <nav className="mt-3 flex-1 overflow-y-auto px-3 pb-4 text-[15px]">
           {groups.map((g) => (

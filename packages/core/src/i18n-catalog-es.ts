@@ -18,6 +18,7 @@
  * UPDATED : 2026-10-27_1600 UTC — Carpentry.
  * UPDATED : 2026-11-07_0037 UTC — Spanish for the four social media services.
  * UPDATED : 2026-11-10_0600 UTC — Business & Technology "included" lines: free consultation and a fixed price in writing.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 export const ES_CATALOG: Record<string, string> = {
   "Free consultation — a fixed monthly price in writing before work starts": "Consulta gratis: un precio mensual fijo por escrito antes de empezar",
@@ -143,8 +144,8 @@ export const ES_CATALOG: Record<string, string> = {
   "Background-checked, bonded assistant": "Asistente verificado y afianzado",
   "Background-checked, bonded runner": "Mensajero verificado y afianzado",
   "Background-checked, bonded shopper": "Comprador verificado y afianzado",
-  "Background-checked, insured sitter": "Cuidador verificado y asegurado",
-  "Background-checked, insured walker": "Paseador con verificación de antecedentes y asegurado",
+  "Background-checked, vetted sitter": "Cuidador verificado y con antecedentes revisados",
+  "Background-checked, vetted walker": "Paseador verificado y con antecedentes revisados",
   "Backup equipment": "Equipo de respaldo",
   "Bagged at the curb or hauled away": "Embolsado en la acera o retirado",
   "Banquet / event hall": "Salón de banquetes / eventos",
@@ -439,6 +440,9 @@ export const ES_CATALOG: Record<string, string> = {
   "Motorcoach (up to 56, restroom)": "Autobús de turismo (hasta 56, con baño)",
   "Mounting & weatherproofing": "Instalación y protección contra la intemperie",
   "Move-in / move-out": "Mudanza (entrada / salida)",
+  "Other (describe it)": "Otro (descríbalo)",
+  "Tell us what you need": "Cuéntenos qué necesita",
+  "e.g. post-construction, Airbnb turnover, just the kitchen": "p. ej., limpieza después de obra, cambio de Airbnb, solo la cocina",
   "Mow & edge": "Corte y bordeado",
   "Music planning call": "Llamada para planificar la música",
   "Near house, lines or fence": "Cerca de la casa, cables o cerca",
@@ -1111,7 +1115,7 @@ export const ES_CATALOG: Record<string, string> = {
   "Bare or thin lawn to seed": "Césped sin pasto o ralo a sembrar",
   "Weed the beds first": "Deshierbar las jardineras primero",
   "Haul away the debris (not bagged at the curb)": "Retirar los desechos (no embolsados en la banqueta)",
-  "Vetted, insured assembler": "Armador verificado y asegurado",
+  "Background-checked, vetted assembler": "Armador verificado y con antecedentes revisados",
   "Own tools and drill": "Herramientas y taladro propios",
   "Tall pieces anchored to the wall": "Muebles altos anclados a la pared",
   "Boxes broken down": "Cajas desarmadas",

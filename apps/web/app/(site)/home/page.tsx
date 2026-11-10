@@ -8,6 +8,7 @@
  * PURPOSE : Home page (the first page after the splash).
  * UPDATED : 2026-11-04_2230 UTC — SEO: this is the main page search engines index (the splash at / points here as its
  *           canonical): its own title and description naming Michigan & Washington, and the business as structured data.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import type { Metadata } from "next";
 import { BRAND } from "@handled/core";
@@ -19,7 +20,7 @@ import { businessLd, ldScript } from "@/lib/business-ld";
 
 export const metadata: Metadata = {
   title: { absolute: `${BRAND.name} — Home & business services in Michigan & Washington` },
-  description: "Cleaning, repairs, painting, lawn and snow, moving, hauling and 100+ more home and business services in Michigan, New York, New Jersey, Las Vegas and Washington. Upfront prices, vetted insured pros, and work checked with photos.",
+  description: "Cleaning, repairs, painting, lawn and snow, moving, hauling and 100+ more home and business services in Michigan, New York, New Jersey, Las Vegas and Washington. Upfront prices, background-checked, vetted pros, and work checked with photos.",
   alternates: { canonical: "/home" },
 };
 

@@ -41,6 +41,7 @@
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" button in the hero (/post).
  *           order: hero → doors → trust → why it works → services → how it works → who we are → partner → we build.
  * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -54,7 +55,7 @@ import { WhoWeAre } from "@/components/home/WhoWeAre";
 
 
 
-const TRUST = ["Insured & background-checked pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
+const TRUST = ["Background-checked & vetted pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
 
 
 export async function HomeClassic() {
@@ -76,7 +77,7 @@ export async function HomeClassic() {
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
             {es ? "Servicios para hogar y negocio." : "Home & business services."} <span className="text-brand">{t("Handled.")}</span>
           </h1>
-          <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales asegurados y verificados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Insured, background-checked local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
+          <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales verificados y con antecedentes revisados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Background-checked, vetted local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
             <Link href="/post" className="btn-ghost px-6 py-3 text-base">📝 {es ? "Publique su proyecto" : "Post a project"}</Link>

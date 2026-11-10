@@ -11,12 +11,13 @@
  * UPDATED : 2026-11-06_1730 UTC — direct sales (Field Sales): each partner's ladder rate and level credit, the sales ticket
  *           feed (sent → booked → job), and direct-sale commissions shown as "Direct sale · X% of profit".
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
+ * UPDATED : 2026-11-10_0400 UTC — lead pay on each sales ticket ($10 draw: pending / paid / void, repaid amount); admins void fakes.
  */
 import { PARTNER_KINDS, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, partnerRateLines, ticketStage, type PartnerKind, type TicketContact, type TicketJobType, type TicketTiming, PARTNER_LADDER, ladderCredit, partnerLevel } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { signedUrls } from "@/lib/photos";
 import { Badge, Empty, Stat } from "@/components/ui";
-import { PartnerAssign, PartnerStatusButton, TicketStatusButtons, VoidCommission } from "@/components/PartnerUI";
+import { PartnerAssign, PartnerStatusButton, TicketStatusButtons, VoidCommission, VoidLeadPay } from "@/components/PartnerUI";
 import { adminOnly } from "@/components/AdminOnly";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,9 @@ export default async function PartnersHub() {
   ]);
   type ST = { id: string; partner_id: string; service_slug: string | null; customer_name: string; city: string | null; zip: string | null; status: string; quoted_price: number | null; close_notes: string | null; created_at: string; jobs: { ref: string; status: string; price_final: number | null } | null };
   const SALES = (sales ?? []) as unknown as ST[];
+  // lead pay ($10 per lead, a draw) for these tickets
+  const { data: drawRows } = SALES.length ? await db.from("partner_draws").select("ticket_id, amount, recovered, status").in("ticket_id", SALES.map((t) => t.id)) : { data: [] };
+  const drawOf = new Map(((drawRows ?? []) as { ticket_id: string; amount: number; recovered: number; status: string }[]).map((d) => [d.ticket_id, d]));
   const C = (comms ?? []) as unknown as C[];
   const per = new Map<string, { customers: number; booked: number; paid: number; owed: number }>();
   for (const c of (custs ?? []) as { partner_id: string; first_job_id: string | null }[]) {
@@ -140,11 +144,12 @@ export default async function PartnersHub() {
         <p className="mb-2 text-sm text-ink-soft">Partners&apos; close-ready sales tickets. The customer is texted a pay link (or paid on the partner&apos;s phone); paid jobs go to the job board like any booking. Paid at the partner&apos;s ladder rate of our profit, by us alone (no pro fee). Unbooked tickets expire after 30 days.</p>
         {!SALES.length ? <Empty>No sales tickets yet.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Sent</th><th className="p-3">Partner</th><th className="p-3">Customer</th><th className="p-3">Service</th><th className="p-3">Price shown</th><th className="p-3">Ticket</th><th className="p-3">Job</th></tr></thead>
+            <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Sent</th><th className="p-3">Partner</th><th className="p-3">Customer</th><th className="p-3">Service</th><th className="p-3">Price shown</th><th className="p-3">Ticket</th><th className="p-3">Job</th><th className="p-3">Lead pay</th></tr></thead>
             <tbody>{SALES.map((t) => (
               <tr key={t.id} className="border-t border-line align-top"><td className="p-3">{t.created_at.slice(0, 10)}</td><td className="p-3">{name.get(t.partner_id) ?? "—"}</td><td className="p-3">{t.customer_name}<span className="text-xs text-ink-soft"> {[t.city, t.zip].filter(Boolean).join(" ")}</span>{t.close_notes && <div className="text-xs text-amber-800">To close: {t.close_notes}</div>}</td><td className="p-3">{t.service_slug ? getService(t.service_slug)?.name ?? "—" : "—"}</td><td className="p-3">{t.quoted_price ? money(Number(t.quoted_price)) : "—"}</td>
                 <td className="p-3"><Badge tone={t.status === "booked" ? "green" : t.status === "sent" ? "amber" : t.status === "cancelled" ? "red" : "slate"}>{t.status}</Badge></td>
-                <td className="p-3">{t.jobs ? `${t.jobs.ref} · ${t.jobs.status.replace(/_/g, " ")}${t.jobs.price_final ? ` · ${money(Number(t.jobs.price_final))}` : ""}` : "—"}</td></tr>
+                <td className="p-3">{t.jobs ? `${t.jobs.ref} · ${t.jobs.status.replace(/_/g, " ")}${t.jobs.price_final ? ` · ${money(Number(t.jobs.price_final))}` : ""}` : "—"}</td>
+                <td className="p-3">{(() => { const d = drawOf.get(t.id); return d ? <><Badge tone={d.status === "paid" ? "green" : d.status === "void" ? "red" : "amber"}>{money(Number(d.amount))} {d.status}</Badge>{Number(d.recovered) > 0 && <div className="text-xs text-ink-soft">{money(Number(d.recovered))} repaid</div>}{d.status === "pending" && <div><VoidLeadPay ticketId={t.id} /></div>}</> : <span className="text-xs text-ink-soft">—</span>; })()}</td></tr>
             ))}</tbody>
           </table></div>
         )}

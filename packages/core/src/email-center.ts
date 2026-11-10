@@ -16,6 +16,7 @@
  *           (CAN-SPAM); unsubscribed addresses are never emailed again. No texts (TCPA).
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: "House cleaning in Metro Detroit" (customers, English & Spanish) and
  *           "Office & turnover cleaning" (business leads) templates.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import { BRAND } from "./brand.ts";
 
@@ -53,7 +54,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
 
 The season's changing, and it's the best time to knock out the jobs that are easy to put off: gutter cleaning, windows, a yard clean-up, or a deep clean.
 
-You get an upfront price in about a minute, a vetted, insured pro, and our {{guarantee_days}}-day make-it-right guarantee.
+You get an upfront price in about a minute, a background-checked, vetted pro, and our {{guarantee_days}}-day make-it-right guarantee.
 
 [Get my price]({{book_url}})
 
@@ -64,7 +65,7 @@ The {{brand}} team`,
 
 Cambia la temporada y es el mejor momento para hacer los trabajos que siempre se posponen: limpiar canaletas, ventanas, limpiar el jardín o una limpieza profunda.
 
-Obtiene un precio por adelantado en un minuto, un profesional verificado y asegurado, y nuestra garantía de {{guarantee_days}} días.
+Obtiene un precio por adelantado en un minuto, un profesional verificado y con antecedentes revisados, y nuestra garantía de {{guarantee_days}} días.
 
 [Ver mi precio]({{book_url}})
 
@@ -89,7 +90,7 @@ The {{brand}} team`,
     subject: "New on {{brand}}: [service name]", preheader: "Now bookable in a minute, with an upfront price.",
     body: `Hi {{first_name|there}},
 
-You can now book **[service name]** on {{brand}}: an upfront price in about a minute, a vetted, insured pro, and live arrival tracking.
+You can now book **[service name]** on {{brand}}: an upfront price in about a minute, a background-checked, vetted pro, and live arrival tracking.
 
 [See the price]({{book_url}})
 
@@ -116,7 +117,7 @@ The {{brand}} team`,
     subject: "A clean home, without the hassle", preheader: "Standard, deep or move-out cleaning, priced in a minute.",
     body: `Hi {{first_name|there}},
 
-We now have background-checked, insured cleaners across Detroit and the surrounding cities, including {{city|your neighborhood}}.
+We now have background-checked, vetted cleaners across Detroit and the surrounding cities, including {{city|your neighborhood}}.
 
 • **Standard, deep or move-in/move-out** cleaning, plus carpets and windows
 • An upfront price in about a minute: no walk-through, no callbacks
@@ -129,7 +130,7 @@ The {{brand}} team`,
     subject_es: "Una casa limpia, sin complicaciones",
     body_es: `Hola {{first_name|}}:
 
-Ya tenemos personal de limpieza verificado y asegurado en Detroit y las ciudades vecinas, incluida {{city|su zona}}.
+Ya tenemos personal de limpieza verificado y con antecedentes revisados en Detroit y las ciudades vecinas, incluida {{city|su zona}}.
 
 • Limpieza **estándar, profunda o de mudanza**, además de alfombras y ventanas
 • Un precio por adelantado en un minuto: sin visitas ni llamadas
@@ -150,7 +151,7 @@ El equipo de {{brand}}`,
 • **Recurring office and common-area cleaning**: nightly, weekly or monthly, by the same vetted crew
 • **Move-out and turnover deep cleans**, with carpets and windows when a unit needs them
 • An upfront price in about a minute, before-and-after photos of every clean, and one account for all your locations
-• Every cleaner is ID- and background-checked and insured. If a clean isn't right, we redo it free within {{guarantee_days}} days
+• Every cleaner is ID- and background-checked and vetted. If a clean isn't right, we redo it free within {{guarantee_days}} days
 
 [Set up a business account]({{site_url}}/business)
 

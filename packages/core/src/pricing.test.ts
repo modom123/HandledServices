@@ -225,8 +225,13 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   const { onboardingChecklist, insuranceRequired, AGREEMENT_VERSION } = await import("./compliance.ts");
   assert.equal(insuranceRequired(["web_design"]), false);
   assert.equal(insuranceRequired(["errands"]), false);
-  assert.equal(insuranceRequired(["errands", "hauling"]), true, "one insured trade means a COI is needed");
-  assert.equal(insuranceRequired(["pet_care"]), true, "pet care keeps its liability policy (care, custody & control)");
+  // owner decision 2026-11-10: a COI blocks activation only when EVERY service the pro does needs one
+  assert.equal(insuranceRequired(["errands", "hauling"]), false, "one insurance-optional service is enough to go active (insured jobs wait for a COI)");
+  assert.equal(insuranceRequired(["hauling"]), true, "hauling alone needs a COI");
+  assert.equal(insuranceRequired(["roofing"]), true);
+  assert.equal(insuranceRequired(["pet_care"]), false, "pet care: no COI (the bond still applies)");
+  assert.equal(insuranceRequired(["cleaning"]), false, "house cleaning: no COI");
+  assert.equal(insuranceRequired(["windows"]), true, "window cleaning (ladders) still needs one");
   assert.equal(insuranceRequired(["no_such_trade"]), true, "unknown trades default to required");
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
@@ -237,7 +242,9 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
-  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, false, "cleaners still need a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, true, "house cleaners activate without a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["windows"], specialties: [], coverage: { workers_comp: "exempt" } }).complete, false, "window cleaners still need a COI");
+  assert.match(String(onboardingChecklist({ ...pro, trades: ["cleaning", "windows"], coverage: { workers_comp: "exempt" } }).steps.find((x) => x.key === "coi")?.detail), /Window Cleaning/, "the optional step lists what a COI unlocks");
   const base: Contractor = {
     id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design", "hauling"],
     service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
@@ -1049,7 +1056,12 @@ test("market pricing: booking fee, sliding commission, counters, learning, offer
   // name-your-price bounds
   assert.equal(offerCheck(100, 100).level, "ok");
   assert.equal(offerCheck(85, 100).level, "low");
-  assert.equal(offerCheck(70, 100).ok, false);
+  // below the usual minimum (75%): still taken, straight to the job board for 30 days; below the 30% floor: refused
+  assert.equal(offerCheck(70, 100).ok, true);
+  assert.equal(offerCheck(70, 100).level, "board");
+  assert.equal(offerCheck(30, 100).level, "board");
+  assert.equal(offerCheck(29, 100).ok, false);
+  assert.equal(offerCheck(29, 100).floor, 30);
   assert.equal(offerCheck(400, 100).ok, false);
 });
 
@@ -2448,7 +2460,9 @@ test("depth chart: positions fill, cross off and rank like a roster", async () =
   // cleared vs. not cleared
   assert.equal(clearedFor(pro("a"), svc), null);
   assert.match(String(clearedFor(pro("b", { background_checked: false }), svc)), /background/);
-  assert.match(String(clearedFor(pro("c", { insured_until: "2000-01-01" }), svc)), /insurance/);
+  assert.equal(clearedFor(pro("c", { insured_until: "2000-01-01" }), svc), null, "house cleaning doesn't need insurance (2026-11-10)");
+  const win = getService("window-cleaning")!;
+  assert.match(String(clearedFor(pro("c2", { trades: win.trades, insured_until: "2000-01-01" }), win)), /insurance/, "window cleaning still does");
   const pos = (list: never[], state?: string) => depthChart({ contractors: list, state }).find((p) => p.slug === "house-cleaning")!;
   // focus service: 3 deep to cross off
   assert.equal(pos([]).status, "open");
@@ -2623,4 +2637,55 @@ test("post & earn: first-project reward is 10% back, up to $250, never more than
   assert.equal(firstProjectReward({ price: 199.99 }), 19.99, "rounded down to the cent");
   assert.equal(firstProjectLine(), "10% back, up to $250");
   assert.ok(partnerTerms().some((t) => t.includes("Post your project") && t.includes("10% back, up to $250")), "terms carve-out");
+});
+
+test("house cleaning: \"Other\" type of clean starts at the standard price and needs a description", async () => {
+  const { otherMissing, otherNote, OTHER_OPTION } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const level = svc.questions.find((q) => q.id === "level")!;
+  assert.ok(level.type === "select" && level.options.some((o) => o.value === OTHER_OPTION));
+  const std = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "standard" } });
+  const other = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: OTHER_OPTION } });
+  assert.equal(other.point, std.point);
+  const a = { ...defaultAnswers(svc), level: OTHER_OPTION };
+  assert.equal(otherMissing(svc.questions, a, {}).length, 1);
+  assert.equal(otherMissing(svc.questions, a, { level: "post-construction" }).length, 0);
+  assert.equal(otherNote(svc.questions, a, { level: " post-construction " }), "Type of clean: post-construction");
+  assert.equal(otherNote(svc.questions, { ...a, level: "deep" }, { level: "x" }), "", "only when Other is picked");
+});
+
+test("open offers (low name-your-price jobs) are on the job board at once, for 30 days, whatever the date", async () => {
+  const { onBoard } = await import("./board.ts");
+  const now = new Date("2026-11-10T12:00:00Z");
+  const base = { status: "dispatched", contractor_id: null, paid_at: "2026-11-10T00:00:00Z", scheduled_date: "2027-03-01" };
+  assert.equal(onBoard(base, [], now), false, "a normal job 4 months out isn't on the board");
+  assert.equal(onBoard({ ...base, open_offer_until: "2026-12-10T12:00:00Z" }, [], now), true);
+  assert.equal(onBoard({ ...base, scheduled_date: "2026-11-01", open_offer_until: "2026-12-10T12:00:00Z" }, [], now), true, "even if the picked day passed");
+  assert.equal(onBoard({ ...base, open_offer_until: "2026-11-09T12:00:00Z" }, [], now), false, "expired");
+  assert.equal(onBoard({ ...base, paid_at: null, open_offer_until: "2026-12-10T12:00:00Z" }, [], now), false, "unpaid never");
+  assert.equal(onBoard({ ...base, contractor_id: "p", open_offer_until: "2026-12-10T12:00:00Z" }, [], now), false, "taken");
+});
+
+test("house cleaning \"Other\": square feet can go below 400 (down to 50); other types keep 400", async () => {
+  const { numberMin, clampToMins } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const sq = svc.questions.find((q) => q.id === "sqft")!;
+  assert.equal(numberMin(sq, { level: "standard" }), 400);
+  assert.equal(numberMin(sq, { level: "other" }), 50);
+  assert.deepEqual(clampToMins(svc.questions, { ...defaultAnswers(svc), level: "standard", sqft: 120 }).sqft, 400, "leaving Other raises it back");
+  assert.deepEqual(clampToMins(svc.questions, { ...defaultAnswers(svc), level: "other", sqft: 120 }).sqft, 120);
+  const small = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "other", sqft: 120, bedrooms: 0, bathrooms: 1 } });
+  assert.ok(small.point >= svc.minimum, "the visit minimum still applies");
+});
+
+test("lead pay: $10 per lead, unlocked after 10 leads + one paid-out sale, repaid from that lead's commission", async () => {
+  const { SALES_DRAW, drawUnlocked, drawRecovery, partnerTerms } = await import("./partners.ts");
+  assert.equal(SALES_DRAW.perLead, 10);
+  assert.equal(drawUnlocked({ leads: 9, paidSales: 3 }), false, "needs 10 leads");
+  assert.equal(drawUnlocked({ leads: 40, paidSales: 0 }), false, "needs one sale actually paid out");
+  assert.equal(drawUnlocked({ leads: 10, paidSales: 1 }), true);
+  assert.equal(drawRecovery({ commission: 45, drawOutstanding: 10 }), 10, "the $10 comes back out of the commission");
+  assert.equal(drawRecovery({ commission: 6.5, drawOutstanding: 10 }), 6.5, "never more than the commission");
+  assert.equal(drawRecovery({ commission: 45, drawOutstanding: 0 }), 0, "already repaid");
+  assert.ok(partnerTerms().some((t) => t.includes("Lead pay") && t.includes("10 leads")));
 });

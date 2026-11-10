@@ -11,14 +11,15 @@
  *           10% → 45% ladder; the partner's level and progress (direct sales count 1.5×, referrals 1×).
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0400 UTC — lead pay status ($10 per lead, unlock progress: 10 leads + first paid-out sale, waiting / paid).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PARTNER_LADDER, PARTNER_PROGRAM, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
+import { PARTNER_LADDER, PARTNER_PROGRAM, SALES_DRAW, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
-import { partnerFor, partnerLink, partnerStats, payoutsReady } from "@/lib/partners";
+import { leadPayStatus, partnerFor, partnerLink, partnerStats, payoutsReady } from "@/lib/partners";
 import { Badge, Empty, Stat } from "@/components/ui";
 import { CopyButton, PartnerPayoutButton, ReferralTicket, SalesTicketForm } from "@/components/PartnerUI";
 import { ticketsFor } from "@/lib/sales-tickets";
@@ -44,7 +45,8 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     </div></div>
   );
   const db = adminClient();
-  const [stats, ready, sales, { data: customers }, { data: comms }] = await Promise.all([
+  const [lead, stats, ready, sales, { data: customers }, { data: comms }] = await Promise.all([
+    leadPayStatus(partner.id).catch(() => null),
     partnerStats(partner.id),
     payoutsReady(partner),
     ticketsFor(partner.id).catch(() => []),
@@ -161,6 +163,15 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       </section>
 
       <section>
+        {lead && (
+          <div className="card mb-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <div><b>Lead pay: {money(SALES_DRAW.perLead)} for every lead</b> <span className="text-ink-soft">— an advance on that lead&apos;s commission, taken back out when it pays; you keep it if the lead never books.</span>
+              {lead.unlocked
+                ? <div className="mt-1 text-brand-dark">✓ Unlocked — paid every Monday. {money(lead.paid)} paid so far{lead.waiting ? `, ${money(lead.waiting)} on the next payout` : ""}.</div>
+                : <div className="mt-1 text-amber-800">Unlocks after {SALES_DRAW.unlockLeads} leads and your first paid-out sale: {Math.min(lead.leads, SALES_DRAW.unlockLeads)}/{SALES_DRAW.unlockLeads} leads · {Math.min(lead.paidSales, SALES_DRAW.unlockPaidSales)}/{SALES_DRAW.unlockPaidSales} paid sale. {money(lead.waiting)} is building up and pays out once it unlocks.</div>}
+            </div>
+          </div>
+        )}
         <h3 className="mb-2 font-bold">Your sales tickets</h3>
         {!sales.length ? <Empty>No sales tickets yet. Write your first one above.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">

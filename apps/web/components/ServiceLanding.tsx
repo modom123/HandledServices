@@ -21,6 +21,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again (consultOnly): no price, deposit or
  *           "order" wording — a Free consultation panel, consultation steps and a Book a free consultation button.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service, consultOnly } from "@handled/core";
@@ -76,7 +77,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{txt.name}{locale === "es" && city ? ` en ${city.name}, ${city.state}` : where}</h1>
         <p className="mt-2 text-lg text-brand">{txt.tagline}</p>
         {reviews.average && reviews.count >= 3 && <p className="mt-2 text-sm"><span className="text-amber-500">{stars(reviews.average)}</span> <b>{reviews.average}</b> from {reviews.count} customer reviews</p>}
-        <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? (consult ? ` We serve ${city.name} and businesses everywhere, remotely — every solution is custom, scoped on a free consultation.` : ` We serve ${city.name} and nearby neighborhoods with vetted, insured local pros — book online with an upfront price.`) : ""}</p>
+        <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? (consult ? ` We serve ${city.name} and businesses everywhere, remotely — every solution is custom, scoped on a free consultation.` : ` We serve ${city.name} and nearby neighborhoods with background-checked, vetted local pros — book online with an upfront price.`) : ""}</p>
         {city && marketForCity(city) && <p className="mt-2 text-sm"><Link href={`/areas/${marketForCity(city)!.slug}`} className="text-brand underline">{locale === "es" ? `Más servicios en ${marketForCity(city)!.name}` : `More services in ${marketForCity(city)!.name}`} →</Link></p>}
         <h2 className="mt-10 pro:mt-8 font-bold">{locale === "es" ? "Qué incluye" : "What’s included"}</h2>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">

@@ -41,6 +41,7 @@
  *           /technology, reached from the menu (For Business → Websites & automation, Services → Business & Technology).
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" button in the hero (/post).
  * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BadgeCheck, Camera, CircleDollarSign, RotateCcw, ShieldCheck, Clock3, MapPin, Check } from "lucide-react";
@@ -57,7 +58,7 @@ import { WhoWeAre } from "@/components/home/WhoWeAre";
 
 
 const TRUST = [
-  { icon: ShieldCheck, text: "Insured & background-checked pros" },
+  { icon: ShieldCheck, text: "Background-checked & vetted pros" },
   { icon: CircleDollarSign, text: "Upfront, all-in price" },
   { icon: Camera, text: "Photo-checked work" },
   { icon: RotateCcw, text: `${BRAND.guaranteeDays}-day make-it-right guarantee` },
@@ -86,7 +87,7 @@ export async function HomeModern() {
               {es ? "Servicios para hogar y negocio." : "Home & business services."}{" "}
               <span className="relative inline-block text-brand">{t("Handled.")}<span aria-hidden className="absolute -bottom-1 left-0 h-1.5 w-full rounded-full bg-gold/70" /></span>
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{es ? "Profesionales asegurados y verificados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Insured, background-checked local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{es ? "Profesionales verificados y con antecedentes revisados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Background-checked, vetted local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/book" className="btn-primary px-7 py-3.5 text-base shadow-lg shadow-brand/20">{t("Get my price")} →</Link>
               <Link href="/post" className="btn-ghost px-6 py-3.5 text-base">📝 {es ? "Publique su proyecto" : "Post a project"}</Link>
@@ -107,7 +108,7 @@ export async function HomeModern() {
               <ol className="space-y-4 p-5">
                 {[
                   { icon: CircleDollarSign, t: l === "es" ? "Precio al instante" : "Instant price", d: l === "es" ? "Sin llamadas ni visitas" : "No calls, no visits", done: true },
-                  { icon: BadgeCheck, t: l === "es" ? "Profesional asignado" : "Pro assigned", d: l === "es" ? "Asegurado y verificado" : "Insured & background-checked", done: true },
+                  { icon: BadgeCheck, t: l === "es" ? "Profesional asignado" : "Pro assigned", d: l === "es" ? "Verificado y con antecedentes revisados" : "Background-checked & vetted", done: true },
                   { icon: Clock3, t: l === "es" ? "En camino" : "On the way", d: l === "es" ? "Siga el estado en vivo" : "Live status & messages", done: true },
                   { icon: Camera, t: l === "es" ? "Fotos al terminar" : "Photo check-out", d: l === "es" ? "Revisamos el trabajo" : "We check the work", done: false },
                 ].map((x, i) => (

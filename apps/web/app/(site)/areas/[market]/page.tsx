@@ -9,6 +9,7 @@
  *           print can point here.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ market: s
   const lead = m.featured.map((x) => getService(x)?.name).filter(Boolean).slice(0, 3).join(", ");
   return {
     title: `${lead} in ${m.name}`,
-    description: `${lead} and more across ${m.region}. Vetted, insured local pros, your exact price online in about a minute. ${BRAND.promise}`,
+    description: `${lead} and more across ${m.region}. Background-checked, vetted local pros, your exact price online in about a minute. ${BRAND.promise}`,
     alternates: { canonical: `/areas/${m.slug}` },
   };
 }
@@ -78,7 +79,7 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
       <ol className="mt-4 grid gap-4 sm:grid-cols-3">
         {(es
           ? [["Responda unas preguntas", "Toma alrededor de un minuto. Vea su precio exacto antes de reservar."], ["Un profesional verificado hace el trabajo", "Con seguro y antecedentes verificados, de su zona."], ["Revisamos el trabajo", "Fotos al terminar; se cobra cuando está hecho."]]
-          : [["Answer a few questions", "About a minute. See your exact price before you book."], ["A vetted local pro does the job", "Insured and background-checked, from your area."], ["We check the work", "Photos when it's done; you're charged when it's finished."]]
+          : [["Answer a few questions", "About a minute. See your exact price before you book."], ["A vetted local pro does the job", "Background-checked and vetted, from your area."], ["We check the work", "Photos when it's done; you're charged when it's finished."]]
         ).map(([h, d], i) => <li key={h} className="card"><div className="text-sm font-bold text-brand">{i + 1}</div><div className="mt-1 font-semibold">{h}</div><p className="mt-1 text-sm text-ink-soft">{d}</p></li>)}
       </ol>
 

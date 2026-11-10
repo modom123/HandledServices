@@ -10,6 +10,7 @@
  *           account, sign-in, chat). Shared words live in @handled/core i18n.ts.
  * UPDATED : 2026-10-06_0645 UTC — tab bar, new Home, Bookings, sign-in, booking checks, offline and crash messages.
  * UPDATED : 2026-10-06_0708 UTC — in-app payment (Apple Pay / Google Pay) and live map strings.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 export const ES_APP: Record<string, string> = {
   "What can we take off your plate?": "¿Qué pendiente le quitamos de encima?",
@@ -32,7 +33,7 @@ export const ES_APP: Record<string, string> = {
   "Thank you!": "¡Gracias!",
   "Your rating helps us send the best pros.": "Su calificación nos ayuda a enviar a los mejores profesionales.",
   "Covered ✓": "Asignado ✓",
-  "jobs completed · vetted & insured": "trabajos completados · verificado y asegurado",
+  "jobs completed · background-checked & vetted": "trabajos completados · verificado y con antecedentes revisados",
   "Finding your pro…": "Buscando a su profesional…",
   "You'll get a notification the moment your job is covered.": "Le avisaremos en cuanto su trabajo tenga profesional asignado.",
   "Price": "Precio",

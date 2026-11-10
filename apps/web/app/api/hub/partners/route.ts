@@ -10,6 +10,7 @@
  *             { action: "ticket", id, status, note? }   — referral ticket: we reached out / closed / reopened
  * UPDATED : 2026-10-11_0451 UTC — voiding a commission is admins only.
  * UPDATED : 2026-10-28_0122 UTC — referral ticket status; voids go through lib/partners (pro's half handed back).
+ * UPDATED : 2026-11-10_0400 UTC — { action: "void_draw", ticket_id, note } — admins void a fake lead's unpaid lead pay.
  */
 import { z } from "zod";
 import { partnerExpiry } from "@handled/core";
@@ -23,6 +24,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("unassign"), email: z.string().trim().email() }),
   z.object({ action: z.literal("void"), commission_id: z.string().uuid(), note: z.string().trim().max(300) }),
   z.object({ action: z.literal("ticket"), id: z.string().uuid(), status: z.enum(["submitted", "contacted", "closed"]), note: z.string().trim().max(500).optional().nullable() }),
+  z.object({ action: z.literal("void_draw"), ticket_id: z.string().uuid(), note: z.string().trim().max(300) }),
 ]);
 
 export async function POST(req: Request) {
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Check the request");
   const d = b.data;
-  if (d.action === "void" && !isAdmin(v)) return deny(403, ADMINS_ONLY);
+  if ((d.action === "void" || d.action === "void_draw") && !isAdmin(v)) return deny(403, ADMINS_ONLY);
   const db = adminClient();
   let error: { message: string } | null = null;
   if (d.action === "status") ({ error } = await db.from("referral_partners").update({ status: d.status }).eq("id", d.id));
@@ -39,5 +41,6 @@ export async function POST(req: Request) {
   if (d.action === "unassign") ({ error } = await db.from("referral_customers").delete().eq("customer_email", d.email.toLowerCase()));
   if (d.action === "void") { const m = await voidCommission(d.commission_id, `${d.note} (${v!.email})`); if (m) error = { message: m }; }
   if (d.action === "ticket") { const m = await setTicketStatus(d.id, d.status, d.note ?? null, v!.email); if (m) error = { message: m }; }
+  if (d.action === "void_draw") ({ error } = await db.from("partner_draws").update({ status: "void", note: `${d.note} (${v!.email})` }).eq("ticket_id", d.ticket_id).eq("status", "pending"));
   return error ? deny(500, error.message) : Response.json({ ok: true });
 }

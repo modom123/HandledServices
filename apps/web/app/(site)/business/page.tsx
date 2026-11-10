@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-28_1746 UTC — removed the sticky "Who we serve · Services · How it works · Order now" bar (it covered the page
  *           while scrolling; the hero buttons already go to Services and Order).
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
@@ -38,13 +39,13 @@ const SHOW = ["janitorial", "exterior", "maintenance", "turnovers", "cleanouts",
 const STEPS = [
   { t: "Pick a service", b: "Choose it from the list below, or search. Several sites or services? Order each one — they all land on one account." },
   { t: "See your price, pay 25%", b: "Answer a few questions and get an exact price. A 25% deposit books it; the rest is charged when the work is done." },
-  { t: "We do the work", b: "A vetted, insured crew on the day you chose, with before-and-after photos in your account." },
+  { t: "We do the work", b: "A background-checked, vetted crew on the day you chose, with before-and-after photos in your account." },
   { t: "Make it recurring", b: "Set it weekly, every 2 weeks or monthly and it books itself. Accounts with a track record can move to monthly invoicing." },
 ];
 
 const FEATURES = [
   ["Every visit on record", "Each visit is time-stamped with before and after photos in your account, and your account manager sends a monthly report by location."],
-  ["Insured, licensed pros", "Every pro carries general liability for their trade and is licensed where the trade requires it. Certificates of insurance on request."],
+  ["Background-checked, vetted pros", "Every pro is background-checked and vetted, and carries general liability insurance and a license where the work requires them. Certificates of insurance on request."],
   ["Backup crews built in", "If a pro can’t make it, dispatch re-routes to the next qualified crew automatically."],
   ["After-hours & weekends", "Cleaning and maintenance scheduled around your open hours — nights, early mornings and weekends."],
   ["PO numbers & cost centers", "Invoices split by location, department or project so accounting can close the month in minutes."],

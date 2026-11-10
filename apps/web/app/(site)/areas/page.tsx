@@ -5,20 +5,21 @@
  * PURPOSE : Areas we serve: every market (SITE_MARKETS) with its cities and the services it leads with, linking to each
  *           market page.
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
 import { SITE_MARKETS, getService } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Areas we serve", description: "Handled serves Michigan, New York, New Jersey, Las Vegas and Washington with vetted, insured local pros and upfront prices.", alternates: { canonical: "/areas" } };
+export const metadata = { title: "Areas we serve", description: "Handled serves Michigan, New York, New Jersey, Las Vegas and Washington with background-checked, vetted local pros and upfront prices.", alternates: { canonical: "/areas" } };
 
 export default async function AreasPage() {
   const es = (await getLocale()) === "es";
   return (
     <div className="wrap py-12">
       <h1 className="text-4xl font-extrabold tracking-tight">{es ? "Dónde trabajamos" : "Areas we serve"}</h1>
-      <p className="mt-3 max-w-2xl text-lg text-ink-soft">{es ? "Profesionales locales verificados y con seguro, con su precio exacto antes de reservar." : "Vetted, insured local pros, with your exact price before you book."}</p>
+      <p className="mt-3 max-w-2xl text-lg text-ink-soft">{es ? "Profesionales locales verificados y con seguro, con su precio exacto antes de reservar." : "Background-checked, vetted local pros, with your exact price before you book."}</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SITE_MARKETS.map((m) => (
           <Link key={m.slug} href={`/areas/${m.slug}`} className="card block hover:border-brand">

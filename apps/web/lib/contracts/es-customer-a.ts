@@ -11,6 +11,7 @@
  * UPDATED : 2026-10-03_0152 UTC — market pricing (precio sugerido, "proponga su precio", cargo de reserva,
  *           contraofertas de profesionales, aumentar la oferta): mirrors customer.ts section for section.
  * UPDATED : 2026-10-15_0300 UTC — términos de pago: reserve ahora, pague después (25% al reservar; reserva en la tarjeta cuando el profesional comienza; el resto se cobra al terminar) o pago completo con 5% de descuento.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import {
   AI_MAX_CUT,
@@ -93,7 +94,7 @@ const TERMS_OF_USE_ES: ContractTranslation = {
     )],
     ["Cómo funciona la plataforma", p(
       `${BRAND.name} es una empresa de servicios que funciona con una red de profesionales independientes. Cuando usted reserva, contrata con nosotros. Nosotros sugerimos un precio (y usted puede ofrecer otro dentro de ciertos límites), programamos el trabajo, elegimos a un profesional calificado, revisamos el trabajo y lo respaldamos con nuestra garantía.`,
-      "El trabajo en sí lo hacen negocios de servicios independientes, asegurados y con verificación de antecedentes (\"profesionales\"). Los profesionales no son nuestros empleados. Ellos deciden cómo hacer el trabajo, dentro del alcance por el que usted pagó.",
+      "El trabajo en sí lo hacen negocios de servicios independientes, verificados y con antecedentes revisados (\"profesionales\"). Los profesionales no son nuestros empleados. Ellos deciden cómo hacer el trabajo, dentro del alcance por el que usted pagó.",
       "Algunos servicios, como los traslados y los trabajos de oficios con licencia, deben ser realizados por una empresa que tenga una licencia especial. En esos casos, reservamos una empresa con licencia para usted. Los términos adicionales de ese servicio (un \"anexo\") explican quién hace qué.",
       "Podemos rechazar cualquier reserva. Por ejemplo, si el trabajo está fuera de nuestra zona, es inseguro, es ilegal o no es algo que podamos hacer bien.",
     )],
@@ -257,7 +258,7 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
   title: `${BRAND.legalName} — Acuerdo de servicio`,
   appliesTo: "Cada reserva. Usted lo acepta cuando reserva y paga, y aparece impreso en su factura.",
   summary: [
-    `Usted reserva y le paga a ${BRAND.name}. Nosotros programamos, gestionamos y garantizamos el trabajo. Un profesional independiente, asegurado y con verificación de antecedentes hace el trabajo. Por favor, no le pague directamente a su profesional.`,
+    `Usted reserva y le paga a ${BRAND.name}. Nosotros programamos, gestionamos y garantizamos el trabajo. Un profesional independiente, verificado y con antecedentes revisados hace el trabajo. Por favor, no le pague directamente a su profesional.`,
     `Le sugerimos un precio basado en lo que los profesionales cerca de usted realmente aceptan. Puede ofrecer un precio diferente dentro de ciertos límites, pero una oferta más baja puede tardar más o puede no ser aceptada. Usted paga el ${pct(BOOK_NOW.share)} al reservar y el resto cuando el trabajo esté terminado, o todo al reservar con un ${pct(PAY_IN_FULL.discount)} de descuento. El precio incluye un cargo de reserva fijo de ${FEE}.`,
     "Mientras ningún profesional acepte, usted puede aumentar su oferta, y un profesional puede hacer una contraoferta con un precio más alto. Pagar más siempre es su decisión, y solo le cobramos la diferencia. El trabajo adicional solo se hace después de que usted lo apruebe y lo pague.",
     `Cancele o cambie su reserva gratis hasta 24 horas antes de su horario de llegada. Con menos de 24 horas, o si su profesional no puede entrar, nos quedamos con un cargo de ${money(LATE_CANCEL_FEE)} y le reembolsamos el resto.`,
@@ -268,7 +269,7 @@ const SERVICE_AGREEMENT_ES: ContractTranslation = {
   ],
   sections: numbered([
     ["Con quién contrata usted", p(
-      `Usted contrata con ${US}. Nosotros sugerimos el precio, programamos, gestionamos y garantizamos su trabajo. El trabajo lo hace un negocio de servicios independiente, asegurado y con verificación de antecedentes, que nosotros seleccionamos y cuya calidad revisamos ("su profesional"). Los profesionales son negocios independientes, no nuestros empleados.`,
+      `Usted contrata con ${US}. Nosotros sugerimos el precio, programamos, gestionamos y garantizamos su trabajo. El trabajo lo hace un negocio de servicios independiente, verificado y con antecedentes revisados, que nosotros seleccionamos y cuya calidad revisamos ("su profesional"). Los profesionales son negocios independientes, no nuestros empleados.`,
       "Usted nos paga a nosotros. Nosotros le pagamos a su profesional después de que el trabajo esté hecho y pase nuestro control de calidad. Por favor, no le pague directamente a su profesional. Los pagos hechos fuera de la app no están cubiertos por este acuerdo ni por nuestra garantía.",
       "Favoritos y pedir a un profesional: usted puede marcar a un profesional (o a un miembro del equipo de una empresa de profesionales) como favorito, o pedir a un profesional que ya tuvo cuando vuelva a reservar. Entonces le ofrecemos su trabajo primero a ese profesional durante unas horas (menos si el trabajo es pronto). Es una primera oportunidad, no una promesa: si no puede tomarlo en ese tiempo, lo toma otro profesional verificado, y su precio, fecha y garantía no cambian. Pedir a un miembro del equipo es una solicitud a esa empresa; la empresa decide a quién envía.",
       "Algunos servicios tienen términos adicionales (un \"anexo\"), por ejemplo traslados, entregas médicas, cuidado de mascotas, eventos, construcción y remodelaciones, mandados, acarreo, limpieza de autos (detailing), y servicios para el hogar y el jardín. Si su servicio tiene un anexo, este forma parte de este acuerdo.",

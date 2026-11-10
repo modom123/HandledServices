@@ -31,6 +31,9 @@
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: enrollFromPost() signs up someone who posts a project (tick-box on /post)
  *           and claims their own email as source 'self'. attributeJob credits only their FIRST job; partnerSplitForJob pays
  *           firstProjectReward (10% back, up to $250, Handled alone, tier 'self'); self rewards don't build level credit.
+ * UPDATED : 2026-11-10_0400 UTC — lead pay: each lead's $10 draw is repaid out of its commission (recoverLeadDraw); pending draws
+ *           join the weekly payout once unlocked (10 leads + one paid-out sale, leadPayStatus).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -39,6 +42,7 @@ import {
   cleanPartnerCode, firstProjectReward, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
   REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
+  SALES_DRAW, drawRecovery, drawUnlocked,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
@@ -167,7 +171,7 @@ export async function submitTicket(partner: Partner, t: Ticket): Promise<{ ok: t
   const svc = t.service_slug ? getService(t.service_slug) : null;
   const book = `${siteUrl()}/book?${svc ? `service=${svc.slug}&` : ""}partner=${partner.code}`;
   await sendEmail(email, `${partner.name} recommended ${BRAND.name}${svc ? ` for ${svc.name.toLowerCase()}` : ""}`,
-    `Hi ${t.name.split(" ")[0]},\n\n${partner.name}${partner.company ? ` (${partner.company})` : ""} thought you'd like ${BRAND.name}${svc ? ` for your ${svc.name.toLowerCase()}` : ""}: insured, background-checked local pros, an upfront price in 60 seconds, photo proof when it's done, and a free redo if anything's missed.\n\nSee your price and book: ${book}\n${t.note ? `\nNote from ${partner.name.split(" ")[0]}: ${t.note}\n` : ""}\nWe'll also reach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}${t.best_time ? ` (${t.best_time})` : ""}. Questions? Just reply.\n\n— ${BRAND.name}`).catch(() => {});
+    `Hi ${t.name.split(" ")[0]},\n\n${partner.name}${partner.company ? ` (${partner.company})` : ""} thought you'd like ${BRAND.name}${svc ? ` for your ${svc.name.toLowerCase()}` : ""}: background-checked, vetted local pros, an upfront price in 60 seconds, photo proof when it's done, and a free redo if anything's missed.\n\nSee your price and book: ${book}\n${t.note ? `\nNote from ${partner.name.split(" ")[0]}: ${t.note}\n` : ""}\nWe'll also reach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}${t.best_time ? ` (${t.best_time})` : ""}. Questions? Just reply.\n\n— ${BRAND.name}`).catch(() => {});
   const summary = ticketText({ ...row, ticket_no: ticketNo });
   await sendEmail(partner.email, `Referral ticket ${ticketNo} received — ${t.name}`, `Hi ${partner.name.split(" ")[0]},\n\nThanks — we've got it. We emailed ${t.name.split(" ")[0]} a booking link from you and we'll reach out ourselves too.\n\n${summary}\n\nWhat you'll earn: ${TICKET_JOB_TYPES[t.job_type].earns}.\n\nFollow this ticket: ${siteUrl()}/partner\n\n— ${BRAND.name}`).catch(() => {});
   if (opsEmail()) await sendEmail(opsEmail(), `Referral ticket ${ticketNo}: ${t.name}${svc ? ` — ${svc.name}` : ""} (${partner.name})`, `${summary}${t.photos?.length ? `\n${t.photos.length} photo(s) of the job: see the ticket in Hub → Partners` : ""}\n\nPartner: ${partner.name}${partner.company ? ` (${partner.company})` : ""} · ${partner.email} · code ${partner.code}\n\nReach out by ${TICKET_CONTACT[t.contact_pref].toLowerCase()}, then mark it "We reached out" in Hub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
@@ -274,8 +278,10 @@ export async function partnerSplitForJob(job: Job): Promise<Split | null> {
   // direct sale (Field Sales): the partner's ladder rate of our take, paid by Handled alone
   if (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale) {
     const { rate } = await directSalesLevel(job.partner_id);
-    const amount = partnerSaleCommission(o, rate);
-    return amount > 0 ? { tier: "direct", rate, fromPro: 0, fromUs: amount, amount, take } : null;
+    const gross = partnerSaleCommission(o, rate);
+    // lead pay: this lead's $10 draw was an advance — it comes back out of this commission
+    const amount = Math.round((gross - await recoverLeadDraw(job.partner_id, job, gross).catch(() => 0)) * 100) / 100;
+    return gross > 0 ? { tier: "direct", rate, fromPro: 0, fromUs: amount, amount, take } : null;
   }
   if (partnerLegacyJob(job.created_at)) { // partner-v1: 10% of our take, Handled alone
     const amount = partnerCommission(o);
@@ -374,6 +380,38 @@ export async function partnerIsPro(partner: Partner): Promise<boolean> {
 }
 
 /** Mondays: pay every eligible commission (re-checked against refunds) to partners whose Stripe payouts are ready. */
+/** The lead's draw for this job (its sales ticket), repaid out of the commission. Returns what was taken back. */
+async function recoverLeadDraw(partnerId: string, job: Job, commission: number): Promise<number> {
+  const { data: tix } = await db().from("sales_tickets").select("id").eq("partner_id", partnerId).or(`job_id.eq.${job.id},customer_email.eq.${lower(job.contact_email)}`).limit(5);
+  const ids = ((tix ?? []) as { id: string }[]).map((t) => t.id);
+  if (!ids.length) return 0;
+  const { data: draws } = await db().from("partner_draws").select("id, amount, recovered").in("ticket_id", ids).neq("status", "void");
+  let left = commission, taken = 0;
+  for (const d of (draws ?? []) as { id: string; amount: number; recovered: number }[]) {
+    const r = drawRecovery({ commission: left, drawOutstanding: Number(d.amount) - Number(d.recovered) });
+    if (r <= 0) continue;
+    await db().from("partner_draws").update({ recovered: Math.round((Number(d.recovered) + r) * 100) / 100 }).eq("id", d.id);
+    left -= r; taken += r;
+  }
+  return Math.round(taken * 100) / 100;
+}
+
+/** Lead pay status for a partner: leads written, paid-out sales, unlocked?, and what's waiting / paid. */
+export async function leadPayStatus(partnerId: string) {
+  const [{ data: draws }, { count: paidSales }] = await Promise.all([
+    db().from("partner_draws").select("amount, recovered, status").eq("partner_id", partnerId).neq("status", "void"),
+    db().from("partner_commissions").select("id", { count: "exact", head: true }).eq("partner_id", partnerId).eq("tier", "direct").eq("status", "paid"),
+  ]);
+  const rows = (draws ?? []) as { amount: number; recovered: number; status: string }[];
+  const net = (r: { amount: number; recovered: number }) => Math.max(0, Number(r.amount) - Number(r.recovered));
+  const leads = rows.length;
+  return {
+    leads, paidSales: paidSales ?? 0, unlocked: drawUnlocked({ leads, paidSales: paidSales ?? 0 }),
+    waiting: Math.round(rows.filter((r) => r.status === "pending").reduce((t, r) => t + net(r), 0) * 100) / 100,
+    paid: Math.round(rows.filter((r) => r.status === "paid").reduce((t, r) => t + Number(r.amount), 0) * 100) / 100,
+  };
+}
+
 export async function runPartnerPayouts(now = new Date()) {
   const s = getStripe();
   const week = mondayOf(now);
@@ -389,11 +427,22 @@ export async function runPartnerPayouts(now = new Date()) {
     r.amount = now$;
     byPartner.set(r.partner_id, [...(byPartner.get(r.partner_id) ?? []), r]);
   }
+  // lead pay: pending draws of partners whose lead pay is unlocked (10 leads + one paid-out sale), net of anything repaid
+  const drawsBy = new Map<string, { id: string; net: number }[]>();
+  const { data: pend, error: drawErr } = await db().from("partner_draws").select("id, partner_id, amount, recovered").eq("status", "pending").limit(5000);
+  if (!drawErr) {
+    const byP = new Map<string, { id: string; net: number }[]>();
+    for (const d of (pend ?? []) as { id: string; partner_id: string; amount: number; recovered: number }[]) byP.set(d.partner_id, [...(byP.get(d.partner_id) ?? []), { id: d.id, net: Math.max(0, Math.round((Number(d.amount) - Number(d.recovered)) * 100) / 100) }]);
+    for (const [pid, ds] of byP) if ((await leadPayStatus(pid)).unlocked) drawsBy.set(pid, ds);
+  }
+  for (const pid of drawsBy.keys()) if (!byPartner.has(pid)) byPartner.set(pid, []);
   let paid = 0, total = 0, waiting = 0;
   const failed: string[] = [];
   let funds = await availableBalance(); // card money takes ~2 days to become available in Stripe
   for (const [pid, rows] of byPartner) {
-    const amount = Math.round(rows.reduce((t, r) => t + Number(r.amount), 0) * 100) / 100;
+    const draws = drawsBy.get(pid) ?? [];
+    const drawTotal = Math.round(draws.reduce((t, d) => t + d.net, 0) * 100) / 100;
+    const amount = Math.round((rows.reduce((t, r) => t + Number(r.amount), 0) + drawTotal) * 100) / 100;
     if (amount < PARTNER_PROGRAM.minPayout) continue; // rolls to next week
     const { data: p } = await db().from("referral_partners").select("*").eq("id", pid).single();
     const partner = p as Partner;
@@ -408,9 +457,18 @@ export async function runPartnerPayouts(now = new Date()) {
     }
     if (funds !== null && funds < amount) { failed.push(`${partner.name}: not enough available in Stripe yet — waits for next week`); continue; }
     const ids = rows.map((r) => r.id);
+    const drawIds = draws.map((d) => d.id);
     const stamp = new Date().toISOString();
-    const { data: claimed } = await db().from("partner_commissions").update({ status: "paid", paid_at: stamp, week_of: week }).in("id", ids).eq("status", "pending").select("id");
+    const { data: claimed } = ids.length ? await db().from("partner_commissions").update({ status: "paid", paid_at: stamp, week_of: week }).in("id", ids).eq("status", "pending").select("id") : { data: [] };
+    const { data: claimedDraws } = drawIds.length ? await db().from("partner_draws").update({ status: "paid", paid_at: stamp, week_of: week }).in("id", drawIds).eq("status", "pending").select("id") : { data: [] };
+    if ((claimedDraws ?? []).length !== drawIds.length) {
+      if (claimedDraws?.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimedDraws.map((x: { id: string }) => x.id));
+      if (claimed?.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
+      failed.push(`${partner.name} (lead pay changed while paying)`);
+      continue;
+    }
     if ((claimed ?? []).length !== ids.length) {
+      if (drawIds.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", drawIds);
       if (claimed?.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
       failed.push(`${partner.name} (changed while paying)`);
       continue;
@@ -419,7 +477,8 @@ export async function runPartnerPayouts(now = new Date()) {
     try {
       t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: acct!, description: `${BRAND.name} referral commissions — week of ${week}`, metadata: { partner_id: pid, kind: "partner_commission", week_of: week } }, { idempotencyKey: `partner-${pid}-${week}-${stamp}` });
     } catch (e) {
-      await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", ids);
+      if (ids.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", ids);
+      if (drawIds.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", drawIds);
       failed.push(`${partner.name}: ${e instanceof Error ? e.message : "transfer failed"}`);
       continue;
     }
@@ -427,7 +486,8 @@ export async function runPartnerPayouts(now = new Date()) {
     paid++; total = Math.round((total + amount) * 100) / 100;
     if (funds !== null) funds = Math.round((funds - amount) * 100) / 100;
     try {
-      await db().from("partner_commissions").update({ stripe_transfer_id: t.id }).in("id", ids);
+      if (ids.length) await db().from("partner_commissions").update({ stripe_transfer_id: t.id }).in("id", ids);
+      if (drawIds.length) await db().from("partner_draws").update({ stripe_transfer_id: t.id }).in("id", drawIds);
       await sendEmail(partner.email, `Paid: ${money(amount)} in ${BRAND.name} referral commissions`, `Hi ${partner.name.split(" ")[0]},\n\nWe sent ${money(amount)} for ${rows.length} completed job${rows.length === 1 ? "" : "s"} from customers you referred. It reaches your bank on Stripe's normal schedule (usually 2 business days).\n\nEvery job and payment: ${siteUrl()}/partner\n\nThank you for sending people our way.\n\n— ${BRAND.name}`).catch(() => {});
     } catch (e) {
       await raiseAlert("partners", "warn", `Partner payout sent but not fully recorded — ${partner.name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});

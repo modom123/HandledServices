@@ -11,12 +11,13 @@
  *           work), live price, and a pay link the partner can open on the spot.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  */
 "use client";
 
 import { useEffect, useState } from "react";
 import { Ico } from "@/components/Glyph";
-import { URGENCY, defaultAnswers, getService, money, questionVisible, ticketCloseCheck, type Answers, type Frequency } from "@handled/core";
+import { URGENCY, defaultAnswers, getService, money, numberMin, questionVisible, ticketCloseCheck, type Answers, type Frequency } from "@handled/core";
 import { PhotoPicker } from "./PhotoPicker";
 import { useRouter } from "next/navigation";
 import { uploadPhotos } from "@/lib/upload-photos";
@@ -234,6 +235,17 @@ export function VoidCommission({ id }: { id: string }) {
   }}>Void</button>;
 }
 
+/** Hub (admins): void a fake or duplicate lead's unpaid $10 lead pay. */
+export function VoidLeadPay({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
+  return <button className="text-xs text-rose-700 underline" onClick={async () => {
+    const note = prompt("Why are you voiding this lead's $10 lead pay? (fake or duplicate lead)");
+    if (!note) return;
+    const r = await post("/api/hub/partners", { action: "void_draw", ticket_id: ticketId, note });
+    if (!r.ok) alert(r.error); router.refresh();
+  }}>Void lead pay</button>;
+}
+
 /**
  * Field Sales ticket (/partner), added 2026-11-06_1638 UTC. A rep can sell any service. The ticket holds everything it
  * takes to close the sale, so the customer pays without being asked anything again:
@@ -317,9 +329,9 @@ export function SalesTicketForm({ services, minPhotos, maxPhotos, repCode }: { s
         <select className="input" value={f.service_slug} onChange={(e) => pickService(e.target.value)}><option value="">Pick a service (or add photos and we&apos;ll suggest one)</option>{services.map(([s, n]) => <option key={s} value={s}>{n}</option>)}</select>
         {svc && svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
           <label key={q.id} className="block text-sm">{q.label}{q.type === "number" && q.required && <span className="text-rose-700"> *</span>}
-            {q.type === "number" && <span className="mt-1 flex items-center gap-2"><input className="input" type="number" min={q.min} max={q.max} value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: Number(e.target.value) })} />{q.unit && <span className="text-xs text-ink-soft">{q.unit}</span>}</span>}
+            {q.type === "number" && <span className="mt-1 flex items-center gap-2"><input className="input" type="number" min={numberMin(q, answers)} max={q.max} value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: Number(e.target.value) })} />{q.unit && <span className="text-xs text-ink-soft">{q.unit}</span>}</span>}
             {q.type === "select" && <select className="input mt-1" value={String(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
-            {q.type === "toggle" && <span className="mt-1 flex items-center gap-2"><input type="checkbox" checked={Boolean(answers[q.id] ?? q.default)} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.checked })} /> Yes</span>}
+            {q.type === "toggle" && <span className="mt-1 flex gap-2">{([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => <button key={label} type="button" aria-pressed={Boolean(answers[q.id] ?? q.default) === val} onClick={() => setAnswers({ ...answers, [q.id]: val })} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${Boolean(answers[q.id] ?? q.default) === val ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{label}</button>)}</span>}
           </label>
         ))}
         {svc && svc.frequencies.length > 1 && <label className="block text-sm">How often<select className="input mt-1" value={f.frequency} onChange={set("frequency")}>{svc.frequencies.map((x) => <option key={x} value={x}>{FREQ[x]}</option>)}</select></label>}

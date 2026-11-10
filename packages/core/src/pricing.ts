@@ -38,6 +38,8 @@
  *           specialist sets the scope and a fixed price in writing.
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: BOOK_NOW (25% at booking; the balance is held on the card when the pro
  *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
+ * UPDATED : 2026-11-10_0310 UTC — name your price: offers below the usual minimum (down to 30% of our price) go straight
+ *           to the job board for 30 days (offerCheck level "board"); unclaimed, they're cancelled and fully refunded.
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -462,13 +464,19 @@ export function marketFactor(signals: PriceSignal[], current = 1): { factor: num
   return { factor: clampFactor(current * Math.pow(target, 0.5)), samples: ratios.length, target: Math.round(target * 100) / 100 };
 }
 
-/** Name-your-price bounds around the suggested price. Below `warn` the customer is told it may take longer. */
-export const OFFER_BOUNDS = { min: 0.75, warn: 0.9, max: 3 } as const;
-export function offerCheck(offer: number, suggested: number): { ok: boolean; level: "ok" | "low" | "too_low" | "too_high"; min: number; max: number } {
-  const min = Math.ceil(suggested * OFFER_BOUNDS.min), max = Math.floor(suggested * OFFER_BOUNDS.max);
-  if (!(offer > 0) || offer < min) return { ok: false, level: "too_low", min, max };
-  if (offer > max) return { ok: false, level: "too_high", min, max };
-  return { ok: true, level: offer < suggested * OFFER_BOUNDS.warn ? "low" : "ok", min, max };
+/**
+ * Name-your-price bounds around the suggested price. Below `warn` the customer is told it may take longer.
+ * Below `min` (but at least `floor`) the offer is still taken: the job goes straight to the open job board at the
+ * customer's price for `boardDays` days ("board" level), and if no pro takes it in that time it's cancelled and fully
+ * refunded. Below `floor` it's refused (keeps $1 offers off the board).
+ */
+export const OFFER_BOUNDS = { floor: 0.3, min: 0.75, warn: 0.9, max: 3, boardDays: 30 } as const;
+export function offerCheck(offer: number, suggested: number): { ok: boolean; level: "ok" | "low" | "board" | "too_low" | "too_high"; min: number; max: number; floor: number } {
+  const min = Math.ceil(suggested * OFFER_BOUNDS.min), max = Math.floor(suggested * OFFER_BOUNDS.max), floor = Math.ceil(suggested * OFFER_BOUNDS.floor);
+  if (!(offer > 0) || offer < floor) return { ok: false, level: "too_low", min, max, floor };
+  if (offer > max) return { ok: false, level: "too_high", min, max, floor };
+  if (offer < min) return { ok: true, level: "board", min, max, floor };
+  return { ok: true, level: offer < suggested * OFFER_BOUNDS.warn ? "low" : "ok", min, max, floor };
 }
 
 /**
