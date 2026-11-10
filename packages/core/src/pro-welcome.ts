@@ -14,6 +14,7 @@
  *           Every number comes from the shared rules (PRO_TIERS, PRO_REFERRAL, REWARD_DEFAULTS, REFERRAL_LADDER,
  *           PARTNER_LADDER, PROBATION, the pro policy), so the email never drifts from what the portal does.
  * UPDATED : 2026-11-10_1340 UTC — Spanish emails use the Spanish trade and service names.
+ * UPDATED : 2026-11-10_2000 UTC — points to the opt-in "Feature me on the website" (New pros in the Handled Network).
  */
 import { BRAND } from "./brand.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -86,6 +87,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     cleared.length ? `Servicios que ya puede tomar (${cleared.length}):\n${list(cleared)}` : "Todavía no hay servicios aprobados para usted. Revise los puntos de abajo.",
     notYet.length ? `\nTiene el oficio, pero aún no está aprobado para (${notYet.length}):\n${notYetList}\nResuélvalo en Portal → Configuración y documentos, y esos trabajos se abren solos.` : null,
     `\n¿Algo no está bien? Cámbielo en Portal → Mi información: ${site}/pro/info`,
+    `¿Quiere más clientes? En Mi información active "Aparecer en el sitio web": su foto, su nombre, su ciudad y hasta 5 servicios en "Nuevos profesionales" (nunca su dirección ni su teléfono).`,
   ] : [
     "1. WHAT YOU TOLD US (YOUR PROFILE)",
     `Trades: ${trades || "—"}`,
@@ -97,6 +99,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     cleared.length ? `Services you can take now (${cleared.length}):\n${list(cleared)}` : "No services are cleared for you yet. See the items below.",
     notYet.length ? `\nYou have the trade but aren't cleared yet for (${notYet.length}):\n${notYetList}\nFix it in Pro portal → Setup & documents and those jobs open up on their own.` : null,
     `\nSomething wrong? Change it in Pro portal → My info: ${site}/pro/info`,
+    `Want more customers? Turn on "Feature me on the website" in My info: your photo, name, city and up to 5 services in "New pros in the Handled Network" (never your address or phone).`,
   ];
 
   // ── how the portal works ──

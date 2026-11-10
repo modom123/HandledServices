@@ -9,6 +9,7 @@
  *           print can point here.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_2000 UTC — "New pros in <market>": the opt-in pros chain for the market's states.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
@@ -17,6 +18,8 @@ import { notFound } from "next/navigation";
 import { BRAND, SERVICES, SITE_MARKETS, SITE_MARKET_BY_SLUG, STATE_NAME, getService, priceHint, serviceText } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { siteUrl } from "@/lib/site-url";
+import { featuredPros } from "@/lib/showcase";
+import { NewProsChain } from "@/components/NewProsChain";
 
 export const dynamicParams = false;
 export const generateStaticParams = () => SITE_MARKETS.map((m) => ({ market: m.slug }));
@@ -36,6 +39,7 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
   const m = SITE_MARKET_BY_SLUG[(await params).market];
   if (!m) notFound();
   const l = await getLocale();
+  const pros = (await featuredPros({ limit: 200 })).filter((p) => p.state && m.states.includes(p.state)).slice(0, 24);
   const es = l === "es";
   const featured = m.featured.map((x) => getService(x)).filter((s): s is NonNullable<typeof s> => Boolean(s));
   const home = m.cities[0];
@@ -74,6 +78,8 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
           );
         })}
       </div>
+
+      <div className="-mx-4 mt-6 sm:-mx-6"><NewProsChain pros={pros} es={es} area={m.name} /></div>
 
       <h2 className="mt-12 pro:mt-8 text-2xl font-bold">{es ? "Cómo funciona" : "How it works"}</h2>
       <ol className="mt-4 grid gap-4 sm:grid-cols-3">

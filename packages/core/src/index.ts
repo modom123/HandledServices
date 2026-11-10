@@ -81,3 +81,4 @@ export * from "./depth-chart.ts";
 export * from "./pro-welcome.ts";
 export * from "./partner-welcome.ts";
 export * from "./partner-success.ts";
+export * from "./pro-showcase.ts";

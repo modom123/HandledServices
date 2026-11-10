@@ -5,6 +5,7 @@
  * PURPOSE : Pro portal → My info: everything Handled has on file for this pro in one place — profile, trades and
  *           area, where they are on the way to approval, documents and expiry dates, payout, contracts, orientation
  *           and referral code. Read-only; each section links to where it's changed.
+ * UPDATED : 2026-11-10_2000 UTC — "Feature me on the website" opt-in (New pros in the Handled Network, components/ShowcaseToggle).
  */
 import Link from "next/link";
 import { TRADES, onboardingChecklist, orientationStatus, specialtiesFor, type Contractor } from "@handled/core";
@@ -13,6 +14,7 @@ import { getLocale } from "@/lib/locale";
 import { adminClient } from "@/lib/supabase/server";
 import { partnerFor } from "@/lib/partners";
 import { Badge } from "@/components/ui";
+import { ShowcaseToggle } from "@/components/ShowcaseToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +82,8 @@ export default async function MyInfo() {
             <Badge tone={d.status === "verified" ? "green" : d.status === "rejected" || d.status === "expired" ? "red" : "amber"}>{d.status}</Badge></div>
         ))}</div>}
       </section>
+
+      <ShowcaseToggle on={c.showcase_opt_in === true} approved={approved} es={es} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <Link href="/pro/welcome" className="card block hover:border-brand"><b>👋 {es ? "Orientación" : "Orientation"}</b><div className="text-sm text-ink-soft">{o.done}/{o.total} {es ? "lecciones" : "lessons"}</div></Link>

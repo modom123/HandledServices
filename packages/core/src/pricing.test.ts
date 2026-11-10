@@ -2754,3 +2754,30 @@ test("partner success: 3 roadmaps with real services, the right one per kind, pr
   const all = roadmapProgress(roadmapFor("customer"), { ...zero, payoutsReady: true, customers: 30, recurring: 6, categories: 4, jobs: 40, referralRate: 0.2 });
   assert.equal(all.complete, true);
 });
+
+test("pro showcase: opt-in only, newest first, public name, city not address, up to 5 cleared services (2026-11-10)", async () => {
+  const { showcaseChain, publicName, SHOWCASE } = await import("./pro-showcase.ts");
+  const pro = (o: Record<string, unknown>) => ({
+    id: "x", profile_id: null, business_name: "Sparkle Clean Co.", contact_name: "Dana Reyes", email: "d@x", phone: "1", trades: ["cleaning", "handyman"], service_zips: [],
+    status: "approved", rating: 4.9, jobs_completed: 12, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true,
+    daily_capacity: 3, notes: null, base_city: "Detroit", base_state: "mi", base_address: "100 Main St", showcase_opt_in: true, onboarded_at: "2026-11-01T00:00:00Z", ...o,
+  } as unknown as Contractor);
+  const list = showcaseChain([
+    pro({ id: "old", onboarded_at: "2026-10-01T00:00:00Z" }),
+    pro({ id: "new", onboarded_at: "2026-11-09T00:00:00Z", specialties: ["handyman"] }),
+    pro({ id: "noconsent", showcase_opt_in: false }),
+    pro({ id: "pending", status: "vetting" }),
+    pro({ id: "wa", base_state: "WA", base_city: "Seattle" }),
+  ]);
+  assert.deepEqual(list.map((c) => c.id), ["new", "wa", "old"], "only approved opt-ins, newest first");
+  const c = list[0];
+  assert.equal(c.area, "Detroit, MI");
+  assert.ok(!JSON.stringify(list).includes("100 Main St"), "never the address");
+  assert.ok(c.services.length <= SHOWCASE.maxServices && c.services.length > 0);
+  assert.equal(c.services[0].slug, "handyman", "specialty first");
+  assert.equal(c.rating, 4.9);
+  assert.deepEqual(showcaseChain([pro({ id: "a" }), pro({ id: "b", base_state: "WA" })], { state: "wa" }).map((x) => x.id), ["b"]);
+  assert.equal(publicName({ business_name: "Dana Reyes", contact_name: "Dana Reyes" }), "Dana R.");
+  assert.equal(publicName({ business_name: "", contact_name: "Sam Lee Park" }), "Sam P.");
+  assert.equal(publicName({ business_name: "Mitten Lawn & Snow", contact_name: "Sam Lee" }), "Mitten Lawn & Snow");
+});

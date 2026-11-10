@@ -8,6 +8,7 @@
  * PURPOSE : Home page (the first page after the splash).
  * UPDATED : 2026-11-04_2230 UTC — SEO: this is the main page search engines index (the splash at / points here as its
  *           canonical): its own title and description naming Michigan & Washington, and the business as structured data.
+ * UPDATED : 2026-11-10_2000 UTC — "New pros in the Handled Network" chain under every look (opt-in pros, refreshed every 6 hours).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import type { Metadata } from "next";
@@ -17,6 +18,9 @@ import { HomeClassic } from "@/components/home/HomeClassic";
 import { HomeModern } from "@/components/home/HomeModern";
 import { HomePro } from "@/components/home/pro/HomePro";
 import { businessLd, ldScript } from "@/lib/business-ld";
+import { getLocale } from "@/lib/locale";
+import { featuredPros } from "@/lib/showcase";
+import { NewProsChain } from "@/components/NewProsChain";
 
 export const metadata: Metadata = {
   title: { absolute: `${BRAND.name} — Home & business services in Michigan & Washington` },
@@ -25,11 +29,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const theme = await getTheme();
+  const [theme, locale, pros] = await Promise.all([getTheme(), getLocale(), featuredPros()]);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={ldScript(businessLd())} />
       {theme === "pro" ? <HomePro /> : theme === "modern" ? <HomeModern /> : <HomeClassic />}
+      <NewProsChain pros={pros} es={locale === "es"} />
     </>
   );
 }
