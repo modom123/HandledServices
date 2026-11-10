@@ -28,6 +28,7 @@
  * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" link in the side menu (/post).
+ * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -111,7 +112,7 @@ export async function SiteHeader() {
       groups={groups}
       links={links}
       primary={{ href: "/book", label: t("Book now") }}
-      secondary={{ href: "/snap", label: es ? "Foto y precio" : "Snap a photo", icon: "📸" }}
+      secondary={{ href: "/snap", label: es ? "Tome una foto, publique un trabajo" : "Snap a photo, post a job", icon: "📸" }}
       logo={<Logo />}
       account={<AccountButton es={es} up block />}
       accountBar={<span className="hidden sm:block"><AccountButton es={es} /></span>}

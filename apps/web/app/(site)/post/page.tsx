@@ -7,6 +7,7 @@
  *           ?service= preselects a service; utm / ref links record where the post came from (Hub → Lead inbox → Links
  *           to share). English / Spanish.
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: "Get 10% back, up to $250" (posting can make you a partner).
+ * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
  */
 import Link from "next/link";
 import { BRAND, SERVICES, firstProjectLine, serviceText } from "@handled/core";
@@ -38,7 +39,7 @@ export default async function PostProject({ searchParams }: { searchParams: Prom
         <ol className="mt-8 space-y-5">{steps.map(([t, d], i) => (
           <li key={t} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</span><span><span className="block font-semibold">{t}</span><span className="block text-sm text-ink-soft">{d}</span></span></li>
         ))}</ol>
-        <p className="mt-8 text-sm text-ink-soft">{es ? "¿Ya sabe lo que quiere?" : "Already know what you want?"} <Link href="/book" className="font-semibold text-brand">{es ? "Vea su precio al instante" : "Get an instant price"} →</Link> · <Link href="/snap" className="font-semibold text-brand">{es ? "Mande una foto" : "Snap a photo"} →</Link></p>
+        <p className="mt-8 text-sm text-ink-soft">{es ? "¿Ya sabe lo que quiere?" : "Already know what you want?"} <Link href="/book" className="font-semibold text-brand">{es ? "Vea su precio al instante" : "Get an instant price"} →</Link> · <Link href="/snap" className="font-semibold text-brand">{es ? "Tome una foto, publique un trabajo" : "Snap a photo, post a job"} →</Link></p>
       </div>
       <PostProjectForm es={es} services={services} preset={preset} />
     </div>
