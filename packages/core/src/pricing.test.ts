@@ -225,8 +225,13 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   const { onboardingChecklist, insuranceRequired, AGREEMENT_VERSION } = await import("./compliance.ts");
   assert.equal(insuranceRequired(["web_design"]), false);
   assert.equal(insuranceRequired(["errands"]), false);
-  assert.equal(insuranceRequired(["errands", "hauling"]), true, "one insured trade means a COI is needed");
-  assert.equal(insuranceRequired(["pet_care"]), true, "pet care keeps its liability policy (care, custody & control)");
+  // owner decision 2026-11-10: a COI blocks activation only when EVERY service the pro does needs one
+  assert.equal(insuranceRequired(["errands", "hauling"]), false, "one insurance-optional service is enough to go active (insured jobs wait for a COI)");
+  assert.equal(insuranceRequired(["hauling"]), true, "hauling alone needs a COI");
+  assert.equal(insuranceRequired(["roofing"]), true);
+  assert.equal(insuranceRequired(["pet_care"]), false, "pet care: no COI (the bond still applies)");
+  assert.equal(insuranceRequired(["cleaning"]), false, "house cleaning: no COI");
+  assert.equal(insuranceRequired(["windows"]), true, "window cleaning (ladders) still needs one");
   assert.equal(insuranceRequired(["no_such_trade"]), true, "unknown trades default to required");
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
@@ -237,7 +242,9 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
-  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, false, "cleaners still need a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, true, "house cleaners activate without a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["windows"], specialties: [], coverage: { workers_comp: "exempt" } }).complete, false, "window cleaners still need a COI");
+  assert.match(String(onboardingChecklist({ ...pro, trades: ["cleaning", "windows"], coverage: { workers_comp: "exempt" } }).steps.find((x) => x.key === "coi")?.detail), /Window Cleaning/, "the optional step lists what a COI unlocks");
   const base: Contractor = {
     id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design", "hauling"],
     service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
@@ -2450,7 +2457,9 @@ test("depth chart: positions fill, cross off and rank like a roster", async () =
   // cleared vs. not cleared
   assert.equal(clearedFor(pro("a"), svc), null);
   assert.match(String(clearedFor(pro("b", { background_checked: false }), svc)), /background/);
-  assert.match(String(clearedFor(pro("c", { insured_until: "2000-01-01" }), svc)), /insurance/);
+  assert.equal(clearedFor(pro("c", { insured_until: "2000-01-01" }), svc), null, "house cleaning doesn't need insurance (2026-11-10)");
+  const win = getService("window-cleaning")!;
+  assert.match(String(clearedFor(pro("c2", { trades: win.trades, insured_until: "2000-01-01" }), win)), /insurance/, "window cleaning still does");
   const pos = (list: never[], state?: string) => depthChart({ contractors: list, state }).find((p) => p.slug === "house-cleaning")!;
   // focus service: 3 deep to cross off
   assert.equal(pos([]).status, "open");
