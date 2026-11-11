@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_2124 UTC
  * UPDATED : 2026-10-01_2140 UTC — GET: balance, fee and eligibility (mobile app).
  * PURPOSE : Pro: cash out approved payouts now (instant pay), or start Stripe payout setup.
+ * UPDATED : 2026-11-11_2340 UTC — setup takes { back: "onboarding" } (return to Setup & documents); clearer message when Stripe can't start.
  */
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
@@ -24,11 +25,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const v = await getViewer(req);
   if (!v?.contractorId) return deny(403, "Pro account required");
-  const { setup } = (await req.json().catch(() => ({}))) as { setup?: boolean };
+  const { setup, back } = (await req.json().catch(() => ({}))) as { setup?: boolean; back?: string };
   if (setup) {
     const { data: c } = await adminClient().from("contractors").select("id, email, business_name, stripe_account_id").eq("id", v.contractorId).single();
-    const url = c ? await connectOnboardingUrl(c) : null;
-    return url ? Response.json({ url }) : deny(503, "Payout setup isn't available yet");
+    const url = c ? await connectOnboardingUrl(c, back === "onboarding" ? "onboarding" : "earnings").catch((e) => { console.error("[payout setup]", e); return null; }) : null;
+    return url ? Response.json({ url }) : deny(503, "Bank setup through Stripe isn't available right now. Choose a paper check for now, or contact us and we'll help.");
   }
   const r = await cashOutNow(v.contractorId);
   return r.ok ? Response.json(r) : Response.json(r, { status: 409 });

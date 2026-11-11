@@ -30,6 +30,7 @@
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" link in the side menu (/post).
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
+ * UPDATED : 2026-11-11_2330 UTC — /pros pages: Apply now / Pro sign in in place of Book now / Snap a photo (SideNav forPros).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -114,6 +115,7 @@ export async function SiteHeader() {
       links={links}
       primary={{ href: "/book", label: t("Book now") }}
       secondary={{ href: "/snap", label: es ? "Tome una foto, publique un trabajo" : "Snap a photo, post a job", icon: "📸" }}
+      forPros={{ primary: { href: "/pros#apply", label: es ? "Postúlese ahora" : "Apply now" }, secondary: { href: "/login?next=/pro", label: es ? "Entrar como profesional" : "Pro sign in", icon: "🧰" } }}
       logo={<Logo />}
       account={<AccountButton es={es} up block />}
       accountBar={<span className="hidden sm:block"><AccountButton es={es} /></span>}

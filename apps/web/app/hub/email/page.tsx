@@ -5,6 +5,7 @@
  * PURPOSE : Hub → Email Center: marketing from the company mailbox (Hostinger, info@handledsvc.com).
  *           Setup status, today's sending vs the daily cap, campaigns with results, starter templates,
  *           the inbox, sender settings, and the do-not-email list.
+ * UPDATED : 2026-11-12_0005 UTC — link to Email signature (/hub/email/signature).
  */
 import Link from "next/link";
 import { EMAIL_AUDIENCES, EMAIL_TEMPLATES } from "@handled/core";
@@ -37,7 +38,7 @@ export default async function EmailCenter() {
           <h1 className="text-2xl font-bold">Email Center</h1>
           <p className="max-w-3xl text-sm text-ink-soft">Marketing email from {mailboxUser() ?? "the company mailbox"}: pick who gets it, write it (or start from a template), send yourself a test, then send now or schedule it. It goes out in small batches within your daily cap. Every email carries your business address and a one-click unsubscribe, and anyone who unsubscribes is never emailed again.</p>
         </div>
-        <div className="flex gap-2"><Link href="/hub/email/inbox" className="btn-ghost">📥 Inbox</Link><Link href="/hub/email/new" className="btn-primary">New campaign</Link></div>
+        <div className="flex flex-wrap gap-2"><Link href="/hub/email/inbox" className="btn-ghost">📥 Inbox</Link><Link href="/hub/email/signature" className="btn-ghost">✍️ Email signature</Link><Link href="/hub/email/new" className="btn-primary">New campaign</Link></div>
       </div>
       {problems.length > 0 && (
         <div className="card border-amber-300 bg-amber-50 text-sm">

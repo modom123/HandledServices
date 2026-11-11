@@ -13,7 +13,7 @@
  *             coi        expires_on, file          (staff verifies → insured_until)
  *             license    license_number, expires_on, file (staff verifies → license_expires)
  *             agreement  signer_name, agree=true   (signs the current version)
- *             payout     payout_method, account_last4
+ *             payout     payout_method (stripe_connect only; normally set when Stripe confirms the bank)
  *             area       base_zip, service_radius_mi, service_zips ("48201, 481*"), zips_only ("on" = only those ZIPs), daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
  *             specialties specialties (repeat the field once per specialty)
  *             coverage   coverage (auto | workers_comp | bond | liquor), expires_on, file —
@@ -31,6 +31,7 @@
  *               the path must be this pro's file for this step and really be in storage. A `file` field still works.
  *             • every database write is checked: a failed save answers with the reason instead of "Saved", and the
  *               uploaded file is removed so nothing is left half-saved.
+ * UPDATED : 2026-11-11_2350 UTC — payout step: direct deposit through Stripe only (stripe_connect); no paper checks, no 'account last 4'.
  */
 import { after } from "next/server";
 import { z } from "zod";
@@ -62,7 +63,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("photo") }),
   z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
-  z.object({ step: z.literal("payout"), payout_method: z.enum(["ach", "stripe_connect", "check"]), account_last4: z.string().regex(/^\d{4}$/).optional() }),
+  z.object({ step: z.literal("payout"), payout_method: z.literal("stripe_connect") }), // direct deposit through Stripe only (no ACH-by-hand, no paper checks — owner, 2026-11-11)
 ]);
 
 /** A database result with an error → throw it (so a failed save is never reported as saved). */
@@ -201,7 +202,7 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
     await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, onBehalfOf: signedFor, signerTitle: title, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
   } else if (b.step === "payout") {
-    must(await db.from("contractors").update({ payout_method: b.payout_method, payout_account_last4: b.account_last4 ?? null }).eq("id", id));
+    must(await db.from("contractors").update({ payout_method: b.payout_method }).eq("id", id));
   }
   if (["coi", "license", "w9", "coverage"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step === "coverage" ? COVERAGES[b.coverage].label : b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. The AI reading is next to it in Handled Hub → Pros.`);
   // AI reads the certificate/license now, so staff verify in one click and the pro hears fast if it's unusable

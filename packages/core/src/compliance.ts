@@ -30,6 +30,7 @@
  * UPDATED : 2026-11-10_0345 UTC — insurance blocks activation only when every service the pro does needs it; otherwise the COI
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
+ * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
  */
 import { SERVICES } from "./services.ts";
 import { ORIENTATION, orientationStatus } from "./orientation.ts";
@@ -168,7 +169,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
   steps.push(
     { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
-    { key: "payout", label: "Payout method set", done: Boolean(c.payout_method), detail: c.payout_method ? c.payout_method.toUpperCase() : "Bank (ACH) or Stripe Connect" },
+    { key: "payout", label: "Bank connected for direct deposit", done: Boolean(c.payout_method), detail: c.payout_method === "stripe_connect" ? "Direct deposit through Stripe" : c.payout_method ? c.payout_method.toUpperCase() : "Your bank, through Stripe: routing number (9 digits) and account number" },
   );
   return { steps, complete: steps.every((s) => s.done), licenseRequired };
 }

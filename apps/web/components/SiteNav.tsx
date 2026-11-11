@@ -13,6 +13,7 @@
  *           slides the same menu in from the left. DesktopNav / MobileNav stay for the pro portal's header.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0320 UTC — the side menu's second button label is centered when it wraps ("Snap a photo, post a job").
+ * UPDATED : 2026-11-11_2330 UTC — on the pages for pros (/pros…) the top buttons are Apply now / Pro sign in, not Book now / Snap a photo.
  */
 "use client";
 
@@ -118,11 +119,15 @@ export function MobileNav({ groups, lang, cta }: { groups: NavGroup[]; lang: Rea
 }
 
 /** The website's side menu (see the file header). Logo, account and language arrive rendered from the server. */
-export function SideNav({ groups, links, primary, secondary, logo, account, accountBar, lang, contact, slogan, menuLabel }: {
-  groups: NavGroup[]; links: NavItem[]; primary: NavItem; secondary: NavItem; logo: ReactNode; account: ReactNode; accountBar: ReactNode;
+export function SideNav({ groups, links, primary: custPrimary, secondary: custSecondary, forPros, logo, account, accountBar, lang, contact, slogan, menuLabel }: {
+  groups: NavGroup[]; links: NavItem[]; primary: NavItem; secondary: NavItem; forPros?: { primary: NavItem; secondary: NavItem }; logo: ReactNode; account: ReactNode; accountBar: ReactNode;
   lang: ReactNode; contact: string; slogan: string; menuLabel: string;
 }) {
   const path = usePathname() || "/";
+  // the pages for pros (/pros, /pros/…) lead with Apply and Pro sign-in instead of the customer's Book now / Snap a photo
+  const proPage = Boolean(forPros) && /^\/pros(\/|$)/.test(path);
+  const primary = proPage ? forPros!.primary : custPrimary;
+  const secondary = proPage ? forPros!.secondary : custSecondary;
   // links with ?query or #anchor (e.g. /services?cat=…) never light up: the path alone would match all of them
   const here = (href: string) => !/[?#]/.test(href) && href !== "/" && (path === href || path.startsWith(href + "/"));
   const start = groups.find((g) => [...g.items, ...(g.footer ? [g.footer] : [])].some((it) => here(it.href.split(/[?#]/)[0])))?.id ?? null; // all closed except the section you're in
