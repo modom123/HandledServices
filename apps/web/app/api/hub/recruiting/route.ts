@@ -6,11 +6,16 @@
  *             POST { action: "nudge" | "revive" | "note" | "background_clear" | "order_background", contractor_id?, application_id?, note? }
  *             PUT  { instantSignup, autoInvite, minScore, interviewRequired, autoInviteAfterInterview, reminderDays, dropAfterDays, decisionHours }  (admin)
  * UPDATED : 2026-10-05_0246 UTC — screening interview settings.
+ * UPDATED : 2026-11-11_0030 UTC — DELETE (admin): delete someone who didn't make it through onboarding (lib/recruiting-delete.ts).
+ *             { application_id?, contractor_id?, reason?, confirm: "DELETE" } — one person
+ *             { bulk: "not_a_fit" | "dropped" | "both", older_than_days?, reason?, confirm: "DELETE" } — everyone in those stages
+ *           Approved pros, and anyone with jobs or payouts on record, are never deleted (offboard them instead).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { afterOnboardingStep, logRecruiting, nudgePro, onBackgroundResult, orderBackgroundCheck, revivePro, saveRecruitingSettings } from "@/lib/recruiting";
+import { deleteCandidate } from "@/lib/recruiting-delete";
+import { afterOnboardingStep, logRecruiting, nudgePro, onBackgroundResult, orderBackgroundCheck, pipeline, revivePro, saveRecruitingSettings } from "@/lib/recruiting";
 
 const Action = z.object({
   action: z.enum(["nudge", "revive", "note", "background_clear", "order_background"]),
@@ -55,4 +60,38 @@ export async function PUT(req: Request) {
   const p = Settings.safeParse(await req.json().catch(() => null));
   if (!p.success) return deny(400, p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   return Response.json(await saveRecruitingSettings({ ...p.data, reminderDays: [...p.data.reminderDays].sort((a, b) => a - b) }, v!.fullName ?? v!.email ?? "admin"));
+}
+
+const Delete = z.object({
+  confirm: z.literal("DELETE"), reason: z.string().max(300).optional(),
+  application_id: z.string().uuid().optional(), contractor_id: z.string().uuid().optional(),
+  bulk: z.enum(["not_a_fit", "dropped", "both"]).optional(), older_than_days: z.number().int().min(0).max(3650).optional(),
+});
+
+export async function DELETE(req: Request) {
+  const v = await getViewer(req);
+  if (!isStaff(v) || v!.role !== "admin") return deny(403, "Only an admin can delete applicants");
+  const p = Delete.safeParse(await req.json().catch(() => null));
+  if (!p.success) return deny(400, 'Type DELETE to confirm');
+  const who = v!.fullName ?? v!.email ?? "admin";
+  const { bulk, older_than_days, reason } = p.data;
+  if (!bulk) {
+    if (!p.data.application_id && !p.data.contractor_id) return deny(400, "application_id or contractor_id required");
+    const r = await deleteCandidate({ applicationId: p.data.application_id, contractorId: p.data.contractor_id }, who, reason);
+    return r.ok ? Response.json(r) : deny(409, r.error);
+  }
+  const stages = bulk === "both" ? ["rejected", "dropped"] : bulk === "dropped" ? ["dropped"] : ["rejected"];
+  const cutoff = Date.now() - (older_than_days ?? 0) * 86400000;
+  const rows = (await pipeline()).filter((r) => stages.includes(r.stage) && new Date(String(r.app.created_at ?? 0)).getTime() <= cutoff);
+  let deleted = 0;
+  const skipped: string[] = [];
+  const done = new Set<string>();
+  for (const r of rows) {
+    const key = String(r.pro?.id ?? r.app.id);
+    if (done.has(key)) continue;
+    done.add(key);
+    const res = await deleteCandidate({ applicationId: (r.app.id as string | null) ?? null, contractorId: (r.pro?.id as string | undefined) ?? null }, who, reason ?? `bulk: ${bulk.replace(/_/g, " ")}`);
+    if (res.ok) deleted++; else skipped.push(`${String(r.app.contact_name ?? r.app.business_name ?? "someone")}: ${res.error}`);
+  }
+  return Response.json({ ok: true, deleted, skipped });
 }

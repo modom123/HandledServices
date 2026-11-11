@@ -15,6 +15,7 @@
  *           candidates by stage, our own staff roles first). The Indeed card moved to the Indeed tab.
  * UPDATED : 2026-10-28_1735 UTC — the interview packet is a link here (no longer its own Recruiting tab).
  * UPDATED : 2026-11-05_1215 UTC — stage filter is a dropdown (with counts) instead of a row of 12 buttons.
+ * UPDATED : 2026-11-11_0030 UTC — Delete on each row (anyone not active) and, under Not a fit / Dropped off, delete them all (admins).
  */
 import Link from "next/link";
 import { FilterSelect } from "@/components/Dropdowns";
@@ -24,7 +25,7 @@ import { getViewer } from "@/lib/auth";
 import { getRecruitingSettings, pipeline } from "@/lib/recruiting";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
-import { RecruitingRowActions, RecruitingSettingsForm } from "@/components/HubActions";
+import { DeleteApplicantsBulk, RecruitingRowActions, RecruitingSettingsForm } from "@/components/HubActions";
 import { RecruitingIntake } from "@/components/RecruitingIntake";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +85,7 @@ export default async function RecruitingPage({ searchParams }: { searchParams: P
           ]} />
         </div>
       </div>
+      {v.role === "admin" && (filter === "rejected" || filter === "dropped") && <DeleteApplicantsBulk bulk={filter === "dropped" ? "dropped" : "not_a_fit"} count={shown.length} />}
       <div className="space-y-2">
         {!shown.length && <p className="card text-sm text-ink-soft">Nobody here. Share /pros to recruit.</p>}
         {shown.map((r) => {
