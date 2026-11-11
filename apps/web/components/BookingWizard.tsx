@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-04_1934 UTC — business account bookings (?property=): address and company from the property; billed-on-account confirmation.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-10-05_0447 UTC — photos and notes carried in from Snap & post a job.
+ * UPDATED : 2026-11-06_1638 UTC — `ticket`: a Field Sales ticket pre-fills the customer's contact and address and is sent with the booking.
  * UPDATED : 2026-10-05_1433 UTC — event bookings with 50+ guests suggest licensed guards (Add event security); Plan My Event passes alcohol.
  * UPDATED : 2026-10-07_1900 UTC — quick choices Today / Next week / In 2 weeks / Within a month / Flexible, then "Pick the day and arrival time" on the calendar.
  * UPDATED : 2026-10-07_1640 UTC — text-message consent wording under the mobile number (TCPA / A2P 10DLC).
@@ -28,20 +29,38 @@
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology (consultOnly): no price, range, line amounts or budget check; the panel says
  *           "Free consultation" and lists what was picked. Scope and price are set on the call.
  * UPDATED : 2026-10-27_2100 UTC — customers no longer see what the pro earns (internal; it lives in the Hub's job money view).
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 (SITE_VISIT_OVER): no deposit; the order becomes a free site visit (remote: a free
+ *           online scope review, no call) with a note under the price.
+ * UPDATED : 2026-10-28_1800 UTC — `commercial` (from /book?for=business): the order starts as a company order.
+ * UPDATED : 2026-10-28_1730 UTC — step 1 (pick a service): search + one category at a time instead of all 101 services in one list.
+ * UPDATED : 2026-10-28_1700 UTC — no consultation-only mode: Business & Technology shows its price and is ordered with a deposit
+ *           like every service (and the AI check never turns remote work into a visit).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-09_0430 UTC — the price panel never grows taller than the window while pinned (scrolls inside) and ends above the chat button, so its buttons stay reachable.
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again (consultOnly): the booking is a free
+ *           consultation (no deposit, no AI price check); the panel says "Free consultation" and lists what was picked
+ *           without amounts. Scope and a fixed price are set on the call.
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-10_0250 UTC — "Other" choices (cleaning type): a text box for the customer's own words, added to the
+ *           notes (the AI price check reviews it); Continue waits until it's filled in.
+ * UPDATED : 2026-11-10_0310 UTC — name your price: offers below the usual minimum are allowed (down to 30%) with a note that
+ *           the job goes on the pro job board for 30 days and is fully refunded if no one takes it.
+ * UPDATED : 2026-11-10_1500 UTC — checkout never gets stuck: a non-JSON server error or a dropped connection shows a clear message
+ *           (with the support number) and frees the button, instead of leaving "Finalizing your price…" spinning.
  */
 "use client";
 
 import { SmsConsent } from "./SmsConsent";
+import { Ico, ThemedIcon } from "@/components/Glyph";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, consultOnly,
+  BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow,
-} from "@handled/core";
+  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -58,7 +77,7 @@ const PICKUP_TIMES = Array.from({ length: 48 }, (_, i) => {
 // default 3 days out so the within-48h priority surcharge is opt-in, not a surprise
 const defaultDate = () => new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
-type Perks = { member: boolean; memberBenefit: number; promoCode: string | null; promoAmount: number; promoMessage: string | null; promoOk: boolean | null; gift: number; isGift: boolean; price: number; dueNow: number };
+type Perks = { member: boolean; memberBenefit: number; promoCode: string | null; promoAmount: number; promoMessage: string | null; promoOk: boolean | null; partner?: boolean; gift: number; isGift: boolean; price: number; dueNow: number };
 
 /** First-touch marketing source saved by <Attribution /> (utm_*, referrer, landing page). */
 function readAttribution(): Record<string, string> | null {
@@ -78,16 +97,20 @@ export interface BookedQuote { request: string; bid: string; price: number; pro:
 
 /** One of the signed-in customer's saved homes (My homes). Entry details stay on the server. */
 export interface HomeChoice { id: string; label: string; address: string; city: string; state: string; zip: string; hasAccess: boolean }
+/** A Field Sales ticket (/book?ticket=…): what the partner set up with the customer. */
+export interface SalesTicketPrefill { token: string; date?: string | null; window?: string; access?: string; contact: { name: string; email: string; phone: string; address: string; city: string; state: string; zip: string; customer_type?: string; company_name?: string } }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null }: { quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null, commercial = false, ticket }: { ticket?: SalesTicketPrefill; commercial?: boolean; quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
   const [ask, setAsk] = useState(preferred ?? null);
   const [slug, setSlug] = useState(getService(initialService ?? "") ? initialService! : "");
   const [step, setStep] = useState(slug ? 1 : 0);
+  const [pickCat, setPickCat] = useState<string>(CATEGORIES[0].id);
+  const [find, setFind] = useState("");
   const svc = getService(slug);
-  const consult = consultOnly(slug); // Business & Technology: priced on the free consultation, never shown here
+  const consult = consultOnly(slug); // Business & Technology: custom work, priced on the free consultation, never shown here
   const [answers, setAnswers] = useState<Answers>(() => {
     if (!svc) return {};
     const known = new Set(svc.questions.map((q) => q.id));
@@ -95,16 +118,22 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   });
   const [frequency, setFrequency] = useState<Frequency>(() => (svc?.frequencies.includes(initialFrequency as Frequency) ? (initialFrequency as Frequency) : "once"));
   const [notes, setNotes] = useState(initialNotes);
+  // "Other" picks (e.g. cleaning type): the customer's own words, sent with the notes
+  const [otherText, setOtherText] = useState<Record<string, string>>({});
+  const otherLine = svc ? otherNote(svc.questions, answers, otherText) : "";
+  const notesOut = [otherLine, notes.trim()].filter(Boolean).join("\n");
   const [photos, setPhotos] = useState<string[]>(initialPhotos);
-  const [date, setDate] = useState(defaultDate());
-  const [win, setWin] = useState<TimeWindow>("morning");
+  const [date, setDate] = useState(ticket?.date && ticket.date >= defaultDate() ? ticket.date : defaultDate());
+  const [win, setWin] = useState<TimeWindow>((["morning", "midday", "afternoon"] as string[]).includes(ticket?.window ?? "") ? (ticket!.window as TimeWindow) : "morning");
   const startHome = !business ? homes.find((h) => h.id === initialHome) ?? null : null;
   const [homeId, setHomeId] = useState<string | null>(startHome?.id ?? null);
   const [saveHome, setSaveHome] = useState(false);
-  const [access, setAccess] = useState("");
+  const [access, setAccess] = useState(ticket?.access ?? "");
   const [form, setForm] = useState(business
     ? { contact_name: business.contact.name, contact_email: business.contact.email, contact_phone: business.contact.phone, address: business.address, city: business.city, state: business.state, zip: business.zip, customer_type: "commercial", company_name: business.company }
-    : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: "residential", company_name: "" });
+    : ticket
+      ? { contact_name: ticket.contact.name, contact_email: ticket.contact.email, contact_phone: ticket.contact.phone, address: ticket.contact.address, city: ticket.contact.city, state: ticket.contact.state || "MI", zip: ticket.contact.zip, customer_type: ticket.contact.customer_type === "commercial" ? "commercial" : "residential", company_name: ticket.contact.company_name ?? "" }
+      : { contact_name: "", contact_email: "", contact_phone: "", address: startHome?.address ?? "", city: startHome?.city ?? "", state: startHome?.state ?? "MI", zip: startHome?.zip ?? "", customer_type: commercial && !startHome ? "commercial" : "residential", company_name: "" });
   const pickHome = (h: HomeChoice | null) => {
     setHomeId(h?.id ?? null);
     if (h) { setSaveHome(false); setForm((f) => ({ ...f, address: h.address, city: h.city, state: h.state, zip: h.zip, customer_type: "residential" })); }
@@ -158,23 +187,27 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   async function runAi() {
     setAiTried(true);
     setAiBusy(true);
-    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes, photos, ai: true, locale, ...(/^\d{5}$/.test(form.zip) ? { zip: form.zip } : {}) }) });
+    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_slug: slug, answers, frequency, scheduled_date: date, notes: notesOut, photos, ai: true, locale, ...(/^\d{5}$/.test(form.zip) ? { zip: form.zip } : {}) }) });
     const json = await res.json().catch(() => ({}));
     setAiBusy(false);
     setAi(json.ai ?? null);
     setQuoteToken(json.quote_token ?? null);
   }
   // the AI price check runs automatically before payment whenever there are photos or notes
-  const needsCheck = Boolean(!quote && svc && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notes.trim() || photos.length));
+  const needsCheck = Boolean(!quote && svc && !consult && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notesOut.trim() || photos.length));
   useEffect(() => {
     if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
   const bigJob = svc ? sizeNeedsSiteVisit(svc.slug, answers) : null;
-  const siteVisit = !quote && Boolean(svc?.siteVisit || bigJob || ai?.action === "site_visit");
+  // remote work (websites, AI…) is never a visit: it is priced from the answers and ordered with a deposit
+  // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
+  const overLimit = Boolean(est && !consult && !svc?.siteVisit && overDepositLimit(est.point));
+  const siteVisit = !quote && Boolean(consult || svc?.siteVisit || bigJob || overLimit || (ai?.action === "site_visit" && !svc?.remote));
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
   // required measurements (yard sq ft, weight, height…) must be filled in before the price step
   const measuresMissing = svc ? missingMeasurements(svc.questions, answers) : [];
+  const othersMissing = svc ? otherMissing(svc.questions, answers, otherText) : [];
 
   async function book() {
     setBusy(true);
@@ -182,11 +215,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notes || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn) }),
-    });
-    const json = await res.json();
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
+    }).catch(() => null);
+    if (!res) { setBusy(false); return setError(es ? "Sin conexión: revise su internet e intente de nuevo." : "No connection: check your internet and try again."); }
+    // a server error page (not JSON) used to throw here and leave the button stuck on "Finalizing your price…"
+    const json = await res.json().catch(() => ({} as Record<string, unknown>)) as { error?: string; checkout?: string; ref?: string; billing?: { onTerms?: boolean } };
     setBusy(false);
-    if (!res.ok) return setError(json.error ?? "Booking failed");
+    if (!res.ok || (!json.checkout && !json.ref)) return setError(json.error ?? (es ? `No pudimos completar la reserva (error ${res.status}). Intente de nuevo o llámenos al ${BRAND.supportPhone}.` : `We couldn't finish your booking (error ${res.status}). Try again, or call us at ${BRAND.supportPhone}.`));
     if (json.checkout) window.location.href = json.checkout;
     else router.push(`/book/confirmed?ref=${json.ref}${json.billing?.onTerms ? "&billed=1" : ""}`);
   }
@@ -225,46 +260,66 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           ))}
         </ol>
 
-        {step === 0 && (
-          <div className="space-y-8">
-            {CATEGORIES.map((c) => (
-              <div key={c.id}>
-                <div className="mb-3 font-semibold">{categoryText(locale, c.id, c).name}</div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {SERVICES.filter((s) => s.category === c.id).map((s) => (
-                    <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
-                      <span className="text-2xl">{s.icon}</span>
-                      <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{priceHint(s.slug, locale)}</span></span>
-                    </button>
+        {step === 0 && (() => {
+          // one category at a time (or a search across all of them) instead of every service in one long list
+          const q = find.trim().toLowerCase();
+          const list = q
+            ? SERVICES.filter((s) => `${serviceText(locale, s.slug, s).name} ${s.name} ${s.tagline}`.toLowerCase().includes(q))
+            : SERVICES.filter((s) => s.category === pickCat);
+          return (
+            <div className="space-y-4">
+              <input className="input" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={es ? "Buscar un servicio (p. ej., limpieza, jardín, sitio web)" : "Search a service (e.g. cleaning, lawn, website)"} aria-label={es ? "Buscar un servicio" : "Search a service"} />
+              {!q && (
+                <div className="-mx-1 flex flex-wrap gap-2" role="tablist" aria-label={es ? "Categorías" : "Categories"}>
+                  {CATEGORIES.map((c) => (
+                    <button key={c.id} type="button" role="tab" aria-selected={pickCat === c.id} onClick={() => setPickCat(c.id)} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${pickCat === c.id ? "border-brand bg-brand-tint text-brand-dark" : "border-line bg-white text-ink hover:border-brand"}`}>{c.icon} {categoryText(locale, c.id, c).name}</button>
                   ))}
                 </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {list.map((s) => (
+                  <button key={s.slug} onClick={() => pick(s.slug)} className="card flex items-center gap-3 text-left transition hover:border-brand">
+                    <span className="text-2xl">{s.icon}</span>
+                    <span><span className="block text-sm font-semibold">{serviceText(locale, s.slug, s).name}</span><span className="text-xs text-ink-soft">{priceHint(s.slug, locale)}</span></span>
+                  </button>
+                ))}
+                {!list.length && <p className="text-sm text-ink-soft">{es ? "Nada coincide. Pruebe otra palabra o elija una categoría." : "Nothing matches. Try another word or pick a category."}</p>}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {step === 1 && svc && (
           <div className="card space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">{svc.icon} {serviceText(locale, svc.slug, svc).name}</h2>
+              <h2 className="text-xl font-bold"><Ico i={svc.icon} />{serviceText(locale, svc.slug, svc).name}</h2>
               <button className="text-sm text-brand" onClick={() => setStep(0)}>{t("Change")}</button>
             </div>
             {svc.questions.filter((q) => questionVisible(q, answers, svc.questions)).map((q) => (
               <div key={q.id}>
                 <label className="label">{t(q.label)}{q.type === "number" && q.required && <span className="text-rose-700"> *</span>}</label>
                 {q.type === "number" && (
-                  <NumberField min={q.min} max={q.max} unit={q.unit ? t(q.unit) : undefined} value={Number(answers[q.id] ?? q.default)}
+                  <NumberField min={numberMin(q, answers)} max={q.max} unit={q.unit ? t(q.unit) : undefined} value={Number(answers[q.id] ?? q.default)}
                     onChange={(v) => { setAnswers((cur) => ({ ...cur, [q.id]: v })); resetAi(); }} />
                 )}
                 {q.type === "select" && (
                   <div className="flex flex-wrap gap-2">
                     {q.options.map((o) => (
-                      <button key={o.value} onClick={() => { setAnswers({ ...answers, [q.id]: o.value }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] === o.value ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(o.label)}</button>
+                      <button key={o.value} onClick={() => { setAnswers(clampToMins(svc.questions, { ...answers, [q.id]: o.value })); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] === o.value ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(o.label)}</button>
                     ))}
                   </div>
                 )}
+                {q.type === "select" && answers[q.id] === OTHER_OPTION && (
+                  <input className="input mt-2" autoFocus value={otherText[q.id] ?? ""} onChange={(e) => { setOtherText({ ...otherText, [q.id]: e.target.value }); resetAi(); }}
+                    placeholder={es ? "Cuéntenos qué necesita (p. ej., limpieza después de obra, cambio de Airbnb)" : "Tell us what you need (e.g. post-construction, Airbnb turnover, just the kitchen)"} maxLength={300} />
+                )}
                 {q.type === "toggle" && (
-                  <button onClick={() => { setAnswers({ ...answers, [q.id]: !answers[q.id] }); resetAi(); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${answers[q.id] ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{answers[q.id] ? t("Yes") : t("No")}</button>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t(q.label)}>
+                    {([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => {
+                      const on = Boolean(answers[q.id] ?? q.default) === val;
+                      return <button key={label} type="button" role="radio" aria-checked={on} onClick={() => { setAnswers({ ...answers, [q.id]: val }); resetAi(); }} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(label)}</button>;
+                    })}
+                  </div>
                 )}
                 {q.help && <p className="mt-1 text-xs text-ink-soft">{t(q.help)}</p>}
                 {q.type === "number" && q.required && !(Number(answers[q.id] ?? 0) > 0) && <p className="mt-1 text-xs font-semibold text-rose-700">{es ? "Escriba la medida para ver su precio." : "Enter the measurement to see your price."}</p>}
@@ -289,13 +344,13 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                 {rule?.need === "required" ? (es ? `Fotos — obligatorias (al menos ${rule.min})` : `Photos — required (at least ${rule.min})`) : t(rule?.need === "recommended" ? "Photos — recommended" : "Photos (optional)")}
               </label>
               {rule && rule.tips.length > 0 && (
-                <ul className="mb-2 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">{rule.tips.map((tip) => <li key={tip}>📷 {t(tip)}</li>)}</ul>
+                <ul className="mb-2 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">{rule.tips.map((tip) => <li key={tip}><Ico i="📷" />{t(tip)}</li>)}</ul>
               )}
               <PhotoPicker value={photos} onChange={(p) => { setPhotos(p); resetAi(); }} onError={setError} locale={locale} />
               <p className="mt-1 text-xs text-ink-soft">{t("Our AI checks your photos so the price fits the job — no surprises on the day.")}</p>
               {photosMissing && photos.length > 0 && <p className="mt-1 text-xs text-amber-800">{photosMissing}</p>}
             </div>
-            <button className="btn-primary" disabled={Boolean(photosMissing) || measuresMissing.length > 0} onClick={() => setStep(2)}>{measuresMissing.length ? (es ? `Falta: ${measuresMissing.map((q) => t(q.label)).join(", ")}` : `Enter: ${measuresMissing.map((q) => t(q.label)).join(", ")}`) : photosMissing ? (es ? `Agregue ${rule!.min - photos.length} foto(s) más para continuar` : `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue`) : t("Continue")}</button>
+            <button className="btn-primary" disabled={Boolean(photosMissing) || measuresMissing.length > 0 || othersMissing.length > 0} onClick={() => setStep(2)}>{othersMissing.length ? (es ? "Describa lo que necesita para continuar" : "Describe what you need to continue") : measuresMissing.length ? (es ? `Falta: ${measuresMissing.map((q) => t(q.label)).join(", ")}` : `Enter: ${measuresMissing.map((q) => t(q.label)).join(", ")}`) : photosMissing ? (es ? `Agregue ${rule!.min - photos.length} foto(s) más para continuar` : `Add ${rule!.min - photos.length} more photo${rule!.min - photos.length > 1 ? "s" : ""} to continue`) : t("Continue")}</button>
           </div>
         )}
 
@@ -309,7 +364,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                   {homes.map((h) => <button key={h.id} type="button" onClick={() => pickHome(h)} className={`rounded-full border px-3.5 py-1.5 text-sm ${homeId === h.id ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>🏠 {h.label}</button>)}
                   <button type="button" onClick={() => { pickHome(null); setForm((f) => ({ ...f, address: "", city: "", zip: "" })); }} className={`rounded-full border px-3.5 py-1.5 text-sm ${!homeId ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{es ? "Otra dirección" : "Another address"}</button>
                 </div>
-                {homeId && homes.find((h) => h.id === homeId)?.hasAccess && <p className="mt-1 text-xs text-ink-soft">🔒 {es ? "Sus detalles de entrada guardados van solo al profesional asignado." : "Your saved entry details go only to the pro assigned to this job."}</p>}
+                {homeId && homes.find((h) => h.id === homeId)?.hasAccess && <p className="mt-1 text-xs text-ink-soft"><Ico i="🔒" />{es ? "Sus detalles de entrada guardados van solo al profesional asignado." : "Your saved entry details go only to the pro assigned to this job."}</p>}
               </div>
             )}
             <div className="max-w-[10rem]"><label className="label">{t("Service ZIP code")}</label><input className="input" inputMode="numeric" maxLength={5} value={form.zip} onChange={set("zip")} placeholder="48226" /></div>
@@ -352,7 +407,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             </div>
             {!business && !svc?.remote && (
               <div>
-                <label className="label">🔒 {homeId ? (es ? "¿Algo diferente para esta visita? (opcional)" : "Anything different for this visit? (optional)") : (es ? "Cómo entrar (opcional)" : "How to get in (optional)")}</label>
+                <label className="label"><Ico i="🔒" />{homeId ? (es ? "¿Algo diferente para esta visita? (opcional)" : "Anything different for this visit? (optional)") : (es ? "Cómo entrar (opcional)" : "How to get in (optional)")}</label>
                 <textarea className="input min-h-16" maxLength={1000} value={access} onChange={(e) => setAccess(e.target.value)} placeholder={es ? "Código de la caja de llaves, dónde está la llave, código del portón…" : "Lockbox code, where the key is, gate or alarm code…"} />
                 <p className="mt-1 text-xs text-ink-soft">{es ? "Solo lo ve el profesional asignado a su trabajo, no los que deciden si lo toman." : "Only the pro assigned to your job sees this — not pros deciding whether to take it."}</p>
                 {signedIn && !homeId && <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={saveHome} onChange={(e) => setSaveHome(e.target.checked)} /> {es ? "Guardar esta casa en Mis casas" : "Save this home to My homes"}</label>}
@@ -401,12 +456,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? t(svc?.remote ? "the consultation is free; I pay once I approve the firm quote." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? consult ? (es ? "la consulta es gratis; pago solo cuando apruebe el alcance y el precio fijo." : "the consultation is free; I pay only once I approve the scope and fixed price.") : t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? t(svc?.remote ? "Book free consultation" : "Book free site visit") : (() => {
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? consult ? (es ? "Reservar consulta gratis" : "Book my free consultation") : t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
                 // what's charged today under the plan this booking actually gets
                 const dp = depositPolicy(svc!.slug, total, date), bn = bookNowPolicy(svc!.slug, total);
                 const p = resolvePlan(plan, dp.allowed, bn.allowed);
@@ -420,10 +475,11 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
       </div>
 
       {svc && est && price && (
-        <aside className="card h-fit lg:sticky lg:top-24">
-          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{consult ? (es ? "Precio" : "Price") : t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
+        <aside className="card h-fit lg:sticky lg:top-24 lg:max-h-[calc(100svh-11rem)] lg:overflow-y-auto">
+          <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{consult ? (es ? "Hecho a su medida" : "Built for your business") : t(svc.slug === "event-package" ? "Your budget — how we’d spend it" : siteVisit ? "Estimated range" : frequency === "once" ? "Your price" : "Per visit")}</div>
           <div className="mt-1 text-3xl font-bold">{consult ? (es ? "Consulta gratis" : "Free consultation") : siteVisit ? moneyRange(price.low, price.high) : money(listTotal)}</div>
-          {consult && <p className="mt-1 text-sm text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en la llamada. No paga nada hasta aprobarlo." : "Every solution is different: scope and price are set on the call. Nothing is owed until you approve it."}</p>}
+          {consult && <p className="mt-1 text-sm text-ink-soft">{es ? "Cada solución es distinta. En una videollamada gratis vemos lo que necesita y le enviamos el alcance y un precio fijo por escrito. No paga nada hasta aprobarlo." : "Every solution is custom. On a free video call we learn what you need, then send the scope and a fixed price in writing. Nothing is owed until you approve it."}</p>}
+          {overLimit && !quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{t(svc.remote ? "Jobs over $2,500 start with a free scope review — no deposit. A specialist sends the firm price online, and you pay once you approve it." : "Jobs over $2,500 start with a free site visit — no deposit. A pro confirms the firm price, and you pay once you approve it.")}</p>}
           {siteVisit && !svc.remote && <a href={`/quote-request?service=${svc.slug}`} className="mt-1 block text-sm text-brand underline">{es ? "O reciba hasta 3 cotizaciones firmes en 24 horas" : "Or get up to 3 firm quotes in 24 hours"}</a>}
           {quote && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{es ? `Cotización firme de ${quote.pro}: ${money(quote.price)}, todo incluido. ${quote.pro} recibe el trabajo primero.` : `Firm quote from ${quote.pro}: ${money(quote.price)}, all-in. ${quote.pro} gets the job first.`}</p>}
           {proOffers.length > 0 && (
@@ -453,11 +509,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               </div>
               <p className="mt-1 text-xs text-ink-soft">{locale === "es" ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</p>
               <div className="mt-2 flex items-center gap-2">
-                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).min, Math.round(listTotal * 0.95))))}>−5%</button>
+                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).floor, Math.round(listTotal * 0.95))))}>−5%</button>
                 <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer || String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, ""))} aria-label={t("Your price")} /></div>
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
               </div>
-              {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.min)} para este trabajo.` : `Offers start at ${money(offerChk.min)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
+              {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.` : `Offers start at ${money(offerChk.floor)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
+              {offerChk?.ok && offerChk.level === "board" && <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">📋 {locale === "es" ? "Por debajo de nuestro precio habitual: publicaremos su trabajo en el tablero de profesionales a este precio por 30 días. El primer profesional que lo tome confirma el día con usted. Si nadie lo toma, le reembolsamos todo." : "Below our usual price: we'll post your job on the pro job board at this price for 30 days. The first pro who takes it confirms the day with you. If no one takes it, you get a full refund."}</p>}
               {offerChk?.ok && offerChk.level === "low" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
               {offerChk?.ok && offerNum > suggested && <p className="mt-1 text-xs text-brand-dark">✓ {t("A higher offer usually gets a pro faster.")}</p>}
               <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Includes a ${money(BOOKING_FEE)} booking fee`}</p>
@@ -477,19 +534,19 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             <div className="mt-3">
               <label className="label">{t("Promo, gift card or referral code")}</label>
               <div className="flex gap-2"><input className="input uppercase" value={promo} onChange={(e) => setPromo(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} placeholder={t("CODE")} /><button type="button" className="btn-ghost" onClick={() => checkPerks()}>{t("Apply")}</button></div>
-              {perks?.promoMessage && <p className={`mt-1 text-xs ${perks.promoOk ? "text-brand-dark" : "text-rose-700"}`}>{perks.promoOk ? "✓ " : ""}{t(perks.promoMessage)}{perks.promoOk && perks.promoAmount === 0 && !perks.isGift ? ` ${t("(already at our lowest price for this job)")}` : ""}</p>}
+              {perks?.promoMessage && <p className={`mt-1 text-xs ${perks.promoOk ? "text-brand-dark" : "text-rose-700"}`}>{perks.promoOk ? "✓ " : ""}{t(perks.promoMessage)}{perks.promoOk && perks.promoAmount === 0 && !perks.isGift && !perks.partner ? ` ${t("(already at our lowest price for this job)")}` : ""}</p>}
             </div>
           )}
           {perks && (perks.memberBenefit > 0 || perks.promoAmount > 0 || perks.gift > 0) && (
             <div className="mt-3 space-y-1 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">
-              {perks.memberBenefit > 0 && <div className="flex justify-between"><span>⭐ {t("Plus member saving")}</span><span>−{money(perks.memberBenefit)}</span></div>}
+              {perks.memberBenefit > 0 && <div className="flex justify-between"><span><Ico i="⭐" />{t("Plus member saving")}</span><span>−{money(perks.memberBenefit)}</span></div>}
               {perks.promoAmount > 0 && <div className="flex justify-between"><span>{t("Code")} {perks.promoCode}</span><span>−{money(perks.promoAmount)}</span></div>}
               {perks.gift > 0 && <div className="flex justify-between"><span>{t("Gift card")}</span><span>−{money(perks.gift)}</span></div>}
               <div className="flex justify-between border-t border-brand/20 pt-1 font-semibold"><span>{t("Due today")}</span><span>{money(perks.dueNow)}</span></div>
             </div>
           )}
-          {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {t("Checking your photos and notes so the price fits the job…")}</p>}
-          {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">✨ {ai.customer_summary}</p>}
+          {aiBusy && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><Ico i="✨" />{t("Checking your photos and notes so the price fits the job…")}</p>}
+          {ai && <p className="mt-2 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><Ico i="✨" />{ai.customer_summary}</p>}
           {ai?.changes && ai.changes.length > 0 && (
             <div className="mt-2 rounded-xl border border-line p-3 text-xs">
               <div className="font-semibold">{t("Updated from your photos")}</div>
@@ -507,7 +564,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             const sec = securityAdvice({ guests: Number(answers.guests), alcohol: bar || Number(answers.guests) < 150 });
             return (
               <p className="mt-2 rounded-xl border border-line p-3 text-xs">
-                🛡️ {bar || Number(answers.guests) >= 150
+                <Ico i="🛡️" />{bar || Number(answers.guests) >= 150
                   ? (es ? `Para ${answers.guests} invitados${bar ? " con alcohol" : ""} recomendamos ${sec.guards} guardia(s) con licencia.` : `For ${answers.guests} guests${bar ? " with alcohol" : ""} we recommend ${sec.guards} licensed guard${sec.guards > 1 ? "s" : ""}.`)
                   : (es ? `¿Habrá alcohol? Recomendamos ${sec.guards} guardia(s) con licencia.` : `Serving alcohol? We recommend ${sec.guards} licensed guard${sec.guards > 1 ? "s" : ""}.`)}{" "}
                 <a href={`/book?service=event-security&guards=${sec.guards}&hours=${sec.hours}`} target="_blank" rel="noreferrer" className="font-semibold text-brand underline">{es ? "Agregar seguridad" : "Add event security"}</a>
@@ -516,14 +573,14 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           })()}
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
             {consult && <li className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo que eligió" : "What you picked"}</li>}
-            {est.items.filter((i) => !consult || i.amount > 0 && !/booking fee/i.test(i.label)).map((i) => (
+            {est.items.filter((i) => !consult || (i.amount > 0 && !/booking fee/i.test(i.label))).map((i) => (
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span>{!consult && <span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span>}</li>
             ))}
           </ul>
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
-          {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft">✨ {t("Our AI checks your photos and notes before you pay.")}</p>}
+          {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft"><Ico i="✨" />{t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free video consultation — a specialist confirms the scope and firm price, then you pay to start the work." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
+            {consult ? (es ? "Consulta gratis por video: un especialista confirma el alcance y le envía un precio fijo por escrito; paga solo cuando lo apruebe." : "Free video consultation — a specialist confirms the scope and sends a fixed price in writing; you pay only once you approve it.") : t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
           </p>
         </aside>
       )}

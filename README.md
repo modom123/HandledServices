@@ -12,6 +12,8 @@
             & dryer vent, tile & grout, trash bins, chimney sweep, sprinklers, holiday lights, pools, pest control, wildlife
             removal, laundry pickup and home watch, with none overlapping an existing service.
   UPDATED : 2026-10-27_1600 UTC — 101 services: Carpentry (finish carpentry); side menu, About page, slogan and mission.
+  UPDATED : 2026-11-06_1724 UTC — Field Sales through the Partner Program: two ways to earn (referrals at the partner-v2
+            tiers, and direct sales on close-ready sales tickets paid 10% → 45% of our take), pay with a partner's code.
 -->
 
 # Handled — AI-run home & business services
@@ -39,7 +41,9 @@ scripts/        Seed generator (keeps the DB service list in sync with the prici
 | **Customer portal** | `/account` | Jobs, live timeline, completion photos, messages with the pro, reviews, recurring plans |
 | **Pro portal** | `/pro` (+ mobile Pro mode) | Offers with payout (accept/pass), schedule, start → photos → complete, earnings |
 | **Handled Hub** | `/hub` (staff only) | AI-driven-rate KPI, AI morning brief, alerts, jobs board, job control panel, pros & vetting, customers & B2B, finance & payouts, **IEBC Workforce**, AI assistant |
-| **Referral Partner Program** | `/partners`, `/partner`, `/hub/partners`, `lib/partners.ts` | Anyone signs up, shares a link (`/r/CODE`) or sends a customer, and earns 10% of our take on that customer's jobs for 12 months, paid Mondays via Stripe after the 30-day guarantee. Guide: [`docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md`](docs/REFERRAL_PARTNER_PROGRAM_2026-10-07_0150.md) |
+| **Referral Partner Program** | `/partners`, `/partner`, `/hub/partners`, `lib/partners.ts` | Anyone signs up, shares a link (`/r/CODE`) or sends a standard referral ticket (`RT-…`), and earns a share of the job price: 25% of a one-time first job, 10% of repeat/recurring jobs or 15% of a business account's jobs for 12 months. The pro and Handled each pay half. Paid Mondays via Stripe after the 30-day guarantee. Guide: [`docs/REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md`](docs/REFERRAL_PARTNER_PROGRAM_2026-10-28_0122.md) |
+| **Field Sales (direct sales)** | `/partner`, `/book?ticket=`, `lib/sales-tickets.ts`, `PARTNER_LADDER` | The second way to earn: partners sell any service on a close-ready **sales ticket** (service + sizes, 3–4 photos for on-site work, customer, address, timing, decision maker, live price). The customer pays on the partner's phone or from our text; paid jobs go to the job board. Paid **10% → 45% of our take** by Handled alone (no pro fee); referrals pay one rate of **15% → 30% of the job price** (half from the pro, locked per job); level from lifetime profit ($1M × (level/35)², direct sales count 1.5×, referrals 1×). Partner codes typed at checkout credit the partner. Guide: [`docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md`](docs/FIELD_SALES_PARTNER_PROGRAM_2026-11-06_1649.md) · Indeed post: [`docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md`](docs/INDEED_POST_FIELD_SALES_PARTNERS_2026-11-06_1649.md) |
+| **Need-to-know access** | `lib/job-access.ts`, migration `20261106190000_need_to_know.sql` | Only admins see everything. Pros see their net pay and what the work needs; customers their own bookings; dispatchers no pay, take, partner splits or payouts. Enforced in the database (no direct job/offer reads for customers and pros; money columns unreadable by signed-in users) and in the Hub (money admin-only). Guide: [`docs/NEED_TO_KNOW_ACCESS_2026-11-06_1900.md`](docs/NEED_TO_KNOW_ACCESS_2026-11-06_1900.md) |
 | **Accounting (Xero + Stripe)** | `/hub/accounting`, `lib/accounting.ts` | Xero is the books: every finished day of Stripe activity is pushed each morning (sales, tips, gift cards, sales tax, fees, refunds, chargebacks, per-pro payout spends, payouts as bank transfers); business invoices on terms become Xero invoices with their payments. Guide: [`docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md`](docs/XERO_STRIPE_ACCOUNTING_GUIDE_2026-10-06_2230.md) |
 | **Invoice & Service Agreement** | `/invoice/[id]`, `/terms/service-agreement` | Every job's invoice carries the customer terms; accepted at booking (version, time and IP recorded); signed login-free link in every email; printable |
 | **Pro Network & 1099** | `/hub/network`, `/hub/pros/[id]`, `/pro/onboarding`, `/pro/earnings` | Pros as the core asset: onboarding (W-9, contractor agreement, COI, license, background, payout), work & payout ledger, value generated, blended ratings, year-end 1099 worksheet |
@@ -83,7 +87,7 @@ recurring visit booked with the same pro.
 
 Follow **[`docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md`](docs/GO_LIVE_CHECKLIST_2026-10-01_1941.md)** top to bottom. In short:
 
-1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project.
+1. **Supabase:** new project → SQL Editor → paste `supabase/setup/HANDLED_SETUP_*.sql` → Run (every migration + the production catalog). Never run `supabase/demo_data.sql` on the live project. **Existing project?** Paste `supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql` once: every database change since that setup, safe to run twice. Hub → Setup shows what's still missing.
 2. **Vercel:** root directory `apps/web`, production branch `main`, environment variables from `apps/web/.env.example`.
 3. **Stripe** webhook → `/api/stripe/webhook` (`checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`). **Resend** domain + SMTP for Supabase auth emails.
 4. Sign in, make yourself admin, open **Handled Hub → Go-live setup** (`/hub/setup`) and fix every red/amber item.
@@ -122,9 +126,16 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 | `finance` | `finance.payout_queue`, `finance.set_job_price`†, `finance.mark_payout_paid`† | Eleanor Wei |
 | `recruiting` | `recruiting.pipeline`, `recruiting.history`, `recruiting.documents`, `recruiting.nudge_pro`, `recruiting.revive_pro`, `recruiting.add_note`, `recruiting.order_background_check`, `recruiting.decide_application`†, `recruiting.verify_document`†, `recruiting.activate_pro`†, `recruiting.flag_expiring_insurance` | Tyler Walsh (pipeline & follow-up, autonomous), Marcus Hill (documents & background checks, autonomous) |
 | `retention` | `retention.message_customer`, `retention.email_customer`† | Diego Martinez (autonomous) |
-| `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account` | Elena Markov, Clara Dubois (autonomous) |
+| `sales` | `sales.list_accounts`, `sales.create_lead`, `sales.update_account` | Elena Markov, Clara Dubois (autonomous), Samantha Lee |
+| `partners` | `partners.list`, `partners.message` | Lucas Thorne (Partner Success) |
+| `pro_success` | `pro_success.pros`, `pro_success.message` | Grace O'Connor (Pro Success), Leo Fitzgerald (at-risk watch, suggest) |
+| `bids` | `bids.pipeline`, `bids.decide`† | Veronica Chase (gov capture), Margaret Okonkwo |
+| `social` | `social.calendar`, `social.new_pros`, `social.draft_post`, `social.edit_post`, `social.write_week`, `social.set_status` (approve = †, it publishes) | Samantha Lee (Brand & Social) |
+| `legal` | `legal.contracts`, `legal.disputes`, `legal.licensing`, `legal.flag` | Legal & Compliance: Olivia Grant (clients & contracts, suggest), Rafael Ortiz (pros, + `recruiting`), Margaret Okonkwo (city/state regs & permits, suggest) |
 
 † high-risk: always waits for human approval. \* cancelling a job is high-risk.
+Sofia Rossi (payments & reconciliation) shares `finance` with Eleanor Wei. The Legal & Compliance agents draft and flag only;
+a licensed attorney makes the binding call. Added 2026-11-10 (migration 20261110223000_iebc_team_expansion).
 Autonomy: `suggest` / `approval` → every write is queued. `autonomous` → low-risk writes run immediately.
 Change assignments, autonomy or pause an agent in **Handled Hub → IEBC Workforce**. That page also has the
 monthly usage meter used for IEBC invoicing.

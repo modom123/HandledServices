@@ -6,10 +6,12 @@
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish (locale prop) and LanguageToggle (saved on the account).
  * PURPOSE : Account page client pieces: copy-my-referral-link, manage Handled Plus (Stripe
  *           portal), add a tip, and delete my account (type DELETE to confirm).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useEffect, useState } from "react";
+import { Ico } from "@/components/Glyph";
 import { useRouter } from "next/navigation";
 import { TIP_PRESETS, money, t as tr, type Locale, type TimeWindow } from "@handled/core";
 import { BookingCalendar } from "./BookingCalendar";
@@ -60,7 +62,7 @@ export function TipBox({ jobId, tipped, locale = "en" }: { jobId: string; tipped
   }
   return (
     <div className="card">
-      <div className="font-semibold">💚 {t("Tip your pro")}</div>
+      <div className="font-semibold"><Ico i="💚" />{t("Tip your pro")}</div>
       <p className="text-sm text-ink-soft">{t("100% goes to your pro.")}{tipped ? (es ? ` Ha dado ${money(tipped)} de propina.` : ` You've tipped ${money(tipped)} so far.`) : ""}</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {TIP_PRESETS.map((t) => <button key={t} className="btn-ghost" disabled={busy} onClick={() => tip(t)}>{money(t)}</button>)}
@@ -114,11 +116,11 @@ export function TrackPro({ jobId, locale = "en" }: { jobId: string; locale?: Loc
     return () => { live = false; clearInterval(id); };
   }, [jobId]);
   if (!t?.tracking) return null;
-  if (t.arrived) return <div className="card border-brand bg-brand-tint font-semibold text-brand-dark">✅ {tt("Your pro has arrived and started work.")}</div>;
+  if (t.arrived) return <div className="card border-brand bg-brand-tint font-semibold text-brand-dark"><Ico i="✅" />{tt("Your pro has arrived and started work.")}</div>;
   const box = t.pro && t.home ? [Math.min(t.pro.lng, t.home.lng) - 0.01, Math.min(t.pro.lat, t.home.lat) - 0.01, Math.max(t.pro.lng, t.home.lng) + 0.01, Math.max(t.pro.lat, t.home.lat) + 0.01] : null;
   return (
     <div className="card border-brand">
-      <div className="text-lg font-bold">🚗 {t.name ?? tt("Your pro")} {es ? "va en camino" : "is on the way"}{t.eta ? (es ? ` — unos ${t.eta} min` : ` — about ${t.eta} min`) : ""}</div>
+      <div className="text-lg font-bold"><Ico i="🚗" />{t.name ?? tt("Your pro")} {es ? "va en camino" : "is on the way"}{t.eta ? (es ? ` — unos ${t.eta} min` : ` — about ${t.eta} min`) : ""}</div>
       <p className="text-sm text-ink-soft">{t.miles != null ? (es ? `a ${t.miles} millas · actualizado ${t.updatedMinAgo ? `hace ${t.updatedMinAgo} min` : "ahora"}` : `${t.miles} miles away · updated ${t.updatedMinAgo ? `${t.updatedMinAgo} min ago` : "just now"}`) : tt("Live location appears when their phone shares it.")}</p>
       {box && t.pro && (
         <iframe title={tt("Your pro's location")} className="mt-3 h-56 w-full rounded-xl border border-line" loading="lazy"
@@ -137,7 +139,7 @@ export function Reschedule({ jobId, service, zip, date, window: win, locale = "e
   const [w, setW] = useState<TimeWindow>(win);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  if (!open) return <button className="btn-ghost" onClick={() => setOpen(true)}>📅 {t("Reschedule")}</button>;
+  if (!open) return <button className="btn-ghost" onClick={() => setOpen(true)}><Ico i="📅" className="mr-0" />{t("Reschedule")}</button>;
   return (
     <div className="card space-y-3">
       <div className="font-semibold">{t("Pick a new day and time")}</div>
@@ -169,7 +171,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
   };
   return (
     <div className="card">
-      <div className="font-semibold">🌐 {locale === "es" ? "Idioma" : "Language"}</div>
+      <div className="font-semibold"><Ico i="🌐" />{locale === "es" ? "Idioma" : "Language"}</div>
       <p className="mt-1 text-sm text-ink-soft">{locale === "es" ? "El sitio, la app, los mensajes de texto y los correos le llegan en este idioma." : "The website, app, text messages and emails all come to you in this language."}</p>
       <div className="mt-3 flex gap-2">
         {(["en", "es"] as const).map((l) => (

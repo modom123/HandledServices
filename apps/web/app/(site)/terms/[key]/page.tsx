@@ -6,6 +6,7 @@
  *           /terms/pro-agreement, the service and trade addenda… (replaces the old static
  *           service-agreement page; same URL).
  * UPDATED : 2026-10-03_0051 UTC — English / Spanish (?lang=, else the visitor's language).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -25,7 +26,7 @@ export default async function TermsPage({ params, searchParams }: { params: Prom
   const v = localized(c, want);
   const es = v.lang === "es";
   return (
-    <div className="wrap max-w-3xl py-14">
+    <div className="wrap max-w-3xl py-14 pro:py-10">
       <Link href={es ? "/terms?lang=es" : "/terms"} className="text-sm text-brand print:hidden">← {es ? "Todos los términos y acuerdos" : "All terms & agreements"}</Link>
       <div className="mt-4"><ContractView title={v.title} version={c.version} appliesTo={v.appliesTo} summary={v.summary} sections={v.sections} lang={v.lang} translated={v.translated} otherLangHref={`/terms/${c.key}?lang=${es ? "en" : "es"}`} /></div>
     </div>

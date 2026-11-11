@@ -11,6 +11,9 @@
  *           menu down the left (Book now and Snap a photo at the top, each section an accordion that opens on the page you're
  *           on, account / language / contact at the bottom). Phones and tablets: a slim top bar (logo, Book now, ☰) whose ☰
  *           slides the same menu in from the left. DesktopNav / MobileNav stay for the pro portal's header.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0320 UTC — the side menu's second button label is centered when it wraps ("Snap a photo, post a job").
+ * UPDATED : 2026-11-11_2330 UTC — on the pages for pros (/pros…) the top buttons are Apply now / Pro sign in, not Book now / Snap a photo.
  */
 "use client";
 
@@ -18,7 +21,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ThemedIcon } from "./Glyph";
+import { Ico, ThemedIcon } from "./Glyph";
 
 export type NavItem = { href: string; label: string; icon?: string; hint?: string };
 export type NavGroup = { id: string; label: string; items: NavItem[]; footer?: NavItem; wide?: boolean };
@@ -98,7 +101,7 @@ export function MobileNav({ groups, lang, cta }: { groups: NavGroup[]; lang: Rea
               {section === g.id && (
                 <ul className={`pb-3 ${g.wide ? "grid grid-cols-2 gap-1" : "space-y-1"}`}>
                   {[...g.items, ...(g.footer ? [g.footer] : [])].map((it) => (
-                    <li key={it.href}><Link href={it.href} className="flex items-center gap-2 rounded-xl bg-white px-3 py-3 text-[15px] font-semibold text-ink ring-1 ring-line">{it.icon && <span>{it.icon}</span>}{it.label}</Link></li>
+                    <li key={it.href}><Link href={it.href} className="flex items-center gap-2 rounded-xl bg-white px-3 py-3 text-[15px] font-semibold text-ink ring-1 ring-line">{it.icon && <span><Ico i={it.icon} className="mr-0" /></span>}{it.label}</Link></li>
                   ))}
                 </ul>
               )}
@@ -116,11 +119,15 @@ export function MobileNav({ groups, lang, cta }: { groups: NavGroup[]; lang: Rea
 }
 
 /** The website's side menu (see the file header). Logo, account and language arrive rendered from the server. */
-export function SideNav({ groups, links, primary, secondary, logo, account, accountBar, lang, contact, slogan, menuLabel }: {
-  groups: NavGroup[]; links: NavItem[]; primary: NavItem; secondary: NavItem; logo: ReactNode; account: ReactNode; accountBar: ReactNode;
+export function SideNav({ groups, links, primary: custPrimary, secondary: custSecondary, forPros, logo, account, accountBar, lang, contact, slogan, menuLabel }: {
+  groups: NavGroup[]; links: NavItem[]; primary: NavItem; secondary: NavItem; forPros?: { primary: NavItem; secondary: NavItem }; logo: ReactNode; account: ReactNode; accountBar: ReactNode;
   lang: ReactNode; contact: string; slogan: string; menuLabel: string;
 }) {
   const path = usePathname() || "/";
+  // the pages for pros (/pros, /pros/…) lead with Apply and Pro sign-in instead of the customer's Book now / Snap a photo
+  const proPage = Boolean(forPros) && /^\/pros(\/|$)/.test(path);
+  const primary = proPage ? forPros!.primary : custPrimary;
+  const secondary = proPage ? forPros!.secondary : custSecondary;
   // links with ?query or #anchor (e.g. /services?cat=…) never light up: the path alone would match all of them
   const here = (href: string) => !/[?#]/.test(href) && href !== "/" && (path === href || path.startsWith(href + "/"));
   const start = groups.find((g) => [...g.items, ...(g.footer ? [g.footer] : [])].some((it) => here(it.href.split(/[?#]/)[0])))?.id ?? null; // all closed except the section you're in
@@ -156,7 +163,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
         </div>
         <div className="shrink-0 space-y-2 px-4 pt-4">
           <Link href={primary.href} className="btn-primary w-full justify-center">{primary.label}</Link>
-          <Link href={secondary.href} className="btn-ghost w-full justify-center text-sm">{secondary.icon} {secondary.label}</Link>
+          <Link href={secondary.href} className="btn-ghost w-full justify-center text-sm"><span className="text-center leading-snug">{secondary.icon && <Ico i={secondary.icon} className="mr-0" />}{secondary.label}</span></Link>
         </div>
         <nav className="mt-3 flex-1 overflow-y-auto px-3 pb-4 text-[15px]">
           {groups.map((g) => (
@@ -169,7 +176,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
                   {[...g.items, ...(g.footer ? [g.footer] : [])].map((it, i) => (
                     <li key={it.href + i}>
                       <Link href={it.href} aria-current={here(it.href) ? "page" : undefined} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${here(it.href) ? "bg-brand-tint font-semibold text-brand-dark" : it === g.footer ? "font-semibold text-brand hover:bg-paper" : "text-ink-soft hover:bg-paper hover:text-ink"}`}>
-                        {it.icon && <span className="w-5 text-center">{it.icon}</span>}<span className="leading-snug">{it.label}</span>
+                        {it.icon && <span className="w-5 text-center"><Ico i={it.icon} className="mr-0" /></span>}<span className="leading-snug">{it.label}</span>
                       </Link>
                     </li>
                   ))}
@@ -179,7 +186,7 @@ export function SideNav({ groups, links, primary, secondary, logo, account, acco
           ))}
           <ul className="mt-2 space-y-0.5 border-t border-line pt-2">
             {links.map((it) => (
-              <li key={it.href}><Link href={it.href} aria-current={here(it.href) ? "page" : undefined} className={`flex items-center gap-2 rounded-lg px-2 py-2 font-semibold ${here(it.href) ? "bg-brand-tint text-brand-dark" : "text-ink hover:bg-paper hover:text-brand"}`}>{it.icon && <span className="w-5 text-center">{it.icon}</span>}{it.label}</Link></li>
+              <li key={it.href}><Link href={it.href} aria-current={here(it.href) ? "page" : undefined} className={`flex items-center gap-2 rounded-lg px-2 py-2 font-semibold ${here(it.href) ? "bg-brand-tint text-brand-dark" : "text-ink hover:bg-paper hover:text-brand"}`}>{it.icon && <span className="w-5 text-center"><Ico i={it.icon} className="mr-0" /></span>}{it.label}</Link></li>
             ))}
           </ul>
         </nav>

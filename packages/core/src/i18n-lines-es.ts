@@ -14,8 +14,24 @@
  * UPDATED : 2026-10-23_1900 UTC — landscaping, furniture assembly, roofing, masonry, concrete and demolition lines.
  * UPDATED : 2026-10-23_2100 UTC — lines for services 76–100.
  * UPDATED : 2026-10-27_1600 UTC — Carpentry.
+ * UPDATED : 2026-11-07_0037 UTC — Spanish for the four social media services.
  */
 export const ES_LINES: Record<string, string> = {
+  "Social media management — {#} posts a week": "Manejo de redes sociales — {#} publicaciones por semana",
+  "Additional platforms — {#}": "Redes sociales adicionales — {#}",
+  "Daily replies to comments & messages": "Respuestas diarias a comentarios y mensajes",
+  "Content creation — {#} edited photos": "Creación de contenido — {#} fotos editadas",
+  "Content creation — {#} short videos": "Creación de contenido — {#} videos cortos",
+  "Content creation — {#} photos + {#} short videos": "Creación de contenido — {#} fotos + {#} videos cortos",
+  "On-location shoot (half day)": "Sesión en su local (medio día)",
+  "Captions & hashtags": "Textos y hashtags",
+  "Brand ambassadors — {#}": "Embajadores de marca — {#}",
+  "Monthly live session": "Transmisión en vivo mensual",
+  "Review video": "Video de reseña",
+  "Paid social ads management": "Manejo de anuncios en redes sociales",
+  "Additional ad platforms — {#}": "Plataformas de anuncios adicionales — {#}",
+  "Ad designs & short videos": "Diseños de anuncios y videos cortos",
+  "Tracking setup": "Configuración de seguimiento",
   "Trim & molding installed — {#} ft": "Molduras instaladas — {#} pies",
   "Interior doors hung & trimmed — {#}": "Puertas interiores instaladas y con marco — {#}",
   "Built-in shelving & cabinetry — {#} ft wide": "Repisas y gabinetes empotrados — {#} pies de ancho",

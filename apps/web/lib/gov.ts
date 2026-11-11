@@ -24,6 +24,9 @@
  *           filtered to our codes, plus one nationwide call per remote AI code); govDailyPicks — the AI bid desk picks
  *           the day's 5 best notices to propose on, writes the bid brief, opens a draft bid for each (Hub → Bids) and
  *           alerts the team. Pass recommendations are set aside and the next best is picked.
+ * UPDATED : 2026-11-06_0400 UTC — samDownload: pull a notice's attachments (SOW, Section L/M, price forms) into a bid.
+ * UPDATED : 2026-11-06_0430 UTC — dismissNotices / restoreNotices / deleteNotices: clear out notices that aren't a fit; deleted
+ *           ones are remembered (gov_dismissed) so the daily search never adds them back.
  */
 import "server-only";
 import { z } from "zod";
@@ -59,6 +62,34 @@ export async function callsToday(): Promise<number> {
   return count ?? 0;
 }
 
+/**
+ * Download one of a notice's SAM.gov attachments (counts against the daily call budget). The link redirects to the
+ * file; the name comes from Content-Disposition. Only api.sam.gov links are followed, so the key never leaves SAM.
+ */
+export async function samDownload(url: string, actor: string): Promise<{ ok: true; name: string; type: string; bytes: ArrayBuffer } | { ok: false; error: string }> {
+  const key = process.env.SAM_API_KEY?.trim();
+  if (!key) return { ok: false, error: "SAM_API_KEY isn't set in Vercel" };
+  if (!/^https:\/\/api\.sam\.gov\//.test(url)) return { ok: false, error: "Not a SAM.gov link" };
+  if ((await callsToday()) >= (await getGovSettings()).daily_call_budget) return { ok: false, error: "Today's SAM.gov call budget is used up — try tomorrow, or download the files from SAM.gov and upload them" };
+  try {
+    const res = await fetch(`${url}${url.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(60000), cache: "no-store", redirect: "follow" });
+    const err = res.ok ? null : res.status === 429 ? "SAM.gov daily limit reached for this key — try again tomorrow" : `SAM.gov error ${res.status}`;
+    await db().from("gov_api_calls").insert({ kind: "attachment", query: url.slice(0, 300), ok: !err, error: err, actor });
+    if (err) return { ok: false, error: err };
+    const cd = res.headers.get("content-disposition") ?? "";
+    const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+    let name = "attachment";
+    try { name = decodeURIComponent(m?.[1] ?? new URL(res.url).pathname.split("/").pop() ?? "attachment"); } catch { name = m?.[1] ?? "attachment"; }
+    name = name.slice(-150) || "attachment";
+    const bytes = await res.arrayBuffer();
+    if (bytes.byteLength > 50 * 1024 * 1024) return { ok: false, error: `${name} is over 50 MB — download it from SAM.gov` };
+    return { ok: true, name, type: res.headers.get("content-type") ?? "application/octet-stream", bytes };
+  } catch (e) {
+    await db().from("gov_api_calls").insert({ kind: "attachment", query: url.slice(0, 300), ok: false, error: String(e).slice(0, 300), actor });
+    return { ok: false, error: "Couldn't download from SAM.gov" };
+  }
+}
+
 async function samGet(url: string, kind: "search" | "description" | "awards", query: string, actor: string): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false; error: string }> {
   const key = process.env.SAM_API_KEY?.trim();
   if (!key) return { ok: false, error: "SAM_API_KEY isn't set in Vercel" };
@@ -90,9 +121,13 @@ export async function runGovSearch(search: { naics: string[]; state: string | nu
     left--; out.calls++;
     const r = await samGet(`${SAM_SEARCH}?${q}`, "search", q, actor);
     if (!r.ok) { out.errors.push(r.error); if (/limit/i.test(r.error)) left = 0; continue; }
-    const rows = (Array.isArray(r.json.opportunitiesData) ? r.json.opportunitiesData : []).map((x) => parseSamOpportunity(x as Record<string, unknown>)).filter((x): x is GovOpportunity => Boolean(x))
+    let rows = (Array.isArray(r.json.opportunitiesData) ? r.json.opportunitiesData : []).map((x) => parseSamOpportunity(x as Record<string, unknown>)).filter((x): x is GovOpportunity => Boolean(x))
       .filter((x, i, all) => all.findIndex((y) => y.notice_id === x.notice_id) === i) // one row per notice (a batch upsert can't touch a row twice)
       .filter((x) => !stateWide || (x.naics != null && wanted.has(x.naics)));
+    // notices we deleted as "not a fit" stay gone
+    const { data: gone } = rows.length ? await db().from("gov_dismissed").select("notice_id").in("notice_id", rows.map((x) => x.notice_id)) : { data: [] };
+    const dismissed = new Set((gone ?? []).map((x) => x.notice_id as string));
+    rows = rows.filter((x) => !dismissed.has(x.notice_id));
     out.found += rows.length;
     if (!rows.length) continue;
     const { data: seen } = await db().from("gov_opportunities").select("notice_id").in("notice_id", rows.map((x) => x.notice_id));
@@ -103,7 +138,9 @@ export async function runGovSearch(search: { naics: string[]; state: string | nu
       const fit = govFit(o, { certifications: s.certifications });
       return { ...o, posted_date: o.posted_date?.slice(0, 10) ?? null, archive_date: o.archive_date?.slice(0, 10) ?? null, fit_score: fit.score, fit, services: fit.services, updated_at: new Date().toISOString() };
     });
-    const { error } = await db().from("gov_opportunities").upsert(upserts, { onConflict: "notice_id" });
+    let { error } = await db().from("gov_opportunities").upsert(upserts, { onConflict: "notice_id" });
+    // attachment links column not added yet (run the bid proposals SQL): save everything else
+    if (error && /resource_links/.test(error.message)) ({ error } = await db().from("gov_opportunities").upsert(upserts.map(({ resource_links: _r, ...x }) => x), { onConflict: "notice_id" }));
     if (error) out.errors.push(error.message);
   }
   out.budgetLeft = left;
@@ -344,6 +381,44 @@ export async function setProInterest(noticeId: string, contractorId: string, sta
 
 export async function setGovStatus(noticeId: string, patch: { status?: string; notes?: string | null; owner?: string | null }) {
   await db().from("gov_opportunities").update({ ...patch, updated_at: new Date().toISOString() }).eq("notice_id", noticeId);
+}
+
+const LOCKED = ["bidding", "submitted", "won", "lost"];
+
+/**
+ * "Not a fit": set notices aside as passed (kept in the Passed tab; the daily search never resets a status, so they
+ * don't come back). Notices with a bid in progress or a result are left alone.
+ */
+export async function dismissNotices(ids: string[], reason: string | null, actor: string) {
+  const { data } = await db().from("gov_opportunities").select("notice_id, status, notes").in("notice_id", ids);
+  const stamp = `Not a fit${reason ? `: ${reason}` : ""} (${actor}, ${new Date().toISOString().slice(0, 10)})`;
+  let done = 0;
+  for (const o of data ?? []) {
+    if (LOCKED.includes(o.status)) continue;
+    await db().from("gov_opportunities").update({ status: "passed", notes: [o.notes, stamp].filter(Boolean).join("\n"), updated_at: new Date().toISOString() }).eq("notice_id", o.notice_id);
+    done++;
+  }
+  return { done, skipped: ids.length - done };
+}
+
+/** Bring passed notices back to New. */
+export async function restoreNotices(ids: string[]) {
+  const { data } = await db().from("gov_opportunities").update({ status: "new", updated_at: new Date().toISOString() }).in("notice_id", ids).eq("status", "passed").select("notice_id");
+  return { done: data?.length ?? 0 };
+}
+
+/**
+ * Delete notices for good. Each is remembered in gov_dismissed so the next search can't add it back. Notices with a
+ * bid in progress or a result can't be deleted (pass them instead); a bid made earlier keeps its own copy of the details.
+ */
+export async function deleteNotices(ids: string[], reason: string | null, actor: string): Promise<{ ok: boolean; done?: number; skipped?: number; error?: string }> {
+  const { data } = await db().from("gov_opportunities").select("notice_id, title, status").in("notice_id", ids);
+  const rows = (data ?? []).filter((o) => !LOCKED.includes(o.status));
+  if (!rows.length) return { ok: false, error: "Nothing to delete — notices with a bid in progress or a result are kept" };
+  const { error } = await db().from("gov_dismissed").upsert(rows.map((o) => ({ notice_id: o.notice_id, title: o.title, reason, dismissed_by: actor })), { onConflict: "notice_id" });
+  if (error) return { ok: false, error: /gov_dismissed/.test(error.message) ? "Run the bid proposals SQL first (supabase/setup/ADD_BID_PROPOSALS_2026-11-06_0400.sql) — until then use “Not a fit”" : error.message };
+  await db().from("gov_opportunities").delete().in("notice_id", rows.map((o) => o.notice_id));
+  return { ok: true, done: rows.length, skipped: ids.length - rows.length };
 }
 
 export const noticeTypeLabel = (p: string | null | undefined, fallback?: string | null) => (p && SAM_NOTICE_TYPES[p]) || fallback || "Notice";

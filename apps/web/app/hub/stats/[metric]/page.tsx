@@ -5,6 +5,7 @@
  * PURPOSE : Mastermind → Dashboard drill-down. Each Dashboard tile opens here: totals for the chosen period
  *           (7 / 30 / 90 days, year to date, all time) and every past record behind the number, newest first,
  *           each linking to its job.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: revenue / payments / payouts histories are admin-only; reads run on the server.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,6 +13,8 @@ import { getService, money } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { Badge, Empty, fmtDate } from "@/components/ui";
 import { LIVE_METRICS, METRICS, RANGES, isMetric, isRange, rangeStart, sum, type MetricKey, type RangeKey } from "@/lib/dashboard";
+import { adminOnly } from "@/components/AdminOnly";
+import { adminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -127,7 +130,9 @@ export default async function StatHistory({ params, searchParams }: { params: Pr
   const range: RangeKey = isRange(sp.range) ? sp.range : "30d";
   const meta = METRICS[metric];
   const live = LIVE_METRICS.includes(metric);
-  const { totals, head, rows } = await load(v.db, metric, live ? null : rangeStart(range));
+  // need-to-know: revenue, payments and payouts are admin-only; reads run on the server
+  if (["revenue", "payments", "payouts"].includes(metric)) { const gate = await adminOnly(); if (gate) return gate; }
+  const { totals, head, rows } = await load(adminClient() as unknown as typeof v.db, metric, live ? null : rangeStart(range));
 
   return (
     <div className="space-y-6">

@@ -10,6 +10,7 @@
  *           answers, who added them, and setting their trades.
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
  * UPDATED : 2026-10-27_1700 UTC — back link → Recruiting → Pipeline.
+ * UPDATED : 2026-11-11_0030 UTC — Delete (admins): removes the applicant and goes back to the pipeline.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -65,7 +66,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           <div className="h-2 rounded-full bg-paper"><div className="h-2 rounded-full bg-brand" style={{ width: `${check.pct}%` }} /></div>
           {check.next && <div className="rounded-lg bg-amber-50 p-2 text-sm">Next: <b>{check.next.en}</b> <span className="text-ink-soft">(waits on {check.next.who === "candidate" ? "the candidate" : check.next.who === "staff" ? "us" : "the system"})</span></div>}
           <ul className="space-y-1 text-sm">{check.steps.map((s) => <li key={s.key} className="flex gap-2"><span>{s.done ? "✅" : "☐"}</span><span className={s.done ? "" : "text-ink-soft"}>{s.en}{s.detail ? <span className="text-xs text-ink-soft"> — {s.detail}</span> : null}</span></li>)}</ul>
-          <RecruitingRowActions appId={appId} contractorId={pro?.id ?? null} stage={String(app.stage)} />
+          <RecruitingRowActions appId={appId} contractorId={pro?.id ?? null} stage={pro?.status === "approved" ? "active" : String(app.stage)} afterDelete="/hub/recruiting/pipeline" />
           {pro && <Link className="text-sm underline" href={`/hub/pros/${pro.id}`}>Pro record & documents →</Link>}
         </section>
         <section className="space-y-4">

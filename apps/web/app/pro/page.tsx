@@ -13,10 +13,11 @@
  * UPDATED : 2026-10-04_2204 UTC — "Jobs near you": the open job board (jobs nobody took after the first round that this pro qualifies for).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
+ * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
-import { PROBATION, PRO_REFERRAL, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
+import { PROBATION, PRO_REFERRAL, orientationStatus, benefitLines, whyNot, type Contractor, TIME_WINDOW_LABEL, getService, money, nextTierProgress, onboardingChecklist, proTier, type Job } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { standbyFor } from "@/lib/coverage";
 import { StandbyAnswer } from "@/components/Standby";
@@ -26,9 +27,10 @@ import { jobTimeZone, localDate, onCall, serviceText, t as tr, type ProPolicy } 
 import { getLocale } from "@/lib/locale";
 import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
-import { boardFor } from "@/lib/board";
+import { boardFor, boardPreview } from "@/lib/board";
 import { ClaimButton } from "@/components/JobBoard";
 import { balanceOf } from "@/lib/rewards";
+import { proJobs, proOffers } from "@/lib/job-access";
 
 /** whyNot() reason in Spanish (fixed reasons from the catalog; the ones with numbers by pattern). */
 function whyNotText(l: string, no: string): string {
@@ -80,16 +82,18 @@ export default async function ProHome() {
     return m ? `${t(m[1])} verificado` : label;
   };
   const [{ data: offers }, { data: jobs }, { data: payouts }, { data: me }] = await Promise.all([
-    v.db.from("job_offers").select("id, payout, expires_at, job_id, jobs(ref, service_slug, city, zip, scheduled_date, time_window, answers, notes, status)").eq("status", "offered").order("offered_at", { ascending: false }),
-    v.db.from("jobs").select("*").eq("contractor_id", v.contractorId!).order("scheduled_date"),
+    // need-to-know: read on the server, each offer with the pro's NET pay (lib/job-access)
+    proOffers(v.contractorId!).then((rows) => ({ data: rows.map((o) => ({ ...o, payout: o.pro_pay })) })),
+    proJobs(v.contractorId!).then((data) => ({ data })),
     v.db.from("payouts").select("amount, status, created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
   const standby = await standbyFor(v.contractorId!).catch(() => []);
   const policy = await getPolicy();
   const board = me?.status === "approved" ? await boardFor(v.contractorId!, es ? "es" : "en") : [];
+  const preview = me && me.status !== "approved" ? await boardPreview(v.contractorId!, es ? "es" : "en").catch(() => []) : [];
   const pts = await balanceOf(v.contractorId!).catch(() => ({ available: 0, pending: 0, lifetime: 0 }));
-  const list = (jobs ?? []) as Job[];
+  const list = (jobs ?? []) as unknown as (Job & { pro_pay: number | null })[];
   const upcoming = list.filter((j) => ["assigned", "in_progress", "qa_review", "site_visit"].includes(j.status));
   const month = new Date().toISOString().slice(0, 7);
   const earned = (payouts ?? []).filter((p: { created_at: string }) => p.created_at.startsWith(month)).reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0);
@@ -116,7 +120,22 @@ export default async function ProHome() {
           <div className="text-sm text-ink-soft">{setup.steps.filter((x) => !x.done || x.expiring).map((x) => stepLabel(x.label)).join(" · ")}</div>
         </Link>
       )}
-      <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{(me as { pro_no?: string | null } | null)?.pro_no ? `${es ? "ID de profesional" : "Pro ID"} ${(me as { pro_no?: string | null }).pro_no} · ` : ""}{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once insurance & background check are verified") : ""}</p></div>
+      {me && me.status !== "approved" && (() => {
+        const o = orientationStatus((me as { orientation?: Record<string, string> | null }).orientation);
+        return (
+          <div className="grid gap-3 md:grid-cols-2">
+            <Link href="/pro/welcome" className={`card block hover:border-brand ${o.complete ? "border-brand/40" : "border-brand"}`}>
+              <div className="font-semibold">{o.complete ? "✅" : "👋"} {es ? "Bienvenida a Handled" : "Welcome to Handled"} · {o.done}/{o.total}</div>
+              <div className="text-sm text-ink-soft">{o.complete ? (es ? "Orientación terminada." : "Orientation done.") : (es ? "Seis lecciones cortas sobre cómo trabajamos. Obligatorias antes de su aprobación." : "Six short lessons on how we work. Required before you're approved.")}</div>
+            </Link>
+            <Link href="/pro/refer" className="card block border-gold/60 hover:border-brand">
+              <div className="font-semibold">💸 {es ? "Gane dinero mientras espera" : "Make money while you wait"}</div>
+              <div className="text-sm text-ink-soft">{es ? "Tome fotos de un trabajo, llene un ticket y cobre cuando se haga." : "Snap photos of a job, fill out a ticket, get paid when it's done."}</div>
+            </Link>
+          </div>
+        );
+      })()}
+      <div><h1 className="text-2xl font-bold">{me?.business_name}</h1><p className="text-sm text-ink-soft">{(me as { pro_no?: string | null } | null)?.pro_no ? `${es ? "ID de profesional" : "Pro ID"} ${(me as { pro_no?: string | null }).pro_no} · ` : ""}{t("Status:")} {me?.status ? t(me.status) : ""}{me?.status !== "approved" ? t(" — offers start once your resume, ID and setup are verified and Handled approves you") : ""}</p></div>
       {me?.status === "approved" && (
         <OnCallToggle locale={l} onCall={onCall(me)} until={me.on_call_until ?? null} activeJob={list.some((j) => j.scheduled_date === localDate(new Date(), jobTimeZone(j)) && ["assigned", "in_progress"].includes(j.status))} />
       )}
@@ -202,6 +221,23 @@ export default async function ProHome() {
           </div>
         </section>
       )}
+      {preview.length > 0 && (
+        <section>
+          <h2 className="font-bold">{es ? "Trabajos cerca de usted" : "Jobs near you"}</h2>
+          <p className="mb-3 text-sm text-ink-soft">{es
+            ? "Así se ve el trabajo en su zona. Podrá tomarlos cuando su currículum, su identificación y su configuración estén listos y Handled lo apruebe."
+            : "Here's the work in your area. You can take jobs like these once your resume, ID and setup are done and Handled approves you."}</p>
+          <div className="space-y-3">
+            {preview.map((b) => (
+              <div key={b.job_id} className="card flex flex-wrap items-center justify-between gap-4 opacity-90">
+                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span></div>
+                  <div className="text-sm text-ink-soft">{b.city} {b.zip}{b.miles != null ? ` · ${b.miles} mi` : ""} · {b.when}</div></div>
+                <Link href="/pro/onboarding" className="btn-ghost text-sm">{es ? "🔒 Termine la configuración" : "🔒 Finish setup to take it"}</Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {me?.status === "approved" && (
         <section>
           <h2 className="font-bold">{es ? "Trabajos cerca de usted" : "Jobs near you"}</h2>
@@ -228,7 +264,7 @@ export default async function ProHome() {
           {upcoming.map((j) => (
             <Link key={j.id} href={`/pro/jobs/${j.id}`} className="card flex items-center justify-between gap-3 hover:border-brand">
               <div><div className="font-semibold">{svcName(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address}, {j.city}</div></div>
-              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(j.contractor_payout)}</span><StatusBadge status={j.status} locale={l} /></div>
+              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(j.pro_pay ?? 0)}</span><StatusBadge status={j.status} locale={l} /></div>
             </Link>
           ))}
         </div>

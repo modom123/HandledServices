@@ -20,6 +20,7 @@
  * PURPOSE : Stripe payments.
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: the first checkout on a "pay after" job is the 25% ("to book");
  *           holdOnSavedCard / captureHold / releaseHold put the balance on hold when the pro starts and take it when the job is done.
+ * UPDATED : 2026-11-11_2340 UTC — connectOnboardingUrl can return the pro to Setup & documents (payout step) instead of Earnings.
  */
 import "server-only";
 import Stripe from "stripe";
@@ -330,7 +331,7 @@ export async function availableBalance(): Promise<number | null> {
 }
 
 /** Stripe Connect (Express) onboarding link so a pro can receive instant payouts. */
-export async function connectOnboardingUrl(contractor: { id: string; email: string; business_name: string; stripe_account_id: string | null }): Promise<string | null> {
+export async function connectOnboardingUrl(contractor: { id: string; email: string; business_name: string; stripe_account_id: string | null }, back: "earnings" | "onboarding" = "earnings"): Promise<string | null> {
   const s = getStripe();
   if (!s) return null;
   let acct = contractor.stripe_account_id;
@@ -341,7 +342,7 @@ export async function connectOnboardingUrl(contractor: { id: string; email: stri
     })).id;
     await adminClient().from("contractors").update({ stripe_account_id: acct }).eq("id", contractor.id);
   }
-  const link = await s.accountLinks.create({ account: acct, type: "account_onboarding", refresh_url: `${siteUrl()}/pro/earnings?connect=retry`, return_url: `${siteUrl()}/pro/earnings?connect=done` });
+  const link = await s.accountLinks.create({ account: acct, type: "account_onboarding", refresh_url: `${siteUrl()}/pro/${back}?connect=retry`, return_url: `${siteUrl()}/pro/${back}?connect=done` });
   return link.url;
 }
 

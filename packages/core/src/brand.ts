@@ -13,6 +13,7 @@
  *           English and Spanish. Used by the About page, the home page, the footer and the side menu.
  *           BRAND_STORY.why: what customers get, what pros get, and why the model works for both.
  * UPDATED : 2026-10-27_1600 UTC — "100+ services" (the catalog passed 100).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 
 // Contact details come from env so going live needs no code change:
@@ -62,27 +63,27 @@ export const BRAND_STORY = {
   },
   /** Short "who we are" — the footer and the home page. */
   short: {
-    en: "Handled is one company for everything your home or business needs: 100+ services, done by insured, background-checked local pros, priced up front and checked with photos.",
-    es: "Handled es una sola empresa para todo lo que su casa o negocio necesita: más de 100 servicios, hechos por profesionales locales asegurados y verificados, con precio por adelantado y revisados con fotos.",
+    en: "Handled is one company for everything your home or business needs: 100+ services, done by background-checked, vetted local pros, priced up front and checked with photos.",
+    es: "Handled es una sola empresa para todo lo que su casa o negocio necesita: más de 100 servicios, hechos por profesionales locales verificados y con antecedentes revisados, con precio por adelantado y revisados con fotos.",
   },
   /** Full "who we are" — the About page. */
   about: {
     en: [
       "Handled Services LLC is a home and business services company based in Michigan. We bring more than 100 services into one place — cleaning, repairs, carpentry, masonry, roofing, painting, lawn and snow, moving and hauling, pet care, events, rides and business technology — so you never have to search for, vet and chase a contractor again.",
-      "Insured, background-checked local pros do the work. Our AI-powered operations team prices every job up front, sends the right pro, tracks it live, checks the finished work with photos and stands behind it. A small team of real people runs it all and steps in whenever it matters.",
-      "We started in Metro Detroit, we serve Michigan and Washington, and we grow city by city — wherever we can find great pros and keep our promise.",
+      "Background-checked, vetted local pros do the work. Our AI-powered operations team prices every job up front, sends the right pro, tracks it live, checks the finished work with photos and stands behind it. A small team of real people runs it all and steps in whenever it matters.",
+      "We started in Metro Detroit, we serve Michigan, New York, New Jersey, Las Vegas and Washington, and we grow city by city — wherever we can find great pros and keep our promise.",
     ],
     es: [
       "Handled Services LLC es una empresa de servicios para hogares y negocios con sede en Michigan. Reunimos más de 100 servicios en un solo lugar — limpieza, reparaciones, carpintería, albañilería, techos, pintura, jardín y nieve, mudanzas y acarreos, mascotas, eventos, transporte y tecnología para negocios — para que nunca vuelva a buscar, verificar y perseguir a un contratista.",
-      "El trabajo lo hacen profesionales locales asegurados y con verificación de antecedentes. Nuestro equipo de operaciones con inteligencia artificial pone precio a cada trabajo por adelantado, envía al profesional indicado, lo sigue en vivo, revisa el trabajo terminado con fotos y lo respalda. Un pequeño equipo de personas reales lo dirige todo e interviene cuando importa.",
-      "Empezamos en el área metropolitana de Detroit, atendemos Michigan y Washington, y crecemos ciudad por ciudad, donde encontremos excelentes profesionales y podamos cumplir nuestra promesa.",
+      "El trabajo lo hacen profesionales locales verificados y con antecedentes revisados. Nuestro equipo de operaciones con inteligencia artificial pone precio a cada trabajo por adelantado, envía al profesional indicado, lo sigue en vivo, revisa el trabajo terminado con fotos y lo respalda. Un pequeño equipo de personas reales lo dirige todo e interviene cuando importa.",
+      "Empezamos en el área metropolitana de Detroit, atendemos Michigan, Nueva York, Nueva Jersey, Las Vegas y Washington, y crecemos ciudad por ciudad, donde encontremos excelentes profesionales y podamos cumplir nuestra promesa.",
     ],
   },
   /** Why it works — for customers, for pros, and the model that makes both true. */
   why: {
     customers: {
-      en: { t: "For customers", d: "The easiest way to get anything done at home or at work.", points: ["An exact price in 60 seconds — no estimate visits, no callbacks", "One insured, background-checked pro — not five sales calls", "Track it live, see photos when it's done, pay the rest when it's right", "Free redo or your money back within 30 days"] },
-      es: { t: "Para clientes", d: "La forma más fácil de resolver cualquier cosa en casa o en el trabajo.", points: ["Un precio exacto en 60 segundos, sin visitas para cotizar ni llamadas de regreso", "Un profesional asegurado y verificado, no cinco llamadas de ventas", "Siga el trabajo en vivo, vea fotos al terminar y pague el resto cuando esté bien", "Lo rehacemos gratis o le devolvemos su dinero dentro de 30 días"] },
+      en: { t: "For customers", d: "The easiest way to get anything done at home or at work.", points: ["An exact price in 60 seconds — no estimate visits, no callbacks", "One background-checked, vetted pro — not five sales calls", "Track it live, see photos when it's done, pay the rest when it's right", "Free redo or your money back within 30 days"] },
+      es: { t: "Para clientes", d: "La forma más fácil de resolver cualquier cosa en casa o en el trabajo.", points: ["Un precio exacto en 60 segundos, sin visitas para cotizar ni llamadas de regreso", "Un profesional verificado y con antecedentes revisados, no cinco llamadas de ventas", "Siga el trabajo en vivo, vea fotos al terminar y pague el resto cuando esté bien", "Lo rehacemos gratis o le devolvemos su dinero dentro de 30 días"] },
     },
     pros: {
       en: { t: "For pros", d: "Real, prepaid work — without buying leads or chasing customers.", points: ["Prepaid jobs on your phone — no lead fees, no quotes, no collecting", "See the pay before you accept; take only the jobs you want", "Keep about 75% of everyday jobs, paid weekly — instant pay for qualifying pros", "Great ratings earn first pick of jobs and higher pay"] },
@@ -95,7 +96,7 @@ export const BRAND_STORY = {
   },
   values: [
     { icon: "💵", en: { t: "Honest, upfront prices", d: "You see the price before you book. No callbacks, no surprise fees, no selling your number to five contractors." }, es: { t: "Precios honestos y por adelantado", d: "Ve el precio antes de reservar. Sin llamadas de regreso, sin cargos sorpresa, sin vender su número a cinco contratistas." } },
-    { icon: "🛡️", en: { t: "Vetted pros, paid fairly", d: "Every pro is insured, background-checked and licensed where the trade needs it — and keeps most of every job." }, es: { t: "Profesionales verificados y bien pagados", d: "Cada profesional está asegurado, verificado y con licencia cuando el oficio lo exige, y se queda con la mayor parte de cada trabajo." } },
+    { icon: "🛡️", en: { t: "Vetted pros, paid fairly", d: "Every pro is background-checked and vetted, with insurance and a license where the work needs them — and keeps most of every job." }, es: { t: "Profesionales verificados y bien pagados", d: "Cada profesional tiene antecedentes revisados y está verificado, con seguro y licencia cuando el trabajo lo exige, y se queda con la mayor parte de cada trabajo." } },
     { icon: "📸", en: { t: "Checked, then guaranteed", d: "Every job ends with photos we review. Not right? A free redo or your money back within 30 days." }, es: { t: "Revisado y garantizado", d: "Cada trabajo termina con fotos que revisamos. ¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero dentro de 30 días." } },
     { icon: "🏠", en: { t: "One company for everything", d: "One account, one app, one bill — from a deep clean to a new roof to your company's website." }, es: { t: "Una empresa para todo", d: "Una cuenta, una app, una factura: desde una limpieza profunda hasta un techo nuevo o el sitio web de su empresa." } },
   ],

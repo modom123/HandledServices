@@ -27,6 +27,8 @@
  *           flooring (M&A licensed), pest (MDARD), live wildlife (DNR permit), paving, appliance, garage door, locksmith,
  *           inspection, water damage, duct cleaning, chimney sweep, irrigation, holiday lights, pool, laundry.
  * UPDATED : 2026-10-27_1600 UTC — carpentry trade (state contractor license over $600 in Michigan, L&I registration in Washington).
+ * UPDATED : 2026-11-07_0037 UTC — vetting for the new social_media trade (managers, content creators, brand ambassadors, ads managers).
+ * UPDATED : 2026-11-11_2355 UTC — many more skills per trade in the application (MORE_SPECIALTIES, merged into TRADE_PROFILES).
  */
 import { BRAND } from "./brand.ts";
 
@@ -608,6 +610,12 @@ export const TRADE_PROFILES: Record<string, TradeProfile> = {
     license: null, preferred: ["Professional liability (E&O) / cyber insurance", "Security and data-privacy practices", "Spanish-language agents"], glMin: GL1, requires: [], conditional: [],
     skillsCheck: "Two automations or agents they built (demo or recording), how they handle client logins and data, and 2 client references.",
   },
+  social_media: {
+    does: "Remote social media professionals: account managers, content creators (photo and short video), brand ambassadors and paid social ads managers.",
+    specialties: [{ id: "management", label: "Social media management", slug: "social-media-manager" }, { id: "content", label: "Photo & short-video content", slug: "content-creator" }, { id: "ambassador", label: "Brand ambassador (own audience)", slug: "brand-ambassador" }, { id: "ads", label: "Paid social ads", slug: "social-media-ads" }],
+    license: null, preferred: ["Professional liability (E&O) insurance", "Meta / TikTok ads certification", "Spanish-language content"], glMin: GL1, requires: [], conditional: [],
+    skillsCheck: "Links to 3 accounts or campaigns they ran (with results), sample posts or videos, how they handle client logins, and 2 client references. Ambassadors: their own accounts and audience stats.",
+  },
   venue: {
     does: "Event spaces for parties, meetings and celebrations.",
     specialties: [{ id: "venue_small", label: "Under 100 guests", slug: "event-venue" }, { id: "venue_large", label: "100+ guests" }, { id: "outdoor", label: "Outdoor / garden" }],
@@ -622,6 +630,95 @@ export function coverageValid(coverage: Record<string, string> | null | undefine
   if (!v) return false;
   if (v === "exempt") return allowExempt && key === "workers_comp";
   return new Date(`${v}T23:59:59`).getTime() >= today.getTime();
+}
+
+
+/**
+ * More skills pros can choose (added 2026-11-11_2355 UTC, Handled QA: "broaden number of skills in the application process").
+ * Merged into each trade's list below; existing ids are untouched, so pros' saved skills keep working.
+ */
+const MORE_SPECIALTIES: Record<string, string[]> = {
+  cleaning: ["Airbnb & short-term rental turnovers", "Apartment & rental make-ready", "Window sills, blinds & baseboards", "Inside fridge & oven", "Laundry & linen change", "Churches, schools & daycares", "Medical & dental offices", "Gyms & studios", "Event & party clean-up"],
+  windows: ["Screens & tracks", "Skylights", "Hard-water stain removal", "Solar panel cleaning", "Chandeliers & mirrors", "Post-construction windows"],
+  carpet: ["Tile & grout cleaning", "Mattress cleaning", "Auto & boat upholstery", "Commercial carpet (encapsulation)", "Water-damaged carpet", "Leather cleaning & conditioning"],
+  organizing: ["Garages", "Home offices & paperwork", "Kids' rooms & playrooms", "Unpacking after a move", "Estate & senior downsizing", "Kitchen & pantry systems"],
+  gutters: ["Downspout unclogging", "Roof debris & moss removal", "Gutter whitening (exterior)", "Seasonal maintenance plans", "Commercial gutters"],
+  lawn: ["Fertilizing & weed control", "Aeration & overseeding", "Leaf removal", "Hardscape upkeep", "Commercial grounds"],
+  tree: ["Hedge & shrub shaping", "Lot & brush clearing", "Firewood & log splitting", "Tree health & cabling", "Land & fence-line clearing"],
+  snow: ["Roof snow & ice-dam removal", "Snow hauling & relocation", "Ice melt & salting routes", "HOA & apartment complexes", "Snow blower service"],
+  pressure_washing: ["Roof soft wash", "Gutter brightening", "Graffiti removal", "Fleet & equipment washing", "Dumpster pads & drive-thrus", "Pool decks & patios"],
+  errands: ["Grocery & pharmacy pickups", "Returns & post office runs", "Pet transport", "Waiting for deliveries & repairs", "Office supply & parts runs"],
+  medical_courier: ["HIPAA-compliant routes", "Hospital & clinic inter-office runs", "Pharmacy route deliveries", "Dental lab cases", "Medical records transport"],
+  auto_detailing: ["Exterior wash & wax", "Headlight restoration", "Engine bay cleaning", "Boat & RV detailing", "Mobile on-site detailing", "Window tint removal"],
+  dumpster: ["Yard waste & brush", "Home clean-outs", "Commercial & recurring service", "Short-term rentals (3–7 days)"],
+  transportation: ["Wheelchair-accessible vans", "Non-emergency medical rides", "Hourly as-directed", "Youth & school group trips"],
+  pet_waste: ["Weekly & twice-weekly plans", "Spring clean-up visits", "Dog parks & HOA common areas", "Litter box service"],
+  pet_care: ["Puppy care & potty breaks", "Cat sitting", "Pet taxi", "Small animals & birds", "Basic grooming & baths", "Group & pack walks"],
+  hauling: ["Furniture removal", "Hot tub & shed removal", "Mattress & box spring removal", "Yard debris", "E-waste & electronics recycling", "Donation drop-offs"],
+  waste_oil: ["Restaurant grease & fryer oil", "Shop & fleet accounts", "Spill kits & clean-up", "Drum & tote pickup"],
+  wildlife: ["Snakes", "Raccoons & skunks", "Birds & nests", "One-way door installs", "Damage repair & screening"],
+  small_engine: ["Tune-ups & winterizing", "Carburetor cleaning & rebuild", "Blade sharpening", "Pressure washers", "Go-karts & ATVs", "Pickup & delivery"],
+  dock_door: ["Dock seals & shelters", "Preventive maintenance contracts", "Wheel chocks & bumpers", "Overhead door openers (commercial)", "Emergency repair"],
+  fire_safety: ["Emergency & exit lights", "Fire extinguisher sales & mounting", "Fire safety training", "Kitchen hood suppression checks", "Annual inspection tags & reports"],
+  foundation: ["Waterproofing & sealants", "Crawlspace encapsulation", "Sump pump install & repair", "Bowing wall repair", "Window wells & egress"],
+  carpentry: ["Shelving & cabinets", "Window & door trim", "Wainscoting & paneling", "Decks & porches", "Custom woodwork", "Rot repair"],
+  roofing: ["Roof inspections & reports", "Metal roofing", "Gutters & drip edge", "Roof ventilation", "Commercial roof repair", "Emergency tarping"],
+  masonry: ["Glass block windows", "Fireplace repair", "Mailboxes & pillars", "Paver installation & repair", "Parging & foundation coatings"],
+  concrete: ["Garage & basement floors", "Footings & foundations", "Sidewalk replacement", "Epoxy & polished floors", "Curbs & aprons"],
+  demolition: ["Kitchen & bath gut-outs", "Hot tubs & play sets", "Selective (keep what stays)", "Debris haul-away", "Commercial interior strip-outs"],
+  fence_deck: ["Vinyl fencing", "Chain link", "Wood privacy fences", "Gates & hardware", "Pergolas & railings", "Deck staining & sealing"],
+  siding: ["Vinyl siding", "Wood & cedar", "Storm damage repair", "Gutters & trim", "Commercial exteriors"],
+  gutter_install: ["Gutter repair & re-pitching", "Copper & specialty gutters", "Leaf guards", "Commercial gutters"],
+  windows_doors: ["Window repair & glass replacement", "Sliding & French doors", "Garage entry doors", "Commercial storefront doors", "Weatherstripping & sealing"],
+  insulation: ["Crawlspace insulation", "Garage & bonus rooms", "Soundproofing", "Energy audits", "Rim joist sealing"],
+  flooring: ["Floor repair & patching", "Subfloor repair", "Baseboards & transitions", "Commercial flooring", "Epoxy garage floors"],
+  paving: ["Asphalt driveway installation", "Parking lot repair", "Speed bumps & signage", "Gravel driveways"],
+  appliance: ["Microwaves & range hoods", "Ice makers & water lines", "Garbage disposals", "Commercial kitchen equipment", "Gas appliance connections"],
+  garage_door: ["Tune-ups & lubrication", "Off-track doors", "Panel replacement", "Keypads & remotes", "Commercial overhead doors"],
+  locksmith: ["Safe opening & installation", "Master key systems", "Commercial door hardware", "Car key programming", "Access control"],
+  inspection: ["Pre-listing inspections", "New construction & 11-month", "Mold & air quality screening", "Thermal imaging", "Rental & Section 8 inspections"],
+  water_damage: ["Mold prevention & treatment", "Flood & storm response", "Structural drying", "Contents pack-out & cleaning", "Burst pipe response"],
+  duct_cleaning: ["Furnace & blower cleaning", "Commercial ductwork", "Kitchen exhaust hoods", "Duct sealing", "Air quality testing"],
+  chimney_sweep: ["Chimney liners", "Crown & mortar repair", "Fireplace & wood stove service", "Animal & nest removal", "Gas log inspections"],
+  irrigation: ["New system installs", "Drip & landscape lines", "Smart controllers", "Rain sensors", "Commercial irrigation"],
+  holiday_lights: ["Takedown & storage", "Custom-cut LED rooflines", "Wreaths & garland", "Permanent track lighting", "HOA & entrance displays"],
+  pool: ["Hot tubs & spas", "Leak detection", "Liner replacement", "Water testing & chemicals", "Commercial & HOA pools"],
+  pest: ["Fleas & ticks", "Termite inspections", "Mosquito treatments", "Stinging insects", "Commercial & restaurant service", "Quarterly prevention plans"],
+  nuisance_wildlife: ["Squirrels & raccoons", "Birds & pigeons", "Groundhogs & moles", "Snakes", "Damage repair & insulation"],
+  laundry: ["Pickup & delivery", "Dry cleaning drop-off", "Uniforms & workwear", "Ironing & pressing", "Restaurant linens"],
+  mold: ["Basement & bathroom mold", "Moisture source fixes", "Encapsulation & sealing", "Post-flood mold", "Clearance testing"],
+  handyman: ["Caulking & weatherstripping", "Light fixture & fan swaps", "Faucet & toilet repairs", "Gutter & screen repairs", "Baby-proofing & grab bars", "Rental make-ready punch lists"],
+  assembly: ["Beds & bunk beds", "Desks & bookcases", "Outdoor furniture & grills", "Cribs & nursery", "Disassembly for moves"],
+  remodel: ["Accessibility & aging-in-place", "Attic conversions", "Rental unit renovations", "Commercial build-outs", "Design & permit help"],
+  painting: ["Wallpaper removal & install", "Popcorn ceiling removal", "Epoxy & garage floors", "Murals & accent walls", "Rental turnover painting", "Pressure wash & prep"],
+  plumbing: ["Toilets, faucets & fixtures", "Sump pumps", "Gas lines", "Sewer camera inspection", "Water softeners & filtration", "Emergency & after-hours"],
+  electrical: ["Ceiling fans", "Generators & transfer switches", "Code corrections & inspections", "Hot tub & appliance circuits", "Outdoor & landscape lighting", "Commercial electrical"],
+  hvac: ["Furnace repair & tune-ups", "AC repair & tune-ups", "Mini-splits", "Thermostats & controls", "Commercial rooftop units", "Indoor air quality"],
+  low_voltage: ["Structured cabling & ethernet", "Alarm systems", "Access control", "Audio & speakers", "Commercial cabling"],
+  event_planner: ["Day-of coordination", "Birthdays & milestones", "Showers & graduations", "Memorials & celebrations of life", "Nonprofit galas & fundraisers"],
+  catering: ["Boxed lunches", "BBQ & grill", "Brunch & breakfast", "Desserts & cakes", "Drop-off trays"],
+  food_truck: ["Tacos & street food", "BBQ & smokehouse", "Ice cream & shaved ice", "Pizza", "Festival & fair service"],
+  dj_music: ["Karaoke", "Photo booth", "Sound system rental", "Ceremony music", "Kids' party entertainment"],
+  rentals: ["Bounce houses & slides", "Staging & dance floors", "Lighting & uplights", "Heaters & fans", "Restroom trailers"],
+  security: ["Construction site security", "Retail & loss prevention", "Executive protection", "Crowd management", "Unarmed patrol"],
+  recruiter: ["Hospitality & restaurants", "Warehouse & logistics", "Construction & field", "Temp & seasonal staffing", "Diversity recruiting"],
+  freight: ["Same-day local delivery", "Hotshot & expedited", "Furniture & appliance delivery", "Warehouse & storage runs", "Construction materials"],
+  web_design: ["Website updates & maintenance", "Booking & payment setup", "Landing pages", "Copywriting", "Hosting & email setup"],
+  business_formation: ["EIN & tax ID setup", "Operating agreements", "Annual reports & compliance", "DBA filings", "Certifications (MBE, WBE, DBE)"],
+  consulting: ["Pricing & profitability", "Hiring & HR setup", "Government contracting", "Grant writing", "Process & SOP writing"],
+  ai_automation: ["Email & lead automation", "Document & data entry automation", "Scheduling & booking bots", "Custom GPTs & assistants", "Staff AI training"],
+  social_media: ["Reels & TikTok editing", "Community management", "Influencer outreach", "Google Business Profile", "Analytics & reporting"],
+  venue: ["Corporate meetings", "Weddings & receptions", "Kids' parties", "Backyard & private homes", "Studios & photo spaces"],
+};
+for (const [trade, labels] of Object.entries(MORE_SPECIALTIES)) {
+  const p = TRADE_PROFILES[trade];
+  if (!p) continue;
+  const have = new Set(p.specialties.map((x) => x.id));
+  const haveLabel = new Set(p.specialties.map((x) => x.label.toLowerCase()));
+  for (const label of labels) {
+    const id = `${trade}_${label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40)}`;
+    if (!have.has(id) && !haveLabel.has(label.toLowerCase())) { p.specialties.push({ id, label }); have.add(id); }
+  }
 }
 
 const profile = (trade: string): TradeProfile | undefined => TRADE_PROFILES[trade];
@@ -654,13 +751,14 @@ export function specialtyMatch(specialties: string[] | null | undefined, slug: s
 /** Probation: a new pro's first jobs are capped in size and always get a human QA review. */
 export const PROBATION = { jobs: 3, maxJobPrice: 750 };
 
-/** The vetting pipeline, in order. Shown to applicants and used as the Hub checklist. */
+/**
+ * The vetting pipeline, in order: Roadie-style sign-up. Shown to applicants and used as the Hub checklist.
+ * Account first, then resume, ID + background check and paperwork; pros see jobs near them while Handled reviews, and
+ * take them once a person at Handled approves them.
+ */
 export const VETTING_STEPS = [
-  { t: "Apply (5 minutes)", b: "Trades, specialties, service area, crew, equipment, insurance and two references." },
-  { t: "AI screen + quick call", b: "Our AI checks the application for fit and gaps; a coordinator calls within 2 business days." },
-  { t: "Skills check", b: "A trade-specific check: photos of recent work, references, and for licensed trades a lookup on the state license database." },
-  { t: "Documents", b: `W-9, contractor agreement, certificate of insurance naming ${BRAND.legalName} as additional insured, license and any trade-specific coverage. We verify each policy with the carrier.` },
-  { t: "Photo ID + background check", b: "A photo of your ID matched to a selfie, then a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
-  { t: "Probation jobs", b: `Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice}, and each one gets a human photo review and a follow-up call to the customer.` },
-  { t: "Activated", b: "Full offers in your area and specialties. Insurance and licenses are tracked, and offers pause automatically if one lapses." },
+  { t: "Sign up (2 minutes)", b: "Name, email, mobile, what you do and the ZIP codes you serve. Your account opens right away: no interview, no references." },
+  { t: "Photo ID + background check", b: "A photo of your ID matched to a selfie, then consent to a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
+  { t: "Orientation, resume + paperwork", b: `Six short "Welcome to Handled" lessons with a question each, your resume, then the W-9, contractor agreement (e-sign) and where to send your pay. Insurance naming ${BRAND.legalName} as additional insured, and a license, only for trades that need them.` },
+  { t: "Handled approves you", b: `A person at Handled reviews your resume, verified ID and file, then activates you. You see jobs near you while we review. Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice} with a photo review, then full offers.` },
 ];

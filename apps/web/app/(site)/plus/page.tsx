@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-03_0043 UTC — auto-renewal disclosure and link to the Plus, Gift Card & Promo Terms.
  * PURPOSE : Handled Plus — the membership: no priority fees, 10% off every job, first pick of
  *           same-day slots. Join (signed in) → Stripe subscription; manage from My account.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import Link from "next/link";
 import { BRAND, HANDLED_PLUS, money } from "@handled/core";
@@ -25,11 +26,11 @@ export default async function PlusPage({ searchParams }: { searchParams: Promise
   const v = await getViewer().catch(() => null);
   const member = v ? Boolean(await activeMembership(v.email, v.userId).catch(() => null)) : false;
   return (
-    <div className="wrap py-14">
-      <section className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
+    <div className="wrap py-14 pro:py-10">
+      <section className="grid items-center gap-10 pro:gap-8 lg:grid-cols-[1.2fr_1fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">Membership</p>
-          <h1 className="mt-2 text-4xl font-extrabold tracking-tight sm:text-5xl">⭐ {HANDLED_PLUS.name}</h1>
+          <h1 className="mt-2 text-4xl font-extrabold tracking-tight sm:text-5xl"><span className="pro:hidden">⭐ </span>{HANDLED_PLUS.name}</h1>
           <p className="mt-4 text-lg text-ink-soft">Everything on your to-do list, for less. {money(HANDLED_PLUS.monthly)} a month, cancel anytime.</p>
           <ul className="mt-6 space-y-2">{HANDLED_PLUS.perks.map((p) => <li key={p} className="flex gap-2"><span className="text-brand">✓</span>{p}</li>)}</ul>
           <div className="mt-8">

@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0150 UTC — counter offer ("Not enough? Name your pay").
  * UPDATED : 2026-10-05_0221 UTC — the job checklist (special instructions first) on every work order.
+ * UPDATED : 2026-11-06_1800 UTC — AcceptPanel shows the pro's net pay; a counter is typed as net pay (the server adds the hidden fee back).
  */
 "use client";
 

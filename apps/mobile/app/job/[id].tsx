@@ -18,6 +18,8 @@
  * UPDATED : 2026-10-06_0708 UTC — live map of the pro on the way (🚗 → 🏠), refreshing every 15 s.
  * UPDATED : 2026-10-06_2120 UTC — "Confirming your backup pro" while a handed-back job is being re-covered.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the 25% is what's due first; after it, "the rest is charged when the job is done".
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
@@ -81,12 +83,15 @@ export default function Booking() {
   const { t, locale, svc: svcText } = useI18n();
   const es = locale === "es";
   const load = useCallback(async () => {
-    const [{ data: j, error: jerr }, { data: p }, { data: ev }, { data: rv }] = await Promise.all([
-      supabase.from("jobs").select("*").eq("id", id).single(),
+    // need-to-know: the booking and its timeline come from the server (never pro pay or partner data)
+    const [res, { data: p }, { data: rv }] = await Promise.all([
+      api<{ job: Job; events: Ev[]; error?: string }>(`/api/account/jobs/${id}`),
       supabase.rpc("job_pro", { p_job: id }),
-      supabase.from("job_events").select("id, message, message_es, created_at").eq("job_id", id).order("created_at", { ascending: false }),
       supabase.from("reviews").select("id").eq("job_id", id).maybeSingle(),
     ]);
+    const j = res.ok ? res.data.job : null;
+    const jerr = res.ok ? null : { message: res.status === 404 ? "no rows" : "network" };
+    const ev = res.ok ? [...(res.data.events ?? [])].reverse() : [];
     if ((j as Job | null)?.contractor_id) {
       const [{ data: c }, { data: f }] = await Promise.all([
         supabase.rpc("job_crew", { p_job: id }),
@@ -102,10 +107,10 @@ export default function Booking() {
   useEffect(() => {
     load();
     const ch = supabase.channel(`booking-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `id=eq.${id}` }, load)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "job_events", filter: `job_id=eq.${id}` }, load)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "job_events", filter: `job_id=eq.${id}` }, load) // the timeline (customer-visible only)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const timer = setInterval(load, 30000); // status changes on the booking itself
+    return () => { supabase.removeChannel(ch); clearInterval(timer); };
   }, [id, load]);
   if (!job && loadErr) return <View style={[s.screen, s.pad]}><ErrorState message={loadErr} onRetry={load} /><Button title={t("My bookings")} kind="ghost" onPress={() => router.replace("/jobs")} /></View>;
   if (!job) return <Loading label={t("Loading…")} />;
@@ -158,7 +163,7 @@ export default function Booking() {
         <Card style={{ marginTop: 14, backgroundColor: C.tint, borderColor: C.brand }}>
           <Text style={{ fontWeight: "800", color: C.deep, fontSize: 18 }}>{t("Covered ✓")}</Text>
           <Text style={s.b}>{pro.business_name}{pro.contact_first_name ? ` · ${pro.contact_first_name}` : ""}</Text>
-          <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} {t("jobs completed · vetted & insured")}</Text>
+          <Text style={s.p}>{pro.rating}★ · {pro.jobs_completed} {t("jobs completed · background-checked & vetted")}</Text>
           {crew ? <Text style={s.p}>{es ? `Viene ${crew.first_name}` : `${crew.first_name} is coming`}</Text> : null}
           {(() => {
             const name = pro.contact_first_name || pro.business_name;

@@ -19,8 +19,10 @@
  *           track / crew / referral in one "Grow" section, a one-dropdown trade picker instead of 20+ expanders, a
  *           Handled-vs-lead-sites table, FAQ accordion. FAQ fixed: tiers never depend on accepting offers.
  * UPDATED : 2026-10-15_0300 UTC — customers pay Handled (25% at booking, the rest when done); pros are paid weekly either way.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import { ApplyForm } from "@/components/forms";
+import { Ico } from "@/components/Glyph";
 import { TradeRequirements, type TradeReq } from "@/components/TradeRequirements";
 import { getPolicy } from "@/lib/pro-benefits";
 import { getLocale } from "@/lib/locale";
@@ -75,8 +77,8 @@ export default async function ProsPage() {
     ? [["pay", "Ganancias"], ["how", "Cómo funciona"], ["get", "Lo que recibe"], ["grow", "Crecer"], ["requirements", "Requisitos"], ["faq", "Preguntas"]]
     : [["pay", "Pay"], ["how", "How it works"], ["get", "What you get"], ["grow", "Grow"], ["requirements", "Requirements"], ["faq", "FAQ"]];
   const STEPS = es
-    ? [["Postúlese", "5 minutos: oficios, zona, seguro y dos referencias."], ["Verificación", "Llamada, prueba de habilidades, documentos y antecedentes. Respondemos en 2 días hábiles."], ["Acepte trabajos y cobre", "Ofertas prepagadas en su zona; pago cada lunes."]]
-    : [["Apply", "5 minutes: your trades, area, insurance and two references."], ["Get vetted", "A call, a skills check, documents and a background check. We reply within 2 business days."], ["Take jobs, get paid", "Prepaid offers in your area; paid every Monday."]];
+    ? [["Regístrese", "2 minutos: a qué se dedica y dónde. Su cuenta se abre de inmediato, sin entrevista ni referencias."], ["Currículum, identificación y antecedentes", "Suba su currículum, verifique su identificación, autorice la verificación, W-9, acuerdo y su pago. Unos 15 minutos desde el teléfono."], ["Handled lo aprueba y cobra", "Una persona de Handled revisa su expediente y lo activa; mientras tanto ve los trabajos cerca. Pago cada lunes."]]
+    : [["Sign up", "2 minutes: what you do and where. Your account opens right away, with no interview and no references."], ["Resume, ID + background check", "Upload your resume, verify your ID, consent to the check, W-9, agreement and payout. About 15 minutes on your phone."], ["Handled approves you, you get paid", "A person at Handled reviews your file and activates you; you see jobs near you meanwhile. Paid every Monday."]];
   const trades: TradeReq[] = TRADES.flatMap((trade) => {
     const p = TRADE_PROFILES[trade.id];
     if (!p) return [];
@@ -95,11 +97,11 @@ export default async function ProsPage() {
     [t("When do I get paid?"), t("Weekly, for every job that passed photo review. Each job has its own statement.")],
     [t("Can I turn down offers?"), es ? "Sí, cuando quiera y sin costo. Rechazar nunca afecta su nivel, sus puntos ni las ofertas futuras." : "Yes, anytime, for free. Passing never affects your tier, your points or future offers."],
     [es ? "¿Necesito todo el seguro antes de postularme?" : "Do I need every policy before I apply?", es ? "No. Postúlese primero; le decimos exactamente qué cobertura necesita su oficio y le conectamos con corredores." : "No. Apply first; we’ll tell you exactly what your trade needs and connect you with brokers."],
-    [es ? "¿Qué tan rápido puedo empezar?" : "How fast can I start?", es ? `Respondemos en 2 días hábiles. Cuando sus documentos están aprobados, recibe ofertas de prueba (sus primeros ${PROBATION.jobs} trabajos, de menos de $${PROBATION.maxJobPrice}).` : `We reply within 2 business days. Once your documents clear, you get probation offers (your first ${PROBATION.jobs} jobs, each under $${PROBATION.maxJobPrice}).`],
+    [es ? "¿Qué tan rápido puedo empezar?" : "How fast can I start?", es ? `Su cuenta se abre en cuanto se registra. Cuando su currículum, su identificación y su verificación de antecedentes están listos (normalmente de 1 a 3 días), una persona de Handled revisa su expediente y lo aprueba; mientras tanto ve los trabajos cerca de usted. Ya aprobado, recibe ofertas de prueba (sus primeros ${PROBATION.jobs} trabajos, de menos de $${PROBATION.maxJobPrice}).` : `Your account opens the moment you sign up. Once your resume, ID and background check are in (usually 1 to 3 days), a person at Handled reviews your file and approves you; you can see jobs near you meanwhile. Once approved, you get probation offers (your first ${PROBATION.jobs} jobs, each under $${PROBATION.maxJobPrice}).`],
     [t("What if a customer isn’t happy?"), t("Our team handles the customer. You get the first chance to fix it, and the rules are spelled out in your contractor agreement.")],
   ];
   return (
-    <div className="wrap space-y-14 py-10 sm:py-14">
+    <div className="wrap space-y-14 py-10 sm:py-14 pro:sm:py-10">
       <section className="grid gap-8 lg:grid-cols-2 lg:items-center">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">{es ? `Programa Pro de ${BRAND.name}` : `The ${BRAND.name} Pro Program`}</p>
@@ -124,7 +126,7 @@ export default async function ProsPage() {
             <tbody>
               {show.map((r, i) => (
                 <tr key={r.slug} className={`border-t border-line ${i >= 6 ? "hidden sm:table-row" : ""}`}>
-                  <td className="py-1.5">{r.icon} {tradeName(r)}</td>
+                  <td className="py-1.5"><Ico i={r.icon} />{tradeName(r)}</td>
                   <td className="whitespace-nowrap py-1.5 pl-2 text-right text-ink-soft">{money(r.low)}–{money(r.high)}</td>
                   <td className="whitespace-nowrap py-1.5 pl-2 text-right font-semibold text-brand">{r.day ? `~${money(r.day)}` : t("By project")}</td>
                 </tr>
@@ -163,7 +165,7 @@ export default async function ProsPage() {
             <div key={p.t} className="flex gap-3"><span className="mt-0.5 text-brand">✓</span><div><div className="font-semibold">{t(p.t)}</div><p className="hidden text-sm text-ink-soft sm:block">{t(p.b)}</p></div></div>
           ))}
           {policy && benefitLines(policy).filter((b) => b.rule.enabled).map((b) => (
-            <div key={b.key} className="flex gap-3"><span className="mt-0.5">🛡️</span><div><div className="font-semibold">{t(b.title)}</div><p className="hidden text-sm text-ink-soft sm:block">{es ? benefitBodyEs(b, policy) : b.body} <span className="text-brand-dark">({es ? ruleTextEs(b.rule) : ruleText(b.rule)})</span></p></div></div>
+            <div key={b.key} className="flex gap-3"><span className="mt-0.5"><Ico i="🛡️" className="mr-0" /></span><div><div className="font-semibold">{t(b.title)}</div><p className="hidden text-sm text-ink-soft sm:block">{es ? benefitBodyEs(b, policy) : b.body} <span className="text-brand-dark">({es ? ruleTextEs(b.rule) : ruleText(b.rule)})</span></p></div></div>
           ))}
         </div>
         {policy?.insurance.partners.some((x) => x.url || x.phone) && (
@@ -201,8 +203,8 @@ export default async function ProsPage() {
             </div>
           ))}
         </div>
-        <div id="rewards" className="mt-4 scroll-mt-32 rounded-3xl bg-brand-tint p-5 sm:p-6">
-          <div className="font-bold">🎁 {es ? "Recompensas Handled Pro" : "Handled Pro Rewards"}</div>
+        <div id="rewards" className="mt-4 scroll-mt-32 rounded-3xl pro:rounded-2xl bg-brand-tint p-5 sm:p-6">
+          <div className="font-bold"><Ico i="🎁" />{es ? "Recompensas Handled Pro" : "Handled Pro Rewards"}</div>
           <p className="mt-1 text-sm text-ink-soft">{es ? `${REWARD_DEFAULTS.earnRate} puntos por cada $1 que Handled gana en su trabajo, ×${REWARD_DEFAULTS.qualityMultiplier} por trabajo excelente, y más cada año que se queda (${TENURE_TIERS.map((x) => `×${x.multiplier}`).join(" → ")}). Bonos por 10, 50 y 100 trabajos. Cámbielos por herramientas, electrónicos y viajes, como ${CATALOG_SEED.filter((c) => ["drill-kit", "tv-55", "trip-for-two"].includes(c.slug)).map((c) => c.name_es.toLowerCase()).join(", ")}.` : `${REWARD_DEFAULTS.earnRate} points for every $1 Handled earns on your job, ×${REWARD_DEFAULTS.qualityMultiplier} for great work, and more every year you stay (${TENURE_TIERS.map((x) => `×${x.multiplier}`).join(" → ")}). Bonuses at 10, 50 and 100 jobs. Redeem for tools, electronics and trips, like a ${CATALOG_SEED.filter((c) => ["drill-kit", "tv-55", "trip-for-two"].includes(c.slug)).map((c) => c.name.toLowerCase()).join(", ")}.`}</p>
           <p className="mt-2 text-xs text-ink-soft">{es ? "Los puntos nuevos se liberan a los 90 días. Rechazar ofertas nunca le cuesta puntos. Los puntos no tienen valor en efectivo; los premios cuentan como ingreso (aparecen en su 1099). Sujeto a los Términos de Recompensas." : "New points unlock after 90 days. Passing on offers never costs points. Points have no cash value; rewards count as income (shown on your 1099). Subject to the Rewards Terms."}</p>
         </div>
@@ -233,7 +235,7 @@ export default async function ProsPage() {
       <section id="apply" className="grid scroll-mt-32 gap-8 lg:grid-cols-2">
         <div>
           <h2 className="text-2xl font-bold">{es ? "Postúlese" : "Apply"}</h2>
-          <p className="mt-2 text-ink-soft">{t("We review every application within 2 business days. Don’t have every policy yet? Apply anyway; we’ll tell you exactly what you need and point you to brokers.")}</p>
+          <p className="mt-2 text-ink-soft">{t("Your account opens right away. Don’t have every policy yet? Sign up anyway; your checklist shows exactly what your trade needs and points you to brokers.")}</p>
           <ul className="mt-4 space-y-1 text-sm text-ink-soft">{STEPS.map(([h, b], i) => <li key={h}><b className="text-ink">{i + 1}. {h}</b> — {b}</li>)}</ul>
         </div>
         <ApplyForm locale={l} />

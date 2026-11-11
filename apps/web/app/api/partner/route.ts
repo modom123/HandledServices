@@ -3,21 +3,52 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-07_0120 UTC
  * PURPOSE : The signed-in partner's actions (/partner). POST JSON:
- *             { action: "refer", name, email, phone?, service_slug?, note? }  — send us a customer (we email them a booking link)
- *             { action: "connect" }                                          — Stripe payout setup link
+ *             { action: "ticket", …the standard referral ticket (lib/partners Ticket) }  — send us a customer; returns the ticket number
+ *             { action: "connect" }                                                       — Stripe payout setup link
+ * UPDATED : 2026-10-28_2300 UTC — tickets can carry up to 8 photos of the job (uploaded through /api/uploads).
+ * UPDATED : 2026-10-28_0122 UTC — "refer" replaced by the standard referral ticket (ticket number, address, timing, job type, consent).
+ * UPDATED : 2026-11-06_1730 UTC — { action: "sale", … } — a direct-sales ticket, close-ready (lib/sales-tickets): photos[0–4],
+ *           service_slug, answers, frequency, urgency, preferred_date?, time_window, customer_type, company_name?, budget?,
+ *           access_notes?, close_notes?, decision_maker, customer_*, address…, notes?, consent. Returns the pay link + price.
  */
 import { z } from "zod";
-import { getService } from "@handled/core";
+import { SALES_TICKET, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, getService, isPhotoPath } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
-import { partnerConnectUrl, partnerFor, referCustomer } from "@/lib/partners";
+import { partnerConnectUrl, partnerFor, submitTicket } from "@/lib/partners";
+import { createTicket } from "@/lib/sales-tickets";
+
+const keys = <T extends Record<string, unknown>>(o: T) => Object.keys(o) as [keyof T & string, ...(keyof T & string)[]];
+const opt = (n: number) => z.string().trim().max(n).optional().nullable();
+const optN = (n: number) => z.string().trim().max(n).optional().nullable().transform((v) => v || null);
 
 const Body = z.discriminatedUnion("action", [
   z.object({
-    action: z.literal("refer"), name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(254),
-    phone: z.string().trim().max(30).optional().nullable(), service_slug: z.string().max(80).optional().nullable(), note: z.string().trim().max(1000).optional().nullable(),
+    action: z.literal("ticket"), name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(254), phone: opt(30), company: opt(160),
+    contact_pref: z.enum(keys(TICKET_CONTACT)), best_time: opt(120), address: opt(200), city: opt(80), zip: z.string().trim().regex(/^\d{5}$/),
+    service_slug: opt(80), job_type: z.enum(keys(TICKET_JOB_TYPES)), timing: z.enum(keys(TICKET_TIMING)), preferred_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable().or(z.literal("")),
+    details: opt(2000), relationship: z.enum(keys(TICKET_RELATIONSHIPS)), note: opt(1000), consent: z.literal(true),
+    photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   }),
   z.object({ action: z.literal("connect") }),
+  z.object({
+    action: z.literal("sale"),
+    photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(SALES_TICKET.maxPhotos, `Up to ${SALES_TICKET.maxPhotos} photos`).default([]),
+    service_slug: optN(80), notes: optN(2000),
+    answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+    frequency: z.enum(["once", "weekly", "biweekly", "monthly", "quarterly"]).default("once"),
+    urgency: z.enum(["asap", "this_week", "two_weeks", "month", "flexible"]).nullable().optional().transform((v) => v ?? null),
+    preferred_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal("")).transform((v) => v || null),
+    time_window: z.enum(["morning", "midday", "afternoon", "flexible"]).default("flexible"),
+    customer_type: z.enum(["residential", "commercial"]).default("residential"),
+    company_name: optN(160), access_notes: optN(1000), close_notes: optN(1000),
+    budget: z.coerce.number().min(0).max(10_000_000).nullable().optional().transform((v) => (v && v > 0 ? v : null)),
+    decision_maker: z.boolean().default(false),
+    customer_name: z.string().trim().min(2).max(120), customer_email: z.string().trim().email().max(254), customer_phone: optN(30),
+    address: optN(200), city: optN(80), state: z.string().trim().length(2).optional().nullable().transform((v) => v || null),
+    zip: z.string().trim().regex(/^\d{5}$/, "5-digit ZIP").optional().nullable().or(z.literal("")).transform((v) => v || null),
+    consent: z.literal(true, { message: "Confirm the customer asked us to contact them" }),
+  }),
 ]);
 
 export async function POST(req: Request) {
@@ -26,14 +57,20 @@ export async function POST(req: Request) {
   const partner = await partnerFor(v);
   if (!partner) return deny(403, "This email isn't a partner yet — sign up at /partners");
   const b = Body.safeParse(await req.json().catch(() => null));
-  if (!b.success) return deny(400, "Check the form");
+  if (!b.success) return deny(400, b.error.issues.some((i) => i.path[0] === "consent") ? "Confirm the customer agreed to be contacted" : b.error.issues.some((i) => i.path[0] === "zip") ? "Enter the 5-digit ZIP code" : "Check the form");
   if (b.data.action === "connect") {
     const url = await partnerConnectUrl(partner).catch(() => null);
     return url ? Response.json({ url }) : deny(503, "Payouts aren't available yet — we'll email you");
   }
   const limited = await rateLimit(req, "form", `partner:${partner.id}`);
   if (limited) return limited;
+  if (b.data.action === "sale") {
+    const t = await createTicket(partner, { ...b.data, service_slug: b.data.service_slug && getService(b.data.service_slug) ? b.data.service_slug : null });
+    return t.ok ? Response.json({ ok: true, id: t.ticket.id, link: t.link, price: t.price }) : deny(400, t.error);
+  }
   const svc = b.data.service_slug && getService(b.data.service_slug) ? b.data.service_slug : null;
-  const r = await referCustomer(partner, { ...b.data, service_slug: svc });
-  return r.ok ? Response.json({ ok: true }) : deny(400, r.error);
+  if (b.data.contact_pref !== "email" && !b.data.phone) return deny(400, "Add their phone number so we can call or text them");
+  if (b.data.timing === "date" && !b.data.preferred_date) return deny(400, "Pick the date they need it");
+  const r = await submitTicket(partner, { ...b.data, service_slug: svc, preferred_date: b.data.preferred_date || null });
+  return r.ok ? Response.json({ ok: true, ticket_no: r.ticket_no }) : deny(400, r.error);
 }

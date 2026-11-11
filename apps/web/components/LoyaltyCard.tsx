@@ -4,8 +4,10 @@
  * CREATED : 2026-10-07_0530 UTC
  * PURPOSE : Handled Points card for the account pages: balance, tier and progress, pending points, unused credit
  *           codes, redeem button, recent activity and the rules. Server component (reads lib/loyalty).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import { BRAND, LOYALTY_RULES_EN, LOYALTY_RULES_ES, loyaltyDollars, money, redeemable } from "@handled/core";
+import { Ico } from "@/components/Glyph";
 import { loyaltyFor, type LoyaltyAccount } from "@/lib/loyalty";
 import { LoyaltyRedeem } from "./LoyaltyRedeem";
 import { fmtDate } from "./ui";
@@ -26,7 +28,7 @@ export async function LoyaltyCard({ account, es = false, canRedeem = true, title
     <div className="card md:col-span-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-semibold">🏅 {title ?? `${BRAND.name} Points`} · <span className="text-brand">{tierName}</span></div>
+          <div className="font-semibold"><Ico i="🏅" />{title ?? `${BRAND.name} Points`} · <span className="text-brand">{tierName}</span></div>
           <div className="mt-1 text-3xl font-extrabold tracking-tight">{n(p.available)} <span className="text-base font-semibold text-ink-soft">{es ? "puntos" : "points"} ≈ {money(p.worth)}</span></div>
           <div className="text-sm text-ink-soft">
             {p.pending > 0 && <>{es ? `${n(p.pending)} pendientes (listos ${s.pendingDays} días después del trabajo)` : `${n(p.pending)} pending (ready ${s.pendingDays} days after the job)`} · </>}

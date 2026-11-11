@@ -12,6 +12,8 @@
  *           its risk. The gateway (gateway.ts) enforces scopes + autonomy and logs
  *           everything to agent_actions.
  * UPDATED : 2026-10-18_0415 UTC — read.tax_1099 flags each pro file / under / exempt (corporation).
+ * UPDATED : 2026-11-10_2230 UTC — partners, pro_success, bids and legal scopes (team-actions.ts) for the expanded IEBC team.
+ * UPDATED : 2026-11-10_2300 UTC — social scope (Samantha Lee); approving a social post is high-risk (it publishes).
  */
 import "server-only";
 import { z } from "zod";
@@ -21,9 +23,11 @@ import { addEvent, dispatchJob, finalizeJob, getJob, raiseAlert, sendPaymentLink
 import { createComplimentary, createRedo, issueRefund } from "../remedies";
 import { sendEmail } from "../notify";
 import { localeOf } from "../push";
-import { activatePro, decideDocument, inviteApplicant, logRecruiting, nudgePro, orderBackgroundCheck, pipeline, rejectApplicant, revivePro } from "../recruiting";
+import { TEAM_ACTIONS } from "./team-actions";
+import { decideDocument, maybeActivate, inviteApplicant, logRecruiting, nudgePro, orderBackgroundCheck, pipeline, rejectApplicant, revivePro } from "../recruiting";
 
-export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales";
+export type Scope = "read" | "ops" | "finance" | "recruiting" | "retention" | "sales" | "partners" | "pro_success" | "bids" | "legal" | "social";
+export const SCOPES: Scope[] = ["read", "ops", "finance", "recruiting", "retention", "sales", "partners", "pro_success", "bids", "legal", "social"];
 
 export interface ActionDef {
   scope: Scope;
@@ -237,9 +241,9 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   }),
   "recruiting.activate_pro": def({
-    scope: "recruiting", write: true, risk: "high", description: "Activate a pro whose setup is complete and verified (W-9, agreement, area, insurance & trade coverage, license if required, background, payout). Sends the 'You're live' email and push.",
+    scope: "recruiting", write: true, risk: "low", description: "Flag a pro whose setup is complete and verified for Handled staff approval. Agents never activate a pro: a person approves every pro in Hub → Pros before any paid work.",
     params: z.object({ contractor_id: z.string().uuid() }),
-    run: async ({ contractor_id }, ctx) => { await activatePro(contractor_id, ctx.actor); return "activated"; },
+    run: async ({ contractor_id }, ctx) => { await logRecruiting("approval_requested", { contractorId: contractor_id }, null, ctx.actor); await maybeActivate(contractor_id); return "flagged for staff approval"; },
   }),
   "recruiting.pipeline": def({
     scope: "recruiting", write: false, risk: "low",
@@ -387,11 +391,12 @@ export const ACTIONS: Record<string, ActionDef> = {
     scope: "sales", write: true, risk: "low", description: "Update a commercial account's stage, monthly value or notes.",
     params: z.object({ id: z.string().uuid(), status: z.enum(["lead", "proposal", "active", "paused", "lost"]).optional(), monthly_value: z.number().min(0).optional(), notes: z.string().max(4000).optional() }),
     run: async ({ id, ...patch }) => { await db().from("business_accounts").update(patch).eq("id", id); return "updated"; },
-  }),
+  }),  ...TEAM_ACTIONS,
 };
 
 /** Writes that are high-risk only for certain params. */
 export function effectiveRisk(action: string, params: Record<string, unknown>): "low" | "high" {
   if (action === "ops.set_job_status" && params.status === "cancelled") return "high";
+  if (action === "social.set_status" && params.status === "approved") return "high"; // approving publishes publicly
   return ACTIONS[action]?.risk ?? "high";
 }

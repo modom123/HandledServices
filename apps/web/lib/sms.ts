@@ -21,7 +21,7 @@ export function e164(phone: string | null | undefined): string | null {
 }
 
 /** Basic-auth user and password for Twilio's API: an API key (SK… + secret) when set, else the Account SID + Auth Token. */
-function twilioAuth(): [string, string] | null {
+export function twilioAuth(): [string, string] | null {
   const key = process.env.TWILIO_API_KEY?.trim(), secret = process.env.TWILIO_API_SECRET?.trim();
   if (key && secret) return [key, secret];
   const sid = process.env.TWILIO_ACCOUNT_SID?.trim(), token = process.env.TWILIO_AUTH_TOKEN?.trim();

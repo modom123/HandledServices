@@ -5,6 +5,8 @@
  * PURPOSE : Contact page: support email and phone, the business mailing address (BUSINESS_POSTAL_ADDRESS), service areas,
  *           and where to go for bookings, pros, businesses and partners.
  * UPDATED : 2026-10-20_0100 UTC — "Get a quote — we'll call you" form (Lead inbox, speed to lead).
+ * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";
@@ -15,7 +17,7 @@ export const metadata = { title: "Contact us" };
 export default function Contact() {
   const address = process.env.BUSINESS_POSTAL_ADDRESS?.trim();
   return (
-    <div className="wrap max-w-3xl py-14">
+    <div className="wrap max-w-3xl py-14 pro:py-10">
       <h1 className="text-3xl font-extrabold tracking-tight">Contact us</h1>
       <p className="mt-2 text-ink-soft">Real people answer. Most messages get a reply within one business day.</p>
       <div className="mt-8"><LeadForm business /></div>
@@ -26,7 +28,7 @@ export default function Contact() {
       </div>
       <div className="mt-8 space-y-2 text-sm">
         <p><b>About a booking?</b> Open it in <Link href="/account" className="underline">My bookings</Link> to message us and your pro. Something not right? We make it right within {BRAND.guaranteeDays} days.</p>
-        <p><b>Pros:</b> <Link href="/pros" className="underline">join as a pro</Link> or sign in to the Pro portal. <b>Businesses:</b> <Link href="/business" className="underline">business accounts</Link>. <b>Partners:</b> <Link href="/partners" className="underline">referral program</Link>.</p>
+        <p><b>Pros:</b> <Link href="/pros" className="underline">join as a pro</Link> or sign in to the Pro portal. <b>Businesses:</b> <Link href="/business" className="underline">business accounts</Link>. <b>Partners:</b> <Link href="/partners" className="underline">refer customers or sell services and get paid on every job</Link>.</p>
         <p className="text-ink-soft">Legal: <Link href="/terms" className="underline">Terms</Link> · <Link href="/privacy" className="underline">Privacy</Link> · <Link href="/accessibility" className="underline">Accessibility</Link></p>
       </div>
     </div>

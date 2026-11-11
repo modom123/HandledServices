@@ -15,6 +15,8 @@
  *           Colors are CSS variables per theme (globals.css, [data-theme] on <html>).
  * UPDATED : 2026-10-23_0430 UTC — new look: bluegreen (blue, white & green), now the system default (when no default is saved
  *           in Hub → Website look and SITE_THEME isn't set). Each look carries color swatches for the Hub picker.
+ * UPDATED : 2026-11-09_0330 UTC — new look: Professional ("pro") — corporate polish (near-white page, deep navy, line icons,
+ *           tighter spacing, squarer controls). Pick it in Hub → Website look; the other looks are unchanged.
  */
 import "server-only";
 import { cache } from "react";
@@ -28,6 +30,7 @@ export const THEMES = {
   modern: { name: "Modern", note: "Green, white & gold with line icons, bigger type, soft shadows and a product-style hero", colors: ["#ffffff", "#0a3a2c", "#0f6b50", "#e8cc7a"] },
   bwg: { name: "Black, white & green", note: "White pages, black panels and type, green buttons", colors: ["#ffffff", "#0a0a0a", "#0b7a4e", "#4ade80"] },
   bluegreen: { name: "Blue, white & green", note: "Blue background, white cards, navy panels and type, green buttons", colors: ["#d4e5fb", "#ffffff", "#1e3a8a", "#166534"] },
+  pro: { name: "Professional", note: "Corporate polish: near-white pages, deep navy panels, line icons, tighter spacing, squarer buttons", colors: ["#f7f9fc", "#ffffff", "#0f2a5c", "#166534"] },
 } as const;
 export type Theme = keyof typeof THEMES;
 export const THEME_COOKIE = "site_theme";

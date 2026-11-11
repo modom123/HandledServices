@@ -4,10 +4,12 @@
  * CREATED : 2026-10-05_0246 UTC
  * PURPOSE : The candidate's AI screening interview: a clear AI disclosure and consent first (a person reviews
  *           and decides; they can ask for a person instead), then a simple chat. English / Spanish. Works on phones.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Ico } from "@/components/Glyph";
 import { BRAND } from "@handled/core";
 
 type Line = { role: "ai" | "candidate"; text: string; at: string };
@@ -66,7 +68,7 @@ export function InterviewChat({ token, initial }: { token: string; initial: { st
   const finished = status === "completed" || (lines.length > 0 && busy === false && status !== "in_progress");
   return (
     <div className="card flex h-[75vh] flex-col p-0">
-      <div className="border-b border-line p-3 text-sm font-semibold">🤖 {es ? `Asistente de IA de ${BRAND.name}` : `${BRAND.name} AI assistant`} <span className="font-normal text-ink-soft">· {es ? "una persona revisa y decide" : "a person reviews and decides"}</span></div>
+      <div className="border-b border-line p-3 text-sm font-semibold"><Ico i="🤖" />{es ? `Asistente de IA de ${BRAND.name}` : `${BRAND.name} AI assistant`} <span className="font-normal text-ink-soft">· {es ? "una persona revisa y decide" : "a person reviews and decides"}</span></div>
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {lines.map((l, i) => (
           <div key={i} className={`flex ${l.role === "candidate" ? "justify-end" : ""}`}>

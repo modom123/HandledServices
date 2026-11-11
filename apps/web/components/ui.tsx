@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Small shared UI pieces (badges, stats, empty states).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import { JOB_STATUS_LABEL, t as tr, type JobStatus, type Locale } from "@handled/core";
 
@@ -44,7 +45,7 @@ export function Empty({ children }: { children: React.ReactNode }) {
 
 export function NotConfigured() {
   return (
-    <div className="wrap py-16">
+    <div className="wrap py-16 pro:py-10">
       <div className="card max-w-xl">
         <h1 className="text-xl font-bold">Connect Supabase to continue</h1>
         <p className="mt-2 text-sm text-ink-soft">

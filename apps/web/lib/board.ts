@@ -11,10 +11,15 @@
  *             claimFromBoard(pro)  — re-checks, then opens a "board" offer held for 15 minutes so the pro reads
  *                                    the full work order and accepts on the usual offer page (first to accept
  *                                    gets it; acceptOffer is race-safe).
+ *             boardPreview(pro)    — Roadie-style: a pro still in setup sees open jobs in their trades and area (no
+ *                                    claiming) so they know the work is there while the background check runs.
  *           Pros are never required to take board jobs; passing has no effect on their standing.
+ * UPDATED : 2026-10-28_2131 UTC — boardPreview for pros in setup.
+ * UPDATED : 2026-11-06_1800 UTC — cards show the pro's net pay (any referral fee already out).
+ * UPDATED : 2026-11-10_0310 UTC — open offers (low name-your-price jobs) show for 30 days with a note to confirm the day.
  */
 import "server-only";
-import { BOARD, buildWorkOrder, getService, money, onBoard, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job } from "@handled/core";
+import { BOARD, buildWorkOrder, getService, money, onBoard, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
 import { adminClient } from "./supabase/server";
 
 const db = () => adminClient();
@@ -58,10 +63,14 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
   if (!ctx) return [];
   const today = new Date().toISOString().slice(0, 10);
   const until = new Date(Date.now() + BOARD.horizonDays * 86400000).toISOString().slice(0, 10);
-  const { data: jobs } = await db().from("jobs").select("*").eq("status", "dispatched").is("contractor_id", null)
-    .or(`scheduled_date.is.null,and(scheduled_date.gte.${today},scheduled_date.lte.${until})`)
+  // open offers (low name-your-price jobs) show for their whole 30 days, whatever date was picked
+  const q = (withOpen: boolean) => db().from("jobs").select("*").eq("status", "dispatched").is("contractor_id", null)
+    .or(`scheduled_date.is.null,and(scheduled_date.gte.${today},scheduled_date.lte.${until})${withOpen ? `,open_offer_until.gt.${new Date().toISOString()}` : ""}`)
     .order("scheduled_date", { ascending: true, nullsFirst: false }).limit(300);
-  const list = (jobs ?? []) as Job[];
+  let { data: jobs, error } = await q(true);
+  if (error) ({ data: jobs } = await q(false)); // before the open-offer SQL is run
+  // an open offer's day is flexible (the pro confirms it with the customer), so it isn't held to that day's schedule
+  const list = ((jobs ?? []) as Job[]).map((j) => (j.open_offer_until ? { ...j, scheduled_date: null } : j));
   if (!list.length) return [];
   const { data: offers } = await db().from("job_offers").select("id, job_id, contractor_id, kind, status, offered_at").in("job_id", list.map((j) => j.id));
   const byJob: Record<string, OfferRow[]> = {};
@@ -75,16 +84,47 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
     if (!qualifies(ctx.pro, ctx.perDay, job)) continue;
     const svc = getService(job.service_slug);
     if (!svc) continue;
-    const pay = payFor(ctx.pro, job);
-    const wo = buildWorkOrder(job, { reveal: false, payout: pay, locale });
+    // the pro sees their net pay only (any referral fee already out)
+    const pay = proNetPay(job, payFor(ctx.pro, job), ctx.pro.agreement_version);
+    const wo = buildWorkOrder(job, { reveal: false, payout: payFor(ctx.pro, job), locale, agreementVersion: ctx.pro.agreement_version });
     const miles = proDistance(ctx.pro, job);
     cards.push({
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
       city: job.city, zip: job.zip, when: wo.when, pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
-      scope: wo.scope.slice(0, 3).map((s) => `${s.label}: ${s.value}`), priority: job.priority !== "normal", offerId: mineOpen?.id ?? null,
+      scope: [...(job.open_offer_until ? [locale === "es" ? `Oferta abierta: el cliente ofreció este precio; confirme el día con él (hasta el ${job.open_offer_until.slice(0, 10)})` : `Open offer: the customer named this price — confirm the day with them (open until ${job.open_offer_until.slice(0, 10)})`] : []), ...wo.scope.slice(0, 3).map((s) => `${s.label}: ${s.value}`)], priority: job.priority !== "normal", offerId: mineOpen?.id ?? null,
     });
   }
   return cards.slice(0, 50);
+}
+
+/**
+ * Open jobs a pro in setup would see once cleared: their trades, within their radius (or ZIP list), city and ZIP only,
+ * base pay. Read-only: claiming still needs an approved account.
+ */
+export async function boardPreview(contractorId: string, locale: "en" | "es" = "en"): Promise<BoardCard[]> {
+  const { data } = await db().from("contractors").select("*").eq("id", contractorId).maybeSingle();
+  const pro = data as Contractor | null;
+  if (!pro || pro.status === "approved" || !pro.trades?.length) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: jobs } = await db().from("jobs").select("*").eq("status", "dispatched").is("contractor_id", null)
+    .or(`scheduled_date.is.null,scheduled_date.gte.${today}`).order("scheduled_date", { ascending: true, nullsFirst: false }).limit(200);
+  const cards: BoardCard[] = [];
+  for (const job of (jobs ?? []) as Job[]) {
+    const svc = getService(job.service_slug);
+    if (!svc || !svc.trades.some((t) => pro.trades.includes(t))) continue;
+    const miles = proDistance(pro, job);
+    const inZips = pro.service_zips?.includes(job.zip);
+    if (pro.zips_only ? !inZips : miles != null ? miles > (pro.service_radius_mi ?? 25) : pro.service_zips?.length ? !inZips : false) continue;
+    const pay = proNetPay(job, job.contractor_payout ?? 0, pro.agreement_version);
+    const wo = buildWorkOrder(job, { reveal: false, payout: job.contractor_payout ?? 0, locale, agreementVersion: pro.agreement_version });
+    cards.push({
+      job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
+      city: job.city, zip: job.zip, when: wo.when, pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
+      scope: wo.scope.slice(0, 3).map((x) => `${x.label}: ${x.value}`), priority: job.priority !== "normal", offerId: null,
+    });
+    if (cards.length >= 10) break;
+  }
+  return cards;
 }
 
 /** Claim a board job: a 15-minute hold, accepted on the usual offer page. */
@@ -98,7 +138,8 @@ export async function claimFromBoard(contractorId: string, jobId: string): Promi
   const open = os.find((o) => o.contractor_id === contractorId && o.status === "offered");
   if (open) return { ok: true, offerId: open.id };
   if (!onBoard(job as Job, os)) return { ok: false, error: "This job isn't open to everyone yet." };
-  if (!qualifies(ctx.pro, ctx.perDay, job as Job)) return { ok: false, error: "This job doesn't fit your trades, area, schedule or daily limit." };
+  // an open offer's day is flexible, so it's checked without that day's schedule
+  if (!qualifies(ctx.pro, ctx.perDay, (job.open_offer_until ? { ...job, scheduled_date: null } : job) as Job)) return { ok: false, error: "This job doesn't fit your trades, area, schedule or daily limit." };
   const { data, error } = await db().from("job_offers").upsert({
     job_id: jobId, contractor_id: contractorId, kind: "board", payout: payFor(ctx.pro, job as Job), ai_score: null, ai_reason: "Claimed from Jobs near you",
     status: "offered", offered_at: new Date().toISOString(), expires_at: new Date(Date.now() + BOARD.claimMinutes * 60000).toISOString(), terms_accepted_at: null, work_order_version: null,

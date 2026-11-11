@@ -11,17 +11,21 @@
  *           job terms they agree to when they accept. Before acceptance only the area is
  *           shown (Uber-style); the full address and customer contact unlock on accept.
  * UPDATED : 2026-10-15_0300 UTC — "pay after" jobs: the pro can start once the 25% is in; their payout never waits on the customer.
+ * UPDATED : 2026-10-28_0122 UTC — referred jobs: the pro's half of the partner's share is a job term (v4).
+ * UPDATED : 2026-11-06_1800 UTC — the referral fee uses the rate locked on the job (partner-v4, jobs.partner_rate).
+ * UPDATED : 2026-11-06_1800 UTC — the payout shown is the pro's NET pay; no referral-fee term or math on the work order.
  */
 import { AGREEMENT_VERSION } from "./compliance.ts";
+import { proNetPay, type ProPayJob } from "./pro-pay.ts";
 import { BRAND } from "./brand.ts";
-import { money } from "./pricing.ts";
+import { money, moneyCents } from "./pricing.ts";
 import { getService } from "./services.ts";
 import { TIME_WINDOW_LABEL, type Job } from "./types.ts";
 import { serviceText, t as tr, type Locale } from "./i18n.ts";
 import { checklistText, resolveChecklist, type ChecklistExtra, type JobChecklist } from "./checklists.ts";
 
 /** Bump when the per-job terms below change. */
-export const WORK_ORDER_VERSION = "2026-10-v3"; // v3: job checklist
+export const WORK_ORDER_VERSION = "2026-10-v4"; // v4: referral partner fee (pro's half) on referred jobs; v3: job checklist
 
 export interface WorkOrder {
   version: string;
@@ -44,7 +48,7 @@ export interface WorkOrder {
   terms: string[];
 }
 
-type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
+type WorkOrderJob = Pick<Job, "ref" | "service_slug" | "answers" | "notes" | "scheduled_date" | "time_window" | "address" | "city" | "state" | "zip" | "contact_name" | "contact_phone" | "company_name" | "contractor_payout"> & Partial<Pick<Job, "price_final" | "partner_tier" | "partner_rate" | "partner_sale" | "partner_id" | "partner_pro_fee" | "amount_refunded" | "status">> & { instructions?: string | null; payment_plan?: string; paid_at?: string | null; checklist?: JobChecklist | null; checklist_extra?: ChecklistExtra[] | null; access_info?: string | null };
 
 /** Spanish for the fixed parts of a work order (pros who chose Spanish). */
 const WO_ES: Record<string, string> = {
@@ -63,7 +67,7 @@ const WO_ES: Record<string, string> = {
   "Start time": "Hora de inicio",
 };
 
-export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null }): WorkOrder {
+export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null; agreementVersion?: string | null }): WorkOrder {
   const es = opts.locale === "es";
   const L = (s: string) => (es ? WO_ES[s] ?? tr("es", s) : s);
   const svc = getService(job.service_slug);
@@ -77,7 +81,10 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     return { label: L(q.label), value: q.type === "number" && q.unit === "$" ? `$${value}` : value };
   });
   if (answers.start_time) scope.push({ label: L("Start time"), value: String(answers.start_time) });
-  const payout = opts.payout ?? job.contractor_payout;
+  // the pro sees one number: their net pay (any referral fee already taken out — never the math or our numbers)
+  const gross = opts.payout ?? job.contractor_payout;
+  // pros sign the current agreement before they can accept an offer, so that is the default
+  const payout = gross ? proNetPay(job as ProPayJob, gross, opts.agreementVersion ?? AGREEMENT_VERSION) : gross;
   const date = job.scheduled_date ? new Date(`${job.scheduled_date}T12:00:00`).toLocaleDateString(es ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric" }) : es ? "Fecha por definir" : "Date TBD";
   const terms = [
     es ? `Pago ${payout ? money(payout) : "según la cotización final"} — se aprueba cuando el trabajo está completo y pasa la revisión de fotos, y se paga en el pago semanal. El cliente ya pagó; nunca cobre directamente.`

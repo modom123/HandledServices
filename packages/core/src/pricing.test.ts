@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-27_1600 UTC — carpentry.
  * UPDATED : 2026-10-27_1900 UTC — pro roadmap (invite → first Monday pay).
  * UPDATED : 2026-10-27_2100 UTC — job money (split, payout stage, issues).
+ * UPDATED : 2026-11-11_0100 UTC — business lead refresh: refreshStep, bizDedupeKey, warmupCap, leadFreshness, bizReengageEmail.
  */
 
 import { test } from "node:test";
@@ -179,12 +180,15 @@ test("onboarding blocks activation until every step is done", async () => {
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
     specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
-    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01",
+    orientation: Object.fromEntries((await import("./orientation.ts")).ORIENTATION.map((l) => [l.id, "2026-10-01"])) };
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
+  assert.equal(onboardingChecklist({ ...ok, orientation: { welcome: "2026-10-01" } }).complete, false, "needs the Welcome to Handled orientation");
+  assert.equal(onboardingChecklist({ ...ok, orientation: null, status: "approved" }).complete, true, "pros approved before orientation existed aren't blocked");
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
-  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "needs a resume");
+  assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "no paid work without a resume");
   assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
@@ -222,18 +226,26 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   const { onboardingChecklist, insuranceRequired, AGREEMENT_VERSION } = await import("./compliance.ts");
   assert.equal(insuranceRequired(["web_design"]), false);
   assert.equal(insuranceRequired(["errands"]), false);
-  assert.equal(insuranceRequired(["errands", "hauling"]), true, "one insured trade means a COI is needed");
-  assert.equal(insuranceRequired(["pet_care"]), true, "pet care keeps its liability policy (care, custody & control)");
+  // owner decision 2026-11-10: a COI blocks activation only when EVERY service the pro does needs one
+  assert.equal(insuranceRequired(["errands", "hauling"]), false, "one insurance-optional service is enough to go active (insured jobs wait for a COI)");
+  assert.equal(insuranceRequired(["hauling"]), true, "hauling alone needs a COI");
+  assert.equal(insuranceRequired(["roofing"]), true);
+  assert.equal(insuranceRequired(["pet_care"]), false, "pet care: no COI (the bond still applies)");
+  assert.equal(insuranceRequired(["cleaning"]), false, "house cleaning: no COI");
+  assert.equal(insuranceRequired(["windows"]), true, "window cleaning (ladders) still needs one");
   assert.equal(insuranceRequired(["no_such_trade"]), true, "unknown trades default to required");
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
     agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
     specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
-    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01" };
+    resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01",
+    orientation: Object.fromEntries((await import("./orientation.ts")).ORIENTATION.map((l) => [l.id, "2026-10-01"])) };
   assert.equal(onboardingChecklist(pro).complete, true, "a web designer activates without a COI");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"] }).complete, false, "errand pros still need their bond");
   assert.equal(onboardingChecklist({ ...pro, trades: ["errands"], coverage: { workers_comp: "exempt", bond: future } }).complete, true);
-  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, false, "cleaners still need a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["cleaning"], specialties: ["standard_clean"], coverage: { workers_comp: "exempt", bond: future } }).complete, true, "house cleaners activate without a COI");
+  assert.equal(onboardingChecklist({ ...pro, trades: ["windows"], specialties: [], coverage: { workers_comp: "exempt" } }).complete, false, "window cleaners still need a COI");
+  assert.match(String(onboardingChecklist({ ...pro, trades: ["cleaning", "windows"], coverage: { workers_comp: "exempt" } }).steps.find((x) => x.key === "coi")?.detail), /Window Cleaning/, "the optional step lists what a COI unlocks");
   const base: Contractor = {
     id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design", "hauling"],
     service_zips: [], status: "approved", rating: 4.8, jobs_completed: 10, acceptance_rate: 1, on_time_rate: 1,
@@ -403,11 +415,15 @@ test("vetting: trade coverage, probation and specialists in dispatch", async () 
   assert.equal(a.contractor.id, "y", "specialist ranks first");
 });
 
-test("business & technology: remote, consultation first, state fees at cost", async () => {
+test("business & technology: remote, consultation-only (no price shown), state fees at cost", async () => {
   const { buildAvailability } = await import("./availability.ts");
   const remote = SERVICES.filter((s) => s.category === "business");
-  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "business-consulting", "business-formation", "business-operating-system", "website-design"]);
-  for (const s of remote) assert.ok(s.remote && s.siteVisit && s.onDemand, `${s.slug}: remote, free consultation, no rush fee`);
+  assert.deepEqual(remote.map((s) => s.slug).sort(), ["ai-agents", "ai-automation", "automated-business", "brand-ambassador", "business-consulting", "business-formation", "business-operating-system", "content-creator", "social-media-ads", "social-media-manager", "website-design"]);
+  for (const s of remote) assert.ok(s.remote && s.onDemand, `${s.slug}: remote, no rush fee`);
+  // custom work: no price before the free consultation (2026-11-09)
+  const { consultOnly, priceHint } = await import("./pricing.ts");
+  for (const s of remote) assert.ok(consultOnly(s.slug) && priceHint(s.slug) === "Free consultation" && priceHint(s.slug, "es") === "Consulta gratis", `${s.slug}: free consultation, no price`);
+  assert.ok(!consultOnly("house-cleaning") && !consultOnly(null) && priceHint("house-cleaning") !== "Free consultation");
   // a Seattle specialist can take a Detroit website job: no driving radius or service area for remote work
   const far: Contractor = {
     id: "w", profile_id: null, business_name: "W", contact_name: "W", email: "w@x", phone: "1", trades: ["web_design"], service_zips: ["98101"], status: "approved",
@@ -416,7 +432,7 @@ test("business & technology: remote, consultation first, state fees at cost", as
   } as Contractor;
   assert.equal(rankContractors([far], { service_slug: "website-design", zip: "48201", scheduled_date: null, price_final: 1500, lat: 42.33, lng: -83.05 }).length, 1);
   assert.equal(rankContractors([{ ...far, trades: ["handyman"] }], { service_slug: "handyman", zip: "48201", scheduled_date: null, price_final: 200, lat: 42.33, lng: -83.05 }).length, 0, "on-site work still needs the radius");
-  // a consultation inside 48 hours isn't a rush job
+  // a start inside 48 hours isn't a rush job
   const site = estimate({ slug: "website-design", answers: defaultAnswers(getService("website-design")!), frequency: "once", rush: true });
   assert.ok(!site.items.some((i) => /rush/i.test(i.label)));
   // the state's filing fee is shown but billed at cost ($0 in our price)
@@ -630,9 +646,13 @@ test("removal: weight classes, heaviest item and the junk container", async () =
 
 test("recruiting: auto-invite, pipeline stages, follow-ups", async () => {
   const { RECRUITING_DEFAULTS: R, autoInviteDecision, pipelineStage, reminderDue, shouldDrop, mergeRecruiting } = await import("./recruiting.ts");
-  assert.equal(autoInviteDecision(R, { recommendation: "approve_after_checks", score: 82 }).invite, true);
-  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, false);
+  assert.equal(R.interviewRequired, false, "Roadie-style: no interview by default");
+  assert.equal(autoInviteDecision(R, { recommendation: "interview", score: 55 }).invite, true, "instant sign-up: account right away");
+  assert.equal(autoInviteDecision(R, null).invite, true, "instant sign-up even when the AI screen is down");
   assert.equal(autoInviteDecision(R, { recommendation: "decline", score: 90 }).invite, false);
+  const scored = mergeRecruiting({ instantSignup: false });
+  assert.equal(autoInviteDecision(scored, { recommendation: "approve_after_checks", score: 82 }).invite, true);
+  assert.equal(autoInviteDecision(scored, { recommendation: "interview", score: 55 }).invite, false);
   assert.equal(autoInviteDecision(mergeRecruiting({ autoInvite: false }), { recommendation: "approve_after_checks", score: 95 }).invite, false);
   const steps = (done: string[]) => ["w9", "agreement", "specialties", "area", "coi", "background", "payout"].map((key) => ({ key, done: done.includes(key) }));
   assert.equal(pipelineStage({ appStage: "applied" }), "applied");
@@ -1037,7 +1057,12 @@ test("market pricing: booking fee, sliding commission, counters, learning, offer
   // name-your-price bounds
   assert.equal(offerCheck(100, 100).level, "ok");
   assert.equal(offerCheck(85, 100).level, "low");
-  assert.equal(offerCheck(70, 100).ok, false);
+  // below the usual minimum (75%): still taken, straight to the job board for 30 days; below the 30% floor: refused
+  assert.equal(offerCheck(70, 100).ok, true);
+  assert.equal(offerCheck(70, 100).level, "board");
+  assert.equal(offerCheck(30, 100).level, "board");
+  assert.equal(offerCheck(29, 100).ok, false);
+  assert.equal(offerCheck(29, 100).floor, 30);
   assert.equal(offerCheck(400, 100).ok, false);
 });
 
@@ -1221,7 +1246,11 @@ test("business sales engine: segments map to real services; emails are honest wi
     const m = bizLeadEmail({ step: i, businessName: "Maple PM", segment: "property_manager", city: "Southfield", pilotPct: 20, pilotJobs: 2, signupUrl: "https://x/b/abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI" });
     assert.match(m.text, /https:\/\/x\/u/); assert.match(m.text, /1 Main St/); assert.match(m.text, /https:\/\/x\/b\/abc/);
   }
-  assert.match(bizLeadEmail({ step: 0, businessName: "A", segment: "stager", pilotPct: 20, pilotJobs: 1, signupUrl: "u", unsubscribeUrl: "u", postalAddress: "a" }).text, /up to 20% off your first job/);
+  // no discount promises: the pilot isn't applied to online orders
+  for (const seg of ["stager", "property_manager", "facilities"] as const) for (let i = 0; i < 3; i++)
+    assert.doesNotMatch(bizLeadEmail({ step: i, businessName: "A", segment: seg, pilotPct: 20, pilotJobs: 1, signupUrl: "u", unsubscribeUrl: "u", postalAddress: "a" }).text, /% off/);
+  const pm = bizLeadEmail({ step: 0, businessName: "Maple PM", segment: "property_manager", city: "Southfield", pilotPct: 0, pilotJobs: 0, signupUrl: "https://x/b/abc", unsubscribeUrl: "u", postalAddress: "a" });
+  assert.match(pm.subject, /Rent-ready turnovers/); assert.match(pm.text, /move-out date/); assert.match(pm.text, /25% to book/);
   assert.ok(bizLeadScore({ email: "a@b.co", reviewCount: 30, rating: 4.8, website: "x" }) > bizLeadScore({ phone: "1" }));
 });
 
@@ -1255,15 +1284,17 @@ test("job-posting letter: names their posting, keeps to what we promise, unsubsc
   const ctx = { businessName: "Maple PM", segment: "property_manager" as const, city: "Southfield", pilotPct: 20, pilotJobs: 2, signupUrl: "https://x/b/abc", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI", jobTitle: "Office Cleaner", postingSource: "Indeed" };
   const first = bizLeadEmail({ ...ctx, step: 0 });
   assert.match(first.subject, /Office Cleaner posting on Indeed/);
-  assert.match(first.text, /for an Office Cleaner in Southfield/);
+  assert.match(first.text, /without the hiring/); assert.match(first.text, /25% books it/); assert.doesNotMatch(first.text, /% off/);
+  assert.match(first.text, /hiring an Office Cleaner in Southfield on Indeed/);
   for (let i = 0; i < BIZ_LEAD_SEQUENCE.length; i++) { const m = bizLeadEmail({ ...ctx, step: i }); assert.match(m.text, /https:\/\/x\/u/); assert.match(m.text, /1 Main St/); }
   assert.doesNotMatch(first.text, /Net[- ]?30|surcharge|guarantee upfront/i, "terms are case by case; prices can change with an approved change order");
-  assert.match(first.text, /approved accounts/);
+  assert.match(first.text, /approved accounts/i);
   assert.equal(jobPostNeed("Groundskeeper").work, "grounds work");
   assert.equal(jobPostNeed("Housekeeper").work, "cleaning");
   const letter = bizCoverLetter({ ...ctx, step: 0, senderName: "Jordan Smith", phone: "(313) 555-0100" });
-  assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call me at \(313\) 555-0100/);
-  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /move-out clean/i, "no job title → the segment sequence");
+  assert.match(letter.text, /Jordan Smith/); assert.match(letter.text, /call or text me at \(313\) 555-0100/);
+  assert.match(bizLeadEmail({ ...ctx, jobTitle: null, step: 0 }).subject, /Rent-ready turnovers/, "no job title → the property-manager letter");
+  assert.match(bizCoverLetter({ ...ctx, jobTitle: null, step: 0, senderName: "Jordan Smith" }).subject, /Rent-ready turnovers/, "hand-sent letter for a property manager");
 });
 
 test("email center: merge tags, HTML with button and footer, law and spam checks, pasted lists", async () => {
@@ -1434,6 +1465,7 @@ test("gov contracts: SAM.gov records parse, NAICS map to our services, fit score
   assert.ok(govFit({ ...o, ptype: "a" }, { now }).score <= 15);
   assert.ok(govFit({ ...o, response_deadline: "2026-10-01T00:00:00Z" }, { now }).flags.some((f) => f.includes("passed")));
   assert.equal(parseSamOpportunity({ title: "no id" }), null);
+  assert.deepEqual(parseSamOpportunity({ noticeId: "x", title: "t", resourceLinks: ["https://api.sam.gov/prod/opportunities/v3/resources/files/abc/download", "https://evil.example/x"] })!.resource_links, ["https://api.sam.gov/prod/opportunities/v3/resources/files/abc/download"]);
   const qs = samSearchQueries({ naics: ["561720", "561730", "bad"], state: "mi", ptypes: ["o", "k", "zz"], daysBack: 7, now });
   assert.equal(qs.length, 2);
   const q = new URLSearchParams(qs[0]);
@@ -1620,21 +1652,83 @@ test("coverage: cancel tiers, time zones and backup order", async () => {
   assert.ok(backupAnswerMinutes(2) < backupAnswerMinutes(12) && backupAnswerMinutes(12) < backupAnswerMinutes(48));
 });
 
-test("referral partner program: 10% of our take, never negative, codes", async () => {
-  const { partnerCommission, partnerTake, makePartnerCode, cleanPartnerCode, partnerExpiry, PARTNER_PROGRAM } = await import("./partners.ts");
-  assert.equal(PARTNER_PROGRAM.pctOfTake, 0.1);
+test("referral partner program: fixed tiers of the price, split 50/50 pro / Handled, codes", async () => {
+  const { partnerSplit, partnerTier, partnerCommission, partnerTake, partnerLegacyJob, makePartnerCode, cleanPartnerCode, partnerExpiry, PARTNER_TIERS, PARTNER_PROGRAM } = await import("./partners.ts");
+  assert.equal(PARTNER_TIERS.one_time.rate, 0.25);
+  assert.equal(PARTNER_TIERS.repeat.rate, 0.1);
+  assert.equal(PARTNER_TIERS.account.rate, 0.15);
+  assert.equal(PARTNER_PROGRAM.proShare, 0.5);
+  // tiers
+  assert.equal(partnerTier({ firstJob: true, frequency: "once" }), "one_time");
+  assert.equal(partnerTier({ firstJob: false, frequency: "once" }), "repeat", "a second one-time job is a repeat job");
+  assert.equal(partnerTier({ firstJob: true, frequency: "biweekly" }), "repeat", "recurring from the start");
+  assert.equal(partnerTier({ firstJob: true, frequency: "once", plan_id: "p" }), "repeat");
+  assert.equal(partnerTier({ firstJob: true, frequency: "once", business_account_id: "b" }), "account", "accounts always 15%");
+  // the same $ on every service while our fee covers our half: $300 one-time → $75 ($37.50 each)
+  const a = partnerSplit({ price: 300, payout: 190, tier: "one_time" });
+  assert.deepEqual([a.amount, a.fromPro, a.fromUs], [75, 37.5, 37.5]);
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time" }).amount, 75, "same rate whatever the service's split");
+  assert.deepEqual([partnerSplit({ price: 180, payout: 120, tier: "repeat" }).amount, partnerSplit({ price: 450, payout: 300, tier: "account" }).amount], [18, 67.5]);
+  // our half never exceeds our fee after card fees: a referred job can't lose us money ("up to" 25%)
+  const thin = partnerSplit({ price: 100, payout: 85, tier: "one_time" });
+  assert.equal(thin.fromPro, 12.5);
+  assert.equal(thin.fromUs, Math.round((100 - 85 - (100 * 0.029 + 0.3)) * 100) / 100);
+  assert.ok(100 - 85 - thin.fromUs - (100 * 0.029 + 0.3) >= -0.005);
+  // refunds come off the base; the pro's half never exceeds the payout; pros on older terms pay nothing
+  assert.equal(partnerSplit({ price: 300, payout: 120, refunded: 100, tier: "one_time" }).amount, 50, "a refund lowers the payout and the base together");
+  assert.equal(partnerSplit({ price: 300, payout: 0, refunded: 300, tier: "one_time" }).amount, 0, "never negative");
+  assert.equal(partnerSplit({ price: 300, payout: 190, tier: "one_time", proPays: false }).fromPro, 0);
+  assert.equal(partnerSplit({ price: 199.99, payout: 120, tier: "repeat" }).amount, 19.99, "rounded down to the cent");
+  // partner-v1 for jobs booked before the change
   assert.equal(partnerTake({ price: 400, payout: 300 }), 100);
   assert.equal(partnerCommission({ price: 400, payout: 300 }), 10);
-  assert.equal(partnerCommission({ price: 199.99, payout: 150 }), 4.99, "rounded down to the cent");
-  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 60 }), 4, "refunds come out first");
-  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 400 }), 0, "never negative");
-  assert.equal(partnerCommission({ price: 100, payout: 120 }), 0);
+  assert.equal(partnerCommission({ price: 400, payout: 300, refunded: 60 }), 4);
+  assert.equal(partnerLegacyJob("2026-10-20T00:00:00Z"), true);
+  assert.equal(partnerLegacyJob("2026-10-29T00:00:00Z"), false);
   let i = 0;
   const code = makePartnerCode("Jane O'Neil", () => [0, 0.5, 0.99, 0.2][i++ % 4]);
   assert.match(code, /^JANEO[A-Z2-9]{4}$/);
   assert.equal(cleanPartnerCode(" jane7k2q "), "JANE7K2Q");
   assert.equal(cleanPartnerCode("<script>"), null);
   assert.equal(partnerExpiry(new Date("2026-10-07T00:00:00Z")).toISOString().slice(0, 10), "2027-10-07");
+});
+
+test("referral ticket: number, stage, same wording everywhere", async () => {
+  const { makeTicketNo, ticketStage, partnerRateLines, partnerTerms, TICKET_JOB_TYPES } = await import("./partners.ts");
+  assert.match(makeTicketNo(), /^RT-[A-HJ-NP-Z2-9]{6}$/);
+  assert.equal(ticketStage({ status: "submitted" }), "submitted");
+  assert.equal(ticketStage({ status: "contacted" }), "contacted");
+  assert.equal(ticketStage({ status: "closed" }), "closed");
+  assert.equal(ticketStage({ status: "contacted", first_job_id: "j" }), "booked");
+  assert.equal(ticketStage({ status: "closed", first_job_id: "j" }, { completed: 1 }), "completed", "a booking beats a closed ticket");
+  assert.equal(ticketStage({ first_job_id: "j" }, { completed: 2, paid: 1 }), "paid");
+  // partner-v4: one referral rate, 15% rising to 30%, in the same words everywhere
+  assert.ok(partnerRateLines()[0].startsWith("15%") && partnerRateLines()[1].includes("30%"));
+  assert.ok(partnerTerms()[0].includes("15%") && partnerTerms()[0].includes("30%"));
+  for (const t of Object.values(TICKET_JOB_TYPES)) assert.ok(t.earns.includes("15%–30%"));
+});
+
+test("pros see their net pay only — no referral fee math, no job price", async () => {
+  const { buildWorkOrder } = await import("./workorder.ts");
+  const { proNetPay, proReferralFee } = await import("./pro-pay.ts");
+  const job = { ref: "H-1", service_slug: "house-cleaning", answers: {}, notes: null, scheduled_date: null, time_window: "morning", address: "1 Main", city: "Detroit", state: "MI", zip: "48201", contact_name: "A", contact_phone: null, company_name: null, contractor_payout: 190, price_final: 300 } as never;
+  const plain = buildWorkOrder(job, { reveal: false });
+  assert.ok(plain.payout.includes("190"));
+  // partner-v2 job (tier rate 25%): the pro's half ($37.50) is already out → $152.50, and no fee wording at all
+  const v2 = buildWorkOrder({ ...(job as object), partner_id: "p", partner_tier: "one_time" } as never, { reveal: false });
+  assert.ok(v2.payout.includes("152.5") || v2.payout.includes("153"), v2.payout);
+  assert.ok(!v2.terms.some((t: string) => /referral|partner|%/i.test(t)), "no math on the work order");
+  // partner-v4 job: the locked 20% rate → the pro's half is $30 → $160
+  const v4 = { ...(job as object), partner_id: "p", partner_tier: "repeat", partner_rate: 0.2 } as never;
+  assert.equal(proNetPay(v4, 190, "2026-11-v11"), 160);
+  assert.equal(proReferralFee(v4, 190, "2026-11-v11"), 30);
+  assert.equal(proNetPay(v4, 190, "2026-10-v10"), 190, "not on v11 yet: the pro pays nothing on a partner-v4 job");
+  assert.equal(proNetPay({ ...(job as object), partner_id: "p", partner_tier: "one_time" } as never, 190, "2026-10-v10"), 152.5, "v10 covers older tier jobs");
+  // direct sales and non-referred jobs: no fee
+  assert.equal(proNetPay({ ...(v4 as object), partner_sale: true } as never, 190, "2026-11-v11"), 190);
+  assert.equal(proNetPay(job, 190, "2026-11-v11"), 190);
+  // after completion: the fee actually taken
+  assert.equal(proNetPay({ ...(v4 as object), status: "completed", partner_pro_fee: 12 } as never, 190, "2026-11-v11"), 178);
 });
 
 test("measurements pick the calibrated size band and are required", async () => {
@@ -1955,7 +2049,7 @@ test("gov subcontracting: large primes with a plan and time left rank first; AI 
   assert.ok(subFit({ ...big, ultimate_end: "2026-01-01" }, { now }).score <= 10, "ended contracts don't rank");
   const ai = parseSamAward(rec("541511", "O", "Plan Required - Incentive Not Included", "2028-09-30", "VA", "Arlington"))!;
   assert.ok(subFit(ai, { now }).reasons.some((r) => r.includes("Remote")), "AI work out of state still fits");
-  assert.ok(govFit({ notice_id: "n", title: "AI", solicitation_number: null, agency: null, office: null, notice_type: "Solicitation", ptype: "o", set_aside_code: null, set_aside: null, naics: "541512", psc: null, posted_date: null, response_deadline: null, archive_date: null, active: true, pop_city: "Arlington", pop_state: "VA", pop_zip: null, ui_link: null, description_url: null, contacts: [], award_amount: null, awardee: null }, { now }).score >= 80);
+  assert.ok(govFit({ notice_id: "n", title: "AI", solicitation_number: null, agency: null, office: null, notice_type: "Solicitation", ptype: "o", set_aside_code: null, set_aside: null, naics: "541512", psc: null, posted_date: null, response_deadline: null, archive_date: null, active: true, pop_city: "Arlington", pop_state: "VA", pop_zip: null, ui_link: null, description_url: null, resource_links: [], contacts: [], award_amount: null, awardee: null }, { now }).score >= 80);
   const targets = primeTargets([{ ...small, sub_score: subFit(small, { now }).score }, { ...big, sub_score: bigFit.score }], now);
   assert.equal(targets[0].awardee, "Prime O");
   assert.ok(targets[0].sub_plan);
@@ -2116,7 +2210,7 @@ test("marketplace: pros price 80–175%, Handled's commission rules hold at ever
 
 // ─── recruiting intake (ats.ts) & consultation-only pricing ───────────────────
 import { inferSpecialties, inferTrades, parseCandidatesCsv, parseIndeedApply } from "./ats.ts";
-import { consultOnly, priceHint } from "./pricing.ts";
+import { priceHint } from "./pricing.ts";
 
 test("inferTrades reads job titles and jobMeta", () => {
   assert.deepEqual(inferTrades("Independent House Cleaner — Pick Your Own Jobs"), ["cleaning"]);
@@ -2174,7 +2268,7 @@ test("services 76–100: priced, licensed where Michigan requires it, and no dup
   const { sizeNeedsSiteVisit } = await import("./intake.ts");
   const { CHECKLISTS } = await import("./checklists.ts");
   const base = (slug: string, a: Record<string, unknown>) => { const svc = getService(slug)!; return svc.price({ ...defaultAnswers(svc), ...a } as Answers).base; };
-  assert.equal(SERVICES.length, 101, "101 services (100 + Carpentry)");
+  assert.equal(SERVICES.length, 105, "105 services (100 + Carpentry + 4 social media)");
   assert.equal(new Set(SERVICES.map((s) => s.slug)).size, SERVICES.length, "unique slugs");
   assert.equal(new Set(SERVICES.map((s) => s.name.toLowerCase())).size, SERVICES.length, "unique names");
   // spot prices (Detroit-metro 2026)
@@ -2233,10 +2327,18 @@ test("parseCandidatesCsv handles Indeed-style exports", () => {
   assert.equal(parseCandidatesCsv("Phone\n123").candidates.length, 0);
 });
 
-test("Business & Technology is consultation-only", () => {
-  assert.equal(consultOnly("website-design"), true);
-  assert.equal(consultOnly("house-cleaning"), false);
+test("no deposit over $2,500: those jobs start with a free site visit / scope review", async () => {
+  const { bookNowPolicy, overDepositLimit, SITE_VISIT_OVER } = await import("./pricing.ts");
+  assert.equal(SITE_VISIT_OVER, 2500);
+  assert.ok(overDepositLimit(2500.01) && !overDepositLimit(2500));
+  assert.ok(bookNowPolicy("website-design", 2400).allowed, "under the limit: 25% deposit");
+  assert.ok(!bookNowPolicy("website-design", 3297).allowed, "over the limit: no deposit");
+  assert.ok(!bookNowPolicy("kitchen-remodel", 900).allowed, "site-visit services: no deposit");
+});
+
+test("Business & Technology shows no price: free consultation (owner's decision 2026-11-09, replaces 'From $X')", () => {
   assert.equal(priceHint("website-design"), "Free consultation");
+  assert.doesNotMatch(priceHint("ai-agents"), /\$/);
 });
 
 test("carpentry: licensed finish work priced by size; decks and exterior doors live in their own services", async () => {
@@ -2331,4 +2433,398 @@ test("job money: customer paid → split → pro payout lines → Monday", async
   assert.equal(held.stage, "held");
   assert.ok(held.issues.some((x) => /hasn't paid/.test(x)) && held.issues.some((x) => /held/.test(x)));
   assert.equal(jobMoney({ status: "cancelled", price_final: 100, contractor_payout: 70 }).stage, "none");
+});
+
+test("orientation: six lessons, progress, answers", async () => {
+  const { ORIENTATION, orientationStatus, orientationAnswer } = await import("./orientation.ts");
+  assert.equal(ORIENTATION.length, 6);
+  for (const l of ORIENTATION) {
+    assert.ok(l.answer >= 0 && l.answer < l.en.options.length, l.id);
+    assert.equal(l.en.options.length, l.es.options.length, `${l.id}: same choices in Spanish`);
+    assert.equal(l.en.points.length, l.es.points.length, `${l.id}: same points in Spanish`);
+  }
+  assert.deepEqual(orientationStatus(null), { done: 0, total: 6, complete: false, next: ORIENTATION[0] });
+  assert.equal(orientationStatus({ welcome: "x", jobs: "x" }).next?.id, "pay");
+  assert.equal(orientationStatus(Object.fromEntries(ORIENTATION.map((l) => [l.id, "x"]))).complete, true);
+  assert.equal(orientationAnswer("pay", 0), true);
+  assert.equal(orientationAnswer("pay", 1), false);
+  assert.equal(orientationAnswer("nope", 0), false);
+});
+
+test("depth chart: positions fill, cross off and rank like a roster", async () => {
+  const { depthChart, depthSummary, clearedFor } = await import("./depth-chart.ts");
+  const svc = getService("house-cleaning")!;
+  const trade = svc.trades[0];
+  const future = "2099-01-01";
+  const pro = (id: string, extra: Record<string, unknown> = {}) => ({ id, business_name: `Pro ${id}`, contact_name: id, trades: [trade], status: "approved", rating: 4.5, jobs_completed: 10,
+    insured_until: future, license_number: "x", background_checked: true, coverage: {}, base_state: "MI", ...extra }) as never;
+  // cleared vs. not cleared
+  assert.equal(clearedFor(pro("a"), svc), null);
+  assert.match(String(clearedFor(pro("b", { background_checked: false }), svc)), /background/);
+  assert.equal(clearedFor(pro("c", { insured_until: "2000-01-01" }), svc), null, "house cleaning doesn't need insurance (2026-11-10)");
+  const win = getService("window-cleaning")!;
+  assert.match(String(clearedFor(pro("c2", { trades: win.trades, insured_until: "2000-01-01" }), win)), /insurance/, "window cleaning still does");
+  const pos = (list: never[], state?: string) => depthChart({ contractors: list, state }).find((p) => p.slug === "house-cleaning")!;
+  // focus service: 3 deep to cross off
+  assert.equal(pos([]).status, "open");
+  assert.equal(pos([pro("a")]).status, "thin");
+  assert.equal(pos([pro("a"), pro("b"), pro("c")]).status, "covered");
+  // depth order: specialists and better-rated, experienced pros start
+  const ranked = pos([pro("low", { rating: 3.9, jobs_completed: 40 }), pro("high", { rating: 4.9, jobs_completed: 60 })]);
+  assert.deepEqual(ranked.depth.map((p) => p.id), ["high", "low"]);
+  // onboarding pros are "in camp", not on the depth chart; region filter
+  assert.equal(pos([pro("n", { status: "vetting" })]).inCamp.length, 1);
+  assert.equal(pos([pro("a", { base_state: "WA" })], "MI").depth.length, 0);
+  // prospects and the scoreboard
+  assert.equal(depthChart({ contractors: [], prospects: [{ id: "p", name: "Applicant", trades: [trade] }] }).find((p) => p.slug === "house-cleaning")!.prospects.length, 1);
+  // projected depth: cleared first, then not cleared, in camp, prospects — and what it covers once they sign
+  const proj = depthChart({ contractors: [pro("a"), pro("b", { background_checked: false }), pro("c", { status: "vetting" })], prospects: [{ id: "p", name: "Applicant", trades: [trade] }] }).find((p) => p.slug === "house-cleaning")!;
+  assert.deepEqual(proj.projected.map((x) => x.tier), ["cleared", "not_cleared", "in_camp", "prospect"]);
+  assert.equal(proj.status, "thin");
+  assert.equal(proj.projectedStatus, "covered");
+  const sum = depthSummary(depthChart({ contractors: [] }));
+  assert.equal(sum.total, SERVICES.length);
+  assert.equal(sum.open, SERVICES.length);
+});
+
+test("proposal writer: outlines, [[NEEDS]] markers, approval gate, RFIs need no price", async () => {
+  const { defaultOutline, needsInput, proposalGate, wordsToPages, pricingRequired } = await import("./proposal.ts");
+  const { submitGate, REVIEW_CHECKS, GO_NO_GO } = await import("./bid-engine.ts");
+  assert.equal(defaultOutline("rfp")[0].title, "Cover letter");
+  assert.ok(defaultOutline("sources_sought").some((s) => s.title === "Capability statement"));
+  assert.deepEqual(needsInput("UEI [[NEEDS: UEI]] and [[needs: reference phone]] and [[NEEDS: UEI]]"), ["UEI", "reference phone"]);
+  assert.deepEqual(needsInput("All facts present."), []);
+  assert.equal(wordsToPages(1000), 2);
+  assert.ok(!pricingRequired("rfi") && !pricingRequired("sources_sought") && pricingRequired("rfp"));
+  // no sections → nothing to check (a price-only bid)
+  assert.deepEqual(proposalGate([]).missing, []);
+  const g = proposalGate([
+    { title: "Cover", status: "approved", content: "Done." },
+    { title: "Tech", status: "draft", content: "We will [[NEEDS: hosting region]].", page_limit: 0.1 },
+    { title: "Past", status: "outline", content: "" },
+  ]);
+  assert.ok(g.missing.some((m) => m.includes("not written")));
+  assert.ok(g.missing.some((m) => m.includes("[[NEEDS]]")));
+  assert.ok(g.missing.some((m) => m.includes("2 proposal sections not approved")));
+  assert.equal(g.markers, 1);
+  // the gate: a sources-sought response with an approved proposal and no price lines can be submitted
+  const allYes = Object.fromEntries(GO_NO_GO.map((x) => [x.id, "yes" as const]));
+  const review = Object.fromEntries(REVIEW_CHECKS.map((c) => [c.id, true]));
+  const base = { go: allYes, requirements: [{ required: true, done: true }], lines: [], review, reviewer: "b@x.com", owner: "a@x.com", confirmationUploaded: true, dueAt: "2026-12-20T18:00:00Z", now: new Date("2026-11-06T12:00:00Z") };
+  const approved = [{ title: "Capability", status: "approved" as const, content: "IEBC builds governed AI agents." }];
+  assert.ok(submitGate({ ...base, solicitationType: "sources_sought", proposal: approved }).canMarkSubmitted);
+  assert.ok(submitGate({ ...base, solicitationType: "rfp", proposal: approved }).missing.includes("No price lines"));
+  assert.ok(!submitGate({ ...base, solicitationType: "rfi", proposal: [{ ...approved[0], status: "draft" }] }).canMarkSubmitted);
+});
+
+test("markets: NY, NJ and Las Vegas city pages, market pages, indexing per market", async () => {
+  const { CITY_PAGE_CITIES, SITE_MARKETS, SEO_CITY_BY_SLUG, marketForCity, SERVICE_AREA } = await import("./seo.ts");
+  const { isIndexedCityPage } = await import("./focus.ts");
+  const { getService } = await import("./services.ts");
+  assert.equal(new Set(CITY_PAGE_CITIES.map((c) => c.slug)).size, CITY_PAGE_CITIES.length, "city slugs are unique");
+  assert.ok(["las-vegas-nv", "brooklyn-ny", "jersey-city-nj"].every((s) => SEO_CITY_BY_SLUG[s]));
+  assert.deepEqual(SERVICE_AREA.map((s) => s.code).sort(), ["MI", "NJ", "NV", "NY", "WA"]);
+  for (const m of SITE_MARKETS) {
+    assert.ok(m.cities.length > 0, `${m.slug} has cities`);
+    for (const f of m.featured) assert.ok(getService(f), `${m.slug} features ${f}, which is in the catalog`);
+    for (const c of m.cities) assert.equal(marketForCity(c)?.slug, m.slug);
+  }
+  // handyman is indexed in Las Vegas (featured there), house cleaning everywhere (focus), a random service nowhere
+  assert.ok(isIndexedCityPage("handyman", "las-vegas-nv"));
+  assert.ok(isIndexedCityPage("house-cleaning", "henderson-nv"));
+  assert.ok(!isIndexedCityPage("furniture-assembly", "las-vegas-nv"));
+  assert.ok(isIndexedCityPage("furniture-assembly", "brooklyn-ny"));
+});
+
+test("direct sales ladder: 10% → 45% of our take, 45% at $1M lifetime profit, job fast track to 20%", async () => {
+  const { partnerLevel, ladderThreshold, ladderTable, partnerSaleCommission, LADDER_LEVELS, PARTNER_LADDER } = await import("./partners.ts");
+  assert.equal(LADDER_LEVELS, 35);
+  assert.equal(ladderThreshold(0), 0);
+  assert.equal(ladderThreshold(35), 1_000_000);
+  assert.equal(ladderThreshold(1), 800);
+  assert.equal(ladderThreshold(10), 81_500);
+  assert.equal(ladderThreshold(25), 510_000);
+  const tbl = ladderTable();
+  assert.equal(tbl.length, 36);
+  for (let i = 1; i < tbl.length; i++) assert.ok(tbl[i].profit > tbl[i - 1].profit, `rising at ${i}`);
+  assert.equal(tbl[0].rate, 0.1); assert.equal(tbl[35].rate, 0.45);
+  // by lifetime profit generated
+  assert.equal(partnerLevel(0).rate, 0.1);
+  assert.equal(partnerLevel(799.99).rate, 0.1);
+  assert.equal(partnerLevel(800).rate, 0.11);
+  assert.equal(partnerLevel(999_999).rate, 0.44);
+  assert.equal(partnerLevel(1_000_000).rate, 0.45);
+  assert.equal(partnerLevel(5_000_000).rate, 0.45, "capped at the top");
+  assert.equal(partnerLevel(1_000_000).next, null);
+  // fast track by jobs: +1 point per 10 jobs, never past 20%
+  assert.equal(partnerLevel(0, 9).rate, 0.1);
+  assert.equal(partnerLevel(0, 10).rate, 0.11);
+  assert.equal(partnerLevel(0, 100).rate, 0.2);
+  assert.equal(partnerLevel(0, 10_000).rate, PARTNER_LADDER.jobsCapRate, "jobs alone stop at 20%");
+  assert.equal(partnerLevel(200_000, 300).rate, 0.25, "the higher of the two counts");
+  assert.deepEqual(partnerLevel(500, 3).next, { level: 1, rate: 0.11, profit: 800, profitToGo: 300, jobsToGo: 7 });
+  // commission at the rate
+  assert.equal(partnerSaleCommission({ price: 400, payout: 300 }, 0.45), 45);
+  assert.equal(partnerSaleCommission({ price: 400, payout: 300 }, 0.23), 23);
+  assert.equal(partnerSaleCommission({ price: 400, payout: 300 }, 0.9), 45, "never above the top rate");
+  assert.equal(partnerSaleCommission({ price: 199.99, payout: 150 }, 0.33), 16.49, "rounded down to the cent");
+});
+
+test("field sales ticket: close-ready check", async () => {
+  const { ticketCloseCheck } = await import("./partners.ts");
+  const onsite = SERVICES.find((s) => !s.remote && !s.leadDays && !s.questions.some((q) => q.type === "number" && q.required))!;
+  const remote = SERVICES.find((s) => s.remote)!;
+  const base = { answers: defaultAnswers(onsite), photos: 3, customer_name: "Pat Lee", customer_email: "pat@example.com", customer_phone: "313-555-0101", address: "1 Main St", city: "Detroit", state: "MI", zip: "48201", urgency: "this_week", decision_maker: true };
+  assert.deepEqual(ticketCloseCheck({ ...base, service_slug: onsite.slug }), []);
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, photos: 2 }).some((m) => /photo/.test(m)));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, photos: 5 }).some((m) => /no more than 4/.test(m)));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: null }).includes("the service"));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, decision_maker: false }).some((m) => /decides/.test(m)));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, urgency: null }).includes("when they need it"));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, zip: "" }).includes("the full service address"));
+  assert.ok(ticketCloseCheck({ ...base, service_slug: onsite.slug, customer_phone: "555" }).some((m) => /mobile/.test(m)));
+  // remote services sell without photos or a street address
+  assert.deepEqual(ticketCloseCheck({ ...base, service_slug: remote.slug, answers: defaultAnswers(remote), photos: 0, address: null, urgency: remote.leadDays ? null : "month" }), []);
+  // a required measurement blocks the ticket until it's entered
+  const measured = SERVICES.find((s) => s.questions.some((q) => q.type === "number" && q.required));
+  if (measured) assert.ok(ticketCloseCheck({ ...base, service_slug: measured.slug, answers: defaultAnswers(measured), photos: 4 }).length > 0);
+});
+
+test("ladder credit: direct sales count 1.5×, referrals 1×", async () => {
+  const { ladderCredit, partnerLevel } = await import("./partners.ts");
+  assert.deepEqual(ladderCredit({ directProfit: 1000, referralProfit: 500, directJobs: 4, referralJobs: 3 }), { profit: 2000, jobs: 9 });
+  // $36,000 of direct-sale profit counts as $54,000 → 18%; the same $36,000 from referrals → 16%
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 36_000, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit).rate, 0.18);
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 0, referralProfit: 54_000, directJobs: 0, referralJobs: 0 }).profit).rate, 0.18);
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 0, referralProfit: 36_000, directJobs: 0, referralJobs: 0 }).profit).rate, 0.16);
+  // fast track: 7 direct jobs = 10.5 credit → +1 point
+  assert.equal(partnerLevel(0, ladderCredit({ directProfit: 0, referralProfit: 0, directJobs: 7, referralJobs: 0 }).jobs).rate, 0.11);
+  // $1M at the top: about $667k of direct-sale profit
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 666_667, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit).rate, 0.45);
+});
+
+test("referral ladder (partner-v4): one rate, 15% → 30% of the job price, half from the pro", async () => {
+  const { REFERRAL_LADDER, ladderLevels, ladderThreshold, ladderTable, partnerLevel, partnerSplit, referralRange, ladderCredit } = await import("./partners.ts");
+  assert.equal(ladderLevels(REFERRAL_LADDER), 15);
+  assert.equal(referralRange(), "15%–30%");
+  assert.equal(ladderThreshold(15, REFERRAL_LADDER), 1_000_000);
+  assert.equal(ladderThreshold(5, REFERRAL_LADDER), 111_000);
+  const t = ladderTable(REFERRAL_LADDER);
+  assert.equal(t[0].rate, 0.15); assert.equal(t[15].rate, 0.3); assert.equal(t.length, 16);
+  assert.equal(partnerLevel(0, 0, REFERRAL_LADDER).rate, 0.15);
+  assert.equal(partnerLevel(1_000_000, 0, REFERRAL_LADDER).rate, 0.3);
+  assert.equal(partnerLevel(9_000_000, 0, REFERRAL_LADDER).rate, 0.3, "capped");
+  assert.equal(partnerLevel(0, 50, REFERRAL_LADDER).rate, 0.2, "job fast track stops at 20%");
+  // direct-sale profit counts 1.5× toward the referral rate too
+  assert.equal(partnerLevel(ladderCredit({ directProfit: 74_000, referralProfit: 0, directJobs: 0, referralJobs: 0 }).profit, 0, REFERRAL_LADDER).rate, 0.2);
+  // the split at a locked rate: half from the pro, half from us
+  const sp = partnerSplit({ price: 300, payout: 180, tier: "repeat", rate: 0.15 });
+  assert.equal(sp.rate, 0.15); assert.equal(sp.amount, 45); assert.equal(sp.fromPro, 22.5); assert.equal(sp.fromUs, 22.5);
+  const top = partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: 0.3 });
+  assert.equal(top.amount, 90); assert.equal(top.fromPro, 45);
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: 0.9 }).rate, 0.3, "never above 30%");
+  // jobs booked before partner-v4 (no locked rate) keep their tier rate
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time" }).rate, 0.25);
+  assert.equal(partnerSplit({ price: 300, payout: 180, tier: "one_time", rate: null }).rate, 0.25);
+});
+
+test("post & earn: first-project reward is 10% back, up to $250, never more than our fee", async () => {
+  const { firstProjectReward, firstProjectLine, FIRST_PROJECT_REWARD, partnerTerms } = await import("./partners.ts");
+  assert.deepEqual(FIRST_PROJECT_REWARD, { rate: 0.1, cap: 250 });
+  assert.equal(firstProjectReward({ price: 1000, payout: 700 }), 100, "10% of the price");
+  assert.equal(firstProjectReward({ price: 5000, payout: 3500 }), 250, "capped at $250");
+  assert.equal(firstProjectReward({ price: 1000, payout: 400, refunded: 400 }), 60, "refunds lower it");
+  assert.equal(firstProjectReward({ price: 300, payout: 300 }), 0, "never more than what Handled keeps");
+  assert.equal(firstProjectReward({ price: 199.99 }), 19.99, "rounded down to the cent");
+  assert.equal(firstProjectLine(), "10% back, up to $250");
+  assert.ok(partnerTerms().some((t) => t.includes("Post your project") && t.includes("10% back, up to $250")), "terms carve-out");
+});
+
+test("house cleaning: \"Other\" type of clean starts at the standard price and needs a description", async () => {
+  const { otherMissing, otherNote, OTHER_OPTION } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const level = svc.questions.find((q) => q.id === "level")!;
+  assert.ok(level.type === "select" && level.options.some((o) => o.value === OTHER_OPTION));
+  const std = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "standard" } });
+  const other = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: OTHER_OPTION } });
+  assert.equal(other.point, std.point);
+  const a = { ...defaultAnswers(svc), level: OTHER_OPTION };
+  assert.equal(otherMissing(svc.questions, a, {}).length, 1);
+  assert.equal(otherMissing(svc.questions, a, { level: "post-construction" }).length, 0);
+  assert.equal(otherNote(svc.questions, a, { level: " post-construction " }), "Type of clean: post-construction");
+  assert.equal(otherNote(svc.questions, { ...a, level: "deep" }, { level: "x" }), "", "only when Other is picked");
+});
+
+test("open offers (low name-your-price jobs) are on the job board at once, for 30 days, whatever the date", async () => {
+  const { onBoard } = await import("./board.ts");
+  const now = new Date("2026-11-10T12:00:00Z");
+  const base = { status: "dispatched", contractor_id: null, paid_at: "2026-11-10T00:00:00Z", scheduled_date: "2027-03-01" };
+  assert.equal(onBoard(base, [], now), false, "a normal job 4 months out isn't on the board");
+  assert.equal(onBoard({ ...base, open_offer_until: "2026-12-10T12:00:00Z" }, [], now), true);
+  assert.equal(onBoard({ ...base, scheduled_date: "2026-11-01", open_offer_until: "2026-12-10T12:00:00Z" }, [], now), true, "even if the picked day passed");
+  assert.equal(onBoard({ ...base, open_offer_until: "2026-11-09T12:00:00Z" }, [], now), false, "expired");
+  assert.equal(onBoard({ ...base, paid_at: null, open_offer_until: "2026-12-10T12:00:00Z" }, [], now), false, "unpaid never");
+  assert.equal(onBoard({ ...base, contractor_id: "p", open_offer_until: "2026-12-10T12:00:00Z" }, [], now), false, "taken");
+});
+
+test("house cleaning \"Other\": square feet can go below 400 (down to 50); other types keep 400", async () => {
+  const { numberMin, clampToMins } = await import("./services.ts");
+  const svc = getService("house-cleaning")!;
+  const sq = svc.questions.find((q) => q.id === "sqft")!;
+  assert.equal(numberMin(sq, { level: "standard" }), 400);
+  assert.equal(numberMin(sq, { level: "other" }), 50);
+  assert.deepEqual(clampToMins(svc.questions, { ...defaultAnswers(svc), level: "standard", sqft: 120 }).sqft, 400, "leaving Other raises it back");
+  assert.deepEqual(clampToMins(svc.questions, { ...defaultAnswers(svc), level: "other", sqft: 120 }).sqft, 120);
+  const small = estimate({ slug: "house-cleaning", answers: { ...defaultAnswers(svc), level: "other", sqft: 120, bedrooms: 0, bathrooms: 1 } });
+  assert.ok(small.point >= svc.minimum, "the visit minimum still applies");
+});
+
+test("lead pay: $10 per lead, unlocked after 10 leads + one paid-out sale, repaid from that lead's commission", async () => {
+  const { SALES_DRAW, drawUnlocked, drawRecovery, partnerTerms } = await import("./partners.ts");
+  assert.equal(SALES_DRAW.perLead, 10);
+  assert.equal(drawUnlocked({ leads: 9, paidSales: 3 }), false, "needs 10 leads");
+  assert.equal(drawUnlocked({ leads: 40, paidSales: 0 }), false, "needs one sale actually paid out");
+  assert.equal(drawUnlocked({ leads: 10, paidSales: 1 }), true);
+  assert.equal(drawRecovery({ commission: 45, drawOutstanding: 10 }), 10, "the $10 comes back out of the commission");
+  assert.equal(drawRecovery({ commission: 6.5, drawOutstanding: 10 }), 6.5, "never more than the commission");
+  assert.equal(drawRecovery({ commission: 45, drawOutstanding: 0 }), 0, "already repaid");
+  assert.ok(partnerTerms().some((t) => t.includes("Lead pay") && t.includes("10 leads")));
+});
+
+test("pro welcome email: their services (cleared and not yet), how it works, pay, partner program, EN and ES (2026-11-10)", async () => {
+  const { proWelcomeEmail, proServiceSummary } = await import("./pro-welcome.ts");
+  const { PRO_POLICY_DEFAULTS } = await import("./pro-policy.ts");
+  const { PRO_REFERRAL } = await import("./pro-program.ts");
+  const c = {
+    id: "p1", profile_id: null, business_name: "Sparkle Clean Co.", contact_name: "Dana Reyes", email: "d@x", phone: "1", trades: ["cleaning", "handyman"],
+    service_zips: ["48201"], status: "approved", rating: 5, jobs_completed: 0, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01",
+    license_number: null, background_checked: true, daily_capacity: 3, notes: null, base_city: "Detroit", base_state: "MI", base_zip: "48201",
+    service_radius_mi: 20, availability: { days: [1, 2, 3, 4, 5], windows: ["morning", "afternoon"] }, specialties: ["deep cleans"],
+  } as unknown as Contractor;
+  const s = proServiceSummary(c);
+  assert.ok(s.cleared.some((x) => x.slug === "house-cleaning"), "a cleaner is cleared for house cleaning");
+  assert.ok(!s.cleared.concat(s.notYet).some((x) => x.slug === "lawn-care"), "services outside their trades are left out");
+  const en = proWelcomeEmail(c, { site: "https://handledsvc.com/", policy: PRO_POLICY_DEFAULTS });
+  assert.match(en.subject, /Welcome to the Handled Network, Dana/);
+  const bonusLine = "$" + PRO_REFERRAL.bonus + " when a pro you referred finishes " + PRO_REFERRAL.afterJobs + " jobs";
+  for (const k of ["WHAT YOU TOLD US", "House & Office Cleaning", "Mon, Tue, Wed, Thu, Fri", "up to 20 miles", "HOW YOUR PRO PORTAL WORKS", "every Monday", "Pro+", "Partner Program", bonusLine, "15%–30%", "10%–45%", "https://handledsvc.com/docs/handled-pro-network-welcome.pdf"])
+    assert.ok(en.text.includes(k), "EN has: " + k);
+  const esMail = proWelcomeEmail(c, { site: "https://handledsvc.com", policy: PRO_POLICY_DEFAULTS, lang: "es" });
+  assert.match(esMail.subject, /^Bienvenido a la Red Handled, Dana/);
+  assert.ok(esMail.text.includes("CÓMO FUNCIONA SU PORTAL") && esMail.text.includes("lun, mar, mié, jue, vie"));
+});
+
+test("partner welcome: payouts first, both ways to earn, lead pay for Field Sales; payout reminders on set days (2026-11-10)", async () => {
+  const { partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS } = await import("./partner-welcome.ts");
+  const base = { site: "https://handledsvc.com/", portalUrl: "https://handledsvc.com/auth/x" };
+  const m = partnerWelcomeEmail({ name: "Jane Smith", code: "JANE7K2Q", kind: "realtor" }, base);
+  assert.match(m.subject, /set up your payouts first/);
+  assert.ok(m.text.indexOf("STEP 1: SET UP YOUR PAYOUTS") < m.text.indexOf("YOUR CODE AND LINKS"), "payout setup comes first");
+  for (const k of ["Hi Jane,", "JANE7K2Q", "https://handledsvc.com/r/JANE7K2Q", "https://handledsvc.com/auth/x", "15% of the job price", "30%", "10% of our profit", "45%", "every Monday", "listing"])
+    assert.ok(m.text.includes(k), "has: " + k);
+  assert.ok(!m.text.includes("lead pay"), "lead pay is only for Field Sales");
+  const rep = partnerWelcomeEmail({ name: "Sam", code: "SAM1", kind: "sales_rep" }, base);
+  assert.ok(rep.text.includes("Field Sales lead pay: $10 for every lead"));
+  const pro = partnerWelcomeEmail({ name: "Pat", code: "PAT1", kind: "pro" }, { ...base, isPro: true });
+  assert.ok(pro.text.includes("You're already set up") && !pro.text.includes("Tap \"Set up payouts\""));
+  const signed = new Date("2026-11-01T12:00:00Z");
+  assert.equal(payoutReminderDay(signed, new Date("2026-11-02T13:00:00Z")), 1);
+  assert.equal(payoutReminderDay(signed, new Date("2026-11-03T13:00:00Z")), null);
+  assert.equal(payoutReminderDay(signed, new Date("2026-11-15T13:00:00Z")), PAYOUT_REMINDER_DAYS[PAYOUT_REMINDER_DAYS.length - 1]);
+  const r = partnerPayoutReminder({ name: "Jane" }, { portalUrl: "u", day: 3, waiting: 42.5 });
+  assert.match(r.subject, /\$42\.50 is waiting/);
+});
+
+test("partner success: 3 roadmaps with real services, the right one per kind, progress from real stats (2026-11-10)", async () => {
+  const { PARTNER_ROADMAPS, SERVICE_PLAYS, SEASONAL_CALENDAR, roadmapFor, roadmapProgress } = await import("./partner-success.ts");
+  const { PARTNER_KINDS } = await import("./partners.ts");
+  assert.equal(PARTNER_ROADMAPS.length, 3);
+  const slugs = [...PARTNER_ROADMAPS.flatMap((r) => r.stages.flatMap((s) => s.sell)), ...SERVICE_PLAYS.flatMap((p) => p.services), ...SEASONAL_CALENDAR.flatMap((c) => c.services)];
+  for (const s of slugs) assert.ok(getService(s), "real service: " + s);
+  for (const k of Object.keys(PARTNER_KINDS)) assert.ok(PARTNER_ROADMAPS.some((r) => r.kinds.includes(k as never)), "a roadmap for " + k);
+  assert.equal(roadmapFor("sales_rep").id, "field_sales");
+  assert.equal(roadmapFor("realtor").id, "property");
+  assert.equal(roadmapFor("nobody").id, "neighborhood");
+  const zero = { payoutsReady: false, customers: 0, jobs: 0, categories: 0, recurring: 0, accounts: 0, leads: 0, directJobs: 0, earned: 0, referralRate: 0.15, salesRate: 0.1 };
+  const p0 = roadmapProgress(roadmapFor("customer"), zero);
+  assert.equal(p0.current, 0);
+  assert.equal(p0.nextGoal?.metric, "payoutsReady", "payouts first");
+  const p1 = roadmapProgress(roadmapFor("customer"), { ...zero, payoutsReady: true, customers: 6, recurring: 1 });
+  assert.equal(p1.stages[1].done, true);
+  assert.equal(p1.current, 2, "on to cross-selling");
+  const all = roadmapProgress(roadmapFor("customer"), { ...zero, payoutsReady: true, customers: 30, recurring: 6, categories: 4, jobs: 40, referralRate: 0.2 });
+  assert.equal(all.complete, true);
+});
+
+test("pro showcase: opt-in only, newest first, public name, city not address, up to 5 cleared services (2026-11-10)", async () => {
+  const { showcaseChain, publicName, SHOWCASE } = await import("./pro-showcase.ts");
+  const pro = (o: Record<string, unknown>) => ({
+    id: "x", profile_id: null, business_name: "Sparkle Clean Co.", contact_name: "Dana Reyes", email: "d@x", phone: "1", trades: ["cleaning", "handyman"], service_zips: [],
+    status: "approved", rating: 4.9, jobs_completed: 12, acceptance_rate: 1, on_time_rate: 1, insured_until: "2099-01-01", license_number: null, background_checked: true,
+    daily_capacity: 3, notes: null, base_city: "Detroit", base_state: "mi", base_address: "100 Main St", showcase_opt_in: true, onboarded_at: "2026-11-01T00:00:00Z", ...o,
+  } as unknown as Contractor);
+  const list = showcaseChain([
+    pro({ id: "old", onboarded_at: "2026-10-01T00:00:00Z" }),
+    pro({ id: "new", onboarded_at: "2026-11-09T00:00:00Z", specialties: ["handyman"] }),
+    pro({ id: "noconsent", showcase_opt_in: false }),
+    pro({ id: "pending", status: "vetting" }),
+    pro({ id: "wa", base_state: "WA", base_city: "Seattle" }),
+  ]);
+  assert.deepEqual(list.map((c) => c.id), ["new", "wa", "old"], "only approved opt-ins, newest first");
+  const c = list[0];
+  assert.equal(c.area, "Detroit, MI");
+  assert.ok(!JSON.stringify(list).includes("100 Main St"), "never the address");
+  assert.ok(c.services.length <= SHOWCASE.maxServices && c.services.length > 0);
+  assert.equal(c.services[0].slug, "handyman", "specialty first");
+  assert.equal(c.rating, 4.9);
+  assert.deepEqual(showcaseChain([pro({ id: "a" }), pro({ id: "b", base_state: "WA" })], { state: "wa" }).map((x) => x.id), ["b"]);
+  assert.equal(publicName({ business_name: "Dana Reyes", contact_name: "Dana Reyes" }), "Dana R.");
+  assert.equal(publicName({ business_name: "", contact_name: "Sam Lee Park" }), "Sam P.");
+  assert.equal(publicName({ business_name: "Mitten Lawn & Snow", contact_name: "Sam Lee" }), "Mitten Lawn & Snow");
+});
+
+import { LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap } from "./biz-lead-engine.ts";
+
+test("business leads: the list refreshes (rest → re-engage once → retire → back after a year)", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  const ago = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
+  const ahead = (d: number) => new Date(now.getTime() + d * 86400000).toISOString();
+  assert.equal(refreshStep({ status: "emailing", last_contact_at: ago(5) }, now), null);
+  assert.equal(refreshStep({ status: "emailing", last_contact_at: ago(LEAD_REFRESH.sequenceDays) }, now), "rest");
+  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(20) }, now), "retire");
+  assert.equal(refreshStep({ status: "clicked", last_contact_at: ago(20) }, now), "warm_call");
+  assert.equal(refreshStep({ status: "resting", round: 1, rest_until: ahead(3) }, now), null);
+  assert.equal(refreshStep({ status: "resting", round: 1, rest_until: ago(1) }, now), "wake");
+  assert.equal(refreshStep({ status: "resting", round: 2, rest_until: ago(1) }, now), "retire");
+  assert.equal(refreshStep({ status: "call", call_attempts: 3, last_called_at: ago(15) }, now), "rest");
+  assert.equal(refreshStep({ status: "call", call_attempts: 2, last_called_at: ago(15) }, now), null);
+  assert.equal(refreshStep({ status: "retired", retired_at: ago(366) }, now), "revive");
+  assert.equal(refreshStep({ status: "retired", retired_at: ago(30) }, now), null);
+  assert.equal(refreshStep({ status: "converted", last_contact_at: ago(400) }, now), null);
+  assert.equal(refreshStep({ status: "emailing", segment: "partner", last_contact_at: ago(400) }, now), null);
+  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(20) }, now, { maxRounds: 3 }), "rest");
+});
+
+test("business leads: duplicates share a key across sources", () => {
+  assert.equal(bizDedupeKey({ website: "https://www.AcmePM.com/contact" }), "d:acmepm.com");
+  assert.equal(bizDedupeKey({ email: "ops@acmepm.com" }), "d:acmepm.com");
+  assert.equal(bizDedupeKey({ website: "https://facebook.com/acme", email: "acme@gmail.com", phone: "(313) 555-0142" }), "p:3135550142");
+  assert.equal(bizDedupeKey({ email: "Acme@Gmail.com" }), "e:acme@gmail.com");
+  assert.equal(bizDedupeKey({}), null);
+});
+
+test("business leads: new outreach domain warms up; list health; re-engagement email", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  assert.equal(warmupCap(null, 50, now), 10);
+  assert.equal(warmupCap(new Date(now.getTime() - 10 * 86400000).toISOString(), 50, now), 20);
+  assert.equal(warmupCap(new Date(now.getTime() - 40 * 86400000).toISOString(), 50, now), 50);
+  assert.equal(warmupCap(new Date(now.getTime() - 40 * 86400000).toISOString(), 15, now), 15);
+  const h = leadFreshness([{ status: "new", created_at: now.toISOString() }, { status: "emailing" }, { status: "resting", rest_until: "2027-01-01" }, { status: "retired" }, { status: "converted" }, { status: "new", segment: "partner" }], now);
+  assert.deepEqual([h.total, h.fresh, h.inSequence, h.resting, h.retired, h.closed, h.added30, h.nextWake], [5, 1, 1, 1, 1, 1, 1, "2027-01-01"]);
+  const ctx = { step: 0, businessName: "Acme PM", segment: "property_manager" as const, pilotPct: 0, pilotJobs: 0, signupUrl: "https://x/b/1", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI", now };
+  const e = bizReengageEmail(ctx);
+  assert.match(e.subject, /Fall work at Acme PM/);
+  assert.match(e.text, /Not interested\? One click/);
+  assert.match(e.text, /1 Main St/);
+  assert.equal(bizReengageEmail({ ...ctx, step: 5 }).subject, "Closing the loop");
 });

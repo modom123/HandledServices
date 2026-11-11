@@ -25,9 +25,12 @@
  *             learnMarketRates / marketBenchmark — what customers actually PAID us (paid jobs and invoices, last 12 months):
  *                                median job price per service and median price per measured unit ($/sq ft, $/cu yd…);
  *                                the deal-maker anchors on it when there's no award history, and blends it in when there is
+ * UPDATED : 2026-11-06_0400 UTC — submitGate: RFIs / sources-sought need no price lines; a written proposal (proposal.ts) must
+ *           be fully written, free of [[NEEDS]] markers and approved section by section before the bid can be submitted.
  */
 import { estimate, splitJob } from "./pricing.ts";
 import { getService } from "./services.ts";
+import { pricingRequired, proposalGate, type ProposalSectionLite } from "./proposal.ts";
 
 export type BidSource = "sam" | "city" | "county" | "state" | "school" | "private" | "other";
 export const BID_SOURCES: Record<BidSource, string> = {
@@ -432,6 +435,10 @@ export interface GateInput {
   dueAt: string | null;
   now?: Date;
   marginOverride?: boolean;
+  /** RFIs and sources-sought responses carry no price form, so pricing isn't required. */
+  solicitationType?: SolicitationType | null;
+  /** The written proposal, when the bid has one (Hub → Bids → Proposal). */
+  proposal?: ProposalSectionLite[];
 }
 
 /** Everything that must be true to mark a bid submitted. `ready` = all but the confirmation upload. */
@@ -444,9 +451,14 @@ export function submitGate(g: GateInput) {
   if (!g.requirements.length) missing.push("No compliance matrix — upload the solicitation and have the AI read it, or add items");
   else if (open) missing.push(`${open} required compliance item${open > 1 ? "s" : ""} still open`);
   const p = priceBid(g.lines, g.assumptions);
-  if (!g.lines.length) missing.push("No price lines");
-  else if (p.lines.some((l) => !(Number(l.pro_unit_cost) > 0))) missing.push("Every price line needs a pro price");
-  if (p.lines.some((l) => l.unitPrice > 0 && l.marginPct < MIN_MARGIN_PCT) && !g.marginOverride) missing.push(`A line is under the ${MIN_MARGIN_PCT}% margin floor (owner override needed)`);
+  if (pricingRequired(g.solicitationType) || g.lines.length) {
+    if (!g.lines.length) missing.push("No price lines");
+    else if (p.lines.some((l) => !(Number(l.pro_unit_cost) > 0))) missing.push("Every price line needs a cost (a pro's price, or our own cost when we do the work)");
+    if (p.lines.some((l) => l.unitPrice > 0 && l.marginPct < MIN_MARGIN_PCT) && !g.marginOverride) missing.push(`A line is under the ${MIN_MARGIN_PCT}% margin floor (owner override needed)`);
+  }
+  const pg = proposalGate(g.proposal ?? []);
+  missing.push(...pg.missing);
+  warnings.push(...pg.warnings);
   const unchecked = REVIEW_CHECKS.filter((c) => !g.review[c.id]).length;
   if (unchecked || !g.reviewer) missing.push(`Review not signed off${unchecked ? ` (${unchecked} check${unchecked > 1 ? "s" : ""} left)` : ""}`);
   else if (g.owner && g.reviewer.toLowerCase() === g.owner.toLowerCase()) warnings.push("Reviewed by the person who wrote it — a second person catches more");

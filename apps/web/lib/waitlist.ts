@@ -8,6 +8,7 @@
  *                              email/text them a booking link in their language (once)
  *           Sign-ups also feed Hub → Supply gaps, so recruiting goes where people are waiting.
  * UPDATED : 2026-10-04_1934 UTC — waits until the service is open in that city (launch set), not just covered by a pro.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import "server-only";
 import { openFor } from "./launch";
@@ -51,14 +52,14 @@ export async function notifyWaitlist(limit = 300): Promise<number> {
       body: "You asked us to tell you — book now.",
       data: { type: "book", slug: w.service_slug },
       email: { to: w.email, subject: `${svc.name} is now available in ${w.zip}`,
-        text: `${first ? `Hi ${first},\n\n` : ""}You asked us to let you know when ${BRAND.name} could do ${svc.name.toLowerCase()} in ${w.zip}. We can now — vetted, insured pros and an upfront price.\n\nBook here: ${link}\n\n${BRAND.promise}` },
+        text: `${first ? `Hi ${first},\n\n` : ""}You asked us to let you know when ${BRAND.name} could do ${svc.name.toLowerCase()} in ${w.zip}. We can now — background-checked, vetted pros and an upfront price.\n\nBook here: ${link}\n\n${BRAND.promise}` },
       sms: w.phone ? { to: w.phone, body: `${BRAND.name}: ${svc.name} is now available in ${w.zip}, as you asked. Book: ${link}` } : undefined,
       locale: w.locale,
       es: {
         title: `${es} ya está disponible en ${w.zip}`,
         body: "Nos pidió que le avisáramos — reserve ahora.",
         subject: `${es} ya está disponible en ${w.zip}`,
-        text: `${first ? `Hola ${first}:\n\n` : ""}Nos pidió que le avisáramos cuando ${BRAND.name} pudiera ofrecer ${es.toLowerCase()} en ${w.zip}. Ya podemos: profesionales verificados y asegurados, con precio por adelantado.\n\nReserve aquí: ${link}\n\nPague por adelantado para asegurar a su profesional. ¿No quedó bien? Lo repetimos gratis o le devolvemos su dinero dentro de 30 días.`,
+        text: `${first ? `Hola ${first}:\n\n` : ""}Nos pidió que le avisáramos cuando ${BRAND.name} pudiera ofrecer ${es.toLowerCase()} en ${w.zip}. Ya podemos: profesionales verificados y con antecedentes revisados, con precio por adelantado.\n\nReserve aquí: ${link}\n\nPague por adelantado para asegurar a su profesional. ¿No quedó bien? Lo repetimos gratis o le devolvemos su dinero dentro de 30 días.`,
         sms: `${BRAND.name}: ${es} ya está disponible en ${w.zip}, como nos pidió. Reserve: ${link}`,
       },
     });

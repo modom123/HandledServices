@@ -12,13 +12,16 @@
  * PURPOSE : One pro as an asset: value generated, quality, onboarding & compliance
  *           documents, work history, payout ledger and 1099 totals.
  * UPDATED : 2026-10-12_0121 UTC — pro ID (P-…) in the header.
+ * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
+ *           (components/PersonFiles.tsx, lib/person-files.ts).
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
 import { StandingActions } from "@/components/Standing";
 import { notFound } from "next/navigation";
 import { COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardingChecklist, proTier, specialtiesFor, type Contractor, type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
-import { getViewer } from "@/lib/auth";
+import { getViewer, isAdmin } from "@/lib/auth";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
 import { DocDecision, ProStatusControls } from "@/components/HubActions";
 import { HubCrewDecision } from "@/components/Crew";
@@ -29,11 +32,13 @@ import { listCrew } from "@/lib/crew";
 import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
+import { PersonFiles } from "@/components/PersonFiles";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export default async function ProProfile({ params }: { params: Promise<{ id: string }> }) {
   const v = await getViewer();
+  const admin = isAdmin(v); // need-to-know: pay, our take and payouts are admin-only
   if (!v) return null;
   const { id } = await params;
   const year = new Date().getFullYear();
@@ -41,8 +46,8 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
     v.db.from("contractors").select("*").eq("id", id).maybeSingle(),
     v.db.from("contractor_scorecard").select("*").eq("contractor_id", id).maybeSingle(),
     v.db.from("contractor_documents").select("*").eq("contractor_id", id).order("created_at", { ascending: false }),
-    v.db.from("jobs").select("id, ref, service_slug, status, scheduled_date, price_final, contractor_payout, amount_refunded, remedy").eq("contractor_id", id).order("scheduled_date", { ascending: false }).limit(100),
-    v.db.from("payouts").select("id, amount, status, created_at, paid_at, reason, jobs(ref)").eq("contractor_id", id).order("created_at", { ascending: false }).limit(200),
+    adminClient().from("jobs").select("id, ref, service_slug, status, scheduled_date, price_final, contractor_payout, amount_refunded, remedy").eq("contractor_id", id).order("scheduled_date", { ascending: false }).limit(100),
+    adminClient().from("payouts").select("id, amount, status, created_at, paid_at, reason, jobs(ref)").eq("contractor_id", id).order("created_at", { ascending: false }).limit(200),
     v.db.from("reviews").select("rating, comment, created_at").eq("contractor_id", id).order("created_at", { ascending: false }).limit(10),
   ]);
   const { data: ops } = await v.db.from("ops_ratings").select("rating, quality, punctuality, professionalism, source").eq("contractor_id", id).order("created_at", { ascending: false }).limit(50);
@@ -80,11 +85,11 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       <CrewPanel pro={pro} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Our take from their work" value={money(Number(sc.take_generated ?? 0))} hint={`${money(Number(sc.take_90d ?? 0))} last 90 days · ~${money(Number(sc.take_90d ?? 0) * 4)}/yr pace`} />
+        {admin && <Stat label="Our take from their work" value={money(Number(sc.take_generated ?? 0))} hint={`${money(Number(sc.take_90d ?? 0))} last 90 days · ~${money(Number(sc.take_90d ?? 0) * 4)}/yr pace`} />}
         <Stat label="Bookings delivered" value={money(Number(sc.bookings_generated ?? 0))} hint={`${sc.jobs_completed ?? 0} jobs · ${sc.jobs_90d ?? 0} in 90 days`} />
         <Stat label="Rating (60% customer · 40% us)" value={`${pro.rating} ★`} hint={`Customers ${custAvg}★ · us ${opsAvg}★ (quality ${aspect("quality")}, punctual ${aspect("punctuality")}, pro ${aspect("professionalism")}) · QA pass ${qa ?? "—"}% · ${sc.redos ?? 0} redos · ${money(Number(sc.refunds_on_their_jobs ?? 0))} refunded`} />
         <Stat label="Reliability" value={`${Math.round(pro.on_time_rate * 100)}% on time`} hint={`${Math.round(pro.acceptance_rate * 100)}% acceptance · last job ${sc.last_job_at ? fmtDate(sc.last_job_at) : "never"}`} />
-        <Stat label={`Paid ${year} (1099)`} value={money(ytdPaid)} hint={`${money(owed)} owed · 1099-NEC at ${money(necThreshold(year))}+`} />
+        {admin && <Stat label={`Paid ${year} (1099)`} value={money(ytdPaid)} hint={`${money(owed)} owed · 1099-NEC at ${money(necThreshold(year))}+`} />}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
@@ -123,15 +128,16 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="card overflow-x-auto p-0"><div className="p-4 font-semibold">Work history</div><table className="w-full text-sm"><tbody>
           {((jobs ?? []) as Rec[]).map((j) => (
-            <tr key={j.id} className="border-t border-line"><td className="p-3"><Link href={`/hub/jobs/${j.id}`} className="font-medium underline">{j.ref}</Link>{j.remedy ? <span className="ml-1 text-xs text-ink-soft">({j.remedy})</span> : null}</td><td className="p-3">{getService(j.service_slug)?.name}</td><td className="p-3 text-xs">{fmtDate(j.scheduled_date)}</td><td className="p-3"><StatusBadge status={j.status} /></td><td className="p-3 text-right">{money(Number(j.price_final ?? 0))} → {money(Number(j.contractor_payout ?? 0))}</td></tr>
+            <tr key={j.id} className="border-t border-line"><td className="p-3"><Link href={`/hub/jobs/${j.id}`} className="font-medium underline">{j.ref}</Link>{j.remedy ? <span className="ml-1 text-xs text-ink-soft">({j.remedy})</span> : null}</td><td className="p-3">{getService(j.service_slug)?.name}</td><td className="p-3 text-xs">{fmtDate(j.scheduled_date)}</td><td className="p-3"><StatusBadge status={j.status} /></td><td className="p-3 text-right">{admin ? <>{money(Number(j.price_final ?? 0))} → {money(Number(j.contractor_payout ?? 0))}</> : ""}</td></tr>
           ))}
         </tbody></table></div>
-        <div className="card overflow-x-auto p-0"><div className="p-4 font-semibold">Payout ledger</div><table className="w-full text-sm"><tbody>
+        {admin && <div className="card overflow-x-auto p-0"><div className="p-4 font-semibold">Payout ledger</div><table className="w-full text-sm"><tbody>
           {((payouts ?? []) as Rec[]).map((p) => (
             <tr key={p.id} className="border-t border-line"><td className="p-3 text-xs">{(p.paid_at ?? p.created_at).slice(0, 10)}</td><td className="p-3">{p.jobs?.ref}</td><td className="p-3">{p.status}{p.reason ? ` · ${p.reason}` : ""}</td><td className={`p-3 text-right font-semibold ${Number(p.amount) < 0 ? "text-rose-700" : ""}`}>{money(Number(p.amount))}</td></tr>
           ))}
-        </tbody></table></div>
+        </tbody></table></div>}
       </div>
+      <PersonFiles type="pro" ownerKey={id} title="Pro file: documents & photos" />
     </div>
   );
 }

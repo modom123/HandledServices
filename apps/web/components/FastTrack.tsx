@@ -4,12 +4,15 @@
  * CREATED : 2026-10-03_1311 UTC
  * PURPOSE : Proven-skill fast track: the pro's application form (portfolio upload, years, summary,
  *           references; English and Spanish) and the Hub decision buttons.
+ * UPDATED : 2026-11-04_2345 UTC — photos are resized in the browser and sent one at a time (lib/upload-photos.ts): phone
+ *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FAST_TRACK, TRADES, t as tr } from "@handled/core";
+import { uploadPhotos } from "@/lib/upload-photos";
 
 export function FastTrackApply({ es, trades }: { es: boolean; trades: string[] }) {
   const router = useRouter();
@@ -25,14 +28,11 @@ export function FastTrackApply({ es, trades }: { es: boolean; trades: string[] }
     if (!files?.length) return;
     setBusy(true); setMsg("");
     const list = Array.from(files).slice(0, FAST_TRACK.maxPhotos - photos.length);
-    const fd = new FormData();
-    list.forEach((f) => fd.append("photos", f));
-    const res = await fetch("/api/uploads", { method: "POST", body: fd });
-    const j = await res.json().catch(() => ({}));
+    const r = await uploadPhotos(list);
     setBusy(false);
-    if (!res.ok) return setMsg(j.error ?? (es ? "No se pudieron subir las fotos" : "Upload failed"));
-    setPhotos([...photos, ...(j.paths ?? [])]);
-    setPreviews([...previews, ...list.map((f) => URL.createObjectURL(f))]);
+    setPhotos([...photos, ...r.paths]);
+    setPreviews([...previews, ...r.previews]);
+    if (r.error) setMsg(es ? `No se pudieron subir ${list.length - r.paths.length} foto(s): ${r.error}` : `${list.length - r.paths.length} photo(s) didn't upload: ${r.error}`);
   }
   async function send() {
     setBusy(true); setMsg("");

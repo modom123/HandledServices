@@ -32,27 +32,30 @@
  *           phones (swipe row) it opens inside the card (native <details>, no script).
  * UPDATED : 2026-10-27_1500 UTC — cleanup: "Why it works" for customers and pros (replaces the lead-site comparison table),
  *           a "Who we are" strip (slogan + mission → /about); the "More from Handled" tiles are gone (the side menu has them);
+ *           order: hero → doors → trust → why it works → services → who we are → partner → we build.
+ * UPDATED : 2026-10-28_1730 UTC — trimmed repeats: no separate "How it works" (the For customers card says it); Business &
+ *           Technology left out of the category grid (the "We build" band and /technology cover it).
+ * UPDATED : 2026-11-07_0021 UTC — owner: after Enter, the home page is services and partners only. The "We build" band (websites,
+ *           operating systems, automation) is off the home page; it and every Business & Technology service are on
+ *           /technology, reached from the menu (For Business → Websites & automation, Services → Business & Technology).
+ * UPDATED : 2026-11-07_1614 UTC — "Post a project" button in the hero (/post).
  *           order: hero → doors → trust → why it works → services → how it works → who we are → partner → we build.
+ * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { popularServices } from "@/lib/popular";
-import { WeBuild } from "@/components/home/WeBuild";
 import { PartnerBand } from "@/components/home/PartnerBand";
 import { HomeDoors } from "@/components/home/HomeDoors";
 import { WhyItWorks } from "@/components/home/WhyItWorks";
 import { WhoWeAre } from "@/components/home/WhoWeAre";
 
-const STEPS = [
-  { n: "1", title: "Get a real price in 60 seconds", body: "Answer a few questions or snap photos. Our AI checks the details and gives you an upfront price — not a callback." },
-  { n: "2", title: "We send one vetted pro", body: "Insured, background-checked and rated. We pick the best available pro for your job, date and neighborhood." },
-  { n: "3", title: "Track it like a delivery", body: "Live status, messages and before/after photos in the app. If it isn’t right, we come back free or refund you." },
-];
 
 
 
-const TRUST = ["Insured & background-checked pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
+const TRUST = ["Background-checked & vetted pros", "Upfront, all-in price", "Photo-checked work", `${BRAND.guaranteeDays}-day make-it-right guarantee`];
 
 
 export async function HomeClassic() {
@@ -61,7 +64,7 @@ export async function HomeClassic() {
   const es = l === "es";
   const top = await popularServices(4);
   const topSlugs = new Set(top.map((s) => s.slug));
-  const cats = CATEGORIES.map((c) => {
+  const cats = CATEGORIES.filter((c) => c.id !== "business").map((c) => {
     const all = SERVICES.filter((s) => s.category === c.id);
     return { ...c, all, list: all.filter((s) => !topSlugs.has(s.slug)) }; // every service not already in Most popular
   }).filter((c) => c.list.length);
@@ -74,9 +77,10 @@ export async function HomeClassic() {
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
             {es ? "Servicios para hogar y negocio." : "Home & business services."} <span className="text-brand">{t("Handled.")}</span>
           </h1>
-          <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales asegurados y verificados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Insured, background-checked local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
+          <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales verificados y con antecedentes revisados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Background-checked, vetted local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
+            <Link href="/post" className="btn-ghost px-6 py-3 text-base">📝 {es ? "Publique su proyecto" : "Post a project"}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
           </div>
         </div>
@@ -138,27 +142,11 @@ export async function HomeClassic() {
                 )}
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
+                <span className="text-ink-soft">{c.id === "events" ? t("By budget") : c.id === "business" ? (l === "es" ? "Consulta gratis" : "Free consultation") : l === "es" ? "Precio al instante" : "Instant upfront price"}</span>
                 <Link href={`/services?cat=${c.id}`} className="font-semibold text-brand">{t("See all")} {c.all.length} →</Link>
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* how it works */}
-      <section className="border-y border-line bg-paper-deep py-14">
-        <div className="wrap">
-          <h2 className="text-3xl font-bold tracking-tight">{t("How it works")}</h2>
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="card">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{s.n}</div>
-                <div className="mt-4 font-semibold">{t(s.title)}</div>
-                <p className="mt-2 text-sm text-ink-soft">{t(s.body)}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -167,9 +155,6 @@ export async function HomeClassic() {
 
       {/* become a partner — Referral Partner Program */}
       <PartnerBand es={es} />
-
-      {/* we build: intelligent websites, operating systems, automated businesses */}
-      <WeBuild es={l === "es"} compact />
     </>
   );
 }

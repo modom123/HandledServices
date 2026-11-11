@@ -12,6 +12,7 @@
  *             SOCIAL_CHANNELS / socialSlots / fitCaption — the weekly posting plan and each network's limits
  * UPDATED : 2026-10-23_1900 UTC — free-text phrases for landscaping, roofing, masonry, concrete, demolition, furniture assembly and power washing.
  * UPDATED : 2026-10-23_2100 UTC — free-text phrases for services 76–100.
+ * UPDATED : 2026-11-07_1614 UTC — Nextdoor channel (posts and neighborhood groups) and Flyers & print (QR codes, door hangers, yard signs).
  */
 import { BRAND } from "./brand.ts";
 import { SERVICE_BY_SLUG } from "./services.ts";
@@ -32,6 +33,8 @@ export const CHANNELS: Channel[] = [
   { id: "bing", label: "Bing", emoji: "🔍", kind: "search" },
   { id: "yelp", label: "Yelp", emoji: "⭐", kind: "reviews" },
   { id: "linkedin", label: "LinkedIn", emoji: "💼", kind: "social" },
+  { id: "nextdoor", label: "Nextdoor", emoji: "🏡", kind: "social" },
+  { id: "print", label: "Flyers & print (QR)", emoji: "📄", kind: "owned" },
   { id: "email", label: "Email", emoji: "✉️", kind: "outbound" },
   { id: "phone", label: "Phone", emoji: "📞", kind: "outbound" },
   { id: "sms", label: "Text message", emoji: "💬", kind: "outbound" },
@@ -56,6 +59,8 @@ const ALIASES: [RegExp, string][] = [
   [/^(google|google\.com|www\.google\.com|maps\.google\.com|gbp|google_business|gmb)$/, "google"],
   [/^(bing|bing\.com|www\.bing\.com)$/, "bing"],
   [/^(yelp|yelp\.com|www\.yelp\.com|m\.yelp\.com)$/, "yelp"],
+  [/^(nextdoor|nextdoor\.com|nd)$/, "nextdoor"],
+  [/^(flyer|flyers|print|qr|door_hanger|yard_sign)$/, "print"],
   [/^(linkedin|linkedin\.com|www\.linkedin\.com|lnkd\.in)$/, "linkedin"],
   [/^(email|newsletter|instantly|mail)$/, "email"],
   [/^(sms|text)$/, "sms"],

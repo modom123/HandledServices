@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-11_0451 UTC — engine settings, runs and send-now outreach are admins only; dispatchers can log outcomes and add job posts without sending.
  * UPDATED : 2026-10-19_2230 UTC — { action: "sync_instantly" } pulls every lead in the Instantly business campaign into the CRM.
  * UPDATED : 2026-10-20_0015 UTC — Call desk: { action: "call", id, outcome, note?, callback_at? } (any staff); { action: "call_goal", call_goal } (admins).
+ * UPDATED : 2026-11-11_0100 UTC — settings take sender (instantly | own outreach domain), rest_days, max_rounds; actions refresh, verify_outreach.
  */
 import { z } from "zod";
 import { BIZ_SEGMENTS, BUSINESS_TERMS, CALL_OUTCOMES } from "@handled/core";
@@ -23,7 +24,10 @@ import type { BizSegment } from "@handled/core";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("settings"), enabled: z.boolean(), discover_per_day: z.number().int().min(0).max(25), emails_per_day: z.number().int().min(0).max(100),
-    segments: z.array(z.string()).refine((a) => a.every((x) => x in BIZ_SEGMENTS)), pilot_pct: z.number().int().min(0).max(BUSINESS_TERMS.maxPilotPct), pilot_jobs: z.number().int().min(0).max(BUSINESS_TERMS.maxPilotJobs), job_posts_per_day: z.number().int().min(0).max(40).optional() }),
+    segments: z.array(z.string()).refine((a) => a.every((x) => x in BIZ_SEGMENTS)), pilot_pct: z.number().int().min(0).max(BUSINESS_TERMS.maxPilotPct), pilot_jobs: z.number().int().min(0).max(BUSINESS_TERMS.maxPilotJobs), job_posts_per_day: z.number().int().min(0).max(40).optional(),
+    sender: z.enum(["instantly", "own"]).optional(), rest_days: z.number().int().min(30).max(365).optional(), max_rounds: z.number().int().min(1).max(4).optional() }),
+  z.object({ action: z.literal("refresh") }),
+  z.object({ action: z.literal("verify_outreach") }),
   z.object({ action: z.literal("status"), id: z.string().uuid(), status: z.enum(["call", "not_interested", "do_not_contact", "replied", "queued"]), note: z.string().max(1000).nullable().optional() }),
   z.object({ action: z.literal("run") }),
   z.object({ action: z.literal("job_posts") }),
@@ -49,6 +53,15 @@ export async function POST(req: Request) {
     const { action: _a, ...row } = d;
     const { error } = await adminClient().from("biz_lead_settings").upsert({ id: 1, ...row, updated_at: new Date().toISOString(), updated_by: v!.email });
     return error ? deny(500, error.message) : Response.json({ ok: true });
+  }
+  if (d.action === "refresh") {
+    const { getBizLeadSettings, refreshBizLeads } = await import("@/lib/biz-leads");
+    return Response.json(await refreshBizLeads(await getBizLeadSettings()));
+  }
+  if (d.action === "verify_outreach") {
+    const { verifyOutreach, outreachDns } = await import("@/lib/outreach-mail");
+    const [login, dns] = await Promise.all([verifyOutreach(), outreachDns()]);
+    return Response.json({ login, dns });
   }
   if (d.action === "add_job_post") {
     const { action: _a, ...l } = d;

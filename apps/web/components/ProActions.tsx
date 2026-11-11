@@ -5,12 +5,16 @@
  * PURPOSE : Pro actions: start job, complete with photos. (Offers are accepted on the
  *           offer page, which requires agreeing to the work order — see WorkOrderView.)
  * UPDATED : 2026-10-02_2225 UTC — Spanish (pro portal): every action takes a locale.
+ * UPDATED : 2026-11-04_2345 UTC — photos are resized in the browser and sent one at a time (lib/upload-photos.ts): phone
+ *           photos sent together went over Vercel's 4.5 MB request limit and were never saved.
+ * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getService, questionVisible, scopeChange, t as tr, type Locale } from "@handled/core";
+import { getService, questionVisible, scopeChange, t as tr, type Locale, numberMin } from "@handled/core";
+import { uploadPhotos } from "@/lib/upload-photos";
 
 /** Pro taps "On my way" (today's job): shares location once and texts the customer a live link. */
 export function OnMyWay({ jobId, sent, locale = "en" }: { jobId: string; sent: boolean; locale?: Locale }) {
@@ -54,13 +58,11 @@ export function CompleteJob({ jobId, locale = "en" }: { jobId: string; locale?: 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
     setBusy(true);
-    const fd = new FormData();
-    Array.from(files).slice(0, 8).forEach((f) => fd.append("photos", f));
-    const res = await fetch("/api/uploads", { method: "POST", body: fd });
-    const json = await res.json();
+    const list = Array.from(files).slice(0, 8);
+    const r = await uploadPhotos(list);
     setBusy(false);
-    if (!res.ok) return setMsg(t(json.error ?? "Upload failed"));
-    setPhotos((p) => [...p, ...json.paths]);
+    setPhotos((p) => [...p, ...r.paths]);
+    if (r.error) setMsg(`${list.length - r.paths.length} ${t("photo(s) didn't upload")}: ${t(r.error)}`);
   }
   async function complete() {
     setBusy(true);
@@ -181,9 +183,9 @@ export function ScopeChange({ jobId, slug, booked, frequency, locale = "en" }: {
       {svc.questions.filter((q) => questionVisible(q, { ...booked, ...vals }, svc.questions)).map((q) => (
         <label key={q.id} className="block">
           <span className="label">{t(q.label)}</span>
-          {q.type === "number" ? <input className="input" type="number" min={q.min} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />
+          {q.type === "number" ? <input className="input" type="number" min={numberMin(q, vals)} max={q.max} value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: Number(e.target.value) })} />
             : q.type === "select" ? <select className="input" value={String(vals[q.id] ?? q.default)} onChange={(e) => setVals({ ...vals, [q.id]: e.target.value })}>{q.options.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}</select>
-            : <input type="checkbox" checked={Boolean(vals[q.id])} onChange={(e) => setVals({ ...vals, [q.id]: e.target.checked })} />}
+            : <div className="flex gap-2">{([[true, "Yes"], [false, "No"]] as const).map(([val, label]) => <button key={label} type="button" aria-pressed={Boolean(vals[q.id]) === val} onClick={() => setVals({ ...vals, [q.id]: val })} className={`min-w-16 rounded-full border px-4 py-1.5 text-sm ${Boolean(vals[q.id]) === val ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line bg-white"}`}>{t(label)}</button>)}</div>}
         </label>
       ))}
       <textarea className="input min-h-16" placeholder={t("What you found (the customer sees this)")} value={note} onChange={(e) => setNote(e.target.value)} />

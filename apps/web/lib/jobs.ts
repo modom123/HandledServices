@@ -35,6 +35,8 @@
  * UPDATED : 2026-10-05_0418 UTC — Pro Rewards: a completed job credits pending reward points (lib/rewards.ts).
  * UPDATED : 2026-10-06_0726 UTC — security: booking photos must be paths our upload endpoint created (isPhotoPath).
  * UPDATED : 2026-10-07_0110 UTC — Referral Partner Program: bookings credited to the customer's partner; commission accrued on completion.
+ * UPDATED : 2026-10-28_1830 UTC — over $2,500 (SITE_VISIT_OVER): booked as a free site visit / online scope review, no deposit.
+ * UPDATED : 2026-10-28_0122 UTC — partner-v2: the pro's half of the partner's share comes off the job payout line; recurring visits are repeat jobs.
  * UPDATED : 2026-10-07_1640 UTC — onBooked adds a new ZIP to a service area (lib/launch addZipToServiceArea).
  * UPDATED : 2026-10-07_1545 UTC — markPaid: a dispatch error no longer throws back into the Stripe webhook (alert instead).
  * UPDATED : 2026-10-07_0530 UTC — Handled Points: completed jobs earn loyalty points for the account that booked them (lib/loyalty).
@@ -48,14 +50,23 @@
  * UPDATED : 2026-10-20_0100 UTC — every booking is sent to the ad platforms as a conversion (lib/conversions: Meta CAPI, TikTok Events API).
  * UPDATED : 2026-10-20_0200 UTC — marketplace: book at a pro's own price (pro_choice, rechecked here) or a request-a-quote bid (quote_bid); the chosen pro gets the first look.
  * UPDATED : 2026-10-23_1100 UTC — remote consultation emails no longer quote an estimate (Business & Technology is priced on the call).
+ * UPDATED : 2026-11-06_1638 UTC — Field Sales tickets: BookingSchema.ticket; createJob marks the ticket booked and credits the rep (lib/sales-tickets).
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again (consultOnly): every booking is a free
+ *           consultation (no deposit, no AI price check); the email books the call and quotes no price.
+ * UPDATED : 2026-11-10_0310 UTC — name your price below our usual minimum: the job is paid as usual, goes straight to the job
+ *           board for 30 days (jobs.open_offer_until, no targeted offers), and expireOpenOffers() cancels + refunds it if unclaimed.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-10_1915 UTC — checkout never fails on a missing optional column (open_offer_until for name-your-price offers
+ *           below our usual price, priced_by / pro_rate_pct, home_id): the booking is saved without it and staff get a critical
+ *           alert naming the SQL to run.
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyRange, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
-} from "@handled/core";
+  SERVED_AREAS_LABEL, consultOnly } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiQuote, type AiQuote } from "./ai/quote";
 import { geocodeAddress } from "./geo";
@@ -121,6 +132,8 @@ export const BookingSchema = z.object({
   access_info: z.string().max(1000).nullable().optional(),
   /** Save this address (and the entry details) to My homes. Signed-in customers only. */
   save_home: z.boolean().optional(),
+  /** Booked from a Field Sales ticket (/book?ticket=…): the ticket is marked booked and the job credited to the rep. */
+  ticket: z.string().regex(/^[\w-]{16,40}$/).nullable().optional(),
 });
 export type BookingInput = z.infer<typeof BookingSchema>;
 
@@ -149,7 +162,7 @@ export async function getJob(id: string): Promise<Job | null> {
  * Step 1 — create the job at its FINAL price. When the customer left notes or photos the
  * AI review runs now (a few seconds) so the amount they pay never changes afterward.
  */
-export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
+export async function createJob({ accept_terms: _accepted, payment_plan, quote_token, promo_code, customer_offer, pro_choice, quote_bid, business_property_id, preferred_pro_id, requested_crew_member_id, home_id, access_info, save_home, ticket, ...input }: BookingInput, customerId: string | null, ip: string | null = null) {
   const svc = getService(input.service_slug)!;
   // required measurements (yard sq ft, weight, height…) — the pro needs the real size, and it sets the price band
   const { applyMeasurements, missingMeasurements } = await import("@handled/core");
@@ -169,7 +182,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
   if (!launch.open) throw new Error(launch.market
     ? `${svc.name} is coming soon to ${launch.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
-    : "We serve Michigan and Washington right now. Join the waitlist on the booking page and we'll tell you when we reach your area.");
+    : `We serve ${SERVED_AREAS_LABEL.en} right now. Join the waitlist on the booking page and we'll tell you when we reach your area.`);
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   // request-a-quote: the pro's firm quote is the price (no site visit, no AI re-price)
@@ -182,12 +195,15 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const q = readQuoteToken(quote_token);
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
     && JSON.stringify(q.photos) === JSON.stringify(input.photos) && (q.notes ?? null) === (input.notes?.trim() || null) && q.rush === rush;
-  const { ai } = svc.siteVisit || quoted
+  const consult = consultOnly(svc.slug); // Business & Technology: custom work, scoped and priced on a free consultation
+  const { ai } = svc.siteVisit || quoted || consult
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
-  const siteVisit = !quoted && (svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || ai?.action === "site_visit" || Boolean(ai?.needs_site_visit));
+  // remote work (websites, AI…) is never a visit: it is ordered with a deposit on the price from the answers
+  // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
+  const siteVisit = !quoted && (consult || svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || overDepositLimit(est.point) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends
@@ -206,10 +222,13 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   if (proPick && proPick.price !== Math.round(pro_choice!.price)) throw new Error(`Prices just updated: ${proPick.name} is now ${money(proPick.price)} for this job. Check the price and book again.`);
   // Name your price: the customer's offer replaces our suggestion (within bounds); pros see the pay it makes and decide
   let offer: number | null = null;
+  let openOfferUntil: string | null = null;
   if (suggested && !proPick && !quoted && customer_offer && Math.round(customer_offer) !== suggested) {
     const chk = offerCheck(Math.round(customer_offer), suggested);
-    if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.min)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
+    if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.floor)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
     offer = Math.round(customer_offer);
+    // below our usual minimum: straight to the job board at the customer's price for 30 days (refunded if nobody takes it)
+    if (chk.level === "board") openOfferUntil = new Date(Date.now() + OFFER_BOUNDS.boardDays * 86400000).toISOString();
   }
   const listPrice = proPick?.price ?? offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
@@ -278,6 +297,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       balance_due_date: plan?.balanceDue ?? null,
       suggested_price: suggested,
       customer_offer: offer,
+      ...(openOfferUntil ? { open_offer_until: openOfferUntil } : {}),
       // only sent when used, so bookings keep working before the marketplace migration is run
       ...(quoted ? { priced_by: "quote" } : proPick ? { priced_by: "pro_rate", pro_rate_pct: proPick.pct } : {}),
       booking_fee: listPrice ? bookingFeeOf(listPrice) : 0,
@@ -286,6 +306,21 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       terms_accepted_ip: ip,
     };
   let { data, error } = await db().from("jobs").insert(row).select("*").single();
+  // Columns that only some bookings send. If the live database hasn't had a recent migration yet, book the customer
+  // anyway without that column (and tell staff which SQL to run) instead of failing their checkout.
+  const OPTIONAL_COLUMNS: Record<string, string> = {
+    open_offer_until: "supabase/setup/ADD_OPEN_OFFERS_2026-11-10_0310.sql (migration 20261110031000_open_offers): name-your-price offers below our usual price",
+    priced_by: "migration 20261020020000_pro_marketplace: pro prices and quotes",
+    pro_rate_pct: "migration 20261020020000_pro_marketplace: pro prices",
+    home_id: "the saved-homes migration",
+  };
+  for (let tries = 0; error && tries < 4; tries++) {
+    const col = Object.keys(OPTIONAL_COLUMNS).find((c) => c in row && error!.message.includes(c));
+    if (!col) break;
+    await raiseAlert("setup", "critical", `Run ${OPTIONAL_COLUMNS[col]}`, `A booking was saved without jobs.${col} because the column is missing in the database: ${error.message}${col === "open_offer_until" ? "\nThis job went to pros the normal way at the customer's offer instead of the 30-day job board." : ""}`).catch(() => {});
+    delete row[col];
+    ({ data, error } = await db().from("jobs").insert(row).select("*").single());
+  }
   if (error && (later || saving) && /payment_plan|pay_in_full_discount|balance_/.test(error.message)) {
     // the book-now migration hasn't been run yet: book the old way (full price, no saving) rather than fail the customer
     await raiseAlert("setup", "critical", "Run ADD_BOOK_NOW_PAY_AFTER_2026-10-15_0300.sql", `Booking fell back to pay-in-full without the 5% saving: ${error.message}`).catch(() => {});
@@ -312,8 +347,10 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   }
   if (ben?.isGift && ben.promoCode && (await redeemGift(job, ben.promoCode))) job = (await getJob(job.id)) ?? job;
   if (biz && acct?.pilot) await db().from("business_accounts").update({ pilot_jobs_left: Math.max(0, biz.account.pilot_jobs_left - 1) }).eq("id", biz.account.id);
+  // Field Sales ticket: mark it booked and make sure the customer is the rep's (before the partner credit below)
+  if (ticket) await (await import("./sales-tickets")).linkTicketJob(ticket, job).catch((e) => console.error("[sales ticket]", e));
   // Referral Partner Program: credit the job to the customer's partner (existing referral, or a partner link for a new customer)
-  const partnerId = await (await import("./partners")).attributeJob(job).catch((e) => { console.error("[partners]", e); return null; });
+  const partnerId = await (await import("./partners")).attributeJob(job, promo_code).catch((e) => { console.error("[partners]", e); return null; });
   if (partnerId) job = { ...job, partner_id: partnerId };
   return { job, estimate: est, ai, billing: acct ? { onTerms: job.billed_on_terms === true, reason: acct.reason, pilot: acct.pilot } : null };
 }
@@ -322,6 +359,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
 export async function onBooked(job: Job, paymentUrl: string | null) {
   // ad platforms: the booking as a conversion (server side; the confirmation page sends the same event id from the browser)
   await (await import("./conversions")).sendServerConversion({ name: "Purchase", id: job.ref, value: Number(job.price_final ?? 0) || null, email: job.contact_email, phone: job.contact_phone, zip: job.zip, attribution: (job.attribution as Record<string, string> | null) ?? null }).catch(() => {});
+  // a business lead from the sales engine ordered: mark it converted (their /business?lead= link rode along in attribution)
+  const bizLead = (job.attribution as Record<string, string> | null)?.biz_lead;
+  if (bizLead) await (await import("./biz-leads")).leadBooked(bizLead, job).catch((e) => console.error("[biz-leads]", e));
   const svc = getService(job.service_slug)!;
   // service areas grow with bookings: a new ZIP joins the state's "new areas" market
   const added = svc.remote ? null : await (await import("./launch")).addZipToServiceArea(job.zip, job.state).catch(() => null);
@@ -334,15 +374,27 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
   if (ai?.risk_flags?.length) await raiseAlert("risk", "warn", `${job.ref}: ${ai.risk_flags.join(", ")}`, ai.ops_notes ?? null, job.id);
 
   const es = (await localeOf(job.customer_id, job.locale)) === "es";
-  if (job.status === "site_visit" && svc.remote) {
-    // websites, AI, formation, consulting: a free video consultation instead of a site visit
+  if (job.status === "site_visit" && consultOnly(svc.slug)) {
+    // Business & Technology: a free consultation (video call) sets the scope and a fixed price — no price in the email
     if (es) await sendEmail(job.contact_email, `${BRAND.name}: consulta gratis ${job.ref} reservada`,
       `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} le escribirá para agendar su consulta gratis por video sobre ${svcEs(svc.slug)}. ` +
-      `En la consulta confirmamos el alcance y un precio firme. No debe nada hasta que apruebe la cotización.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+      `En la consulta vemos lo que necesita y le enviamos el alcance y un precio fijo por escrito. No debe nada hasta que lo apruebe.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     else await sendEmail(job.contact_email, `${BRAND.name}: free consultation ${job.ref} booked`,
       `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will reach out to schedule your free video consultation for ${svc.name}. ` +
-      `On the call we confirm the scope and a firm price. Nothing is owed until you approve the quote.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+      `On the call we learn what you need, then send the scope and a fixed price in writing. Nothing is owed until you approve it.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
     await addEvent(job.id, "site_visit", "Free consultation requested — a specialist will reach out to schedule a video call.", "system", true, "Consulta gratis solicitada: un especialista le escribirá para agendar una videollamada.").catch(() => {});
+    await dispatchJob(job.id, { siteVisit: true });
+    return;
+  }
+  if (job.status === "site_visit" && svc.remote) {
+    // websites, AI, formation, consulting over $2,500: a free online scope review (no call) instead of a site visit
+    if (es) await sendEmail(job.contact_email, `${BRAND.name}: revisión del alcance ${job.ref} recibida`,
+      `Hola ${job.contact_name.split(" ")[0]}:\n\nUn especialista de ${BRAND.name} revisará su pedido de ${svcEs(svc.slug)} y le enviará el precio firme en línea. ` +
+      `No se cobra nada hasta que apruebe el precio.\n\nSu acuerdo de servicio: ${invoiceUrl(job.id)}\nSiga su reserva: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    else await sendEmail(job.contact_email, `${BRAND.name}: scope review ${job.ref} received`,
+      `Hi ${job.contact_name.split(" ")[0]},\n\nA ${BRAND.name} specialist will review your ${svc.name} order and send you the firm price online. ` +
+      `Nothing is charged until you approve the price.\n\nYour service agreement: ${invoiceUrl(job.id)}\nTrack it: ${siteUrl()}/account\n\n— ${BRAND.name}`);
+    await addEvent(job.id, "site_visit", "Scope review requested — a specialist will send the firm price online.", "system", true, "Revisión del alcance solicitada: un especialista le enviará el precio firme en línea.").catch(() => {});
     await dispatchJob(job.id, { siteVisit: true });
     return;
   }
@@ -558,6 +610,15 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     await raiseAlert("unpaid_dispatch", "info", `${job.ref} not dispatched — unpaid`, "Jobs go to pros only after payment.", job.id);
     return { offers: 0, reason: "unpaid" };
   }
+  // a low name-your-price offer: no targeted offers — it goes on the open job board at the customer's price
+  if (job.open_offer_until && !opts.siteVisit) {
+    if (job.status !== "dispatched") {
+      await db().from("jobs").update({ status: "dispatched" }).eq("id", job.id);
+      await addEvent(job.id, "dispatch", `Posted on the pro job board at your price until ${job.open_offer_until.slice(0, 10)}. If no pro takes it by then, it's cancelled and fully refunded.`, "system", true,
+        `Publicado en el tablero de trabajos al precio que usted ofreció hasta el ${job.open_offer_until.slice(0, 10)}. Si ningún profesional lo toma para entonces, se cancela y se reembolsa por completo.`);
+    }
+    return { offers: 0, reason: "open offer on the job board" };
+  }
   const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
   const sameDay = job.scheduled_date
     ? (await db().from("jobs").select("contractor_id").eq("scheduled_date", job.scheduled_date).not("contractor_id", "is", null)).data ?? []
@@ -579,8 +640,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const ranked = rankContractors((pros ?? []) as Contractor[], job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
   if (!ranked.length) {
     if (getService(job.service_slug)?.remote) {
-      // websites, AI, formation, consulting: no specialist yet — a staff member holds the free consultation
-      await raiseAlert("no_pros", "warn", `${job.ref}: consultation for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. Email ${job.contact_name} (${job.contact_email}) to schedule the free video consultation for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}), or assign it to a specialist.`, job.id);
+      // websites, AI, formation, consulting: no specialist yet — staff start the paid project
+      await raiseAlert("no_pros", "warn", `${job.ref}: paid project for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. ${job.contact_name} (${job.contact_email}) ordered it with a deposit for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}). Start the work and email them the kickoff details, or assign it to a specialist.`, job.id);
       return { offers: 0, reason: "no eligible pros" };
     }
     await raiseAlert("no_pros", "critical", `${job.ref}: no eligible pro`, `No approved, insured pro who works ${job.scheduled_date ?? "that day"} (${job.time_window}) within driving distance of ${job.zip} for ${job.service_slug}. Assign manually, ask a pro to take it, or recruit.`, job.id);
@@ -647,12 +708,14 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const pro = byId[p.id];
     const offerId = offerIdFor[p.id];
     if (!pro || !offerId) continue;
-    const pay = payFor(p.id);
-    const order0 = buildWorkOrder(job, { reveal: false, payout: pay });
+    // the pro sees their net pay only (any referral fee already out); the work order gets the gross and nets it itself
+    const gross = payFor(p.id);
+    const pay = proNetPay(job, gross, pro.agreement_version);
+    const order0 = buildWorkOrder(job, { reveal: false, payout: gross, agreementVersion: pro.agreement_version });
     const asked = job.preferred_contractor_id === p.id;
     const crewAskHere = crewAsk && p.id === favs[0]?.contractor.id ? crewAsk.name.split(" ")[0] : null;
     const hrs = `${hours} hour${hours === 1 ? "" : "s"}`, hrsEs = `${hours} hora${hours === 1 ? "" : "s"}`;
-    const visitEn = svc.remote ? "consultation" : "site visit", visitEs = svc.remote ? "consulta" : "visita al sitio";
+    const visitEn = svc.remote ? "scope review" : "site visit", visitEs = svc.remote ? "revisión del alcance" : "visita al sitio";
     const lead = offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? visitEn : "job"} · ${pay ? money(pay) : visitEn}`;
     const nameEs = serviceText("es", svc.slug, svc).name;
     const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? (svc.remote ? "Nueva consulta" : "Nueva visita al sitio") : "Nuevo trabajo"} · ${pay ? money(pay) : visitEs}`;
@@ -673,7 +736,7 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
         body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}`,
         sms: `${BRAND.name}: ${leadEs} — ${nameEs}, ${job.city} ${job.zip}, ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs} ${siteUrl()}/pro/offers/${offerId}`,
         subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? visitEs : "trabajo"}: ${nameEs} · ${pay ? money(pay) : visitEs} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
-        text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: pay, locale: "es" }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
+        text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: gross, locale: "es", agreementVersion: pro.agreement_version }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
       },
     });
   }
@@ -697,6 +760,29 @@ async function firstDibs(job: Job, exclude: string[]): Promise<{ contractorId: s
  * Offers past their expiry → expired; any job left with no open offer and no pro goes out again
  * to the next pros (excluding everyone already tried). Runs every 10 minutes and in the daily sweep.
  */
+/**
+ * Daily: low name-your-price offers nobody took within their 30 days — cancelled with a full refund, and the customer is
+ * invited to book again at our price.
+ */
+export async function expireOpenOffers(now = new Date()): Promise<number> {
+  const { data } = await db().from("jobs").select("id").not("open_offer_until", "is", null).lt("open_offer_until", now.toISOString()).is("contractor_id", null).in("status", ["dispatched", "scheduled", "requested"]).limit(500);
+  let n = 0;
+  for (const { id } of (data ?? []) as { id: string }[]) {
+    const r = await (await import("./pro-benefits")).cancelJob(id, "ops", "system", "No pro took this job at the offered price within 30 days.").catch(() => null);
+    if (!r?.ok) continue;
+    n++;
+    const job = await getJob(id);
+    if (!job) continue;
+    const svc = getService(job.service_slug);
+    const again = `${siteUrl()}/book?service=${job.service_slug}`;
+    const es = (await localeOf(job.customer_id, job.locale)) === "es";
+    await (es
+      ? sendEmail(job.contact_email, `${BRAND.name}: su oferta ${job.ref} venció — reembolso completo`, `Hola ${job.contact_name.split(" ")[0]}:\n\nNingún profesional tomó su ${svcEs(job.service_slug).toLowerCase()} al precio que ofreció en 30 días, así que lo cancelamos y le reembolsamos todo.\n\n¿Lo intentamos de nuevo? Reserve al precio sugerido y le asignamos un profesional enseguida: ${again}\n\n— ${BRAND.name}`)
+      : sendEmail(job.contact_email, `${BRAND.name}: your offer ${job.ref} expired — full refund`, `Hi ${job.contact_name.split(" ")[0]},\n\nNo pro took your ${(svc?.name ?? "job").toLowerCase()} at the price you offered within 30 days, so we've cancelled it and refunded you in full.\n\nWant to try again? Book at our suggested price and we'll match a pro right away: ${again}\n\n— ${BRAND.name}`)).catch(() => {});
+  }
+  return n;
+}
+
 export async function redispatchExpired() {
   const { data: expired } = await db().from("job_offers").update({ status: "expired" }).eq("status", "offered").lt("expires_at", new Date().toISOString()).select("job_id, contractor_id, kind");
   // a backup who didn't answer their call in time: call the next backup (not the whole market)
@@ -768,14 +854,14 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) will handle your ${svc?.name} — ${when}${changed ? " (same time)" : ""}.`,
     data: { type: "job", jobId: job.id },
     sms: { to: job.contact_phone, body: `${BRAND.name}: ${changed ? "your new pro is confirmed" : "you're covered"} ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) will do your ${svc?.name} — ${when}. ${siteUrl()}/account/jobs/${job.id}` },
-    email: { to: job.contact_email, subject: changed ? `Your new pro is confirmed — ${job.ref}` : `Your job is covered — ${job.ref}`, text: `${changed ? "You're all set again — same time as before. " : ""}Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, vetted & insured) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
+    email: { to: job.contact_email, subject: changed ? `Your new pro is confirmed — ${job.ref}` : `Your job is covered — ${job.ref}`, text: `${changed ? "You're all set again — same time as before. " : ""}Good news: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, background-checked & vetted) will handle your ${svc?.name} on ${when}.\n\nTrack it and message your pro: ${siteUrl()}/account\nInvoice & service agreement: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}` },
     locale: job.locale,
     es: {
       title: "Su trabajo está cubierto ✓",
       body: `${pro?.business_name} (${pro?.rating ?? "5.0"}★) se encargará de su ${nameEs} — ${whenEs}.`,
       sms: `${BRAND.name}: está cubierto ✓ ${pro?.business_name} (${pro?.rating ?? "5.0"}★) hará su ${nameEs} — ${whenEs}. ${siteUrl()}/account/jobs/${job.id}`,
       subject: `Su trabajo está cubierto — ${job.ref}`,
-      text: `Buenas noticias: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, verificado y asegurado) se encargará de su ${nameEs} el ${whenEs}.\n\nSiga su reserva y escriba a su profesional: ${siteUrl()}/account\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}`,
+      text: `Buenas noticias: ${pro?.business_name} (${pro?.rating ?? "5.0"}★, verificado y con antecedentes revisados) se encargará de su ${nameEs} el ${whenEs}.\n\nSiga su reserva y escriba a su profesional: ${siteUrl()}/account\nFactura y acuerdo de servicio: ${invoiceUrl(job.id)}\n\n— ${BRAND.name}`,
     },
   });
   // pro: confirmed, here is the full work order
@@ -892,9 +978,14 @@ export async function finalizeJob(jobId: string, summary?: string) {
   // The pro's payout is approved now. "Pay after" included: the balance is charged just below, and collecting it is our
   // job, not the pro's — their pay never waits on the customer's card (pro agreement §3; the hold placed at start makes a
   // failure rare).
+  // Referral Partner Program: the partner's share of this job; the pro's half comes off the job payout (work order term)
+  const partnerCut = job.partner_id ? await (await import("./partners")).partnerSplitForJob(job).catch((e) => { console.error("[partners]", e); return null; }) : null;
   if (job.contractor_id && job.contractor_payout) {
     const ready = Boolean(job.paid_at || job.remedy || job.billed_on_terms || job.payment_plan === "after");
-    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: job.contractor_payout, status: ready ? "approved" : "held" });
+    const fee = partnerCut?.fromPro ?? 0;
+    await db().from("payouts").insert({ contractor_id: job.contractor_id, job_id: job.id, amount: r2(Number(job.contractor_payout) - fee), status: ready ? "approved" : "held",
+      // the pro sees their net pay only; the referral split stays on the job (partner_pro_fee) for the Hub
+      ...(fee ? { reason: "Job pay" } : {}) });
     const { data: pro } = await db().from("contractors").select("jobs_completed").eq("id", job.contractor_id).single();
     await db().from("contractors").update({ jobs_completed: (pro?.jobs_completed ?? 0) + 1 }).eq("id", job.contractor_id);
   }
@@ -918,7 +1009,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   });
   if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
-  if (job.partner_id) await (await import("./partners")).accrueCommission(job).catch((e) => console.error("[partners]", e));
+  if (job.partner_id) await (await import("./partners")).accrueCommission(job, partnerCut).catch((e) => console.error("[partners]", e));
   await (await import("./loyalty")).earnForJob(job).catch((e) => console.error("[loyalty]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }
@@ -954,6 +1045,11 @@ async function scheduleNextVisit(job: Job) {
   const nv = await nextVisitPrice(job);
   const pay: Record<string, unknown> = { payment_plan: "full", deposit_amount: null, deposit_paid_at: null, balance_due_date: null, discount: 0 };
   if ("balance_attempts" in job) Object.assign(pay, { balance_charge_at: null, balance_attempts: 0, balance_hold_intent: null, pay_in_full_discount: 0 });
+  // Referral Partner Program: a recurring visit is a repeat job for the partner (an account stays an account)
+  // (a direct sale stays a direct sale: no tier, no pro fee — lib/partners.ts)
+  if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id && !(job as { partner_sale?: boolean }).partner_sale ? (job.partner_tier === "account" ? "account" : "repeat") : null });
+  // partner-v4: the next visit gets the partner's referral rate as it is now (their level may have gone up)
+  if ("partner_rate" in job && job.partner_id && !job.partner_sale) Object.assign(pay, { partner_rate: await (await import("./partners")).referralRateNow(job.partner_id).catch(() => job.partner_rate ?? null) });
   const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
   if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
   else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {

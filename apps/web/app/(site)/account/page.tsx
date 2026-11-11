@@ -15,10 +15,15 @@
  * UPDATED : 2026-10-12_0005 UTC — 🏠 My homes: saved home profiles (entry, keys, pets, preferences) used by bookings.
  * UPDATED : 2026-10-12_0121 UTC — Customer ID (C-…) under the email.
  * UPDATED : 2026-10-23_1100 UTC — Business & Technology jobs say "Priced at consultation" until the firm price is set.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology (consultOnly): no estimate before the consultation; the price is set on the call.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
+import { Ico } from "@/components/Glyph";
 import { redirect } from "next/navigation";
-import { HANDLED_PLUS, LAUNCH_SET_RECOMMENDED, REFERRAL, consultOnly, getService, money, moneyRange, serviceText, t as tr, type Job, type Locale } from "@handled/core";
+import { HANDLED_PLUS, LAUNCH_SET_RECOMMENDED, REFERRAL, getService, money, moneyRange, serviceText, t as tr, type Job, type Locale, consultOnly } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { activeMembership, ensureReferralCode } from "@/lib/growth";
 import { siteUrl } from "@/lib/notify";
@@ -33,6 +38,7 @@ import { MyHomes, type SavedHome } from "@/components/MyHomes";
 import { myCustomerNo } from "@/lib/ids";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Empty, NotConfigured, StatusBadge, fmtDate } from "@/components/ui";
+import { customerJobs } from "@/lib/job-access";
 
 export const metadata = { title: "My bookings" };
 export const dynamic = "force-dynamic";
@@ -42,11 +48,11 @@ export default async function Account() {
   const v = await getViewer();
   if (!v) redirect("/login?next=/account");
   const [{ data: jobs }, { data: plans }, homesRes] = await Promise.all([
-    v.db.from("jobs").select("*").order("created_at", { ascending: false }),
+    customerJobs(v.userId).then((data) => ({ data })),
     v.db.from("recurring_plans").select("*").eq("active", true),
     v.db.from("customer_homes").select("*").eq("customer_id", v.userId).order("created_at"),
   ]);
-  const list = (jobs ?? []) as Job[];
+  const list = (jobs ?? []) as unknown as Job[];
   const biz = await myAccounts(v).catch(() => []);
   const favs = await myFavorites(v.userId).catch(() => []);
   const cno = await myCustomerNo(v.userId, v.email).catch(() => null);
@@ -94,7 +100,7 @@ export default async function Account() {
           return (
             <Link key={j.id} href={`/account/jobs/${j.id}`} className="card flex flex-wrap items-center justify-between gap-3 transition hover:border-brand">
               <div className="flex items-center gap-3"><span className="text-2xl">{s?.icon}</span><div><div className="font-semibold">{name(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address}</div></div></div>
-              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{j.price_final ? money(j.price_final) : consultOnly(j.service_slug) ? (l === "es" ? "Precio en la consulta" : "Priced at consultation") : moneyRange(j.estimate_low, j.estimate_high)}</span><StatusBadge status={j.status} /></div>
+              <div className="flex items-center gap-3"><span className="text-sm font-semibold">{j.price_final ? money(j.price_final) : consultOnly(j.service_slug) ? (l === "es" ? "Precio en la consulta" : "Priced on your consultation") : moneyRange(j.estimate_low, j.estimate_high)}</span><StatusBadge status={j.status} /></div>
             </Link>
           );
         })}
@@ -111,7 +117,7 @@ async function Welcome({ locale, name }: { locale: Locale; name: (slug: string) 
   const popular = LAUNCH_SET_RECOMMENDED.filter((slug) => getService(slug)).slice(0, 6);
   const steps = es
     ? [["1", "Reserve en 2 minutos", "Elija el servicio, la fecha y vea el precio antes de confirmar."], ["2", "Un profesional verificado llega", "Con seguro y verificación de antecedentes. Le avisamos cuando va en camino."], ["3", "Pague cuando esté hecho", "Fotos del trabajo terminado, factura y mensajes, todo aquí."]]
-    : [["1", "Book in 2 minutes", "Pick a service and a date, and see the price before you confirm."], ["2", "A vetted pro shows up", "Insured and background-checked. We let you know when they're on the way."], ["3", "Pay when it's done", "Photos of the finished work, your invoice and messages, all right here."]];
+    : [["1", "Book in 2 minutes", "Pick a service and a date, and see the price before you confirm."], ["2", "A vetted pro shows up", "Background-checked and vetted. We let you know when they're on the way."], ["3", "Pay when it's done", "Photos of the finished work, your invoice and messages, all right here."]];
   return (
     <div className="mt-8 space-y-4">
       <div className="card border-brand bg-brand-tint">
@@ -123,8 +129,8 @@ async function Welcome({ locale, name }: { locale: Locale; name: (slug: string) 
           ))}
         </div>
         <ul className="mt-4 space-y-1 text-sm">
-          {points?.enabled && <li>🏅 {es ? `+${points.firstJobBonus} Handled Points extra cuando termine su primer trabajo.` : `+${points.firstJobBonus} bonus Handled Points when your first job is done.`}</li>}
-          <li>🎁 {es ? `¿Tiene el código de un amigo? ${money(REFERRAL.friendOff)} de descuento en su primer trabajo: escríbalo al reservar.` : `Got a friend's code? ${money(REFERRAL.friendOff)} off your first job — enter it when you book.`}</li>
+          {points?.enabled && <li><Ico i="🏅" />{es ? `+${points.firstJobBonus} Handled Points extra cuando termine su primer trabajo.` : `+${points.firstJobBonus} bonus Handled Points when your first job is done.`}</li>}
+          <li><Ico i="🎁" />{es ? `¿Tiene el código de un amigo? ${money(REFERRAL.friendOff)} de descuento en su primer trabajo: escríbalo al reservar.` : `Got a friend's code? ${money(REFERRAL.friendOff)} off your first job — enter it when you book.`}</li>
         </ul>
         <Link href="/book" className="btn-primary mt-5 inline-block">{es ? "Reservar mi primer servicio" : "Book your first service"}</Link>
       </div>
@@ -146,15 +152,15 @@ async function AccountExtras({ userId, email, locale }: { userId: string; email:
   const [member, code] = await Promise.all([activeMembership(email, userId).catch(() => null), ensureReferralCode(userId).catch(() => null)]);
   const link = code ? `${siteUrl()}/book?promo=${code}` : null;
   return (
-    <div className="mt-12 grid gap-4 md:grid-cols-2">
+    <div className="mt-12 pro:mt-8 grid gap-4 md:grid-cols-2">
       <div className={`card ${member ? "border-brand bg-brand-tint" : ""}`}>
-        <div className="font-semibold">⭐ {HANDLED_PLUS.name}{member ? ` — ${t("you're a member")}` : ` — ${money(HANDLED_PLUS.monthly)}/${t("month")}`}</div>
+        <div className="font-semibold"><Ico i="⭐" />{HANDLED_PLUS.name}{member ? ` — ${t("you're a member")}` : ` — ${money(HANDLED_PLUS.monthly)}/${t("month")}`}</div>
         <ul className="mt-2 space-y-1 text-sm text-ink-soft">{HANDLED_PLUS.perks.map((p) => <li key={p}>✓ {t(p)}</li>)}</ul>
         <div className="mt-3"><PlusButton member={Boolean(member)} locale={locale} /></div>
       </div>
       {link && (
         <div className="card">
-          <div className="font-semibold">🎁 {es ? `Regale ${money(REFERRAL.friendOff)}, reciba ${money(REFERRAL.reward)}` : `Give ${money(REFERRAL.friendOff)}, get ${money(REFERRAL.reward)}`}</div>
+          <div className="font-semibold"><Ico i="🎁" />{es ? `Regale ${money(REFERRAL.friendOff)}, reciba ${money(REFERRAL.reward)}` : `Give ${money(REFERRAL.friendOff)}, get ${money(REFERRAL.reward)}`}</div>
           <p className="mt-1 text-sm text-ink-soft">{es ? `Sus amigos reciben ${money(REFERRAL.friendOff)} de descuento en su primer trabajo con su código ` : `Friends get ${money(REFERRAL.friendOff)} off their first job with your code `}<b className="font-mono text-ink">{code}</b>{es ? `. Cuando terminen su trabajo, usted recibe un crédito de ${money(REFERRAL.reward)}.` : `. When their job is done, you get a ${money(REFERRAL.reward)} credit.`}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2"><CopyLink url={link} locale={locale} /><span className="break-all text-xs text-ink-soft">{link}</span></div>
         </div>

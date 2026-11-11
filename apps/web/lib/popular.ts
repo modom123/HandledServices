@@ -6,6 +6,8 @@
  *           order: approved pros whose trades cover the service (supply) and jobs booked in the last 90 days, cancelled
  *           ones left out (demand). A service with no approved pro and no orders never makes the list; empty slots are
  *           filled from MARKETING_FOCUS (also the full list when the database isn't connected). Cached 10 minutes.
+ * UPDATED : 2026-11-07_0021 UTC — Business & Technology services never make the list: the home page is home services, and
+ *           technology has its own page (/technology).
  */
 import "server-only";
 import { MARKETING_FOCUS, SERVICES, getService, type Service } from "@handled/core";
@@ -40,7 +42,7 @@ export async function popularServices(n = 4): Promise<Service[]> {
   }
   const focus = (slug: string) => { const i = MARKETING_FOCUS.services.indexOf(slug); return i < 0 ? 99 : i; }; // ties: focus first
   const ranked = [...score.entries()].sort((a, b) => b[1] - a[1] || focus(a[0]) - focus(b[0])).map(([slug]) => slug);
-  const slugs = [...new Set([...ranked, ...MARKETING_FOCUS.services])].slice(0, n);
+  const slugs = [...new Set([...ranked, ...MARKETING_FOCUS.services])].filter((slug) => getService(slug)?.category !== "business").slice(0, n);
   const list = slugs.map((s) => getService(s)).filter((s): s is Service => Boolean(s));
   cache = { at: Date.now(), n, list };
   return list;

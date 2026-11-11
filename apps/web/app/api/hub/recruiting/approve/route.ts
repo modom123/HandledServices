@@ -11,7 +11,8 @@
  *             POST { mode: "approve", full_name, email, phone?, business_name?, trades[1..], specialties[], zips?,
  *                    years_experience?, interviewed: true, interview_notes?, resume?, source, locale }
  *                    → { ok, appId, contractorId }
- *           resume = { data (base64), fileName, contentType }: PDF, Word or a photo, up to 4 MB.
+ *           resume = { data (base64), fileName, contentType }: PDF, Word or a photo, up to 3 MB (base64 adds a third, and
+ *           Vercel refuses request bodies over 4.5 MB — the old 4 MB limit could never arrive).
  */
 import { z } from "zod";
 import { MAX_TRADES, TRADES, cleanPhone, specialtiesFor } from "@handled/core";
@@ -24,7 +25,7 @@ import { aiReadResume, canReadResume } from "@/lib/ai/resume";
 
 const RESUME_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png", "image/webp"];
 const Resume = z.object({
-  data: z.string().min(1).max(5_600_000, "Résumé must be under 4 MB"), fileName: z.string().max(200).default("resume"),
+  data: z.string().min(1).max(4_300_000, "Résumé must be under 3 MB here — or ask the pro to upload it in their setup (up to 10 MB)"), fileName: z.string().max(200).default("resume"),
   contentType: z.string().refine((t) => RESUME_TYPES.includes(t), "Résumé must be a PDF, Word document or photo"),
 });
 const ids = new Set(TRADES.map((t) => t.id));

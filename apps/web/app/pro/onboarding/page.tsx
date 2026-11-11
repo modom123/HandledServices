@@ -14,11 +14,19 @@
  * UPDATED : 2026-10-12_0005 UTC — work area: ZIP codes to cover and "only these ZIP codes".
  * UPDATED : 2026-10-18_0248 UTC — resume and profile photo upload steps (both can be replaced any time).
  * UPDATED : 2026-10-18_0415 UTC — W-9: LLCs by how they're taxed. Agreement: signing for a business (its legal name + your title).
+ * UPDATED : 2026-10-28_2300 UTC — "Welcome to Handled" orientation step links to /pro/welcome.
  * UPDATED : 2026-10-27_1900 UTC — "Your road to your first paycheck" (core PRO_ROADMAP): setup → documents → background →
  *           live → offers → the job → paid every Monday, with where they are now.
+ * UPDATED : 2026-11-06_0645 UTC — ID step: the result is fetched from Stripe on load (no webhook needed); "processing" message.
+ * UPDATED : 2026-11-11_2350 UTC — How you get paid: direct deposit through Stripe only (components/PayoutStep), naming the numbers
+ *           Stripe asks for; the step is done once Stripe says the bank is ready. No paper checks.
+ * UPDATED : 2026-11-11_2358 UTC — Verify ID: a pro switched to a video-call check can try the online check again (they were stuck with no button).
  */
 import { VerifyId } from "@/components/VerifyId";
+import { PayoutStep } from "@/components/PayoutStep";
+import { connectReady } from "@/lib/stripe";
 import { BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import Link from "next/link";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { getPolicy } from "@/lib/pro-benefits";
@@ -36,7 +44,22 @@ export default async function Onboarding() {
     v.db.from("contractors").select("*").eq("id", v.contractorId).single(),
     v.db.from("contractor_documents").select("kind, status, expires_on, created_at").order("created_at", { ascending: false }),
   ]);
-  const pro = c as Contractor;
+  let pro = c as Contractor;
+  // pick up an ID check finished on Stripe's page even if Stripe's notification didn't reach us
+  if (pro && !(pro as Contractor & { id_verified_at?: string | null }).id_verified_at && (pro as Contractor & { id_verification?: { provider?: string } | null }).id_verification?.provider === "stripe") {
+    const { refreshIdCheck } = await import("@/lib/identity");
+    if (["verified", "requires_input", "processing"].includes(await refreshIdCheck(pro.id))) {
+      const { data: fresh } = await v.db.from("contractors").select("*").eq("id", v.contractorId).single();
+      if (fresh) pro = fresh as Contractor;
+    }
+  }
+  // payouts: direct deposit through Stripe only. Back from Stripe with a ready bank → the payout step is done.
+  const stripeAcct = (pro as Contractor & { stripe_account_id?: string | null }).stripe_account_id ?? null;
+  const bankConnected = stripeAcct ? await connectReady(stripeAcct).catch(() => false) : false;
+  if (bankConnected && pro.payout_method !== "stripe_connect") {
+    await (await import("@/lib/supabase/server")).adminClient().from("contractors").update({ payout_method: "stripe_connect" }).eq("id", pro.id);
+    pro = { ...pro, payout_method: "stripe_connect" } as Contractor;
+  }
   const partners = (await getPolicy()).insurance.partners.filter((x) => x.url || x.phone);
   const { steps, complete } = onboardingChecklist(pro as never);
   const latest = (kind: string) => (docs ?? []).find((d: { kind: string }) => d.kind === kind) as { status: string; expires_on: string | null } | undefined;
@@ -52,6 +75,8 @@ export default async function Onboarding() {
     if (!es) return d;
     let m: RegExpMatchArray | null;
     if ((m = d.match(/^(\d+) selected$/))) return `${m[1]} seleccionadas`;
+    if ((m = d.match(/^(\d+) of (\d+) lessons done/))) return `${m[1]} de ${m[2]} lecciones terminadas · unos 15 minutos`;
+    if ((m = d.match(/^All (\d+) lessons done$/))) return `Las ${m[1]} lecciones terminadas`;
     if ((m = d.match(/^From (\S+), up to (\d+) mi · (.*)$/))) return `Desde ${m[1]}, hasta ${m[2]} mi · ${m[3] === "any day" ? "cualquier día" : m[3].replace(/(\d+) days a week/, "$1 días a la semana")}`;
     if ((m = d.match(/^Valid until (.+)$/))) return `Válido hasta ${m[1]}`;
     if ((m = d.match(/^Uploaded (.+)$/))) return `Subido el ${m[1]}`;
@@ -101,6 +126,9 @@ export default async function Onboarding() {
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="agree" value="true" required /> {t("I have read and agree to the Independent Contractor Agreement and the documents listed above.")}</label>
         </StepForm>
       </div>
+    );
+    if (key === "orientation") return (
+      <Link href="/pro/welcome" className="btn-primary mt-2 inline-block">{es ? "Empezar la bienvenida a Handled →" : "Start Welcome to Handled →"}</Link>
     );
     if (key === "resume") return (
       <StepForm step="resume" cta={t("Upload resume")} locale={l}>
@@ -183,21 +211,16 @@ export default async function Onboarding() {
     if (key === "id") {
       const st = (pro as Contractor & { id_verification?: { status?: string; provider?: string } | null }).id_verification;
       return st?.provider === "manual" && st.status === "requested"
-        ? <p className="mt-2 text-sm text-ink-soft">{t("We'll verify your ID on a short video call. We'll contact you to schedule it.")}</p>
+        ? <div className="mt-2 space-y-2"><p className="text-sm text-ink-soft">{t("We'll verify your ID on a short video call. We'll contact you to schedule it.")}</p><p className="text-sm text-ink-soft">{es ? "¿Prefiere no esperar? Intente de nuevo la verificación en línea:" : "Rather not wait? Try the online check again:"}</p><VerifyId label={es ? "Intentar la verificación en línea" : "Try the online ID check again"} /></div>
+        : st?.status === "processing"
+        ? <p className="mt-2 text-sm text-ink-soft">{t("Thanks — Stripe is checking your ID. This usually takes a few minutes; refresh this page to see the result.")}</p>
         : <div className="mt-2 space-y-2">{st?.status === "requires_input" && <p className="text-sm text-rose-700">{t("Your ID photo couldn't be read. Please try again in good light.")}</p>}<p className="text-sm text-ink-soft">{t("Take a photo of your driver's license, state ID or passport and a selfie. It takes about 2 minutes on your phone. We only keep the result.")}</p><VerifyId label={t("Verify my ID")} /></div>;
     }
     if (key === "background") {
       const bs = (pro as Contractor & { background_status?: string | null }).background_status;
       return <p className="mt-2 text-sm text-ink-soft">{t(pro.background_checked ? "Cleared." : bs === "invited" ? "Our screening provider (Checkr) emailed you a secure link — check your inbox and spam. It takes about 5 minutes, results in 1–3 business days." : bs === "pending" ? "In progress — usually 1–3 business days. We’ll notify you when it clears." : "Starts automatically as soon as your W-9 and agreement are in.")}</p>;
     }
-    if (key === "payout") return (
-      <StepForm step="payout" cta={t("Save payout method")} locale={l}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div><label className="label">{t("Method")}</label><select name="payout_method" className="input" defaultValue={pro.payout_method ?? "ach"}><option value="ach">{t("Bank deposit (ACH)")}</option><option value="stripe_connect">Stripe Connect</option><option value="check">{t("Check")}</option></select></div>
-          <Field label={t("Account last 4 (optional)")} name="account_last4" maxLength={4} />
-        </div>
-      </StepForm>
-    );
+    if (key === "payout") return <PayoutStep method={pro.payout_method ?? null} bankConnected={bankConnected} es={es} />;
     return null;
   };
   const doneCount = steps.filter((s) => s.done).length;

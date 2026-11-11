@@ -120,6 +120,9 @@ function AppStack() {
       <Stack.Screen name="pro/crew" options={{ title: t("My crew") }} />
       <Stack.Screen name="pro/fast-track" options={{ title: t("Fast track") }} />
       <Stack.Screen name="pro/rewards" options={{ title: t("Rewards") }} />
+      <Stack.Screen name="pro/welcome" options={{ title: t("Welcome to Handled") }} />
+      <Stack.Screen name="pro/refer" options={{ title: t("Refer & earn") }} />
+      <Stack.Screen name="pro/info" options={{ title: t("My info") }} />
     </Stack>
   );
 }

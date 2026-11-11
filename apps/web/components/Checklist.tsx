@@ -7,10 +7,12 @@
  *             ChecklistView     — read-only, with what's done (work order preview, customer, Hub)
  *             CustomerRequests  — the customer adds / removes special requests before work starts
  *             StaffInstructions — staff add / remove special instructions (Hub job page)
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/Glyph";
 import { useRouter } from "next/navigation";
 import { checklistProgress, type ChecklistCheck, type ChecklistExtra, type JobChecklist } from "@handled/core";
 
@@ -44,7 +46,7 @@ export function ChecklistPanel({ jobId, checklist, checks: initial, es, locked }
   }
   return (
     <div className="card space-y-4">
-      <div><div className="font-semibold">✅ {es ? checklist.title_es : checklist.title}</div><p className="text-xs text-ink-soft">{tx(es, "What the customer booked, item by item. Check each one as it's done; anything that doesn't apply → N/A with the reason. Items marked * must be handled before you submit.", "Lo que reservó el cliente, punto por punto. Marque cada uno al terminarlo; lo que no aplique → N/A con el motivo. Los puntos con * deben quedar marcados antes de enviar.")}</p></div>
+      <div><div className="font-semibold"><Ico i="✅" />{es ? checklist.title_es : checklist.title}</div><p className="text-xs text-ink-soft">{tx(es, "What the customer booked, item by item. Check each one as it's done; anything that doesn't apply → N/A with the reason. Items marked * must be handled before you submit.", "Lo que reservó el cliente, punto por punto. Marque cada uno al terminarlo; lo que no aplique → N/A con el motivo. Los puntos con * deben quedar marcados antes de enviar.")}</p></div>
       <Bar c={checklist} checks={checks} es={es} />
       {checklist.sections.map((s) => (
         <div key={s.id}>

@@ -10,10 +10,13 @@
  * UPDATED : 2026-10-06_0625 UTC — easier to read: category list, card titles and descriptions one size up on the site's
  *           scale (base / lg), bold or semibold, in dark ink instead of light grey; counts in a pill.
  * UPDATED : 2026-10-11_0608 UTC — remote services show "free consultation" instead of "free site visit".
+ * UPDATED : 2026-10-28_1630 UTC — no doubled "Free consultation · free consultation".
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import Link from "next/link";
+import { Ico, ThemedIcon } from "@/components/Glyph";
 import { useEffect, useRef, useState } from "react";
 
 export type BrowserCategory = { id: string; name: string; icon: string; blurb: string; services: { slug: string; name: string; icon: string; tagline: string; from: string; siteVisit: boolean; remote?: boolean }[] };
@@ -36,7 +39,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
     window.history.replaceState(null, "", url.toString());
   }
   return (
-    <div className="mt-8 grid gap-6 lg:grid-cols-[290px_1fr] lg:gap-10">
+    <div className="mt-8 grid gap-6 lg:grid-cols-[290px_1fr] lg:gap-10 pro:lg:gap-8">
       <nav ref={navRef} aria-label="Service categories" className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
         <ul className="flex gap-2 lg:sticky lg:top-24 lg:flex-col lg:gap-1">
           {categories.map((c) => (
@@ -47,7 +50,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
                 aria-current={cat === c.id ? "true" : undefined}
                 className={`flex w-full items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-left text-base font-semibold transition-colors lg:whitespace-normal ${cat === c.id ? "border-brand bg-brand-tint text-brand-dark" : "border-line bg-white text-ink hover:border-brand lg:border-transparent lg:bg-transparent lg:hover:border-line lg:hover:bg-white"}`}
               >
-                <span className="text-lg">{c.icon}</span>
+                <span className="text-lg"><Ico i={c.icon} className="mr-0" /></span>
                 <span className="flex-1">{c.name}</span>
                 <span className="rounded-full bg-paper-deep px-2 py-0.5 text-sm font-semibold text-ink">{c.services.length}</span>
               </button>
@@ -60,7 +63,7 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
           <section key={c.id} hidden={cat !== c.id} aria-labelledby={`cat-${c.id}`}>
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h2 id={`cat-${c.id}`} className="text-2xl font-bold">{c.icon} {c.name}</h2>
+                <h2 id={`cat-${c.id}`} className="text-2xl font-bold"><Ico i={c.icon} />{c.name}</h2>
                 <p className="mt-1 text-base text-ink/90">{c.blurb}</p>
               </div>
               {c.id === "events" && <Link href="/events" className="text-sm font-semibold text-brand">Plan an event by budget →</Link>}
@@ -69,10 +72,10 @@ export function ServicesBrowser({ categories, initial }: { categories: BrowserCa
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {c.services.map((s) => (
                 <Link key={s.slug} href={`/services/${s.slug}`} className="card flex flex-col transition hover:border-brand">
-                  <div className="text-3xl">{s.icon}</div>
+                  <div className="text-3xl"><ThemedIcon icon={s.icon} /></div>
                   <div className="mt-3 text-lg font-bold leading-snug text-ink">{s.name}</div>
                   <p className="mt-1.5 flex-1 text-base leading-relaxed text-ink/90">{s.tagline}</p>
-                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit ? (s.remote ? " · free consultation" : " · free site visit") : ""}</div>
+                  <div className="mt-3 text-base font-bold text-brand">{s.from}{s.siteVisit && !/consult/i.test(s.from) ? (s.remote ? " · free consultation" : " · free site visit") : ""}</div>
                 </Link>
               ))}
             </div>

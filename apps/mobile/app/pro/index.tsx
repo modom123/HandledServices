@@ -18,6 +18,8 @@
  * UPDATED : 2026-10-06_2120 UTC — Your cancellations card (last 90 days: late, no-shows, short notice, free, excused).
  * UPDATED : 2026-10-06_1950 UTC — Standby requests: confirm you can cover as backup #1–#3, or pass (free).
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
+ * UPDATED : 2026-11-06_1800 UTC — pay shown is the pro's net pay (any referral fee already out); no job price or split.
+ * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -38,6 +40,7 @@ export default function ProHome() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
+  const [orient, setOrient] = useState<{ done: number; total: number; complete: boolean } | null>(null);
   const [board, setBoard] = useState<BoardCard[]>([]);
   const [standby, setStandby] = useState<Standby[]>([]);
   const [record, setRecord] = useState<{ days: number; free: number; shortNotice: number; late: number; excused: number; noShows: number } | null>(null);
@@ -72,23 +75,25 @@ export default function ProHome() {
   const load = useCallback(async () => {
     setLoading(true);
     api<{ status: string; tier: string }>("/api/pro/fast-track").then((r) => { if (r.ok) setFast(r.data); });
+    api<{ done: number; total: number; complete: boolean }>("/api/pro/orientation").then((r) => setOrient(r.ok ? r.data : null));
     api<{ jobs: BoardCard[] }>(`/api/pro/board?locale=${locale}`).then((r) => setBoard(r.ok ? r.data.jobs ?? [] : []));
     api<{ standby: Standby[] }>("/api/pro/backups").then((r) => setStandby(r.ok ? r.data.standby ?? [] : []));
     api<{ record: NonNullable<typeof record> }>("/api/pro/standing").then((r) => { if (r.ok) setRecord(r.data.record); });
     api<{ onCall: boolean; onCallUntil: string | null }>("/api/pro/schedule?days=7").then((r) => { if (r.ok) setOnCall({ on: r.data.onCall, until: r.data.onCallUntil }); });
+    // need-to-know: the server sends what a pro may see, with their NET pay (pro_pay)
     const [o, j] = await Promise.all([
-      supabase.from("job_offers").select("id, payout, expires_at, jobs(ref, service_slug, city, zip, scheduled_date, time_window, notes)").eq("status", "offered"),
-      supabase.from("jobs").select("*").in("status", ["assigned", "in_progress", "qa_review", "site_visit"]).not("contractor_id", "is", null).order("scheduled_date"),
+      api<{ offers: (Offer & { pro_pay: number | null })[] }>("/api/pro/offers"),
+      api<{ jobs: (Job & { pro_pay: number | null })[] }>("/api/pro/jobs?status=assigned,in_progress,qa_review,site_visit"),
     ]);
-    setErr(o.error || j.error ? "No connection. Check your signal or Wi-Fi and try again." : null);
-    if (!o.error) setOffers((o.data ?? []) as unknown as Offer[]);
-    if (!j.error) setJobs((j.data ?? []) as Job[]);
+    setErr(!o.ok || !j.ok ? "No connection. Check your signal or Wi-Fi and try again." : null);
+    if (o.ok) setOffers((o.data.offers ?? []).map((x) => ({ ...x, payout: x.pro_pay })) as unknown as Offer[]);
+    if (j.ok) setJobs((j.data.jobs ?? []) as Job[]);
     setLoading(false);
   }, [locale]);
   useEffect(() => {
     load();
-    const ch = supabase.channel("pro-offers").on("postgres_changes", { event: "*", schema: "public", table: "job_offers" }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const timer = setInterval(load, 20000); // new offers (push notifications also bring the pro here)
+    return () => clearInterval(timer);
   }, [load]);
 
   const today = localDate(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone); // the phone's own zone (Pacific for Washington pros)
@@ -98,12 +103,31 @@ export default function ProHome() {
     { icon: "📅", label: t("My calendar & days off"), go: () => router.push("/pro/schedule") },
     { icon: "👷", label: t("My crew"), go: () => router.push("/pro/crew") },
     { icon: "🎁", label: t("Rewards"), go: () => router.push("/pro/rewards") },
+    { icon: "💸", label: t("Refer & earn"), go: () => router.push("/pro/refer") },
+    { icon: "👋", label: t("Welcome to Handled"), go: () => router.push("/pro/welcome") },
+    { icon: "🪪", label: t("My info"), go: () => router.push("/pro/info") },
     { icon: "📄", label: t("Setup & documents"), go: () => Linking.openURL(`${API_URL}/pro/onboarding`) },
     { icon: "✍️", label: t("My contracts"), go: () => Linking.openURL(`${API_URL}/pro/contracts`) },
   ];
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.brand} />}>
       {err ? <ErrorState message={err} onRetry={load} /> : null}
+      {orient && !orient.complete && (
+        <Pressable onPress={() => router.push("/pro/welcome")} accessibilityRole="button">
+          <Card style={{ borderColor: C.brand, borderWidth: 2 }}>
+            <Text style={s.b}>👋 {t("Welcome to Handled")} · {orient.done}/{orient.total}</Text>
+            <Text style={s.p}>{t("Six short lessons on how we work. Required before you're approved.")}</Text>
+          </Card>
+        </Pressable>
+      )}
+      {orient && !orient.complete && (
+        <Pressable onPress={() => router.push("/pro/refer")} accessibilityRole="button">
+          <Card style={{ borderColor: C.amber }}>
+            <Text style={s.b}>💸 {t("Make money while you wait")}</Text>
+            <Text style={s.p}>{t("Snap photos of a job, fill out a ticket, get paid when it's done.")}</Text>
+          </Card>
+        </Pressable>
+      )}
       <Card style={{ borderColor: onCall.on ? C.brand : C.line, backgroundColor: onCall.on ? C.tint : C.white, borderWidth: onCall.on ? 2 : 1 }}>
         <Text style={[s.b, { fontSize: 20 }]}>{onCall.on ? `🟢 ${t("You're on call")}` : `⚪ ${t("Off call")}`}</Text>
         <Text style={s.p}>{onCall.on ? `${t("Same-day jobs near you come to you first")}${onCall.until ? ` ${t("until")} ${new Date(onCall.until).toLocaleTimeString(locale === "es" ? "es-US" : "en-US", { hour: "numeric", minute: "2-digit" })}` : ""}.` : t("Go on call to get same-day jobs, even on a day you don't usually work.")}</Text>
@@ -189,7 +213,7 @@ export default function ProHome() {
           <Card style={j.scheduled_date === today ? { borderColor: C.brand, borderWidth: 2 } : undefined}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}><Text style={[s.b, { flex: 1 }]}>{j.scheduled_date === today ? `${t("Today")} · ` : ""}{(() => { const sv = getService(j.service_slug); return sv ? svc(sv).name : ""; })()}</Text><Status status={j.status} /></View>
             <Text style={s.p}>{j.ref} · {j.scheduled_date} · {j.address}, {j.city}</Text>
-            <Text style={[s.b, { marginTop: 4 }]}>{money(j.contractor_payout)}</Text>
+            <Text style={[s.b, { marginTop: 4 }]}>{money((j as Job & { pro_pay?: number | null }).pro_pay ?? 0)}</Text>
           </Card>
         </Pressable>
       ))}

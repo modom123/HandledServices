@@ -5,9 +5,12 @@
  * PURPOSE : Interactive controls for the Handled Hub.
  * UPDATED : 2026-10-05_0246 UTC — recruiting settings: screening interview first, auto-invite after an interview.
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
+ * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
+ * UPDATED : 2026-11-11_0030 UTC — Recruiting: Delete (one applicant) and DeleteApplicantsBulk (everyone "not a fit" / "dropped off"), admins.
  */
 "use client";
 
+import { MultiSelect } from "@/components/Dropdowns";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { JOB_STATUSES, JOB_STATUS_LABEL } from "@handled/core";
@@ -423,11 +426,8 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
         <select className="input" value={p[k].minTier} onChange={(e) => set(k, "minTier", e.target.value)} disabled={!canEdit}><option value="pro">Pro (everyone)</option><option value="pro_plus">Pro+</option><option value="elite">Elite</option></select></label>
       {num(k, "minJobs", "Min. completed jobs")}
       {num(k, "minRating", "Min. rating", 0.05)}
-      <div className="sm:col-span-4"><span className="label">Trades (none selected = all trades)</span>
-        <div className="flex flex-wrap gap-1">{trades.map((t) => {
-          const on = p[k].trades.includes(t.id);
-          return <button type="button" key={t.id} disabled={!canEdit} className={`rounded-full border px-2 py-0.5 text-xs ${on ? "border-brand bg-brand-tint" : "border-line"}`} onClick={() => set(k, "trades", on ? p[k].trades.filter((x) => x !== t.id) : [...p[k].trades, t.id])}>{t.label}</button>;
-        })}</div></div>
+      <div className="sm:col-span-4 max-w-xl"><span className="label">Trades</span>
+        <MultiSelect options={trades.map((t) => ({ value: t.id, label: t.label }))} value={p[k].trades} onChange={(v) => set(k, "trades", v)} noneLabel="All trades" disabled={!canEdit} /></div>
     </div>
   );
   const section = (k: string, title: string, about: string, extra: React.ReactNode) => (
@@ -474,7 +474,7 @@ export function ProPolicyForm({ initial, trades, canEdit }: { initial: Policy; t
 }
 
 /** Recruiting pipeline row actions. */
-export function RecruitingRowActions({ appId, contractorId, stage }: { appId: string | null; contractorId: string | null; stage: string }) {
+export function RecruitingRowActions({ appId, contractorId, stage, afterDelete }: { appId: string | null; contractorId: string | null; stage: string; afterDelete?: string }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const act = async (body: object, done: string) => { const r = await call("/api/hub/recruiting", "POST", body); setMsg(r.ok ? done : r.json.error ?? "Failed"); router.refresh(); };
@@ -490,23 +490,75 @@ export function RecruitingRowActions({ appId, contractorId, stage }: { appId: st
       {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { if (confirm("Mark the background check as clear? Only after you've read the report.")) act({ action: "background_clear", contractor_id: contractorId }, "Cleared"); }}>Mark clear</button>}
       {contractorId && stage === "dropped" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => act({ action: "revive", contractor_id: contractorId }, "Revived — reminders restart")}>Revive</button>}
       <button className="text-ink-soft underline" onClick={() => { const n = prompt("Note"); if (n) act({ action: "note", contractor_id: contractorId ?? undefined, application_id: appId ?? undefined, note: n }, "Noted"); }}>Note</button>
+      {stage !== "active" && stage !== "approved" && (appId || contractorId) && <DeleteApplicant appId={appId} contractorId={contractorId} after={afterDelete} />}
       {msg && <span className="text-ink-soft">{msg}</span>}
     </span>
   );
 }
 
-export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; autoActivate: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
+/** Delete someone who didn't make it through onboarding (admins). Asks for a reason and DELETE to confirm. */
+export function DeleteApplicant({ appId, contractorId, after }: { appId: string | null; contractorId: string | null; after?: string }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <button className="text-rose-700 underline disabled:opacity-50" disabled={busy} onClick={async () => {
+        const reason = prompt("Delete this applicant? Their application, unfinished pro record, documents, uploaded files and login are removed for good.\n\nReason (optional, kept in the recruiting log):");
+        if (reason === null) return;
+        if (prompt("Type DELETE to confirm") !== "DELETE") return setMsg("Not deleted");
+        setBusy(true);
+        const r = await call("/api/hub/recruiting", "DELETE", { confirm: "DELETE", application_id: appId ?? undefined, contractor_id: contractorId ?? undefined, reason: reason || undefined });
+        setBusy(false);
+        if (!r.ok) return setMsg(r.json.error ?? "Couldn't delete");
+        setMsg("Deleted");
+        if (after) router.push(after); else router.refresh();
+      }}>{busy ? "Deleting…" : "Delete"}</button>
+      {msg && <span className="text-ink-soft">{msg}</span>}
+    </>
+  );
+}
+
+/** Pipeline → Not a fit / Dropped off: delete everyone in that stage (optionally only older than N days). */
+export function DeleteApplicantsBulk({ bulk, count }: { bulk: "not_a_fit" | "dropped"; count: number }) {
+  const router = useRouter();
+  const [days, setDays] = useState(30);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!count) return null;
+  const label = bulk === "dropped" ? "dropped off" : "not a fit";
+  return (
+    <div className="card flex flex-wrap items-center gap-2 border-rose-200 text-sm">
+      <span>Delete everyone marked <b>{label}</b> who applied more than</span>
+      <input className="input w-20" type="number" min={0} max={3650} value={days} onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))} />
+      <span>days ago</span>
+      <button className="btn-ghost border-rose-300 text-rose-700 disabled:opacity-50" disabled={busy} onClick={async () => {
+        if (prompt(`Delete everyone "${label}" who applied more than ${days} day(s) ago, with their documents, files and logins? This can't be undone. Approved pros and anyone with jobs or payouts are skipped.\n\nType DELETE to confirm`) !== "DELETE") return;
+        setBusy(true);
+        const r = await call("/api/hub/recruiting", "DELETE", { confirm: "DELETE", bulk, older_than_days: days });
+        setBusy(false);
+        const skipped = (r.json.skipped as string[] | undefined) ?? [];
+        setMsg(r.ok ? `Deleted ${r.json.deleted}${skipped.length ? ` · skipped ${skipped.length}: ${skipped.join("; ")}` : ""}` : r.json.error ?? "Failed");
+        router.refresh();
+      }}>{busy ? "Deleting…" : "Delete"}</button>
+      {msg && <span className="text-ink-soft">{msg}</span>}
+    </div>
+  );
+}
+
+export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instantSignup: boolean; autoInvite: boolean; minScore: number; interviewRequired: boolean; autoInviteAfterInterview: boolean; reminderDays: number[]; dropAfterDays: number; decisionHours: number }; canEdit: boolean }) {
   const router = useRouter();
   const [s, setS] = useState({ ...initial, reminderText: initial.reminderDays.join(", ") });
   const [msg, setMsg] = useState("");
   return (
     <div className="card space-y-3 text-sm">
       <div className="font-semibold">Automation</div>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={s.instantSignup} disabled={!canEdit} onChange={(e) => setS({ ...s, instantSignup: e.target.checked })} /> Instant sign-up (Roadie-style): open an account for every applicant the AI doesn’t flag as a decline, with no interview. The ID + background check is the gate (off = score and interview rules below)</label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInvite} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInvite: e.target.checked })} /> Invite strong applicants automatically when the AI score is at least
         <input className="input w-20" type="number" min={0} max={100} value={s.minScore} disabled={!canEdit} onChange={(e) => setS({ ...s, minScore: Number(e.target.value) })} /></label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.interviewRequired} disabled={!canEdit} onChange={(e) => setS({ ...s, interviewRequired: e.target.checked })} /> Screening interview first: email the AI interview link to every applicant the screen doesn’t decline (before any invite)</label>
       <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoInviteAfterInterview} disabled={!canEdit} onChange={(e) => setS({ ...s, autoInviteAfterInterview: e.target.checked })} /> Invite automatically when the interview result is “advance” (off = a person decides every time — recommended)</label>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={s.autoActivate} disabled={!canEdit} onChange={(e) => setS({ ...s, autoActivate: e.target.checked })} /> Activate pros automatically once every step is done, documents verified and background clear</label>
+      <p className="text-ink-soft">Pros never go live on their own: once the resume, photo ID and every step are verified you get a “Ready to approve” alert, and a person activates them in Hub → Pros.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block"><span className="label">Setup reminders (days after invite)</span><input className="input" value={s.reminderText} disabled={!canEdit} onChange={(e) => setS({ ...s, reminderText: e.target.value })} /></label>
         <label className="block"><span className="label">Mark dropped after (days)</span><input className="input" type="number" value={s.dropAfterDays} disabled={!canEdit} onChange={(e) => setS({ ...s, dropAfterDays: Number(e.target.value) })} /></label>
@@ -514,7 +566,7 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { autoIn
       </div>
       {canEdit ? <button className="btn-primary" onClick={async () => {
         const reminderDays = s.reminderText.split(/[,\s]+/).map(Number).filter((n) => n > 0);
-        const r = await call("/api/hub/recruiting", "PUT", { autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, autoActivate: s.autoActivate, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
+        const r = await call("/api/hub/recruiting", "PUT", { instantSignup: s.instantSignup, autoInvite: s.autoInvite, minScore: s.minScore, interviewRequired: s.interviewRequired, autoInviteAfterInterview: s.autoInviteAfterInterview, reminderDays, dropAfterDays: s.dropAfterDays, decisionHours: s.decisionHours });
         setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
       }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
       {msg && <p>{msg}</p>}

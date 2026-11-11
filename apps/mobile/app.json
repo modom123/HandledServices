@@ -3,7 +3,7 @@
     "name": "Handled",
     "slug": "handled",
     "scheme": "handled",
-    "version": "0.5.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
@@ -11,6 +11,35 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -69,10 +98,7 @@
       "project": "Handled (HandledServices) mobile app",
       "privacyPolicyUrl": "filled from EXPO_PUBLIC_API_URL by app.config.js",
       "termsUrl": "filled from EXPO_PUBLIC_API_URL by app.config.js",
-      "eas": {
-        "projectId": "run `eas init` to fill this in"
-      },
-      "updatedAt": "2026-10-06_0708 UTC — v0.5.0: Apple Pay / Google Pay in the app (Stripe PaymentSheet), live map of the pro on the way, haptics, app icon and splash screen"
+      "updatedAt": "2026-11-10_2130 UTC — v1.0.0 for the App Store and Google Play: Expo project id comes from `eas init` (or EAS_PROJECT_ID); production builds refuse to build without their server settings"
     },
     "description": "Book cleaning, power washing, lawn and snow, pet care, hauling, repairs, painting, remodels, errands, events and rides (black car, limo, party bus) with upfront prices — and run your jobs if you're a Handled pro.",
     "icon": "./assets/icon.png",

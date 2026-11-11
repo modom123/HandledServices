@@ -4,16 +4,18 @@
  * CREATED : 2026-10-27_1700 UTC
  * PURPOSE : The apply form on /careers/[id] (team and client roles) → api/careers/apply. Keeps where they came from
  *           (utm_source, e.g. indeed) as the candidate's source.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 "use client";
 
 import { useState } from "react";
+import { ThemedIcon } from "@/components/Glyph";
 
 export function CareersApply({ searchId, title, source }: { searchId: string; title: string; source: string }) {
   const [f, setF] = useState({ full_name: "", email: "", phone: "", location: "", linkedin: "", summary: "" });
   const [state, setState] = useState<{ busy?: boolean; done?: boolean; error?: string }>({});
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
-  if (state.done) return <div className="card"><div className="text-3xl">✅</div><h2 className="mt-2 text-xl font-bold">Application sent</h2><p className="mt-2 text-ink-soft">Thanks for applying for {title}. Check your email for a confirmation. A recruiter reviews every application, usually within two business days.</p></div>;
+  if (state.done) return <div className="card"><div className="text-3xl"><ThemedIcon icon="✅" size="lg" /></div><h2 className="mt-2 text-xl font-bold">Application sent</h2><p className="mt-2 text-ink-soft">Thanks for applying for {title}. Check your email for a confirmation. A recruiter reviews every application, usually within two business days.</p></div>;
   return (
     <form className="card space-y-3 lg:sticky lg:top-24" onSubmit={async (e) => {
       e.preventDefault(); setState({ busy: true });

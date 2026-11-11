@@ -5,6 +5,7 @@
  * PURPOSE : Privacy policy (required by Apple/Google app stores and SMS carriers).
  *           TEMPLATE — have counsel review before launch.
  * UPDATED : 2026-10-07_1640 UTC — cookies and analytics section.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import { BRAND } from "@handled/core";
 
@@ -27,7 +28,7 @@ const SECTIONS: [string, string][] = [
 
 export default function Privacy() {
   return (
-    <div className="wrap max-w-3xl py-14">
+    <div className="wrap max-w-3xl py-14 pro:py-10">
       <h1 className="text-3xl font-extrabold tracking-tight">Privacy Policy</h1>
       <p className="mt-2 text-ink-soft">{BRAND.legalName} · effective {new Date().getFullYear()}</p>
       <div className="mt-8 space-y-5">{SECTIONS.map(([h, p]) => <div key={h}><h2 className="font-bold">{h}</h2><p className="mt-1 text-ink-soft">{p}</p></div>)}</div>

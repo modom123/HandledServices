@@ -4,6 +4,7 @@
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : Public customer reviews — the overall average (every rating counts) and recent
  *           comments, filterable by service.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BRAND, SERVICES, getService } from "@handled/core";
@@ -19,7 +20,7 @@ export default async function Reviews({ searchParams }: { searchParams: Promise<
   const svc = getService(service ?? "");
   const r = await publicReviews({ slug: svc?.slug, limit: 60 });
   return (
-    <div className="wrap py-14">
+    <div className="wrap py-14 pro:py-10">
       <h1 className="text-4xl font-extrabold tracking-tight">Customer reviews{svc ? ` — ${svc.name}` : ""}</h1>
       <p className="mt-2 text-ink-soft">Every customer is asked to rate their pro after the job. Every rating counts toward the average — we don’t hide the bad ones.</p>
       {r.average ? <p className="mt-4 text-lg"><span className="text-amber-500">{stars(r.average)}</span> <b>{r.average}</b> average from {r.count} reviews</p> : <p className="mt-4 rounded-xl bg-paper-deep p-4 text-sm">Reviews appear here as customers rate their finished jobs.</p>}

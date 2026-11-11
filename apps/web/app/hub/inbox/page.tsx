@@ -6,12 +6,15 @@
  *           TikTok / Google / LinkedIn lead forms, Yelp, Google Local Services…), newest first, with how fast we answered
  *           (speed to lead) and one-tap status; and the channel report — leads, speed, bookings and revenue per channel
  *           (bookings by first-touch source), so money goes where customers come from.
+ * UPDATED : 2026-11-07_1615 UTC — "Links to share": tracked links to Post your project (/post) for Facebook groups, Nextdoor, bios,
+ *           Google Business Profile, flyers, email and texts; their leads show up by channel below.
  */
 import Link from "next/link";
 import { CHANNELS, SERVICE_BY_SLUG, channelLabel, channelOf, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { LeadStatusButtons } from "@/components/LeadInbox";
+import { siteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +23,17 @@ type Lead = { id: string; name: string | null; email: string | null; phone: stri
 const mins = (a: string, b: string | null) => (b ? (new Date(b).getTime() - new Date(a).getTime()) / 60000 : null);
 const fmtMins = (m: number | null) => (m == null ? "—" : m < 1 ? "<1 min" : m < 90 ? `${Math.round(m)} min` : m < 2880 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`);
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+
+const POST_LINKS: [string, string][] = [
+  ["Facebook (posts & groups)", "utm_source=facebook&utm_medium=social"],
+  ["Nextdoor", "utm_source=nextdoor&utm_medium=social"],
+  ["Instagram bio & stories", "utm_source=instagram&utm_medium=social"],
+  ["TikTok bio", "utm_source=tiktok&utm_medium=social"],
+  ["Google Business Profile", "utm_source=gbp&utm_medium=organic"],
+  ["Flyers & door hangers (QR code)", "utm_source=flyer&utm_medium=print"],
+  ["Email & newsletters", "utm_source=email&utm_medium=email"],
+  ["Text messages", "utm_source=sms&utm_medium=sms"],
+];
 
 export default async function LeadInbox({ searchParams }: { searchParams: Promise<{ days?: string; channel?: string }> }) {
   const { days: d, channel } = await searchParams;
@@ -50,6 +64,18 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
         <h1 className="text-2xl font-bold">Lead inbox</h1>
         <p className="max-w-3xl text-sm text-ink-soft">Every inbound lead from every channel lands here and gets an instant reply (email, plus a text only if they agreed to texts). Businesses also go to the top of the <Link href="/hub/biz-leads/calls" className="text-brand underline">Call desk</Link>. Call new leads within 5 minutes: the odds of reaching someone drop fast after that. Bookings are counted by the customer’s first-touch channel.</p>
       </div>
+      {/* where to post: tracked links to "Post your project" (/post); each lead shows its channel below */}
+      <section className="card">
+        <h2 className="text-lg font-bold">Links to share — Post your project</h2>
+        <p className="mt-1 text-sm text-ink-soft">Post these in Facebook groups, on Nextdoor, in your Instagram and TikTok bios, on flyers (QR code) and in emails. Anyone who posts a project lands here as a lead for us to call — never sold or shared. Each link records where the lead came from, so the Channels table shows which places work.</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {POST_LINKS.map(([label, q]) => (
+            <label key={label} className="text-xs font-semibold text-ink-soft">{label}
+              <input readOnly className="input mt-1 font-mono text-xs" value={`${siteUrl()}/post?${q}&utm_campaign=post-project`} />
+            </label>
+          ))}
+        </div>
+      </section>
       <div className="grid gap-3 sm:grid-cols-5">
         <Stat label={`Leads (${days}d)`} value={leads.length} />
         <Stat label="Waiting for a call" value={leads.filter((l) => (l.status ?? "new") === "new").length} />

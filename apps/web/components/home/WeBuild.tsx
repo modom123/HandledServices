@@ -6,8 +6,11 @@
  *           services), with Handled itself as the proof. Used on both home page looks, the business page and /technology.
  *           English / Spanish.
  * UPDATED : 2026-10-23_1100 UTC — no prices on the pillars (Business & Technology is consultation-only); each card says Free consultation.
+ * UPDATED : 2026-10-28_1700 UTC — ordered, not consulted: each pillar shows its starting price and "Order →".
+ * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again: "Free consultation →", no order / deposit wording.
  */
 import Link from "next/link";
+import { priceHint } from "@handled/core";
 
 export const BUILD_PILLARS = [
   {
@@ -27,7 +30,7 @@ export const BUILD_PILLARS = [
   },
 ] as const;
 
-/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. No prices: each is scoped on a free consultation. */
+/** The three pillars as cards. `compact` = the home-page band; otherwise the full section. Each links to its page, where a free consultation is booked (no price: custom work). */
 export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolean }) {
   return (
     <section className={compact ? "border-y border-line bg-paper py-14" : "py-2"}>
@@ -48,12 +51,12 @@ export function WeBuild({ es, compact = false }: { es: boolean; compact?: boolea
                 <div className="text-3xl">{p.icon}</div>
                 <div className="mt-3 text-lg font-bold">{txt.t}</div>
                 <p className="mt-1.5 flex-1 text-sm leading-relaxed text-ink/90">{txt.d}</p>
-                <div className="mt-4 text-sm font-bold text-brand">{es ? "Consulta gratis →" : "Free consultation →"}</div>
+                <div className="mt-4 text-sm font-bold text-brand">{priceHint(p.slug, es ? "es" : "en")} →</div>
               </Link>
             );
           })}
         </div>
-        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Cada solución es distinta: el alcance y el precio se fijan en una consulta gratis por video." : "Every solution is different: scope and price are set on a free video consultation."}</p>}
+        {!compact && <p className="mt-3 text-xs text-ink-soft">{es ? "Cada solución es a la medida: el alcance y un precio fijo se acuerdan en una consulta gratis por video, antes de empezar." : "Every solution is custom: scope and a fixed price are agreed on a free video consultation, before any work starts."}</p>}
       </div>
     </section>
   );

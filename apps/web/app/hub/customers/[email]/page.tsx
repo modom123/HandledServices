@@ -6,6 +6,8 @@
  *           history — every note, call, email, meeting and text staff logged, plus their bookings, completions and
  *           reviews — newest first. Notes are append-only; a correction is a new note.
  * UPDATED : 2026-10-12_0121 UTC — customer ID (C-…) in the header.
+ * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
+ *           (components/PersonFiles.tsx, lib/person-files.ts).
  */
 import Link from "next/link";
 import { customerNo } from "@/lib/ids";
@@ -15,6 +17,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { customerSubjectId, timeline } from "@/lib/notes";
 import { AddNote, Timeline } from "@/components/AccountNotes";
 import { Badge } from "@/components/ui";
+import { PersonFiles } from "@/components/PersonFiles";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +54,7 @@ export default async function Customer({ params }: { params: Promise<{ email: st
           ))}</tbody>
         </table></section>
       )}
+      <PersonFiles type="customer" ownerKey={email} title="Customer file: documents & photos" />
       <section className="card"><h2 className="mb-3 text-lg font-bold">Notes & history</h2><Timeline items={items} /></section>
     </div>
   );

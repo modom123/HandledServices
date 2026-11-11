@@ -5,6 +5,8 @@
  * PURPOSE : Parties & Events landing page — planning, catering, food trucks, DJs, rentals
  *           and venues, booked separately or coordinated as one event.
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
 import { BRAND, SERVICES, defaultAnswers, estimate, money, moneyRange, priceHint } from "@handled/core";
@@ -14,7 +16,7 @@ export const metadata = { title: "Parties & Events", description: "Event plannin
 
 const STEPS = [
   ["Tell us about your event", "Date, guest count and the vibe. Get instant prices for each piece, or book a free planning call."],
-  ["We line up every vendor", "Licensed caterers and food trucks, DJs and bands, rentals and the venue — vetted, insured and coordinated by your planner."],
+  ["We line up every vendor", "Licensed caterers and food trucks, DJs and bands, rentals and the venue — background-checked, vetted and coordinated by your planner."],
   ["One invoice, one point of contact", `Everything is on one invoice and service agreement. ${BRAND.promise}`],
 ];
 
@@ -23,9 +25,9 @@ export default function Events() {
   return (
     <>
       <section className="border-b border-line bg-brand-deep text-white">
-        <div className="wrap grid items-center gap-10 py-16 md:grid-cols-[1.3fr_1fr]">
+        <div className="wrap grid items-center gap-10 pro:gap-8 py-16 pro:py-10 md:grid-cols-[1.3fr_1fr]">
           <div>
-            <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎉 Parties & Events</span>
+            <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold"><span className="pro:hidden">🎉 </span>Parties & Events</span>
             <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Your event, <span className="text-gold-light">handled.</span></h1>
             <p className="mt-4 max-w-xl text-lg text-white/75">Birthdays, weddings, corporate dinners, company BBQs, Taco Tuesday office lunches, day parties and pool parties. Catering, food trucks, music, seating and the space — planned and coordinated by one team, on one invoice.</p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -45,7 +47,7 @@ export default function Events() {
         </div>
       </section>
 
-      <section id="services" className="wrap py-14">
+      <section id="services" className="wrap py-14 pro:py-10">
         <div className="card mb-10 grid items-center gap-6 border-brand/30 bg-brand-tint md:grid-cols-[1.4fr_1fr]">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-brand-dark">Easiest way</div>
@@ -69,7 +71,7 @@ export default function Events() {
                 <div className="mt-3 font-semibold">{s.name}</div>
                 <p className="mt-1 flex-1 text-sm text-ink-soft">{s.tagline}</p>
                 <div className="mt-3 text-sm"><span className="text-ink-soft">Typical:</span> <b>{s.siteVisit ? moneyRange(e.low, e.high) : money(e.point)}</b></div>
-                <div className="mt-4 flex gap-2"><Link href={`/book?service=${s.slug}`} className="btn-primary px-4 py-2">{s.siteVisit ? "Free consultation" : "Get my price"}</Link><Link href={`/services/${s.slug}`} className="btn-ghost px-4 py-2">Details</Link></div>
+                <div className="mt-4 flex gap-2"><Link href={`/book?service=${s.slug}`} className="btn-primary px-4 py-2">Get my price</Link><Link href={`/services/${s.slug}`} className="btn-ghost px-4 py-2">Details</Link></div>
               </div>
             );
           })}

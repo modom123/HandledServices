@@ -5,8 +5,10 @@
  * PURPOSE : Sign-in check anyone can open (no sign-in needed, no secrets shown): is everything in place for Handled to
  *           send its own sign-in email (code + any-device link)? Server key, email provider, the sender's domain verified
  *           in Resend, the site address. Each red line says exactly what to set.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  */
 import { adminClient } from "@/lib/supabase/server";
+import { Ico } from "@/components/Glyph";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { emailFrom, siteUrl } from "@/lib/notify";
 
@@ -49,12 +51,12 @@ export default async function SignInCheck() {
   const rows = await checks();
   const allOk = rows.every((r) => r.ok === true);
   return (
-    <div className="wrap py-14"><div className="card mx-auto max-w-2xl">
+    <div className="wrap py-14 pro:py-10"><div className="card mx-auto max-w-2xl">
       <h1 className="text-xl font-bold">Sign-in check</h1>
       <p className="mt-1 text-sm text-ink-soft">{allOk ? "Everything's in place: sign-in emails come from Handled with a code and a link that works on any device." : "Fix the red lines below. Until then, sign-in uses Supabase's backup email, which has no code and whose link only works in the browser that asked for it."}</p>
       <ul className="mt-5 space-y-3">{rows.map((r) => (
         <li key={r.label} className="rounded-xl border border-line p-3 text-sm">
-          <div className="flex items-start gap-2"><span>{r.ok === true ? "✅" : r.ok === "warn" ? "⚠️" : "❌"}</span><div><div className="font-semibold">{r.label}</div><div className="text-ink-soft">{r.detail}</div>{r.fix && r.ok !== true && <div className="mt-1"><b>Fix:</b> {r.fix}</div>}</div></div>
+          <div className="flex items-start gap-2"><span><Ico i={r.ok === true ? "✅" : r.ok === "warn" ? "⚠️" : "❌"} className="mr-0" /></span><div><div className="font-semibold">{r.label}</div><div className="text-ink-soft">{r.detail}</div>{r.fix && r.ok !== true && <div className="mt-1"><b>Fix:</b> {r.fix}</div>}</div></div>
         </li>
       ))}</ul>
       <p className="mt-5 text-xs text-ink-soft">After changing anything in Vercel, Redeploy, reload this page, then ask for a new code on the sign-in page.</p>

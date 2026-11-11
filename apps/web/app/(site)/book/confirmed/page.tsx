@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * UPDATED : 2026-10-04_1934 UTC — ?billed=1: booked on a business account's invoice.
  * UPDATED : 2026-10-20_0100 UTC — tells the ad pixels about the booking (ConversionPing, same id as the server event).
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { BRAND } from "@handled/core";
@@ -18,7 +19,7 @@ export default async function Confirmed({ searchParams }: { searchParams: Promis
   const conv = ref && /^[A-Z0-9-]{4,20}$/i.test(ref) && process.env.SUPABASE_SERVICE_ROLE_KEY
     ? await adminClient().from("jobs").select("ref, price_final").eq("ref", ref).maybeSingle().then((r) => r.data, () => null) : null;
   return (
-    <div className="wrap py-20">
+    <div className="wrap py-20 pro:py-12">
       {conv && <ConversionPing id={conv.ref} value={Number(conv.price_final ?? 0) || null} />}
       <div className="card mx-auto max-w-lg text-center">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand text-2xl text-white">✓</div>

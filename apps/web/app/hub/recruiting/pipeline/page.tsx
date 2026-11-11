@@ -13,15 +13,19 @@
  * UPDATED : 2026-10-27_1700 UTC — moved to Hub → Recruiting → Pipeline (the Recruiting division; /hub/recruiting is the
  *           Overview now). Two tracks: Independent pros (this pipeline) and Team & client roles (every Talent search's
  *           candidates by stage, our own staff roles first). The Indeed card moved to the Indeed tab.
+ * UPDATED : 2026-10-28_1735 UTC — the interview packet is a link here (no longer its own Recruiting tab).
+ * UPDATED : 2026-11-05_1215 UTC — stage filter is a dropdown (with counts) instead of a row of 12 buttons.
+ * UPDATED : 2026-11-11_0030 UTC — Delete on each row (anyone not active) and, under Not a fit / Dropped off, delete them all (admins).
  */
 import Link from "next/link";
+import { FilterSelect } from "@/components/Dropdowns";
 import { PIPELINE, STAGE_LABEL, TALENT_STAGES, TRADES, type PipelineStage } from "@handled/core";
 import { stageLabel } from "@/lib/talent";
 import { getViewer } from "@/lib/auth";
 import { getRecruitingSettings, pipeline } from "@/lib/recruiting";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
-import { RecruitingRowActions, RecruitingSettingsForm } from "@/components/HubActions";
+import { DeleteApplicantsBulk, RecruitingRowActions, RecruitingSettingsForm } from "@/components/HubActions";
 import { RecruitingIntake } from "@/components/RecruitingIntake";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +64,7 @@ export default async function RecruitingPage({ searchParams }: { searchParams: P
     <div className="space-y-6">
       <TrackSwitch on="pro" />
       <div>
-        <h1 className="text-2xl font-bold">Pipeline · Independent pros</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">Pipeline · Independent pros</h1><Link href="/hub/recruiting/packet" className="text-sm font-semibold text-brand">Interview packet →</Link></div>
         <p className="text-sm text-ink-soft">Applicants are screened, interviewed (AI or you), invited, reminded and activated automatically; a person decides who's invited. Click a name for the candidate's full checklist and interview. Indeed posts and imports: <Link href="/hub/recruiting/indeed" className="font-semibold text-brand underline">Indeed</Link>.</p>
       </div>
       <details className="group" open={!total}>
@@ -74,13 +78,14 @@ export default async function RecruitingPage({ searchParams }: { searchParams: P
         <Stat label="Need you" value={count("applied") + count("screened") + count("interviewed")} hint="waiting for a decision" />
       </div>
       <div className="card overflow-x-auto">
-        <div className="flex min-w-max gap-2 text-sm">
-          <Link href="/hub/recruiting/pipeline" className={`rounded-full border px-3 py-1 ${!filter ? "border-brand bg-brand-tint" : "border-line"}`}>Open ({rows.filter((r) => !["active", "rejected"].includes(r.stage)).length})</Link>
-          {[...PIPELINE, "dropped" as PipelineStage, "rejected" as PipelineStage].map((s) => (
-            <Link key={s} href={`/hub/recruiting/pipeline?stage=${s}`} className={`rounded-full border px-3 py-1 ${filter === s ? "border-brand bg-brand-tint" : "border-line"}`}>{STAGE_LABEL[s]} ({count(s)})</Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <FilterSelect label="Show" current={filter ? `/hub/recruiting/pipeline?stage=${filter}` : "/hub/recruiting/pipeline"} options={[
+            { href: "/hub/recruiting/pipeline", label: `Open (${rows.filter((r) => !["active", "rejected"].includes(r.stage)).length})` },
+            ...[...PIPELINE, "dropped" as PipelineStage, "rejected" as PipelineStage].map((s) => ({ href: `/hub/recruiting/pipeline?stage=${s}`, label: `${STAGE_LABEL[s]} (${count(s)})` })),
+          ]} />
         </div>
       </div>
+      {v.role === "admin" && (filter === "rejected" || filter === "dropped") && <DeleteApplicantsBulk bulk={filter === "dropped" ? "dropped" : "not_a_fit"} count={shown.length} />}
       <div className="space-y-2">
         {!shown.length && <p className="card text-sm text-ink-soft">Nobody here. Share /pros to recruit.</p>}
         {shown.map((r) => {

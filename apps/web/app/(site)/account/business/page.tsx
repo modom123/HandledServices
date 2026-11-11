@@ -8,6 +8,7 @@
  *           (choose dedicated pros), invoices with payment links, and the team.
  * UPDATED : 2026-10-07_0530 UTC — Handled Points for the business account (admins redeem).
  * UPDATED : 2026-10-12_0121 UTC — client ID (B-…) under the company name.
+ * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -29,7 +30,7 @@ export default async function BusinessAccount() {
   if (!v) redirect("/login?next=/account/business");
   const accounts = await myAccounts(v);
   if (!accounts.length) return (
-    <div className="wrap py-14"><div className="card max-w-xl"><h1 className="text-2xl font-bold">No business account yet</h1>
+    <div className="wrap py-14 pro:py-10"><div className="card max-w-xl"><h1 className="text-2xl font-bold">No business account yet</h1>
       <p className="mt-2 text-ink-soft">Business accounts are for property managers, real estate teams, stagers, stores and facilities: properties on file, one-tap booking, dedicated pros and (when approved) monthly invoicing. You’re signed in as {v.email}.</p>
       <div className="mt-4 flex gap-3"><Link href="/business" className="btn-primary">Set up a business account</Link><Link href="/account" className="btn-ghost">My bookings</Link></div></div></div>
   );

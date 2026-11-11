@@ -7,12 +7,17 @@
  * UPDATED : 2026-10-19_2015 UTC — GovAwardsForm (Contract Awards search + the Monday awards run) and AwardStatus.
  * UPDATED : 2026-10-19_2140 UTC — focus codes first (landscaping, painting, AI automation), awards_naics saved, CopyText.
  * UPDATED : 2026-10-19_2330 UTC — AI bid desk: bids to pick per day, "Pick today's bids now".
+ * UPDATED : 2026-11-05_1215 UTC — NAICS pickers are a searchable dropdown (★ focus first) instead of 37 buttons.
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GOV_NAICS, GOV_NAICS_BY_CODE, SAM_NOTICE_TYPES, SET_ASIDES } from "@handled/core";
+import { MultiSelect } from "@/components/Dropdowns";
+
+/** NAICS codes for the dropdown: our focus work first (★). */
+const NAICS_OPTIONS = [...GOV_NAICS].sort((a, b) => Number(Boolean(b.focus)) - Number(Boolean(a.focus))).map((n) => ({ value: n.code, label: `${n.focus ? "★ " : ""}${n.title}`, hint: n.code }));
 
 async function post(body: unknown): Promise<{ ok: boolean; [k: string]: unknown }> {
   const r = await fetch("/api/hub/gov", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -36,11 +41,7 @@ export function GovSearchForm({ s, ready, callsLeft }: { s: GovSearchState; read
     <div className="space-y-4 text-sm">
       <div>
         <div className="label">Work we can fill (NAICS codes) — one SAM.gov call each</div>
-        <div className="flex flex-wrap gap-2">
-          {GOV_NAICS.map((n) => (
-            <button key={n.code} type="button" onClick={() => setF({ ...f, naics: toggle(f.naics, n.code) })} className={`rounded-full border px-3 py-1 text-xs ${f.naics.includes(n.code) ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{n.code} · {n.title}</button>
-          ))}
-        </div>
+        <div className="max-w-2xl"><MultiSelect options={NAICS_OPTIONS} value={f.naics} onChange={(v) => setF({ ...f, naics: v })} placeholder="Pick the work (NAICS codes)" /></div>
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <div><label className="label">State (place of work)</label><input className="input" maxLength={2} value={f.state ?? ""} onChange={(e) => setF({ ...f, state: e.target.value.toUpperCase() || null })} placeholder="MI" /></div>
@@ -198,11 +199,7 @@ export function GovAwardsForm({ s, ready, callsLeft }: { s: GovAwardsState; read
     <div className="space-y-4 text-sm">
       <div>
         <div className="label">Work (NAICS codes) — all codes go in one call. ★ = our focus</div>
-        <div className="flex flex-wrap gap-2">
-          {[...GOV_NAICS].sort((a, b) => Number(Boolean(b.focus)) - Number(Boolean(a.focus))).map((n) => (
-            <button key={n.code} type="button" onClick={() => setF({ ...f, awards_naics: toggle(f.awards_naics, n.code) })} className={`rounded-full border px-3 py-1 text-xs ${f.awards_naics.includes(n.code) ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{n.focus ? "★ " : ""}{n.code} · {n.title}</button>
-          ))}
-        </div>
+        <div className="max-w-2xl"><MultiSelect options={NAICS_OPTIONS} value={f.awards_naics} onChange={(v) => setF({ ...f, awards_naics: v })} placeholder="Pick the work (NAICS codes)" /></div>
         {f.state && f.awards_naics.some((c) => GOV_NAICS_BY_CODE[c]?.remote) && <p className="mt-1 text-xs text-ink-soft">AI automation is remote work: clear the state to see contracts nationwide (search those codes on their own so local trades stay in your state).</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-5">
@@ -253,6 +250,102 @@ export function CopyText({ text }: { text: string }) {
     <div className="space-y-1">
       <pre className="whitespace-pre-wrap rounded-lg bg-paper p-3 text-xs">{text}</pre>
       <button className="btn-ghost text-xs" onClick={async () => { try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 2000); } catch { /* clipboard blocked: select the text instead */ } }}>{done ? "Copied" : "Copy"}</button>
+    </div>
+  );
+}
+
+export interface GovTableRow { notice_id: string; title: string; typeLine: string; codeLine: string; flag: string | null; where: string; due: string; status: string; fit_score: number }
+
+/**
+ * The opportunities table with clean-up: tick notices (or use the row's ✕) and set them aside as "Not a fit" (Passed
+ * tab — the daily search never brings them back), restore passed ones, or delete them for good from the Passed tab.
+ * Notices with a bid in progress or a result can't be removed here.
+ */
+export function GovTable({ rows, mode = "new" }: { rows: GovTableRow[]; mode?: "new" | "passed" | "locked" }) {
+  const router = useRouter();
+  const [pick, setPick] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const canPick = mode !== "locked";
+  const run = async (action: "dismiss" | "restore" | "delete", ids: string[]) => {
+    if (!ids.length) return;
+    let reason: string | null = null;
+    if (action === "delete") {
+      if (!confirm(`Delete ${ids.length} notice${ids.length > 1 ? "s" : ""} for good? They won't come back in future searches.`)) return;
+    } else if (action === "dismiss" && ids.length > 1) {
+      reason = prompt(`Why aren't these ${ids.length} a fit? (optional — e.g. "outside Michigan", "needs a clearance")`, "") || null;
+    }
+    setBusy(true); setMsg("");
+    const r = await post({ action, notice_ids: ids, reason });
+    setBusy(false);
+    const done = Number(r.done ?? 0); const skipped = Number(r.skipped ?? 0);
+    setMsg(r.ok ? `${done} ${action === "dismiss" ? "moved to Passed" : action === "restore" ? "back in New" : "deleted"}${skipped ? ` · ${skipped} kept (a bid is in progress or done)` : ""}` : String(r.error ?? "Failed"));
+    setPick([]); router.refresh();
+  };
+  const all = rows.map((r) => r.notice_id);
+  return (
+    <div className="space-y-2">
+      {canPick && rows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={pick.length === all.length} onChange={() => setPick(pick.length === all.length ? [] : all)} /> Select all ({rows.length})</label>
+          {mode === "new" && <button className="btn-ghost py-1 text-xs" disabled={busy || !pick.length} onClick={() => run("dismiss", pick)}>✕ Not a fit ({pick.length})</button>}
+          {mode === "passed" && <button className="btn-ghost py-1 text-xs" disabled={busy || !pick.length} onClick={() => run("restore", pick)}>↩ Restore to New ({pick.length})</button>}
+          {mode === "passed" && <button className="btn-ghost py-1 text-xs text-rose-700" disabled={busy || !pick.length} onClick={() => run("delete", pick)}>🗑 Delete for good ({pick.length})</button>}
+          {msg && <span className="text-xs text-ink-soft">{msg}</span>}
+        </div>
+      )}
+      <div className="card overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr>{canPick && <th className="p-3"></th>}<th className="p-3">Fit</th><th className="p-3">Opportunity</th><th className="p-3">Where</th><th className="p-3">Respond by</th><th className="p-3">Status</th>{canPick && <th className="p-3"></th>}</tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.notice_id} className="border-t border-line align-top">
+                {canPick && <td className="p-3"><input type="checkbox" aria-label={`Select ${r.title}`} checked={pick.includes(r.notice_id)} onChange={() => setPick(toggle(pick, r.notice_id))} /></td>}
+                <td className="p-3"><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${r.fit_score >= 70 ? "bg-green-100 text-green-800" : r.fit_score >= 40 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{r.fit_score}</span></td>
+                <td className="p-3">
+                  <a href={`/hub/gov/${encodeURIComponent(r.notice_id)}`} className="font-semibold text-brand hover:underline">{r.title}</a>
+                  <div className="text-xs text-ink-soft">{r.typeLine}</div>
+                  <div className="text-xs text-ink-soft">{r.codeLine}</div>
+                  {r.flag && <div className="text-xs text-amber-800">⚠ {r.flag}</div>}
+                </td>
+                <td className="p-3 text-xs">{r.where}</td>
+                <td className="p-3 text-xs">{r.due}</td>
+                <td className="p-3 text-xs capitalize">{r.status}</td>
+                {canPick && (
+                  <td className="p-3 text-right">
+                    {mode === "new"
+                      ? <button className="rounded-full border border-line px-2 py-0.5 text-xs hover:bg-rose-50" title="Not a fit — move to Passed" disabled={busy} onClick={() => run("dismiss", [r.notice_id])}>✕ Not a fit</button>
+                      : <button className="rounded-full border border-line px-2 py-0.5 text-xs" title="Back to New" disabled={busy} onClick={() => run("restore", [r.notice_id])}>↩ Restore</button>}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** On a notice's page: set it aside as not a fit (or delete it for good) and go back to the list. */
+export function GovNotFit({ id, status }: { id: string; status: string }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState("");
+  if (["bidding", "submitted", "won", "lost"].includes(status)) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      {status !== "passed" && <button className="btn-ghost" onClick={async () => {
+        const reason = prompt("Why isn't this a fit? (optional)", "");
+        if (reason === null) return;
+        const r = await post({ action: "dismiss", notice_ids: [id], reason: reason || null });
+        if (r.ok) router.push("/hub/bids?view=gov"); else setMsg(String(r.error ?? "Failed"));
+      }}>✕ Not a fit</button>}
+      <button className="btn-ghost text-rose-700" onClick={async () => {
+        if (!confirm("Delete this notice for good? It won't come back in future searches.")) return;
+        const r = await post({ action: "delete", notice_ids: [id] });
+        if (r.ok) router.push("/hub/bids?view=gov"); else setMsg(String(r.error ?? "Failed"));
+      }}>🗑 Delete</button>
+      {msg && <span className="text-rose-700">{msg}</span>}
     </div>
   );
 }

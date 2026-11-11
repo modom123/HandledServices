@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-05_2134 UTC — partner status options (no automated email).
  * UPDATED : 2026-10-07_2030 UTC — job-posting searches/day setting and "Find job postings now" (Adzuna, Michigan + Washington).
  * UPDATED : 2026-10-19_2230 UTC — "Sync Instantly campaign" (leads uploaded in Instantly → this list).
+ * UPDATED : 2026-11-11_0100 UTC — settings: send from our outreach domain or Instantly, rest days, rounds; Refresh list now; Check outreach mailbox.
  */
 "use client";
 
@@ -62,7 +63,7 @@ export function JobPostLeadForm({ sendingReady }: { sendingReady: boolean }) {
   );
 }
 
-export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number } }) {
+export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number; sender: "instantly" | "own"; rest_days: number; max_rounds: number } }) {
   const router = useRouter();
   const [f, setF] = useState(s);
   const [msg, setMsg] = useState("");
@@ -75,10 +76,19 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
         <label className="flex items-center gap-1">New sequences/day <input className="input w-16" inputMode="numeric" value={f.emails_per_day} onChange={(e) => setF({ ...f, emails_per_day: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></label>
         <label className="flex items-center gap-1">Pilot <input className="input w-14" inputMode="numeric" value={f.pilot_pct} onChange={(e) => setF({ ...f, pilot_pct: Math.min(BUSINESS_TERMS.maxPilotPct, Number(e.target.value.replace(/\D/g, "")) || 0) })} />% off the first <input className="input w-12" inputMode="numeric" value={f.pilot_jobs} onChange={(e) => setF({ ...f, pilot_jobs: Math.min(BUSINESS_TERMS.maxPilotJobs, Number(e.target.value.replace(/\D/g, "")) || 0) })} /> jobs</label>
       </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-1">Send from
+          <select className="input w-auto" value={f.sender ?? "instantly"} onChange={(e) => setF({ ...f, sender: e.target.value as "instantly" | "own" })}>
+            <option value="own">Our outreach domain (OUTREACH_* mailbox)</option>
+            <option value="instantly">Instantly</option>
+          </select></label>
+        <label className="flex items-center gap-1" title="After a round of emails with no answer, a lead rests this long before one re-engagement round">Rest <input className="input w-16" inputMode="numeric" value={f.rest_days ?? 90} onChange={(e) => setF({ ...f, rest_days: Math.min(365, Number(e.target.value.replace(/\D/g, "")) || 0) })} /> days between rounds</label>
+        <label className="flex items-center gap-1" title="Rounds of email per lead before it retires for a year (2 = the first sequence + one re-engagement)">Rounds <input className="input w-12" inputMode="numeric" value={f.max_rounds ?? 2} onChange={(e) => setF({ ...f, max_rounds: Math.max(1, Math.min(4, Number(e.target.value.replace(/\D/g, "")) || 1)) })} /></label>
+      </div>
       <div className="flex flex-wrap gap-3">{(Object.keys(BIZ_SEGMENTS) as BizSegment[]).map((k) => (
         <label key={k} className="flex items-center gap-1"><input type="checkbox" checked={f.segments.includes(k)} onChange={(e) => setF({ ...f, segments: e.target.checked ? [...f.segments, k] : f.segments.filter((x) => x !== k) })} />{BIZ_SEGMENTS[k].label}</label>
       ))}</div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button className="btn-primary" onClick={async () => { const e = await post({ action: "settings", ...f }); setMsg(e ?? "Saved"); router.refresh(); }}>Save</button>
         <button className="btn-ghost" onClick={async () => { setMsg("Running…"); const e = await post({ action: "run" }); setMsg(e ?? "Done"); router.refresh(); }}>Run now</button>
         <button className="btn-ghost" onClick={async () => {
@@ -87,6 +97,18 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
           const j = await r.json().catch(() => ({}));
           setMsg(r.ok ? `Instantly: ${j.seen} leads checked, ${j.added} new in the CRM, ${j.updated} updated` : String(j.error ?? "Failed")); router.refresh();
         }}>Sync Instantly campaign</button>
+        <button className="btn-ghost" onClick={async () => {
+          setMsg("Refreshing the list…");
+          const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "refresh" }) });
+          const j = await r.json().catch(() => ({}));
+          setMsg(r.ok ? `Refreshed: ${j.rested} resting, ${j.woke} woken, ${j.warm} to the call list, ${j.retired} retired, ${j.duplicates} duplicates, ${j.revived} back` : String(j.error ?? "Failed")); router.refresh();
+        }}>Refresh list now</button>
+        <button className="btn-ghost" onClick={async () => {
+          setMsg("Checking the outreach mailbox…");
+          const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify_outreach" }) });
+          const j = await r.json().catch(() => ({}));
+          setMsg(r.ok ? `Outreach mailbox ${j.dns?.domain ?? "(not set)"}: sending ${j.login?.smtp}, inbox ${j.login?.imap} · SPF ${j.dns?.spf ? "✓" : "✗"} DKIM ${j.dns?.dkim ? "✓" : "✗"} DMARC ${j.dns?.dmarc ? "✓" : "✗"}${j.dns?.notes?.length ? ` — ${j.dns.notes.join(" ")}` : ""}` : String(j.error ?? "Failed"));
+        }}>Check outreach mailbox</button>
         <button className="btn-ghost" onClick={async () => { setMsg("Searching job boards…"); const e = await post({ action: "job_posts" }); setMsg(e ?? "Done — new job-posting leads are in the list"); router.refresh(); }}>Find job postings now</button>
         {msg && <span className="self-center text-ink-soft">{msg}</span>}
       </div>

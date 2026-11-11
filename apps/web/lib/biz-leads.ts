@@ -34,10 +34,19 @@
  *                                 and a draft answer (for Unibox) in the alert and the lead's history.
  * UPDATED : 2026-10-20_0015 UTC — logCall (Call desk): saves the outcome, sets when to call again, stops email for a
  *           no / do-not-contact (Instantly block list), alerts the team on an interested business.
+ * UPDATED : 2026-10-28_1800 UTC — leadBooked(): a lead who orders online (no proposal form any more) is marked converted.
+ * UPDATED : 2026-11-11_0100 UTC — keeping the list fresh, and our own outreach domain instead of Instantly:
+ *             refreshBizLeads   — daily: finished sequences rest (rest_days), wake for one seasonal re-engagement round,
+ *                                 then retire for a year; clicked-but-silent leads go to the call list; duplicates
+ *                                 (same website / email domain / phone, core bizDedupeKey) are retired; low supply alerts
+ *             sender 'own'      — the 3-email sequence is sent by us from the outreach mailbox (lib/outreach-mail.ts,
+ *                                 OUTREACH_*), step by step (day 0, 4, 10), within a warm-up ramp (core warmupCap) and
+ *                                 the daily limit; checkOutreachInbox reads replies and bounces every 10 minutes
+ *             discovery skips businesses already on the list (dedupe key).
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -46,16 +55,17 @@ import { raiseAlert } from "./jobs";
 import { addLeadToCampaign, blockInInstantly, instantlyBizReady, instantlyBizSyncReady, instantlyWebhooksOn, listCampaignLeads, listReceivedEmails, type InstantlyCampaignLead } from "./instantly";
 import { aiEnabled, structured } from "./ai/client";
 import { safeFetch } from "./safe-fetch";
+import { outreachReady, outreachReplies, sendOutreach } from "./outreach-mail";
 
 const db = () => adminClient();
 // Michigan (Detroit metro focus) + Washington (Puget Sound and Spokane) — the states we serve
 const WA_CITIES = ["Seattle", "Bellevue", "Redmond", "Kirkland", "Renton", "Kent", "Tacoma", "Federal Way", "Everett", "Lynnwood", "Olympia", "Vancouver", "Spokane"];
 const METRO = [...FOCUS_CITIES.map((c) => ({ city: c, state: "MI" })), ...WA_CITIES.map((c) => ({ city: c, state: "WA" }))];
 
-export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number }
+export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number; sender: "instantly" | "own"; rest_days: number; max_rounds: number; first_own_send_at: string | null; outreach_last_uid: number }
 export async function getBizLeadSettings(): Promise<BizLeadSettings> {
   const { data } = await db().from("biz_lead_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, ...(data ?? {}) } as BizLeadSettings;
+  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, sender: "instantly", rest_days: LEAD_REFRESH.restDays, max_rounds: LEAD_REFRESH.maxRounds, first_own_send_at: null, outreach_last_uid: 0, ...(data ?? {}) } as BizLeadSettings;
 }
 
 async function event(leadId: string, kind: string, note?: string | null, actor = "engine") {
@@ -86,7 +96,9 @@ export async function discoverBizLeads(s: BizLeadSettings) {
         rating: p.rating ?? null, review_count: p.userRatingCount ?? null, details_expire_at: new Date(Date.now() + 30 * 86400000).toISOString(),
         score: bizLeadScore({ rating: p.rating, reviewCount: p.userRatingCount, website: p.websiteUri, phone: p.nationalPhoneNumber }),
       };
-      const { data: ins } = await db().from("biz_leads").upsert(row, { onConflict: "source,external_id", ignoreDuplicates: true }).select("id");
+      const key = bizDedupeKey({ website: row.website, phone: row.phone });
+      if (key && (await db().from("biz_leads").select("id", { count: "exact", head: true }).eq("dedupe_key", key)).count) continue; // already on the list
+      const { data: ins } = await db().from("biz_leads").upsert({ ...row, dedupe_key: key }, { onConflict: "source,external_id", ignoreDuplicates: true }).select("id");
       if (ins?.length) { added++; await event(ins[0].id, "found", `${BIZ_SEGMENTS[t.segment].search} in ${t.city}, ${t.state}`); }
     }
   }
@@ -212,6 +224,7 @@ export async function enrichBizLeads(limit = 30) {
 const toHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}">${u}</a>`).replace(/\n/g, "<br>");
 
 export async function sendBizLeadEmails(s: BizLeadSettings) {
+  if (s.sender === "own") return sendOwnOutreach(s);
   if (!instantlyBizReady()) return { sent: 0, skipped: 0 };
   const { data } = await db().from("biz_leads").select("*").eq("status", "queued").not("email", "is", null).neq("segment", "partner").order("score", { ascending: false }).limit(s.emails_per_day);
   return sendTo((data ?? []) as LeadRow[]);
@@ -238,7 +251,7 @@ async function sendTo(rows: LeadRow[]) {
       await addLeadToCampaign({ email: l.email, firstName: ctx.firstName, companyName: l.business_name, phone: l.phone, website: l.website, variables, campaign: process.env.INSTANTLY_BIZ_CAMPAIGN_ID });
     } catch (e) { await event(l.id, "send_failed", e instanceof Error ? e.message : String(e)); skipped++; continue; }
     await db().from("biz_leads").update({ status: "emailing", last_contact_at: new Date().toISOString() }).eq("id", l.id);
-    await event(l.id, "handed_to_instantly", l.job_title ? `job-posting sequence (${l.job_title})` : "3-email sequence with pilot offer");
+    await event(l.id, "handed_to_instantly", l.job_title ? `employer sequence (${l.job_title})` : l.segment === "property_manager" ? "property-manager sequence" : "3-email sequence");
     sent++;
   }
   return { sent, skipped };
@@ -392,7 +405,7 @@ ${text.slice(0, 6000)}
 }
 
 /** Instantly events for business leads (handled_biz_lead_id, the business campaign's id, or a known address). */
-export async function onBizInstantlyEvent(e: { type: string; email: string; leadId?: string | null; text?: string | null; fromBizCampaign?: boolean; lead?: { first_name?: string | null; last_name?: string | null; company_name?: string | null; phone?: string | null; website?: string | null } }) {
+export async function onBizInstantlyEvent(e: { type: string; email: string; leadId?: string | null; text?: string | null; fromBizCampaign?: boolean; via?: "instantly" | "own"; lead?: { first_name?: string | null; last_name?: string | null; company_name?: string | null; phone?: string | null; website?: string | null } }) {
   const email = e.email.trim().toLowerCase();
   let { data: lead } = e.leadId && /^[0-9a-f-]{36}$/.test(e.leadId)
     ? await db().from("biz_leads").select("id, status, business_name, token").eq("id", e.leadId).maybeSingle()
@@ -418,10 +431,11 @@ export async function onBizInstantlyEvent(e: { type: string; email: string; lead
     const warm = !ai || ["interested", "question", "referral", "other"].includes(ai.intent);
     if (warm || ai?.intent === "not_now")
       await raiseAlert("sales", warm ? "warn" : "info", `${ai?.intent === "interested" ? "Interested" : "A business replied"}: ${lead.business_name}`,
-        `${e.text ? `"${e.text.slice(0, 500)}"\n\n` : ""}${ai ? `AI read: ${ai.summary}\nNext: ${ai.next_step}\n\nDraft reply (check it, then send from Instantly's Unibox):\n${ai.suggested_reply}` : "Answer from Instantly's Unibox today (a warm business lead), then mark them in Hub → Business leads."}`);
+        `${e.text ? `"${e.text.slice(0, 500)}"\n\n` : ""}${ai ? `AI read: ${ai.summary}\nNext: ${ai.next_step}\n\nDraft reply (check it, then send it from ${e.via === "own" ? "the outreach mailbox" : "Instantly's Unibox"}):\n${ai.suggested_reply}` : `Answer from ${e.via === "own" ? "the outreach mailbox" : "Instantly's Unibox"} today (a warm business lead), then mark them in Hub → Business leads.`}`);
   } else if (t.includes("click")) { if (["queued", "emailing"].includes(lead.status)) await db().from("biz_leads").update({ status: "clicked" }).eq("id", lead.id); }
   else if (t.includes("sent")) await db().from("biz_leads").update({ last_contact_at: new Date().toISOString() }).eq("id", lead.id);
-  await event(lead.id, `instantly:${t}`, e.text?.slice(0, 300) ?? null, "instantly");
+  if (e.via === "own" && !t.includes("sent") && !t.includes("click")) await db().from("biz_leads").update({ next_send_at: null }).eq("id", lead.id); // any answer stops our sequence
+  await event(lead.id, `${e.via === "own" ? "outreach" : "instantly"}:${t}`, e.text?.slice(0, 300) ?? null, e.via === "own" ? "outreach" : "instantly");
   return true;
 }
 
@@ -435,6 +449,18 @@ export async function recordBizLeadClick(token: string) {
 }
 
 /** They set up an account from the email: credit the lead, put the promised pilot on the account, stop emailing. */
+/** A sales-engine lead ordered a job (their /business?lead=… link was carried to the order): converted, stop emailing them. */
+export async function leadBooked(token: string, job: { id: string; ref: string; service_slug: string; contact_email: string }) {
+  if (!/^[a-z0-9]{8,40}$/.test(token)) return null;
+  const { data: lead } = await db().from("biz_leads").select("id, email, segment, status").eq("token", token).maybeSingle();
+  if (!lead) return null;
+  if (lead.status !== "converted") await db().from("biz_leads").update({ status: "converted" }).eq("id", lead.id);
+  if (lead.email) await blockInInstantly(lead.email).catch(() => {});
+  await event(lead.id, "booked", `${job.ref} · ${job.service_slug}`);
+  await raiseAlert("sales", "info", `A business lead ordered ${job.ref}`, `From the sales engine (${lead.segment}): ${job.contact_email} ordered ${job.service_slug} online with a deposit.`, job.id);
+  return lead.id as string;
+}
+
 export async function leadConverted(token: string, accountId: string) {
   if (!/^[a-z0-9]{8,40}$/.test(token)) return null;
   const { data: lead } = await db().from("biz_leads").select("id, email, segment").eq("token", token).maybeSingle();
@@ -490,15 +516,172 @@ export async function bizLeadEngine() {
   const s = await getBizLeadSettings();
   // campaigns run from Instantly (e.g. 1ST OUTREACH DETROIT) sync into the CRM even when our own discovery is off
   const instantly = instantlyBizSyncReady() ? await syncBizCampaign().catch((e) => ({ ok: false, error: String(e) })) : null;
-  if (!s.enabled) return { enabled: false, instantly };
+  const refreshed = await refreshBizLeads(s).catch((e) => { console.error("[biz leads refresh]", e); return null; }); // rest / wake / retire / dedupe — even with discovery off
+  if (!s.enabled) return { enabled: false, instantly, refreshed };
   const discovered = await discoverBizLeads(s).catch((e) => { console.error("[biz leads discover]", e); return { searches: 0, added: 0 }; });
   const jobPosts = await discoverJobPostings(s).catch((e) => { console.error("[biz leads job posts]", e); return { searches: 0, found: 0, added: 0, skipped: 0 }; });
   const emailsFound = await enrichBizLeads().catch(() => 0);
   const sent = await sendBizLeadEmails(s).catch((e) => { console.error("[biz leads send]", e); return { sent: 0, skipped: 0 }; });
   const purged = await purgeBizLeadDetails().catch(() => 0);
-  if (!process.env.GOOGLE_PLACES_API_KEY || !instantlyBizReady())
-    await raiseAlert("sales", "info", "Business sales engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing. " : ""}${!instantlyBizReady() ? "INSTANTLY_BIZ_CAMPAIGN_ID (a second Instantly campaign) / INSTANTLY_API_KEY / BUSINESS_POSTAL_ADDRESS missing." : ""}`);
+  const senderOk = s.sender === "own" ? outreachReady() && Boolean(process.env.BUSINESS_POSTAL_ADDRESS) : instantlyBizReady();
+  if (!process.env.GOOGLE_PLACES_API_KEY || !senderOk)
+    await raiseAlert("sales", "info", "Business sales engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing (no new businesses are found). " : ""}${senderOk ? "" : s.sender === "own" ? "Outreach mailbox missing: set OUTREACH_SMTP_USER / OUTREACH_SMTP_PASSWORD (the mailbox on the outreach domain) and BUSINESS_POSTAL_ADDRESS." : "INSTANTLY_BIZ_CAMPAIGN_ID (a second Instantly campaign) / INSTANTLY_API_KEY / BUSINESS_POSTAL_ADDRESS missing."}`);
   if (!jobBoardReady() && (s.job_posts_per_day ?? 6) > 0)
     await raiseAlert("sales", "info", "Job-posting leads are waiting for an Adzuna key", "Get a free key at developer.adzuna.com, then set ADZUNA_APP_ID and ADZUNA_APP_KEY in Vercel. Businesses in Michigan and Washington hiring cleaners, janitors, porters and maintenance techs become leads automatically.");
-  return { enabled: true, instantly, discovered, jobPosts, emailsFound, sent, purged };
+  return { enabled: true, instantly, refreshed, discovered, jobPosts, emailsFound, sent, purged };
+}
+
+// ─── Own outreach domain: our 3-email sequence, step by step ────────────────
+
+type OwnLead = LeadRow & { round: number | null; seq_step: number | null; status: string };
+const STEP_GAP = BIZ_LEAD_SEQUENCE.map((d, i) => (i ? d - BIZ_LEAD_SEQUENCE[i - 1] : 0)); // days between steps: 0, 4, 6
+
+/** How many outreach emails went out today (UTC), all steps and rounds together. */
+async function ownSentToday() {
+  const start = new Date(); start.setUTCHours(0, 0, 0, 0);
+  return (await db().from("biz_lead_events").select("id", { count: "exact", head: true }).eq("kind", "outreach:sent").gte("created_at", start.toISOString())).count ?? 0;
+}
+
+/** Send one step of a lead's sequence (round 1 = the first sequence, round 2+ = re-engagement). */
+async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings): Promise<"sent" | "skipped" | "failed"> {
+  const email = l.email.toLowerCase();
+  const [{ data: acct }, { count: out }] = await Promise.all([
+    db().from("business_members").select("account_id").eq("email", email).limit(1).maybeSingle(),
+    db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", email),
+  ]);
+  if (acct) { await db().from("biz_leads").update({ status: "converted", account_id: acct.account_id, next_send_at: null }).eq("id", l.id); return "skipped"; }
+  if (out) { await db().from("biz_leads").update({ status: "unsubscribed", next_send_at: null }).eq("id", l.id); return "skipped"; }
+  const ctx = { step, businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, segment: l.segment, city: l.city, pilotPct: s.pilot_pct, pilotJobs: s.pilot_jobs,
+    signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS!, jobTitle: l.job_title ?? null, postingSource: l.posting_source ?? null };
+  const round = Math.max(1, Number(l.round ?? 1));
+  const m = round > 1 ? bizReengageEmail(ctx) : bizLeadEmail(ctx);
+  try {
+    await sendOutreach({ to: l.email, subject: m.subject, text: m.text, unsubscribeUrl: ctx.unsubscribeUrl });
+  } catch (e) { await event(l.id, "outreach:send_failed", e instanceof Error ? e.message.slice(0, 300) : String(e), "outreach"); return "failed"; }
+  const now = new Date();
+  const last = step >= BIZ_LEAD_SEQUENCE.length - 1;
+  await db().from("biz_leads").update({
+    status: "emailing", sent_via: "own", seq_step: step + 1,
+    next_send_at: last ? null : new Date(now.getTime() + STEP_GAP[step + 1] * 86400000).toISOString(),
+    ...(step === 0 ? { last_contact_at: now.toISOString() } : {}),
+  }).eq("id", l.id);
+  await event(l.id, "outreach:sent", `round ${round}, email ${step + 1} of ${BIZ_LEAD_SEQUENCE.length}: ${m.subject}`, "outreach");
+  return "sent";
+}
+
+/** Daily: follow-ups that are due first, then new leads, within today's limit and the new domain's warm-up ramp. */
+export async function sendOwnOutreach(s: BizLeadSettings) {
+  if (!outreachReady() || !process.env.BUSINESS_POSTAL_ADDRESS) return { sent: 0, skipped: 0, error: "Set OUTREACH_SMTP_USER / OUTREACH_SMTP_PASSWORD and BUSINESS_POSTAL_ADDRESS" };
+  let budget = warmupCap(s.first_own_send_at, s.emails_per_day) - (await ownSentToday());
+  let sent = 0, skipped = 0;
+  const run = async (rows: OwnLead[], stepOf: (l: OwnLead) => number) => {
+    for (const l of rows) {
+      if (budget <= 0) break;
+      const r = await sendOwnStep(l, stepOf(l), s);
+      if (r === "sent") { sent++; budget--; } else skipped++;
+    }
+  };
+  const cols = "id, token, email, business_name, contact_name, segment, city, phone, website, job_title, posting_source, round, seq_step, status";
+  const { data: due } = await db().from("biz_leads").select(cols).in("status", ["emailing", "clicked"]).lte("next_send_at", new Date().toISOString()).not("email", "is", null).order("next_send_at").limit(200);
+  await run((due ?? []) as unknown as OwnLead[], (l) => Number(l.seq_step ?? 0));
+  if (budget > 0) {
+    const { data: fresh } = await db().from("biz_leads").select(cols).eq("status", "queued").not("email", "is", null).neq("segment", "partner").order("score", { ascending: false }).limit(budget);
+    await run((fresh ?? []) as unknown as OwnLead[], () => 0);
+  }
+  if (sent && !s.first_own_send_at) await db().from("biz_lead_settings").update({ first_own_send_at: new Date().toISOString() }).eq("id", 1);
+  return { sent, skipped, budgetLeft: Math.max(0, budget) };
+}
+
+/** Every 10 minutes: replies and bounces in the outreach inbox → the same path as Instantly's events (AI read, alerts, stop). */
+export async function checkOutreachInbox(): Promise<{ ok: boolean; read: number; replies: number; bounces: number; error?: string }> {
+  if (!outreachReady()) return { ok: false, read: 0, replies: 0, bounces: 0, error: "outreach mailbox not set up" };
+  const s = await getBizLeadSettings();
+  let read = 0, replies = 0, bounces = 0, lastUid = Number(s.outreach_last_uid ?? 0);
+  try {
+    for (const m of await outreachReplies(lastUid)) {
+      read++; lastUid = Math.max(lastUid, m.uid);
+      if (m.bounce) {
+        if (m.bouncedTo && (await onBizInstantlyEvent({ type: "bounce", email: m.bouncedTo, via: "own" }).catch(() => false))) bounces++;
+      } else if (await onBizInstantlyEvent({ type: "reply_received", email: m.from, text: m.text, via: "own" }).catch(() => false)) replies++;
+    }
+  } catch (e) {
+    return { ok: false, read, replies, bounces, error: e instanceof Error ? e.message.slice(0, 300) : String(e) };
+  } finally {
+    if (lastUid > Number(s.outreach_last_uid ?? 0)) await db().from("biz_lead_settings").update({ outreach_last_uid: lastUid }).eq("id", 1);
+  }
+  return { ok: true, read, replies, bounces };
+}
+
+// ─── Keeping the list fresh ──────────────────────────────────────────────────
+
+/**
+ * Daily (core refreshStep): finished sequences rest, wake for one re-engagement round, then retire for a year and come
+ * back as new; clicked-but-silent leads go to the call list; duplicates are retired. Waking only re-sends when we send
+ * from our own domain (Instantly won't take an address it has already emailed); otherwise a woken lead with a phone goes
+ * to the call list. Alerts when fresh supply is running low.
+ */
+export async function refreshBizLeads(s: BizLeadSettings) {
+  const now = new Date();
+  const out = { keyed: 0, duplicates: 0, rested: 0, warm: 0, woke: 0, retired: 0, revived: 0 };
+
+  // 1. one key per business, then retire duplicates (keep the one furthest along)
+  const { data: unkeyed } = await db().from("biz_leads").select("id, website, email, phone").is("dedupe_key", null).limit(1000);
+  for (const l of (unkeyed ?? []) as { id: string; website: string | null; email: string | null; phone: string | null }[]) {
+    const key = bizDedupeKey(l);
+    if (key) { await db().from("biz_leads").update({ dedupe_key: key }).eq("id", l.id); out.keyed++; }
+  }
+  const { data: keyed } = await db().from("biz_leads").select("id, dedupe_key, status, business_name, created_at, segment").not("dedupe_key", "is", null).neq("segment", "partner").limit(20000);
+  const rank: Record<string, number> = { converted: 9, replied: 8, clicked: 7, call: 6, emailing: 5, queued: 4, resting: 3, new: 2, not_interested: 1, unsubscribed: 1, do_not_contact: 1, bounced: 1, retired: 0 };
+  const groups = new Map<string, { id: string; status: string; business_name: string; created_at: string }[]>();
+  for (const l of (keyed ?? []) as { id: string; dedupe_key: string; status: string; business_name: string; created_at: string }[]) groups.set(l.dedupe_key, [...(groups.get(l.dedupe_key) ?? []), l]);
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    g.sort((a, b) => (rank[b.status] ?? 0) - (rank[a.status] ?? 0) || a.created_at.localeCompare(b.created_at));
+    for (const d of g.slice(1).filter((x) => ["new", "queued", "call", "resting"].includes(x.status))) {
+      await db().from("biz_leads").update({ status: "retired", retired_at: now.toISOString(), retired_reason: `duplicate of ${g[0].business_name}`, next_send_at: null }).eq("id", d.id);
+      await event(d.id, "refresh:duplicate", `same business as ${g[0].business_name}`);
+      out.duplicates++;
+    }
+  }
+
+  // 2. the cycle
+  const own = s.sender === "own" && outreachReady();
+  const { data: rows } = await db().from("biz_leads").select("id, status, segment, round, last_contact_at, rest_until, retired_at, call_attempts, last_called_at, created_at, next_send_at, email, phone")
+    .in("status", ["emailing", "clicked", "call", "resting", "retired"]).neq("segment", "partner").limit(20000);
+  let wakeBudget = Math.max(0, s.emails_per_day);
+  for (const l of (rows ?? []) as (Parameters<typeof refreshStep>[0] & { id: string; next_send_at: string | null; email: string | null; phone: string | null; retired_reason?: string | null })[]) {
+    if (l.next_send_at && l.status === "emailing") continue; // our own sequence is still going
+    const step = refreshStep(l, now, { maxRounds: s.max_rounds });
+    if (!step) continue;
+    const round = Math.max(1, Number(l.round ?? 1));
+    if (step === "rest") {
+      await db().from("biz_leads").update({ status: "resting", rest_until: new Date(now.getTime() + s.rest_days * 86400000).toISOString(), next_send_at: null }).eq("id", l.id);
+      await event(l.id, "refresh:rest", `round ${round} done with no answer; resting ${s.rest_days} days`); out.rested++;
+    } else if (step === "warm_call") {
+      await db().from("biz_leads").update({ status: "call", next_call_at: now.toISOString(), next_send_at: null }).eq("id", l.id);
+      await event(l.id, "refresh:warm", "clicked the email but didn't answer: on the call list"); out.warm++;
+    } else if (step === "retire") {
+      await db().from("biz_leads").update({ status: "retired", retired_at: now.toISOString(), retired_reason: `no answer after ${round} round(s)`, next_send_at: null }).eq("id", l.id);
+      await event(l.id, "refresh:retire", `no answer after ${round} round(s); back in ${LEAD_REFRESH.retireDays} days`); out.retired++;
+    } else if (step === "revive") {
+      await db().from("biz_leads").update({ status: l.email ? "queued" : l.phone ? "call" : "new", round: 1, seq_step: 0, rest_until: null, retired_at: null, retired_reason: null }).eq("id", l.id);
+      await event(l.id, "refresh:revive", "a year on: back on the list"); out.revived++;
+    } else if (step === "wake") {
+      if (own && l.email && wakeBudget > 0) {
+        wakeBudget--;
+        await db().from("biz_leads").update({ status: "emailing", round: round + 1, seq_step: 0, next_send_at: now.toISOString(), rest_until: null }).eq("id", l.id);
+        await event(l.id, "refresh:wake", `round ${round + 1}: seasonal re-engagement emails start today`); out.woke++;
+      } else if (!own && l.phone) {
+        await db().from("biz_leads").update({ status: "call", round: round + 1, next_call_at: now.toISOString(), call_attempts: 0, rest_until: null }).eq("id", l.id);
+        await event(l.id, "refresh:wake", `round ${round + 1}: on the call list (re-sending needs the own outreach domain)`); out.woke++;
+      }
+    }
+  }
+
+  // 3. supply: enough fresh businesses for the next week of sending?
+  const { data: all } = await db().from("biz_leads").select("status, created_at, segment, rest_until").limit(20000);
+  const health = leadFreshness((all ?? []) as { status: string; created_at: string; segment: string; rest_until: string | null }[], now);
+  if (s.enabled && health.fresh < s.emails_per_day * 5)
+    await raiseAlert("sales", "info", `Business leads: only ${health.fresh} fresh lead(s) left`, `That's under a week of sending at ${s.emails_per_day}/day. ${process.env.GOOGLE_PLACES_API_KEY ? `Raise "find per day" in Hub → Business leads (now ${s.discover_per_day}),` : "Set GOOGLE_PLACES_API_KEY so new businesses are found every weekday,"} ${process.env.ADZUNA_APP_ID ? "" : "add ADZUNA_APP_ID / ADZUNA_APP_KEY for businesses that are hiring, "}or import a CSV of new businesses.`);
+  return { ...out, health };
 }

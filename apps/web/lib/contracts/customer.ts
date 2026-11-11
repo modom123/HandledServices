@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-05_1433 UTC — addendum-security (standing posts, patrols, fire watch).
  * UPDATED : 2026-10-07_2000 UTC — Business Services Agreement v2 — Washington: Washington law and local courts for Washington sites, Washington sales tax note (routine janitorial excluded; special clean-ups taxable), and the pro's freedom to work stated in the non-solicitation section.
  * UPDATED : 2026-10-15_0300 UTC — payment terms: book now, pay after (25% at booking; a hold when the pro starts; the rest charged when the job is complete) or pay in full with 5% off.
+ * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import {
   AI_MAX_CUT,
@@ -115,7 +116,7 @@ export const TERMS_OF_USE: Contract = {
     )],
     ["How the marketplace works", p(
       `${BRAND.name} is a service company that runs on a network of independent pros. When you book, you contract with us. We suggest a price (and you may offer a different one within limits), schedule the job, choose a qualified pro, check the work and stand behind it with our guarantee.`,
-      "The work itself is done by independent, insured, background-checked service businesses (\"pros\"). Pros are not our employees. They control how they do the work, within the scope you paid for.",
+      "The work itself is done by independent, background-checked, vetted service businesses (\"pros\"). Pros are not our employees. They control how they do the work, within the scope you paid for.",
       "Some services, like rides and licensed trade work, must be done by a company that holds a special license. For those, we book a licensed company for you. The extra terms for that service (an \"addendum\") explain who does what.",
       "We may decline any booking. For example, if the job is outside our area, unsafe, unlawful, or not something we can do well.",
     )],
@@ -282,7 +283,7 @@ export const SERVICE_AGREEMENT: Contract = {
   audience: "customer",
   appliesTo: "Every booking. You accept it when you book and pay, and it prints on your invoice.",
   summary: [
-    `You book and pay ${BRAND.name}. We schedule, manage and guarantee the job. An independent, insured, background-checked pro does the work. Please don't pay your pro directly.`,
+    `You book and pay ${BRAND.name}. We schedule, manage and guarantee the job. An independent, background-checked, vetted pro does the work. Please don't pay your pro directly.`,
     `We suggest a price based on what pros near you actually accept. You may offer a different price within limits, but a lower offer may take longer or may not be taken. You pay ${pct(BOOK_NOW.share)} when you book and the rest when the job is done, or everything when you book for ${pct(PAY_IN_FULL.discount)} off. The price includes a flat ${FEE} booking fee.`,
     "Until a pro accepts, you may raise your offer, and a pro may counter with a higher price. Paying more is always your choice, and we only charge the difference. Extra work only happens after you approve and pay for it.",
     `Cancel or move your booking free up to 24 hours before your arrival window. Inside 24 hours, or if your pro can't get in, we keep a ${money(LATE_CANCEL_FEE)} fee and refund the rest.`,
@@ -293,7 +294,7 @@ export const SERVICE_AGREEMENT: Contract = {
   ],
   sections: numbered([
     ["Who you're contracting with", p(
-      `You are contracting with ${US}. We suggest the price, schedule, manage and guarantee your job. The work is done by an independent, insured, background-checked service business that we select and quality-check ("your pro"). Pros are independent businesses, not our employees.`,
+      `You are contracting with ${US}. We suggest the price, schedule, manage and guarantee your job. The work is done by an independent, background-checked, vetted service business that we select and quality-check ("your pro"). Pros are independent businesses, not our employees.`,
       "You pay us. We pay your pro after the work is done and passes our quality check. Please don't pay your pro directly. Payments made outside the app are not covered by this agreement or our guarantee.",
       "Favorites and asking for a pro: you may mark a pro (or a member of a pro company's crew) as a favorite, or ask for a pro you've had when you book again. We then offer your job to that pro first for a few hours (shorter when the job is soon). It is a first look, not a promise: if they can't take it in that time, another vetted pro does, and your price, date and guarantee stay the same. Asking for a crew member is a request to that company; the company decides who it sends.",
       "Some services have extra terms (an \"addendum\"), for example rides, medical deliveries, pet care, events, construction and remodels, errands, hauling, car detailing, and home and yard services. If your service has an addendum, it is part of this agreement.",
@@ -500,13 +501,13 @@ export const SERVICE_AGREEMENT: Contract = {
 export const BUSINESS_MSA: Contract = {
   key: "business-services-agreement",
   title: `${BRAND.legalName} — Business Services Agreement`,
-  version: "2026-10-v2", // v2: Washington — law and courts where the services are performed, Washington sales tax, the pro's freedom to work stated
+  version: "2026-11-v3", // v3: pros background-checked and vetted, insured and licensed where the work requires; v2: Washington — law and courts where the services are performed, Washington sales tax, the pro's freedom to work stated
   audience: "business",
   appliesTo: "Business accounts (offices, retail, restaurants, clinics, property managers, HOAs, venues and other organizations), accepted when the account is opened or an order form is signed.",
   summary: [
     "This is the master agreement for your business account. Each order form, proposal or booking is a separate job under it.",
     "Prepaid by card or ACH by default. Net payment terms only if an order form says so.",
-    "Every pro is background-checked, insured and licensed where the trade requires. Certificates of insurance on request.",
+    "Every pro is background-checked and vetted. Pros carry insurance and licenses where the work requires them. Certificates of insurance on request.",
     "We keep your keys, codes and information confidential, and you do the same for ours. Patient information only under a signed HIPAA BAA.",
     "Service levels are targets. If we miss, we redo the work or credit you.",
     "Please don't hire our pros directly for 12 months, or a conversion fee applies.",
