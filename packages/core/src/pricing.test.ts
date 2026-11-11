@@ -35,6 +35,7 @@
  * UPDATED : 2026-10-27_1600 UTC — carpentry.
  * UPDATED : 2026-10-27_1900 UTC — pro roadmap (invite → first Monday pay).
  * UPDATED : 2026-10-27_2100 UTC — job money (split, payout stage, issues).
+ * UPDATED : 2026-11-11_0100 UTC — business lead refresh: refreshStep, bizDedupeKey, warmupCap, leadFreshness, bizReengageEmail.
  */
 
 import { test } from "node:test";
@@ -2780,4 +2781,50 @@ test("pro showcase: opt-in only, newest first, public name, city not address, up
   assert.equal(publicName({ business_name: "Dana Reyes", contact_name: "Dana Reyes" }), "Dana R.");
   assert.equal(publicName({ business_name: "", contact_name: "Sam Lee Park" }), "Sam P.");
   assert.equal(publicName({ business_name: "Mitten Lawn & Snow", contact_name: "Sam Lee" }), "Mitten Lawn & Snow");
+});
+
+import { LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap } from "./biz-lead-engine.ts";
+
+test("business leads: the list refreshes (rest → re-engage once → retire → back after a year)", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  const ago = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
+  const ahead = (d: number) => new Date(now.getTime() + d * 86400000).toISOString();
+  assert.equal(refreshStep({ status: "emailing", last_contact_at: ago(5) }, now), null);
+  assert.equal(refreshStep({ status: "emailing", last_contact_at: ago(LEAD_REFRESH.sequenceDays) }, now), "rest");
+  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(20) }, now), "retire");
+  assert.equal(refreshStep({ status: "clicked", last_contact_at: ago(20) }, now), "warm_call");
+  assert.equal(refreshStep({ status: "resting", round: 1, rest_until: ahead(3) }, now), null);
+  assert.equal(refreshStep({ status: "resting", round: 1, rest_until: ago(1) }, now), "wake");
+  assert.equal(refreshStep({ status: "resting", round: 2, rest_until: ago(1) }, now), "retire");
+  assert.equal(refreshStep({ status: "call", call_attempts: 3, last_called_at: ago(15) }, now), "rest");
+  assert.equal(refreshStep({ status: "call", call_attempts: 2, last_called_at: ago(15) }, now), null);
+  assert.equal(refreshStep({ status: "retired", retired_at: ago(366) }, now), "revive");
+  assert.equal(refreshStep({ status: "retired", retired_at: ago(30) }, now), null);
+  assert.equal(refreshStep({ status: "converted", last_contact_at: ago(400) }, now), null);
+  assert.equal(refreshStep({ status: "emailing", segment: "partner", last_contact_at: ago(400) }, now), null);
+  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(20) }, now, { maxRounds: 3 }), "rest");
+});
+
+test("business leads: duplicates share a key across sources", () => {
+  assert.equal(bizDedupeKey({ website: "https://www.AcmePM.com/contact" }), "d:acmepm.com");
+  assert.equal(bizDedupeKey({ email: "ops@acmepm.com" }), "d:acmepm.com");
+  assert.equal(bizDedupeKey({ website: "https://facebook.com/acme", email: "acme@gmail.com", phone: "(313) 555-0142" }), "p:3135550142");
+  assert.equal(bizDedupeKey({ email: "Acme@Gmail.com" }), "e:acme@gmail.com");
+  assert.equal(bizDedupeKey({}), null);
+});
+
+test("business leads: new outreach domain warms up; list health; re-engagement email", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  assert.equal(warmupCap(null, 50, now), 10);
+  assert.equal(warmupCap(new Date(now.getTime() - 10 * 86400000).toISOString(), 50, now), 20);
+  assert.equal(warmupCap(new Date(now.getTime() - 40 * 86400000).toISOString(), 50, now), 50);
+  assert.equal(warmupCap(new Date(now.getTime() - 40 * 86400000).toISOString(), 15, now), 15);
+  const h = leadFreshness([{ status: "new", created_at: now.toISOString() }, { status: "emailing" }, { status: "resting", rest_until: "2027-01-01" }, { status: "retired" }, { status: "converted" }, { status: "new", segment: "partner" }], now);
+  assert.deepEqual([h.total, h.fresh, h.inSequence, h.resting, h.retired, h.closed, h.added30, h.nextWake], [5, 1, 1, 1, 1, 1, 1, "2027-01-01"]);
+  const ctx = { step: 0, businessName: "Acme PM", segment: "property_manager" as const, pilotPct: 0, pilotJobs: 0, signupUrl: "https://x/b/1", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI", now };
+  const e = bizReengageEmail(ctx);
+  assert.match(e.subject, /Fall work at Acme PM/);
+  assert.match(e.text, /Not interested\? One click/);
+  assert.match(e.text, /1 Main St/);
+  assert.equal(bizReengageEmail({ ...ctx, step: 5 }).subject, "Closing the loop");
 });

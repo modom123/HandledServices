@@ -14,13 +14,15 @@
  * UPDATED : 2026-10-21_0130 UTC — Instantly replies pulled every 10 minutes and campaign leads hourly (no webhooks needed).
  * UPDATED : 2026-11-05_1240 UTC — also accepts the GitHub Actions token (no CRON_SECRET in GitHub); every run is recorded
  *           (site_settings cron_dispatch) so Go-live setup can confirm the 10-minute run.
+ * UPDATED : 2026-11-11_0100 UTC — reads the outreach inbox (own outreach domain) for replies and bounces.
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
 import { runEmailCenter } from "@/lib/email-center";
 import { publishDue } from "@/lib/social";
 import { quoteSweep } from "@/lib/quotes";
-import { syncBizCampaign, syncBizReplies } from "@/lib/biz-leads";
+import { checkOutreachInbox, syncBizCampaign, syncBizReplies } from "@/lib/biz-leads";
+import { outreachReady } from "@/lib/outreach-mail";
 import { syncProReplies } from "@/lib/leads";
 import { cronAuthorized, githubActionsAuthorized } from "@/lib/cron-auth";
 import { adminClient } from "@/lib/supabase/server";
@@ -43,5 +45,7 @@ export async function GET(req: Request) {
     pros: await syncProReplies().catch((e) => ({ ok: false, error: String(e) })),
     leads: new Date().getUTCMinutes() < 10 ? await syncBizCampaign(5).catch((e) => ({ ok: false, error: String(e) })) : null,
   } : null;
-  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly });
+  // our own outreach domain: replies and bounces every 10 minutes
+  const outreach = outreachReady() ? await checkOutreachInbox().catch((e) => ({ ok: false, error: String(e) })) : null;
+  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach });
 }

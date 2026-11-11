@@ -256,3 +256,110 @@ export function parseAdzuna(json: unknown): JobPostCandidate[] {
   }
   return out;
 }
+
+// ─── Keeping the list fresh (added 2026-11-11_0100 UTC) ─────────────────────
+// A lead that finishes its 3 emails without answering isn't emailed forever, and isn't forgotten either:
+//   in sequence → rests (90 days) → one re-engagement round with a seasonal angle → retired (rests a year) → back as new.
+// Clicked-but-silent leads go to the call list (warm). Duplicates (same website / email domain / phone) are retired.
+// New leads keep coming from discovery (Google Places, job postings) and imports, so the list turns over.
+
+export const LEAD_REFRESH = {
+  /** Days from the first email until the 3-email sequence is done (day 0, 4, 10, plus 4 to answer). */
+  sequenceDays: 14,
+  /** Rest between rounds. */
+  restDays: 90,
+  /** Rounds of email per lead before retiring it (1 = the first sequence, 2 = one re-engagement round). */
+  maxRounds: 2,
+  /** A retired lead comes back as new after this long (people and needs change). */
+  retireDays: 365,
+  /** Call-list leads: after this many attempts with no answer, they rest too. */
+  callAttempts: 3,
+} as const;
+
+export type RefreshStep = "rest" | "warm_call" | "wake" | "retire" | "revive" | null;
+export interface RefreshLead {
+  status: string; segment?: string | null; round?: number | null; last_contact_at?: string | null; rest_until?: string | null;
+  retired_at?: string | null; call_attempts?: number | null; last_called_at?: string | null; created_at?: string | null;
+}
+
+const ageDays = (iso: string | null | undefined, now: Date) => (iso ? (now.getTime() - new Date(iso).getTime()) / 86400000 : Infinity);
+
+/** What the daily refresh does with one lead (null = leave it). Pure. */
+export function refreshStep(l: RefreshLead, now = new Date(), o: { restDays?: number; maxRounds?: number } = {}): RefreshStep {
+  if (l.segment === BIZ_PARTNER_SEGMENT) return null;
+  const maxRounds = o.maxRounds ?? LEAD_REFRESH.maxRounds;
+  const round = Math.max(1, Number(l.round ?? 1));
+  const doneWithRound = round >= maxRounds ? "retire" : "rest";
+  const last = l.last_contact_at ?? l.created_at;
+  switch (l.status) {
+    case "emailing": return ageDays(last, now) >= LEAD_REFRESH.sequenceDays ? doneWithRound : null;
+    case "clicked": return ageDays(last, now) >= LEAD_REFRESH.sequenceDays ? "warm_call" : null;
+    case "call": return Number(l.call_attempts ?? 0) >= LEAD_REFRESH.callAttempts && ageDays(l.last_called_at, now) >= 14 ? doneWithRound : null;
+    case "resting": return l.rest_until && new Date(l.rest_until).getTime() <= now.getTime() ? (round < maxRounds ? "wake" : "retire") : null;
+    case "retired": return ageDays(l.retired_at, now) >= LEAD_REFRESH.retireDays ? "revive" : null;
+    default: return null;
+  }
+}
+
+const FREE_MAIL = /^(gmail|googlemail|yahoo|ymail|hotmail|outlook|live|msn|aol|icloud|me|mac|comcast|att|sbcglobal|verizon|protonmail|proton|gmx|mail|zoho)\./i;
+
+/** One key per business, to spot duplicates across sources: its website domain, else its email domain (not free mail), else its phone. */
+export function bizDedupeKey(l: { website?: string | null; email?: string | null; phone?: string | null }): string | null {
+  const host = (() => { try { return l.website ? new URL(/^https?:\/\//i.test(l.website) ? l.website : `https://${l.website}`).hostname : null; } catch { return null; } })();
+  const site = host?.toLowerCase().replace(/^www\./, "") ?? null;
+  if (site && !FREE_MAIL.test(`${site}`) && !/(facebook|instagram|linkedin|yelp|google|business\.site|wixsite|godaddysites)\./i.test(site)) return `d:${site}`;
+  const dom = l.email?.split("@")[1]?.toLowerCase().trim();
+  if (dom && !FREE_MAIL.test(dom)) return `d:${dom}`;
+  const digits = String(l.phone ?? "").replace(/\D/g, "").slice(-10);
+  if (digits.length === 10) return `p:${digits}`;
+  return l.email ? `e:${l.email.toLowerCase().trim()}` : null;
+}
+
+/** Sending from our own domain: a new mailbox warms up before it sends full volume (deliverability). */
+export function warmupCap(firstSendAt: string | null | undefined, wanted: number, now = new Date()): number {
+  const d = firstSendAt ? Math.floor(ageDays(firstSendAt, now)) : 0;
+  const ramp = d < 7 ? 10 : d < 14 ? 20 : d < 21 ? 30 : d < 28 ? 40 : Infinity;
+  return Math.max(0, Math.min(wanted, ramp));
+}
+
+/** List health for the Hub. */
+export function leadFreshness(leads: { status: string; created_at?: string | null; segment?: string | null; rest_until?: string | null }[], now = new Date()) {
+  const ls = leads.filter((l) => l.segment !== BIZ_PARTNER_SEGMENT);
+  const n = (...s: string[]) => ls.filter((l) => s.includes(l.status)).length;
+  const wakes = ls.filter((l) => l.status === "resting" && l.rest_until).map((l) => l.rest_until!).sort();
+  return {
+    total: ls.length,
+    added30: ls.filter((l) => ageDays(l.created_at, now) <= 30).length,
+    fresh: n("new", "queued"),
+    inSequence: n("emailing"),
+    warm: n("clicked", "replied", "call"),
+    resting: n("resting"),
+    retired: n("retired"),
+    closed: n("converted", "not_interested", "unsubscribed", "bounced", "do_not_contact"),
+    nextWake: wakes[0] ?? null,
+  };
+}
+
+const SEASON_LINES: { months: number[]; season: string; work: string }[] = [
+  { months: [2, 3, 4], season: "spring", work: "spring cleanups, power washing, window cleaning and gutters" },
+  { months: [5, 6, 7], season: "summer", work: "move-out cleans, turnovers, painting and grounds work" },
+  { months: [8, 9, 10], season: "fall", work: "gutters, leaf cleanup, deep cleans before the holidays and snow-season setup" },
+  { months: [11, 0, 1], season: "winter", work: "snow and ice removal, deep cleaning and indoor repairs" },
+];
+
+/** Re-engagement round (after a rest): different emails, a seasonal angle, honest that we wrote before. Same footer rules. */
+export function bizReengageEmail(c: BizLeadEmailCtx & { now?: Date }): { subject: string; text: string } {
+  const m = (c.now ?? new Date()).getMonth();
+  const s = SEASON_LINES.find((x) => x.months.includes(m))!;
+  const hi = c.firstName ? `Hi ${c.firstName},` : `Hi ${c.businessName} team,`;
+  const where = c.city ? ` in ${c.city}` : "";
+  const team = `The ${BRAND.name} team`;
+  const foot = `\n\n—\n${BRAND.legalName} · ${c.postalAddress}\nThis is a business email from ${BRAND.name}. Not interested? One click and we won't email again: ${c.unsubscribeUrl}`;
+  const list = [
+    { subject: `${s.season[0].toUpperCase()}${s.season.slice(1)} work at ${c.businessName}`, text: `${hi}\n\nWe wrote a few months ago, so I'll keep this short. It's ${s.season}, and businesses${where} are booking ${s.work} with ${BRAND.name}.\n\nOne account, an exact price up front (25% to book, the rest when it's done), background-checked, vetted pros and photos of every visit.\n\nIf anything's on your list this season, book it here: ${c.signupUrl}\nOr reply with what you need and I'll send a price the same day.\n\n${team}` },
+    { subject: `Re: ${s.season} work at ${c.businessName}`, text: `${hi}\n\nQuick check: is there someone else at ${c.businessName} who handles vendors for cleaning, repairs or grounds? Happy to reach out to them instead.\n\n${team}` },
+    { subject: `Closing the loop`, text: `${hi}\n\nI'll stop here. If you ever need a reliable crew${where}, you can book in a minute at ${c.signupUrl}, no account manager or contract needed.\n\nBest,\n${team}` },
+  ];
+  const pick = list[Math.min(c.step, list.length - 1)];
+  return { subject: pick.subject, text: pick.text + foot };
+}
