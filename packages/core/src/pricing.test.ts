@@ -1288,6 +1288,25 @@ test("open job board: first looks first, then 30 min after the first targeted ro
   assert.equal(favoriteWindowHours("2026-10-14", now), FAVORITES.firstLookHours);
   assert.equal(favoriteWindowHours("2026-10-10", now), 1, "job today → short window so it still gets covered");
   assert.equal(favoriteWindowHours(null, now), FAVORITES.firstLookHours);
+  { // higher pay goes first
+    const { payRatio, topPay, offerPlan, boardOrder, PAY_PRIORITY } = await import("./board.ts");
+    assert.equal(payRatio({ customer_offer: 120, suggested_price: 100 }), 1.2);
+    assert.equal(payRatio({ customer_offer: null, suggested_price: 100 }), null, "took our price");
+    assert.equal(topPay({ customer_offer: 110, suggested_price: 100 }), true);
+    assert.equal(topPay({ customer_offer: 105, suggested_price: 100 }), false);
+    assert.deepEqual(offerPlan({ priority: "normal" }), { count: 1, hours: 2 });
+    assert.deepEqual(offerPlan({ priority: "high" }), { count: 2, hours: 1 });
+    assert.deepEqual(offerPlan({ priority: "normal", customer_offer: 130, suggested_price: 100 }), { count: PAY_PRIORITY.offerTo, hours: 1 }, "top pay: 3 pros, 1 hour");
+    assert.deepEqual(offerPlan({ priority: "normal", customer_offer: 70, suggested_price: 100 }), { count: 1, hours: 2 }, "a low offer goes out normally");
+    assert.equal(offerPlan({ priority: "normal", customer_offer: 130, suggested_price: 100 }, 5).count, 5, "never fewer than the AI picked");
+    const order = boardOrder([{ id: "a", pay: 300 }, { id: "b", pay: 80, priority: true }, { id: "c", pay: 120, topPay: true }, { id: "d", pay: 500 }]).map((c) => c.id);
+    assert.deepEqual(order, ["c", "b", "d", "a"], "top pay, then priority, then the most pay");
+    const now = new Date("2026-11-12T12:00:00Z");
+    const paid = { status: "dispatched", contractor_id: null, paid_at: "2026-11-12T10:00:00Z", scheduled_date: "2026-11-15" };
+    const justOffered = [{ kind: "job", status: "offered", offered_at: "2026-11-12T11:55:00Z" }];
+    assert.equal(onBoard(paid, justOffered, now), false, "a normal job waits for its first round");
+    assert.equal(onBoard({ ...paid, customer_offer: 130, suggested_price: 100 }, justOffered, now), true, "top pay is on the board right away");
+  }
 });
 
 test("job-posting letter: names their posting, keeps to what we promise, unsubscribe and address on every email", async () => {

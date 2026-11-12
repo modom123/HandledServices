@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-07_1900 UTC — "today" uses each job's time zone (Pacific in Washington).
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
  * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
+ * UPDATED : 2026-11-12_2000 UTC — Jobs near you: "Top pay", "Posted job" (customer named the price, day set with them) and "Business" tags; top pay first.
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -230,7 +231,7 @@ export default async function ProHome() {
           <div className="space-y-3">
             {preview.map((b) => (
               <div key={b.job_id} className="card flex flex-wrap items-center justify-between gap-4 opacity-90">
-                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span></div>
+                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span>{b.topPay && <span className="ml-2 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{es ? "Pago alto" : "Top pay"}</span>}{b.postUntil && <span className="ml-2 rounded bg-sky-100 px-2 py-0.5 text-xs text-sky-900">{es ? "Trabajo publicado" : "Posted job"}</span>}{b.business && <span className="ml-2 rounded bg-paper px-2 py-0.5 text-xs">{es ? "Empresa" : "Business"}</span>}</div>
                   <div className="text-sm text-ink-soft">{b.city} {b.zip}{b.miles != null ? ` · ${b.miles} mi` : ""} · {b.when}</div></div>
                 <Link href="/pro/onboarding" className="btn-ghost text-sm">{es ? "🔒 Termine la configuración" : "🔒 Finish setup to take it"}</Link>
               </div>
@@ -248,9 +249,10 @@ export default async function ProHome() {
           <div className="space-y-3">
             {board.map((b) => (
               <div key={b.job_id} className="card flex flex-wrap items-center justify-between gap-4">
-                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span>{b.priority && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs">{es ? "Prioridad" : "Priority"}</span>}</div>
+                <div><div className="font-semibold">{b.icon} {b.service} · <span className="text-brand">{b.payLabel}</span>{b.priority && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs">{es ? "Prioridad" : "Priority"}</span>}{b.topPay && <span className="ml-2 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{es ? "Pago alto" : "Top pay"}</span>}{b.postUntil && <span className="ml-2 rounded bg-sky-100 px-2 py-0.5 text-xs text-sky-900">{es ? "Trabajo publicado" : "Posted job"}</span>}{b.business && <span className="ml-2 rounded bg-paper px-2 py-0.5 text-xs">{es ? "Empresa" : "Business"}</span>}</div>
                   <div className="text-sm text-ink-soft">{b.city} {b.zip}{b.miles != null ? ` · ${b.miles} mi` : ""} · {b.when}</div>
-                  {b.scope.length > 0 && <div className="mt-1 text-xs text-ink-soft">{b.scope.join(" · ")}</div>}</div>
+                  {b.scope.length > 0 && <div className="mt-1 text-xs text-ink-soft">{b.scope.join(" · ")}</div>}
+                  {b.postUntil && <div className="mt-1 text-xs text-sky-900">{es ? `El cliente fijó este precio. Su tarjeta se cobra cuando usted lo toma; usted acuerda el día con el cliente. Publicado hasta el ${b.postUntil}.` : `The customer named this price. Their card is charged when you take it; you set the day with the customer. Open until ${b.postUntil}.`}</div>}</div>
                 <ClaimButton jobId={b.job_id} offerId={b.offerId} es={es} />
               </div>
             ))}

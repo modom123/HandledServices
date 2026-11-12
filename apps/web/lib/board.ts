@@ -17,10 +17,15 @@
  * UPDATED : 2026-10-28_2131 UTC — boardPreview for pros in setup.
  * UPDATED : 2026-11-06_1800 UTC — cards show the pro's net pay (any referral fee already out).
  * UPDATED : 2026-11-10_0310 UTC — open offers (low name-your-price jobs) show for 30 days with a note to confirm the day.
+ * UPDATED : 2026-11-12_2000 UTC — name-your-price posts on the board: marked "Posted job" with the customer's price and how
+ *           long it's up, the day picked with the customer; "Top pay" (10%+ above our price), business jobs marked, and
+ *           the board ordered by top pay, priority, then pay (core boardOrder). publicBoard() — the website's /job-board:
+ *           open jobs with city, ZIP, pay and scope only (no address, name, notes or photos), to recruit pros.
  */
 import "server-only";
-import { BOARD, buildWorkOrder, getService, money, onBoard, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
+import { AGREEMENT_VERSION, BOARD, boardOrder, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
 import { adminClient } from "./supabase/server";
+import { supabaseConfigured } from "./supabase/env";
 
 const db = () => adminClient();
 
@@ -39,7 +44,19 @@ export interface BoardCard {
   priority: boolean;
   /** This pro already has an open offer on it (targeted or a claim): go straight to it. */
   offerId: string | null;
+  /** A name-your-price post: open until this date (YYYY-MM-DD); the pro picks the day with the customer. */
+  postUntil?: string | null;
+  /** The customer offered 10%+ above our suggested price. */
+  topPay?: boolean;
+  /** A company's job (commercial customer). */
+  business?: boolean;
 }
+
+/** One line for when the work happens: a post's day is set with the customer. */
+const whenFor = (job: Job, fallback: string, locale: "en" | "es") => job.open_offer_until
+  ? (locale === "es" ? `Día a elegir con el cliente (hasta el ${job.open_offer_until.slice(0, 10)})` : `Pick the day with the customer (by ${job.open_offer_until.slice(0, 10)})`)
+  : fallback;
+const isBusiness = (job: Job) => job.customer_type === "commercial" || Boolean(job.business_account_id);
 
 type OfferRow = BoardOffer & { id: string; job_id: string; contractor_id: string };
 
@@ -90,11 +107,12 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
     const miles = proDistance(ctx.pro, job);
     cards.push({
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
-      city: job.city, zip: job.zip, when: wo.when, pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
-      scope: [...(job.open_offer_until ? [locale === "es" ? `Oferta abierta: el cliente ofreció este precio; confirme el día con él (hasta el ${job.open_offer_until.slice(0, 10)})` : `Open offer: the customer named this price — confirm the day with them (open until ${job.open_offer_until.slice(0, 10)})`] : []), ...wo.scope.slice(0, 3).map((s) => `${s.label}: ${s.value}`)], priority: job.priority !== "normal", offerId: mineOpen?.id ?? null,
+      city: job.city, zip: job.zip, when: whenFor(job, wo.when, locale), pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
+      scope: wo.scope.slice(0, 4).map((s) => `${s.label}: ${s.value}`), priority: job.priority !== "normal", offerId: mineOpen?.id ?? null,
+      postUntil: job.open_offer_until?.slice(0, 10) ?? null, topPay: topPay(job), business: isBusiness(job),
     });
   }
-  return cards.slice(0, 50);
+  return boardOrder(cards).slice(0, 50);
 }
 
 /**
@@ -107,7 +125,7 @@ export async function boardPreview(contractorId: string, locale: "en" | "es" = "
   if (!pro || pro.status === "approved" || !pro.trades?.length) return [];
   const today = new Date().toISOString().slice(0, 10);
   const { data: jobs } = await db().from("jobs").select("*").eq("status", "dispatched").is("contractor_id", null)
-    .or(`scheduled_date.is.null,scheduled_date.gte.${today}`).order("scheduled_date", { ascending: true, nullsFirst: false }).limit(200);
+    .or(`scheduled_date.is.null,scheduled_date.gte.${today},open_offer_until.gt.${new Date().toISOString()}`).order("scheduled_date", { ascending: true, nullsFirst: false }).limit(200);
   const cards: BoardCard[] = [];
   for (const job of (jobs ?? []) as Job[]) {
     const svc = getService(job.service_slug);
@@ -119,12 +137,13 @@ export async function boardPreview(contractorId: string, locale: "en" | "es" = "
     const wo = buildWorkOrder(job, { reveal: false, payout: job.contractor_payout ?? 0, locale, agreementVersion: pro.agreement_version });
     cards.push({
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
-      city: job.city, zip: job.zip, when: wo.when, pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
+      city: job.city, zip: job.zip, when: whenFor(job, wo.when, locale), pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
       scope: wo.scope.slice(0, 3).map((x) => `${x.label}: ${x.value}`), priority: job.priority !== "normal", offerId: null,
+      postUntil: job.open_offer_until?.slice(0, 10) ?? null, topPay: topPay(job), business: isBusiness(job),
     });
     if (cards.length >= 10) break;
   }
-  return cards;
+  return boardOrder(cards);
 }
 
 /** Claim a board job: a 15-minute hold, accepted on the usual offer page. */
@@ -147,4 +166,53 @@ export async function claimFromBoard(contractorId: string, jobId: string): Promi
   if (error || !data) return { ok: false, error: error?.message ?? "Couldn't hold the job" };
   await db().from("job_events").insert({ job_id: jobId, kind: "dispatch", message: `${ctx.pro.business_name} claimed it from the job board (${BOARD.claimMinutes} min hold)`, actor: "pro", visible_to_customer: false });
   return { ok: true, offerId: data.id };
+}
+
+/** A job on the public board (/job-board): enough for a pro to want it, nothing that identifies the customer or home. */
+export interface PublicBoardCard {
+  ref: string; service: string; slug: string; icon: string; category: string;
+  city: string; state: string; zip: string; when: string; pay: number; payLabel: string; scope: string[];
+  priority: boolean; topPay: boolean; postUntil: string | null; business: boolean; postedAt: string;
+}
+
+/**
+ * The website's job board: paid (or posted) jobs nobody has taken yet that are open to every qualified pro right now,
+ * top pay first. City, ZIP, a pro's base pay and the scope answers only — the address, the customer, their notes and
+ * photos are shown only to the pro who takes the job. Fails soft (an empty board) if the database isn't reachable.
+ */
+export async function publicBoard(locale: "en" | "es" = "en"): Promise<PublicBoardCard[]> {
+  if (!supabaseConfigured || !process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
+  try {
+    const now = new Date(), today = now.toISOString().slice(0, 10);
+    const until = new Date(now.getTime() + BOARD.horizonDays * 86400000).toISOString().slice(0, 10);
+    const q = (withOpen: boolean) => db().from("jobs").select("*").eq("status", "dispatched").is("contractor_id", null)
+      .or(`scheduled_date.is.null,and(scheduled_date.gte.${today},scheduled_date.lte.${until})${withOpen ? `,open_offer_until.gt.${now.toISOString()}` : ""}`)
+      .order("created_at", { ascending: false }).limit(300);
+    let { data: jobs, error } = await q(true);
+    if (error) ({ data: jobs } = await q(false));
+    const list = (jobs ?? []) as Job[];
+    if (!list.length) return [];
+    const { data: offers } = await db().from("job_offers").select("id, job_id, contractor_id, kind, status, offered_at").in("job_id", list.map((j) => j.id));
+    const byJob: Record<string, OfferRow[]> = {};
+    for (const o of (offers ?? []) as OfferRow[]) (byJob[o.job_id] ??= []).push(o);
+    const cards: PublicBoardCard[] = [];
+    for (const job of list) {
+      if (!onBoard(job, byJob[job.id] ?? [], now)) continue;
+      const svc = getService(job.service_slug);
+      if (!svc || svc.remote) continue;
+      const view = job.open_offer_until ? { ...job, scheduled_date: null } : job;
+      const wo = buildWorkOrder(view, { reveal: false, payout: job.contractor_payout ?? 0, locale, agreementVersion: AGREEMENT_VERSION });
+      const pay = proNetPay(job, job.contractor_payout ?? 0, AGREEMENT_VERSION);
+      if (!(pay > 0)) continue;
+      cards.push({
+        ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, slug: svc.slug, icon: svc.icon, category: svc.category,
+        city: job.city, state: job.state, zip: job.zip, when: whenFor(job, wo.when, locale), pay, payLabel: money(pay), scope: wo.scope.slice(0, 4).map((x) => `${x.label}: ${x.value}`),
+        priority: job.priority !== "normal", topPay: topPay(job), postUntil: job.open_offer_until?.slice(0, 10) ?? null, business: isBusiness(job), postedAt: job.created_at,
+      });
+    }
+    return boardOrder(cards).slice(0, 100);
+  } catch (e) {
+    console.error("[public board]", e);
+    return [];
+  }
 }

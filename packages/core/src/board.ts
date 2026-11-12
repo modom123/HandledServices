@@ -12,6 +12,9 @@
  *               the pro can pass at no cost, and a requested crew member is a request to the company
  *               owner, who decides who goes.
  * UPDATED : 2026-11-10_0310 UTC — open offers (low name-your-price jobs) are on the board right away for 30 days, any date.
+ * UPDATED : 2026-11-12_2000 UTC — higher pay goes first (PAY_PRIORITY): a customer who offers 10%+ above our suggested price
+ *           gets offers to 3 pros at once with a 1-hour window, is on the board right away, and leads the board ("Top pay");
+ *           the board sorts by top pay, then priority, then pay. Name-your-price posts get targeted offers too.
  */
 
 export const BOARD = {
@@ -34,16 +37,47 @@ export const FAVORITES = {
 export const FIRST_LOOK_KINDS = ["recurring", "redo", "account", "favorite"] as const;
 
 export interface BoardJob { status: string; contractor_id: string | null; paid_at?: string | null; deposit_paid_at?: string | null; billed_on_terms?: boolean | null; remedy?: string | null; scheduled_date: string | null;
-  /** A low name-your-price offer: on the board at the customer's price until this time (no targeted offers). */
-  open_offer_until?: string | null }
+  /** A name-your-price post: on the board at the customer's price until this time (targeted offers go out too). */
+  open_offer_until?: string | null; customer_offer?: number | null; suggested_price?: number | null }
+
+/**
+ * Higher pay goes first. A customer who offers at least `topRatio` × our suggested price ("Top pay") gets offers to
+ * `offerTo` pros at once with a `windowHours` window (so it moves through the area fast), is on the board right away
+ * and leads it.
+ */
+export const PAY_PRIORITY = { topRatio: 1.1, offerTo: 3, windowHours: 1 } as const;
+
+/** The customer's offer as a share of our suggested price (1.2 = 20% above), or null when they took our price. */
+export function payRatio(job: { customer_offer?: number | string | null; suggested_price?: number | string | null }): number | null {
+  const o = Number(job.customer_offer), s = Number(job.suggested_price);
+  return o > 0 && s > 0 ? Math.round((o / s) * 100) / 100 : null;
+}
+export const topPay = (job: { customer_offer?: number | string | null; suggested_price?: number | string | null }) => (payRatio(job) ?? 0) >= PAY_PRIORITY.topRatio;
+
+/** How many pros get the offer at once and for how long: urgent / business jobs and top pay go wider and faster. */
+export function offerPlan(job: { priority?: string | null; customer_offer?: number | string | null; suggested_price?: number | string | null }, aiCount?: number | null): { count: number; hours: number } {
+  const base = aiCount ?? (!job.priority || job.priority === "normal" ? 1 : 2);
+  const top = topPay(job);
+  return { count: top ? Math.max(base, PAY_PRIORITY.offerTo) : base, hours: top || (job.priority && job.priority !== "normal") ? PAY_PRIORITY.windowHours : 2 };
+}
+
+/** The board's order: top pay first, then priority (urgent / business), then the most pay; ties keep their order (date). */
+export function boardOrder<T extends { topPay?: boolean; priority?: boolean; pay: number }>(cards: T[]): T[] {
+  return cards.map((c, i) => ({ c, i })).sort((a, b) => Number(Boolean(b.c.topPay)) - Number(Boolean(a.c.topPay)) || Number(Boolean(b.c.priority)) - Number(Boolean(a.c.priority)) || b.c.pay - a.c.pay || a.i - b.i).map((x) => x.c);
+}
 export interface BoardOffer { kind?: string | null; status: string; offered_at: string }
 
 /** Is this job on the open board right now? */
 export function onBoard(job: BoardJob, offers: BoardOffer[], now = new Date()): boolean {
   if (job.status !== "dispatched" || job.contractor_id) return false;
   if (!job.paid_at && !job.deposit_paid_at && !job.billed_on_terms && !job.remedy) return false;
-  // a low name-your-price offer: straight to the board, for its whole window (the pro confirms the day with the customer)
+  // a name-your-price post: on the board for its whole window (the pro confirms the day with the customer)
   if (job.open_offer_until) return new Date(job.open_offer_until) > now;
+  // top pay: on the board right away (once any first look is over)
+  if (topPay(job) && !offers.some((o) => o.status === "offered" && (FIRST_LOOK_KINDS as readonly string[]).includes(o.kind ?? "job"))) {
+    if (job.scheduled_date) { const day = new Date(`${job.scheduled_date}T23:59:59`); if (day < now || day.getTime() - now.getTime() > BOARD.horizonDays * 86400000) return false; }
+    return true;
+  }
   if (job.scheduled_date) {
     const day = new Date(`${job.scheduled_date}T23:59:59`);
     if (day < now || day.getTime() - now.getTime() > BOARD.horizonDays * 86400000) return false;
