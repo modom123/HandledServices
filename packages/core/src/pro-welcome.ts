@@ -15,6 +15,9 @@
  *           PARTNER_LADDER, PROBATION, the pro policy), so the email never drifts from what the portal does.
  * UPDATED : 2026-11-10_1340 UTC — Spanish emails use the Spanish trade and service names.
  * UPDATED : 2026-11-10_2000 UTC — points to the opt-in "Feature me on the website" (New pros in the Handled Network).
+ * UPDATED : 2026-11-12_2300 UTC — honest about where we are: a new company growing market by market, so offers may be
+ *           light at first (no "jobs from today" promise); why the home ZIP, driving distance and ZIP list decide which
+ *           jobs and texts they get (a warning when the home ZIP is missing); how to get more work while we grow.
  */
 import { BRAND } from "./brand.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -102,9 +105,48 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     `Want more customers? Turn on "Feature me on the website" in My info: your photo, name, city and up to 5 services in "New pros in the Handled Network" (never your address or phone).`,
   ];
 
+  // ── your area: it decides which jobs (and texts) reach them ──
+  const noArea = !c.base_zip && !c.service_zips?.length;
+  const areaWhy = es ? [
+    "2. SU ZONA DECIDE QUÉ TRABAJOS LE LLEGAN",
+    noArea ? "  ⚠ Todavía no tenemos su código postal base. Sin él no podemos enviarle ofertas ni mensajes de trabajos cerca de usted: agréguelo hoy." : null,
+    "Le ofrecemos un trabajo solo si está dentro de su zona, y solo le mandamos mensajes de texto por trabajos en su zona. Revise tres cosas en Portal → Configuración y documentos:",
+    "  • Código postal (su base): de ahí medimos la distancia a cada trabajo. Use el lugar desde donde sale a trabajar.",
+    "  • Hasta dónde maneja (millas): una distancia realista. Más millas, más ofertas; pero solo acepte lo que de verdad va a atender.",
+    "  • Códigos postales que quiere cubrir (opcional): estos reciben ofertas aunque estén más lejos. Marque “Solo enviarme trabajos en estos códigos postales” si no quiere salir de ellos.",
+    `  Cámbielo cuando quiera: ${site}/pro/onboarding`,
+  ] : [
+    "2. YOUR AREA DECIDES WHICH JOBS REACH YOU",
+    noArea ? "  ⚠ We don't have your home ZIP code yet. Without it we can't send you offers or texts about jobs near you — please add it today." : null,
+    "We only offer you a job when it's inside your area, and we only text you about jobs in your area. Check three things in Pro portal → Setup & documents:",
+    "  • ZIP (your home base): we measure the distance to every job from here. Use the place you head out to work from.",
+    "  • How far you'll drive (miles): pick a realistic distance. More miles means more offers, but only take what you'll really show up for.",
+    "  • ZIP codes you want to cover (optional): listed ZIPs get offers even past your driving distance. Tick \"Only send me jobs in these ZIP codes\" to stay inside them.",
+    `  Change it any time: ${site}/pro/onboarding`,
+  ];
+
+  // ── getting more work while we grow ──
+  const more = es ? [
+    "7. MÁS TRABAJO MIENTRAS CRECEMOS",
+    "  • Tenga su zona, sus días y sus horarios completos y al día: es lo que más ofertas le trae.",
+    "  • Revise “Trabajos cerca de usted” en su portal: trabajos sin tomar que le encajan, incluidos los que publican los clientes a su propio precio.",
+    "  • Deje los avisos de trabajos en “Todos” para enterarse primero de los trabajos de pago alto en su zona.",
+    "  • Conteste rápido: el primero que acepta se lo lleva, y aceptar a tiempo sube su posición.",
+    "  • Envíenos clientes (sección 6): gana por cada trabajo y además le trae trabajo a su zona.",
+    "  • Active “Aparecer en el sitio web” en Mi información para que los clientes lo vean.",
+  ] : [
+    "7. MORE WORK WHILE WE GROW",
+    "  • Keep your area, days and hours complete and current: it's what brings you the most offers.",
+    "  • Check \"Jobs near you\" in your portal: untaken jobs that fit you, including jobs customers post at their own price.",
+    "  • Keep job alerts on \"All\" to hear first about top-pay jobs in your area.",
+    "  • Answer fast: the first pro to accept gets the job, and accepting on time moves you up the line.",
+    "  • Send us customers (section 6): you earn on every job, and it brings work to your area.",
+    "  • Turn on \"Feature me on the website\" in My info so customers can find you.",
+  ];
+
   // ── how the portal works ──
   const portal = es ? [
-    "2. CÓMO FUNCIONA SU PORTAL DE PROFESIONAL",
+    "3. CÓMO FUNCIONA SU PORTAL DE PROFESIONAL",
     `Entre en ${site}/pro (o en la app de ${BRAND.name}). Todo está en tres menús:`,
     "Trabajo",
     "  • Trabajos: aquí llegan las ofertas. Cada una muestra el servicio, el alcance, la fecha, la zona y su pago exacto ANTES de aceptar. Toque Aceptar o Pasar; pasar nunca le cuesta nada.",
@@ -127,7 +169,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     "  4. Tome las fotos de después y toque Terminar.",
     "  5. Revisamos las fotos y su pago se aprueba.",
   ] : [
-    "2. HOW YOUR PRO PORTAL WORKS",
+    "3. HOW YOUR PRO PORTAL WORKS",
     `Sign in at ${site}/pro (or the ${BRAND.name} app). Everything is in three menus:`,
     "Work",
     "  • Jobs: your offers land here. Each shows the service, scope, date, area and your exact pay BEFORE you accept. Tap Accept or Pass. Passing never costs you anything.",
@@ -154,7 +196,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
   // ── pay ──
   const instant = P.instantPay;
   const pay = es ? [
-    "3. CÓMO Y CUÁNDO LE PAGAMOS",
+    "4. CÓMO Y CUÁNDO LE PAGAMOS",
     "  • El cliente paga antes de que usted vaya. Nunca cobra, nunca factura, nunca espera un cheque.",
     "  • El pago que ve en la oferta es el que recibe. Sin cuotas por clientes ni suscripción.",
     "  • Los pagos se envían automáticamente cada lunes a su banco por Stripe, con un detalle de cada trabajo.",
@@ -164,7 +206,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     "  • Los materiales que no están en el precio se le reembolsan al costo con el recibo.",
     `  • Sus primeros ${PROBATION.jobs} trabajos son de menos de ${usd(PROBATION.maxJobPrice)} y cada uno tiene revisión de fotos.`,
   ] : [
-    "3. HOW AND WHEN YOU'RE PAID",
+    "4. HOW AND WHEN YOU'RE PAID",
     "  • The customer pays before you go. You never collect, invoice or wait on a check.",
     "  • The pay you see on the offer is the pay you get. No lead fees, no subscription.",
     "  • Payouts go out automatically every Monday to your bank through Stripe, with a statement for every job.",
@@ -178,13 +220,13 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
   // ── grow ──
   const ins = P.insurance;
   const grow = es ? [
-    "4. CÓMO CRECER CON NOSOTROS",
+    "5. CÓMO CRECER CON NOSOTROS",
     `  • Niveles: Pro+ a los ${tierPlus.min.jobs} trabajos, ${tierPlus.min.rating}★ y ${pct(tierPlus.min.onTime)} puntual: +${pct(tierPlus.payoutBoost)} del precio en cada pago y primero en la fila para las ofertas. Elite a los ${tierElite.min.jobs} trabajos, ${tierElite.min.rating}★ y ${pct(tierElite.min.onTime)} puntual: +${pct(tierElite.payoutBoost)} y lo primero de todo, incluidos trabajos grandes y comerciales.`,
     "  • Clientes recurrentes: cuando un cliente que atendió se inscribe en un plan, cada visita se le ofrece primero a usted, un día antes que a nadie.",
     R.enabled ? `  • Recompensas Handled Pro: ${R.earnRate} puntos por cada $1 que Handled gana en sus trabajos, ×${R.qualityMultiplier} por trabajos perfectos (${R.minRatingForQuality}★+, sin repetir) y más cada año con nosotros. Canjéelos por equipo, herramientas, electrónica y viajes. Pasar una oferta nunca le quita puntos.` : null,
     ins.enabled && ins.stipend ? `  • Crédito para seguro: ${usd(ins.stipend)} después de su trabajo número ${ins.afterJobs}.` : null,
   ] : [
-    "4. HOW YOU GROW WITH US",
+    "5. HOW YOU GROW WITH US",
     `  • Tiers: Pro+ at ${tierPlus.min.jobs} jobs, ${tierPlus.min.rating}★ and ${pct(tierPlus.min.onTime)} on time: +${pct(tierPlus.payoutBoost)} of the job price on every payout and ahead of the line for offers. Elite at ${tierElite.min.jobs} jobs, ${tierElite.min.rating}★ and ${pct(tierElite.min.onTime)} on time: +${pct(tierElite.payoutBoost)} and first in line for everything, including large and commercial jobs.`,
     "  • Recurring customers: when a customer you served signs up for a plan, every visit is offered to you first, a full day before anyone else.",
     R.enabled ? `  • Handled Pro Rewards: ${R.earnRate} points for every $1 Handled earns on your jobs, ×${R.qualityMultiplier} for perfect jobs (${R.minRatingForQuality}★+, no redo) and more every year you stay. Redeem them for gear, tools, electronics and trips. Passing on an offer never costs you points.` : null,
@@ -195,14 +237,14 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
   const refRange = `${pct(REFERRAL_LADDER.baseRate)}–${pct(REFERRAL_LADDER.topRate)}`;
   const saleRange = `${pct(PARTNER_LADDER.baseRate)}–${pct(PARTNER_LADDER.topRate)}`;
   const earn = es ? [
-    "5. GANE MÁS: REFERIDOS Y PROGRAMA DE SOCIOS",
+    "6. GANE MÁS: REFERIDOS Y PROGRAMA DE SOCIOS",
     `  • Recomiende a un profesional: ${usd(PRO_REFERRAL.bonus)} cuando un profesional que usted refirió complete ${PRO_REFERRAL.afterJobs} trabajos.`,
     `  • Refiera clientes: gane del ${refRange} del precio de cada trabajo de ese cliente durante ${PARTNER_PROGRAM.months} meses. ¿Ve un trabajo que no es de su oficio? Tome fotos y envíenos un ticket de referido.`,
     `  • Ventas directas: venda un trabajo con un ticket de venta y el cliente paga en el momento: del ${saleRange} de nuestra ganancia.`,
     "  • Su tasa sube un punto a la vez mientras crece y nunca baja. Las comisiones llegan con su pago semanal.",
     `  Empiece en Portal → Referir y ganar: ${site}/pro/refer`,
   ] : [
-    "5. EARN MORE: REFERRALS AND THE PARTNER PROGRAM",
+    "6. EARN MORE: REFERRALS AND THE PARTNER PROGRAM",
     `  • Refer a pro: ${usd(PRO_REFERRAL.bonus)} when a pro you referred finishes ${PRO_REFERRAL.afterJobs} jobs.`,
     `  • Refer customers: earn ${refRange} of the price of every job from that customer for ${PARTNER_PROGRAM.months} months. See a job that isn't your trade? Snap photos and send us a referral ticket.`,
     `  • Direct sales: sell a job on a sales ticket and the customer pays on the spot: ${saleRange} of our profit.`,
@@ -212,7 +254,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
 
   // ── good to know + help ──
   const know = es ? [
-    "6. BUENO SABERLO",
+    "8. BUENO SABERLO",
     "  • Usted es un profesional independiente (1099): elige sus trabajos, su zona y sus horarios, y conserva sus propios clientes.",
     "  • Calificaciones y fotos: cada trabajo se revisa por fotos. Si algo falta, el cliente recibe una corrección gratis; hágala bien a la primera y gana más.",
     "  • Clientes que conoció por Handled: atiéndalos siempre por la plataforma durante 12 meses (es parte de su acuerdo). Sus propios clientes son suyos.",
@@ -224,7 +266,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     `  • Su guía completa (PDF): ${guide}`,
     `  • Su portal: ${site}/pro`,
   ] : [
-    "6. GOOD TO KNOW",
+    "8. GOOD TO KNOW",
     "  • You're an independent pro (1099): you choose your jobs, your area and your hours, and you keep your own customers.",
     "  • Ratings and photos: every job is photo-reviewed. If something's missed, the customer gets a free redo; get it right the first time and you earn more.",
     "  • Customers you met through Handled: keep working with them through the platform for 12 months (it's in your agreement). Your own customers stay yours.",
@@ -238,9 +280,13 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
   ];
 
   const intro = es
-    ? [`Hola ${first}:`, "", `¡Bienvenido a la Red ${BRAND.name}! Su cuenta está activa y verificada. A partir de hoy le llegan ofertas de trabajos prepagados y con precio fijo en su zona y sus oficios.`, "", "Aquí tiene todo en un solo lugar: lo que nos dijo, cómo funciona el portal, cómo le pagamos y cómo ganar más. La guía completa en PDF está al final.", ""]
-    : [`Hi ${first},`, "", `Welcome to the ${BRAND.name} Network! Your account is active and verified. From today, prepaid, pre-priced job offers in your area and trades come straight to you.`, "", "Here's everything in one place: what you told us, how the portal works, how you're paid and how to earn more. The full PDF guide is at the end.", ""];
+    ? [`Hola ${first}:`, "", `¡Bienvenido a la Red ${BRAND.name}! Su cuenta está activa y verificada, y puede tomar trabajos en cuanto lleguen.`, "",
+      `Le hablamos claro sobre dónde estamos: ${BRAND.name} es una empresa nueva. Estamos creciendo zona por zona, así que al principio las ofertas pueden llegar de a pocas, y algunas semanas puede no haber ninguna en sus oficios y su zona. Preferimos decírselo ahora que prometerle una agenda llena. Cada trabajo que le enviamos está prepagado, con precio fijo, y usted decide si lo toma. A medida que crecemos, los profesionales que ya están listos y responden rápido son los primeros en la fila.`, "",
+      "Aquí tiene todo en un solo lugar: lo que nos dijo, por qué su zona importa, cómo funciona el portal, cómo le pagamos y cómo conseguir más trabajo. La guía completa en PDF está al final.", ""]
+    : [`Hi ${first},`, "", `Welcome to the ${BRAND.name} Network! Your account is active and verified, and you can take jobs as soon as they come in.`, "",
+      `A straight answer about where we are: ${BRAND.name} is a new company. We're growing market by market, so at first offers may come a few at a time, and some weeks there may be none in your trades and area. We'd rather tell you that now than promise you a full calendar. Every job we do send is prepaid, pre-priced and yours to take or pass, and as we grow, the pros who are set up and quick to respond are first in line.`, "",
+      "Here's everything in one place: what you told us, why your area matters, how the portal works, how you're paid and how to get more work. The full PDF guide is at the end.", ""];
   const sign = es ? ["", `Nos alegra tenerle en el equipo.`, `— ${BRAND.name}`] : ["", "Glad to have you on the team.", `— ${BRAND.name}`];
-  const text = [...intro, ...yourInfo, "", ...portal, "", ...pay, "", ...grow, "", ...earn, "", ...know, ...sign].filter((x): x is string => x !== null).join("\n");
+  const text = [...intro, ...yourInfo, "", ...areaWhy, "", ...portal, "", ...pay, "", ...grow, "", ...earn, "", ...more, "", ...know, ...sign].filter((x): x is string => x !== null).join("\n");
   return { subject: es ? `Bienvenido a la Red ${BRAND.name}, ${first}` : `Welcome to the ${BRAND.name} Network, ${first}`, text };
 }

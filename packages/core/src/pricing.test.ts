@@ -2764,6 +2764,17 @@ test("pro welcome email: their services (cleared and not yet), how it works, pay
   const esMail = proWelcomeEmail(c, { site: "https://handledsvc.com", policy: PRO_POLICY_DEFAULTS, lang: "es" });
   assert.match(esMail.subject, /^Bienvenido a la Red Handled, Dana/);
   assert.ok(esMail.text.includes("CÓMO FUNCIONA SU PORTAL") && esMail.text.includes("lun, mar, mié, jue, vie"));
+  // honest about being new; the area section; a warning only when the home ZIP is missing (2026-11-12)
+  assert.ok(!/From today/i.test(en.text) && en.text.includes("Handled is a new company") && en.text.includes("some weeks there may be none"), "no 'jobs from today' promise");
+  assert.ok(esMail.text.includes("es una empresa nueva") && !esMail.text.includes("A partir de hoy le llegan ofertas"));
+  for (const k of ["YOUR AREA DECIDES WHICH JOBS REACH YOU", "How far you'll drive (miles)", "Only send me jobs in these ZIP codes", "https://handledsvc.com/pro/onboarding", "MORE WORK WHILE WE GROW", "Jobs near you"])
+    assert.ok(en.text.includes(k), "EN has: " + k);
+  assert.ok(!en.text.includes("We don't have your home ZIP"), "no warning when the ZIP is set");
+  const noZip = proWelcomeEmail({ ...c, base_zip: null, service_zips: [] } as unknown as Contractor, { site: "https://handledsvc.com", policy: PRO_POLICY_DEFAULTS });
+  assert.ok(noZip.text.includes("We don't have your home ZIP code yet"), "warns when the home ZIP is missing");
+  const order = ["1. WHAT YOU TOLD US", "2. YOUR AREA", "3. HOW YOUR PRO PORTAL", "4. HOW AND WHEN", "5. HOW YOU GROW", "6. EARN MORE", "7. MORE WORK", "8. GOOD TO KNOW"].map((h) => en.text.indexOf(h));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "sections in order");
+  assert.ok(order.every((i) => i >= 0));
 });
 
 test("partner welcome: payouts first, both ways to earn, lead pay for Field Sales; payout reminders on set days (2026-11-10)", async () => {

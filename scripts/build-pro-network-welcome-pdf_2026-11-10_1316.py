@@ -11,6 +11,9 @@
 #             python3 scripts/build-pro-network-welcome-pdf_2026-11-10_1316.py
 #           Writes docs/HANDLED_PRO_NETWORK_WELCOME_<date>.pdf and apps/web/public/docs/handled-pro-network-welcome.pdf
 #           (the stable link the email uses).
+# UPDATED : 2026-11-12_2300 UTC — honest about where we are (a new company growing market by market; offers may be light
+#           at first) instead of "job offers from today"; setting the home ZIP, driving distance and ZIP list is step 1
+#           (it decides which jobs and texts reach them); "More work while we grow".
 # ============================================================================
 import json, os, shutil, subprocess, sys
 from datetime import datetime, timezone
@@ -65,20 +68,37 @@ s = []
 
 s += [Paragraph("Welcome to the Handled Network", H1),
       Paragraph("Your guide to the pro portal, getting paid, growing with us and earning more.", SUB),
-      Paragraph("You're approved and live. From today, <b>prepaid, pre-priced job offers</b> in your area and trades come straight to your phone. "
+      Paragraph("You're approved and live, and you can take jobs as soon as they come in. "
                 "You're an <b>independent pro (1099)</b>: you choose which offers to take, your area, your days and hours, and you keep your own customers. "
                 "We bring the customers, collect the payment, and handle the scheduling, reminders, reviews and support.", P),
+      Paragraph("<b>A straight answer about where we are:</b> Handled is a new company. We're growing market by market, so at first "
+                "offers may come a few at a time, and some weeks there may be none in your trades and area. We'd rather tell you that now than "
+                "promise you a full calendar. Every job we do send is <b>prepaid, pre-priced</b> and yours to take or pass, and as we grow, the "
+                "pros who are set up and quick to respond are first in line.", P),
       Paragraph("Your welcome email lists what you told us: your trades, area, schedule and the services you're cleared to take. "
                 "Check it, and fix anything in <b>Pro portal → My info</b>.", P)]
 
 s += [Paragraph("1. Your first day", H2),
       table([["#", "Do this", "Why"],
-             ["1", "Turn on notifications in the Handled app", "Offers go to the first qualified pros who accept. Notifications make sure you see them"],
-             ["2", "Do the short orientation: Pro portal → <b>Welcome to Handled</b>", "How offers, photos and payouts work, in about 10 minutes"],
-             ["3", "Check your <b>Calendar</b>: days off, open slots, daily limit", "Customers can only book you on days you're open. We never offer past your daily limit"],
-             ["4", "Read the <b>Checklists</b> for your services", "They're what \"done\" means. Photo review checks the work against them"],
-             ["5", "Optional: set <b>My prices</b>", "Your own price for each service (customers see it with your rating)"]],
+             ["1", "Set your area in <b>Setup &amp; documents</b>: your home-base ZIP, how far you'll drive, and any ZIP codes you want to cover", "We only offer you jobs inside your area, and only text you about jobs there. No home ZIP, no offers near you"],
+             ["2", "Turn on notifications in the Handled app", "Offers go to the first qualified pros who accept. Notifications make sure you see them"],
+             ["3", "Do the short orientation: Pro portal → <b>Welcome to Handled</b>", "How offers, photos and payouts work, in about 10 minutes"],
+             ["4", "Check your <b>Calendar</b>: days off, open slots, daily limit", "Customers can only book you on days you're open. We never offer past your daily limit"],
+             ["5", "Read the <b>Checklists</b> for your services", "They're what \"done\" means. Photo review checks the work against them"],
+             ["6", "Optional: set <b>My prices</b>", "Your own price for each service (customers see it with your rating)"]],
             [0.3 * inch, 3.3 * inch, 3.4 * inch])]
+
+s += [Paragraph("<b>Your area decides which jobs reach you.</b>", P)] + bullets([
+    "<b>ZIP (your home base):</b> we measure the distance to every job from here. Use the place you head out to work from.",
+    "<b>How far you'll drive (miles):</b> pick a realistic distance. More miles means more offers, but only take what you'll really show up for.",
+    "<b>ZIP codes you want to cover (optional):</b> listed ZIPs get offers even past your driving distance. Tick <b>Only send me jobs in these ZIP codes</b> to stay inside them.",
+])
+s += [Paragraph("<b>More work while we grow.</b>", P)] + bullets([
+    "Keep your area, days and hours complete and current: it's what brings you the most offers.",
+    "Check <b>Jobs near you</b> in your portal: untaken jobs that fit you, including jobs customers post at their own price. Keep job alerts on <b>All</b> to hear first about top-pay jobs in your area.",
+    "Answer fast: the first pro to accept gets the job, and accepting on time moves you up the line.",
+    "Send us customers (section 6): you earn on every job, and it brings work to your area.",
+])
 
 s += [Paragraph("2. How your pro portal works", H2),
       Paragraph("Sign in at <b>handledsvc.com/pro</b> or in the Handled app. Everything is in three menus:", P),
