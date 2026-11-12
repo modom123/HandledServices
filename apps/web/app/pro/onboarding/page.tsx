@@ -83,7 +83,7 @@ export default async function Onboarding() {
     if ((m = d.match(/^Valid until (.+)$/))) return `Válido hasta ${m[1]}`;
     if ((m = d.match(/^Uploaded (.+)$/))) return `Subido el ${m[1]}`;
     if ((m = d.match(/^Current version (.+)$/))) return `Versión actual ${m[1]}`;
-    if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled named as additional insured$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional`;
+    if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled listed as additional insured or certificate holder$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional o titular del certificado`;
     if ((m = d.match(/^#(.+) · until (.+)$/))) return `#${m[1]} · hasta ${m[2]}`;
     return t(d);
   };
@@ -147,6 +147,7 @@ export default async function Onboarding() {
     if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{l === "es" ? "Certificado recibido. Lo revisamos automáticamente y, si hace falta, una persona de Handled lo revisa a mano (normalmente en 1 día hábil)." : "Certificate received. We check it automatically, and if anything needs a closer look a Handled team member reviews it by hand (usually within 1 business day)."}</p> : (
       <StepForm step="coi" cta={t("Upload certificate")} locale={l}>
         <div className="grid gap-3 sm:grid-cols-2"><Field label={t("Policy expires")} name="expires_on" type="date" required /><Field label={t("Certificate of insurance")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <p className="text-xs text-ink-soft">{l === "es" ? "El certificado debe incluir a Handled Services LLC como asegurado adicional o titular del certificado. Como asegurado adicional tiene prioridad en las ofertas de trabajos que requieren seguro." : "Your certificate must list Handled Services LLC as additional insured or certificate holder. Name us as additional insured and you get priority for jobs that need insurance."}</p>
         {/* optional: lets Handled confirm the policy with the insurer or agent (the second way to verify) */}
         <p className="text-xs text-ink-soft">{l === "es" ? "Opcional: ayuda a Handled a confirmar su póliza con la aseguradora o su agente si hace falta." : "Optional: helps Handled confirm your policy with the insurer or your agent if needed."}</p>
         <div className="grid gap-3 sm:grid-cols-3"><Field label={l === "es" ? "Aseguradora" : "Insurance company"} name="insurer" /><Field label={l === "es" ? "Número de póliza" : "Policy number"} name="policy_number" /><Field label={l === "es" ? "Agente (nombre y teléfono o correo)" : "Agent (name and phone or email)"} name="agent_contact" /></div>

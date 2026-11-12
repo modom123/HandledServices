@@ -530,7 +530,7 @@ export async function revivePro(contractorId: string, actor: string, note?: stri
  * review — staff open the policy, or confirm it with the insurer / agent (`method`), and can confirm or correct the
  * expiry date (`expiresOn`; it sets insured_until / coverage). A verify with no expiry anywhere uses the AI's reading.
  */
-export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null, o: { expiresOn?: string | null; method?: "document" | "insurer" | "auto" | null } = {}) {
+export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null, o: { expiresOn?: string | null; method?: "document" | "insurer" | "auto" | null; handledListedAs?: "additional_insured" | "certificate_holder" | null } = {}) {
   const { data: doc } = await db().from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", contractorId).single();
   if (!doc) throw new Error("No such document");
   const now = new Date().toISOString();
@@ -541,6 +541,12 @@ export async function decideDocument(contractorId: string, docId: string, decisi
   await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: note, ...(decision === "verify" ? { expires_on: doc.expires_on } : {}) }).eq("id", docId);
   if (decision === "verify") {
     if (doc.kind === "coi" && doc.expires_on) await db().from("contractors").update({ insured_until: doc.expires_on }).eq("id", contractorId);
+    // Handled as ADDITIONAL INSURED (not only certificate holder) → priority for jobs that need insurance (core ADDITIONAL_INSURED_BOOST)
+    if (doc.kind === "coi") {
+      const named = o.handledListedAs ? o.handledListedAs === "additional_insured" : Boolean((doc.ai_check as { additional_insured?: boolean } | null)?.additional_insured);
+      const { error } = await db().from("contractors").update({ handled_additional_insured: named }).eq("id", contractorId);
+      if (error && /handled_additional_insured/.test(error.message)) await raiseAlert("setup", "warn", "Run ADD_ADDITIONAL_INSURED_PRIORITY_2026-11-12_2355.sql", "A COI was verified, but the additional-insured job priority can't be saved until that SQL is run.").catch(() => {});
+    }
     if (doc.kind === "license" && doc.expires_on) await db().from("contractors").update({ license_expires: doc.expires_on }).eq("id", contractorId);
     if ((COVERAGE_KINDS as readonly string[]).includes(doc.kind) && doc.expires_on) {
       const { data: c } = await db().from("contractors").select("coverage").eq("id", contractorId).single();

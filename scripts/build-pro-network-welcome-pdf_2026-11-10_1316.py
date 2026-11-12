@@ -14,6 +14,7 @@
 # UPDATED : 2026-11-12_2300 UTC — honest about where we are (a new company growing market by market; offers may be light
 #           at first) instead of "job offers from today"; setting the home ZIP, driving distance and ZIP list is step 1
 #           (it decides which jobs and texts reach them); "More work while we grow".
+# UPDATED : 2026-11-12_2345 UTC — insurance only where the service needs it, Handled as additional insured or certificate holder.
 # ============================================================================
 import json, os, shutil, subprocess, sys
 from datetime import datetime, timezone
@@ -174,6 +175,7 @@ s += [Paragraph("7. Rules that matter", H2)] + bullets([
     "<b>Customers you met through Handled</b>: work with them through the platform for 12 months after you're introduced. Your own customers are always yours.",
     "<b>Photo proof on every job.</b> If something's missed, the customer gets a free redo. Getting it right the first time raises your rating and your rewards.",
     "<b>Be respectful, honest and safe</b> (Pro Code of Conduct). Offers only stop for the objective reasons in the Deactivation Policy, with written notice and a human appeal. Money you've earned is always paid.",
+    "<b>Insurance only where the service needs it.</b> Services that need it require general liability with <b>Handled Services LLC as additional insured or certificate holder</b>. Name us as <b>additional insured</b> and you get priority for those jobs. Some services, like house cleaning and dog walking, don't need insurance to start. Your welcome email lists which of yours do.",
     "<b>Keep your insurance and licenses current.</b> We remind you before anything expires; an expired document pauses only the services that need it.",
     "Every agreement you signed is in <b>Pro portal → My contracts</b>, in English and Spanish.",
 ])

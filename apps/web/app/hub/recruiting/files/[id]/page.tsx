@@ -44,7 +44,7 @@ export default async function ProFile({ params }: { params: Promise<{ id: string
     .in("kind", HIRING).order("created_at", { ascending: true }).limit(50);
   const { steps } = onboardingChecklist(pro as never);
   const file = proFileStatus(steps);
-  type Doc = { id: string; kind: string; status: string; storage_path: string | null; expires_on: string | null; created_at: string; verified_by: string | null; ai_check: { meets_requirements?: boolean; problems?: string[]; expires_on?: string } | null };
+  type Doc = { id: string; kind: string; status: string; storage_path: string | null; expires_on: string | null; created_at: string; verified_by: string | null; ai_check: { meets_requirements?: boolean; problems?: string[]; expires_on?: string; additional_insured?: boolean } | null };
   const all = (docs ?? []) as Doc[];
   const latest = (kind: string) => all.find((d) => d.kind === kind && d.storage_path);
   const [photoUrl, resumeUrl] = await Promise.all([latest("photo")?.storage_path ? signedDocUrl(latest("photo")!.storage_path!, 3600) : null, latest("resume")?.storage_path ? signedDocUrl(latest("resume")!.storage_path!, 3600) : null]);
@@ -128,7 +128,7 @@ export default async function ProFile({ params }: { params: Promise<{ id: string
                   <td className="py-2 pr-3">{fmt(d.expires_on)}</td>
                   <td className="py-2 pr-3">{d.status}{d.verified_by ? <span className="text-xs text-ink-soft"> · {d.verified_by}</span> : null}</td>
                   <td className="py-2 pr-3 text-xs">{d.ai_check ? (d.ai_check.meets_requirements ? "✓ meets requirements" : `⚠ ${d.ai_check.problems?.join("; ") || "check"}`) : "—"}</td>
-                  <td className="py-2 print:hidden">{d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} kind={d.kind} expiresOn={d.expires_on} aiExpires={d.ai_check?.expires_on ?? null} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank" rel="noreferrer">Open</a> : null}</td>
+                  <td className="py-2 print:hidden">{d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} kind={d.kind} expiresOn={d.expires_on} aiExpires={d.ai_check?.expires_on ?? null} aiAdditional={d.ai_check?.additional_insured ?? null} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank" rel="noreferrer">Open</a> : null}</td>
                 </tr>
               ))}
             </tbody>

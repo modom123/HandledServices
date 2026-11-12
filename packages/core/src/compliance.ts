@@ -146,7 +146,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
     { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     insuranceRequired(c.trades)
-      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
+      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled listed as additional insured or certificate holder`, expiring: valid(c.insured_until) && soon(c.insured_until) }
       : (() => {
           const unlocks = servicesNeedingInsurance(c.trades);
           return { key: "coi" as const, label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : unlocks.length ? `Not needed to start. Add one to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` : "Not required for your work" };
@@ -196,7 +196,7 @@ export function uploadReminderDue(sent: number, lastAt: string | null | undefine
 
 /** What the AI read off an uploaded document (lib/ai/doccheck.ts). */
 export interface DocReading {
-  readable: boolean; matches_pro: boolean; expires_on: string; per_occurrence_limit: number; additional_insured: boolean; meets_requirements: boolean; problems: string[];
+  readable: boolean; matches_pro: boolean; expires_on: string; per_occurrence_limit: number; additional_insured: boolean; certificate_holder?: boolean; meets_requirements: boolean; problems: string[];
 }
 
 /**
@@ -204,8 +204,8 @@ export interface DocReading {
  * where staff open the policy (and can call the insurer) and verify by hand. Auto-verify only for the certificate of
  * insurance and other coverage proofs (never licenses, the W-9 or background reports), and only when: readable, the
  * named insured matches the pro, the AI found nothing missing, the expiry is in the future AND agrees with the date the
- * pro entered, and for the COI the per-occurrence limit meets the trade minimum with Handled as additional insured /
- * certificate holder. `reasons` says why it needs a person (shown to staff and, gently, to the pro).
+ * pro entered, and for the COI the per-occurrence limit meets the trade minimum with Handled as additional insured or
+ * certificate holder (owner decision 2026-11-12: either is fine). `reasons` says why it needs a person (shown to staff and, gently, to the pro).
  */
 export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExpiry?: string | null; trades: string[]; today?: Date }): { auto: boolean; reasons: string[] } {
   if (kind !== "coi" && !(kind in COVERAGES)) return { auto: false, reasons: ["this kind of document is always checked by a person"] };
@@ -222,7 +222,7 @@ export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExp
   if (kind === "coi") {
     const min = glMinimum(o.trades);
     if (!(r.per_occurrence_limit >= min)) reasons.push(`per-occurrence limit below $${min.toLocaleString("en-US")}`);
-    if (!r.additional_insured) reasons.push("Handled isn't listed as additional insured or certificate holder");
+    if (!r.additional_insured && !r.certificate_holder) reasons.push("Handled Services LLC isn't listed as additional insured or certificate holder");
   }
   if (!r.meets_requirements) for (const p of r.problems ?? []) if (p && !reasons.includes(p)) reasons.push(p);
   return { auto: reasons.length === 0, reasons };

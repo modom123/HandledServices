@@ -111,7 +111,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
                     </div>
                   )}
                 </div>
-                {d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} kind={d.kind} expiresOn={d.expires_on} aiExpires={d.ai_check?.expires_on ?? null} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank">Open</a> : null}
+                {d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} kind={d.kind} expiresOn={d.expires_on} aiExpires={d.ai_check?.expires_on ?? null} aiAdditional={d.ai_check?.additional_insured ?? null} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank">Open</a> : null}
               </div>
             ))}
           </div>

@@ -2775,6 +2775,11 @@ test("pro welcome email: their services (cleared and not yet), how it works, pay
   const order = ["1. WHAT YOU TOLD US", "2. YOUR AREA", "3. HOW YOUR PRO PORTAL", "4. HOW AND WHEN", "5. HOW YOU GROW", "6. EARN MORE", "7. MORE WORK", "8. GOOD TO KNOW"].map((h) => en.text.indexOf(h));
   assert.deepEqual([...order].sort((a, b) => a - b), order, "sections in order");
   assert.ok(order.every((i) => i >= 0));
+  // insurance: only for the services that need it; Handled as additional insured or certificate holder (2026-11-12)
+  assert.ok(en.text.includes("INSURANCE") && en.text.includes("additional insured or certificate holder"), "insurance block");
+  assert.ok(/These don't need insurance to start: .*House/.test(en.text), "cleaning needs no insurance");
+  assert.ok(esMail.text.includes("SEGURO") && esMail.text.includes("asegurado adicional o titular del certificado"));
+  assert.ok(en.text.includes("you get priority for jobs that need insurance"), "tells pros additional insured gets priority");
 });
 
 test("partner welcome: payouts first, both ways to earn, lead pay for Field Sales; payout reminders on set days (2026-11-10)", async () => {
@@ -2911,4 +2916,23 @@ test("insurance: two ways to verify — automatic when everything checks out, ot
   assert.equal(docAutoCheck("coi", null, { trades, today }).auto, false, "no AI reading: a person checks");
   assert.equal(docAutoCheck("license", good, { trades, today }).auto, false, "licenses are always checked by a person");
   assert.equal(docAutoCheck("auto", { ...good, per_occurrence_limit: 0, additional_insured: false }, { claimedExpiry: "2027-06-30", trades, today }).auto, true, "other coverage: limits are judged by the AI's requirement check");
+});
+
+test("additional insured: Handled as additional insured gets priority on jobs that need insurance; certificate holder is accepted (2026-11-12)", async () => {
+  const { rankContractors, ADDITIONAL_INSURED_BOOST } = await import("./dispatch.ts");
+  const { docAutoCheck } = await import("./compliance.ts");
+  const { glMinimum } = await import("./vetting.ts");
+  const base = { status: "approved", trades: ["handyman"], specialties: [], license_number: null, insured_until: "2099-01-01", background_checked: true, coverage: {},
+    rating: 4.8, on_time_rate: 0.95, acceptance_rate: 0.9, jobs_completed: 10, daily_capacity: 3, base_lat: 42.33, base_lng: -83.05, service_radius_mi: 25, service_zips: [], zips_only: false, availability: null, time_off: [] };
+  const certOnly = { ...base, id: "c1", handled_additional_insured: false }, named = { ...base, id: "c2", handled_additional_insured: true };
+  const job = { service_slug: "handyman", zip: "48226", lat: 42.33, lng: -83.05, scheduled_date: null, time_window: "flexible", price_final: 100 };
+  const r = rankContractors([certOnly, named] as never, job as never);
+  assert.equal(r[0].contractor.id, "c2", "additional insured goes first");
+  assert.equal(Math.round((r[0].score - r[1].score) * 10) / 10, ADDITIONAL_INSURED_BOOST);
+  assert.ok(r[0].reasons.includes("Handled additional insured"));
+  const clean = rankContractors([certOnly, named] as never, { ...job, service_slug: "house-cleaning" } as never);
+  if (clean.length === 2) assert.equal(clean[0].score, clean[1].score, "no boost where insurance isn't needed");
+  const good = { readable: true, matches_pro: true, expires_on: "2027-06-30", per_occurrence_limit: glMinimum(["handyman"]), additional_insured: false, certificate_holder: true, meets_requirements: true, problems: [] as string[] };
+  assert.equal(docAutoCheck("coi", good, { claimedExpiry: "2027-06-30", trades: ["handyman"], today: new Date("2026-11-12") }).auto, true, "certificate holder is accepted");
+  assert.equal(docAutoCheck("coi", { ...good, certificate_holder: false }, { claimedExpiry: "2027-06-30", trades: ["handyman"], today: new Date("2026-11-12") }).auto, false, "Handled must be listed one way or the other");
 });

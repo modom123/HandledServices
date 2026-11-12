@@ -20,6 +20,8 @@
  *           Handled-vs-lead-sites table, FAQ accordion. FAQ fixed: tiers never depend on accepting offers.
  * UPDATED : 2026-10-15_0300 UTC — customers pay Handled (25% at booking, the rest when done); pros are paid weekly either way.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-12_2345 UTC — requirements: insurance (Handled Services LLC as additional insured or certificate holder) only for the services
+ *           that need it; house cleaning, dog walking and the other insurance-optional services start without it.
  */
 import { ApplyForm } from "@/components/forms";
 import { Ico } from "@/components/Glyph";
@@ -218,7 +220,7 @@ export default async function ProsPage() {
       <section id="requirements" className="grid scroll-mt-32 gap-8 lg:grid-cols-2">
         <div>
           <h2 className="text-2xl font-bold">{t("Requirements by trade")}</h2>
-          <p className="mt-2 text-ink-soft">{es ? `Todos necesitan verificación de antecedentes, un formulario W-9, un teléfono inteligente y un seguro de responsabilidad civil general que nombre a ${BRAND.name} como asegurado adicional. El seguro de accidentes laborales es obligatorio si tiene empleados; quienes trabajan solos firman una declaración de que no tienen empleados.` : `Everyone needs a background check, a W-9, a smartphone and general liability insurance naming ${BRAND.name} as additional insured. Workers’ comp is required if you have employees; solo owners sign a no-employees statement.`}</p>
+          <p className="mt-2 text-ink-soft">{es ? `Todos necesitan verificación de antecedentes, un formulario W-9 y un teléfono inteligente. Los servicios que lo requieren (la mayoría de los oficios, reparaciones y trabajos al aire libre) necesitan un seguro de responsabilidad civil general con ${BRAND.legalName} como asegurado adicional o titular del certificado (como asegurado adicional tiene prioridad en esos trabajos); algunos, como la limpieza de casas y pasear perros, no necesitan seguro para empezar. El seguro de accidentes laborales es obligatorio si tiene empleados; quienes trabajan solos firman una declaración de que no tienen empleados.` : `Everyone needs a background check, a W-9 and a smartphone. Services that require it (most trades, repairs and outdoor work) need general liability insurance listing ${BRAND.legalName} as additional insured or certificate holder (additional insured gets you priority for those jobs); some, like house cleaning and dog walking, don’t need insurance to start. Workers’ comp is required if you have employees; solo owners sign a no-employees statement.`}</p>
         </div>
         <TradeRequirements trades={trades} es={es} pick={es ? "Elija su oficio" : "Pick your trade"} />
       </section>

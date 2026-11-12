@@ -11,6 +11,7 @@
  *           balance_hold_intent, pay_in_full_discount.
  * UPDATED : 2026-10-18_0415 UTC — Contractor.entity_type uses EntityType (adds LLCs taxed as S/C corporations).
  * UPDATED : 2026-11-12_2100 UTC — Contractor.board_alerts (job board alerts: all / digest / off).
+ * UPDATED : 2026-11-12_2355 UTC — Contractor.handled_additional_insured (priority for jobs that need insurance).
  */
 import type { EntityType } from "./compliance.ts";
 
@@ -186,6 +187,8 @@ export interface Contractor {
   acceptance_rate: number;
   on_time_rate: number;
   insured_until: string | null;
+  /** The verified COI names Handled Services LLC as ADDITIONAL INSURED (not only certificate holder): priority for jobs. */
+  handled_additional_insured?: boolean | null;
   license_number: string | null;
   background_checked: boolean;
   daily_capacity: number;

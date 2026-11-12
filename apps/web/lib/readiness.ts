@@ -253,6 +253,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261106190000_need_to_know", "need-to-know access (pros and customers read jobs through the server)", () => db.rpc("is_admin")],
     ["20261110031000_open_offers", "name-your-price job board posts (90 days, $1 to post)", () => db.from("jobs").select("open_offer_until").limit(1)],
     ["20261112210000_board_alerts", "job board alerts for pros (all / daily summary / off)", () => db.from("contractors").select("board_alerts").limit(1)],
+    ["20261112235500_additional_insured_priority", "job priority for pros naming Handled as additional insured", () => db.from("contractors").select("handled_additional_insured").limit(1)],
     ["20261110040000_lead_pay", "Field Sales lead pay ($10 per lead, a draw)", () => db.from("partner_draws").select("id").limit(1)],
     ["20261110200000_pro_showcase", "new pros on the website (opt-in showcase)", () => db.from("contractors").select("showcase_opt_in").limit(1)],
     ["20261111010000_biz_lead_refresh", "business leads stay fresh (rest, re-engage, retire, duplicates) and our own outreach domain (or run supabase/setup/ADD_BIZ_LEAD_REFRESH_2026-11-11_0100.sql)", () => db.from("biz_leads").select("dedupe_key, rest_until, next_send_at").limit(1)],

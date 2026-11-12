@@ -31,11 +31,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string; do
     decision: z.enum(["verify", "reject"]), notes: z.string().max(500).optional(),
     expires_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
     method: z.enum(["document", "insurer"]).optional(),
+    listed_as: z.enum(["additional_insured", "certificate_holder"]).optional(),
   }).safeParse(await req.json().catch(() => null));
   if (!body.success) return deny(400, "decision required");
   const { id, docId } = await ctx.params;
   try {
-    await decideDocument(id, docId, body.data.decision, v!.fullName ?? v!.email, body.data.notes || null, { expiresOn: body.data.expires_on || null, method: body.data.method ?? null });
+    await decideDocument(id, docId, body.data.decision, v!.fullName ?? v!.email, body.data.notes || null, { expiresOn: body.data.expires_on || null, method: body.data.method ?? null, handledListedAs: body.data.listed_as ?? null });
   } catch (e) {
     return deny(404, e instanceof Error ? e.message : "Not found");
   }

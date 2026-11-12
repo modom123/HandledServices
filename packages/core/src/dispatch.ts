@@ -20,6 +20,7 @@
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP list: "only these ZIP codes" (zips_only), or listed ZIPs count even past the driving radius.
  * UPDATED : 2026-10-19_1320 UTC — insurance-optional services (Service.insuranceOptional) skip the general liability check.
  * UPDATED : 2026-11-12_2200 UTC — inProArea: strictly within the pro's radius or ZIP list (who may be texted about a job).
+ * UPDATED : 2026-11-12_2355 UTC — + ADDITIONAL_INSURED_BOOST for pros whose COI names Handled as additional insured.
  */
 
 import { getService } from "./services.ts";
@@ -155,13 +156,19 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
 }
 
 /**
+ * Pros whose verified certificate names Handled Services LLC as ADDITIONAL INSURED (not only certificate holder) get this
+ * boost on jobs that need insurance — the same as the Pro+ tier — so they see those offers first (owner decision 2026-11-12).
+ */
+export const ADDITIONAL_INSURED_BOOST = 6;
+
+/**
  * Rank eligible pros (100 points + bonuses). Quality outweighs distance on purpose:
  *   quality 45      rating 25 · first-time QA pass 10 · few redos/refunds 10
  *   reliability 18  on time 10 · accepts offers 8
  *   proximity 12    closer to the job (or exact ZIP match when distance is unknown)
  *   availability 10 open slots that day (a pro at the daily capacity they set gets no offers)
  *   experience 5    jobs completed
- *   + specialist 8, + Pro+/Elite tier boost
+ *   + specialist 8, + Pro+/Elite tier boost, + Handled as additional insured 6 (jobs that need insurance)
  */
 export function rankContractors(
   contractors: Contractor[],
@@ -211,6 +218,8 @@ export function rankContractors(
       if (specialtyMatch(c.specialties, job.service_slug)) { score += 8; reasons.push("specialist"); }
       const tier = proTier(c);
       if (tier.dispatchBoost) { score += tier.dispatchBoost; reasons.push(`${tier.name} pro`); }
+      const insJob = !remote && !getService(job.service_slug)?.insuranceOptional;
+      if (insJob && c.handled_additional_insured && c.insured_until && new Date(`${c.insured_until}T23:59:59`) >= new Date()) { score += ADDITIONAL_INSURED_BOOST; reasons.push("Handled additional insured"); }
       return { contractor: c, score: Math.round(score * 10) / 10, reasons, load };
     })
     .sort((a, b) => b.score - a.score);

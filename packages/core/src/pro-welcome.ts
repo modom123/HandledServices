@@ -18,6 +18,8 @@
  * UPDATED : 2026-11-12_2300 UTC — honest about where we are: a new company growing market by market, so offers may be
  *           light at first (no "jobs from today" promise); why the home ZIP, driving distance and ZIP list decide which
  *           jobs and texts they get (a warning when the home ZIP is missing); how to get more work while we grow.
+ * UPDATED : 2026-11-12_2345 UTC — an INSURANCE block: which of their services need general liability with Handled Services
+ *           LLC as additional insured or certificate holder, and which don't need insurance.
  */
 import { BRAND } from "./brand.ts";
 import { serviceText, t as tr } from "./i18n.ts";
@@ -27,6 +29,7 @@ import { PRO_REFERRAL, PRO_TIERS } from "./pro-program.ts";
 import type { ProPolicy } from "./pro-policy.ts";
 import { REWARD_DEFAULTS } from "./rewards.ts";
 import { SERVICES, TRADES } from "./services.ts";
+import { glMinimum } from "./vetting.ts";
 import { TIME_WINDOW_LABEL, type Contractor } from "./types.ts";
 import { PROBATION } from "./vetting.ts";
 
@@ -103,6 +106,26 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
     notYet.length ? `\nYou have the trade but aren't cleared yet for (${notYet.length}):\n${notYetList}\nFix it in Pro portal → Setup & documents and those jobs open up on their own.` : null,
     `\nSomething wrong? Change it in Pro portal → My info: ${site}/pro/info`,
     `Want more customers? Turn on "Feature me on the website" in My info: your photo, name, city and up to 5 services in "New pros in the Handled Network" (never your address or phone).`,
+  ];
+
+  // ── insurance: which of their services need it (owner decision 2026-11-12: Handled as additional insured or certificate holder) ──
+  const mine = SERVICES.filter((s) => s.trades.some((t) => (c.trades ?? []).includes(t)));
+  const needIns = mine.filter((s) => !s.insuranceOptional).map((s) => serviceText(l, s.slug, s).name);
+  const noIns = mine.filter((s) => s.insuranceOptional).map((s) => serviceText(l, s.slug, s).name);
+  const glM = `$${(glMinimum(c.trades ?? []) / 1e6).toLocaleString("en-US")}M`;
+  const short = (xs: string[]) => xs.slice(0, 12).join(", ") + (xs.length > 12 ? (es ? ` y ${xs.length - 12} más` : ` and ${xs.length - 12} more`) : "");
+  const insurance = !mine.length ? [] : es ? [
+    "SEGURO",
+    needIns.length ? `  • Necesitan seguro de responsabilidad civil general (mínimo ${glM} por incidente) con ${BRAND.legalName} como asegurado adicional o titular del certificado: ${short(needIns)}.` : null,
+    needIns.length ? `  • Pida a su agente un certificado (COI) que incluya a ${BRAND.legalName} como asegurado adicional o titular del certificado. Suele ser rápido y sin costo.` : null,
+    needIns.length ? `  • Consejo: si nombra a ${BRAND.legalName} como ASEGURADO ADICIONAL (no solo titular del certificado), tiene prioridad en las ofertas de los trabajos que requieren seguro.` : null,
+    noIns.length ? `  • No necesitan seguro para empezar: ${short(noIns)}.` : null,
+  ] : [
+    "INSURANCE",
+    needIns.length ? `  • These need general liability insurance (at least ${glM} per occurrence) with ${BRAND.legalName} listed as additional insured or certificate holder: ${short(needIns)}.` : null,
+    needIns.length ? `  • Ask your agent for a certificate (COI) listing ${BRAND.legalName} as additional insured or certificate holder. It's usually quick and free.` : null,
+    needIns.length ? `  • Tip: name ${BRAND.legalName} as ADDITIONAL INSURED (not just certificate holder) and you get priority for jobs that need insurance.` : null,
+    noIns.length ? `  • These don't need insurance to start: ${short(noIns)}.` : null,
   ];
 
   // ── your area: it decides which jobs (and texts) reach them ──
@@ -287,6 +310,6 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
       `A straight answer about where we are: ${BRAND.name} is a new company. We're growing market by market, so at first offers may come a few at a time, and some weeks there may be none in your trades and area. We'd rather tell you that now than promise you a full calendar. Every job we do send is prepaid, pre-priced and yours to take or pass, and as we grow, the pros who are set up and quick to respond are first in line.`, "",
       "Here's everything in one place: what you told us, why your area matters, how the portal works, how you're paid and how to get more work. The full PDF guide is at the end.", ""];
   const sign = es ? ["", `Nos alegra tenerle en el equipo.`, `— ${BRAND.name}`] : ["", "Glad to have you on the team.", `— ${BRAND.name}`];
-  const text = [...intro, ...yourInfo, "", ...areaWhy, "", ...portal, "", ...pay, "", ...grow, "", ...earn, "", ...more, "", ...know, ...sign].filter((x): x is string => x !== null).join("\n");
+  const text = [...intro, ...yourInfo, ...(insurance.length ? ["", ...insurance] : []), "", ...areaWhy, "", ...portal, "", ...pay, "", ...grow, "", ...earn, "", ...more, "", ...know, ...sign].filter((x): x is string => x !== null).join("\n");
   return { subject: es ? `Bienvenido a la Red ${BRAND.name}, ${first}` : `Welcome to the ${BRAND.name} Network, ${first}`, text };
 }

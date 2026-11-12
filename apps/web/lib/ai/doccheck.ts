@@ -6,6 +6,8 @@
  *           check it against what their trades require (named insured, policy type, limits,
  *           expiry, Handled as additional insured, license type). Staff see the findings next
  *           to the document and verify in one click. Advisory only — a human verifies.
+ * UPDATED : 2026-11-12_2355 UTC — reads additional insured and certificate holder separately (either is accepted;
+ *           additional insured gives the pro priority for jobs).
  */
 import "server-only";
 import { z } from "zod";
@@ -19,7 +21,8 @@ const DocSchema = z.object({
   matches_pro: z.boolean().describe("Named insured matches the pro's business or legal name (allow DBA / LLC variations)"),
   expires_on: z.string().describe("Expiry date as YYYY-MM-DD, or empty if not shown"),
   per_occurrence_limit: z.number().describe("General liability per-occurrence limit in USD, 0 if not shown or not applicable"),
-  additional_insured: z.boolean().describe(`${BRAND.legalName} (or ${BRAND.name}) is listed as certificate holder or additional insured`),
+  additional_insured: z.boolean().describe(`${BRAND.legalName} (or ${BRAND.name}) is named as ADDITIONAL INSURED (the additional-insured box is marked or an endorsement names it). Being only the certificate holder is false here`),
+  certificate_holder: z.boolean().describe(`${BRAND.legalName} (or ${BRAND.name}) is listed in the certificate holder box`),
   license_number: z.string().describe("License number if this is a license, else empty"),
   meets_requirements: z.boolean(),
   problems: z.array(z.string()).describe("Each requirement not met, in plain words"),
@@ -29,7 +32,7 @@ export type DocCheck = z.infer<typeof DocSchema>;
 export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boolean; pro: { business_name: string; legal_name?: string | null; trades: string[] }; claimedExpiry?: string | null }): Promise<DocCheck | null> {
   const trades = o.pro.trades.map((t) => `${t}${TRADE_PROFILES[t]?.license ? ` (license: ${TRADE_PROFILES[t].license})` : ""}`).join("; ");
   const need =
-    o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or certificate holder, not expired.`
+    o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or listed as certificate holder (either is accepted; say which), not expired.`
     : o.kind === "license" ? `A current state license that covers these trades: ${trades}.`
     : COVERAGES[o.kind as CoverageKey] ? `${COVERAGES[o.kind as CoverageKey].label}: ${COVERAGES[o.kind as CoverageKey].detail} Not expired.`
     : "A current, readable document of the type uploaded.";

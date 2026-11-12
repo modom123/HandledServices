@@ -268,11 +268,12 @@ export function RemedyPanel({ jobId, paid, services }: { jobId: string; paid: bo
  * confirm or correct the expiry date (prefilled from what the pro entered, else the AI's reading), say how you checked it
  * (the certificate itself, or a call / email with the insurer or agent), then verify — or reject with a reason the pro sees.
  */
-export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires }: { contractorId: string; docId: string; kind?: string; expiresOn?: string | null; aiExpires?: string | null }) {
+export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires, aiAdditional }: { contractorId: string; docId: string; kind?: string; expiresOn?: string | null; aiExpires?: string | null; aiAdditional?: boolean | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [exp, setExp] = useState(expiresOn || aiExpires || "");
   const [method, setMethod] = useState<"document" | "insurer">("document");
+  const [listedAs, setListedAs] = useState<"additional_insured" | "certificate_holder">(aiAdditional ? "additional_insured" : "certificate_holder");
   const [notes, setNotes] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -281,7 +282,7 @@ export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires }:
     if (decision === "reject" && !notes.trim()) return setMsg("Add the reason — the pro sees it.");
     if (decision === "verify" && dated && !exp) return setMsg("Enter the expiry date from the policy.");
     setBusy(true); setMsg("");
-    const r = await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision, notes: notes.trim() || undefined, ...(decision === "verify" ? { expires_on: dated ? exp : undefined, method } : {}) });
+    const r = await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision, notes: notes.trim() || undefined, ...(decision === "verify" ? { expires_on: dated ? exp : undefined, method, ...(kind === "coi" ? { listed_as: listedAs } : {}) } : {}) });
     setBusy(false);
     if (!r.ok) return setMsg(r.json.error ?? "Failed");
     router.refresh();
@@ -302,6 +303,12 @@ export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires }:
           {aiExpires && expiresOn && aiExpires !== expiresOn && <span className="mt-1 block font-normal text-amber-800">Pro entered {expiresOn}; the AI read {aiExpires}. Use what the policy says.</span>}
         </label>
       )}
+      {kind === "coi" && <div className="rounded-lg bg-amber-50 p-2 text-amber-900">Required: general liability at the trade's per-occurrence minimum, <b>Handled Services LLC as additional insured or certificate holder</b>, not expired.</div>}
+      {kind === "coi" && (<>
+        <div className="font-semibold">Handled is listed as</div>
+        <label className="flex items-center gap-2"><input type="radio" checked={listedAs === "additional_insured"} onChange={() => setListedAs("additional_insured")} /> Additional insured — priority for jobs</label>
+        <label className="flex items-center gap-2"><input type="radio" checked={listedAs === "certificate_holder"} onChange={() => setListedAs("certificate_holder")} /> Certificate holder only</label>
+      </>)}
       <div className="font-semibold">How you checked it</div>
       <label className="flex items-center gap-2"><input type="radio" checked={method === "document"} onChange={() => setMethod("document")} /> Reviewed the certificate / policy</label>
       <label className="flex items-center gap-2"><input type="radio" checked={method === "insurer"} onChange={() => setMethod("insurer")} /> Confirmed with the insurer or agent</label>
