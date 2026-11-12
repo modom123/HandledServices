@@ -11,9 +11,10 @@
  * UPDATED : 2026-11-12_1700 UTC — clear errors (a bad email or a missing name said "add an email or phone"), and the
  *           visitor's saved first-touch attribution is cleaned instead of failing the post (a long ad click id or a
  *           non-text value used to reject the whole form).
+ * UPDATED : 2026-11-12_1800 UTC — photos: up to 8 paths from /api/uploads, saved on the lead (Hub → Lead inbox).
  */
 import { z } from "zod";
-import { channelOf } from "@handled/core";
+import { channelOf, isPhotoPath } from "@handled/core";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { enrollFromPost } from "@/lib/partners";
 import { intakeLead } from "@/lib/lead-intake";
@@ -29,6 +30,7 @@ const Body = z.object({
   service: s(80),
   campaign: s(80),
   message: s(3000),
+  photos: z.array(z.string().refine(isPhotoPath)).max(8).optional(),
   sms_consent: z.boolean().optional(),
   partner_optin: z.boolean().optional(),
   attribution: z.unknown().optional(), // cleaned below: never a reason to lose a lead
@@ -41,16 +43,16 @@ export async function POST(req: Request) {
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) {
     const field = String(b.error.issues[0]?.path[0] ?? "");
-    const error = field === "name" ? "Add your name" : field === "email" ? "That email doesn't look right" : field === "message" ? "That description is too long — please shorten it" : "Check the form and try again";
+    const error = field === "name" ? "Add your name" : field === "email" ? "That email doesn't look right" : field === "message" ? "That description is too long — please shorten it" : field === "photos" ? "One of the photos didn't upload — remove it and try again" : "Check the form and try again";
     return Response.json({ error }, { status: 400 });
   }
   if (b.data.website) return Response.json({ ok: true }); // a bot filled the hidden field
   if (!b.data.email && !b.data.phone) return Response.json({ error: "Add an email or phone number so we can reach you" }, { status: 400 });
   if (!supabaseConfigured || !process.env.SUPABASE_SERVICE_ROLE_KEY) return Response.json({ error: "Not available right now — please call or email us" }, { status: 503 });
-  const { attribution: rawAttr, website: _w, partner_optin, ...lead } = b.data;
+  const { attribution: rawAttr, website: _w, partner_optin, photos, ...lead } = b.data;
   const attribution = cleanAttribution(rawAttr);
   const ch = channelOf(attribution ?? null);
-  const r = await intakeLead({ ...(attribution ?? {}), ...lead, email: lead.email || null }, { channel: ch === "direct" ? "website" : ch });
+  const r = await intakeLead({ ...(attribution ?? {}), ...lead, email: lead.email || null }, { channel: ch === "direct" ? "website" : ch, photos: photos ?? [] });
   if (!r.ok) return Response.json({ error: r.error ?? "Couldn't send — try again" }, { status: 400 });
   const partner = partner_optin && lead.email ? await enrollFromPost({ name: lead.name, email: lead.email, phone: lead.phone, service_slug: lead.service, ip: clientIp(req) }) : null;
   return Response.json(partner ? { ok: true, partner } : { ok: true });

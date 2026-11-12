@@ -13,6 +13,8 @@
  * UPDATED : 2026-11-12_1700 UTC — checks for an email or a full phone number before sending (the server said no only
  *           after the click), a dropped connection no longer leaves the button stuck on "Posting…", the description
  *           shows how much room is left, and the partner box says when it's skipped for lack of an email.
+ * UPDATED : 2026-11-12_1800 UTC — photos (optional, up to 6): taken or chosen on a phone, dragged in on a desktop; saved
+ *           with the lead so staff see the job before they call. Posting waits until uploads finish.
  */
 "use client";
 
@@ -20,11 +22,14 @@ import { useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
 import { BRAND, firstProjectLine } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
+import { PhotoPicker } from "@/components/PhotoPicker";
 
 type Opt = { slug: string; name: string };
 
 export function PostProjectForm({ es, services, preset }: { es: boolean; services: Opt[]; preset?: string | null }) {
   const [f, setF] = useState({ service: preset ?? "", details: "", timing: "", budget: "", zip: "", name: "", email: "", phone: "", website: "" });
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [sms, setSms] = useState(false);
   const [earn, setEarn] = useState(true);
   const [partner, setPartner] = useState<{ code: string; reward: boolean } | null>(null);
@@ -63,6 +68,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       if (!f.name.trim()) { setErr(L("Add your name.", "Agregue su nombre.")); return; }
       const phoneOk = f.phone.replace(/\D/g, "").length >= 10;
       if (!f.email.trim() && !phoneOk) { setErr(f.phone.trim() ? L("Enter your full phone number with area code, or add an email.", "Escriba su teléfono completo con código de área, o agregue un correo.") : L("Add an email or phone number so we can reach you.", "Agregue un correo o teléfono para poder contactarle.")); return; }
+      if (uploading) { setErr(L("Wait for your photos to finish uploading.", "Espere a que terminen de subir sus fotos.")); return; }
       if (f.zip && !/^\d{5}$/.test(f.zip.trim())) { setErr(L("ZIP code should be 5 digits.", "El código postal debe tener 5 dígitos.")); return; }
       setState("busy"); setErr("");
       const message = [
@@ -74,7 +80,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       let r: Response;
       try {
         r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-          name: f.name.trim(), email: f.email.trim() || null, phone: phoneOk ? f.phone.trim() : null, zip: f.zip.trim() || null, service: f.service || null, message,
+          name: f.name.trim(), email: f.email.trim() || null, phone: phoneOk ? f.phone.trim() : null, zip: f.zip.trim() || null, service: f.service || null, message, photos,
           campaign: "post-project", sms_consent: sms && phoneOk, partner_optin: earn && Boolean(f.email.trim()), attribution: readAttribution(), website: f.website,
         }) });
       } catch {
@@ -97,6 +103,10 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         <label className="text-sm font-semibold">{L("Describe the project", "Describa el proyecto")}</label>
         <textarea className="input mt-1 min-h-28" maxLength={2500} placeholder={L("What needs to be done, how big it is, anything we should know…", "Qué hay que hacer, de qué tamaño es, cualquier cosa que debamos saber…")} value={f.details} onChange={set("details")} />
         {f.details.length > 2000 && <p className="mt-1 text-right text-xs text-ink-soft">{2500 - f.details.length} {L("characters left", "caracteres restantes")}</p>}
+      </div>
+      <div>
+        <label className="text-sm font-semibold">{L("Photos", "Fotos")} <span className="font-normal text-ink-soft">({L("optional — helps us price it on the first call", "opcional: nos ayuda a darle precio en la primera llamada")})</span></label>
+        <div className="mt-1"><PhotoPicker value={photos} onChange={setPhotos} max={6} onError={setErr} onBusy={setUploading} locale={es ? "es" : "en"} /></div>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <select className="input" value={f.timing} onChange={set("timing")} aria-label={L("When", "Cuándo")}>
@@ -126,7 +136,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         <input type="checkbox" className="mt-0.5" checked={sms} onChange={(e) => setSms(e.target.checked)} />
         <span>{L(`Text me about my project. By checking this, you agree to receive text messages from ${BRAND.name} at the number above about your request. Message and data rates may apply; reply STOP to opt out. Consent isn't required to buy.`, `Envíenme mensajes de texto sobre mi proyecto. Al marcar esto, acepta recibir mensajes de ${BRAND.name} al número indicado sobre su solicitud. Pueden aplicar tarifas de mensajes y datos; responda STOP para cancelar. No es necesario para comprar.`)}</span>
       </label>
-      <button className="btn-primary w-full py-3 text-base" disabled={state === "busy"}>{state === "busy" ? L("Posting…", "Publicando…") : L("Post my project", "Publicar mi proyecto")}</button>
+      <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{uploading ? L("Uploading photos…", "Subiendo fotos…") : state === "busy" ? L("Posting…", "Publicando…") : L("Post my project", "Publicar mi proyecto")}</button>
       <p className="text-center text-xs text-ink-soft">{L("Free, no obligation. Your details go only to Handled — we never sell or share them.", "Gratis y sin compromiso. Sus datos solo los recibe Handled: nunca los vendemos ni compartimos.")}</p>
       {err && <p className="text-sm text-rose-700">{err}</p>}
     </form>

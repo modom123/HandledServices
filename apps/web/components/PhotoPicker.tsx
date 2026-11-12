@@ -10,6 +10,7 @@
  *               progress; thumbnails with remove.
  * UPDATED : 2026-10-02_1412 UTC — English / Spanish (locale prop).
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-12_1800 UTC — optional onBusy: the parent knows while photos are uploading (e.g. hold the Post button).
  */
 "use client";
 
@@ -36,12 +37,13 @@ async function shrink(file: File): Promise<File> {
   }
 }
 
-export function PhotoPicker({ value, onChange, max = 8, uploadUrl = "/api/uploads", onError, locale = "en" }: {
+export function PhotoPicker({ value, onChange, max = 8, uploadUrl = "/api/uploads", onError, onBusy, locale = "en" }: {
   value: string[];
   onChange: (paths: string[]) => void;
   max?: number;
   uploadUrl?: string;
   onError?: (msg: string) => void;
+  onBusy?: (busy: boolean) => void;
   locale?: Locale;
 }) {
   const t = (s: string) => tr(locale, s);
@@ -64,20 +66,22 @@ export function PhotoPicker({ value, onChange, max = 8, uploadUrl = "/api/upload
     if (room <= 0) return onError?.(es ? `Hasta ${max} fotos` : `Up to ${max} photos`);
     const take = list.slice(0, room);
     const added: string[] = [];
+    onBusy?.(true);
+    try {
     for (let i = 0; i < take.length; i++) {
       setBusy(es ? `Subiendo ${i + 1} de ${take.length}…` : `Uploading ${i + 1} of ${take.length}…`);
       const small = await shrink(take[i]);
       const fd = new FormData();
       fd.append("photos", small);
-      const res = await fetch(uploadUrl, { method: "POST", body: fd });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.paths?.[0]) { onError?.(json.error ?? t("Upload failed — try again")); continue; }
+      const res = await fetch(uploadUrl, { method: "POST", body: fd }).catch(() => null);
+      const json = res ? await res.json().catch(() => ({})) : { error: es ? "Sin conexión: intente de nuevo" : "Couldn't upload — check your connection" };
+      if (!res?.ok || !json.paths?.[0]) { onError?.(json.error ?? t("Upload failed — try again")); continue; }
       const path = json.paths[0] as string;
       added.push(path);
       setPreviews((p) => ({ ...p, [path]: URL.createObjectURL(small) }));
       onChange([...valueRef.current, path]);
     }
-    setBusy("");
+    } finally { setBusy(""); onBusy?.(false); }
     if (list.length > take.length) onError?.(es ? `Solo se agregaron las primeras ${take.length} (máximo ${max})` : `Only the first ${take.length} were added (max ${max})`);
   }
 

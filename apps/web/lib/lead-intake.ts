@@ -10,6 +10,8 @@
  *             setLeadStatus — new → contacted → booked / lost / spam (staff)
  * UPDATED : 2026-11-12_1700 UTC — the same person writing again within a day adds to their lead (it replaced the
  *           earlier message, losing a first posted project) and staff get an alert to follow up on the new request.
+ * UPDATED : 2026-11-12_1800 UTC — photos (Post your project): saved on the lead (leads.photos), added to a repeat
+ *           lead's photos, and counted in the call-now alert. Before ADD_LEAD_PHOTOS is run, the lead saves without them.
  *           Callers: /api/leads/web (website form), /api/leads/intake (Zapier / Make: TikTok, LinkedIn, Yelp, Google
  *           Local Services…), /api/webhooks/meta-leads (Facebook / Instagram Lead Ads), /api/webhooks/google-leads
  *           (Google Ads lead forms) and the website AI chat.
@@ -27,8 +29,9 @@ const like = (e: string) => e.replace(/[\\%_]/g, "\\$&");
 
 export interface IntakeResult { ok: boolean; id?: string; duplicate?: boolean; error?: string }
 
-export async function intakeLead(raw: Record<string, unknown>, o: { channel?: string | null; actor?: string } = {}): Promise<IntakeResult> {
+export async function intakeLead(raw: Record<string, unknown>, o: { channel?: string | null; actor?: string; photos?: string[] } = {}): Promise<IntakeResult> {
   const l = normalizeIntake(raw, o.channel);
+  const photos = [...new Set(o.photos ?? [])].slice(0, 8);
   if (!l.email && !l.phone) return { ok: false, error: "A lead needs an email or a phone number" };
   // the same platform lead twice (webhook retries), or the same person within a day: keep one
   if (l.external_id) {
@@ -42,6 +45,10 @@ export async function intakeLead(raw: Record<string, unknown>, o: { channel?: st
   ]);
   const recent = byEmail ?? byPhone;
   if (recent) {
+    if (photos.length) {
+      const { data: had } = await db().from("leads").select("photos").eq("id", recent.id).maybeSingle();
+      if (had) await db().from("leads").update({ photos: [...new Set([...((had.photos as string[] | null) ?? []), ...photos])].slice(0, 24) }).eq("id", recent.id);
+    }
     if (l.message) {
       const { data: prev } = await db().from("leads").select("message").eq("id", recent.id).maybeSingle();
       const before = (prev?.message as string | null) ?? null;
@@ -49,15 +56,18 @@ export async function intakeLead(raw: Record<string, unknown>, o: { channel?: st
         const merged = [before, `— Added ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC —\n${l.message}`].filter(Boolean).join("\n\n").slice(-6000);
         await db().from("leads").update({ message: merged }).eq("id", recent.id);
         await raiseAlert("sales", "warn", `Lead wrote again — ${channelLabel(l.channel)}: ${l.name ?? l.email ?? l.phone}`,
-          [l.phone ? `📞 ${l.phone}` : `✉️ ${l.email}`, `They wrote: "${l.message.slice(0, 400)}"`, "Hub → Lead inbox"].join("\n")).catch(() => {});
+          [l.phone ? `📞 ${l.phone}` : `✉️ ${l.email}`, `They wrote: "${l.message.slice(0, 400)}"`, photos.length ? `📷 ${photos.length} photo${photos.length > 1 ? "s" : ""} added` : null, "Hub → Lead inbox"].filter(Boolean).join("\n")).catch(() => {});
       }
     }
     return { ok: true, id: recent.id, duplicate: true };
   }
   const base = { name: l.name, email: l.email, phone: l.phone, zip: l.zip, service_slug: l.service_slug, message: l.message, source: l.channel };
-  let { data: row, error } = await db().from("leads").insert({
-    ...base, city: l.city, company: l.company, channel: l.channel, campaign: l.campaign, attribution: l.attribution, external_id: l.external_id, sms_consent: l.sms_consent, status: "new",
-  }).select("id").single();
+  const full: Record<string, unknown> = { ...base, city: l.city, company: l.company, channel: l.channel, campaign: l.campaign, attribution: l.attribution, external_id: l.external_id, sms_consent: l.sms_consent, status: "new" };
+  let { data: row, error } = await db().from("leads").insert(photos.length ? { ...full, photos } : full).select("id").single();
+  // before ADD_LEAD_PHOTOS is run: keep the lead, note the photos were sent
+  if (error && photos.length && /photos/i.test(error.message)) {
+    ({ data: row, error } = await db().from("leads").insert({ ...full, message: [l.message, `(${photos.length} photo(s) sent — run supabase/setup/ADD_LEAD_PHOTOS_2026-11-12_1800.sql to keep them)`].filter(Boolean).join("\n") }).select("id").single());
+  }
   // before the omnichannel migration is run: save the lead with the original columns so nobody is lost
   if (error && /column|schema cache/i.test(error.message)) {
     ({ data: row, error } = await db().from("leads").insert({ ...base, message: [l.company && `Company: ${l.company}`, l.message].filter(Boolean).join("\n") || null }).select("id").single());
@@ -66,7 +76,7 @@ export async function intakeLead(raw: Record<string, unknown>, o: { channel?: st
   if (error || !row) return { ok: false, error: error?.message ?? "Couldn't save the lead" };
   const bizId = l.company ? await toBusinessLead(l).catch(() => null) : null;
   if (bizId) await db().from("leads").update({ biz_lead_id: bizId }).eq("id", row.id);
-  await speedToLead(row.id, l).catch((e) => console.error("[speed-to-lead]", e));
+  await speedToLead(row.id, l, photos.length).catch((e) => console.error("[speed-to-lead]", e));
   return { ok: true, id: row.id };
 }
 
@@ -89,7 +99,7 @@ async function toBusinessLead(l: IntakeLead): Promise<string | null> {
 }
 
 /** The instant reply (email; text only with consent) and the alert to call now. */
-async function speedToLead(id: string, l: IntakeLead) {
+async function speedToLead(id: string, l: IntakeLead, photoCount = 0) {
   const reply = await speedToLeadReply(l, { siteUrl: siteUrl(), phone: BRAND.supportPhone || null });
   const opted = l.email ? (await db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", l.email)).count : 0;
   let replied = false;
@@ -98,7 +108,7 @@ async function speedToLead(id: string, l: IntakeLead) {
   if (replied) await db().from("leads").update({ first_reply_at: new Date().toISOString() }).eq("id", id);
   await raiseAlert("sales", "warn", `New lead — ${channelLabel(l.channel)}: ${l.name ?? l.company ?? l.email ?? l.phone}`,
     [`${reply.call_note}`, l.phone ? `📞 Call within 5 minutes: ${l.phone}` : `No phone — answer by email: ${l.email}`, l.company ? `Business: ${l.company} (on the Call desk now)` : null,
-      l.message ? `They wrote: "${l.message.slice(0, 400)}"` : null, replied ? `Instant reply sent${l.sms_consent && l.phone ? " (email + text)" : ""}.` : "No instant reply sent (no email, or they opted out).", "Hub → Lead inbox"].filter(Boolean).join("\n"));
+      l.message ? `They wrote: "${l.message.slice(0, 400)}"` : null, photoCount ? `📷 ${photoCount} photo${photoCount > 1 ? "s" : ""} — see the Lead inbox` : null, replied ? `Instant reply sent${l.sms_consent && l.phone ? " (email + text)" : ""}.` : "No instant reply sent (no email, or they opted out).", "Hub → Lead inbox"].filter(Boolean).join("\n"));
 }
 
 export async function setLeadStatus(id: string, status: "new" | "contacted" | "booked" | "lost" | "spam", actor: string) {

@@ -15,10 +15,11 @@ import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { LeadStatusButtons } from "@/components/LeadInbox";
 import { siteUrl } from "@/lib/site-url";
+import { signedUrls } from "@/lib/photos";
 
 export const dynamic = "force-dynamic";
 
-type Lead = { id: string; name: string | null; email: string | null; phone: string | null; company: string | null; zip: string | null; city: string | null; service_slug: string | null; message: string | null; channel: string | null; source: string; campaign: string | null; status: string | null; sms_consent: boolean | null; first_reply_at: string | null; contacted_at: string | null; biz_lead_id: string | null; created_at: string };
+type Lead = { id: string; name: string | null; email: string | null; phone: string | null; company: string | null; zip: string | null; city: string | null; service_slug: string | null; message: string | null; photos?: string[] | null; channel: string | null; source: string; campaign: string | null; status: string | null; sms_consent: boolean | null; first_reply_at: string | null; contacted_at: string | null; biz_lead_id: string | null; created_at: string };
 
 const mins = (a: string, b: string | null) => (b ? (new Date(b).getTime() - new Date(a).getTime()) / 60000 : null);
 const fmtMins = (m: number | null) => (m == null ? "—" : m < 1 ? "<1 min" : m < 90 ? `${Math.round(m)} min` : m < 2880 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`);
@@ -57,6 +58,11 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
     const fast = ls.filter((l) => { const m = mins(l.created_at, l.contacted_at); return m != null && m <= 5; }).length;
     return { c, leads: ls.length, booked: ls.filter((l) => l.status === "booked").length, fast, bookings: bk.length, revenue: bk.reduce((t, j) => t + Number(j.price_final ?? 0), 0) };
   }).filter((r) => r.leads || r.bookings).sort((a, b) => b.revenue - a.revenue || b.leads - a.leads);
+  // posted photos (Post your project): short-lived signed links for the open leads on screen
+  const shown = open.slice(0, 200);
+  const photoPaths = shown.flatMap((l) => l.photos ?? []);
+  const urls = photoPaths.length ? await signedUrls(photoPaths).catch(() => [] as string[]) : [];
+  const photoUrl = new Map(photoPaths.map((p, i) => [p, urls[i]] as const));
   const tab = (href: string, label: string, on: boolean) => <Link href={href} className={`rounded-full border px-3 py-1 text-xs ${on ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{label}</Link>;
   return (
     <div className="space-y-6">
@@ -116,7 +122,7 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
         </div>
         {open.length ? (
           <div className="space-y-2">
-            {open.slice(0, 200).map((l) => {
+            {shown.map((l) => {
               const wait = mins(l.created_at, l.contacted_at ?? new Date().toISOString());
               return (
                 <div key={l.id} className="card text-sm">
@@ -125,7 +131,14 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
                       <div className="text-xs font-semibold uppercase tracking-wide text-brand">{channelLabel(l.channel)}{l.campaign ? ` · ${l.campaign}` : ""}</div>
                       <div className="font-bold">{l.name ?? "(no name)"}{l.company ? ` — ${l.company}` : ""}</div>
                       <div className="text-xs text-ink-soft">{l.service_slug ? SERVICE_BY_SLUG[l.service_slug]?.name ?? l.service_slug : "Service not given"}{l.city || l.zip ? ` · ${[l.city, l.zip].filter(Boolean).join(" ")}` : ""} · {new Date(l.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })}</div>
-                      {l.message && <p className="mt-1 whitespace-pre-wrap text-xs">{l.message.slice(0, 400)}</p>}
+                      {l.message && (l.message.length > 400
+                        ? <details className="mt-1 text-xs"><summary className="cursor-pointer whitespace-pre-wrap">{l.message.slice(0, 400)}… <span className="text-brand underline">more</span></summary><p className="whitespace-pre-wrap">{l.message.slice(400)}</p></details>
+                        : <p className="mt-1 whitespace-pre-wrap text-xs">{l.message}</p>)}
+                      {(l.photos ?? []).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">{(l.photos ?? []).map((p) => photoUrl.get(p)
+                          ? <a key={p} href={photoUrl.get(p)} target="_blank" rel="noreferrer"><img src={photoUrl.get(p)} alt="Customer photo" className="h-20 w-20 rounded-lg border border-line object-cover" /></a>
+                          : <span key={p} className="grid h-20 w-20 place-items-center rounded-lg bg-paper text-xs text-ink-soft">photo</span>)}</div>
+                      )}
                       <div className="mt-1 text-xs text-ink-soft">{l.first_reply_at ? `Instant reply sent (${fmtMins(mins(l.created_at, l.first_reply_at))})` : "No instant reply"}{l.sms_consent ? " · OK to text" : " · no texts"}{(l.status ?? "new") === "new" ? <b className={wait != null && wait > 5 ? " text-rose-700" : ""}> · waiting {fmtMins(wait)}</b> : ` · contacted after ${fmtMins(mins(l.created_at, l.contacted_at))}`}{l.biz_lead_id ? <> · <Link href={`/hub/biz-leads/${l.biz_lead_id}`} className="underline">business lead</Link></> : null}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1 text-xs">
