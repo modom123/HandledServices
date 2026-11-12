@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP list: "only these ZIP codes" (zips_only), or listed ZIPs count even past the driving radius.
  * UPDATED : 2026-10-19_1320 UTC — insurance-optional services (Service.insuranceOptional) skip the general liability check.
+ * UPDATED : 2026-11-12_2200 UTC — inProArea: strictly within the pro's radius or ZIP list (who may be texted about a job).
  */
 
 import { getService } from "./services.ts";
@@ -100,6 +101,19 @@ export function offDuty(c: Contractor, date: string | null | undefined, window?:
 export function zipCovered(list: string[] | null | undefined, zip: string | null | undefined): boolean {
   if (!zip || !list?.length) return false;
   return list.includes(zip) || list.includes(`${zip.slice(0, 3)}*`);
+}
+
+/**
+ * Strictly in the pro's area — the test for texting a pro about a job: within their driving radius from their home base,
+ * or in their ZIP list ("only these ZIPs" → the list alone). Unknown distance and no listed ZIP is NOT in the area, and
+ * remote work has no area, so neither is ever texted (they still see it in the app and on their board).
+ */
+export function inProArea(c: Contractor, job: Pick<DispatchJob, "lat" | "lng" | "service_slug"> & { zip?: string | null }): boolean {
+  if (getService(job.service_slug)?.remote) return false;
+  const listed = zipCovered(c.service_zips, job.zip);
+  if (c.zips_only && c.service_zips?.length) return listed;
+  const miles = proDistance(c, job);
+  return listed || (miles != null && miles <= (c.service_radius_mi ?? 25));
 }
 
 /** Parse what a pro typed ("48201, 48226 481*, 482") into a clean ZIP list (max 200). */

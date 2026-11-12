@@ -67,10 +67,11 @@
  *           confirms it), as well as the board. Higher pay goes first (core offerPlan): an offer 10%+ above our price
  *           goes to 3 pros at once for 1 hour, and the offer says "Top pay".
  * UPDATED : 2026-11-12_2100 UTC — when a post or top-pay job is listed, every other pro it fits gets an instant board alert.
+ * UPDATED : 2026-11-12_2200 UTC — job offer texts go only to pros in the job's area (core inProArea); others get app + email.
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, inProArea, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -797,7 +798,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
       body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}${flexEn}`,
       data: { type: "offer", offerId },
       channel: "offers",
-      sms: { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` },
+      // texts only to pros in the job's area (remote work: the specialist, wherever they are); otherwise app + email
+      sms: svc.remote || inProArea(pro, job) ? { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` } : null,
       email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? visitEn : "job"} offer: ${svc.name} · ${pay ? money(pay) : visitEn} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
       es: {

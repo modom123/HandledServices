@@ -14,9 +14,10 @@
  *                                    with nobody on them raise a critical alert.
  *           Credit follows the work: whoever completes the job is paid, rated and credited (tier, Rewards); a backup
  *           who takes it gets their own tier pay.
+ * UPDATED : 2026-11-12_2200 UTC — backup-call texts only to pros in the job's area (core inProArea); others get app + email.
  */
 import "server-only";
-import { BACKUPS, BRAND, TIME_WINDOW_LABEL, backupAnswerMinutes, getService, hoursUntilWindow, money, nextBackup, openBackupRanks, proTier, rankContractors, tierPayout, type BackupRow, type Contractor, type Job } from "@handled/core";
+import { BACKUPS, BRAND, inProArea, TIME_WINDOW_LABEL, backupAnswerMinutes, getService, hoursUntilWindow, money, nextBackup, openBackupRanks, proTier, rankContractors, tierPayout, type BackupRow, type Contractor, type Job } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { notify } from "./push";
@@ -148,7 +149,8 @@ export async function callNextBackup(jobId: string, exclude: string[] = []): Pro
     body: `${svc?.name} · ${job.city} ${job.zip} · ${whenOf(job)} · ${money(pay)}. Accept within ${minutes} min.`,
     data: { type: "offer", offerId: offer?.id },
     channel: "offers",
-    sms: { to: p.phone, body: `${BRAND.name} BACKUP CALL: the booked pro can't make ${svc?.name} in ${job.city} ${job.zip}, ${whenOf(job)}. ${money(pay)}. You're backup #${next.rank} — accept within ${minutes} min: ${siteUrl()}/pro/offers/${offer?.id}` },
+    // texted only when the job is in the backup's area (remote work: wherever they are)
+    sms: svc?.remote || inProArea(p, job) ? { to: p.phone, body: `${BRAND.name} BACKUP CALL: the booked pro can't make ${svc?.name} in ${job.city} ${job.zip}, ${whenOf(job)}. ${money(pay)}. You're backup #${next.rank} — accept within ${minutes} min: ${siteUrl()}/pro/offers/${offer?.id}` } : null,
     email: { to: p.email, subject: `Backup call: ${svc?.name} · ${job.zip} · ${money(pay)} — answer within ${minutes} min`, text: `You're backup #${next.rank} and the booked pro can't make it.\n\n${svc?.name} · ${job.city} ${job.zip}\n${whenOf(job)}\nPays ${money(pay)}\n\nAccept within ${minutes} minutes or it goes to the next backup:\n${siteUrl()}/pro/offers/${offer?.id}\n\n— ${BRAND.name}` },
     es: {
       title: `🚨 Llamada de respaldo: le toca (n.º ${next.rank})`,

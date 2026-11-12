@@ -1288,6 +1288,18 @@ test("open job board: first looks first, then 30 min after the first targeted ro
   assert.equal(favoriteWindowHours("2026-10-14", now), FAVORITES.firstLookHours);
   assert.equal(favoriteWindowHours("2026-10-10", now), 1, "job today → short window so it still gets covered");
   assert.equal(favoriteWindowHours(null, now), FAVORITES.firstLookHours);
+  { // texts go only to pros in the job's area
+    const { inProArea } = await import("./dispatch.ts");
+    const pro = { base_lat: 42.33, base_lng: -83.05, service_radius_mi: 20, service_zips: [] as string[], zips_only: false } as unknown as Parameters<typeof inProArea>[0];
+    const near = { lat: 42.40, lng: -83.10, zip: "48206", service_slug: "lawn-care" }, far = { lat: 42.96, lng: -85.67, zip: "49503", service_slug: "lawn-care" };
+    assert.equal(inProArea(pro, near), true, "Detroit pro, Detroit job");
+    assert.equal(inProArea(pro, far), false, "Detroit pro, Grand Rapids job");
+    assert.equal(inProArea({ ...pro, base_lat: null, base_lng: null } as typeof pro, near), false, "no home base and no ZIP list: never texted");
+    assert.equal(inProArea(pro, { ...near, lat: null, lng: null }), false, "job not mapped and not in the ZIP list");
+    assert.equal(inProArea({ ...pro, service_zips: ["495*"] } as typeof pro, far), true, "a listed ZIP counts past the radius");
+    assert.equal(inProArea({ ...pro, zips_only: true, service_zips: ["48201"] } as typeof pro, near), false, "only these ZIPs");
+    assert.equal(inProArea(pro, { ...near, service_slug: "website-design" }), false, "remote work is never texted");
+  }
   { // higher pay goes first
     const { payRatio, topPay, offerPlan, boardOrder, PAY_PRIORITY } = await import("./board.ts");
     assert.equal(payRatio({ customer_offer: 120, suggested_price: 100 }), 1.2);

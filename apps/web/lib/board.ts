@@ -26,9 +26,11 @@
  *                                  already have an offer on it are skipped)
  *             boardDigest()      — daily (sweep cron): "N new jobs near you", the jobs that joined their board in the last day
  *           Each pro chooses all / daily summary only / off (contractors.board_alerts; "all" until that SQL is run).
+ * UPDATED : 2026-11-12_2200 UTC — texts go only to pros in the job's area (core inProArea: within their radius from their
+ *           home base, or a listed ZIP); a pro whose area can't be confirmed gets the app notification only.
  */
 import "server-only";
-import { AGREEMENT_VERSION, BOARD, boardOrder, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
+import { AGREEMENT_VERSION, BOARD, boardOrder, inProArea, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 import { localeOf, notify } from "./push";
@@ -59,6 +61,8 @@ export interface BoardCard {
   business?: boolean;
   /** When the job was booked (the daily summary lists the new ones). */
   createdAt?: string;
+  /** Strictly in this pro's area (radius or ZIP list) — only these are ever texted. */
+  inArea?: boolean;
 }
 
 /** One line for when the work happens: a post's day is set with the customer. */
@@ -118,7 +122,7 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
       city: job.city, zip: job.zip, when: whenFor(job, wo.when, locale), pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
       scope: wo.scope.slice(0, 4).map((s) => `${s.label}: ${s.value}`), priority: job.priority !== "normal", offerId: mineOpen?.id ?? null,
-      postUntil: job.open_offer_until?.slice(0, 10) ?? null, topPay: topPay(job), business: isBusiness(job), createdAt: job.created_at,
+      postUntil: job.open_offer_until?.slice(0, 10) ?? null, topPay: topPay(job), business: isBusiness(job), createdAt: job.created_at, inArea: inProArea(ctx.pro, job),
     });
   }
   return boardOrder(cards).slice(0, 50);
@@ -265,7 +269,8 @@ export async function alertBoardJob(jobId: string): Promise<number> {
       title: `${tag} near you · ${pay}`,
       body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${when}. First to take it gets it.`,
       data: { type: "board", jobId }, channel: "offers",
-      sms: { to: pro.phone, body: `Handled: ${tag.toLowerCase()} near you — ${svc.name}, ${job.city} ${job.zip}, you earn ${pay}. ${post ? "Set the day with the customer. " : ""}First to take it gets it: ${siteUrl()}/pro` },
+      // a text only when the job is in the pro's area; otherwise the app notification alone
+      sms: inProArea(pro, job) ? { to: pro.phone, body: `Handled: ${tag.toLowerCase()} near you — ${svc.name}, ${job.city} ${job.zip}, you earn ${pay}. ${post ? "Set the day with the customer. " : ""}First to take it gets it: ${siteUrl()}/pro` } : null,
       es: { title: `${tagEs} cerca de usted · ${pay}`, body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip}. El primero en tomarlo se lo lleva.`,
         sms: `Handled: ${tagEs.toLowerCase()} cerca de usted — ${nameEs}, ${job.city} ${job.zip}, usted gana ${pay}. ${post ? "Acuerde el día con el cliente. " : ""}El primero en tomarlo se lo lleva: ${siteUrl()}/pro` },
     });
@@ -289,16 +294,18 @@ export async function boardDigest(now = new Date()): Promise<{ sent: number }> {
     const instant = alertsPref(pro) === "all";
     const cards = (await boardFor(pro.id, (await localeOf(pro.profile_id, null)) === "es" ? "es" : "en")).filter((c) => (c.createdAt ?? "") >= since && !(instant && (c.postUntil || c.topPay)));
     if (!cards.length) return;
+    const local = cards.filter((c) => c.inArea);
     const lines = cards.slice(0, 5).map((c) => `• ${c.service} — ${c.city} ${c.zip} — ${c.payLabel}`).join("\n");
     const more = cards.length > 5 ? `\n…and ${cards.length - 5} more` : "";
     const ok = await notify(pro.profile_id, {
       title: `${cards.length} new job${cards.length === 1 ? "" : "s"} near you`,
       body: cards.slice(0, 3).map((c) => `${c.service} ${c.payLabel}`).join(" · "),
       data: { type: "board" }, channel: "offers",
-      sms: { to: pro.phone, body: `Handled: ${cards.length} new job${cards.length === 1 ? "" : "s"} near you. Top: ${cards[0].service}, ${cards[0].city}, ${cards[0].payLabel}. See them: ${siteUrl()}/pro` },
+      // the text counts only jobs in the pro's area (none → no text; the email and app still list everything)
+      sms: local.length ? { to: pro.phone, body: `Handled: ${local.length} new job${local.length === 1 ? "" : "s"} in your area. Top: ${local[0].service}, ${local[0].city}, ${local[0].payLabel}. See them: ${siteUrl()}/pro` } : null,
       email: { to: pro.email, subject: `${cards.length} new job${cards.length === 1 ? "" : "s"} near you on Handled`, text: `New on your job board:\n\n${lines}${more}\n\nFirst to take it gets it: ${siteUrl()}/pro\n\nChange these alerts on your pro home page (Jobs near you → Job alerts).` },
       es: { title: `${cards.length} trabajo${cards.length === 1 ? "" : "s"} nuevo${cards.length === 1 ? "" : "s"} cerca de usted`,
-        sms: `Handled: ${cards.length} trabajo${cards.length === 1 ? "" : "s"} nuevo${cards.length === 1 ? "" : "s"} cerca de usted. Véalos: ${siteUrl()}/pro`,
+        ...(local.length ? { sms: `Handled: ${local.length} trabajo${local.length === 1 ? "" : "s"} nuevo${local.length === 1 ? "" : "s"} en su zona. Véalos: ${siteUrl()}/pro` } : {}),
         subject: `${cards.length} trabajo${cards.length === 1 ? "" : "s"} nuevo${cards.length === 1 ? "" : "s"} cerca de usted en Handled`,
         text: `Nuevo en su tablero de trabajos:\n\n${lines}${more}\n\nEl primero en tomarlo se lo lleva: ${siteUrl()}/pro\n\nCambie estos avisos en su página de profesional (Trabajos cerca de usted → Avisos).` },
     }).then(() => true).catch(() => false);
