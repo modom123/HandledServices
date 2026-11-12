@@ -20,11 +20,12 @@
  * UPDATED : 2026-10-07_1610 UTC — payouts: only the transfer decides success (a failure after money moved is reported, never undone, so nothing is paid twice); runs check the Stripe balance first; per-attempt idempotency keys; the instant fee is sent back when the instant payout fails.
  * UPDATED : 2026-10-07_1900 UTC — arrival windows (late cancellations, show-up pay) use the job's time zone.
  * UPDATED : 2026-10-15_0300 UTC — cancelJob lets go of a "pay after" balance hold.
+ * UPDATED : 2026-11-12_1900 UTC — cancelling a name-your-price board post nobody has taken keeps the $1 posting fee.
  */
 import "server-only";
 import {
   BRAND, LATE_CANCEL_FEE, PRO_POLICY_DEFAULTS, clawbackPlan, PRO_REFERRAL, STATS_WINDOW_DAYS, acceptanceRate, onTimeRate, referralDue, type TimeWindow, getService, serviceText, guaranteeTopUp, instantPayFee, materialsDecision, mergePolicy, money, qualifies, showUpPay, whyNot,
-  type Contractor, type Job, type ProPolicy, timeZoneForZip, zonedInstant } from "@handled/core";
+  type Contractor, type Job, type ProPolicy, timeZoneForZip, zonedInstant, BOARD_POST_FEE, isBoardPost } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { addEvent, getJob, raiseAlert } from "./jobs";
 import { localeOf, notify } from "./push";
@@ -96,7 +97,9 @@ export async function cancelJob(jobId: string, reason: CancelReason, actor: stri
   if (job.balance_hold_intent) await (await import("./stripe")).releaseHold(job.balance_hold_intent);
   const why: CancelReason = reason === "customer" && isLate(job) ? "late" : reason;
   const paid = r2(Number(job.amount_paid ?? 0) - Number(job.amount_refunded ?? 0));
-  const fee = ["late", "lockout"].includes(why) ? Math.min(LATE_CANCEL_FEE, Math.max(0, paid)) : 0;
+  // a name-your-price board post nobody has taken yet: only the $1 posting fee was paid, and it isn't refunded
+  const postFee = isBoardPost(job) && !job.paid_at && !job.contractor_id ? Math.min(BOARD_POST_FEE, Math.max(0, paid)) : 0;
+  const fee = ["late", "lockout"].includes(why) ? Math.min(LATE_CANCEL_FEE, Math.max(0, paid)) : postFee;
   const owed = r2(paid - fee);
 
   let refunded = 0;

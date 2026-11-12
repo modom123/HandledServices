@@ -47,6 +47,8 @@
  *           the job goes on the pro job board for 30 days and is fully refunded if no one takes it.
  * UPDATED : 2026-11-10_1500 UTC — checkout never gets stuck: a non-JSON server error or a dropped connection shows a clear message
  *           (with the support number) and frees the button, instead of leaving "Finalizing your price…" spinning.
+ * UPDATED : 2026-11-12_1900 UTC — name your price posts the job on the pro job board: "Post my job for $1" (no payment-plan
+ *           choice), up for 90 days, the price charged to the same card when a pro takes it; the day and slot don't have to be open.
  */
 "use client";
 
@@ -60,7 +62,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
+  questionVisible, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -426,7 +428,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <div><label className="label">{t("Mobile")}</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
             <SmsConsent es={es} purpose="booking" />
-            {svc && !siteVisit && est && (() => {
+            {svc && !siteVisit && est && !named && (() => {
               // how they pay: 25% now and the rest when it's done (default), or in full now with 5% off; events and site-visit work offer a deposit
               const dp = depositPolicy(svc.slug, total, date);
               const bn = bookNowPolicy(svc.slug, total);
@@ -456,12 +458,15 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? consult ? (es ? "la consulta es gratis; pago solo cuando apruebe el alcance y el precio fijo." : "the consultation is free; I pay only once I approve the scope and fixed price.") : t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? consult ? (es ? "la consulta es gratis; pago solo cuando apruebe el alcance y el precio fijo." : "the consultation is free; I pay only once I approve the scope and fixed price.") : t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : named ? (es
+                ? `pago ${money(BOARD_POST_FEE)} ahora para publicar mi trabajo (no reembolsable) y autorizo que se cobren ${money(offerNum)} a la misma tarjeta cuando un profesional lo tome; ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien.`
+                : `I pay ${money(BOARD_POST_FEE)} now to post my job (not refundable) and authorize ${money(offerNum)} to be charged to the same card when a pro takes it; you pay the pro after the job is done and checked; free redo or refund if it’s not right.`) : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? consult ? (es ? "Reservar consulta gratis" : "Book my free consultation") : t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? (named ? (es ? "Publicando…" : "Posting…") : t(siteVisit ? "Booking…" : "Finalizing your price…")) : siteVisit ? consult ? (es ? "Reservar consulta gratis" : "Book my free consultation") : t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
+                if (named) return es ? `Publicar mi trabajo por ${money(BOARD_POST_FEE)}` : `Post my job for ${money(BOARD_POST_FEE)}`;
                 // what's charged today under the plan this booking actually gets
                 const dp = depositPolicy(svc!.slug, total, date), bn = bookNowPolicy(svc!.slug, total);
                 const p = resolvePlan(plan, dp.allowed, bn.allowed);
@@ -514,8 +519,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
               </div>
               {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.` : `Offers start at ${money(offerChk.floor)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
-              {offerChk?.ok && offerChk.level === "board" && <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">📋 {locale === "es" ? "Por debajo de nuestro precio habitual: publicaremos su trabajo en el tablero de profesionales a este precio por 30 días. El primer profesional que lo tome confirma el día con usted. Si nadie lo toma, le reembolsamos todo." : "Below our usual price: we'll post your job on the pro job board at this price for 30 days. The first pro who takes it confirms the day with you. If no one takes it, you get a full refund."}</p>}
-              {offerChk?.ok && offerChk.level === "low" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
+              {named && <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">📋 {es
+                ? `Publicamos su trabajo en el tablero de profesionales a ${money(offerNum)} por ${OFFER_BOUNDS.boardDays} días. Hoy paga ${money(BOARD_POST_FEE)} para publicarlo; sus ${money(offerNum)} se cobran a la misma tarjeta solo cuando un profesional lo tome, y el profesional confirma el día con usted. Si nadie lo toma, no paga nada más.`
+                : `We'll post your job on the pro job board at ${money(offerNum)} for ${OFFER_BOUNDS.boardDays} days. You pay ${money(BOARD_POST_FEE)} today to post it; your ${money(offerNum)} is charged to the same card only when a pro takes it, and the pro confirms the day with you. If no one takes it, you pay nothing more.`}</p>}
+              {offerChk?.ok && named && offerChk.level !== "ok" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
               {offerChk?.ok && offerNum > suggested && <p className="mt-1 text-xs text-brand-dark">✓ {t("A higher offer usually gets a pro faster.")}</p>}
               <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Includes a ${money(BOOKING_FEE)} booking fee`}</p>
             </div>

@@ -40,6 +40,8 @@
  *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
  * UPDATED : 2026-11-10_0310 UTC — name your price: offers below the usual minimum (down to 30% of our price) go straight
  *           to the job board for 30 days (offerCheck level "board"); unclaimed, they're cancelled and fully refunded.
+ * UPDATED : 2026-11-12_1900 UTC — name your price posts the job on the job board for 90 days for $1 (BOARD_POST_FEE,
+ *           isBoardPost); the customer's price is charged only when a pro takes it.
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -466,11 +468,22 @@ export function marketFactor(signals: PriceSignal[], current = 1): { factor: num
 
 /**
  * Name-your-price bounds around the suggested price. Below `warn` the customer is told it may take longer.
- * Below `min` (but at least `floor`) the offer is still taken: the job goes straight to the open job board at the
- * customer's price for `boardDays` days ("board" level), and if no pro takes it in that time it's cancelled and fully
- * refunded. Below `floor` it's refused (keeps $1 offers off the board).
+ * Every named price is POSTED on the open job board for `boardDays` days: the customer pays BOARD_POST_FEE ($1) to post
+ * it (the card is saved) and their price is charged only when a pro takes the job. Nobody takes it in time → cancelled
+ * (the $1 posting fee is kept). Below `floor` it's refused; above `max`, call us.
  */
-export const OFFER_BOUNDS = { floor: 0.3, min: 0.75, warn: 0.9, max: 3, boardDays: 30 } as const;
+export const OFFER_BOUNDS = { floor: 0.3, min: 0.75, warn: 0.9, max: 3, boardDays: 90 } as const;
+
+/** What it costs to post a name-your-price job on the job board (the price itself is charged when a pro takes it). */
+export const BOARD_POST_FEE = 1;
+
+/**
+ * A name-your-price job posted on the job board: $1 paid to post it, the rest charged when a pro takes it. Stored as a
+ * "deposit" plan whose deposit is the posting fee, with an open board window (no extra database column needed).
+ */
+export function isBoardPost(job: { open_offer_until?: string | null; payment_plan?: string | null; deposit_amount?: number | string | null }): boolean {
+  return Boolean(job.open_offer_until) && job.payment_plan === "deposit" && Number(job.deposit_amount) === BOARD_POST_FEE;
+}
 export function offerCheck(offer: number, suggested: number): { ok: boolean; level: "ok" | "low" | "board" | "too_low" | "too_high"; min: number; max: number; floor: number } {
   const min = Math.ceil(suggested * OFFER_BOUNDS.min), max = Math.floor(suggested * OFFER_BOUNDS.max), floor = Math.ceil(suggested * OFFER_BOUNDS.floor);
   if (!(offer > 0) || offer < floor) return { ok: false, level: "too_low", min, max, floor };

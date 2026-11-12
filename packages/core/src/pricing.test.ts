@@ -1060,6 +1060,18 @@ test("market pricing: booking fee, sliding commission, counters, learning, offer
   // below the usual minimum (75%): still taken, straight to the job board for 30 days; below the 30% floor: refused
   assert.equal(offerCheck(70, 100).ok, true);
   assert.equal(offerCheck(70, 100).level, "board");
+  { // name your price is posted on the job board for $1, 90 days; the price is charged when a pro takes it
+    const { isBoardPost, BOARD_POST_FEE, OFFER_BOUNDS } = await import("./pricing.ts");
+    assert.equal(BOARD_POST_FEE, 1); assert.equal(OFFER_BOUNDS.boardDays, 90);
+    const until = "2027-02-10T00:00:00Z";
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "deposit", deposit_amount: 1 }), true);
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "deposit", deposit_amount: "1.00" }), true, "numeric strings from Postgres");
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "full", deposit_amount: null }), false, "older board jobs paid in full");
+    assert.equal(isBoardPost({ open_offer_until: null, payment_plan: "deposit", deposit_amount: 1 }), false);
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "deposit", deposit_amount: 250 }), false, "a real deposit");
+    const { clearedForWork } = await import("./pricing.ts");
+    assert.equal(clearedForWork({ payment_plan: "deposit", deposit_paid_at: "2026-11-12T00:00:00Z", paid_at: null }), false, "a pro can't start a $1 post until the price is charged");
+  }
   assert.equal(offerCheck(30, 100).level, "board");
   assert.equal(offerCheck(29, 100).ok, false);
   assert.equal(offerCheck(29, 100).floor, 30);

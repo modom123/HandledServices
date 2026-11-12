@@ -21,10 +21,11 @@
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: the first checkout on a "pay after" job is the 25% ("to book");
  *           holdOnSavedCard / captureHold / releaseHold put the balance on hold when the pro starts and take it when the job is done.
  * UPDATED : 2026-11-11_2340 UTC — connectOnboardingUrl can return the pro to Setup & documents (payout step) instead of Earnings.
+ * UPDATED : 2026-11-12_1900 UTC — name-your-price board posts: the checkout says $1 posts the job and the price is charged when a pro takes it.
  */
 import "server-only";
 import Stripe from "stripe";
-import { BRAND, getService, type Job } from "@handled/core";
+import { BOARD_POST_FEE, BRAND, OFFER_BOUNDS, getService, isBoardPost, money, type Job } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 
@@ -113,7 +114,7 @@ export async function openCheckoutSession(row: PaymentRow, job: Job | null, o: {
     metadata: meta,
     success_url: `${siteUrl()}${o.successPath ?? successPathFor(row.kind, job)}`,
     cancel_url: `${siteUrl()}${job ? `/book/confirmed?ref=${job.ref}&unpaid=1` : "/"}`,
-    custom_text: { submit: { message: row.kind === "deposit" ? (job?.payment_plan === "after" ? `25% now locks in your date. The rest is charged to this card when the job is done. ${BRAND.promise}` : `Deposit to lock in your date. ${BRAND.promise}`) : BRAND.promise } },
+    custom_text: { submit: { message: row.kind === "deposit" ? (job && isBoardPost(job) ? `${money(BOARD_POST_FEE)} posts your job. Your price is charged to this card only when a pro takes it.` : job?.payment_plan === "after" ? `25% now locks in your date. The rest is charged to this card when the job is done. ${BRAND.promise}` : `Deposit to lock in your date. ${BRAND.promise}`) : BRAND.promise } },
   });
   await db.from("payments").update({ stripe_session_id: session.id, link_url: payLink(row.id) }).eq("id", row.id);
   return session;
@@ -139,10 +140,13 @@ export async function paymentCheckoutUrl(job: Job): Promise<string | null> {
   const amount = amountDue(job, deposit ? "deposit" : "full");
   if (!amount) return null;
   const kind: ChargeKind = deposit ? "deposit" : Number(job.amount_paid ?? 0) > 0 ? "balance" : "upfront";
-  const label = kind === "deposit" ? (job.payment_plan === "after" ? " — 25% to book" : " — deposit") : kind === "balance" ? " — balance" : "";
+  const post = isBoardPost(job);
+  const label = kind === "deposit" ? (post ? " — post on the job board" : job.payment_plan === "after" ? " — 25% to book" : " — deposit") : kind === "balance" ? " — balance" : "";
   const r = await createCheckout({
     amount, kind, job, name: `${svc?.name ?? "Service"}${label} — ${job.ref}`,
-    description: `${job.address}, ${job.city}${kind === "deposit" ? (job.payment_plan === "after" ? " · the rest is charged when the job is done" : job.balance_due_date ? ` · balance due ${job.balance_due_date}` : "") : ""}`,
+    description: post && kind === "deposit"
+      ? `Your price: ${money(job.price_final)}, charged to this card only when a pro takes the job. Posted for ${OFFER_BOUNDS.boardDays} days.`
+      : `${job.address}, ${job.city}${kind === "deposit" ? (job.payment_plan === "after" ? " · the rest is charged when the job is done" : job.balance_due_date ? ` · balance due ${job.balance_due_date}` : "") : ""}`,
     customerEmail: job.contact_email, customerName: job.contact_name,
   });
   return r?.url ?? null;

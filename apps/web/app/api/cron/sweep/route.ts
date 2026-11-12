@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
   // 1. Expired offers → re-dispatch (also runs every 10 minutes: /api/cron/dispatch)
   const { expired, redispatched } = await redispatchExpired();
-  const openOffersExpired = await (await import("@/lib/jobs")).expireOpenOffers().catch((e) => { console.error("[open offers]", e); return null; }); // name-your-price jobs nobody took in 30 days
+  const openOffersExpired = await (await import("@/lib/jobs")).expireOpenOffers().catch((e) => { console.error("[open offers]", e); return null; }); // name-your-price board posts nobody took in 90 days
 
   // 2. Unassigned jobs within 24h → critical alert (once per job)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);

@@ -20,6 +20,7 @@
  * UPDATED : 2026-11-06_1800 UTC — internal money: the partner's commission on the job (from the pro / from us) and what
  *           Handled keeps after the partner. Pros only ever see their net pay.
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
+ * UPDATED : 2026-11-12_1900 UTC — passes the board window to the payment panel ($1 board posts).
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -178,7 +179,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
       </div>
 
       <div className="space-y-6">
-        <PaymentPanel job={{ id: job.id, ref: job.ref, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status, payment_plan: job.payment_plan, deposit_amount: job.deposit_amount, deposit_paid_at: job.deposit_paid_at, balance_due_date: job.balance_due_date, balance_hold_intent: job.balance_hold_intent ?? null, balance_attempts: job.balance_attempts ?? 0, pay_in_full_discount: job.pay_in_full_discount ?? 0 }} />
+        <PaymentPanel job={{ id: job.id, ref: job.ref, price_final: job.price_final, paid_at: job.paid_at, amount_paid: job.amount_paid, amount_refunded: job.amount_refunded, remedy: job.remedy, status: job.status, payment_plan: job.payment_plan, deposit_amount: job.deposit_amount, deposit_paid_at: job.deposit_paid_at, balance_due_date: job.balance_due_date, balance_hold_intent: job.balance_hold_intent ?? null, balance_attempts: job.balance_attempts ?? 0, pay_in_full_discount: job.pay_in_full_discount ?? 0, open_offer_until: job.open_offer_until ?? null }} />
         {(expenses ?? []).length > 0 && (
           <div className="card text-sm"><div className="font-semibold">Materials (at cost, billed to the customer)</div>
             {(expenses ?? []).map((e: { id: string; amount: number; description: string; status: string }) => (

@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
  * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
  * UPDATED : 2026-11-11_0030 UTC — Recruiting: Delete (one applicant) and DeleteApplicantsBulk (everyone "not a fit" / "dropped off"), admins.
+ * UPDATED : 2026-11-12_1900 UTC — Payment panel: a $1 name-your-price board post says when the rest is charged.
  */
 "use client";
 
@@ -163,7 +164,7 @@ export function ActionDecision({ id }: { id: string }) {
   );
 }
 
-export function PaymentPanel({ job }: { job: { id: string; ref: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string; payment_plan?: string; deposit_amount?: number | null; deposit_paid_at?: string | null; balance_due_date?: string | null; balance_hold_intent?: string | null; balance_attempts?: number | null; pay_in_full_discount?: number | null } }) {
+export function PaymentPanel({ job }: { job: { id: string; ref: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string; payment_plan?: string; deposit_amount?: number | null; deposit_paid_at?: string | null; balance_due_date?: string | null; balance_hold_intent?: string | null; balance_attempts?: number | null; pay_in_full_discount?: number | null; open_offer_until?: string | null } }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [method, setMethod] = useState("card by phone");
@@ -191,6 +192,7 @@ export function PaymentPanel({ job }: { job: { id: string; ref: string; price_fi
             </div>
             {job.paid_at ? <p className="text-brand-dark">✓ Paid in full {new Date(job.paid_at).toLocaleDateString()}</p>
               : job.deposit_paid_at && after ? <p className={Number(job.balance_attempts ?? 0) > 0 ? "text-rose-700" : ""}>25% paid {new Date(job.deposit_paid_at).toLocaleDateString()}. {Number(job.balance_attempts ?? 0) > 0 ? `Balance charge failed ${job.balance_attempts}× — payment link sent; retried daily. The pro is paid as usual.` : job.balance_hold_intent ? "Balance is on hold on the card (placed when the pro started) — taken when the job is complete." : "Balance goes on hold when the pro starts and is charged when the job is complete. The pro can start now."}</p>
+              : job.deposit_paid_at && job.open_offer_until && Number(job.deposit_amount) === 1 ? <p>$1 board post paid {new Date(job.deposit_paid_at).toLocaleDateString()} — on the job board until {job.open_offer_until.slice(0, 10)}. The rest is charged to the saved card when a pro takes it (a declined card keeps it on the board and sends the customer a link).</p>
               : job.deposit_paid_at ? <p>Deposit paid {new Date(job.deposit_paid_at).toLocaleDateString()} — balance is charged automatically{job.balance_due_date ? ` on ${job.balance_due_date}` : ""}. The pro can’t start until it’s paid.</p>
               : <p className="text-rose-700">Unpaid — nothing is dispatched until the {deposit ? "deposit" : "payment"} is in.</p>}
             {due > 0 && (
