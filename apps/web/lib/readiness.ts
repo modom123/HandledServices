@@ -66,6 +66,7 @@
  * UPDATED : 2026-11-10_2000 UTC — checks 20261110200000_pro_showcase (opt-in "new pros" chain on the website).
  * UPDATED : 2026-11-11_0100 UTC — checks 20261111010000_biz_lead_refresh and the outreach domain mailbox (OUTREACH_*).
  * UPDATED : 2026-11-10_2230 UTC — checks 20261110223000_iebc_team_expansion (the 9 new IEBC agents, incl. Legal & Compliance).
+ * UPDATED : 2026-11-12_2100 UTC — checks the job board alerts SQL (contractors.board_alerts).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -251,6 +252,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261106180000_referral_ladder", "referral rate 15%→30% (locked per job)", () => db.from("jobs").select("partner_rate").limit(1)],
     ["20261106190000_need_to_know", "need-to-know access (pros and customers read jobs through the server)", () => db.rpc("is_admin")],
     ["20261110031000_open_offers", "name-your-price job board posts (90 days, $1 to post)", () => db.from("jobs").select("open_offer_until").limit(1)],
+    ["20261112210000_board_alerts", "job board alerts for pros (all / daily summary / off)", () => db.from("contractors").select("board_alerts").limit(1)],
     ["20261110040000_lead_pay", "Field Sales lead pay ($10 per lead, a draw)", () => db.from("partner_draws").select("id").limit(1)],
     ["20261110200000_pro_showcase", "new pros on the website (opt-in showcase)", () => db.from("contractors").select("showcase_opt_in").limit(1)],
     ["20261111010000_biz_lead_refresh", "business leads stay fresh (rest, re-engage, retire, duplicates) and our own outreach domain (or run supabase/setup/ADD_BIZ_LEAD_REFRESH_2026-11-11_0100.sql)", () => db.from("biz_leads").select("dedupe_key, rest_until, next_send_at").limit(1)],

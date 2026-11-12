@@ -66,6 +66,7 @@
  * UPDATED : 2026-11-12_2000 UTC — name-your-price posts also go out as offers to pros in the area (any day — the pro
  *           confirms it), as well as the board. Higher pay goes first (core offerPlan): an offer 10%+ above our price
  *           goes to 3 pros at once for 1 hour, and the offer says "Top pay".
+ * UPDATED : 2026-11-12_2100 UTC — when a post or top-pay job is listed, every other pro it fits gets an instant board alert.
  */
 import "server-only";
 import { z } from "zod";
@@ -808,6 +809,9 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
       },
     });
   }
+  // a post or top pay just went on the board: tell every other pro it fits, right away (lib/board alertBoardJob)
+  if (!opts.siteVisit && !(opts.exclude ?? []).length && (open || (topPay(job) && offerKind === "job")))
+    await (await import("./board")).alertBoardJob(job.id).catch((e) => console.error("[board alert]", e));
   return { offers: picks.length, ai: Boolean(ai) };
 }
 

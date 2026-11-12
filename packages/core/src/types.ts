@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-15_0300 UTC — Job: payment_plan "after" (25% now, balance after the job), balance_charge_at, balance_attempts,
  *           balance_hold_intent, pay_in_full_discount.
  * UPDATED : 2026-10-18_0415 UTC — Contractor.entity_type uses EntityType (adds LLCs taxed as S/C corporations).
+ * UPDATED : 2026-11-12_2100 UTC — Contractor.board_alerts (job board alerts: all / digest / off).
  */
 import type { EntityType } from "./compliance.ts";
 
@@ -230,6 +231,8 @@ export interface Contractor {
   time_off?: string[] | null;
   // live status (see roster.ts): on call until, and the last phone location while on call / on a job
   on_call_until?: string | null;
+  /** Job board alerts: "all" (instant for posts / top pay + a daily summary), "digest" (daily only) or "off". */
+  board_alerts?: "all" | "digest" | "off" | null;
   last_lat?: number | null;
   last_lng?: number | null;
   last_located_at?: string | null;

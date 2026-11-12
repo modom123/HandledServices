@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-12_0121 UTC — Pro ID (P-…) under the business name.
  * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
  * UPDATED : 2026-11-12_2000 UTC — Jobs near you: "Top pay", "Posted job" (customer named the price, day set with them) and "Business" tags; top pay first.
+ * UPDATED : 2026-11-12_2100 UTC — Job alerts switch (all / daily summary / off) above Jobs near you.
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -29,7 +30,7 @@ import { getLocale } from "@/lib/locale";
 import { Empty, Stat, StatusBadge } from "@/components/ui";
 import Link2 from "next/link";
 import { boardFor, boardPreview } from "@/lib/board";
-import { ClaimButton } from "@/components/JobBoard";
+import { BoardAlerts, ClaimButton } from "@/components/JobBoard";
 import { balanceOf } from "@/lib/rewards";
 import { proJobs, proOffers } from "@/lib/job-access";
 
@@ -245,6 +246,7 @@ export default async function ProHome() {
           <p className="mb-3 text-sm text-ink-soft">{es
             ? "Trabajos pagados que nadie ha tomado y que encajan con sus oficios, zona y horario. El primero en tomarlo se lo lleva. Tomarlos es opcional."
             : "Paid jobs nobody has taken yet that fit your trades, area and schedule. First to take it gets it. Taking them is always up to you."}</p>
+          <BoardAlerts pref={me?.board_alerts ?? "all"} es={es} />
           {!board.length && <Empty>{es ? "No hay trabajos abiertos cerca de usted en este momento." : "No open jobs near you right now."}</Empty>}
           <div className="space-y-3">
             {board.map((b) => (

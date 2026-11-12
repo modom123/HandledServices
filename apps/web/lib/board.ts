@@ -21,11 +21,18 @@
  *           long it's up, the day picked with the customer; "Top pay" (10%+ above our price), business jobs marked, and
  *           the board ordered by top pay, priority, then pay (core boardOrder). publicBoard() — the website's /job-board:
  *           open jobs with city, ZIP, pay and scope only (no address, name, notes or photos), to recruit pros.
+ * UPDATED : 2026-11-12_2100 UTC — alerts to every pro the job fits (trades, licenses, insurance, area, schedule):
+ *             alertBoardJob(job) — instant text + push when a name-your-price post or top-pay job is listed (pros who
+ *                                  already have an offer on it are skipped)
+ *             boardDigest()      — daily (sweep cron): "N new jobs near you", the jobs that joined their board in the last day
+ *           Each pro chooses all / daily summary only / off (contractors.board_alerts; "all" until that SQL is run).
  */
 import "server-only";
 import { AGREEMENT_VERSION, BOARD, boardOrder, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
+import { localeOf, notify } from "./push";
+import { siteUrl } from "./notify";
 
 const db = () => adminClient();
 
@@ -50,6 +57,8 @@ export interface BoardCard {
   topPay?: boolean;
   /** A company's job (commercial customer). */
   business?: boolean;
+  /** When the job was booked (the daily summary lists the new ones). */
+  createdAt?: string;
 }
 
 /** One line for when the work happens: a post's day is set with the customer. */
@@ -109,7 +118,7 @@ export async function boardFor(contractorId: string, locale: "en" | "es" = "en")
       job_id: job.id, ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, icon: svc.icon,
       city: job.city, zip: job.zip, when: whenFor(job, wo.when, locale), pay, payLabel: money(pay), miles: miles == null ? null : Math.round(miles),
       scope: wo.scope.slice(0, 4).map((s) => `${s.label}: ${s.value}`), priority: job.priority !== "normal", offerId: mineOpen?.id ?? null,
-      postUntil: job.open_offer_until?.slice(0, 10) ?? null, topPay: topPay(job), business: isBusiness(job),
+      postUntil: job.open_offer_until?.slice(0, 10) ?? null, topPay: topPay(job), business: isBusiness(job), createdAt: job.created_at,
     });
   }
   return boardOrder(cards).slice(0, 50);
@@ -215,4 +224,92 @@ export async function publicBoard(locale: "en" | "es" = "en"): Promise<PublicBoa
     console.error("[public board]", e);
     return [];
   }
+}
+
+const alertsPref = (pro: Contractor) => pro.board_alerts ?? "all";
+
+/** Run `fn` over `items` a few at a time (texts and pushes go out in parallel without flooding the providers). */
+async function inBatches<T>(items: T[], size: number, fn: (x: T) => Promise<unknown>) {
+  for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map((x) => fn(x).catch((e) => console.error("[board alert]", e))));
+}
+
+/**
+ * Instant alert: a name-your-price post or a top-pay job just went on the board — tell every approved pro it fits
+ * (same checks as dispatch; a post's day is flexible) who wants instant alerts, except pros who already have an
+ * offer on it or passed on it. Returns how many were alerted.
+ */
+export async function alertBoardJob(jobId: string): Promise<number> {
+  const { data: j } = await db().from("jobs").select("*").eq("id", jobId).maybeSingle();
+  const job = j as Job | null;
+  if (!job || job.contractor_id || job.status !== "dispatched") return 0;
+  const svc = getService(job.service_slug);
+  if (!svc) return 0;
+  const view = (job.open_offer_until ? { ...job, scheduled_date: null } : job) as Job;
+  const [{ data: pros }, { data: offers }, { data: sameDay }] = await Promise.all([
+    db().from("contractors").select("*").eq("status", "approved").limit(3000),
+    db().from("job_offers").select("contractor_id").eq("job_id", jobId),
+    view.scheduled_date ? db().from("jobs").select("contractor_id").eq("scheduled_date", view.scheduled_date).not("contractor_id", "is", null) : Promise.resolve({ data: [] as { contractor_id: string }[] }),
+  ]);
+  const had = new Set(((offers ?? []) as { contractor_id: string }[]).map((o) => o.contractor_id));
+  const load: Record<string, number> = {};
+  for (const r of (sameDay ?? []) as { contractor_id: string }[]) load[r.contractor_id] = (load[r.contractor_id] ?? 0) + 1;
+  const fits = ((pros ?? []) as Contractor[]).filter((p) => alertsPref(p) === "all" && !had.has(p.id) && rankContractors([p], view, view.scheduled_date ? { [p.id]: load[p.id] ?? 0 } : {}).length > 0).slice(0, 300);
+  const top = topPay(job), post = Boolean(job.open_offer_until);
+  const when = whenFor(job, buildWorkOrder(view, { reveal: false }).when, "en");
+  await inBatches(fits, 10, async (pro) => {
+    const pay = money(proNetPay(job, payFor(pro, job), pro.agreement_version));
+    const tag = top ? "Top pay" : post ? "Customer named the price" : "New job";
+    const tagEs = top ? "Pago alto" : post ? "El cliente fijó el precio" : "Trabajo nuevo";
+    const nameEs = serviceText("es", svc.slug, svc).name;
+    await notify(pro.profile_id, {
+      title: `${tag} near you · ${pay}`,
+      body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${when}. First to take it gets it.`,
+      data: { type: "board", jobId }, channel: "offers",
+      sms: { to: pro.phone, body: `Handled: ${tag.toLowerCase()} near you — ${svc.name}, ${job.city} ${job.zip}, you earn ${pay}. ${post ? "Set the day with the customer. " : ""}First to take it gets it: ${siteUrl()}/pro` },
+      es: { title: `${tagEs} cerca de usted · ${pay}`, body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip}. El primero en tomarlo se lo lleva.`,
+        sms: `Handled: ${tagEs.toLowerCase()} cerca de usted — ${nameEs}, ${job.city} ${job.zip}, usted gana ${pay}. ${post ? "Acuerde el día con el cliente. " : ""}El primero en tomarlo se lo lleva: ${siteUrl()}/pro` },
+    });
+  });
+  if (fits.length) await db().from("job_events").insert({ job_id: jobId, kind: "dispatch", message: `Job board alert sent to ${fits.length} pro${fits.length === 1 ? "" : "s"} it fits`, actor: "system", visible_to_customer: false });
+  return fits.length;
+}
+
+/**
+ * Daily summary: each pro who wants board alerts gets one message listing the jobs that joined their board in the last
+ * day (pros on instant alerts already heard about posts and top pay, so those are left out for them). Nothing to list,
+ * nothing sent.
+ */
+export async function boardDigest(now = new Date()): Promise<{ sent: number }> {
+  const since = new Date(now.getTime() - 26 * 3600000).toISOString();
+  const { data: fresh } = await db().from("jobs").select("id", { count: "exact", head: false }).eq("status", "dispatched").is("contractor_id", null).gte("created_at", since).limit(1);
+  if (!fresh?.length) return { sent: 0 };
+  const { data: pros } = await db().from("contractors").select("*").eq("status", "approved").limit(3000);
+  let sent = 0;
+  await inBatches(((pros ?? []) as Contractor[]).filter((p) => alertsPref(p) !== "off"), 5, async (pro) => {
+    const instant = alertsPref(pro) === "all";
+    const cards = (await boardFor(pro.id, (await localeOf(pro.profile_id, null)) === "es" ? "es" : "en")).filter((c) => (c.createdAt ?? "") >= since && !(instant && (c.postUntil || c.topPay)));
+    if (!cards.length) return;
+    const lines = cards.slice(0, 5).map((c) => `• ${c.service} — ${c.city} ${c.zip} — ${c.payLabel}`).join("\n");
+    const more = cards.length > 5 ? `\n…and ${cards.length - 5} more` : "";
+    const ok = await notify(pro.profile_id, {
+      title: `${cards.length} new job${cards.length === 1 ? "" : "s"} near you`,
+      body: cards.slice(0, 3).map((c) => `${c.service} ${c.payLabel}`).join(" · "),
+      data: { type: "board" }, channel: "offers",
+      sms: { to: pro.phone, body: `Handled: ${cards.length} new job${cards.length === 1 ? "" : "s"} near you. Top: ${cards[0].service}, ${cards[0].city}, ${cards[0].payLabel}. See them: ${siteUrl()}/pro` },
+      email: { to: pro.email, subject: `${cards.length} new job${cards.length === 1 ? "" : "s"} near you on Handled`, text: `New on your job board:\n\n${lines}${more}\n\nFirst to take it gets it: ${siteUrl()}/pro\n\nChange these alerts on your pro home page (Jobs near you → Job alerts).` },
+      es: { title: `${cards.length} trabajo${cards.length === 1 ? "" : "s"} nuevo${cards.length === 1 ? "" : "s"} cerca de usted`,
+        sms: `Handled: ${cards.length} trabajo${cards.length === 1 ? "" : "s"} nuevo${cards.length === 1 ? "" : "s"} cerca de usted. Véalos: ${siteUrl()}/pro`,
+        subject: `${cards.length} trabajo${cards.length === 1 ? "" : "s"} nuevo${cards.length === 1 ? "" : "s"} cerca de usted en Handled`,
+        text: `Nuevo en su tablero de trabajos:\n\n${lines}${more}\n\nEl primero en tomarlo se lo lleva: ${siteUrl()}/pro\n\nCambie estos avisos en su página de profesional (Trabajos cerca de usted → Avisos).` },
+    }).then(() => true).catch(() => false);
+    if (ok) sent++;
+  });
+  return { sent };
+}
+
+/** The pro's own choice: all alerts, the daily summary only, or none. */
+export async function setBoardAlerts(contractorId: string, pref: "all" | "digest" | "off"): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await db().from("contractors").update({ board_alerts: pref }).eq("id", contractorId);
+  if (error) return { ok: false, error: /board_alerts/.test(error.message) ? "Job alert settings are being set up — try again later." : error.message };
+  return { ok: true };
 }
