@@ -7,6 +7,7 @@
  *           Verifying a COI sets insured_until; a license sets license_expires; a
  *           background report marks the background check cleared; auto, workers' comp, bond
  *           and liquor liability set contractors.coverage[kind] to the policy expiry.
+ * UPDATED : 2026-11-12_2330 UTC — Handled review: the confirmed expiry date and how it was verified (policy or insurer).
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -26,11 +27,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string; doc
 export async function POST(req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) {
   const v = await getViewer(req);
   if (!isStaff(v)) return deny();
-  const body = z.object({ decision: z.enum(["verify", "reject"]), notes: z.string().max(500).optional() }).safeParse(await req.json().catch(() => null));
+  const body = z.object({
+    decision: z.enum(["verify", "reject"]), notes: z.string().max(500).optional(),
+    expires_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+    method: z.enum(["document", "insurer"]).optional(),
+  }).safeParse(await req.json().catch(() => null));
   if (!body.success) return deny(400, "decision required");
   const { id, docId } = await ctx.params;
   try {
-    await decideDocument(id, docId, body.data.decision, v!.fullName ?? v!.email, body.data.notes ?? null);
+    await decideDocument(id, docId, body.data.decision, v!.fullName ?? v!.email, body.data.notes || null, { expiresOn: body.data.expires_on || null, method: body.data.method ?? null });
   } catch (e) {
     return deny(404, e instanceof Error ? e.message : "Not found");
   }

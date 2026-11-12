@@ -62,7 +62,7 @@ export default async function Onboarding() {
           {r.pending.map((d) => (
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
               <span><b>{DOC_LABEL[d.kind] ?? d.kind}</b> uploaded {days(d.created_at)}d ago{d.ai_check ? <span className="text-xs text-ink-soft"> · AI read: {d.ai_check.meets_requirements ? "✓ meets requirements" : `⚠ ${d.ai_check.problems?.join("; ") || "check it"}`}{d.ai_check.expires_on ? ` · expires ${d.ai_check.expires_on}` : ""}</span> : null}</span>
-              <DocDecision contractorId={r.c.id} docId={d.id} />
+              <DocDecision contractorId={r.c.id} docId={d.id} kind={d.kind} aiExpires={d.ai_check?.expires_on ?? null} />
             </li>
           ))}
         </ul>

@@ -8,6 +8,8 @@
  * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
  * UPDATED : 2026-11-11_0030 UTC — Recruiting: Delete (one applicant) and DeleteApplicantsBulk (everyone "not a fit" / "dropped off"), admins.
  * UPDATED : 2026-11-12_1900 UTC — Payment panel: a $1 name-your-price board post says when the rest is charged.
+ * UPDATED : 2026-11-12_2330 UTC — DocDecision is Handled review: open the policy, confirm the expiry, how it was checked
+ *           (policy or insurer), verify or reject with a reason.
  */
 "use client";
 
@@ -261,14 +263,57 @@ export function RemedyPanel({ jobId, paid, services }: { jobId: string; paid: bo
   );
 }
 
-export function DocDecision({ contractorId, docId }: { contractorId: string; docId: string }) {
+/**
+ * Handled review of a pro's document — the second way to verify (the first is the automatic AI check). Open the policy,
+ * confirm or correct the expiry date (prefilled from what the pro entered, else the AI's reading), say how you checked it
+ * (the certificate itself, or a call / email with the insurer or agent), then verify — or reject with a reason the pro sees.
+ */
+export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires }: { contractorId: string; docId: string; kind?: string; expiresOn?: string | null; aiExpires?: string | null }) {
   const router = useRouter();
-  const act = async (decision: "verify" | "reject") => { await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision }); router.refresh(); };
-  return (
+  const [open, setOpen] = useState(false);
+  const [exp, setExp] = useState(expiresOn || aiExpires || "");
+  const [method, setMethod] = useState<"document" | "insurer">("document");
+  const [notes, setNotes] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const dated = !kind || !["w9", "background", "agreement"].includes(kind);
+  const act = async (decision: "verify" | "reject") => {
+    if (decision === "reject" && !notes.trim()) return setMsg("Add the reason — the pro sees it.");
+    if (decision === "verify" && dated && !exp) return setMsg("Enter the expiry date from the policy.");
+    setBusy(true); setMsg("");
+    const r = await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision, notes: notes.trim() || undefined, ...(decision === "verify" ? { expires_on: dated ? exp : undefined, method } : {}) });
+    setBusy(false);
+    if (!r.ok) return setMsg(r.json.error ?? "Failed");
+    router.refresh();
+  };
+  const href = `/api/hub/contractors/${contractorId}/documents/${docId}`;
+  if (!open) return (
     <div className="flex gap-2">
-      <a className="btn-ghost px-3 py-1 text-xs" href={`/api/hub/contractors/${contractorId}/documents/${docId}`} target="_blank">Open</a>
-      <button className="btn-ghost px-3 py-1 text-xs" onClick={() => act("reject")}>Reject</button>
-      <button className="btn-primary px-3 py-1 text-xs" onClick={() => act("verify")}>Verify</button>
+      <a className="btn-ghost px-3 py-1 text-xs" href={href} target="_blank">Open policy</a>
+      <button className="btn-primary px-3 py-1 text-xs" onClick={() => setOpen(true)}>Review</button>
+    </div>
+  );
+  return (
+    <div className="w-full space-y-2 rounded-xl border border-line bg-paper p-3 text-xs sm:w-80">
+      <a className="btn-ghost block px-3 py-1 text-center" href={href} target="_blank">Open policy ↗</a>
+      {dated && (
+        <label className="block font-semibold">Expiry date on the policy
+          <input type="date" className="input mt-1 py-1 text-xs" value={exp} onChange={(e) => setExp(e.target.value)} />
+          {aiExpires && expiresOn && aiExpires !== expiresOn && <span className="mt-1 block font-normal text-amber-800">Pro entered {expiresOn}; the AI read {aiExpires}. Use what the policy says.</span>}
+        </label>
+      )}
+      <div className="font-semibold">How you checked it</div>
+      <label className="flex items-center gap-2"><input type="radio" checked={method === "document"} onChange={() => setMethod("document")} /> Reviewed the certificate / policy</label>
+      <label className="flex items-center gap-2"><input type="radio" checked={method === "insurer"} onChange={() => setMethod("insurer")} /> Confirmed with the insurer or agent</label>
+      <input className="input py-1 text-xs" placeholder="Note (required to reject — the pro sees it)" value={notes} maxLength={500} onChange={(e) => setNotes(e.target.value)} />
+      <div className="flex justify-between gap-2">
+        <button className="btn-ghost px-3 py-1" disabled={busy} onClick={() => setOpen(false)}>Cancel</button>
+        <span className="flex gap-2">
+          <button className="btn-ghost px-3 py-1" disabled={busy} onClick={() => act("reject")}>Reject</button>
+          <button className="btn-primary px-3 py-1" disabled={busy} onClick={() => act("verify")}>{busy ? "…" : "Verify"}</button>
+        </span>
+      </div>
+      {msg && <div className="text-rose-700">{msg}</div>}
     </div>
   );
 }

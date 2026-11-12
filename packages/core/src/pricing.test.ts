@@ -2891,3 +2891,24 @@ test("business leads: new outreach domain warms up; list health; re-engagement e
   assert.match(e.text, /1 Main St/);
   assert.equal(bizReengageEmail({ ...ctx, step: 5 }).subject, "Closing the loop");
 });
+
+test("insurance: two ways to verify — automatic when everything checks out, otherwise Handled review (2026-11-12)", async () => {
+  const { docAutoCheck } = await import("./compliance.ts");
+  const { glMinimum } = await import("./vetting.ts");
+  const today = new Date("2026-11-12T12:00:00Z");
+  const trades = ["cleaning"];
+  const good = { readable: true, matches_pro: true, expires_on: "2027-06-30", per_occurrence_limit: glMinimum(trades), additional_insured: true, meets_requirements: true, problems: [] as string[] };
+  assert.deepEqual(docAutoCheck("coi", good, { claimedExpiry: "2027-06-30", trades, today }), { auto: true, reasons: [] });
+  const why = (r: Partial<typeof good>, claimed = "2027-06-30") => docAutoCheck("coi", { ...good, ...r }, { claimedExpiry: claimed, trades, today }).reasons.join(" | ");
+  assert.match(why({ readable: false }), /couldn't be read/);
+  assert.match(why({ matches_pro: false }), /name on the policy/);
+  assert.match(why({ expires_on: "2026-11-01" }, "2026-11-01"), /expired/);
+  assert.match(why({}, "2027-07-30"), /doesn't match the policy/);
+  assert.match(why({ per_occurrence_limit: 100000 }), /limit below/);
+  assert.match(why({ additional_insured: false }), /additional insured/);
+  assert.match(why({ expires_on: "" }), /no expiry/);
+  assert.match(why({ meets_requirements: false, problems: ["missing aggregate limit"] }), /missing aggregate limit/);
+  assert.equal(docAutoCheck("coi", null, { trades, today }).auto, false, "no AI reading: a person checks");
+  assert.equal(docAutoCheck("license", good, { trades, today }).auto, false, "licenses are always checked by a person");
+  assert.equal(docAutoCheck("auto", { ...good, per_occurrence_limit: 0, additional_insured: false }, { claimedExpiry: "2027-06-30", trades, today }).auto, true, "other coverage: limits are judged by the AI's requirement check");
+});

@@ -32,16 +32,20 @@
  *             • every database write is checked: a failed save answers with the reason instead of "Saved", and the
  *               uploaded file is removed so nothing is left half-saved.
  * UPDATED : 2026-11-11_2350 UTC — payout step: direct deposit through Stripe only (stripe_connect); no paper checks, no 'account last 4'.
+ * UPDATED : 2026-11-12_2330 UTC — two ways to verify insurance: the AI check verifies a certificate / coverage proof on its
+ *           own when every point checks out (core docAutoCheck); otherwise it goes to Handled review (staff open the
+ *           policy or call the insurer). The COI step takes the insurer, policy number and agent contact (optional) so
+ *           staff can confirm with the insurer. An unreadable file no longer bounces the pro: a person looks first.
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
+import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { UPLOAD_TYPES, confirmDocUpload, isDocStep, removeDoc, uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
 import { geocodeAddress } from "@/lib/geo";
-import { afterOnboardingStep, docName, logRecruiting } from "@/lib/recruiting";
+import { afterOnboardingStep, decideDocument, docName, logRecruiting } from "@/lib/recruiting";
 import { signedDocUrl } from "@/lib/photos";
 import { aiCheckDocument } from "@/lib/ai/doccheck";
 import { notify } from "@/lib/push";
@@ -54,7 +58,9 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("w9"), legal_name: z.string().min(2).max(160), entity_type: z.enum(ENTITY_TYPES),
     tin_last4: z.string().regex(/^\d{4}$/), address_line: z.string().min(3).max(200), city: z.string().min(2).max(80), state: z.string().length(2), zip: z.string().regex(/^\d{5}$/) }),
-  z.object({ step: z.literal("coi"), expires_on: date }),
+  z.object({ step: z.literal("coi"), expires_on: date,
+    // optional: lets Handled confirm the policy with the insurer or agent (the second way to verify)
+    insurer: z.string().trim().max(120).optional(), policy_number: z.string().trim().max(60).optional(), agent_contact: z.string().trim().max(160).optional() }),
   z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true"),
     signed_for: z.string().trim().max(160).optional(), signer_title: z.string().trim().max(80).optional() }),
@@ -185,7 +191,8 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     must(await db.from("contractors").update({ ...profile, state: profile.state.toUpperCase(), w9_received_at: new Date().toISOString() }).eq("id", id));
     must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "w9", storage_path: path, status: "pending" }));
   } else if (b.step === "coi") {
-    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending" }).select("id").single()).data?.id ?? null;
+    const policy = [b.insurer && `Insurer: ${b.insurer}`, b.policy_number && `Policy #${b.policy_number}`, b.agent_contact && `Agent: ${b.agent_contact}`].filter(Boolean).join(" · ") || null;
+    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending", notes: policy }).select("id").single()).data?.id ?? null;
   } else if (b.step === "license") {
     must(await db.from("contractors").update({ license_number: b.license_number }).eq("id", id));
     docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.expires_on, status: "pending", notes: `#${b.license_number}` }).select("id").single()).data?.id ?? null;
@@ -212,14 +219,39 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     after(async () => {
       const [{ data: pro }, url] = await Promise.all([db.from("contractors").select("business_name, legal_name, trades, profile_id, email").eq("id", id).single(), signedDocUrl(docPath, 900)]);
       if (!pro || !url) return;
-      const check = await aiCheckDocument({ kind, url, isPdf: docPath.endsWith(".pdf"), pro, claimedExpiry: claimed });
-      if (!check) return;
-      await db.from("contractor_documents").update({ ai_check: check }).eq("id", theDoc);
-      await logRecruiting("doc_ai_check", { contractorId: id }, `${kind}: ${check.meets_requirements ? "looks good" : check.problems.join("; ")}`, "ai");
-      if (!check.readable) await notify(pro.profile_id, { title: "Please re-upload your document", body: "We couldn't read it — try a clearer photo or the PDF.", data: { type: "onboarding" },
-        email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` },
-        es: { title: "Vuelva a subir su documento", body: "No pudimos leerlo: intente con una foto más clara o el PDF.",
-          subject: "Vuelva a subir su documento", text: `No pudimos leer el documento (${docName(kind, "es")}) que subió. Suba una foto más clara o el PDF de su aseguradora o del estado.\n\nSu configuración: ${siteUrl()}/pro/onboarding` } });
+      const check = await aiCheckDocument({ kind, url, isPdf: docPath.endsWith(".pdf"), pro, claimedExpiry: claimed }).catch(() => null);
+      if (check) {
+        await db.from("contractor_documents").update({ ai_check: check }).eq("id", theDoc);
+        await logRecruiting("doc_ai_check", { contractorId: id }, `${kind}: ${check.meets_requirements ? "looks good" : check.problems.join("; ")}`, "ai");
+      }
+      // way 1: everything checks out → verified automatically (insurance and coverage proofs only)
+      const auto = docAutoCheck(kind, check, { claimedExpiry: claimed, trades: (pro.trades ?? []) as string[] });
+      if (auto.auto) {
+        await decideDocument(id, theDoc, "verify", "AI check", null, { method: "auto" });
+        await notify(pro.profile_id, { title: "Insurance verified ✓", body: "Your document checked out. You're one step closer to jobs.", data: { type: "onboarding" },
+          es: { title: "Seguro verificado ✓", body: "Su documento está en orden. Está un paso más cerca de recibir trabajos." } });
+        await raiseAlert("pro_document", "info", `${docName(kind, "en")} verified automatically for ${pro.business_name}`, "Every point checked out (insured name, expiry, limits, Handled listed). Spot-check it any time in Handled Hub → Pros.");
+        return;
+      }
+      // way 2: Handled review — a person opens the policy (or calls the insurer); the pro is told what to expect
+      if (!["coi", ...COVERAGE_KINDS].includes(kind as never)) {
+        // licenses and the W-9: a person always verifies; an unreadable file is worth a quick re-upload request
+        if (check && !check.readable) await notify(pro.profile_id, { title: "Please re-upload your document", body: "We couldn't read it — try a clearer photo or the PDF.", data: { type: "onboarding" },
+          email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` },
+          es: { title: "Vuelva a subir su documento", body: "No pudimos leerlo: intente con una foto más clara o el PDF.",
+            subject: "Vuelva a subir su documento", text: `No pudimos leer el documento (${docName(kind, "es")}) que subió. Suba una foto más clara o el PDF de su aseguradora o del estado.\n\nSu configuración: ${siteUrl()}/pro/onboarding` } });
+        return;
+      }
+      await raiseAlert("pro_document", "warn", `Review ${docName(kind, "en")} for ${pro.business_name}`, `Needs a person: ${auto.reasons.join("; ")}. Open the policy in Handled Hub → Pros (or call the insurer) and verify or reject.`);
+      const fixable = auto.reasons.filter((r) => /additional insured|limit below|expired|doesn't match the policy/.test(r));
+      await notify(pro.profile_id, {
+        title: "A Handled team member is reviewing your insurance", body: fixable.length ? `We'll check it by hand. Our automatic check noticed: ${fixable.join("; ")}.` : "We'll check it by hand, usually within 1 business day. Nothing to do for now.",
+        data: { type: "onboarding" },
+        email: { to: pro.email, subject: "We're reviewing your insurance",
+          text: `Thanks for uploading your ${docName(kind, "en")}. A Handled team member is reviewing it by hand, usually within 1 business day — you don't need to do anything yet.${fixable.length ? `\n\nOur automatic check noticed: ${fixable.join("; ")}. If that's right, ask your insurance agent for an updated certificate and upload it — it often speeds things up.` : ""}\n\nYour setup: ${siteUrl()}/pro/onboarding` },
+        es: { title: "Un miembro de Handled está revisando su seguro", body: "Lo revisaremos a mano, normalmente en 1 día hábil. Por ahora no tiene que hacer nada.",
+          subject: "Estamos revisando su seguro", text: `Gracias por subir su ${docName(kind, "es")}. Un miembro de Handled lo revisa a mano, normalmente en 1 día hábil; por ahora no tiene que hacer nada.${fixable.length ? `\n\nNuestra revisión automática notó: ${fixable.join("; ")}. Si es así, pida a su agente un certificado actualizado y súbalo: suele acelerar el proceso.` : ""}\n\nSu configuración: ${siteUrl()}/pro/onboarding` },
+      });
     });
   }
   return done();

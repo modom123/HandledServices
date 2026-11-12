@@ -30,6 +30,8 @@
  * UPDATED : 2026-11-10_1330 UTC — activation sends the full "Welcome to the Handled Network" email (core proWelcomeEmail):
  *           the services they're cleared for, how the portal works, pay, tiers, rewards, referrals, Partner Program, help and
  *           the PDF guide. The push notification stays short.
+ * UPDATED : 2026-11-12_2330 UTC — decideDocument: two ways to verify insurance (automatic AI check, or Handled review by
+ *           policy or insurer); staff can confirm or correct the expiry date; a verify with no date uses the AI's reading.
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
@@ -523,11 +525,20 @@ export async function revivePro(contractorId: string, actor: string, note?: stri
  * license_expires; trade coverage sets coverage[kind]; a background report clears the check.
  * Then setup is re-checked (background check / auto-activate).
  */
-export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null) {
+/**
+ * Verify or reject a document. Two ways to verify insurance: the automatic AI check (actor "AI check") or Handled
+ * review — staff open the policy, or confirm it with the insurer / agent (`method`), and can confirm or correct the
+ * expiry date (`expiresOn`; it sets insured_until / coverage). A verify with no expiry anywhere uses the AI's reading.
+ */
+export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null, o: { expiresOn?: string | null; method?: "document" | "insurer" | "auto" | null } = {}) {
   const { data: doc } = await db().from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", contractorId).single();
   if (!doc) throw new Error("No such document");
   const now = new Date().toISOString();
-  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: notes ?? doc.notes }).eq("id", docId);
+  const aiExpiry = (doc.ai_check as { expires_on?: string } | null)?.expires_on;
+  if (decision === "verify") doc.expires_on = o.expiresOn || doc.expires_on || (aiExpiry && /^\d{4}-\d{2}-\d{2}$/.test(aiExpiry) ? aiExpiry : null);
+  const how = o.method === "insurer" ? "confirmed with the insurer / agent" : o.method === "document" ? "reviewed the policy" : o.method === "auto" ? "automatic check" : null;
+  const note = [notes ?? doc.notes, decision === "verify" && how ? `Verified: ${how}` : null].filter(Boolean).join(" · ") || null;
+  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: note, ...(decision === "verify" ? { expires_on: doc.expires_on } : {}) }).eq("id", docId);
   if (decision === "verify") {
     if (doc.kind === "coi" && doc.expires_on) await db().from("contractors").update({ insured_until: doc.expires_on }).eq("id", contractorId);
     if (doc.kind === "license" && doc.expires_on) await db().from("contractors").update({ license_expires: doc.expires_on }).eq("id", contractorId);

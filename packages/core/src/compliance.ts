@@ -31,6 +31,8 @@
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
+ * UPDATED : 2026-11-12_2330 UTC — docAutoCheck: when the AI reading alone may verify an insurance certificate or coverage
+ *           document (everything checks out); anything else goes to Handled review, where staff verify by hand.
  */
 import { SERVICES } from "./services.ts";
 import { ORIENTATION, orientationStatus } from "./orientation.ts";
@@ -190,4 +192,38 @@ export function uploadReminderDue(sent: number, lastAt: string | null | undefine
   if (sent >= UPLOAD_REMINDER_MAX) return false;
   if (!lastAt) return true;
   return (now.getTime() - new Date(lastAt).getTime()) / 86400000 >= UPLOAD_REMINDER_EVERY_DAYS;
+}
+
+/** What the AI read off an uploaded document (lib/ai/doccheck.ts). */
+export interface DocReading {
+  readable: boolean; matches_pro: boolean; expires_on: string; per_occurrence_limit: number; additional_insured: boolean; meets_requirements: boolean; problems: string[];
+}
+
+/**
+ * Two ways to verify insurance: (1) automatically, when the AI reading checks out on every point, or (2) Handled review,
+ * where staff open the policy (and can call the insurer) and verify by hand. Auto-verify only for the certificate of
+ * insurance and other coverage proofs (never licenses, the W-9 or background reports), and only when: readable, the
+ * named insured matches the pro, the AI found nothing missing, the expiry is in the future AND agrees with the date the
+ * pro entered, and for the COI the per-occurrence limit meets the trade minimum with Handled as additional insured /
+ * certificate holder. `reasons` says why it needs a person (shown to staff and, gently, to the pro).
+ */
+export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExpiry?: string | null; trades: string[]; today?: Date }): { auto: boolean; reasons: string[] } {
+  if (kind !== "coi" && !(kind in COVERAGES)) return { auto: false, reasons: ["this kind of document is always checked by a person"] };
+  if (!r) return { auto: false, reasons: ["the automatic check didn't run"] };
+  const today = (o.today ?? new Date()).toISOString().slice(0, 10);
+  const reasons: string[] = [];
+  if (!r.readable) reasons.push("the file couldn't be read clearly");
+  if (!r.matches_pro) reasons.push("the name on the policy doesn't match the pro's business or legal name");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(r.expires_on ?? "")) reasons.push("no expiry date found");
+  else {
+    if (r.expires_on <= today) reasons.push("the policy has expired");
+    if (o.claimedExpiry && o.claimedExpiry !== r.expires_on) reasons.push(`the expiry date entered (${o.claimedExpiry}) doesn't match the policy (${r.expires_on})`);
+  }
+  if (kind === "coi") {
+    const min = glMinimum(o.trades);
+    if (!(r.per_occurrence_limit >= min)) reasons.push(`per-occurrence limit below $${min.toLocaleString("en-US")}`);
+    if (!r.additional_insured) reasons.push("Handled isn't listed as additional insured or certificate holder");
+  }
+  if (!r.meets_requirements) for (const p of r.problems ?? []) if (p && !reasons.includes(p)) reasons.push(p);
+  return { auto: reasons.length === 0, reasons };
 }
