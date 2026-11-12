@@ -21,6 +21,8 @@
  * UPDATED : 2026-11-11_2350 UTC — How you get paid: direct deposit through Stripe only (components/PayoutStep), naming the numbers
  *           Stripe asks for; the step is done once Stripe says the bank is ready. No paper checks.
  * UPDATED : 2026-11-11_2358 UTC — Verify ID: a pro switched to a video-call check can try the online check again (they were stuck with no button).
+ * UPDATED : 2026-11-12_2330 UTC — COI upload: optional insurer, policy number and agent contact; the waiting message explains
+ *           the automatic check and Handled review.
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
@@ -142,9 +144,12 @@ export default async function Onboarding() {
         <p className="text-xs text-ink-soft">{t("A recent, well-lit photo of just you: no sunglasses, hats or group photos.")}</p>
       </StepForm>
     );
-    if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{t("Certificate received — we’re verifying it.")}</p> : (
+    if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{l === "es" ? "Certificado recibido. Lo revisamos automáticamente y, si hace falta, una persona de Handled lo revisa a mano (normalmente en 1 día hábil)." : "Certificate received. We check it automatically, and if anything needs a closer look a Handled team member reviews it by hand (usually within 1 business day)."}</p> : (
       <StepForm step="coi" cta={t("Upload certificate")} locale={l}>
         <div className="grid gap-3 sm:grid-cols-2"><Field label={t("Policy expires")} name="expires_on" type="date" required /><Field label={t("Certificate of insurance")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        {/* optional: lets Handled confirm the policy with the insurer or agent (the second way to verify) */}
+        <p className="text-xs text-ink-soft">{l === "es" ? "Opcional: ayuda a Handled a confirmar su póliza con la aseguradora o su agente si hace falta." : "Optional: helps Handled confirm your policy with the insurer or your agent if needed."}</p>
+        <div className="grid gap-3 sm:grid-cols-3"><Field label={l === "es" ? "Aseguradora" : "Insurance company"} name="insurer" /><Field label={l === "es" ? "Número de póliza" : "Policy number"} name="policy_number" /><Field label={l === "es" ? "Agente (nombre y teléfono o correo)" : "Agent (name and phone or email)"} name="agent_contact" /></div>
       </StepForm>
     );
     if (key === "license") return pending("license") ? <p className="mt-2 text-sm text-ink-soft">{t("License received — we’re verifying it.")}</p> : (
