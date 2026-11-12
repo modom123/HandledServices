@@ -10,6 +10,9 @@
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: a tick-box (checked by default) joins the Partner Program and pays 10%
  *           back, up to $250, on the poster's own first project (needs an email). The done state shows their code.
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-12_1700 UTC — checks for an email or a full phone number before sending (the server said no only
+ *           after the click), a dropped connection no longer leaves the button stuck on "Posting…", the description
+ *           shows how much room is left, and the partner box says when it's skipped for lack of an email.
  */
 "use client";
 
@@ -57,6 +60,10 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
     <form className="card space-y-4" onSubmit={async (e) => {
       e.preventDefault();
       if (!f.service && f.details.trim().length < 10) { setErr(L("Tell us what you need — pick a service or describe the project.", "Díganos qué necesita: elija un servicio o describa el proyecto.")); return; }
+      if (!f.name.trim()) { setErr(L("Add your name.", "Agregue su nombre.")); return; }
+      const phoneOk = f.phone.replace(/\D/g, "").length >= 10;
+      if (!f.email.trim() && !phoneOk) { setErr(f.phone.trim() ? L("Enter your full phone number with area code, or add an email.", "Escriba su teléfono completo con código de área, o agregue un correo.") : L("Add an email or phone number so we can reach you.", "Agregue un correo o teléfono para poder contactarle.")); return; }
+      if (f.zip && !/^\d{5}$/.test(f.zip.trim())) { setErr(L("ZIP code should be 5 digits.", "El código postal debe tener 5 dígitos.")); return; }
       setState("busy"); setErr("");
       const message = [
         "Posted project",
@@ -64,10 +71,15 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         f.timing && `Timing: ${label(timings, f.timing)}`,
         f.budget && `Budget: ${label(budgets, f.budget)}`,
       ].filter(Boolean).join("\n");
-      const r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        name: f.name, email: f.email || null, phone: f.phone || null, zip: f.zip || null, service: f.service || null, message,
-        campaign: "post-project", sms_consent: sms && Boolean(f.phone), partner_optin: earn && Boolean(f.email), attribution: readAttribution(), website: f.website,
-      }) });
+      let r: Response;
+      try {
+        r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          name: f.name.trim(), email: f.email.trim() || null, phone: phoneOk ? f.phone.trim() : null, zip: f.zip.trim() || null, service: f.service || null, message,
+          campaign: "post-project", sms_consent: sms && phoneOk, partner_optin: earn && Boolean(f.email.trim()), attribution: readAttribution(), website: f.website,
+        }) });
+      } catch {
+        setState("idle"); setErr(L("Couldn't reach us — check your connection and try again.", "No pudimos conectar: revise su conexión e intente de nuevo.")); return;
+      }
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { setState("idle"); setErr(String(j.error ?? L("Couldn't send — try again", "No se pudo enviar; intente de nuevo"))); return; }
       trackConversion("Lead", { id: `post-${Date.now()}` });
@@ -84,6 +96,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       <div>
         <label className="text-sm font-semibold">{L("Describe the project", "Describa el proyecto")}</label>
         <textarea className="input mt-1 min-h-28" maxLength={2500} placeholder={L("What needs to be done, how big it is, anything we should know…", "Qué hay que hacer, de qué tamaño es, cualquier cosa que debamos saber…")} value={f.details} onChange={set("details")} />
+        {f.details.length > 2000 && <p className="mt-1 text-right text-xs text-ink-soft">{2500 - f.details.length} {L("characters left", "caracteres restantes")}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <select className="input" value={f.timing} onChange={set("timing")} aria-label={L("When", "Cuándo")}>
@@ -106,6 +119,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         <input type="checkbox" className="mt-1" checked={earn} onChange={(e) => setEarn(e.target.checked)} />
         <span><b>{L(`Get ${firstProjectLine()} on this project`, `Reciba ${firstProjectLine(true)} en este proyecto`)}</b> — {L("make me a Handled partner. When we complete your first project, we pay you 10% of the price (up to $250) in cash, and you earn on every job from people you send us. Needs your email.", "hágame socio de Handled. Cuando terminemos su primer proyecto, le pagamos el 10% del precio (hasta $250) en efectivo, y gana en cada trabajo de las personas que nos envíe. Requiere su correo.")}{" "}
           <span className="text-xs text-ink-soft">{L("By ticking this you agree to the", "Al marcar esto acepta los")} <a href="/partners#join" target="_blank" className="underline">{L("partner terms", "términos de socio")}</a>.</span>
+          {earn && !f.email.trim() && <span className="mt-1 block text-xs font-semibold text-amber-700">{L("Add your email above to get this.", "Agregue su correo arriba para recibir esto.")}</span>}
         </span>
       </label>
       <label className="flex items-start gap-2 text-xs text-ink-soft">

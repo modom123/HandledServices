@@ -2133,6 +2133,13 @@ test("omnichannel: channels from first touch, any lead payload normalized, hones
   assert.equal(channelOf("linkedin"), "linkedin");
   const meta = normalizeIntake({ field_data: [{ name: "full_name", values: ["Dana Ray"] }, { name: "email", values: ["DANA@Example.com"] }, { name: "phone_number", values: ["+1 313 555 0100"] }, { name: "what_do_you_need", values: ["Carpet cleaning for 3 rooms"] }], lead_id: "123" }, "instagram");
   assert.equal(meta.name, "Dana Ray"); assert.equal(meta.email, "dana@example.com"); assert.equal(meta.phone, "+1 313 555 0100");
+  // /post (Post your project): the whole description is kept, and form labels never pick the service
+  const longPost = `Posted project\nDetails: ${"Strip and refinish the back deck, then stain it. ".repeat(20)}\nTiming: Within a week\nBudget: Not sure yet`;
+  const posted = normalizeIntake({ name: "Lee", email: "lee@example.com", message: longPost, campaign: "post-project" }, "website");
+  assert.equal(posted.message, longPost, "a long posted project is not cut at 300 characters");
+  assert.equal(posted.campaign, "post-project");
+  assert.equal(posted.service_slug, "deck-build", "guessed from what they wrote");
+  assert.equal(normalizeIntake({ name: "Lee", email: "lee@example.com", message: "Posted project\nTiming: As soon as possible\nBudget: Under $500" }).service_slug, null, "\"Details:\" / \"Budget:\" labels don't match a service");
   assert.equal(meta.channel, "instagram"); assert.equal(meta.external_id, "123"); assert.equal(meta.service_slug, "carpet-cleaning"); assert.equal(meta.sms_consent, false);
   const google = normalizeIntake({ lead_id: "g1", user_column_data: [{ column_id: "FIRST_NAME", string_value: "Sam" }, { column_id: "LAST_NAME", string_value: "Lee" }, { column_id: "EMAIL", string_value: "sam@biz.com" }, { column_id: "COMPANY_NAME", string_value: "Lee Offices" }, { column_id: "POSTAL_CODE", string_value: "48226-1234" }], gclid: "GC" }, "google_ads");
   assert.equal(google.name, "Sam Lee"); assert.equal(google.company, "Lee Offices"); assert.equal(google.zip, "48226"); assert.equal(google.attribution?.gclid, "GC"); assert.equal(google.channel, "google_ads");

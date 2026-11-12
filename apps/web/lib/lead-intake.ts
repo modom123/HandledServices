@@ -8,6 +8,8 @@
  *                           agreed to texts (TCPA), an alert to call within 5 minutes; a business (company given)
  *                           also goes into Business leads at the top of the Call desk
  *             setLeadStatus — new → contacted → booked / lost / spam (staff)
+ * UPDATED : 2026-11-12_1700 UTC — the same person writing again within a day adds to their lead (it replaced the
+ *           earlier message, losing a first posted project) and staff get an alert to follow up on the new request.
  *           Callers: /api/leads/web (website form), /api/leads/intake (Zapier / Make: TikTok, LinkedIn, Yelp, Google
  *           Local Services…), /api/webhooks/meta-leads (Facebook / Instagram Lead Ads), /api/webhooks/google-leads
  *           (Google Ads lead forms) and the website AI chat.
@@ -40,7 +42,16 @@ export async function intakeLead(raw: Record<string, unknown>, o: { channel?: st
   ]);
   const recent = byEmail ?? byPhone;
   if (recent) {
-    if (l.message) await db().from("leads").update({ message: l.message }).eq("id", recent.id);
+    if (l.message) {
+      const { data: prev } = await db().from("leads").select("message").eq("id", recent.id).maybeSingle();
+      const before = (prev?.message as string | null) ?? null;
+      if (!before?.includes(l.message)) {
+        const merged = [before, `— Added ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC —\n${l.message}`].filter(Boolean).join("\n\n").slice(-6000);
+        await db().from("leads").update({ message: merged }).eq("id", recent.id);
+        await raiseAlert("sales", "warn", `Lead wrote again — ${channelLabel(l.channel)}: ${l.name ?? l.email ?? l.phone}`,
+          [l.phone ? `📞 ${l.phone}` : `✉️ ${l.email}`, `They wrote: "${l.message.slice(0, 400)}"`, "Hub → Lead inbox"].join("\n")).catch(() => {});
+      }
+    }
     return { ok: true, id: recent.id, duplicate: true };
   }
   const base = { name: l.name, email: l.email, phone: l.phone, zip: l.zip, service_slug: l.service_slug, message: l.message, source: l.channel };
