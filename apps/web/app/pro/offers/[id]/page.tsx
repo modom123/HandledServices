@@ -7,7 +7,9 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0150 UTC — pros can counter with the pay they want.
  * UPDATED : 2026-11-06_1800 UTC — pros see only their net pay (any referral fee already out); no job price or split.
+ * UPDATED : 2026-11-13_0030 UTC — after accepting, the address and customer details need the Pro PIN on this device.
  */
+import { pinUnlocked } from "@/lib/pro-pin";
 import { notFound } from "next/navigation";
 import { buildWorkOrder, money, proReferralFee, t as tr, type Job } from "@handled/core";
 import { getLocale } from "@/lib/locale";
@@ -30,7 +32,8 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
   // the pro sees their net pay only: any referral fee is already out (never the math)
   const fee = proReferralFee(job as Job, offer.payout, me?.agreement_version);
   const net = offer.payout ? Math.round((Number(offer.payout) - fee) * 100) / 100 : 0;
-  const w = buildWorkOrder(job as Job, { reveal: won, payout: offer.payout, locale: l, agreementVersion: me?.agreement_version });
+  // after accepting: the address and customer details still need the Pro PIN on this device
+  const w = buildWorkOrder(job as Job, { reveal: won, pinLocked: won && !(await pinUnlocked(v.contractorId!)), payout: offer.payout, locale: l, agreementVersion: me?.agreement_version });
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div><div className="text-3xl">{w.icon}</div><h1 className="text-2xl font-bold">{w.title}</h1><p className="text-sm text-ink-soft">{w.when}</p></div>

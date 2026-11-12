@@ -17,7 +17,9 @@
  * UPDATED : 2026-11-06_1800 UTC — pay shown is the pro's net pay (any referral fee already out); no job price or split.
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs/offers come from the server API (no direct database reads); refreshes on a timer.
  * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-13_0030 UTC — Pro PIN: the customer and address unlock with the pro's PIN (12 hours on this phone).
  */
+import { secureStorage } from "../../lib/secure-storage";
 import { shareLocationOnce, useLiveRouteSharing } from "../../lib/location";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, Text, TextInput, View } from "react-native";
@@ -31,7 +33,7 @@ function cancelNoticeFor(job: Job, locale: string) {
   try { hours = hoursUntilWindow(job); } catch { hours = job.scheduled_date ? (new Date(`${job.scheduled_date}T08:00:00`).getTime() - Date.now()) / 3600000 : Infinity; }
   return cancelNotice(cancelTier(hours), locale === "es" ? "es" : "en");
 }
-import { api, supabase } from "../../lib/supabase";
+import { PRO_UNLOCK_KEY, api, supabase } from "../../lib/supabase";
 import { Button, C, Card, Chip, Status, s } from "../../components/ui";
 import { useI18n } from "../../lib/i18n";
 import { ProChecklist } from "../../components/Checklist";
@@ -56,10 +58,19 @@ export default function ProJob() {
   const [scope, setScope] = useState<Record<string, string | number | boolean> | null>(null);
   const [scopeNote, setScopeNote] = useState("");
   const [crew, setCrew] = useState<CrewPick | null>(null);
+  // the Pro PIN: an accepted job's address and customer contact unlock on this phone for 12 hours
+  const [pin, setPin] = useState("");
+  const [pinAgain, setPinAgain] = useState("");
+  const [pinState, setPinState] = useState<{ set: boolean } | null>(null);
+  const [pinMsg, setPinMsg] = useState("");
   const load = useCallback(async () => {
     // need-to-know: the job as the pro may see it, with their NET pay (pro_pay)
     const r = await api<{ job: Job & { pro_pay: number | null } }>(`/api/pro/jobs/${id}`);
     if (r.ok) setJob(r.data.job as Job);
+    if (r.ok && (r.data.job as { pin_locked?: boolean }).pin_locked) {
+      const st = await api<{ set: boolean }>("/api/pro/pin");
+      if (st.ok) setPinState({ set: st.data.set });
+    } else setPinState(null);
     const m = await api<Materials>(`/api/pro/jobs/${id}/expenses`);
     if (m.ok) setMat(m.data);
     const c = await api<CrewPick>(`/api/pro/crew?job=${id}`);
@@ -121,6 +132,21 @@ export default function ProJob() {
     setLockout(null);
     Alert.alert(t("We're on it"), t("We're calling the customer now. Please wait 15 minutes on site. A confirmed lockout earns show-up pay."));
   }
+  async function unlockPin() {
+    if (!pinState) return;
+    if (!pinState.set && pin !== pinAgain) return setPinMsg(t("The two PINs don't match."));
+    setPinMsg("");
+    const r = await api<{ token?: string }>("/api/pro/pin", { method: "POST", body: JSON.stringify(pinState.set ? { action: "unlock", pin } : { action: "set", pin }) });
+    setPin(""); setPinAgain("");
+    if (!r.ok || !r.data.token) return setPinMsg(r.data.error ?? t("Try again"));
+    await secureStorage.setItem(PRO_UNLOCK_KEY, r.data.token);
+    load();
+  }
+  async function forgotPin() {
+    const r = await api("/api/pro/pin", { method: "POST", body: JSON.stringify({ action: "forgot" }) });
+    setPinMsg(r.ok ? t("We emailed you a link to set a new PIN (30 minutes).") : r.data.error ?? t("Try again"));
+  }
+
   async function post(body: object) {
     setBusy(true);
     const r = await api<{ ok: boolean; error?: string }>(`/api/pro/jobs/${job!.id}`, { method: "POST", body: JSON.stringify(body) });
@@ -134,8 +160,20 @@ export default function ProJob() {
       <Text style={s.h1}>{svc.icon} {svcText(svc).name}</Text>
       <Status status={job.status} />
       <Card style={{ marginTop: 12 }}>
-        <Text style={s.b}>{job.contact_name} · {job.contact_phone}</Text>
-        <Text style={s.p} onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(`${job.address}, ${job.city} ${job.zip}`)}`)}>📍 {job.address}, {job.city} {job.zip}</Text>
+        {(job as Job & { pin_locked?: boolean }).pin_locked ? (
+          <View>
+            <Text style={s.b}>🔒 {job.city} {job.zip} · {t("address and customer locked")}</Text>
+            <Text style={s.p}>{pinState?.set ? t("Enter your Pro PIN to see the address, the customer's contact and entry details on this phone for 12 hours.") : t("Create your Pro PIN (4–6 digits). It protects your customers' addresses if your phone is lost or shared.")}</Text>
+            <TextInput style={[s.input, { marginTop: 8 }]} placeholder="PIN" keyboardType="number-pad" secureTextEntry maxLength={6} value={pin} onChangeText={(v) => setPin(v.replace(/\D/g, ""))} />
+            {pinState && !pinState.set && <TextInput style={[s.input, { marginTop: 8 }]} placeholder={t("PIN again")} keyboardType="number-pad" secureTextEntry maxLength={6} value={pinAgain} onChangeText={(v) => setPinAgain(v.replace(/\D/g, ""))} />}
+            <Button title={pinState?.set ? t("Unlock") : t("Create PIN")} onPress={unlockPin} style={{ marginTop: 8 }} />
+            {pinState?.set && <Text style={[s.p, { marginTop: 6, textDecorationLine: "underline" }]} onPress={forgotPin}>{t("Forgot PIN?")}</Text>}
+            {pinMsg ? <Text style={[s.p, { marginTop: 6 }]}>{pinMsg}</Text> : null}
+          </View>
+        ) : (<>
+          <Text style={s.b}>{job.contact_name} · {job.contact_phone}</Text>
+          <Text style={s.p} onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(`${job.address}, ${job.city} ${job.zip}`)}`)}>📍 {job.address}, {job.city} {job.zip}</Text>
+        </>)}
         <Text style={[s.b, { marginTop: 8 }]}>{t("Payout")} {money((job as Job & { pro_pay?: number | null }).pro_pay ?? 0)}</Text>
       </Card>
       <Card>

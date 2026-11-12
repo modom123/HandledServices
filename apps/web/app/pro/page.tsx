@@ -16,6 +16,7 @@
  * UPDATED : 2026-11-06_1800 UTC — offers and jobs show the pro's net pay (any referral fee already out).
  * UPDATED : 2026-11-12_2000 UTC — Jobs near you: "Top pay", "Posted job" (customer named the price, day set with them) and "Business" tags; top pay first.
  * UPDATED : 2026-11-12_2100 UTC — Job alerts switch (all / daily summary / off) above Jobs near you.
+ * UPDATED : 2026-11-13_0030 UTC — upcoming jobs show the street address only on a device unlocked with the Pro PIN.
  */
 import Link from "next/link";
 import { AppealForm } from "@/components/Standing";
@@ -33,6 +34,7 @@ import { boardFor, boardPreview } from "@/lib/board";
 import { BoardAlerts, ClaimButton } from "@/components/JobBoard";
 import { balanceOf } from "@/lib/rewards";
 import { proJobs, proOffers } from "@/lib/job-access";
+import { pinUnlocked } from "@/lib/pro-pin";
 
 /** whyNot() reason in Spanish (fixed reasons from the catalog; the ones with numbers by pattern). */
 function whyNotText(l: string, no: string): string {
@@ -86,7 +88,7 @@ export default async function ProHome() {
   const [{ data: offers }, { data: jobs }, { data: payouts }, { data: me }] = await Promise.all([
     // need-to-know: read on the server, each offer with the pro's NET pay (lib/job-access)
     proOffers(v.contractorId!).then((rows) => ({ data: rows.map((o) => ({ ...o, payout: o.pro_pay })) })),
-    proJobs(v.contractorId!).then((data) => ({ data })),
+    proJobs(v.contractorId!, undefined, await pinUnlocked(v.contractorId!)).then((data) => ({ data })),
     v.db.from("payouts").select("amount, status, created_at"),
     v.db.from("contractors").select("*").eq("id", v.contractorId!).single(),
   ]);
@@ -267,7 +269,7 @@ export default async function ProHome() {
         <div className="space-y-3">
           {upcoming.map((j) => (
             <Link key={j.id} href={`/pro/jobs/${j.id}`} className="card flex items-center justify-between gap-3 hover:border-brand">
-              <div><div className="font-semibold">{svcName(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address}, {j.city}</div></div>
+              <div><div className="font-semibold">{svcName(j.service_slug)} <span className="text-xs text-ink-soft">{j.ref}</span></div><div className="text-sm text-ink-soft">{fmtDate(j.scheduled_date)} · {j.address ? `${j.address}, ` : ""}{j.city}</div></div>
               <div className="flex items-center gap-3"><span className="text-sm font-semibold">{money(j.pro_pay ?? 0)}</span><StatusBadge status={j.status} locale={l} /></div>
             </Link>
           ))}

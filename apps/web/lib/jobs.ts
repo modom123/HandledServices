@@ -68,6 +68,8 @@
  *           goes to 3 pros at once for 1 hour, and the offer says "Top pay".
  * UPDATED : 2026-11-12_2100 UTC — when a post or top-pay job is listed, every other pro it fits gets an instant board alert.
  * UPDATED : 2026-11-12_2200 UTC — job offer texts go only to pros in the job's area (core inProArea); others get app + email.
+ * UPDATED : 2026-11-13_0030 UTC — Pro PIN: the job-confirmed and day-before emails, texts and pushes no longer carry the street
+ *           address, customer contact or entry details — the pro opens the job and enters their PIN.
  */
 import "server-only";
 import { z } from "zod";
@@ -988,14 +990,14 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   // pro: confirmed, here is the full work order
   if (pro) await notify(pro.profile_id, {
     title: `Job confirmed · ${job.ref}`,
-    body: `${svc?.name} · ${job.address}, ${job.city} · ${when}`,
+    body: `${svc?.name} · ${job.city} · ${when} · open the job and enter your Pro PIN for the address`,
     data: { type: "job_pro", jobId: job.id },
-    email: { to: pro.email, subject: `Confirmed: ${svc?.name} ${job.ref} — work order`, text: `You've got it, ${pro.contact_name?.split(" ")[0] ?? "pro"}. Full work order below.\n\n${workOrderText(buildWorkOrder(job, { reveal: true }))}\n\nOpen the job: ${siteUrl()}/pro/jobs/${job.id}` },
+    email: { to: pro.email, subject: `Confirmed: ${svc?.name} ${job.ref} — work order`, text: `You've got it, ${pro.contact_name?.split(" ")[0] ?? "pro"}. Full work order below. The street address, the customer's contact and entry details are in the app: open the job and enter your Pro PIN.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, pinLocked: true }))}\n\nOpen the job: ${siteUrl()}/pro/jobs/${job.id}` },
     es: {
       title: `Trabajo confirmado · ${job.ref}`,
-      body: `${nameEs} · ${job.address}, ${job.city} · ${whenEs}`,
+      body: `${nameEs} · ${job.city} · ${whenEs} · abra el trabajo e ingrese su PIN para ver la dirección`,
       subject: `Confirmado: ${nameEs} ${job.ref} — orden de trabajo`,
-      text: `Es suyo, ${pro.contact_name?.split(" ")[0] ?? "profesional"}. La orden de trabajo completa está abajo.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es" }), "es")}\n\nAbra el trabajo: ${siteUrl()}/pro/jobs/${job.id}`,
+      text: `Es suyo, ${pro.contact_name?.split(" ")[0] ?? "profesional"}. La orden de trabajo completa está abajo. La dirección, el contacto del cliente y los datos de entrada están en la app: abra el trabajo e ingrese su PIN de profesional.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es", pinLocked: true }), "es")}\n\nAbra el trabajo: ${siteUrl()}/pro/jobs/${job.id}`,
     },
   });
   return { ok: true, job };
@@ -1226,16 +1228,16 @@ export async function sendDayBeforeReminders() {
       const { data: pro } = await db().from("contractors").select("profile_id, email, phone").eq("id", job.contractor_id).single();
       if (pro) await notify(pro.profile_id, {
         title: `Tomorrow · ${svc?.name} · ${job.ref}`,
-        body: `${job.address}, ${job.city} · ${window}`,
+        body: `${job.city} · ${window} · address in the app (Pro PIN)`,
         data: { type: "job_pro", jobId: job.id },
-        sms: { to: pro.phone, body: `${BRAND.name}: tomorrow ${svc?.name} ${job.ref} — ${job.address}, ${job.city}, ${window}. ${siteUrl()}/pro/jobs/${job.id}` },
-        email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: workOrderText(buildWorkOrder(job, { reveal: true })) },
+        sms: { to: pro.phone, body: `${BRAND.name}: tomorrow ${svc?.name} ${job.ref} — ${job.city}, ${window}. Address in the app (enter your Pro PIN): ${siteUrl()}/pro/jobs/${job.id}` },
+        email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: `The street address, the customer's contact and entry details are in the app: open the job and enter your Pro PIN. ${siteUrl()}/pro/jobs/${job.id}\n\n${workOrderText(buildWorkOrder(job, { reveal: true, pinLocked: true }))}` },
         es: {
           title: `Mañana · ${nameEs} · ${job.ref}`,
-          body: `${job.address}, ${job.city} · ${windowEs}`,
-          sms: `${BRAND.name}: mañana ${nameEs} ${job.ref} — ${job.address}, ${job.city}, ${windowEs}. ${siteUrl()}/pro/jobs/${job.id}`,
+          body: `${job.city} · ${windowEs} · dirección en la app (PIN)`,
+          sms: `${BRAND.name}: mañana ${nameEs} ${job.ref} — ${job.city}, ${windowEs}. Dirección en la app (ingrese su PIN): ${siteUrl()}/pro/jobs/${job.id}`,
           subject: `Mañana: ${nameEs} ${job.ref}`,
-          text: workOrderText(buildWorkOrder(job, { reveal: true, locale: "es" }), "es"),
+          text: `La dirección, el contacto del cliente y los datos de entrada están en la app: abra el trabajo e ingrese su PIN de profesional. ${siteUrl()}/pro/jobs/${job.id}\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es", pinLocked: true }), "es")}`,
         },
       });
     }

@@ -14,7 +14,11 @@
  * UPDATED : 2026-10-07_1900 UTC — "On my way" shows on the job's own local day (Pacific in Washington).
  * UPDATED : 2026-10-12_0005 UTC — 🔒 Entry & keys (job_access, from the customer's saved home) while the job is assigned / in progress.
  * UPDATED : 2026-11-06_1800 UTC — pros see only their net pay (any referral fee already out); no job price or split.
+ * UPDATED : 2026-11-13_0030 UTC — Pro PIN: the address, customer contact, entry details and full work order only after the
+ *           pro enters their PIN on this device (ProPinGate; create one the first time).
  */
+import { pinStatus, pinUnlocked } from "@/lib/pro-pin";
+import { ProPinGate } from "@/components/ProPin";
 import { notFound } from "next/navigation";
 import { TIME_WINDOW_LABEL, buildWorkOrder, getService, jobTimeZone, localDate, money, questionVisible, serviceText, t as tr, whyNot, type Contractor, type Answers, type Job, cancelNotice, cancelTier, hoursUntilWindow } from "@handled/core";
 import { getLocale } from "@/lib/locale";
@@ -57,7 +61,9 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
     // RLS: readable only while this pro is assigned and the job is assigned / in progress
     v.db.from("job_access").select("access_info").eq("job_id", id).maybeSingle(),
   ]);
-  const accessInfo = ["assigned", "in_progress"].includes(job.status) ? (entry as { access_info: string } | null)?.access_info ?? null : null;
+  // the Pro PIN: the address, customer contact and entry details only on a device unlocked with it (lib/pro-pin.ts)
+  const [unlocked, pin] = await Promise.all([pinUnlocked(v.contractorId!), pinStatus(v.contractorId!)]);
+  const accessInfo = unlocked && ["assigned", "in_progress"].includes(job.status) ? (entry as { access_info: string } | null)?.access_info ?? null : null;
   const crew = ["assigned", "in_progress"].includes(job.status) ? await listCrew(v.contractorId!) : [];
   const asked = await crewRequest(job, v.contractorId);
   if (!job.checklist) job.checklist = await freezeChecklist(job);
@@ -78,8 +84,10 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         <div className="card">
           <div className="flex items-center justify-between gap-3"><h1 className="text-2xl font-bold">{s.icon} {serviceText(l, s.slug, s).name}</h1><StatusBadge status={job.status} locale={l} /></div>
           <div className="mt-2 text-sm text-ink-soft">{job.ref} · {fmtDate(job.scheduled_date)} · {t(TIME_WINDOW_LABEL[job.time_window])}</div>
-          <a href={maps} target="_blank" className="mt-2 block text-sm font-semibold text-brand">📍 {job.address}, {job.city} {job.zip}</a>
-          <div className="mt-2 text-sm">{t("Customer:")} {job.contact_name}{job.company_name ? ` (${job.company_name})` : ""} · {job.contact_phone}</div>
+          {unlocked ? (<>
+            <a href={maps} target="_blank" className="mt-2 block text-sm font-semibold text-brand">📍 {job.address}, {job.city} {job.zip}</a>
+            <div className="mt-2 text-sm">{t("Customer:")} {job.contact_name}{job.company_name ? ` (${job.company_name})` : ""} · {job.contact_phone}</div>
+          </>) : <ProPinGate hasPin={pin.set} es={es} city={`${job.city}, ${job.state} ${job.zip}`} />}
           <div className="mt-4 text-xl font-bold">{t("Your payout:")} {money(proNetPay(job, job.contractor_payout, me?.agreement_version))}</div>
         </div>
         <div className="card">
@@ -94,7 +102,7 @@ export default async function ProJob({ params }: { params: Promise<{ id: string 
         {job.instructions && <p className="card bg-brand-tint text-sm text-brand-dark"><b>{t("Instructions:")}</b> {job.instructions}</p>}
         {accessInfo && <div className="card border-amber-300 bg-amber-50 text-sm"><b>🔒 {es ? "Entrada y llaves" : "Entry & keys"}</b><p className="mt-1 whitespace-pre-wrap">{accessInfo}</p><p className="mt-1 text-xs text-ink-soft">{es ? "Solo para usted mientras tenga este trabajo. No lo comparta ni lo anote fuera de la app." : "For you only while this job is yours. Don't share it or write it down outside the app."}</p></div>}
         <ChecklistPanel jobId={job.id} checklist={cl.checklist} checks={cl.checks} es={es} locked={!["assigned", "in_progress"].includes(job.status)} />
-        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder({ ...job, access_info: accessInfo }, { reveal: true, locale: l, agreementVersion: me?.agreement_version })} /></div></details>
+        <details className="card"><summary className="cursor-pointer font-semibold">{t("Full work order & job terms")}</summary><div className="mt-3"><WorkOrderView locale={l} hideChecklist w={buildWorkOrder({ ...job, access_info: accessInfo }, { reveal: true, pinLocked: !unlocked, locale: l, agreementVersion: me?.agreement_version })} /></div></details>
         <JobThread jobId={job.id} userId={v.userId} as="pro" initial={msgs ?? []} locale={l} />
       </div>
       <div className="space-y-4">

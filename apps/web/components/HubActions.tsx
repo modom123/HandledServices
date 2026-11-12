@@ -10,6 +10,7 @@
  * UPDATED : 2026-11-12_1900 UTC — Payment panel: a $1 name-your-price board post says when the rest is charged.
  * UPDATED : 2026-11-12_2330 UTC — DocDecision is Handled review: open the policy, confirm the expiry, how it was checked
  *           (policy or insurer), verify or reject with a reason.
+ * UPDATED : 2026-11-13_0030 UTC — ResetProPin (in the pro status controls).
  */
 "use client";
 
@@ -325,6 +326,21 @@ export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires, a
   );
 }
 
+/** Staff: clear a pro's PIN (they create a new one the next time they open an accepted job). */
+export function ResetProPin({ id }: { id: string }) {
+  const [msg, setMsg] = useState("");
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button className="btn-ghost px-3 py-1.5 text-xs" onClick={async () => {
+        if (!confirm("Reset this pro's PIN? They'll create a new one the next time they open an accepted job.")) return;
+        const r = await call(`/api/hub/contractors/${id}/pin`, "POST", {});
+        setMsg(r.ok ? "PIN reset" : r.json.error ?? "Failed");
+      }}>Reset Pro PIN</button>
+      {msg && <span className="text-xs text-ink-soft">{msg}</span>}
+    </span>
+  );
+}
+
 export function ProStatusControls({ id, status, complete }: { id: string; status: string; complete: boolean }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
@@ -336,6 +352,7 @@ export function ProStatusControls({ id, status, complete }: { id: string; status
       <div className="flex flex-wrap gap-2">
         {status !== "approved" && <button className="btn-primary px-3 py-1.5 text-xs" disabled={!complete} title={complete ? "" : "Finish onboarding first"} onClick={() => patch({ status: "approved" })}>Activate — start sending offers</button>}
         <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => patch({ background_checked: true })}>Mark background check cleared</button>
+        <ResetProPin id={id} />
       </div>
       {status === "approved" && (
         <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason to pause / offboard" value={reason} onChange={(e) => setReason(e.target.value)} />

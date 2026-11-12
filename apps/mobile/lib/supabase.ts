@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-06_0726 UTC — security: the session is kept in the iOS Keychain / Android Keystore (secure-storage.ts),
  *           not plain AsyncStorage; existing sessions move over without signing anyone out.
  * UPDATED : 2026-10-06_1955 UTC — the production Supabase URL and publishable key are built in (@handled/core SUPABASE_PUBLIC).
+ * UPDATED : 2026-11-13_0030 UTC — api() sends the Pro PIN unlock token (secure storage) as x-pro-unlock.
  */
 import "react-native-url-polyfill/auto";
 import { secureStorage } from "./secure-storage";
@@ -39,6 +40,9 @@ export type ApiResult<T> = { ok: boolean; status: number; data: T & { error?: st
  * Call the Handled web API, attaching the signed-in user's token when there is one.
  * Never throws: network failures and timeouts come back as { ok: false, status: 0, offline: true }.
  */
+/** Where the Pro PIN unlock token lives on the phone. */
+export const PRO_UNLOCK_KEY = "handled.pro_unlock";
+
 export async function api<T = any>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<ApiResult<T>> {
   const { timeoutMs = 20000, ...req } = init;
   let token: string | undefined;
@@ -46,6 +50,8 @@ export async function api<T = any>(path: string, init: RequestInit & { timeoutMs
   const headers: Record<string, string> = { ...(req.headers as Record<string, string>) };
   if (!(req.body instanceof FormData)) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
+  // the Pro PIN unlock (12 hours) — needed to see an accepted job's address and customer contact
+  try { const unlock = await secureStorage.getItem(PRO_UNLOCK_KEY); if (unlock) headers["x-pro-unlock"] = unlock; } catch { /* none */ }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {

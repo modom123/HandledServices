@@ -6,6 +6,7 @@
  *           Calendar or Outlook subscribe to; it lists the pro's jobs from 30 days back to 90 ahead with the time window,
  *           address and a link to the job. Entry details and lockbox codes are never in the feed. Regenerating the link
  *           turns the old one off.
+ * UPDATED : 2026-11-13_0030 UTC — Pro PIN: the feed shows the city and ZIP, not the street address (open the job in the app).
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
@@ -46,7 +47,8 @@ export async function calendarFeed(token: string): Promise<string | null> {
     return {
       uid: `${j.id}@handledsvc.com`, start, end, cancelled: j.status === "cancelled",
       summary: `${svc?.icon ?? ""} ${svc?.name ?? j.service_slug} · ${j.ref}${j.status === "cancelled" ? " (cancelled)" : ""}`.trim(),
-      location: `${j.address}, ${j.city}, ${j.state} ${j.zip}`,
+      // Pro PIN: the street address stays in the app (a calendar feed is readable by anyone who has its link)
+      location: `${j.city}, ${j.state} ${j.zip}`,
       description: `${BRAND.name} job ${j.ref} for ${j.contact_name.split(" ")[0]}. Arrive within the window. Scope, checklist and entry details: ${siteUrl()}/pro/jobs/${j.id}`,
       url: `${siteUrl()}/pro/jobs/${j.id}`,
     };

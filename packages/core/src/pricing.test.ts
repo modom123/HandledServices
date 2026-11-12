@@ -2936,3 +2936,15 @@ test("additional insured: Handled as additional insured gets priority on jobs th
   assert.equal(docAutoCheck("coi", good, { claimedExpiry: "2027-06-30", trades: ["handyman"], today: new Date("2026-11-12") }).auto, true, "certificate holder is accepted");
   assert.equal(docAutoCheck("coi", { ...good, certificate_holder: false }, { claimedExpiry: "2027-06-30", trades: ["handyman"], today: new Date("2026-11-12") }).auto, false, "Handled must be listed one way or the other");
 });
+
+test("pro PIN: an accepted work order behind the PIN hides the address, customer and entry details (2026-11-13)", async () => {
+  const { buildWorkOrder } = await import("./workorder.ts");
+  const job = { ref: "HD-1", service_slug: "handyman", address: "123 Main St", city: "Detroit", state: "MI", zip: "48226", contact_name: "Pat Lee", contact_phone: "313-555-0100", company_name: null,
+    access_info: "Lockbox 4321", scheduled_date: "2026-11-20", time_window: "morning", answers: {}, notes: null, instructions: null, contractor_payout: 100, payment_plan: "full", paid_at: "2026-11-12" };
+  const open = buildWorkOrder(job as never, { reveal: true });
+  assert.ok(open.where.includes("123 Main St") && open.customer?.phone === "313-555-0100" && open.access === "Lockbox 4321");
+  const locked = buildWorkOrder(job as never, { reveal: true, pinLocked: true });
+  assert.ok(!locked.where.includes("123 Main St") && locked.where.includes("enter your PIN"));
+  assert.equal(locked.customer, undefined); assert.equal(locked.access, null);
+  assert.ok(!buildWorkOrder(job as never, { reveal: false }).where.includes("123 Main St"), "offers never show it");
+});

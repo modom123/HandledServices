@@ -9,7 +9,9 @@
  * UPDATED : 2026-10-03_0149 UTC — counter: "I'll do it for $X" (the customer decides).
  * PURPOSE : Pro: view, accept or pass on a job offer (web portal + mobile app).
  * UPDATED : 2026-11-06_1800 UTC — the offer shows the pro's net pay; a counter is in net pay (the hidden referral fee is added back).
+ * UPDATED : 2026-11-13_0030 UTC — after accepting, the work order's address and customer details need the Pro PIN.
  */
+import { pinUnlocked } from "@/lib/pro-pin";
 import { z } from "zod";
 import { proCounter } from "@/lib/market";
 import { buildWorkOrder, proReferralFee, type Job } from "@handled/core";
@@ -33,7 +35,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const net = offer.payout ? Math.round((Number(offer.payout) - proReferralFee(job as Job, offer.payout, ver)) * 100) / 100 : offer.payout;
   return Response.json({
     offer: { id: offer.id, status: live ? "offered" : offer.status === "offered" ? "expired" : offer.status, payout: net, expires_at: offer.expires_at, job_id: offer.job_id },
-    workOrder: buildWorkOrder(job as Job, { reveal: won, payout: offer.payout, locale: await localeOf(v.userId), agreementVersion: ver }),
+    // after accepting, the address and customer details still need the Pro PIN (x-pro-unlock header or cookie)
+    workOrder: buildWorkOrder(job as Job, { reveal: won, pinLocked: won && !(await pinUnlocked(v.contractorId!, req)), payout: offer.payout, locale: await localeOf(v.userId), agreementVersion: ver }),
   });
 }
 

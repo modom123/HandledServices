@@ -268,4 +268,14 @@ export const ES_PRO_PORTAL: Record<string, string> = {
   "Nothing changed — adjust the scope to what's really there": "No cambió nada: ajuste el alcance a lo que realmente hay",
   "That change doesn't add to the price — go ahead with the booked work.": "Ese cambio no aumenta el precio: continúe con el trabajo reservado.",
   "Job not found": "Trabajo no encontrado",
+  // Pro PIN (2026-11-13)
+  "The two PINs don't match.": "Los dos PIN no coinciden.",
+  "We emailed you a link to set a new PIN (30 minutes).": "Le enviamos un enlace por correo para crear un PIN nuevo (30 minutos).",
+  "address and customer locked": "dirección y cliente bloqueados",
+  "Enter your Pro PIN to see the address, the customer's contact and entry details on this phone for 12 hours.": "Ingrese su PIN de profesional para ver la dirección, el contacto del cliente y los datos de entrada en este teléfono por 12 horas.",
+  "Create your Pro PIN (4–6 digits). It protects your customers' addresses if your phone is lost or shared.": "Cree su PIN de profesional (4 a 6 dígitos). Protege las direcciones de sus clientes si pierde o presta su teléfono.",
+  "PIN again": "Repita el PIN",
+  "Unlock": "Desbloquear",
+  "Create PIN": "Crear PIN",
+  "Forgot PIN?": "¿Olvidó su PIN?",
 };
