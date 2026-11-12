@@ -22,17 +22,12 @@
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again (consultOnly): no price, deposit or
  *           "order" wording — a Free consultation panel, consultation steps and a Book a free consultation button.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
- * UPDATED : 2026-11-12_1700 UTC — optional real photo per service (SERVICE_PHOTOS → apps/web/public/services/<file>), shown
- *           under the tagline; services without one look as before.
  */
 import Link from "next/link";
 import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service, consultOnly } from "@handled/core";
 import { categoryHref } from "./site";
 import { Ico, ThemedIcon } from "@/components/Glyph";
 import type { PublicReview } from "@/lib/reviews";
-
-/** Real job photos for service pages: add the file to apps/web/public/services/ first, then its entry here. */
-const SERVICE_PHOTOS: Record<string, { src: string; alt: string; alt_es: string }> = {};
 import { siteUrl } from "@/lib/notify";
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
@@ -81,7 +76,6 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         <div className="text-5xl"><ThemedIcon icon={s.icon} size="lg" /></div>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{txt.name}{locale === "es" && city ? ` en ${city.name}, ${city.state}` : where}</h1>
         <p className="mt-2 text-lg text-brand">{txt.tagline}</p>
-        {SERVICE_PHOTOS[s.slug] && <img src={SERVICE_PHOTOS[s.slug].src} alt={es ? SERVICE_PHOTOS[s.slug].alt_es : SERVICE_PHOTOS[s.slug].alt} className="mt-5 aspect-[4/3] w-full rounded-2xl border border-line object-cover" loading="lazy" />}
         {reviews.average && reviews.count >= 3 && <p className="mt-2 text-sm"><span className="text-amber-500">{stars(reviews.average)}</span> <b>{reviews.average}</b> from {reviews.count} customer reviews</p>}
         <p className="mt-5 text-ink-soft">{locale === "es" ? txt.tagline : s.description}{city ? (consult ? ` We serve ${city.name} and businesses everywhere, remotely — every solution is custom, scoped on a free consultation.` : ` We serve ${city.name} and nearby neighborhoods with background-checked, vetted local pros — book online with an upfront price.`) : ""}</p>
         {city && marketForCity(city) && <p className="mt-2 text-sm"><Link href={`/areas/${marketForCity(city)!.slug}`} className="text-brand underline">{locale === "es" ? `Más servicios en ${marketForCity(city)!.name}` : `More services in ${marketForCity(city)!.name}`} →</Link></p>}

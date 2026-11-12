@@ -2139,6 +2139,8 @@ test("omnichannel: channels from first touch, any lead payload normalized, hones
   assert.equal(posted.message, longPost, "a long posted project is not cut at 300 characters");
   assert.equal(posted.campaign, "post-project");
   assert.equal(posted.service_slug, "deck-build", "guessed from what they wrote");
+  for (const t of ["Need to replace 6 old wood double-hung front windows", "window replacement for a brick house", "install new vinyl windows", "replace the front door"]) assert.equal(guessService(t), "window-door-install", t);
+  for (const t of ["clean my windows", "window washing, 2 story", "renew my window cleaning plan"]) assert.equal(guessService(t), "window-cleaning", t);
   assert.equal(normalizeIntake({ name: "Lee", email: "lee@example.com", message: "Posted project\nTiming: As soon as possible\nBudget: Under $500" }).service_slug, null, "\"Details:\" / \"Budget:\" labels don't match a service");
   assert.equal(meta.channel, "instagram"); assert.equal(meta.external_id, "123"); assert.equal(meta.service_slug, "carpet-cleaning"); assert.equal(meta.sms_consent, false);
   const google = normalizeIntake({ lead_id: "g1", user_column_data: [{ column_id: "FIRST_NAME", string_value: "Sam" }, { column_id: "LAST_NAME", string_value: "Lee" }, { column_id: "EMAIL", string_value: "sam@biz.com" }, { column_id: "COMPANY_NAME", string_value: "Lee Offices" }, { column_id: "POSTAL_CODE", string_value: "48226-1234" }], gclid: "GC" }, "google_ads");

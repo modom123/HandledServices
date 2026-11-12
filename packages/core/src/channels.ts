@@ -16,6 +16,8 @@
  * UPDATED : 2026-11-12_1700 UTC — the lead's message keeps up to 3,000 characters (it was cut at 300, losing most of a
  *           posted project), and the service is guessed from what the person wrote, not from form labels such as
  *           "Details:" or "Budget:" (which matched car detailing and event packages).
+ * UPDATED : 2026-11-12_1730 UTC — "replace 6 old wood windows" / "window replacement" → window & door replacement (a few words
+ *           between "replace" and "windows" fell through to window cleaning).
  */
 import { BRAND } from "./brand.ts";
 import { SERVICE_BY_SLUG } from "./services.ts";
@@ -115,7 +117,7 @@ const SERVICE_PHRASES: [RegExp, string][] = [
   [/demoli|tear[- ]?out|tear down|knock down/, "demolition"],
   [/power ?wash|pressure ?wash/, "power-washing"],
   [/gutter (install|replace)|new gutters|seamless gutter/, "gutter-install"],
-  [/(replace|new|install)\w* (my |the )?(windows?|front door|entry door|storm door|patio door)/, "window-door-install"],
+  [/\b(replac|install|new\b)\w*\b[^.\n]{0,50}?\b(windows?|front door|entry door|storm door|patio door)\b|\b(windows?|doors?) (replace|install)/, "window-door-install"],
   [/move[- ]?out|move[- ]?in clean|deep clean|maid|janitor|office clean|house ?clean|cleaning service/, "house-cleaning"],
   [/carpet|rug|upholster/, "carpet-cleaning"],
   [/window/, "window-cleaning"],
