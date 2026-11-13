@@ -13,6 +13,8 @@
  *                                    rooms) always get a free site visit and a firm quote
  * UPDATED : 2026-10-23_1900 UTC — photo rules and site-visit triggers for roofing, masonry, concrete, demolition, landscaping and furniture assembly.
  * UPDATED : 2026-10-27_1600 UTC — carpentry: required photos; more than 24 ft of built-ins gets a free site visit.
+ * UPDATED : 2026-11-13_0430 UTC — organizing: 3–4 photos required (size, shape, how full); a free walkthrough first for
+ *           packed-floor-to-ceiling whole homes, basements, garages and storage units, and homes over 3,500 sq ft.
  */
 import { AI_MAX_CUT, AI_MAX_RAISE, estimate, type Estimate } from "./pricing.ts";
 import { getService, type Answers } from "./services.ts";
@@ -33,7 +35,8 @@ const RULES: Record<string, PhotoRule> = {
   "house-cleaning": O("Kitchen", "Bathrooms", "Main living area"),
   "window-cleaning": O("Front of the home", "Back of the home"),
   "carpet-cleaning": R(1, "Each room, wide shot", "The worst stains up close", "Any upholstery"),
-  organizing: R(2, "Each space to organize, wide shot", "Inside closets or cabinets"),
+  // 3–4 photos: enough to see the size, the shape and how full it is (owner decision 2026-11-13)
+  organizing: R(3, "Wide shot from the doorway", "Each wall or side of the space", "Inside closets, cabinets or shelves", "The fullest corner (and the attic or basement access)"),
   "gutter-cleaning": O("Roofline from the street", "Back of the home"),
   "power-washing": R(2, "The whole surface, wide shot", "The worst stains or mildew up close", "Anything nearby to protect"),
   "lawn-care": O("Front yard", "Back yard"),
@@ -161,6 +164,8 @@ export function scopeChange(slug: string, booked: Answers, actual: Answers, freq
 /** Answers that make a normally instant-priced job too big to price without a visit. */
 const SITE_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "interior-painting": (a) => (Number(a.rooms ?? 0) > 15 ? "More than 15 rooms" : null),
+  organizing: (a) => (a.clutter === "extreme" && ["home", "basement", "garage", "storage"].includes(String(a.space)) ? "Packed floor to ceiling — a free walkthrough first"
+    : a.space === "home" && Number(a.home_sqft ?? 0) > 3500 ? "Whole home over 3,500 sq ft — a free walkthrough first" : null),
   "exterior-painting": (a) => (a.building === "commercial" ? "Commercial building" : Number(a.sqft ?? 0) > 5000 ? "Building over 5,000 sq ft" : null),
   "power-washing": (a) => (Number(a.sqft ?? 0) > 5000 ? "Over 5,000 sq ft" : null),
   "event-shuttle": (a) => (Number(a.vehicles ?? 0) > 4 ? "More than 4 shuttles (we plan the loops with you)" : null),

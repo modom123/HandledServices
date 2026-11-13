@@ -2642,7 +2642,8 @@ test("field sales ticket: close-ready check", async () => {
   // remote services sell without photos or a street address
   assert.deepEqual(ticketCloseCheck({ ...base, service_slug: remote.slug, answers: defaultAnswers(remote), photos: 0, address: null, urgency: remote.leadDays ? null : "month" }), []);
   // a required measurement blocks the ticket until it's entered
-  const measured = SERVICES.find((s) => s.questions.some((q) => q.type === "number" && q.required));
+  // a service whose required measurement shows with its default answers (organizing asks only for basements, attics and homes)
+  const measured = SERVICES.find((s) => s.questions.some((q) => q.type === "number" && q.required && questionVisible(q, defaultAnswers(s), s.questions)));
   if (measured) assert.ok(ticketCloseCheck({ ...base, service_slug: measured.slug, answers: defaultAnswers(measured), photos: 4 }).length > 0);
 });
 
@@ -2963,4 +2964,23 @@ test("trade license: optional when some of the pro's work needs none; Handled ve
   const base = { trades: ["plumbing"], license_number: null, license_expires: null } as never;
   const step = onboardingChecklist({ ...(base as object), trades: ["plumbing"] } as never).steps.find((x) => x.key === "license")!;
   assert.ok(step.optional && step.done && /Not needed to start/.test(step.detail), "optional, says what it unlocks");
+});
+
+test("organizing & decluttering: priced by the space, its size and shape; 3+ photos; walkthrough for packed homes (2026-11-13)", async () => {
+  const { estimate } = await import("./pricing.ts");
+  const { photoRule, sizeNeedsSiteVisit } = await import("./intake.ts");
+  const p = (a: Record<string, string | number | boolean>) => estimate({ slug: "organizing", answers: { clutter: "moderate", haul: "none", ...a } }).point;
+  assert.ok(p({ space: "walkin", walkin_size: "large" }) > p({ space: "walkin", walkin_size: "small" }) && p({ space: "walkin", walkin_size: "small" }) > p({ space: "closet" }), "walk-in > reach-in; large > small");
+  assert.ok(p({ space: "garage", garage_size: "three" }) > p({ space: "garage", garage_size: "two" }) && p({ space: "garage", garage_size: "two" }) > p({ space: "garage", garage_size: "one" }), "3-car > 2-car > 1-car");
+  assert.ok(p({ space: "basement", area_sqft: 1200 }) > p({ space: "basement", area_sqft: 600 }), "basements by square feet");
+  assert.ok(p({ space: "attic", area_sqft: 500, attic_access: "hatch" }) > p({ space: "attic", area_sqft: 500, attic_access: "walkup" }), "a ceiling hatch takes longer than stairs");
+  assert.ok(p({ space: "storage", storage_size: "10x30" }) > p({ space: "storage", storage_size: "5x10" }));
+  assert.ok(p({ space: "room", awkward: true, stairs: true, heavy: true }) > p({ space: "room" }), "shape: awkward layout, stairs, heavy items");
+  assert.ok(p({ space: "garage", clutter: "extreme" }) > p({ space: "garage", clutter: "heavy" }));
+  assert.ok(p({ space: "garage", haul: "trailer" }) > p({ space: "garage", haul: "pickup" }) && p({ space: "garage", haul: "pickup" }) > p({ space: "garage", haul: "car" }), "haul sized to the load");
+  assert.ok(p({ space: "garage", haul: true }) > p({ space: "garage", haul: false }), "old yes/no haul answers still price");
+  assert.equal(photoRule("organizing")?.min, 3, "3–4 photos");
+  assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", clutter: "extreme" }));
+  assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", home_sqft: 4200, clutter: "moderate" }));
+  assert.equal(sizeNeedsSiteVisit("organizing", { space: "garage", clutter: "heavy" }), null);
 });

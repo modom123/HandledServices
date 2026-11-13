@@ -70,6 +70,10 @@
  * UPDATED : 2026-11-10_0345 UTC — no general liability certificate needed (insuranceOptional) for house cleaning, dog walking,
  *           dog sitting, pet waste removal, furniture assembly, event planning / packages and DJ & music (owner decision).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-13_0430 UTC — Organizing & Decluttering priced by the actual space: reach-in vs walk-in closets (size),
+ *           pantry, kitchen, rooms (size), bathroom/laundry, garages (1/2/3-car), basements and attics by square feet
+ *           (finish; attic access), storage units by size, whole homes by square feet; how full (now up to packed
+ *           floor to ceiling), awkward layout, stairs and heavy items; haul-away sized to the load.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -407,21 +411,44 @@ export const SERVICES: Service[] = [
     description:
       "Professional organizers declutter and set up systems for closets, pantries, kitchens, garages, offices and whole-home moves. Donations hauled away so nothing lingers.",
     includes: ["Sort: keep / donate / toss", "Systems & labeling", "Donation drop-off or haul-away", "Before/after photos"],
+    // every kind of space, sized: the shape (walk-in vs reach-in, 1- vs 3-car, attic access) and the measurements set the hours
     questions: [
       {
         id: "space",
-        label: "Main space",
+        label: "What needs organizing",
         type: "select",
         default: "closet",
         options: [
-          { value: "closet", label: "Closet" },
-          { value: "pantry", label: "Pantry / kitchen" },
+          { value: "closet", label: "Reach-in closet" },
+          { value: "walkin", label: "Walk-in closet" },
+          { value: "pantry", label: "Pantry" },
+          { value: "kitchen", label: "Kitchen (cabinets & drawers)" },
           { value: "room", label: "Bedroom / office / playroom" },
-          { value: "garage", label: "Garage / basement" },
+          { value: "bath_laundry", label: "Bathroom / laundry room" },
+          { value: "garage", label: "Garage" },
+          { value: "basement", label: "Basement" },
+          { value: "attic", label: "Attic" },
+          { value: "storage", label: "Storage unit" },
           { value: "home", label: "Whole home / move" },
         ],
       },
-      { id: "spaces", label: "Number of spaces like this", type: "number", min: 1, max: 10, default: 1 },
+      { id: "walkin_size", label: "Walk-in closet size", type: "select", default: "standard", showIf: { id: "space", is: ["walkin"] },
+        options: [{ value: "small", label: "Small (up to 6 × 6 ft)" }, { value: "standard", label: "Standard (about 8 × 8 ft)" }, { value: "large", label: "Large / dressing room (10 × 10 ft+)" }] },
+      { id: "room_size", label: "Room size", type: "select", default: "average", showIf: { id: "space", is: ["room"] },
+        options: [{ value: "small", label: "Small (up to 10 × 10 ft)" }, { value: "average", label: "Average (about 12 × 12 ft)" }, { value: "large", label: "Large (14 × 16 ft+)" }] },
+      { id: "garage_size", label: "Garage size", type: "select", default: "two", showIf: { id: "space", is: ["garage"] },
+        options: [{ value: "one", label: "1-car" }, { value: "two", label: "2-car" }, { value: "three", label: "3-car or larger" }] },
+      { id: "area_sqft", label: "Floor area to organize", type: "number", min: 0, max: 5000, default: 0, unit: "sq ft", required: true, showIf: { id: "space", is: ["basement", "attic"] },
+        help: "Length × width in feet — a rough number is fine (a 20 × 30 ft basement is 600 sq ft)." },
+      { id: "basement_finish", label: "Basement", type: "select", default: "unfinished", showIf: { id: "space", is: ["basement"] },
+        options: [{ value: "finished", label: "Finished (drywall, flooring)" }, { value: "unfinished", label: "Unfinished (concrete, open storage)" }] },
+      { id: "attic_access", label: "How you get into the attic", type: "select", default: "ladder", showIf: { id: "space", is: ["attic"] },
+        options: [{ value: "walkup", label: "Walk-up stairs" }, { value: "ladder", label: "Pull-down ladder" }, { value: "hatch", label: "Ceiling hatch / crawl space" }] },
+      { id: "storage_size", label: "Storage unit size", type: "select", default: "10x10", showIf: { id: "space", is: ["storage"] },
+        options: [{ value: "5x5", label: "5 × 5 ft" }, { value: "5x10", label: "5 × 10 ft" }, { value: "10x10", label: "10 × 10 ft" }, { value: "10x15", label: "10 × 15 ft" }, { value: "10x20", label: "10 × 20 ft" }, { value: "10x30", label: "10 × 30 ft" }] },
+      { id: "home_sqft", label: "Home size", type: "number", min: 0, max: 10000, default: 0, unit: "sq ft", required: true, showIf: { id: "space", is: ["home"] } },
+      { id: "spaces", label: "How many spaces like this", type: "number", min: 1, max: 10, default: 1,
+        showIf: { id: "space", is: ["closet", "walkin", "pantry", "kitchen", "room", "bath_laundry", "garage", "storage"] } },
       {
         id: "clutter",
         label: "How full is it",
@@ -431,9 +458,14 @@ export const SERVICES: Service[] = [
           { value: "light", label: "Light tidy-up" },
           { value: "moderate", label: "Moderate" },
           { value: "heavy", label: "Overflowing" },
+          { value: "extreme", label: "Packed floor to ceiling (paths only)" },
         ],
       },
-      { id: "haul", label: "Haul away donations & trash", type: "toggle", default: true },
+      { id: "awkward", label: "Tight or awkward layout (low or sloped ceiling, narrow aisles, no lights)", type: "toggle", default: false },
+      { id: "stairs", label: "Items carried up or down stairs", type: "toggle", default: false, showIf: { id: "space", is: ["basement", "attic", "home", "room", "storage"] } },
+      { id: "heavy", label: "Heavy or bulky items to move (furniture, tools, exercise gear)", type: "toggle", default: false },
+      { id: "haul", label: "Haul away donations & trash", type: "select", default: "car",
+        options: [{ value: "none", label: "No haul-away" }, { value: "car", label: "Car load" }, { value: "pickup", label: "Pickup-truck load" }, { value: "trailer", label: "Trailer load (big clean-outs)" }] },
       { id: "shopping", label: "Shop for bins & organizers (products at cost)", type: "toggle", default: false },
     ],
     minimum: 199,
@@ -442,12 +474,35 @@ export const SERVICES: Service[] = [
     frequencies: ["once", "monthly", "quarterly"],
     trades: ["organizing"],
     price: (a) => {
-      const hrs = { closet: 3, pantry: 4, room: 5, garage: 8, home: 16 }[s(a, "space", "closet")] ?? 3;
-      const clutter = { light: 0.75, moderate: 1, heavy: 1.4 }[s(a, "clutter", "moderate")] ?? 1;
-      const totalHrs = Math.max(3, hrs * n(a, "spaces", 1) * clutter);
-      const crew = totalHrs >= 8 ? 2 : 1; // two organizers on big jobs, same total labor hours
-      const items: LineItem[] = [{ label: `${Math.round(totalHrs)} organizer-hours${crew > 1 ? " (2-person team)" : ""}`, amount: Math.round(totalHrs * 70) }];
-      if (b(a, "haul")) items.push({ label: "Donation & trash haul-away", amount: 79 });
+      const space = s(a, "space", "closet");
+      const area = n(a, "area_sqft", 0);
+      // hours for ONE space of this kind and size (calibrated to $70 organizer-hours)
+      const one: Record<string, () => number> = {
+        closet: () => 2.5,
+        walkin: () => ({ small: 3.5, standard: 5, large: 7 })[s(a, "walkin_size", "standard")] ?? 5,
+        pantry: () => 3.5,
+        kitchen: () => 6,
+        room: () => ({ small: 4, average: 5, large: 7 })[s(a, "room_size", "average")] ?? 5,
+        bath_laundry: () => 3,
+        garage: () => ({ one: 6, two: 10, three: 14 })[s(a, "garage_size", "two")] ?? 10,
+        // also the old "Garage / basement" choice keeps pricing like a 2-car garage
+        basement: () => Math.max(5, area / 100) * (s(a, "basement_finish", "unfinished") === "unfinished" ? 1.15 : 1),
+        attic: () => Math.max(4, area / 90) * (({ walkup: 1, ladder: 1.25, hatch: 1.5 })[s(a, "attic_access", "ladder")] ?? 1.25),
+        storage: () => ({ "5x5": 3, "5x10": 5, "10x10": 8, "10x15": 11, "10x20": 14, "10x30": 20 })[s(a, "storage_size", "10x10")] ?? 8,
+        home: () => Math.max(12, n(a, "home_sqft", 0) / 100),
+      };
+      const each = (one[space] ?? one.closet)();
+      const count = space === "basement" || space === "attic" || space === "home" ? 1 : n(a, "spaces", 1);
+      const clutter = ({ light: 0.75, moderate: 1, heavy: 1.4, extreme: 2 })[s(a, "clutter", "moderate")] ?? 1;
+      const shape = (b(a, "awkward") ? 1.15 : 1) * (b(a, "stairs") ? 1.1 : 1) * (b(a, "heavy") ? 1.1 : 1);
+      const totalHrs = Math.max(3, each * count * clutter * shape);
+      const crew = totalHrs >= 24 ? 3 : totalHrs >= 8 ? 2 : 1; // bigger teams on big jobs, same total labor hours
+      // the space and its size show in the customer's answers; the line keeps its translated form
+      const items: LineItem[] = [{ label: `${Math.round(totalHrs)} organizer-hours${crew > 1 ? ` (${crew}-person team)` : ""}`, amount: Math.round(totalHrs * 70) }];
+      // haul-away sized to the load (the old yes/no answer still works: true = a car load)
+      const haulAns = a.haul === true ? "car" : a.haul === false ? "none" : s(a, "haul", "car");
+      const haul = ({ none: 0, car: 79, pickup: 179, trailer: 349 })[haulAns] ?? 79;
+      if (haul) items.push({ label: `Donation & trash haul-away (${({ car: "car load", pickup: "pickup load", trailer: "trailer load" })[haulAns] ?? "car load"})`, amount: haul });
       if (b(a, "shopping")) items.push({ label: "Product shopping trip", amount: 45 });
       const base = sum(items);
       return { items, base, hours: totalHrs / crew };
