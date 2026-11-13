@@ -21,6 +21,7 @@
  *           Handled keeps after the partner. Pros only ever see their net pay.
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  * UPDATED : 2026-11-12_1900 UTC — passes the board window to the payment panel ($1 board posts).
+ * UPDATED : 2026-11-13_0715 UTC — Ticket links: customer copy, pro copy, Handled copy (admins: pro pay and our take).
  */
 import Link from "next/link";
 import { CoverActions } from "@/components/Coverage";
@@ -94,7 +95,7 @@ export default async function HubJob({ params }: { params: Promise<{ id: string 
       <div className="space-y-6">
         <div className="card">
           <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{job.ref} · {s.icon} {s.name}</h1><div className="flex gap-2">{job.remedy && <Badge tone="brand">{job.remedy}</Badge>}{!job.paid_at && !job.remedy && job.price_final ? <Badge tone="red">unpaid</Badge> : null}{job.priority !== "normal" && <Badge tone="amber">{job.priority}</Badge>}<StatusBadge status={job.status} /></div></div>
-          <a href={`/invoice/${job.id}`} target="_blank" className="text-xs font-semibold text-brand underline">Invoice & service agreement ↗</a>
+          <div className="flex flex-wrap gap-x-3 text-xs font-semibold"><span className="text-ink-soft">Ticket:</span><a href={`/hub/jobs/${job.id}/ticket?v=customer`} className="text-brand underline">Customer copy</a><a href={`/hub/jobs/${job.id}/ticket?v=pro`} className="text-brand underline">Pro copy</a>{isAdmin(v) && <a href={`/hub/jobs/${job.id}/ticket?v=handled`} className="text-brand underline">Handled copy (pro pay + our take)</a>}<a href={`/invoice/${job.id}`} target="_blank" className="text-brand underline">Invoice & service agreement ↗</a></div>
           <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
             <div><div className="font-semibold">{job.contact_name}{job.company_name ? ` · ${job.company_name}` : ""}{cno && <span className="ml-2 font-mono text-xs font-normal text-ink-soft">{cno}</span>}{clientNo && <Link href={`/hub/business/${job.business_account_id}`} className="ml-2 font-mono text-xs font-normal text-brand underline">{clientNo}</Link>}</div><div className="text-ink-soft">{job.contact_email} · {job.contact_phone}</div><Link href={`/hub/customers/${encodeURIComponent(String(job.contact_email).toLowerCase())}`} className="text-xs font-semibold text-brand underline">Customer history & notes →</Link><div className="text-ink-soft">{job.address}, {job.city} {job.state} {job.zip}</div>{proContact && <div className="mt-1">Pro: <Link className="font-semibold text-brand underline" href={`/hub/pros/${job.contractor_id}`}>{(proContact as { business_name: string }).business_name}</Link>{proNo && <span className="ml-1 font-mono text-xs text-ink-soft">{proNo}</span>}</div>}</div>
             <div><div>{fmtDate(job.scheduled_date)} · {TIME_WINDOW_LABEL[job.time_window]}</div><div className="text-ink-soft">{job.frequency} · {job.customer_type} · via {job.source}</div>

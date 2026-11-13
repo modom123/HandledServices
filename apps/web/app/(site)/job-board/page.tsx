@@ -9,11 +9,13 @@
  *             • let homeowners post a job at their own price ($1 to post) — /book
  *             • let companies post — /book?for=business (accounts on invoice terms post free)
  *           Filter by category (?cat=). English / Spanish.
+ * UPDATED : 2026-11-13_0700 UTC — admins see, on each job, the customer price, the pro's pay and what Handled keeps.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, OFFER_BOUNDS, BOARD_POST_FEE, categoryText, money } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { publicBoard } from "@/lib/board";
+import { getViewer, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,9 @@ export default async function JobBoardPage({ searchParams }: { searchParams: Pro
   const es = l === "es";
   const L = (en: string, sp: string) => (es ? sp : en);
   const { cat } = await searchParams;
-  const all = await publicBoard(es ? "es" : "en");
+  // Handled admins see the money behind each job (customer price, pro pay, our take); everyone else sees what pros earn
+  const admin = isAdmin(await getViewer().catch(() => null));
+  const all = await publicBoard(es ? "es" : "en", { internal: admin });
   const jobs = cat ? all.filter((j) => j.category === cat) : all;
   const cats = CATEGORIES.filter((c) => all.some((j) => j.category === c.id));
   const total = all.reduce((t, j) => t + j.pay, 0);
@@ -79,6 +83,12 @@ export default async function JobBoardPage({ searchParams }: { searchParams: Pro
                   </div>
                   <div className="mt-1 text-sm text-ink-soft">{j.city}, {j.state} {j.zip} · {j.when}</div>
                   {j.scope.length > 0 && <div className="mt-1 text-xs text-ink-soft">{j.scope.join(" · ")}</div>}
+                  {j.internal && (
+                    <div className="mt-2 rounded-lg border border-dashed border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                      <b>Internal (admins only)</b> · {j.internal.ref} · Customer price {money(j.internal.price)} · Pro gets {money(j.internal.pro)} · <b>Handled keeps {money(j.internal.keep)}{j.internal.takePct != null ? ` (${Math.round(j.internal.takePct * 100)}%)` : ""}</b>
+                      {j.internal.posted ? ` · posted job: ${money(j.internal.paid)} paid so far, the rest is charged when a pro takes it` : j.internal.paid ? ` · ${money(j.internal.paid)} paid` : ""}
+                    </div>
+                  )}
                   {j.postUntil && <div className="mt-1 text-xs text-sky-900">{L(`The customer named this price — you set the day with them. Open until ${j.postUntil}.`, `El cliente fijó este precio; usted acuerda el día con él. Abierto hasta el ${j.postUntil}.`)}</div>}
                 </div>
                 <div className="text-right">
