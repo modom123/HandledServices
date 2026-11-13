@@ -54,6 +54,8 @@
  * UPDATED : 2026-11-13_0530 UTC — name your price: no "How often" (a posted job is one visit; weekly / monthly use our price),
  *           and the price panel shows what they pay — $1 today, the rest only when a pro takes it — instead of our
  *           breakdown and the "25% books your pro" line.
+ * UPDATED : 2026-11-13_0600 UTC — name your price takes every way people type money ("$150", "150.00", "1,200", "150,00");
+ *           "150.00" used to read as $15,000 and snap back to our price.
  */
 "use client";
 
@@ -67,7 +69,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
+  questionVisible, offerCheck, parseMoney, OFFER_BOUNDS, BOARD_POST_FEE, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -237,7 +239,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const suggested = quote ? quote.price : ai?.final_price ?? est?.point ?? 0;
   const proOffers = !siteVisit && !quote && suggested ? rankProOffers(proRows, suggested, slug) : [];
   const picked = proOffers.find((o) => o.pro_id === choice) ?? null;
-  const offerNum = Math.round(Number(offer) || 0);
+  // as typed: "$150", "150.00", "1,200" … (core parseMoney; whole dollars)
+  const offerNum = Number.isFinite(parseMoney(offer)) ? parseMoney(offer) : 0;
   const offerChk = offerNum && suggested ? offerCheck(offerNum, suggested) : null;
   const named = Boolean(!quote && !picked && offerChk?.ok && offerNum !== suggested);
   // a posted job (name your price) is one visit, not a recurring plan
@@ -523,7 +526,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-1 text-xs text-ink-soft">{locale === "es" ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</p>
               <div className="mt-2 flex items-center gap-2">
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).floor, Math.round(listTotal * 0.95))))}>−5%</button>
-                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer} placeholder={String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, "").slice(0, 7))} aria-label={t("Your price")} /></div>
+                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="decimal" value={offer} placeholder={String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d.,$\s]/g, "").slice(0, 14))} aria-label={t("Your price")} /></div>
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
               </div>
               {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.` : `Offers start at ${money(offerChk.floor)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}

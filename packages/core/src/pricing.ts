@@ -474,6 +474,21 @@ export function marketFactor(signals: PriceSignal[], current = 1): { factor: num
  */
 export const OFFER_BOUNDS = { floor: 0.3, min: 0.75, warn: 0.9, max: 3, boardDays: 90 } as const;
 
+/**
+ * A price as people type it, in whole dollars: "$150", "150.00", "150.5", "1,200", "1,200.00", "1 200", "150,00" (a comma
+ * with one or two digits after it at the end is a decimal mark; any other comma, dot or space groups thousands). Cents
+ * round to the nearest dollar. Anything without a number is NaN.
+ */
+export function parseMoney(text: string | null | undefined): number {
+  const t = String(text ?? "").replace(/[^\d.,]/g, "");
+  if (!/\d/.test(t)) return NaN;
+  const m = t.match(/^(.*?)[.,](\d{1,2})$/);
+  const whole = (m ? m[1] : t).replace(/[.,]/g, "");
+  const cents = m ? Number(m[2].padEnd(2, "0")) / 100 : 0;
+  const n = Number(whole || "0") + cents;
+  return Number.isFinite(n) ? Math.round(n) : NaN;
+}
+
 /** What it costs to post a name-your-price job on the job board (the price itself is charged when a pro takes it). */
 export const BOARD_POST_FEE = 1;
 

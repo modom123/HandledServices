@@ -2986,3 +2986,10 @@ test("organizing & decluttering: priced by the space, its size and shape; 3+ pho
   assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", home_sqft: 4200, clutter: "moderate" }));
   assert.equal(sizeNeedsSiteVisit("organizing", { space: "garage", clutter: "heavy" }), null);
 });
+
+test("name your price: every way people type a price (2026-11-13)", async () => {
+  const { parseMoney } = await import("./pricing.ts");
+  for (const [typed, want] of [["150", 150], ["$150", 150], ["150.00", 150], ["150.5", 151], ["$150.49", 150], ["1,200", 1200], ["1,200.00", 1200], ["$1,200.75", 1201], ["1 200", 1200], ["150,00", 150], ["1.200,50", 1201], [" 75 ", 75], ["$ 99.99", 100]] as const)
+    assert.equal(parseMoney(typed), want, typed);
+  assert.ok(Number.isNaN(parseMoney("")) && Number.isNaN(parseMoney("$")) && Number.isNaN(parseMoney("abc")));
+});
