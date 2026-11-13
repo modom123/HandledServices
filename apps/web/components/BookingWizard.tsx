@@ -56,6 +56,9 @@
  *           breakdown and the "25% books your pro" line.
  * UPDATED : 2026-11-13_0600 UTC — name your price takes every way people type money ("$150", "150.00", "1,200", "150,00");
  *           "150.00" used to read as $15,000 and snap back to our price.
+ * UPDATED : 2026-11-13_0630 UTC — editing the order while placing it: the step tabs go back to any earlier step (nothing
+ *           entered is lost), and Review shows "Your order" (service, every answer, notes, photos, when, where, price)
+ *           with an Edit link on each part.
  */
 "use client";
 
@@ -185,6 +188,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   };
 
   function pick(s: string) {
+    // the same service again (back from Review → Edit): keep everything they entered
+    if (s === slug) { setStep(1); return; }
     const next = getService(s)!;
     setSlug(s);
     setAnswers(defaultAnswers(next));
@@ -268,7 +273,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         {business && <div className="mb-4 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{business.company}</b> · {business.propertyName} ({business.address}, {business.city}) · {business.billing}</div>}
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
           {["Service", "Details", "When & where", "Review"].map((lbl, i) => (
-            <li key={lbl} className={`rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {t(lbl)}</li>
+            <li key={lbl}>{i < step
+              // an earlier step: click to go back and change it (nothing entered is lost)
+              ? <button type="button" onClick={() => setStep(i)} className="rounded-full bg-brand-tint px-3 py-1 text-brand-dark underline-offset-2 hover:underline" title={es ? "Cambiar" : "Change"}>{i + 1}. {t(lbl)} ✎</button>
+              : <span className={`inline-block rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : "border border-line bg-white text-ink-soft"}`}>{i + 1}. {t(lbl)}</span>}</li>
           ))}
         </ol>
 
@@ -430,6 +438,39 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           </div>
         )}
 
+        {step === 3 && svc && (() => {
+          // the order as entered, before paying: every part can be changed (Edit → back to that step, nothing lost)
+          const ans = (q: (typeof svc.questions)[number]) => {
+            const v = answers[q.id] ?? q.default;
+            if (q.type === "select") return t(q.options.find((o) => o.value === v)?.label ?? String(v));
+            if (q.type === "toggle") return v ? t("Yes") : t("No");
+            return `${typeof v === "number" ? v.toLocaleString(es ? "es-US" : "en-US") : v}${q.unit && q.unit !== "$" ? ` ${t(q.unit)}` : ""}`;
+          };
+          const shown = svc.questions.filter((q) => questionVisible(q, answers, svc.questions) && !(q.type === "number" && Number(answers[q.id] ?? q.default) === 0 && !q.required));
+          const edit = (to: number) => <button type="button" className="text-xs font-semibold text-brand underline" onClick={() => setStep(to)}>{es ? "Editar" : "Edit"}</button>;
+          const when = svc.leadDays ? `${date}` : urgency ? t(URGENCY.find((u) => u.id === urgency)?.label ?? urgency) : "—";
+          return (
+            <div className="card mb-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between"><h2 className="text-xl font-bold">{es ? "Su pedido" : "Your order"}</h2><span className="text-xs text-ink-soft">{es ? "Revise y cambie lo que necesite antes de pagar." : "Check it and change anything before you pay."}</span></div>
+              <div className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{svc.icon} {serviceText(locale, svc.slug, svc).name}</div>{edit(0)}</div>
+              </div>
+              <div className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{es ? "Detalles" : "Details"}</div>{edit(1)}</div>
+                <ul className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">{shown.map((q) => <li key={q.id}><span className="text-ink-soft">{t(q.label)}:</span> {ans(q)}</li>)}</ul>
+                {svc.frequencies.length > 1 && !named && <p className="mt-1"><span className="text-ink-soft">{t("How often")}:</span> {t(FREQ_LABEL[frequency])}</p>}
+                {notes.trim() && <p className="mt-1"><span className="text-ink-soft">{es ? "Notas" : "Notes"}:</span> “{notes.trim().slice(0, 300)}{notes.trim().length > 300 ? "…" : ""}”</p>}
+                <p className="mt-1 text-ink-soft">{photos.length ? (es ? `${photos.length} foto(s)` : `${photos.length} photo${photos.length === 1 ? "" : "s"}`) : (es ? "Sin fotos" : "No photos")}</p>
+              </div>
+              <div className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{es ? "Cuándo y dónde" : "When & where"}</div>{edit(2)}</div>
+                <p className="mt-1"><span className="text-ink-soft">{es ? "Cuándo" : "When"}:</span> {when}</p>
+                <p><span className="text-ink-soft">{es ? "Dónde" : "Where"}:</span> {[form.address, form.city, `${form.state} ${form.zip}`].filter((x) => x && x.trim()).join(", ")}{form.customer_type === "commercial" && form.company_name ? ` · ${form.company_name}` : ""}</p>
+              </div>
+              <div className="flex justify-between font-semibold"><span>{named ? (es ? "Su precio" : "Your price") : (es ? "Precio" : "Price")}</span><span>{money(listTotal)}{named ? (es ? ` · hoy ${money(BOARD_POST_FEE)}` : ` · ${money(BOARD_POST_FEE)} today`) : ""}</span></div>
+            </div>
+          );
+        })()}
         {step === 3 && (
           <div className="card space-y-5">
             <h2 className="text-xl font-bold">{t("Your contact info")}</h2>
@@ -617,8 +658,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
 /**
  * Number input + slider. Typing is free-form (no clamping per keystroke — that turned
  * "2500" into 10000); the value is applied live while in range and clamped on blur.
- * Big ranges (square feet) step by 50 on the slider.
+ * Big ranges (square feet) step by 50 on the slider. Clicking in clears a 0 and selects any other number, so typing
+ * replaces it; commas and anything after a decimal point are ignored.
  */
+/** The whole number in what was typed: "1,500" → "1500", "2500.5" → "2500". */
+const whole = (typed: string) => typed.replace(/,/g, "").split(".")[0].replace(/[^0-9]/g, "");
+
 function NumberField({ value, min, max, unit, onChange }: { value: number; min: number; max: number; unit?: string; onChange: (v: number) => void }) {
   const [text, setText] = useState(String(value));
   const [editing, setEditing] = useState(false);
@@ -629,15 +674,20 @@ function NumberField({ value, min, max, unit, onChange }: { value: number; min: 
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => { onChange(Number(e.target.value)); setText(e.target.value); }}
         className="flex-1 accent-[var(--color-brand)]" aria-label={unit ?? "amount"} />
       {unit === "$" && <span className="-mr-2 text-sm font-semibold text-ink-soft">$</span>}
-      <input type="text" inputMode="numeric" className="input w-28 text-right" value={shown}
-        onFocus={() => { setEditing(true); setText(String(value)); }}
+      <input type="text" inputMode="numeric" className="input w-28 text-right" value={shown} placeholder="0"
+        // clicking in starts fresh: a 0 is cleared and any other number is selected, so typing replaces it
+        // (the cursor used to land before the 0 — typing 5000 gave 50,000)
+        onFocus={(e) => { setEditing(true); setText(value ? String(value) : ""); const el = e.currentTarget; requestAnimationFrame(() => el.select()); }}
+        onMouseUp={(e) => e.preventDefault()}
         onChange={(e) => {
-          const raw = e.target.value.replace(/[^0-9]/g, "");
-          setText(raw);
+          // "1,500" and "1500.5" read as 1500 (whole numbers; the decimal point used to be dropped: 1500.5 → 15005)
+          const typed = e.target.value.replace(/[^0-9.,]/g, "");
+          setText(typed); // what they typed stays on screen (a "." too); the number ignores commas and decimals
+          const raw = whole(typed);
           const n = Number(raw);
           if (raw && n >= min && n <= max) onChange(n);
         }}
-        onBlur={() => { setEditing(false); const n = Number(text); onChange(Math.min(max, Math.max(min, Number.isFinite(n) && text ? n : value))); }}
+        onBlur={() => { setEditing(false); const raw = whole(text); const n = Number(raw); onChange(Math.min(max, Math.max(min, raw ? n : value))); }}
         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
       {unit && unit !== "$" && <span className="w-12 text-sm text-ink-soft">{unit}</span>}
     </div>
