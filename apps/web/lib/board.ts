@@ -28,7 +28,7 @@
  *           Each pro chooses all / daily summary only / off (contractors.board_alerts; "all" until that SQL is run).
  * UPDATED : 2026-11-12_2200 UTC — texts go only to pros in the job's area (core inProArea: within their radius from their
  *           home base, or a listed ZIP); a pro whose area can't be confirmed gets the app notification only.
- * UPDATED : 2026-11-13_0700 UTC — publicBoard({ internal }) for admins: each job's customer price, pro pay and what Handled keeps.
+ * UPDATED : 2026-11-13_0730 UTC — publicBoard is public-only again (no internal money); the internal view is Hub → Jobs → Job board.
  */
 import "server-only";
 import { AGREEMENT_VERSION, BOARD, boardOrder, inProArea, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
@@ -187,8 +187,6 @@ export interface PublicBoardCard {
   ref: string; service: string; slug: string; icon: string; category: string;
   city: string; state: string; zip: string; when: string; pay: number; payLabel: string; scope: string[];
   priority: boolean; topPay: boolean; postUntil: string | null; business: boolean; postedAt: string;
-  /** Admins only (need-to-know): the customer's price and the expected split. Never sent to anyone else. */
-  internal?: { ref: string; price: number; pro: number; keep: number; takePct: number | null; paid: number; posted: boolean };
 }
 
 /**
@@ -196,7 +194,7 @@ export interface PublicBoardCard {
  * top pay first. City, ZIP, a pro's base pay and the scope answers only — the address, the customer, their notes and
  * photos are shown only to the pro who takes the job. Fails soft (an empty board) if the database isn't reachable.
  */
-export async function publicBoard(locale: "en" | "es" = "en", o: { internal?: boolean } = {}): Promise<PublicBoardCard[]> {
+export async function publicBoard(locale: "en" | "es" = "en"): Promise<PublicBoardCard[]> {
   if (!supabaseConfigured || !process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
   try {
     const now = new Date(), today = now.toISOString().slice(0, 10);
@@ -224,11 +222,6 @@ export async function publicBoard(locale: "en" | "es" = "en", o: { internal?: bo
         ref: job.ref, service: locale === "es" ? serviceText("es", svc.slug, svc).name : svc.name, slug: svc.slug, icon: svc.icon, category: svc.category,
         city: job.city, state: job.state, zip: job.zip, when: whenFor(job, wo.when, locale), pay, payLabel: money(pay), scope: wo.scope.slice(0, 4).map((x) => `${x.label}: ${x.value}`),
         priority: job.priority !== "normal", topPay: topPay(job), postUntil: job.open_offer_until?.slice(0, 10) ?? null, business: isBusiness(job), postedAt: job.created_at,
-        // admins: what the customer pays, what the pro gets (before any referral fee), what Handled keeps
-        ...(o.internal ? (() => {
-          const price = Number(job.price_final ?? 0), pro = Number(job.contractor_payout ?? 0), keep = Math.round((price - pro) * 100) / 100;
-          return { internal: { ref: job.ref, price, pro, keep, takePct: price > 0 ? keep / price : null, paid: Number(job.amount_paid ?? 0), posted: Boolean(job.open_offer_until) } };
-        })() : {}),
       });
     }
     return boardOrder(cards).slice(0, 100);

@@ -9,13 +9,14 @@
  *             • let homeowners post a job at their own price ($1 to post) — /book
  *             • let companies post — /book?for=business (accounts on invoice terms post free)
  *           Filter by category (?cat=). English / Spanish.
- * UPDATED : 2026-11-13_0700 UTC — admins see, on each job, the customer price, the pro's pay and what Handled keeps.
+ * UPDATED : 2026-11-13_0730 UTC — public only, for everyone: the internal money line was removed (it lives in Hub → Jobs → Job board).
+ * UPDATED : 2026-11-13_0745 UTC — public cards show only the type of job and the general area (city, state) and when it was
+ *           posted; pay, scope, timing and posting terms are for signed-in pros ("Jobs near you") and the Hub.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, OFFER_BOUNDS, BOARD_POST_FEE, categoryText, money } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { publicBoard } from "@/lib/board";
-import { getViewer, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +31,15 @@ export default async function JobBoardPage({ searchParams }: { searchParams: Pro
   const es = l === "es";
   const L = (en: string, sp: string) => (es ? sp : en);
   const { cat } = await searchParams;
-  // Handled admins see the money behind each job (customer price, pro pay, our take); everyone else sees what pros earn
-  const admin = isAdmin(await getViewer().catch(() => null));
-  const all = await publicBoard(es ? "es" : "en", { internal: admin });
+  // the same public cards for everyone (signed in or not): no customer price, no Handled take — that lives in Hub → Jobs → Job board
+  const all = await publicBoard(es ? "es" : "en");
   const jobs = cat ? all.filter((j) => j.category === cat) : all;
   const cats = CATEGORIES.filter((c) => all.some((j) => j.category === c.id));
-  const total = all.reduce((t, j) => t + j.pay, 0);
   const cities = new Set(all.map((j) => `${j.city}, ${j.state}`)).size;
+  const ago = (iso: string) => {
+    const d = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+    return d === 0 ? L("Posted today", "Publicado hoy") : d === 1 ? L("Posted yesterday", "Publicado ayer") : L(`Posted ${d} days ago`, `Publicado hace ${d} días`);
+  };
   const chip = (href: string, label: string, on: boolean) => <Link key={href} href={href} className={`rounded-full border px-3 py-1 text-xs ${on ? "border-brand bg-brand-tint font-semibold" : "border-line bg-white"}`}>{label}</Link>;
   return (
     <div className="wrap space-y-8 py-12">
@@ -44,13 +47,13 @@ export default async function JobBoardPage({ searchParams }: { searchParams: Pro
         <span className="inline-flex rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark">{L("Job board", "Tablero de trabajos")}</span>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{L("Open jobs near you.", "Trabajos abiertos cerca de usted.")} <span className="text-brand">{L("Pay shown upfront.", "Pago a la vista.")}</span></h1>
         <p className="mt-4 text-lg text-ink-soft">{L(
-          `Real jobs from homeowners and companies, waiting for a pro. Background-checked pros on ${BRAND.name} take them here — no lead fees, no bidding, paid weekly. The pay shown is what you earn.`,
-          `Trabajos reales de hogares y empresas esperando a un profesional. Los profesionales verificados de ${BRAND.name} los toman aquí: sin cobro por clientes, sin pujas, pago semanal. El pago que ve es lo que usted gana.`)}</p>
+          `Real jobs from homeowners and companies, waiting for a pro. Background-checked pros on ${BRAND.name} take them — no lead fees, no bidding, paid weekly. Sign in as a pro to see the pay, the details and to take a job.`,
+          `Trabajos reales de hogares y empresas esperando a un profesional. Los profesionales verificados de ${BRAND.name} los toman: sin cobro por clientes, sin pujas, pago semanal. Inicie sesión como profesional para ver el pago, los detalles y tomar un trabajo.`)}</p>
       </header>
 
       {all.length > 0 && <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="card p-3 sm:p-5"><div className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft sm:text-xs">{L("Open jobs", "Trabajos abiertos")}</div><div className="mt-1 text-xl font-extrabold sm:text-3xl">{all.length}</div></div>
-        <div className="card p-3 sm:p-5"><div className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft sm:text-xs">{L("Pay waiting for pros", "Pago esperando a profesionales")}</div><div className="mt-1 text-xl font-extrabold sm:text-3xl text-brand">{money(total)}</div></div>
+        <div className="card p-3 sm:p-5"><div className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft sm:text-xs">{L("Kinds of work", "Tipos de trabajo")}</div><div className="mt-1 text-xl font-extrabold sm:text-3xl">{new Set(all.map((j) => j.slug)).size}</div></div>
         <div className="card p-3 sm:p-5"><div className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft sm:text-xs">{L("Cities", "Ciudades")}</div><div className="mt-1 text-xl font-extrabold sm:text-3xl">{cities}</div></div>
       </div>}
 
@@ -72,37 +75,24 @@ export default async function JobBoardPage({ searchParams }: { searchParams: Pro
           )}
           {jobs.map((j) => (
             <article key={j.ref} className="card">
+              {/* public: the type of job and the general area only — pay, scope, timing and the customer are for signed-in pros and the Hub */}
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-bold">{j.icon} {j.service}</h2>
-                    {j.topPay && <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{L("Top pay", "Pago alto")}</span>}
-                    {j.postUntil && <span className="rounded bg-sky-100 px-2 py-0.5 text-xs text-sky-900">{L("Posted job", "Trabajo publicado")}</span>}
                     {j.business && <span className="rounded bg-paper px-2 py-0.5 text-xs">{L("Business", "Empresa")}</span>}
-                    {j.priority && <span className="rounded bg-amber-100 px-2 py-0.5 text-xs">{L("Priority", "Prioridad")}</span>}
                   </div>
-                  <div className="mt-1 text-sm text-ink-soft">{j.city}, {j.state} {j.zip} · {j.when}</div>
-                  {j.scope.length > 0 && <div className="mt-1 text-xs text-ink-soft">{j.scope.join(" · ")}</div>}
-                  {j.internal && (
-                    <div className="mt-2 rounded-lg border border-dashed border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">
-                      <b>Internal (admins only)</b> · {j.internal.ref} · Customer price {money(j.internal.price)} · Pro gets {money(j.internal.pro)} · <b>Handled keeps {money(j.internal.keep)}{j.internal.takePct != null ? ` (${Math.round(j.internal.takePct * 100)}%)` : ""}</b>
-                      {j.internal.posted ? ` · posted job: ${money(j.internal.paid)} paid so far, the rest is charged when a pro takes it` : j.internal.paid ? ` · ${money(j.internal.paid)} paid` : ""}
-                    </div>
-                  )}
-                  {j.postUntil && <div className="mt-1 text-xs text-sky-900">{L(`The customer named this price — you set the day with them. Open until ${j.postUntil}.`, `El cliente fijó este precio; usted acuerda el día con él. Abierto hasta el ${j.postUntil}.`)}</div>}
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-ink-soft">{L("You earn", "Usted gana")}</div>
-                  <div className="text-2xl font-extrabold text-brand">{j.payLabel}</div>
+                  <div className="mt-1 text-sm text-ink-soft">📍 {j.city}, {j.state} · {ago(j.postedAt)}</div>
+                  <div className="mt-1 text-xs text-ink-soft">{L("Pros: sign in to see the pay, the details and the timing.", "Profesionales: inicien sesión para ver el pago, los detalles y el horario.")}</div>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-end gap-3 text-sm">
                 <Link href={`/pros?utm_source=job_board&utm_campaign=${encodeURIComponent(j.ref)}`} className="text-brand underline">{L("New to Handled? Apply to take jobs like this", "¿Nuevo en Handled? Aplique para tomar trabajos así")}</Link>
-                <Link href="/pro" className="btn-primary px-5">{L("Pros: take this job", "Profesionales: tomar este trabajo")} →</Link>
+                <Link href="/pro" className="btn-primary px-5">{L("Pros: sign in to see it", "Profesionales: inicie sesión para verlo")} →</Link>
               </div>
             </article>
           ))}
-          <p className="text-xs text-ink-soft">{L("The street address, the customer and their notes go only to the pro who takes the job. Jobs fit to each pro's trades, licenses, insurance and area when they sign in.", "La dirección, el cliente y sus notas solo los ve el profesional que toma el trabajo. Al iniciar sesión, cada profesional ve los trabajos que encajan con sus oficios, licencias, seguro y zona.")}</p>
+          <p className="text-xs text-ink-soft">{L("Signed-in pros see the pay, scope and timing of the jobs that fit their trades, licenses, insurance and area. The street address and the customer go only to the pro who takes the job.", "Los profesionales que inician sesión ven el pago, el alcance y el horario de los trabajos que encajan con sus oficios, licencias, seguro y zona. La dirección y el cliente solo los ve el profesional que toma el trabajo.")}</p>
         </section>
 
         <aside className="space-y-4">
