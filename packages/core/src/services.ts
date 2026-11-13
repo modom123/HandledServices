@@ -74,6 +74,7 @@
  *           pantry, kitchen, rooms (size), bathroom/laundry, garages (1/2/3-car), basements and attics by square feet
  *           (finish; attic access), storage units by size, whole homes by square feet; how full (now up to packed
  *           floor to ceiling), awkward layout, stairs and heavy items; haul-away sized to the load.
+ * UPDATED : 2026-11-13_0500 UTC — organizing labor $60 an organizer-hour (was $70).
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -476,7 +477,7 @@ export const SERVICES: Service[] = [
     price: (a) => {
       const space = s(a, "space", "closet");
       const area = n(a, "area_sqft", 0);
-      // hours for ONE space of this kind and size (calibrated to $70 organizer-hours)
+      // hours for ONE space of this kind and size, at $60 an organizer-hour (owner decision 2026-11-13: $70 is full-service pricing)
       const one: Record<string, () => number> = {
         closet: () => 2.5,
         walkin: () => ({ small: 3.5, standard: 5, large: 7 })[s(a, "walkin_size", "standard")] ?? 5,
@@ -498,7 +499,7 @@ export const SERVICES: Service[] = [
       const totalHrs = Math.max(3, each * count * clutter * shape);
       const crew = totalHrs >= 24 ? 3 : totalHrs >= 8 ? 2 : 1; // bigger teams on big jobs, same total labor hours
       // the space and its size show in the customer's answers; the line keeps its translated form
-      const items: LineItem[] = [{ label: `${Math.round(totalHrs)} organizer-hours${crew > 1 ? ` (${crew}-person team)` : ""}`, amount: Math.round(totalHrs * 70) }];
+      const items: LineItem[] = [{ label: `${Math.round(totalHrs)} organizer-hours${crew > 1 ? ` (${crew}-person team)` : ""}`, amount: Math.round(totalHrs * 60) }];
       // haul-away sized to the load (the old yes/no answer still works: true = a car load)
       const haulAns = a.haul === true ? "car" : a.haul === false ? "none" : s(a, "haul", "car");
       const haul = ({ none: 0, car: 79, pickup: 179, trailer: 349 })[haulAns] ?? 79;
