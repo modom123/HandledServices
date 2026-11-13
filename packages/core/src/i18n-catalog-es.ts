@@ -1584,4 +1584,7 @@ export const ES_CATALOG: Record<string, string> = {
   "10 × 15 ft": "10 × 15 pies",
   "10 × 20 ft": "10 × 20 pies",
   "10 × 30 ft": "10 × 30 pies",
+  "Extra organizer time": "Tiempo extra de organizador",
+  "Want the organizer longer than our estimate? Add hours here, at the same hourly rate.": "¿Quiere al organizador más tiempo que nuestro estimado? Agregue horas aquí, a la misma tarifa por hora.",
+  "hours": "horas",
 };

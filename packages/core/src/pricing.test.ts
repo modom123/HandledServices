@@ -2980,6 +2980,8 @@ test("organizing & decluttering: priced by the space, its size and shape; 3+ pho
   assert.ok(p({ space: "garage", haul: "trailer" }) > p({ space: "garage", haul: "pickup" }) && p({ space: "garage", haul: "pickup" }) > p({ space: "garage", haul: "car" }), "haul sized to the load");
   assert.ok(p({ space: "garage", haul: true }) > p({ space: "garage", haul: false }), "old yes/no haul answers still price");
   assert.equal(photoRule("organizing")?.min, 3, "3–4 photos");
+  const more = estimate({ slug: "organizing", answers: { space: "garage", garage_size: "two", clutter: "moderate", haul: "none", extra_hours: 3 } });
+  assert.ok(more.point > p({ space: "garage", garage_size: "two" }) && more.items[0].label.startsWith("13 organizer-hours"), "extra hours are added");
   assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", clutter: "extreme" }));
   assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", home_sqft: 4200, clutter: "moderate" }));
   assert.equal(sizeNeedsSiteVisit("organizing", { space: "garage", clutter: "heavy" }), null);

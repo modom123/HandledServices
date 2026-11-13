@@ -75,6 +75,7 @@
  *           (finish; attic access), storage units by size, whole homes by square feet; how full (now up to packed
  *           floor to ceiling), awkward layout, stairs and heavy items; haul-away sized to the load.
  * UPDATED : 2026-11-13_0500 UTC — organizing labor $60 an organizer-hour (was $70).
+ * UPDATED : 2026-11-13_0545 UTC — organizing: "Extra organizer time" — book up to 8 more hours than the estimate.
  */
 
 import type { CategoryId, Frequency } from "./types.ts";
@@ -467,6 +468,8 @@ export const SERVICES: Service[] = [
       { id: "heavy", label: "Heavy or bulky items to move (furniture, tools, exercise gear)", type: "toggle", default: false },
       { id: "haul", label: "Haul away donations & trash", type: "select", default: "car",
         options: [{ value: "none", label: "No haul-away" }, { value: "car", label: "Car load" }, { value: "pickup", label: "Pickup-truck load" }, { value: "trailer", label: "Trailer load (big clean-outs)" }] },
+      { id: "extra_hours", label: "Extra organizer time", type: "number", min: 0, max: 8, default: 0, unit: "hours",
+        help: "Want the organizer longer than our estimate? Add hours here, at the same hourly rate." },
       { id: "shopping", label: "Shop for bins & organizers (products at cost)", type: "toggle", default: false },
     ],
     minimum: 199,
@@ -496,7 +499,8 @@ export const SERVICES: Service[] = [
       const count = space === "basement" || space === "attic" || space === "home" ? 1 : n(a, "spaces", 1);
       const clutter = ({ light: 0.75, moderate: 1, heavy: 1.4, extreme: 2 })[s(a, "clutter", "moderate")] ?? 1;
       const shape = (b(a, "awkward") ? 1.15 : 1) * (b(a, "stairs") ? 1.1 : 1) * (b(a, "heavy") ? 1.1 : 1);
-      const totalHrs = Math.max(3, each * count * clutter * shape);
+      // the customer can book more time than the estimate (whole hours, up to 8 more)
+      const totalHrs = Math.max(3, each * count * clutter * shape) + Math.max(0, Math.min(8, Math.round(n(a, "extra_hours", 0))));
       const crew = totalHrs >= 24 ? 3 : totalHrs >= 8 ? 2 : 1; // bigger teams on big jobs, same total labor hours
       // the space and its size show in the customer's answers; the line keeps its translated form
       const items: LineItem[] = [{ label: `${Math.round(totalHrs)} organizer-hours${crew > 1 ? ` (${crew}-person team)` : ""}`, amount: Math.round(totalHrs * 60) }];
