@@ -51,6 +51,9 @@
  *           choice), up for 90 days, the price charged to the same card when a pro takes it; the day and slot don't have to be open.
  * UPDATED : 2026-11-13_0400 UTC — name your price: the box can be cleared to type a new price (it used to refill with our
  *           price the moment it was empty, so customers couldn't enter their own); our price shows as the placeholder.
+ * UPDATED : 2026-11-13_0530 UTC — name your price: no "How often" (a posted job is one visit; weekly / monthly use our price),
+ *           and the price panel shows what they pay — $1 today, the rest only when a pro takes it — instead of our
+ *           breakdown and the "25% books your pro" line.
  */
 "use client";
 
@@ -219,7 +222,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency: named ? "once" : frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
     }).catch(() => null);
     if (!res) { setBusy(false); return setError(es ? "Sin conexión: revise su internet e intente de nuevo." : "No connection: check your internet and try again."); }
     // a server error page (not JSON) used to throw here and leave the button stuck on "Finalizing your price…"
@@ -237,6 +240,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const offerNum = Math.round(Number(offer) || 0);
   const offerChk = offerNum && suggested ? offerCheck(offerNum, suggested) : null;
   const named = Boolean(!quote && !picked && offerChk?.ok && offerNum !== suggested);
+  // a posted job (name your price) is one visit, not a recurring plan
+  useEffect(() => { if (named && frequency !== "once") setFrequency("once"); }, [named, frequency]);
   const listTotal = picked ? picked.price : named ? offerNum : suggested;
   // Plus member saving + promo / gift card, from the server (same rules as at booking)
   async function checkPerks(code = promo) {
@@ -329,7 +334,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                 {q.type === "number" && q.required && !(Number(answers[q.id] ?? 0) > 0) && <p className="mt-1 text-xs font-semibold text-rose-700">{es ? "Escriba la medida para ver su precio." : "Enter the measurement to see your price."}</p>}
               </div>
             ))}
-            {svc.frequencies.length > 1 && (
+            {svc.frequencies.length > 1 && named && <p className="text-xs text-ink-soft">{es ? "Los trabajos con su propio precio son de una sola visita. ¿Lo quiere semanal o mensual? Use nuestro precio sugerido." : "Name-your-price jobs are one visit. Want it weekly or monthly? Use our suggested price."}</p>}
+            {svc.frequencies.length > 1 && !named && (
               <div>
                 <label className="label">{t("How often")}</label>
                 <div className="flex flex-wrap gap-2">
@@ -580,16 +586,24 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               </p>
             );
           })()}
+          {named ? (
+          <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
+            <li className="flex justify-between gap-3"><span className="font-semibold">{es ? "Hoy: publicar su trabajo" : "Due today: post your job"}</span><span className="font-semibold">{money(BOARD_POST_FEE)}</span></li>
+            <li className="flex justify-between gap-3"><span className="text-ink-soft">{es ? "Cuando un profesional lo tome" : "When a pro takes it"}</span><span>{money(Math.max(0, offerNum - BOARD_POST_FEE))}</span></li>
+            <li className="text-xs text-ink-soft">{es ? `Su precio total: ${money(offerNum)}. Se cobra a la misma tarjeta solo si un profesional toma el trabajo.` : `Your total: ${money(offerNum)}. Charged to the same card only if a pro takes the job.`}</li>
+          </ul>
+          ) : (
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
             {consult && <li className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo que eligió" : "What you picked"}</li>}
             {est.items.filter((i) => !consult || (i.amount > 0 && !/booking fee/i.test(i.label))).map((i) => (
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span>{!consult && <span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span>}</li>
             ))}
           </ul>
+          )}
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft"><Ico i="✨" />{t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {consult ? (es ? "Consulta gratis por video: un especialista confirma el alcance y le envía un precio fijo por escrito; paga solo cuando lo apruebe." : "Free video consultation — a specialist confirms the scope and sends a fixed price in writing; you pay only once you approve it.") : t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
+            {consult ? (es ? "Consulta gratis por video: un especialista confirma el alcance y le envía un precio fijo por escrito; paga solo cuando lo apruebe." : "Free video consultation — a specialist confirms the scope and sends a fixed price in writing; you pay only once you approve it.") : t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : named ? (es ? "¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero dentro de 30 días." : "Not right? Free redo or your money back within 30 days.") : BRAND.promise)}
           </p>
         </aside>
       )}

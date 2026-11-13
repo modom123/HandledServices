@@ -246,6 +246,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     offer = Math.round(customer_offer);
     // every named price is posted on the job board for 90 days: $1 to post, the price charged when a pro takes it
     openOfferUntil = new Date(Date.now() + OFFER_BOUNDS.boardDays * 86400000).toISOString();
+    input.frequency = "once"; // a posted job is one visit (recurring plans book at our price)
   }
   const listPrice = proPick?.price ?? offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
