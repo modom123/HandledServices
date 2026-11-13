@@ -21,6 +21,7 @@
  * UPDATED : 2026-11-11_2350 UTC — How you get paid: direct deposit through Stripe only (components/PayoutStep), naming the numbers
  *           Stripe asks for; the step is done once Stripe says the bank is ready. No paper checks.
  * UPDATED : 2026-11-11_2358 UTC — Verify ID: a pro switched to a video-call check can try the online check again (they were stuck with no button).
+ * UPDATED : 2026-11-13_1900 UTC — photo step asks "Feature me on the website" (pre-ticked; off any time in My info).
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
@@ -140,6 +141,16 @@ export default async function Onboarding() {
       <StepForm step="photo" cta={t("Upload photo")} locale={l}>
         <Field label={t("Profile photo (JPG, PNG, WEBP or HEIC, up to 8 MB)")} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" required />
         <p className="text-xs text-ink-soft">{t("A recent, well-lit photo of just you: no sunglasses, hats or group photos.")}</p>
+        <input type="hidden" name="showcase_asked" value="1" />
+        <label className="flex items-start gap-2 rounded-lg border border-line bg-paper p-3 text-sm">
+          <input type="checkbox" name="showcase" defaultChecked={(pro as Contractor & { showcase_opt_in?: boolean | null }).showcase_opt_in ?? true} className="mt-0.5" />
+          <span>
+            <b>{l === "es" ? "Aparecer en el sitio web" : "Feature me on the website"}</b>
+            <span className="block text-xs text-ink-soft">{l === "es"
+              ? "Cuando esté aprobado, su foto, nombre público, ciudad y los servicios que puede hacer aparecen en “Nuevos profesionales” del sitio de Handled. Nunca su dirección ni su teléfono. Puede quitarlo cuando quiera en Mi información."
+              : "Once you're approved, your photo, public name, city and the services you're cleared for appear under “New pros” on the Handled website. Never your address or phone. Turn it off any time in My info."}</span>
+          </span>
+        </label>
       </StepForm>
     );
     if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{t("Certificate received — we’re verifying it.")}</p> : (

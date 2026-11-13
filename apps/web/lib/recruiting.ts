@@ -30,6 +30,7 @@
  * UPDATED : 2026-11-10_1330 UTC — activation sends the full "Welcome to the Handled Network" email (core proWelcomeEmail):
  *           the services they're cleared for, how the portal works, pay, tiers, rewards, referrals, Partner Program, help and
  *           the PDF guide. The push notification stays short.
+ * UPDATED : 2026-11-13_1900 UTC — activating a pro refreshes the website's new-pros chain right away.
  */
 import "server-only";
 import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
@@ -293,6 +294,7 @@ export async function activatePro(contractorId: string, actor: string) {
   const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
+  (await import("./showcase")).refreshShowcase(); // opted-in pros appear on the website now, not in up to 6 hours
   await db().from("ops_alerts").update({ resolved: true }).eq("contractor_id", contractorId).eq("kind", "approve_pro").eq("resolved", false);
   // the full welcome: what they told us and the services they're cleared for, how the portal works, pay, tiers, rewards,
   // referrals and the Partner Program (core pro-welcome.ts), with the PDF guide (docs/HANDLED_PRO_NETWORK_WELCOME_*)

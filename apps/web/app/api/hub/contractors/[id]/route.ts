@@ -7,6 +7,7 @@
  * UPDATED : 2026-10-27_1700 UTC — onboarding wiring: Activate goes through activatePro (logged for time-to-live, and the pro gets
  *           the "You're live" email and push) and "background cleared" through onBackgroundResult (logged, auto-activates when
  *           it was the last step). Before, both only flipped the column.
+ * UPDATED : 2026-11-13_1900 UTC — staff edits refresh the website's new-pros chain right away.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
@@ -40,6 +41,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (Object.keys(update).length) {
     const { error } = await db.from("contractors").update(update).eq("id", id);
     if (error) return Response.json({ error: error.message }, { status: 500 });
+    (await import("@/lib/showcase")).refreshShowcase(); // trades, area or status may be on the pro's website card
   }
   // background cleared by staff: same path as a Checkr result (logged, and the pro goes live if that was the last step)
   if (background_checked) await onBackgroundResult(id, "clear", who);

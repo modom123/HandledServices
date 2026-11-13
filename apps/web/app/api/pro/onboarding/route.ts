@@ -32,8 +32,11 @@
  *             • every database write is checked: a failed save answers with the reason instead of "Saved", and the
  *               uploaded file is removed so nothing is left half-saved.
  * UPDATED : 2026-11-11_2350 UTC — payout step: direct deposit through Stripe only (stripe_connect); no paper checks, no 'account last 4'.
+ * UPDATED : 2026-11-13_1900 UTC — photo step: "Feature me on the website" (showcase_asked=1, showcase=on) saved with the photo;
+ *           photo, specialties and area changes refresh the website's new-pros chain right away.
  */
 import { after } from "next/server";
+import { refreshShowcase } from "@/lib/showcase";
 import { z } from "zod";
 import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
@@ -60,7 +63,7 @@ const Steps = z.discriminatedUnion("step", [
     signed_for: z.string().trim().max(160).optional(), signer_title: z.string().trim().max(80).optional() }),
   z.object({ step: z.literal("specialties") }),
   z.object({ step: z.literal("resume") }),
-  z.object({ step: z.literal("photo") }),
+  z.object({ step: z.literal("photo"), showcase_asked: z.literal("1").optional(), showcase: z.literal("on").optional() }),
   z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   z.object({ step: z.literal("payout"), payout_method: z.literal("stripe_connect") }), // direct deposit through Stripe only (no ACH-by-hand, no paper checks — owner, 2026-11-11)
@@ -143,6 +146,7 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     }).eq("id", id));
     // separate so the rest still saves before the 2026-10-12 migration (zips_only) is run
     await db.from("contractors").update({ zips_only: b.zips_only === "on" && Boolean(typed?.length) }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
+    refreshShowcase(); // the area on their website card
     return done({ located: Boolean(loc), exact: Boolean(loc?.exact) });
   }
   if (b.step === "specialties") {
@@ -151,6 +155,7 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const picked = form.getAll("specialties").map(String).filter((x) => allowed.has(x));
     if (!picked.length) return deny(400, "Pick at least one specialty");
     must(await db.from("contractors").update({ specialties: [...new Set(picked)] }).eq("id", id));
+    refreshShowcase(); // the services on their website card
     return done();
   }
   if (b.step === "resume" || b.step === "photo") {
@@ -160,6 +165,12 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const at = new Date().toISOString();
     must(await db.from("contractor_documents").insert({ contractor_id: id, kind: b.step, storage_path: stored, status: "verified", verified_by: "pro upload", verified_at: at }));
     must(await db.from("contractors").update(b.step === "resume" ? { resume_uploaded_at: at } : { photo_uploaded_at: at }).eq("id", id));
+    if (b.step === "photo") {
+      // "Feature me on the website" asked right under the photo; separate so the photo still saves before the showcase migration
+      if (b.showcase_asked) await db.from("contractors").update({ showcase_opt_in: b.showcase === "on", showcase_opt_in_at: b.showcase === "on" ? at : null }).eq("id", id)
+        .then(({ error }) => error && console.error("[onboarding] showcase", error.message));
+      refreshShowcase();
+    }
     return done({ saved: b.step });
   }
   if (b.step === "coverage" && b.exempt) {

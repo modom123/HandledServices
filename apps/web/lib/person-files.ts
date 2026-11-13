@@ -18,6 +18,7 @@
  *           then saveFile(), which checks the file is really there; hideFile() hides one (nothing is destroyed).
  * UPDATED : 2026-11-06_0600 UTC — profile photo: profilePhoto / setProfilePhoto / clearProfilePhoto (person_profile_photos), so a
  *           file shows the person's face; pros fall back to their onboarding photo.
+ * UPDATED : 2026-11-13_1900 UTC — a pro's profile photo set or cleared → the website's new-pros chain refreshes right away.
  */
 import "server-only";
 import { getService } from "@handled/core";
@@ -267,11 +268,13 @@ export async function setProfilePhoto(o: Owner, fileId: string, by: string): Pro
   if (!f.isImage || /\.hei[cf]$/i.test(f.path)) return { ok: false, error: "Pick a JPG, PNG or WebP photo" };
   const { error } = await db().from("person_profile_photos").upsert({ owner_type: o.type, owner_key: o.key, bucket: f.bucket, path: f.path, set_by: by, set_at: new Date().toISOString() }, { onConflict: "owner_type,owner_key" });
   if (error) return { ok: false, error: /relation|schema cache/i.test(error.message) ? "Profile photos aren't set up yet — run supabase/setup/ADD_PROFILE_PHOTOS_2026-11-06_0600.sql" : error.message };
+  if (o.type === "pro") (await import("./showcase")).refreshShowcase();
   return { ok: true };
 }
 
 export async function clearProfilePhoto(o: Owner) {
   await db().from("person_profile_photos").delete().eq("owner_type", o.type).eq("owner_key", o.key);
+  if (o.type === "pro") (await import("./showcase")).refreshShowcase();
   return { ok: true };
 }
 

@@ -7,9 +7,11 @@
  *           Cached for 6 hours (SHOWCASE.refreshHours), so the chain updates as pros are approved without a database
  *           read on every page view. Photo links are signed for 8 days, longer than the cache. A pro turning it off
  *           clears the cache right away (api/pro/showcase). Returns [] when the database or the migration isn't there.
+ * UPDATED : 2026-11-13_1900 UTC — refreshShowcase(): the chain rebuilds right away when a pro goes live, opts in or out,
+ *           changes their photo, services or area (it used to wait up to 6 hours for anything but opting out).
  */
 import "server-only";
-import { unstable_cache } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { SHOWCASE, showcaseChain, type Contractor, type ShowcaseCard } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
@@ -33,4 +35,12 @@ export async function featuredPros(o: { state?: string | null; limit?: number } 
   const all = await load().catch(() => [] as ShowcaseEntry[]);
   const st = o.state?.toUpperCase() || null;
   return all.filter((c) => !st || c.state === st).slice(0, o.limit ?? SHOWCASE.limit);
+}
+
+/**
+ * Something on the website chain changed (a pro went live, opted in or out, changed their photo, services or area):
+ * rebuild it on the next page view instead of waiting up to 6 hours. Safe to call anywhere; never throws.
+ */
+export function refreshShowcase() {
+  try { revalidateTag(SHOWCASE_TAG, "max"); } catch (e) { console.error("[showcase] refresh", e instanceof Error ? e.message : e); }
 }

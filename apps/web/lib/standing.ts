@@ -16,6 +16,7 @@
  *           Money earned is always paid, whatever the standing.
  * UPDATED : 2026-10-06_1950 UTC — cancel tiers (CANCEL_POLICY, time-zone correct), backups called on release / no-show,
  *           customer told of the change, excuseCancel.
+ * UPDATED : 2026-11-13_1900 UTC — suspend / deactivate / reinstate refreshes the website's new-pros chain right away.
  */
 import "server-only";
 import { BRAND, CANCEL_POLICY, DEACTIVATION_RULES as R, cancelTier, hoursUntilWindow, standingIssues } from "@handled/core";
@@ -152,6 +153,7 @@ export async function setStanding(contractorId: string, action: StandingAction, 
     : action === "reinstate" ? { status: "approved", standing: "good", standing_reason: null, improve_by: null, appeal_by: null, appeal_decide_by: null }
     : { appeal_decide_by: null };
   await db().from("contractors").update(patch).eq("id", contractorId);
+  if ("status" in patch) (await import("./showcase")).refreshShowcase(); // suspended pros leave the website now; reinstated ones return
   const kind = { warn: "warning", suspend: "suspension", deactivate: "deactivation", reinstate: "reinstated", uphold_appeal: "appeal_upheld" }[action];
   await recordStanding(contractorId, kind, { note: reason, actor });
   const appeal = `You can appeal within ${R.appealDays} days from your pro portal; a person decides within ${R.decisionDays} days. Everything you've earned is still paid on the normal schedule.`;
