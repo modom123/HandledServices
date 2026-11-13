@@ -36,10 +36,11 @@
  *           own when every point checks out (core docAutoCheck); otherwise it goes to Handled review (staff open the
  *           policy or call the insurer). The COI step takes the insurer, policy number and agent contact (optional) so
  *           staff can confirm with the insurer. An unreadable file no longer bounces the pro: a person looks first.
+ * UPDATED : 2026-11-13_0200 UTC — license step: "doesn't expire" (USDOT numbers, one-time certifications) instead of a date.
  */
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
+import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, NO_EXPIRY, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { UPLOAD_TYPES, confirmDocUpload, isDocStep, removeDoc, uploadDoc } from "@/lib/photos";
@@ -61,7 +62,9 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("coi"), expires_on: date,
     // optional: lets Handled confirm the policy with the insurer or agent (the second way to verify)
     insurer: z.string().trim().max(120).optional(), policy_number: z.string().trim().max(60).optional(), agent_contact: z.string().trim().max(160).optional() }),
-  z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
+  // a USDOT number or a one-time certification doesn't expire: tick "doesn't expire" instead of a date
+  z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: z.union([date, z.literal("")]).optional(), no_expiry: z.string().optional() })
+    .refine((x) => Boolean(x.expires_on) || Boolean(x.no_expiry), { message: "Add the expiry date, or tick \"doesn't expire\"" }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true"),
     signed_for: z.string().trim().max(160).optional(), signer_title: z.string().trim().max(80).optional() }),
   z.object({ step: z.literal("specialties") }),
@@ -195,7 +198,7 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending", notes: policy }).select("id").single()).data?.id ?? null;
   } else if (b.step === "license") {
     must(await db.from("contractors").update({ license_number: b.license_number }).eq("id", id));
-    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.expires_on, status: "pending", notes: `#${b.license_number}` }).select("id").single()).data?.id ?? null;
+    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.no_expiry ? NO_EXPIRY : b.expires_on || null, status: "pending", notes: `#${b.license_number}${b.no_expiry ? " · doesn't expire" : ""}` }).select("id").single()).data?.id ?? null;
   } else if (b.step === "coverage") {
     docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: b.coverage, storage_path: path, expires_on: b.expires_on, status: "pending", notes: COVERAGES[b.coverage].label }).select("id").single()).data?.id ?? null;
   } else if (b.step === "agreement") {

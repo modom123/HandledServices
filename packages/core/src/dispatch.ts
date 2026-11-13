@@ -21,6 +21,7 @@
  * UPDATED : 2026-10-19_1320 UTC — insurance-optional services (Service.insuranceOptional) skip the general liability check.
  * UPDATED : 2026-11-12_2200 UTC — inProArea: strictly within the pro's radius or ZIP list (who may be texted about a job).
  * UPDATED : 2026-11-12_2355 UTC — + ADDITIONAL_INSURED_BOOST for pros whose COI names Handled as additional insured.
+ * UPDATED : 2026-11-13_0200 UTC — licensed work needs a VERIFIED license (expiry set on verify), not just a number typed in.
  */
 
 import { getService } from "./services.ts";
@@ -129,7 +130,9 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (c.status !== "approved") return "not approved";
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
   if (svc?.licensed && !c.license_number) return "license required";
-  if (svc?.licensed && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
+  // a number typed in isn't enough: Handled verifies it (that sets the expiry date, or NO_EXPIRY)
+  if (svc?.licensed && !c.license_expires) return "license not verified yet";
+  if (svc?.licensed && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
   // remote work (websites, AI, formation, consulting): no driving radius or service area
   const base = svc?.remote ? null : proDistance(c, job);
   const live = svc?.remote ? null : liveDistance(c, job, today);

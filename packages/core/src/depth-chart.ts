@@ -15,6 +15,7 @@
  *           cleared pros, then approved-but-not-cleared, then in camp (onboarding), then prospects (recruiting
  *           pipeline) — each tagged with its tier so the chart can color it, and projectedStatus / wouldCover: what the
  *           roster looks like if everyone in the pipeline signs. Prospects' specialties count for "specialist".
+ * UPDATED : 2026-11-13_0200 UTC — a licensed service is cleared only once Handled has verified the license.
  */
 import { MARKETING_FOCUS } from "./focus.ts";
 import { CATEGORIES, SERVICES, type Service } from "./services.ts";
@@ -50,7 +51,8 @@ export function clearedFor(c: Contractor, svc: Service, today = new Date()): str
   const mine = svc.trades.filter((t) => c.trades.includes(t));
   if (!mine.length) return "trade mismatch";
   if (svc.licensed && !c.license_number) return "license needed";
-  if (svc.licensed && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
+  if (svc.licensed && !c.license_expires) return "license not verified yet";
+  if (svc.licensed && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
   if (!svc.insuranceOptional && (!c.insured_until || new Date(c.insured_until) < today)) return "insurance missing or expired";
   if (!c.background_checked) return "background check pending";
   const missing = requiredCoverages(mine).find((k) => !coverageValid(c.coverage, k, today));

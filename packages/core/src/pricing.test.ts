@@ -170,7 +170,8 @@ test("licensed work only goes to pros with a license on file", async () => {
   };
   const job = { service_slug: "water-heater", zip: "48201", scheduled_date: null };
   assert.equal(rankContractors([base], job).length, 0);
-  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123" }], job).length, 1);
+  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123" }], job).length, 0, "a number typed in isn't enough: Handled verifies it");
+  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123", license_expires: "2099-01-01" }], job).length, 1);
 });
 
 test("onboarding blocks activation until every step is done", async () => {
@@ -192,7 +193,10 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
-  assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, true, "a plumber can start on unlicensed work (garbage disposals); licensed jobs wait for the license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["electrical"] }).complete, false, "an electrician's every service needs a license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["electrical"], license_number: "EL-1" }).complete, false, "typed in, not yet verified");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["freight"], license_number: "USDOT 1234567", license_expires: "9999-12-31" }).steps.find((x) => x.key === "license")?.done, true, "a USDOT number doesn't expire");
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"], license_number: "PL-1", license_expires: future }).complete, true);
   assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, true, "residential cleaners need no bond (bond only for large commercial jobs)");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
@@ -691,8 +695,8 @@ test("transportation: hourly minimums, licensed operators with passenger-carrier
   };
   const job = { service_slug: "limousine", zip: "48201", scheduled_date: null };
   assert.equal(rankContractors([pro], job).length, 0, "needs authority on file");
-  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1" }], job).length, 0, "needs passenger-carrier insurance");
-  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", coverage: { passenger_auto: "2099-01-01" } }], job).length, 1);
+  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", license_expires: "2099-01-01" }], job).length, 0, "needs passenger-carrier insurance");
+  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", license_expires: "2099-01-01", coverage: { passenger_auto: "2099-01-01" } }], job).length, 1);
 });
 
 // ── Calculators: like adding rooms to a house cleaning, more of anything never costs less ──
@@ -2947,4 +2951,16 @@ test("pro PIN: an accepted work order behind the PIN hides the address, customer
   assert.ok(!locked.where.includes("123 Main St") && locked.where.includes("enter your PIN"));
   assert.equal(locked.customer, undefined); assert.equal(locked.access, null);
   assert.ok(!buildWorkOrder(job as never, { reveal: false }).where.includes("123 Main St"), "offers never show it");
+});
+
+test("trade license: optional when some of the pro's work needs none; Handled verifies; licenses that don't expire (2026-11-13)", async () => {
+  const { licenseVerified, servicesNeedingLicense, NO_EXPIRY, onboardingChecklist } = await import("./compliance.ts");
+  const today = new Date("2026-11-13T12:00:00Z");
+  assert.equal(licenseVerified({ license_number: "PL-1", license_expires: null }, today), false, "not verified yet");
+  assert.equal(licenseVerified({ license_number: "PL-1", license_expires: "2026-11-01" }, today), false, "lapsed");
+  assert.equal(licenseVerified({ license_number: "USDOT 1", license_expires: NO_EXPIRY }, today), true, "doesn't expire");
+  assert.ok(servicesNeedingLicense(["plumbing"]).length >= 2 && !servicesNeedingLicense(["plumbing"]).some((n) => /disposal/i.test(n)));
+  const base = { trades: ["plumbing"], license_number: null, license_expires: null } as never;
+  const step = onboardingChecklist({ ...(base as object), trades: ["plumbing"] } as never).steps.find((x) => x.key === "license")!;
+  assert.ok(step.optional && step.done && /Not needed to start/.test(step.detail), "optional, says what it unlocks");
 });

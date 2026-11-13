@@ -33,6 +33,9 @@
  * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
  * UPDATED : 2026-11-12_2330 UTC — docAutoCheck: when the AI reading alone may verify an insurance certificate or coverage
  *           document (everything checks out); anything else goes to Handled review, where staff verify by hand.
+ * UPDATED : 2026-11-13_0200 UTC — the trade license blocks activation only when every service in the pro's trades needs one
+ *           (otherwise optional, unlocking the licensed services, like insurance); NO_EXPIRY for licenses that don't expire
+ *           (USDOT numbers, one-time certifications); licenseVerified: number + verified expiry, not lapsed.
  */
 import { SERVICES } from "./services.ts";
 import { ORIENTATION, orientationStatus } from "./orientation.ts";
@@ -134,8 +137,24 @@ export function servicesNeedingInsurance(trades: string[]): string[] {
 const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
 const valid = (d: string | null) => Boolean(d) && new Date(d!).getTime() >= Date.now() - 86400000;
 
+/** Licenses that don't expire (a USDOT number, a one-time certification): stored as this date. */
+export const NO_EXPIRY = "9999-12-31";
+
+/** A license Handled has verified (the number, and an expiry date — or NO_EXPIRY — set when it was verified) that hasn't lapsed. */
+export function licenseVerified(c: { license_number?: string | null; license_expires?: string | null }, today = new Date()): boolean {
+  return Boolean(c.license_number) && Boolean(c.license_expires) && new Date(`${c.license_expires}T23:59:59`) >= today;
+}
+
+/** The pro's services that need a trade license (what a verified license unlocks). */
+export function servicesNeedingLicense(trades: string[]): string[] {
+  return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && s.licensed).map((s) => s.name);
+}
+
 export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
+  // like insurance: the license blocks activation only when the pro has no work they can do without one
+  const mine = SERVICES.filter((s) => s.trades.some((t) => c.trades.includes(t)));
+  const licenseBlocks = licenseRequired && mine.length > 0 && mine.every((s) => s.licensed);
   const o = orientationStatus(c.orientation);
   const steps: Step[] = [
     { key: "orientation", label: "Welcome to Handled (orientation)", done: o.complete || c.status === "approved", detail: o.complete ? `All ${o.total} lessons done` : `${o.done} of ${ORIENTATION.length} lessons done · about 15 minutes` },
@@ -167,7 +186,17 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     });
   }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push((() => {
+      const done = licenseVerified(c);
+      const until = c.license_expires === NO_EXPIRY ? "no expiry" : `until ${c.license_expires ?? "?"}`;
+      const shown = c.license_number ? `#${c.license_number}${c.license_expires ? ` · ${until}` : " · waiting for Handled to verify"}` : null;
+      // only blocks a pro when EVERY service in their trades needs a license; otherwise it just unlocks the licensed ones
+      if (!licenseBlocks) {
+        const unlocks = servicesNeedingLicense(c.trades);
+        return { key: "license" as const, label: "Trade license — optional", done: true, optional: true, detail: done ? shown! : `${shown ? `${shown}. ` : ""}Not needed to start. Add it to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` };
+      }
+      return { key: "license" as const, label: "Trade license verified", done, detail: shown ?? "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: done && soon(c.license_expires) };
+    })());
   steps.push(
     { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
