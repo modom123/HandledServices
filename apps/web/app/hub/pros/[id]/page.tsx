@@ -15,6 +15,7 @@
  * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
  *           (components/PersonFiles.tsx, lib/person-files.ts).
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
+ * UPDATED : 2026-11-13_0300 UTC — "Does:" — the trades and skills the pro picked, front and center (not the business name).
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -70,7 +71,10 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
           <Link href="/hub/pros" className="text-xs text-ink-soft">← Pros</Link>
           <h1 className="text-2xl font-bold">{pro.business_name} {(pro as { pro_no?: string | null }).pro_no && <span className="font-mono text-base font-normal text-ink-soft">{(pro as { pro_no?: string | null }).pro_no}</span>}</h1>
           <p className="text-sm text-ink-soft">{pro.contact_name} · {pro.phone} · {pro.email} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(pro.email)}`}>Signed contracts</Link></p>
-          <p className="text-xs text-ink-soft">{pro.trades.map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ")} · ZIPs {pro.service_zips.join(", ") || "—"}</p>
+          {/* what they DO (the trades and skills they picked) — requirements and jobs follow these, never the business name */}
+          <div className="mt-1 flex flex-wrap items-center gap-1 text-sm"><span className="font-semibold">Does:</span>{pro.trades.map((t) => <span key={t} className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{TRADES.find((x) => x.id === t)?.label ?? t}</span>)}{!pro.trades.length && <span className="text-rose-700">no trades picked</span>}</div>
+          {specialtiesFor(pro.trades).filter((s) => (pro.specialties ?? []).includes(s.id)).length > 0 && <p className="text-xs text-ink-soft">Skills: {specialtiesFor(pro.trades).filter((s) => (pro.specialties ?? []).includes(s.id)).map((s) => s.label).join(", ")}</p>}
+          <p className="text-xs text-ink-soft">ZIPs {pro.service_zips.join(", ") || "—"} · Requirements follow what they do, not the business name.</p>
           <p className="text-xs text-ink-soft">
             <b>{proTier(pro).badge} {proTier(pro).name}</b>{pro.jobs_completed < PROBATION.jobs ? ` · probation (${PROBATION.jobs - pro.jobs_completed} job(s) left, max $${PROBATION.maxJobPrice})` : ""}
             {" · Specialties: "}{specialtiesFor(pro.trades).filter((x) => pro.specialties?.includes(x.id)).map((x) => x.label).join(", ") || "none chosen"}

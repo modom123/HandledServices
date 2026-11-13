@@ -69,7 +69,7 @@ export default async function ProFile({ params }: { params: Promise<{ id: string
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{String(pro.business_name)}</h1>
           <div className="text-sm text-ink-soft">{String(pro.contact_name)}{pro.legal_name ? ` (legal: ${String(pro.legal_name)})` : ""} · {String(pro.email)} · {String(pro.phone ?? "")}</div>
-          <div className="mt-1 text-sm">{(pro.trades ?? []).map(tradeName).join(" · ")}</div>
+          <div className="mt-1 text-sm"><b>Does:</b> {(pro.trades ?? []).map(tradeName).join(" · ") || "no trades picked"}</div>
           <div className="text-xs text-ink-soft">{pro.status === "approved" ? `Live since ${fmt(pro.onboarded_at as string)}` : "In setup"} · {step("area")?.detail ?? ""}</div>
         </div>
         <div className="text-right"><div className={`text-4xl font-extrabold ${file.pct === 100 ? "text-brand" : file.pct < 60 ? "text-rose-700" : ""}`}>{file.pct}%</div><div className="text-xs text-ink-soft">file complete</div></div>

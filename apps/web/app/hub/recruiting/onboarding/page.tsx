@@ -52,7 +52,7 @@ export default async function Onboarding() {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Link href={`/hub/pros/${r.c.id}`} className="font-semibold underline decoration-dotted">{String(r.c.business_name)}</Link>
-          <div className="text-xs text-ink-soft">{String(r.c.contact_name)} · {String(r.c.email)} · {(r.c.trades ?? []).join(", ")} · invited {days(r.c.invited_at as string) ?? "?"}d ago · {Number(r.c.onboarding_reminders ?? 0)} reminder(s)</div>
+          <div className="text-xs text-ink-soft">{String(r.c.contact_name)} · {String(r.c.email)} · <b>Does: {((r.c.trades ?? []) as string[]).map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ") || "no trades picked"}</b> · invited {days(r.c.invited_at as string) ?? "?"}d ago · {Number(r.c.onboarding_reminders ?? 0)} reminder(s)</div>
         </div>
         <div className="text-right text-xs"><div className="font-semibold">{r.done}/{r.steps.length} steps</div>{r.bg && <div className={["consider", "suspended"].includes(r.bg) ? "font-semibold text-rose-700" : "text-ink-soft"}>background: {r.bg}</div>}</div>
       </div>

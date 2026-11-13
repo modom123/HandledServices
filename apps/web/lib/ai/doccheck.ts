@@ -8,6 +8,8 @@
  *           to the document and verify in one click. Advisory only — a human verifies.
  * UPDATED : 2026-11-12_2355 UTC — reads additional insured and certificate holder separately (either is accepted;
  *           additional insured gives the pro priority for jobs).
+ * UPDATED : 2026-11-13_0300 UTC — judged against the trades the pro selected, never their business name (a cleaner called
+ *           "EV Screening and Compliance" is a cleaner); the name is used only to match the named insured.
  */
 import "server-only";
 import { z } from "zod";
@@ -40,8 +42,10 @@ export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boo
   return structured({
     kind: "doc_check",
     schema: DocSchema,
-    system: "You check contractor compliance documents for a home-services marketplace. Read only what the document shows; never guess numbers or dates. Today's date matters for expiry.",
-    content: [block, { type: "text", text: `Today: ${new Date().toISOString().slice(0, 10)}\nPro: ${o.pro.business_name}${o.pro.legal_name ? ` (legal name ${o.pro.legal_name})` : ""}\nUploaded as: ${o.kind}${o.claimedExpiry ? `, pro says it expires ${o.claimedExpiry}` : ""}\nRequirement: ${need}` }] as ContentBlocks,
+    system: "You check contractor compliance documents for a home-services marketplace. Read only what the document shows; never guess numbers or dates. Today's date matters for expiry. " +
+      "Judge the requirement ONLY against the trades the pro selected (listed below). The business name is used for one thing: checking the named insured is this pro (allow DBA / LLC / personal-name variations). " +
+      "Never infer the pro's work from their business name, and never fail a document because the business name or the policy's description of operations suggests other work — a general liability policy covers the pro whatever the business is called.",
+    content: [block, { type: "text", text: `Today: ${new Date().toISOString().slice(0, 10)}\nPro (for the name match only): ${o.pro.business_name}${o.pro.legal_name ? ` (legal name ${o.pro.legal_name})` : ""}\nTrades they selected (what they do): ${o.pro.trades.join(", ") || "—"}\nUploaded as: ${o.kind}${o.claimedExpiry ? `, pro says it expires ${o.claimedExpiry}` : ""}\nRequirement: ${need}` }] as ContentBlocks,
     effort: "low",
     maxTokens: 4000,
   });
