@@ -49,6 +49,8 @@
  *           (with the support number) and frees the button, instead of leaving "Finalizing your price…" spinning.
  * UPDATED : 2026-11-12_1900 UTC — name your price posts the job on the pro job board: "Post my job for $1" (no payment-plan
  *           choice), up for 90 days, the price charged to the same card when a pro takes it; the day and slot don't have to be open.
+ * UPDATED : 2026-11-13_0400 UTC — name your price: the box can be cleared to type a new price (it used to refill with our
+ *           price the moment it was empty, so customers couldn't enter their own); our price shows as the placeholder.
  */
 "use client";
 
@@ -515,7 +517,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-1 text-xs text-ink-soft">{locale === "es" ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</p>
               <div className="mt-2 flex items-center gap-2">
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).floor, Math.round(listTotal * 0.95))))}>−5%</button>
-                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer || String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, ""))} aria-label={t("Your price")} /></div>
+                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer} placeholder={String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, "").slice(0, 7))} aria-label={t("Your price")} /></div>
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
               </div>
               {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.` : `Offers start at ${money(offerChk.floor)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
