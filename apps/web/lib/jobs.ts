@@ -59,10 +59,12 @@
  * UPDATED : 2026-11-10_1915 UTC — checkout never fails on a missing optional column (open_offer_until for name-your-price offers
  *           below our usual price, priced_by / pro_rate_pct, home_id): the booking is saved without it and staff get a critical
  *           alert naming the SQL to run.
+ * UPDATED : 2026-11-13_1800 UTC — job-offer emails open with an "at a glance" summary and how to respond (offerEmailText),
+ *           then the full work order.
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, offerEmailText, estimatedJobHours, proDistance, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -721,6 +723,8 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? (svc.remote ? "Nueva consulta" : "Nueva visita al sitio") : "Nuevo trabajo"} · ${pay ? money(pay) : visitEs}`;
     const whyEs = offerKind === "favorite" ? `Este cliente ${asked ? "lo pidió a usted" : "lo marcó como favorito"}: usted lo ve primero por ${hrsEs}. Puede pasar sin costo; luego se ofrece a otros profesionales.${crewAskHere ? ` Pidieron a ${crewAskHere}; usted decide quién va.` : ""}` : offerKind === "account" ? `La empresa lo eligió como uno de sus profesionales: usted lo ve primero por ${hours} horas. El primero en aceptar se lo lleva.` : offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
     const tz = jobTimeZone(job); // Washington jobs: Pacific time
+    const miles = svc.remote ? null : proDistance(pro, job);
+    const estHours = opts.siteVisit ? null : estimatedJobHours(job);
     const expiresEs = `${new Date(expires).toLocaleTimeString("es-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}`;
     const why = offerKind === "favorite" ? `This customer ${asked ? "asked for you" : "favorited you"}: you see it first for ${hrs}. Pass at no cost; then it goes to other pros.${crewAskHere ? ` They asked for ${crewAskHere}; who goes is your call.` : ""}` : offerKind === "account" ? `The business picked you as one of its pros: you see it first for ${hours} hours. First to accept gets it.` : offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
     await notify(pro.profile_id, {
@@ -730,13 +734,15 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
       channel: "offers",
       sms: { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` },
       email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? visitEn : "job"} offer: ${svc.name} · ${pay ? money(pay) : visitEn} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
-        text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
+        text: offerEmailText(order0, { intro: offerKind === "job" ? null : why, miles, hours: estHours, url: `${siteUrl()}/pro/offers/${offerId}`, rule: offerKind === "job" ? "First to accept gets it." : null,
+          answerBy: `${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}, ${new Date(expires).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz })}` }) },
       es: {
         title: leadEs,
         body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}`,
         sms: `${BRAND.name}: ${leadEs} — ${nameEs}, ${job.city} ${job.zip}, ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs} ${siteUrl()}/pro/offers/${offerId}`,
         subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? visitEs : "trabajo"}: ${nameEs} · ${pay ? money(pay) : visitEs} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
-        text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: gross, locale: "es", agreementVersion: pro.agreement_version }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
+        text: offerEmailText(buildWorkOrder(job, { reveal: false, payout: gross, locale: "es", agreementVersion: pro.agreement_version }), { locale: "es", intro: offerKind === "job" ? null : whyEs, miles, hours: estHours,
+          url: `${siteUrl()}/pro/offers/${offerId}`, rule: offerKind === "job" ? "El primero en aceptar se lo lleva." : null, answerBy: expiresEs }),
       },
     });
   }

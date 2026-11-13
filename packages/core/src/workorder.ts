@@ -14,12 +14,17 @@
  * UPDATED : 2026-10-28_0122 UTC — referred jobs: the pro's half of the partner's share is a job term (v4).
  * UPDATED : 2026-11-06_1800 UTC — the referral fee uses the rate locked on the job (partner-v4, jobs.partner_rate).
  * UPDATED : 2026-11-06_1800 UTC — the payout shown is the pro's NET pay; no referral-fee term or math on the work order.
+ * UPDATED : 2026-11-13_1800 UTC — offerEmailText(): every offer email (new job, backup call, standby) opens with an
+ *           "at a glance" summary (pay, job, when, where + miles, est. time on site, answer-by) and how to respond,
+ *           then the full work order — pros were getting offer emails without enough detail to decide.
+ * UPDATED : 2026-11-13_1830 UTC — before acceptance, codes/PINs and the street address typed into customer notes or
+ *           instructions are masked (hideBeforeAccept); they show in full on the accepted work order.
  */
 import { AGREEMENT_VERSION } from "./compliance.ts";
 import { proNetPay, type ProPayJob } from "./pro-pay.ts";
 import { BRAND } from "./brand.ts";
 import { money, moneyCents } from "./pricing.ts";
-import { getService } from "./services.ts";
+import { applyMeasurements, getService, type Answers } from "./services.ts";
 import { TIME_WINDOW_LABEL, type Job } from "./types.ts";
 import { serviceText, t as tr, type Locale } from "./i18n.ts";
 import { checklistText, resolveChecklist, type ChecklistExtra, type JobChecklist } from "./checklists.ts";
@@ -111,16 +116,28 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     when: `${date} · ${L(TIME_WINDOW_LABEL[job.time_window])}`,
     where: opts.reveal ? `${job.address}, ${job.city}, ${job.state} ${job.zip}` : `${job.city}, ${job.state} ${job.zip} ${es ? "(dirección exacta al aceptar)" : "(exact address after you accept)"}`,
     revealed: opts.reveal,
-    checklist: resolveChecklist({ service_slug: job.service_slug, answers: job.answers as Record<string, unknown>, notes: job.notes, instructions: job.instructions, checklist: job.checklist, checklist_extra: job.checklist_extra }),
+    checklist: resolveChecklist({ service_slug: job.service_slug, answers: job.answers as Record<string, unknown>, notes: opts.reveal ? job.notes : hideBeforeAccept(job.notes, job.address), instructions: opts.reveal ? job.instructions : hideBeforeAccept(job.instructions, job.address), checklist: job.checklist, checklist_extra: job.checklist_extra }),
     customer: opts.reveal ? { name: job.contact_name, phone: job.contact_phone, company: job.company_name } : undefined,
     access: opts.reveal ? job.access_info ?? null : null,
     scope,
     includes: (svc?.includes ?? []).map(L),
-    customerNotes: job.notes,
-    instructions: job.instructions ?? null,
+    customerNotes: opts.reveal ? job.notes : hideBeforeAccept(job.notes, job.address),
+    instructions: opts.reveal ? job.instructions ?? null : hideBeforeAccept(job.instructions, job.address),
     photos: L("Before and after photos of every area — required to complete the job and release your payout."),
     terms,
   };
+}
+
+/**
+ * Before a pro accepts, nothing in free text may give away the exact address or a way in: entry codes, PINs, lockbox
+ * and alarm codes, passwords, and the street address itself are masked. The accepted work order shows them in full.
+ */
+export function hideBeforeAccept(text: string | null | undefined, address?: string | null): string | null {
+  if (!text) return text ?? null;
+  let out = text.replace(/\b(pin|code|passcode|password|pass|combo|combination|lock ?box|key ?box|gate|garage|alarm|door|keypad|wifi|wi-fi)\b([^\n\d]{0,20})[\w#*-]*\d[\w#*-]*/gi, (_m, k: string, gap: string) => `${k}${gap}[shown after you accept]`);
+  const street = address?.split(",")[0]?.trim();
+  if (street && street.length >= 5) out = out.split(new RegExp(street.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig")).join("[address shown after you accept]");
+  return out.replace(/\b\d{1,6}\s+(?:[NSEW]\.?\s+)?[A-Za-z0-9.' -]{2,30}\s(?:st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|ln|lane|ct|court|way|pl|place|ter|terrace|pkwy|parkway|cir|circle|hwy|highway)\b\.?/gi, "[address shown after you accept]");
 }
 
 /** Plain-text work order for emails. */
@@ -146,5 +163,82 @@ export function workOrderText(w: WorkOrder, locale?: Locale | string | null): st
     "",
     es ? `CONDICIONES DEL TRABAJO (orden de trabajo v${w.version})` : `JOB TERMS (work order v${w.version})`,
     ...w.terms.map((t) => `• ${t}`),
+  ].join("\n");
+}
+
+/** Rough time on site for one crew (the service's own labor-hours estimate), rounded to the half hour. Null when unknown. */
+export function estimatedJobHours(job: Pick<Job, "service_slug" | "answers">): number | null {
+  const svc = getService(job.service_slug);
+  if (!svc || svc.remote) return null;
+  try {
+    const h = svc.price(applyMeasurements(svc.questions, (job.answers ?? {}) as Answers)).hours;
+    return Number.isFinite(h) && h > 0 ? Math.max(0.5, Math.round(h * 2) / 2) : null;
+  } catch { return null; }
+}
+
+/**
+ * The full offer email a pro gets: a short "at a glance" block they can decide from in ten seconds, how to answer,
+ * then the full work order. Used for new job offers, backup calls and standby requests.
+ */
+export function offerEmailText(w: WorkOrder, o: {
+  locale?: Locale | string | null;
+  /** One or two lines on why this offer came to them (favorite, recurring, backup #2…). */
+  intro?: string | null;
+  /** Miles from the pro's base (or live location). */
+  miles?: number | null;
+  hours?: number | null;
+  /** "3:15 PM ET" etc. */
+  answerBy?: string | null;
+  /** "First to accept gets it." / "Accept within 10 minutes or it goes to the next backup." */
+  rule?: string | null;
+  url: string;
+  /** Standby requests: the pay is only earned if they're called. */
+  standby?: boolean;
+}): string {
+  const es = o.locale === "es";
+  const scope = w.scope.filter((s) => s.value && s.value !== "—" && !/^(No|0)$/.test(s.value)).slice(0, 4).map((s) => `${s.label}: ${s.value}`).join(" · ");
+  const miles = o.miles != null && Number.isFinite(o.miles) ? Math.max(1, Math.round(o.miles)) : null;
+  const hrs = o.hours ? `${o.hours % 1 ? o.hours.toFixed(1) : o.hours} ${es ? (o.hours === 1 ? "hora" : "horas") : o.hours === 1 ? "hour" : "hours"}` : null;
+  const glance = es
+    ? [
+        "RESUMEN",
+        `• Usted gana: ${w.payout}${o.standby ? " si lo llamamos y hace el trabajo" : ""} (el cliente ya pagó; nunca cobre directamente)`,
+        `• Trabajo: ${w.icon} ${w.title}`,
+        ...(scope ? [`• Detalles: ${scope}`] : []),
+        `• Cuándo: ${w.when}`,
+        `• Dónde: ${w.where}${miles ? ` — a unas ${miles} millas de su base` : ""}`,
+        ...(w.revealed ? [] : ["• La dirección exacta y los códigos de entrada (PIN, caja de llaves) se le envían en cuanto acepte."]),
+        ...(hrs ? [`• Tiempo estimado en el sitio: unas ${hrs}`] : []),
+        ...(o.answerBy ? [`• Responda antes de: ${o.answerBy}`] : []),
+      ]
+    : [
+        "AT A GLANCE",
+        `• You earn: ${w.payout}${o.standby ? " if you're called and do the job" : ""} (the customer has prepaid; never collect payment)`,
+        `• Job: ${w.icon} ${w.title}`,
+        ...(scope ? [`• Details: ${scope}`] : []),
+        `• When: ${w.when}`,
+        `• Where: ${w.where}${miles ? ` — about ${miles} mi from your base` : ""}`,
+        ...(w.revealed ? [] : ["• The exact address and entry details (PIN, lockbox or gate code) are sent the moment you accept."]),
+        ...(hrs ? [`• Est. time on site: about ${hrs}`] : []),
+        ...(o.answerBy ? [`• Answer by: ${o.answerBy}`] : []),
+      ];
+  const respond = o.standby
+    ? es
+      ? ["CÓMO RESPONDER", `Confirme que puede dejar ese horario libre, o pase sin costo: ${o.url}`, "Pasar nunca cuenta en su contra."]
+      : ["HOW TO RESPOND", `Confirm you can keep that time open, or pass at no cost: ${o.url}`, "Passing never counts against you."]
+    : es
+      ? ["CÓMO RESPONDER", `${o.rule ? `${o.rule} ` : ""}Abra la oferta para Aceptar, Pasar o hacer una Contraoferta con el pago que quiere:`, o.url, `o abra la app ${BRAND.name} Pro. Pasar o dejar vencer una oferta nunca cuenta en su contra.`]
+      : ["HOW TO RESPOND", `${o.rule ? `${o.rule} ` : ""}Open the offer to Accept, Pass, or Counter with the pay you want:`, o.url, `or open the ${BRAND.name} Pro app. Passing or letting an offer expire never counts against you.`];
+  return [
+    ...(o.intro ? [o.intro, ""] : []),
+    ...glance,
+    "",
+    ...respond,
+    "",
+    es ? "─── ORDEN DE TRABAJO COMPLETA ───" : "─── FULL WORK ORDER ───",
+    workOrderText(w, o.locale),
+    "",
+    `${es ? "¿Preguntas sobre este trabajo? Responda a este correo o llame" : "Questions about this job? Reply to this email or call"} ${BRAND.supportPhone}.`,
+    `— ${BRAND.name}`,
   ].join("\n");
 }

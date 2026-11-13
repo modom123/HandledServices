@@ -14,9 +14,11 @@
  *                                    with nobody on them raise a critical alert.
  *           Credit follows the work: whoever completes the job is paid, rated and credited (tier, Rewards); a backup
  *           who takes it gets their own tier pay.
+ * UPDATED : 2026-11-13_1800 UTC — backup-call and standby emails use offerEmailText(): pay, job details, when, where + miles,
+ *           est. time on site, answer-by and the full work order (they used to carry only service, ZIP, date and pay).
  */
 import "server-only";
-import { BACKUPS, BRAND, TIME_WINDOW_LABEL, backupAnswerMinutes, getService, hoursUntilWindow, money, nextBackup, openBackupRanks, proTier, rankContractors, tierPayout, type BackupRow, type Contractor, type Job } from "@handled/core";
+import { BACKUPS, BRAND, TIME_WINDOW_LABEL, backupAnswerMinutes, buildWorkOrder, estimatedJobHours, jobTimeZone, zoneLabel, offerEmailText, proDistance, getService, hoursUntilWindow, money, nextBackup, openBackupRanks, proTier, rankContractors, tierPayout, type BackupRow, type Contractor, type Job } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { notify } from "./push";
@@ -63,12 +65,14 @@ export async function lineUpBackups(jobId: string): Promise<number> {
       body: `${svc?.icon ?? ""} ${svc?.name} · ${job.city} ${job.zip} · ${whenOf(job)} · ${money(pay)} if you're called. Can you cover?`,
       data: { type: "pro_home" },
       email: { to: p.contractor.email, subject: `Can you be backup #${rank}? ${svc?.name} · ${job.zip} · ${job.scheduled_date}`,
-        text: `A pro is booked for this job. We line up backups so customers are never left waiting.\n\n${svc?.name} · ${job.city} ${job.zip}\n${whenOf(job)}\nPays ${money(pay)} if you're called and do the job.\n\nIf the booked pro can't make it, you get the first call (backup #${rank}). No obligation now — confirm if you can keep that time open, or pass.\n\nAnswer: ${siteUrl()}/pro#standby\n\n— ${BRAND.name}` },
+        text: offerEmailText(buildWorkOrder(job, { reveal: false, payout: pay, agreementVersion: p.contractor.agreement_version }), { standby: true, miles: svc?.remote ? null : proDistance(p.contractor, job), hours: estimatedJobHours(job), url: `${siteUrl()}/pro#standby`,
+          intro: `A pro is already booked for this job. We line up backups so customers are never left waiting. If the booked pro can't make it, you get the first call (backup #${rank}). No obligation now.` }) },
       es: {
         title: `Solicitud de respaldo: respaldo n.º ${rank}`,
         body: `${svc?.name} · ${job.city} ${job.zip} · ${job.scheduled_date} · ${money(pay)} si lo llamamos. ¿Puede cubrir?`,
         subject: `¿Puede ser el respaldo n.º ${rank}? ${svc?.name} · ${job.zip} · ${job.scheduled_date}`,
-        text: `Hay un profesional reservado para este trabajo. Tenemos respaldos para que el cliente nunca se quede esperando.\n\n${svc?.name} · ${job.city} ${job.zip} · ${job.scheduled_date}\nPaga ${money(pay)} si lo llamamos y hace el trabajo.\n\nSi el profesional no puede ir, usted recibe la primera llamada (respaldo n.º ${rank}). Sin obligación ahora: confirme si puede dejar ese horario libre, o pase.\n\nResponda: ${siteUrl()}/pro#standby\n\n— ${BRAND.name}`,
+        text: offerEmailText(buildWorkOrder(job, { reveal: false, payout: pay, locale: "es", agreementVersion: p.contractor.agreement_version }), { locale: "es", standby: true, miles: svc?.remote ? null : proDistance(p.contractor, job), hours: estimatedJobHours(job), url: `${siteUrl()}/pro#standby`,
+          intro: `Ya hay un profesional reservado para este trabajo. Tenemos respaldos para que el cliente nunca se quede esperando. Si el profesional no puede ir, usted recibe la primera llamada (respaldo n.º ${rank}). Sin obligación ahora.` }),
       },
     });
   }
@@ -143,19 +147,24 @@ export async function callNextBackup(jobId: string, exclude: string[] = []): Pro
   await addEvent(jobId, "dispatch", `Backup #${next.rank} called (${minutes} min to answer)`, "system", false);
   const svc = getService(job.service_slug);
   const p = pro as Contractor;
+  const miles = svc?.remote ? null : proDistance(p, job);
+  const tz = jobTimeZone(job);
+  const answerBy = (loc: "en" | "es") => `${new Date(expires).toLocaleTimeString(loc === "es" ? "es-US" : "en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}`;
   await notify(p.profile_id, {
     title: `🚨 Backup call: you're up (#${next.rank})`,
     body: `${svc?.name} · ${job.city} ${job.zip} · ${whenOf(job)} · ${money(pay)}. Accept within ${minutes} min.`,
     data: { type: "offer", offerId: offer?.id },
     channel: "offers",
     sms: { to: p.phone, body: `${BRAND.name} BACKUP CALL: the booked pro can't make ${svc?.name} in ${job.city} ${job.zip}, ${whenOf(job)}. ${money(pay)}. You're backup #${next.rank} — accept within ${minutes} min: ${siteUrl()}/pro/offers/${offer?.id}` },
-    email: { to: p.email, subject: `Backup call: ${svc?.name} · ${job.zip} · ${money(pay)} — answer within ${minutes} min`, text: `You're backup #${next.rank} and the booked pro can't make it.\n\n${svc?.name} · ${job.city} ${job.zip}\n${whenOf(job)}\nPays ${money(pay)}\n\nAccept within ${minutes} minutes or it goes to the next backup:\n${siteUrl()}/pro/offers/${offer?.id}\n\n— ${BRAND.name}` },
+    email: { to: p.email, subject: `Backup call: ${svc?.name} · ${job.zip} · ${money(pay)} — answer within ${minutes} min`, text: offerEmailText(buildWorkOrder(job, { reveal: false, payout: pay, agreementVersion: p.agreement_version }), { miles, hours: estimatedJobHours(job), url: `${siteUrl()}/pro/offers/${offer?.id}`,
+      intro: `You're backup #${next.rank} and the booked pro can't make it. The job is yours if you accept first.`, rule: `Accept within ${minutes} minutes or it goes to the next backup.`, answerBy: answerBy("en") }) },
     es: {
       title: `🚨 Llamada de respaldo: le toca (n.º ${next.rank})`,
       body: `${svc?.name} · ${job.city} ${job.zip} · ${job.scheduled_date} · ${money(pay)}. Acepte en ${minutes} min.`,
       sms: `${BRAND.name} LLAMADA DE RESPALDO: el profesional reservado no puede ir a ${svc?.name} en ${job.city} ${job.zip}, ${job.scheduled_date}. ${money(pay)}. Es el respaldo n.º ${next.rank} — acepte en ${minutes} min: ${siteUrl()}/pro/offers/${offer?.id}`,
       subject: `Llamada de respaldo: ${svc?.name} · ${job.zip} · ${money(pay)} — responda en ${minutes} min`,
-      text: `Usted es el respaldo n.º ${next.rank} y el profesional reservado no puede ir.\n\n${svc?.name} · ${job.city} ${job.zip} · ${job.scheduled_date}\nPaga ${money(pay)}\n\nAcepte en ${minutes} minutos o pasa al siguiente respaldo:\n${siteUrl()}/pro/offers/${offer?.id}\n\n— ${BRAND.name}`,
+      text: offerEmailText(buildWorkOrder(job, { reveal: false, payout: pay, locale: "es", agreementVersion: p.agreement_version }), { locale: "es", miles, hours: estimatedJobHours(job), url: `${siteUrl()}/pro/offers/${offer?.id}`,
+        intro: `Usted es el respaldo n.º ${next.rank} y el profesional reservado no puede ir. El trabajo es suyo si acepta primero.`, rule: `Acepte en ${minutes} minutos o pasa al siguiente respaldo.`, answerBy: answerBy("es") }),
     },
   });
   return { called: next.contractor_id };

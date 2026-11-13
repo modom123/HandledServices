@@ -2828,3 +2828,19 @@ test("business leads: new outreach domain warms up; list health; re-engagement e
   assert.match(e.text, /1 Main St/);
   assert.equal(bizReengageEmail({ ...ctx, step: 5 }).subject, "Closing the loop");
 });
+
+// ─── Offer emails (added 2026-11-13_1830 UTC) ───────────────────────────────
+import { buildWorkOrder, hideBeforeAccept, offerEmailText } from "./workorder.ts";
+
+test("offer emails: details up front, no address or entry codes until accepted", () => {
+  const svc = getService("house-cleaning") ?? SERVICES[0];
+  const job = { ref: "HS-1", service_slug: svc.slug, answers: defaultAnswers(svc), notes: "Gate code 4821, park at 123 Maple St.", instructions: "Alarm PIN: 5566#",
+    scheduled_date: "2026-11-18", time_window: "morning", address: "123 Maple St", city: "Detroit", state: "MI", zip: "48201", contact_name: "J", contact_phone: "1", company_name: null,
+    contractor_payout: 140, price_final: 200, payment_plan: "full", paid_at: "x" } as unknown as Parameters<typeof buildWorkOrder>[0];
+  const text = offerEmailText(buildWorkOrder(job, { reveal: false, payout: 140 }), { miles: 6.6, hours: 2, url: "https://x/pro/offers/1", answerBy: "11:15 AM ET" });
+  for (const s of ["AT A GLANCE", "You earn: $140", "Detroit, MI 48201", "about 7 mi", "about 2 hours", "Answer by: 11:15 AM ET", "https://x/pro/offers/1", "FULL WORK ORDER"]) assert.ok(text.includes(s), s);
+  for (const s of ["4821", "5566", "123 Maple"]) assert.ok(!text.includes(s), `leaked ${s}`);
+  assert.match(buildWorkOrder(job, { reveal: true, payout: 140 }).customerNotes!, /4821.*123 Maple St/);
+  assert.equal(hideBeforeAccept("Lockbox: 0937, then knock"), "Lockbox: [shown after you accept], then knock");
+  assert.equal(hideBeforeAccept("Bring 2 ladders"), "Bring 2 ladders");
+});
