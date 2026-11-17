@@ -10,10 +10,11 @@
  *           additional insured gives the pro priority for jobs).
  * UPDATED : 2026-11-13_0300 UTC — judged against the trades the pro selected, never their business name (a cleaner called
  *           "EV Screening and Compliance" is a cleaner); the name is used only to match the named insured.
+ * UPDATED : 2026-11-17_2045 UTC — the license it checks for is the one for the pro's state (core licenseFor).
  */
 import "server-only";
 import { z } from "zod";
-import { BRAND, COVERAGES, TRADE_PROFILES, glMinimum, type CoverageKey } from "@handled/core";
+import { licenseFor, BRAND, COVERAGES, TRADE_PROFILES, glMinimum, type CoverageKey } from "@handled/core";
 import { structured, type ContentBlocks } from "./client";
 
 const DocSchema = z.object({
@@ -31,8 +32,8 @@ const DocSchema = z.object({
 });
 export type DocCheck = z.infer<typeof DocSchema>;
 
-export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boolean; pro: { business_name: string; legal_name?: string | null; trades: string[] }; claimedExpiry?: string | null }): Promise<DocCheck | null> {
-  const trades = o.pro.trades.map((t) => `${t}${TRADE_PROFILES[t]?.license ? ` (license: ${TRADE_PROFILES[t].license})` : ""}`).join("; ");
+export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boolean; pro: { business_name: string; legal_name?: string | null; trades: string[]; base_state?: string | null }; claimedExpiry?: string | null }): Promise<DocCheck | null> {
+  const trades = o.pro.trades.map((t) => `${t}${TRADE_PROFILES[t]?.license ? ` (license: ${licenseFor(TRADE_PROFILES[t].license, o.pro.base_state ?? null)})` : ""}`).join("; ");
   const need =
     o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or listed as certificate holder (either is accepted; say which), not expired.`
     : o.kind === "license" ? `A current state license that covers these trades: ${trades}.`

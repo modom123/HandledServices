@@ -40,7 +40,7 @@ export const COVERAGE_KINDS = ["auto", "workers_comp", "bond", "liquor", "passen
 export const COVERAGES: Record<CoverageKey, { label: string; detail: string }> = {
   gl: { label: "General liability", detail: `Per-occurrence limit shown for your trade, $2M aggregate. ${BRAND.legalName} named as additional insured or certificate holder.` },
   auto: { label: "Commercial auto", detail: "$1M combined single limit on the vehicle used for jobs. Personal auto policies usually exclude business use." },
-  workers_comp: { label: "Workers' comp", detail: "Required if you have employees (Michigan law). Solo owners sign a no-employees statement instead." },
+  workers_comp: { label: "Workers' comp", detail: "Required if you have employees (state law in most states). Solo owners sign a no-employees statement instead." },
   bond: { label: "Fidelity / janitorial bond", detail: "$10,000+ dishonesty bond for unsupervised in-home access. Usually about $100–200 a year." },
   passenger_auto: { label: "Passenger carrier auto liability", detail: "$1.5M combined single limit for vehicles seating up to 15 passengers, $5M for 16 or more (federal minimums for interstate passenger carriers; venues and corporate clients expect it for local trips too). Every vehicle and driver listed." },
   liquor: { label: "Liquor liability", detail: "$1M, required whenever alcohol is served. Alcohol service also needs the proper MLCC license." },

@@ -15,13 +15,15 @@
  * UPDATED : 2026-10-27_1800 UTC — pro application: utm_source becomes the source (Indeed applicants counted as Indeed), and
  *           ?opening=pro:<trade> / ?trade= pre-selects that trade.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji, and the trade picker scrolls in a short box.
+ * UPDATED : 2026-11-17_2045 UTC — pro sign-up in all 50 states: the ZIP field shows the state it's in and that services appear
+ *           for customers there once the pro is approved.
  */
 "use client";
 
 import { SmsConsent } from "./SmsConsent";
 import { ThemedIcon } from "@/components/Glyph";
 import { useEffect, useState } from "react";
-import { COVERAGES, MAX_TRADES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
+import { stateForZip, stateName, COVERAGES, MAX_TRADES, TRADES, TRADE_PROFILES, specialtiesFor, t as tr, type CoverageKey, type Locale } from "@handled/core";
 
 function useSubmit(url: string) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
@@ -70,6 +72,9 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
     if (want && TRADES.some((x) => x.id === want)) setTrades((cur) => (cur.length ? cur : [want]));
   }, []);
   const [insured, setInsured] = useState(false);
+  const [zipText, setZipText] = useState("");
+  // all 50 states (2026-11-17): the state their first ZIP is in, shown back to them
+  const zipState = stateName(stateForZip(zipText.match(/\d{5}/)?.[0] ?? ""));
   const [specialties, setSpecialties] = useState<string[]>([]);
   const specialtyOptions = specialtiesFor(trades).map((s) => ({ id: s.id, label: t(s.label) }));
   const tradeOptions = TRADES.map((x) => ({ id: x.id, label: t(x.label) }));
@@ -108,7 +113,8 @@ export function ApplyForm({ locale = "en" }: { locale?: Locale }) {
         </p>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label className="label">{t("ZIP codes you serve")}</label><input name="zips" className="input" placeholder="48201, 48202" inputMode="numeric" /></div>
+        <div><label className="label">{t("ZIP codes you serve")}</label><input name="zips" className="input" placeholder={es ? "Sus códigos postales, p. ej. 75201, 75202" : "Your ZIP codes, e.g. 75201, 75202"} inputMode="numeric" value={zipText} onChange={(e) => setZipText(e.target.value)} />
+          <p className="mt-1 text-xs text-ink-soft">{zipState ? (es ? `✓ ${zipState}. Aceptamos profesionales en los 50 estados: sus servicios aparecen en el sitio para los clientes de su zona en cuanto lo aprobemos.` : `✓ ${zipState}. We take pros in all 50 states — your services show up on the website for customers in your area as soon as you're approved.`) : (es ? "Aceptamos profesionales en los 50 estados." : "We take pros in all 50 states.")}</p></div>
         <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={insured} onChange={(e) => setInsured(e.target.checked)} /> {t("I carry general liability insurance")}</label>
       </div>
       <div><label className="label">{t("How did you hear about us?")}</label>

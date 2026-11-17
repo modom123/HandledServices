@@ -3082,3 +3082,21 @@ test("referred jobs go only to pros on the current pro agreement; other jobs to 
   assert.equal(proCanTakeReferredJob({ partner_id: "p1", partner_rate: null }, "2026-10-v3", PRO_AGREEMENT_NOW), true, "legacy job: Handled pays alone");
   assert.equal(proCanTakeReferredJob({ partner_id: "p1", partner_rate: 0.15, partner_tier: null }, "2026-10-v3", PRO_AGREEMENT_NOW), true, "partner-v7 job: Handled pays alone");
 });
+
+// ─── Pros in all 50 states (us-states.ts) — 2026-11-17_2045 UTC ───────────────────────────────────
+import { US_STATES, stateForZip, stateName, licenseFor } from "./us-states.ts";
+
+test("all 50 states + DC; ZIP → state; license line for the pro's own state", () => {
+  assert.equal(US_STATES.length, 51);
+  for (const [zip, st] of [["48201", "MI"], ["98101", "WA"], ["10001", "NY"], ["07030", "NJ"], ["89101", "NV"], ["75201", "TX"], ["73301", "TX"], ["90210", "CA"], ["33101", "FL"], ["60601", "IL"], ["20001", "DC"], ["20101", "VA"], ["02108", "MA"], ["01001", "MA"], ["99501", "AK"], ["96801", "HI"], ["43215", "OH"], ["30301", "GA"], ["39813", "GA"], ["05501", "MA"], ["88510", "TX"]] as const)
+    assert.equal(stateForZip(zip), st, zip);
+  assert.equal(stateForZip("00901"), null, "Puerto Rico isn't a state");
+  assert.equal(stateForZip("4820"), null);
+  assert.equal(stateName("tx"), "Texas");
+  const mi = "Michigan Residential Builder license (LARA), required for residential work over $600";
+  assert.equal(licenseFor(mi, "MI"), mi);
+  assert.equal(licenseFor(mi, null), mi);
+  assert.match(licenseFor(mi, "TX")!, /Texas license or registration/);
+  assert.equal(licenseFor("USDOT number and operating authority", "TX"), "USDOT number and operating authority", "not Michigan-specific: unchanged");
+  assert.equal(licenseFor(null, "TX"), null);
+});

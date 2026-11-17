@@ -231,7 +231,7 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const docPath = path, theDoc = docId, kind = b.step === "coverage" ? b.coverage : b.step;
     const claimed = "expires_on" in b ? b.expires_on ?? null : null;
     after(async () => {
-      const [{ data: pro }, url] = await Promise.all([db.from("contractors").select("business_name, legal_name, trades, profile_id, email").eq("id", id).single(), signedDocUrl(docPath, 900)]);
+      const [{ data: pro }, url] = await Promise.all([db.from("contractors").select("business_name, legal_name, trades, profile_id, email, base_state").eq("id", id).single(), signedDocUrl(docPath, 900)]);
       if (!pro || !url) return;
       const check = await aiCheckDocument({ kind, url, isPdf: docPath.endsWith(".pdf"), pro, claimedExpiry: claimed }).catch(() => null);
       if (check) {

@@ -22,13 +22,14 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-12_2345 UTC — requirements: insurance (Handled Services LLC as additional insured or certificate holder) only for the services
  *           that need it; house cleaning, dog walking and the other insurance-optional services start without it.
+ * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: license lines say "your state's, where required (in Michigan: …)".
  */
 import { ApplyForm } from "@/components/forms";
 import { Ico } from "@/components/Glyph";
 import { TradeRequirements, type TradeReq } from "@/components/TradeRequirements";
 import { getPolicy } from "@/lib/pro-benefits";
 import { getLocale } from "@/lib/locale";
-import { BRAND, CATALOG_SEED, COVERAGES, FAST_TRACK, PROBATION, PRO_PROMISES, REWARD_DEFAULTS, TENURE_TIERS, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
+import { licenseFor, BRAND, CATALOG_SEED, COVERAGES, FAST_TRACK, PROBATION, PRO_PROMISES, REWARD_DEFAULTS, TENURE_TIERS, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
 
 export const metadata = { title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
 
@@ -87,7 +88,7 @@ export default async function ProsPage() {
     const lines = [
       `${es ? "Responsabilidad civil general" : "General liability"}: ${money(p.glMin)} ${es ? "por incidente" : "per occurrence"}${p.requires.length ? (es ? `, más ${p.requires.map((k) => covLabel(k).toLowerCase()).join(" y ")}` : `, plus ${p.requires.map((k) => COVERAGES[k].label.toLowerCase()).join(" and ")}`) : ""}`,
       ...p.conditional.map((c) => `${covLabel(c.key)} ${es ? "si" : "when"} ${t(c.when)}`),
-      `${es ? "Licencia" : "License"}: ${p.license ? t(p.license) : t("none required by the state")}`,
+      `${es ? "Licencia" : "License"}: ${p.license ? (licenseFor(p.license, "TX") !== p.license ? `${es ? "la de su estado donde se exija (en Michigan: " : "your state's, where it's required (in Michigan: "}${t(p.license)})` : t(p.license)) : t("none required by the state")}`,
       ...(p.preferred.length ? [`${es ? "Preferible" : "Preferred"}: ${p.preferred.map(t).join("; ")}`] : []),
       `${es ? "Prueba de habilidades" : "Skills check"}: ${t(p.skillsCheck)}`,
       `${es ? "Especialidades" : "Specialties"}: ${p.specialties.map((x) => t(x.label)).join(", ")}`,

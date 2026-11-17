@@ -25,11 +25,14 @@
  *           the automatic check and Handled review.
  * UPDATED : 2026-11-17_1700 UTC — payout step: finds a Stripe account made on the Partner page; ready = Stripe transfers active.
  * UPDATED : 2026-11-17_1900 UTC — payout step: a pro who chose PayPal / Venmo keeps that choice even with a Stripe account on file.
+ * UPDATED : 2026-11-17_2045 UTC — all 50 states: state picker (from their ZIP, no Michigan default), license line for their state,
+ *           and a welcome note where we don't take bookings yet (services appear for customers there once they're approved).
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
 import { connectReady } from "@/lib/stripe";
-import { BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { servedState } from "@/lib/launch";
+import { BRAND, US_STATES, licenseFor, stateForZip, stateName, BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import Link from "next/link";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
@@ -57,6 +60,8 @@ export default async function Onboarding() {
       if (fresh) pro = fresh as Contractor;
     }
   }
+  // all 50 states (2026-11-17): the pro's state — what they chose, else from their ZIP
+  const proState: string | null = (pro as { base_state?: string | null }).base_state ?? stateForZip(pro.base_zip ?? pro.zip ?? (pro.service_zips ?? [])[0] ?? null);
   // payouts: direct deposit through Stripe only. Back from Stripe with a ready bank → the payout step is done.
   // the account may have been made on their Partner page (same email) — proPayoutAccount finds and links it
   const stripeAcct = await (await import("@/lib/pro-benefits")).proPayoutAccount(pro as never).catch(() => null);
@@ -175,7 +180,12 @@ export default async function Onboarding() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t("Place of business — street address")} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} required />
             <Field label={t("City")} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} required />
-            <Field label={t("State (2 letters)")} name="base_state" defaultValue={(pro as { base_state?: string | null }).base_state ?? "MI"} maxLength={2} pattern="[A-Za-z]{2}" required />
+            <label className="block text-sm"><span className="font-medium">{t("State")}</span>
+              <select name="base_state" className="input mt-1" required defaultValue={proState ?? ""}>
+                <option value="" disabled>{es ? "Elija su estado" : "Choose your state"}</option>
+                {US_STATES.map((st) => <option key={st.code} value={st.code}>{st.name}</option>)}
+              </select>
+            </label>
             <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
             <Field label={t("How far you’ll drive (miles)")} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
             <Field label={t("Most jobs you want in one day")} name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
@@ -256,6 +266,12 @@ export default async function Onboarding() {
   );
   return (
     <div className="space-y-4">
+      {proState && !servedState(pro.base_zip ?? pro.service_zips?.[0] ?? null) && (
+        <div className="card border-brand/40 bg-brand-tint text-sm">
+          <b>{es ? `¡Bienvenido! Aceptamos profesionales en los 50 estados.` : `Welcome — we take pros in all 50 states.`}</b>{" "}
+          {es ? `Todavía no hay clientes de ${BRAND.name} en ${stateName(proState)}: cuando lo aprobemos, sus servicios aparecen en el sitio para los clientes de su zona y le llegan los trabajos. Termine estos pasos para estar listo.` : `${BRAND.name} isn't taking bookings in ${stateName(proState)} yet: once you're approved, your services show up on the website for customers in your area and jobs come to you. Finish these steps so you're ready.`}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h1 className="text-2xl font-bold">{t("Get set up")}</h1><p className="text-sm text-ink-soft">{t("You work as an independent business. These steps let us send you prepaid jobs and file your 1099.")}</p></div>
         <Badge tone={complete ? "green" : "amber"}>{doneCount}/{steps.length} {es ? "completos" : "complete"}</Badge>
@@ -272,7 +288,7 @@ export default async function Onboarding() {
               <ul className="list-disc pl-5 text-ink-soft">
                 <li>{es ? `Responsabilidad civil general de $${(p.glMin / 1e6).toFixed(0)}M por incidente` : `General liability $${(p.glMin / 1e6).toFixed(0)}M per occurrence`}{p.requires.length ? ` + ${p.requires.map((k) => covLabel(k).toLowerCase()).join(", ")}` : ""}</li>
                 {p.conditional.map((cn) => <li key={cn.key}>{covLabel(cn.key)} {es ? "si" : "when"} {t(cn.when)}</li>)}
-                {p.license && <li>{es ? "Licencia" : "License"}: {t(p.license)}</li>}
+                {p.license && <li>{es ? "Licencia" : "License"}: {t(licenseFor(p.license, proState) ?? p.license)}</li>}
                 {p.preferred.map((x) => <li key={x}>{es ? "Preferible" : "Preferred"}: {t(x)}</li>)}
                 <li>{es ? "Prueba de habilidades" : "Skills check"}: {t(p.skillsCheck)}</li>
               </ul>

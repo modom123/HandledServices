@@ -32,9 +32,10 @@
  *           the PDF guide. The push notification stays short.
  * UPDATED : 2026-11-12_2330 UTC — decideDocument: two ways to verify insurance (automatic AI check, or Handled review by
  *           policy or insurer); staff can confirm or correct the expiry date; a verify with no date uses the AI's reading.
+ * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: the new pro's state is set from their first ZIP.
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
+import { stateForZip, BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -180,6 +181,8 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
     business_name: app.business_name, contact_name: app.contact_name, email: String(app.email).toLowerCase(), phone: app.phone,
     trades: app.trades, specialties: app.specialties ?? [], service_zips: zips, license_number: app.license_number, status: "vetting",
     daily_capacity: Math.max(2, Math.min(10, (app.crew_size ?? 1) * 2)), application_id: app.id, invited_at: now, dropped_at: null,
+    // all 50 states (2026-11-17): their state from their first ZIP (they can change it in setup)
+    ...(stateForZip(zips.find((z: string) => /^\d{5}$/.test(z)) ?? null) ? { base_state: stateForZip(zips.find((z: string) => /^\d{5}$/.test(z)) ?? null) } : {}),
   }, { onConflict: "email" }).select("*").single();
   if (error || !pro) return { ok: false, error: error?.message ?? "Couldn't create the pro" };
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);

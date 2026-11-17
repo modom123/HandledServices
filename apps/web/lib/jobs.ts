@@ -201,7 +201,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const launch = await (await import("./launch")).openFor(svc.slug, input.zip);
   if (!launch.open) throw new Error(launch.market
     ? `${svc.name} is coming soon to ${launch.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
-    : `We serve ${SERVED_AREAS_LABEL.en} right now. Join the waitlist on the booking page and we'll tell you when we reach your area.`);
+    : `No vetted pro offers ${svc.name} in your area yet. Join the waitlist on the booking page and we'll tell you the day one does.`);
   await syncCatalog(); // new services in code must exist in the DB before a job can reference them
   const rush = isRush(input.scheduled_date);
   // request-a-quote: the pro's firm quote is the price (no site visit, no AI re-price)
