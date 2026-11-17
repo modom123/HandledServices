@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-28_1735 UTC — now the "Jobs & payouts" view of Mastermind → Money (/hub/money); holds the one payout queue.
  * UPDATED : 2026-11-17_1700 UTC — payout readiness shown from Stripe (connectStatus), not from "has an account id"; Pay
  *           everyone now runs the payout immediately.
+ * UPDATED : 2026-11-17_1900 UTC — PayPal / Venmo pros: readiness, and the PayPal balance next to what they're owed.
  */
 import Link from "next/link";
 import { PAYOUT_STAGE_LABEL, getService, jobMoney, money, nextMonday, type MoneyLine, type PayoutStage } from "@handled/core";
@@ -22,6 +23,8 @@ import { PayoutButton } from "@/components/HubActions";
 import { PayEveryoneButton } from "@/components/PayoutStatus";
 import { connectStatus } from "@/lib/stripe";
 import { proPayoutAccount } from "@/lib/pro-benefits";
+import { cleanPayoutHandle, railOf } from "@handled/core";
+import { paypalBalance, paypalConfigured } from "@/lib/paypal";
 
 
 type Line = MoneyLine & { id: string; job_id: string | null; contractor_id: string; reason: string | null; created_at: string };
@@ -43,8 +46,8 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
   const jobIds = (jobs ?? []).map((j) => j.id as string);
   const { data: jobLines } = jobIds.length ? await db.from("payouts").select("id, job_id, contractor_id, amount, status, kind, reason, paid_at, week_of, created_at").in("job_id", jobIds).limit(10000) : { data: [] };
   const proIds = [...new Set([...(jobs ?? []).map((j) => j.contractor_id as string | null), ...((open ?? []) as Line[]).map((l) => l.contractor_id)].filter(Boolean))] as string[];
-  const { data: pros } = proIds.length ? await db.from("contractors").select("id, business_name, email, stripe_account_id").in("id", proIds) : { data: [] };
-  const pro = new Map(((pros ?? []) as { id: string; business_name: string; email: string | null; stripe_account_id: string | null }[]).map((p) => [p.id, p]));
+  const { data: pros } = proIds.length ? await db.from("contractors").select("*").in("id", proIds) : { data: [] };
+  const pro = new Map(((pros ?? []) as { id: string; business_name: string; email: string | null; stripe_account_id: string | null; payout_method?: string | null; payout_handle?: string | null }[]).map((p) => [p.id, p]));
   const linesOf = new Map<string, Line[]>();
   for (const l of (jobLines ?? []) as Line[]) if (l.job_id) linesOf.set(l.job_id, [...(linesOf.get(l.job_id) ?? []), l]);
 
@@ -66,12 +69,17 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
   const runTotal = runRows.reduce((t, [, r]) => t + Math.max(0, r.owed), 0);
   // live from Stripe for everyone owed (in parallel): the same readiness the payout run uses
   const owedIds = runRows.filter(([, r]) => r.owed > 0).map(([id]) => id).slice(0, 80);
-  const status = new Map(await Promise.all(owedIds.map(async (id) => {
+  const status = new Map<string, { state: string; rail?: string }>(await Promise.all(owedIds.map(async (id): Promise<readonly [string, { state: string; rail?: string }]> => {
     const p = pro.get(id);
+    // PayPal / Venmo pros: ready when PayPal is connected and they gave a valid handle
+    if (p && railOf(p.payout_method) !== "stripe") return [id, { state: paypalConfigured() && cleanPayoutHandle(railOf(p.payout_method), p.payout_handle).ok ? "ready" : paypalConfigured() ? "needs_info" : "error", rail: railOf(p.payout_method) }] as const;
     const acct = p ? await proPayoutAccount({ id, profile_id: null, email: p.email, business_name: p.business_name, stripe_account_id: p.stripe_account_id }) : null;
     return [id, await connectStatus(acct)] as const;
   })));
   const notReady = owedIds.filter((id) => status.get(id)?.state !== "ready").length;
+  // PayPal / Venmo payouts come from Handled's PayPal balance, not Stripe: show what's needed vs what's there
+  const paypalDue = runRows.filter(([id, r]) => r.owed > 0 && railOf(pro.get(id)?.payout_method) !== "stripe").reduce((t, [, r]) => t + r.owed, 0);
+  const ppBalance = paypalDue > 0 ? await paypalBalance() : null;
   // the one payout queue in Mastermind: every line waiting to go out, with its action (approve a pending line, or pay early)
   const queue = ((open ?? []) as Line[]).filter((l) => ["approved", "pending", "held"].includes(l.status)).sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)));
   const qJobs = [...new Set(queue.map((l) => l.job_id).filter(Boolean))] as string[];
@@ -102,6 +110,7 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
           <h2 className="font-bold">Next payout run — Monday {nextMonday()}</h2>
           <span className="text-xs text-ink-soft">Sent automatically through Stripe (Mondays 15:00 UTC, 6 pros at a time). Pay early or approve lines in the payout queue below.</span>
         </div>
+        {paypalDue > 0 && <p className={`mx-4 mb-2 rounded-lg p-2 text-xs ${ppBalance !== null && ppBalance < paypalDue ? "bg-rose-50 text-rose-800" : "bg-paper text-ink-soft"}`}>PayPal / Venmo payouts: {money(paypalDue)} owed (less $1.50 each) · PayPal balance {ppBalance === null ? (paypalConfigured() ? "can't be read — check PayPal → Balance" : "PayPal not connected") : money(ppBalance)}{ppBalance !== null && ppBalance < paypalDue ? " — add funds to PayPal before Monday" : ""}</p>}
         <div className="px-4 pb-3"><PayEveryoneButton owed={runTotal} pros={runRows.filter(([, r]) => r.owed > 0).length} /></div>
         <table className="w-full min-w-[560px] text-sm">
           <thead><tr className="border-y border-line bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><th className="p-3">Pro</th><th className="p-3 text-right">Lines</th><th className="p-3 text-right">Owed Monday</th><th className="p-3 text-right">Held / pending</th><th className="p-3">Can be paid?</th></tr></thead>
@@ -113,7 +122,7 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
                 <td className="p-3 text-right">{r.lines}</td>
                 <td className="p-3 text-right font-semibold">{money(Math.max(0, r.owed))}</td>
                 <td className={`p-3 text-right ${r.held ? "text-amber-800" : "text-ink-soft"}`}>{money(r.held)}</td>
-                <td className="p-3">{r.owed <= 0 ? <span className="text-ink-soft">—</span> : status.get(id)?.state === "ready" ? <span className="text-brand-dark">✓ Ready (Stripe)</span> : status.get(id)?.state === "error" ? <span className="font-semibold text-rose-700">⚠ Couldn't check Stripe — our side, not the pro's</span> : <Link href={`/hub/pros/${id}`} className="font-semibold text-rose-700 underline">✗ {status.get(id)?.state === "needs_info" ? "Stripe needs more info" : "Stripe setup not finished"} — see why</Link>}</td>
+                <td className="p-3">{r.owed <= 0 ? <span className="text-ink-soft">—</span> : status.get(id)?.state === "ready" ? <span className="text-brand-dark">✓ Ready ({status.get(id)?.rail === "paypal" ? "PayPal" : status.get(id)?.rail === "venmo" ? "Venmo" : "bank, Stripe"})</span> : status.get(id)?.state === "error" ? <span className="font-semibold text-rose-700">⚠ Couldn't check Stripe — our side, not the pro's</span> : <Link href={`/hub/pros/${id}`} className="font-semibold text-rose-700 underline">✗ {status.get(id)?.state === "needs_info" ? "Stripe needs more info" : "Stripe setup not finished"} — see why</Link>}</td>
               </tr>
             ))}
           </tbody>

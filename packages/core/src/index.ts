@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Public entry point for @handled/core.
+ * UPDATED : 2026-11-17_1900 UTC — payout-rails (pros paid by Stripe bank deposit, PayPal or Venmo).
  * UPDATED : 2026-11-17_1530 UTC — call-schedule (customers book a time for a Handled person to call).
  * UPDATED : 2026-10-12_0005 UTC — scheduling-gaps (texts, calendar feed, saved homes).
  * UPDATED : 2026-10-12_0138 UTC — stripe-setup (webhook events and key checks for Hub → Setup).
@@ -84,3 +85,4 @@ export * from "./partner-welcome.ts";
 export * from "./partner-success.ts";
 export * from "./pro-showcase.ts";
 export * from "./call-schedule.ts";
+export * from "./payout-rails.ts";

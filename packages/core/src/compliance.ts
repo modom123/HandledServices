@@ -36,6 +36,7 @@
  * UPDATED : 2026-11-13_0200 UTC — the trade license blocks activation only when every service in the pro's trades needs one
  *           (otherwise optional, unlocking the licensed services, like insurance); NO_EXPIRY for licenses that don't expire
  *           (USDOT numbers, one-time certifications); licenseVerified: number + verified expiry, not lapsed.
+ * UPDATED : 2026-11-17_1900 UTC — payout step: PayPal (email) or Venmo (phone) also counts as done.
  * UPDATED : 2026-11-17_1700 UTC — payout step: done only with Stripe confirmed (stripe_connect); old ACH / check entries no longer count.
  */
 import { SERVICES } from "./services.ts";
@@ -91,6 +92,8 @@ export interface ComplianceInput {
   license_expires: string | null;
   background_checked: boolean;
   payout_method: string | null;
+  /** PayPal email / Venmo phone when paid that way (2026-11-17). */
+  payout_handle?: string | null;
   specialties?: string[] | null;
   coverage?: Record<string, string> | null;
   base_zip?: string | null;
@@ -203,7 +206,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
     // done only when Stripe confirmed the bank (payout_method "stripe_connect" is set when Stripe says transfers work).
     // An old "ach" / "check" entry can't be paid — pay goes only through Stripe (owner, 2026-11-11) — so it isn't done (2026-11-17).
-    { key: "payout", label: "Bank connected for direct deposit", done: c.payout_method === "stripe_connect", detail: c.payout_method === "stripe_connect" ? "Direct deposit through Stripe" : c.payout_method ? `Old ${c.payout_method.toUpperCase()} details on file can't be paid — connect your bank through Stripe` : "Your bank, through Stripe: routing number (9 digits) and account number" },
+    { key: "payout", label: "Bank connected for direct deposit", done: c.payout_method === "stripe_connect" || ((c.payout_method === "paypal" || c.payout_method === "venmo") && Boolean(c.payout_handle)), detail: c.payout_method === "stripe_connect" ? "Direct deposit through Stripe" : c.payout_method === "paypal" ? (c.payout_handle ? "PayPal" : "Add your PayPal email") : c.payout_method === "venmo" ? (c.payout_handle ? "Venmo" : "Add your Venmo phone number") : c.payout_method ? `Old ${c.payout_method.toUpperCase()} details on file can't be paid — connect your bank through Stripe` : "Your bank, through Stripe: routing number (9 digits) and account number" },
   );
   return { steps, complete: steps.every((s) => s.done), licenseRequired };
 }

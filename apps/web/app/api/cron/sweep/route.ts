@@ -27,6 +27,7 @@
  * UPDATED : 2026-11-12_2100 UTC — daily job board summary to pros ("N new jobs near you").
  * UPDATED : 2026-11-17_1700 UTC — the Monday pro payout run moved to its own cron (/api/cron/payouts) so it has the whole
  *           time limit to itself instead of running after everything else here.
+ * UPDATED : 2026-11-17_1900 UTC — daily: follow PayPal / Venmo payouts (syncPaypalPayouts).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -90,6 +91,7 @@ export async function GET(req: Request) {
   const waitlist = await notifyWaitlist().catch((e) => { console.error("[waitlist]", e); return 0; }); // their area is open now → tell them
   const monday = new Date().getUTCDay() === 1;
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
+  const paypal = await (await import("@/lib/pro-benefits")).syncPaypalPayouts().catch((e) => { console.error("[paypal sync]", e); return null; }); // daily: PayPal / Venmo payouts landed, returned or unclaimed
   const payouts = monday ? "runs at /api/cron/payouts" : null; // Mondays: the pro payout run has its own cron (2026-11-17)
   const ticketsExpired = await (await import("@/lib/sales-tickets")).expireTickets().catch((e) => { console.error("[sales tickets]", e); return null; }); // Field Sales tickets unbooked for 30 days
   const partnerPayouts = monday ? await (await import("@/lib/partners")).runPartnerPayouts().catch((e) => { console.error("[partner payouts]", e); return null; }) : null; // Mondays: referral commissions
@@ -102,5 +104,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, boardDigest, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ paypal, renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, boardDigest, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

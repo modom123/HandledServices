@@ -3067,3 +3067,24 @@ test("name your price: every way people type a price (2026-11-13)", async () => 
     assert.equal(parseMoney(typed), want, typed);
   assert.ok(Number.isNaN(parseMoney("")) && Number.isNaN(parseMoney("$")) && Number.isNaN(parseMoney("abc")));
 });
+
+// ─── Payout methods: Stripe bank (free), PayPal / Venmo ($1.50) — 2026-11-17_1900 UTC ──────────────
+import { PAYOUT_RAILS, railOf, railFee, minPayout, cleanPayoutHandle, maskHandle, paypalItemOutcome } from "./payout-rails.ts";
+
+test("payout methods: Stripe free, PayPal / Venmo $1.50; handles checked; PayPal statuses mapped", () => {
+  assert.equal(railOf(null), "stripe"); assert.equal(railOf("ach"), "stripe"); assert.equal(railOf("stripe_connect"), "stripe");
+  assert.equal(railOf("paypal"), "paypal"); assert.equal(railOf("venmo"), "venmo");
+  assert.equal(railFee("stripe", 500), 0); assert.equal(railFee("paypal", 500), 1.5); assert.equal(railFee("venmo", 1), 1);
+  assert.equal(minPayout("paypal"), 2.5); assert.ok(PAYOUT_RAILS.venmo.handle === "phone");
+  assert.deepEqual(cleanPayoutHandle("paypal", " Pro@Example.COM "), { ok: true, handle: "pro@example.com" });
+  assert.equal(cleanPayoutHandle("paypal", "not-an-email").ok, false);
+  assert.deepEqual(cleanPayoutHandle("venmo", "(313) 555-0142"), { ok: true, handle: "+13135550142" });
+  assert.deepEqual(cleanPayoutHandle("venmo", "1-313-555-0142"), { ok: true, handle: "+13135550142" });
+  assert.equal(cleanPayoutHandle("venmo", "555-0142").ok, false);
+  assert.equal(cleanPayoutHandle("venmo", "@cece-services").ok, false, "Venmo by phone only");
+  assert.equal(maskHandle("+13135550142"), "•••-•••-0142"); assert.equal(maskHandle("cece@gmail.com"), "ce•••@gmail.com");
+  assert.equal(paypalItemOutcome("SUCCESS"), "paid"); assert.equal(paypalItemOutcome("UNCLAIMED"), "unclaimed");
+  assert.equal(paypalItemOutcome("RETURNED"), "failed"); assert.equal(paypalItemOutcome("BLOCKED"), "failed"); assert.equal(paypalItemOutcome("PENDING"), "waiting");
+  const step = (m: string, h: string | null) => onboardingChecklist({ trades: ["cleaning"], payout_method: m, payout_handle: h, background_checked: true } as never).steps.find((x) => x.key === "payout")!;
+  assert.equal(step("paypal", "pro@example.com").done, true); assert.equal(step("venmo", null).done, false);
+});

@@ -18,6 +18,7 @@
  * UPDATED : 2026-11-13_0300 UTC — "Does:" — the trades and skills the pro picked, front and center (not the business name).
  * UPDATED : 2026-11-17_1700 UTC — Payout status (admins): what Stripe says right now (ready / needs info / not started /
  *           error, with the exact steps) and Pay now, so a pro is never wrongly told they aren't set up.
+ * UPDATED : 2026-11-17_1900 UTC — Payout status shows PayPal / Venmo pros (method, masked handle, PayPal connected).
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -39,6 +40,8 @@ import { PersonFiles } from "@/components/PersonFiles";
 import { PayNowButton } from "@/components/PayoutStatus";
 import { connectStatus, dueInWords } from "@/lib/stripe";
 import { proPayoutAccount } from "@/lib/pro-benefits";
+import { PAYOUT_RAILS, maskHandle, railOf } from "@handled/core";
+import { paypalConfigured } from "@/lib/paypal";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -129,6 +132,19 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         <div className="space-y-4">
           <ProStatusControls id={id} status={pro.status} complete={complete} />
           {admin && await (async () => {
+            const rail = railOf(pro.payout_method);
+            if (rail !== "stripe") {
+              const handle = (pro as { payout_handle?: string | null }).payout_handle ?? null;
+              const on = paypalConfigured();
+              return (
+                <div className="card space-y-2 text-sm">
+                  <div className="flex items-center justify-between"><div className="font-semibold">Payout status</div><Badge tone={on && handle ? "green" : on ? "amber" : "red"}>{!on ? "PayPal not connected" : handle ? `Ready — ${PAYOUT_RAILS[rail].label}` : `No ${rail === "venmo" ? "Venmo phone" : "PayPal email"}`}</Badge></div>
+                  <div className="text-xs text-ink-soft">Paid by {PAYOUT_RAILS[rail].label} {handle ? `· ${maskHandle(handle)}` : ""} · ${PAYOUT_RAILS[rail].fee.toFixed(2)} per payout kept by Handled · sent from Handled's PayPal balance</div>
+                  {!on && <p className="rounded-lg bg-rose-50 p-2 text-rose-800">PayPal isn't connected: add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in Vercel. This is on our side — the pro did nothing wrong.</p>}
+                  <PayNowButton contractorId={id} owed={Math.max(0, owed)} />
+                </div>
+              );
+            }
             const acct = await proPayoutAccount(pro as never);
             const cs = await connectStatus(acct);
             const steps = dueInWords(cs.due);

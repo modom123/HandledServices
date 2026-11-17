@@ -24,6 +24,7 @@
  * UPDATED : 2026-11-12_2330 UTC — COI upload: optional insurer, policy number and agent contact; the waiting message explains
  *           the automatic check and Handled review.
  * UPDATED : 2026-11-17_1700 UTC — payout step: finds a Stripe account made on the Partner page; ready = Stripe transfers active.
+ * UPDATED : 2026-11-17_1900 UTC — payout step: a pro who chose PayPal / Venmo keeps that choice even with a Stripe account on file.
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
@@ -60,7 +61,7 @@ export default async function Onboarding() {
   // the account may have been made on their Partner page (same email) — proPayoutAccount finds and links it
   const stripeAcct = await (await import("@/lib/pro-benefits")).proPayoutAccount(pro as never).catch(() => null);
   const bankConnected = stripeAcct ? await connectReady(stripeAcct).catch(() => false) : false;
-  if (bankConnected && pro.payout_method !== "stripe_connect") {
+  if (bankConnected && !["stripe_connect", "paypal", "venmo"].includes(String(pro.payout_method))) {
     await (await import("@/lib/supabase/server")).adminClient().from("contractors").update({ payout_method: "stripe_connect" }).eq("id", pro.id);
     pro = { ...pro, payout_method: "stripe_connect" } as Contractor;
   }
@@ -233,7 +234,7 @@ export default async function Onboarding() {
       const bs = (pro as Contractor & { background_status?: string | null }).background_status;
       return <p className="mt-2 text-sm text-ink-soft">{t(pro.background_checked ? "Cleared." : bs === "invited" ? "Our screening provider (Checkr) emailed you a secure link — check your inbox and spam. It takes about 5 minutes, results in 1–3 business days." : bs === "pending" ? "In progress — usually 1–3 business days. We’ll notify you when it clears." : "Starts automatically as soon as your W-9 and agreement are in.")}</p>;
     }
-    if (key === "payout") return <PayoutStep method={pro.payout_method ?? null} bankConnected={bankConnected} es={es} />;
+    if (key === "payout") return <PayoutStep method={pro.payout_method ?? null} handle={(pro as Contractor & { payout_handle?: string | null }).payout_handle ?? null} bankConnected={bankConnected} es={es} />;
     return null;
   };
   const doneCount = steps.filter((s) => s.done).length;

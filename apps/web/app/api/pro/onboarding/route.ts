@@ -37,7 +37,10 @@
  *           policy or call the insurer). The COI step takes the insurer, policy number and agent contact (optional) so
  *           staff can confirm with the insurer. An unreadable file no longer bounces the pro: a person looks first.
  * UPDATED : 2026-11-13_0200 UTC — license step: "doesn't expire" (USDOT numbers, one-time certifications) instead of a date.
+ * UPDATED : 2026-11-17_1900 UTC — payout step: bank direct deposit (Stripe), PayPal (email) or Venmo (phone), checked by core cleanPayoutHandle.
  */
+import { cleanPayoutHandle } from "@handled/core";
+
 import { after } from "next/server";
 import { z } from "zod";
 import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, NO_EXPIRY, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
@@ -72,7 +75,8 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("photo") }),
   z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
-  z.object({ step: z.literal("payout"), payout_method: z.literal("stripe_connect") }), // direct deposit through Stripe only (no ACH-by-hand, no paper checks — owner, 2026-11-11)
+  // bank direct deposit through Stripe (free), or PayPal / Venmo ($1.50 per payout) — owner, 2026-11-17. No paper checks.
+  z.object({ step: z.literal("payout"), payout_method: z.enum(["stripe_connect", "paypal", "venmo"]), payout_handle: z.string().trim().max(254).optional() }),
 ]);
 
 /** A database result with an error → throw it (so a failed save is never reported as saved). */
@@ -212,7 +216,14 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
     await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, onBehalfOf: signedFor, signerTitle: title, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
   } else if (b.step === "payout") {
-    must(await db.from("contractors").update({ payout_method: b.payout_method }).eq("id", id));
+    if (b.payout_method === "stripe_connect") {
+      // back to bank deposit: the step counts again once Stripe confirms the bank (the onboarding page sets stripe_connect)
+      must(await db.from("contractors").update({ payout_method: null }).eq("id", id));
+    } else {
+      const h = cleanPayoutHandle(b.payout_method, b.payout_handle);
+      if (!h.ok) return Response.json({ error: h.error }, { status: 400 });
+      must(await db.from("contractors").update({ payout_method: b.payout_method, payout_handle: h.handle }).eq("id", id));
+    }
   }
   if (["coi", "license", "w9", "coverage"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step === "coverage" ? COVERAGES[b.coverage].label : b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. The AI reading is next to it in Handled Hub → Pros.`);
   // AI reads the certificate/license now, so staff verify in one click and the pro hears fast if it's unusable

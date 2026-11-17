@@ -26,6 +26,9 @@
  *           • a pro who really isn't ready is told exactly what Stripe still needs, with a direct link; staff see each
  *             pro by name with the reason (not just a count)
  *           • payContractor(): one pro's payout, used by the Monday run and by Hub "Pay now" (payNow, method manual)
+ *           • 2026-11-17_1900 UTC — PayPal / Venmo: pros who chose them are paid through the PayPal Payouts API (payViaPaypal),
+ *             $1.50 per payout kept by Handled (rows stay gross; fee in rail_fee); statuses followed daily
+ *             (syncPaypalPayouts): returned / failed pay goes back to owed and the pro is asked to fix their details
  *           • scale: the run has its own cron (/api/cron/payouts), pays 6 pros at a time within a time budget (68 pros ≈
  *             under a minute), reserves Stripe funds before each transfer, and repairs any payout cut off mid-way
  *             (marked paid, no transfer): matched to its Stripe transfer, or put back to be paid (recoverStrandedPayouts)
@@ -41,6 +44,7 @@ import { addEvent, getJob, raiseAlert } from "./jobs";
 import { localeOf, notify } from "./push";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { availableBalance as platformBalance, chargeSavedCard, connectStatus, createCheckout, dueInWords, getStripe, refundAcross } from "./stripe";
+import { PAYOUT_RAILS, cleanPayoutHandle, maskHandle, minPayout, paypalItemOutcome, railFee, railOf, type PayoutRail } from "@handled/core";
 import { uploadDoc } from "./photos";
 
 const db = () => adminClient();
@@ -207,6 +211,7 @@ export async function cashOutNow(contractorId: string) {
   if (!pro) return { ok: false, error: "Pro not found" };
   const no = whyNot(policy.instantPay, pro as Contractor);
   if (no) return { ok: false, error: `Instant pay: ${no}` };
+  if (railOf(pro.payout_method) !== "stripe") return { ok: false, error: "Instant pay goes to a debit card through Stripe. You're paid by PayPal / Venmo every Monday — switch to bank deposit in Setup to use instant pay." };
   const acct = await proPayoutAccount(pro as PayoutPro);
   const cs = await connectStatus(acct);
   if (cs.state === "error") return { ok: false, error: "We couldn't reach Stripe just now — please try again in a few minutes" };
@@ -427,13 +432,17 @@ export type PayResult =
  * "Pay now". Only the transfer decides success; a failure after money moved is reported, never undone.
  */
 export async function payContractor(id: string, o: { week: string; method: "weekly" | "manual"; funds: { left: number | null }; remind: boolean }): Promise<PayResult> {
-  const s = getStripe();
-  if (!s) return { kind: "error", amount: 0, why: "Stripe isn't configured" };
-  const { data: pro } = await db().from("contractors").select("id, profile_id, email, business_name, stripe_account_id").eq("id", id).single();
+  // select("*"): works whether or not the PayPal / Venmo columns exist yet
+  const { data: pro } = await db().from("contractors").select("*").eq("id", id).single();
   if (!pro) return { kind: "error", amount: 0, why: "Pro not found" };
   const bal = await availableBalance(id);
-  const { rows, total: amount } = bal;
+  const { total: amount } = bal;
   if (amount <= 0) return { kind: "nothing" };
+  const rail = railOf(pro.payout_method as string | null);
+  if (rail !== "stripe") return payViaPaypal(pro as PaypalPro, rail, bal, o);
+  const s = getStripe();
+  if (!s) return { kind: "error", amount, why: "Stripe isn't configured" };
+  const { rows } = bal;
   const acct = await proPayoutAccount(pro as PayoutPro);
   const cs = await connectStatus(acct);
   // our side couldn't read Stripe: never tell the pro they didn't set up — staff fix it and pay
@@ -498,6 +507,108 @@ export async function payContractor(id: string, o: { week: string; method: "week
   return { kind: "paid", amount, transfer: t.id };
 }
 
+type PaypalPro = PayoutPro & { payout_handle?: string | null };
+
+/** Payout to a pro's PayPal or Venmo (PayPal Payouts API). Same claim-before-send and never-pay-twice rules as Stripe. */
+async function payViaPaypal(pro: PaypalPro, rail: Exclude<PayoutRail, "stripe">, bal: Awaited<ReturnType<typeof availableBalance>>, o: { week: string; method: "weekly" | "manual"; remind: boolean }): Promise<PayResult> {
+  const { paypalConfigured, sendPaypalPayout, PaypalError } = await import("./paypal");
+  const amount = bal.total;
+  const name = PAYOUT_RAILS[rail].label;
+  if (!paypalConfigured()) return { kind: "error", amount, why: `${name} payouts aren't connected yet (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET missing in Vercel) — our side, the pro did nothing wrong` };
+  const h = cleanPayoutHandle(rail, pro.payout_handle);
+  if (!h.ok || !h.handle) {
+    if (o.remind) {
+      const link = `${siteUrl()}/pro/onboarding#step-payout`;
+      await notify(pro.profile_id, { title: `${money(amount)} is waiting for you`, body: `Add your ${rail === "venmo" ? "Venmo phone number" : "PayPal email"} so we can send it.`, data: { type: "earnings" },
+        email: { to: pro.email ?? "", subject: `${money(amount)} is ready — add your ${name} details`, text: `You have ${money(amount)} approved. You chose ${name}, but we don't have a valid ${rail === "venmo" ? "Venmo phone number" : "PayPal email"} for you. Add it (or switch to free direct deposit to your bank): ${link}\n\n— ${BRAND.name}` } });
+    }
+    return { kind: "not_ready", amount, why: `chose ${name} but has no valid ${rail === "venmo" ? "Venmo phone" : "PayPal email"}` };
+  }
+  if (amount < minPayout(rail)) return { kind: "nothing" }; // smaller than the fee + $1: waits for the next run
+  const fee = railFee(rail, amount);
+  const net = r2(amount - fee);
+  await prepareDeductions(bal);
+  const pos = bal.rows.filter((r) => r.status === "approved").map((r) => r.id);
+  const neg = bal.rows.filter((r) => r.status === "clawback").map((r) => r.id);
+  const stamp = new Date().toISOString();
+  const senderBatchId = `handled-${pro.id.slice(0, 8)}-${o.week}-${Date.parse(stamp)}`;
+  // claim first (also records which batch id we're about to use, so an interrupted send can be traced in PayPal)
+  const { data: claimed, error: claimErr } = await db().from("payouts").update({ status: "paid", paid_at: stamp, method: o.method, week_of: o.week, rail, rail_ref: senderBatchId, rail_status: "SENDING" }).in("id", pos).eq("status", "approved").select("id");
+  if (claimErr && /rail/i.test(claimErr.message)) return { kind: "error", amount, why: "Run supabase/setup/RUN_ONCE_PAYPAL_VENMO_PAYOUTS_2026-11-17_1900.sql first" };
+  const undo = () => db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null, rail: null, rail_ref: null, rail_status: null, rail_fee: 0 }).in("id", pos);
+  if ((claimed ?? []).length !== pos.length) {
+    if (claimed?.length) await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null, rail: null, rail_ref: null, rail_status: null }).in("id", claimed.map((x: { id: string }) => x.id));
+    return { kind: "error", amount, why: "balance changed while paying — try again" };
+  }
+  let sent: { batchId: string; itemId: string | null; status: string };
+  try {
+    sent = await sendPaypalPayout({ rail, handle: h.handle, amount: net, senderBatchId, subject: `${BRAND.name} payout: ${money(net)}`,
+      note: `${BRAND.name} payout${o.method === "weekly" ? ` for the week of ${o.week}` : ""}: ${money(amount)} earned − ${money(fee)} ${name} fee = ${money(net)}. Statement: ${siteUrl()}/pro/earnings` });
+  } catch (e) {
+    if (e instanceof PaypalError && e.definite) { await undo(); return { kind: "error", amount, why: e.message }; }
+    await raiseAlert("payout", "warn", `${name} payout outcome unknown — ${pro.business_name} ${money(net)}`, `PayPal didn't answer (${e instanceof Error ? e.message : String(e)}). Look for sender batch ${senderBatchId} in PayPal → Activity before paying again. The rows stay marked as sent so nothing is paid twice.`).catch(() => {});
+    return { kind: "error", amount, why: `${name}: PayPal didn't answer — check PayPal for batch ${senderBatchId} before paying again (never sent twice automatically)` };
+  }
+  // money has moved: record it; problems from here are reported, never undone
+  try {
+    await db().from("payouts").update({ rail_ref: `${sent.batchId}:${sent.itemId ?? ""}`, rail_status: sent.status }).in("id", pos);
+    await db().from("payouts").update({ rail_fee: fee }).eq("id", pos[0]);
+    if (neg.length) await db().from("payouts").update({ paid_at: stamp, week_of: o.week, rail, rail_ref: `${sent.batchId}:${sent.itemId ?? ""}` }).in("id", neg);
+    await notify(pro.profile_id, { title: `Paid: ${money(net)} to ${name}`, body: `${money(amount)} earned − ${money(fee)} ${name} fee.`, data: { type: "earnings" },
+      email: { to: pro.email ?? "", subject: `${BRAND.name} payout: ${money(net)} sent to your ${name}`, text: `We sent ${money(net)} to your ${name} (${maskHandle(h.handle)}): ${money(amount)} earned − ${money(fee)} ${name} fee. It usually shows up within minutes.\n\nStatement for every job: ${siteUrl()}/pro/earnings\nPrefer free direct deposit to your bank? Switch any time: ${siteUrl()}/pro/onboarding#step-payout\n\n— ${BRAND.name}` } });
+  } catch (e) {
+    await raiseAlert("payout", "warn", `${name} payout sent but not fully recorded — ${pro.business_name}`, `PayPal batch ${sent.batchId}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+  }
+  return { kind: "paid", amount, transfer: `${name.toLowerCase()}:${sent.batchId}` };
+}
+
+/**
+ * Daily: follow PayPal / Venmo payouts until they land. Returned, failed or blocked → the pay goes back to owed (fee
+ * dropped), the pro is asked to check their details, staff are told. Unclaimed (no account on that email / phone yet) →
+ * the pro is told to claim it within 30 days. Interrupted sends (no PayPal id recorded) → staff check PayPal by hand.
+ */
+export async function syncPaypalPayouts() {
+  const { paypalConfigured, paypalItem } = await import("./paypal");
+  if (!paypalConfigured()) return { checked: 0, failed: 0 };
+  const since = new Date(Date.now() - 40 * 86400000).toISOString();
+  const { data, error } = await db().from("payouts").select("id, contractor_id, amount, rail, rail_ref, rail_status, paid_at").eq("status", "paid").in("rail", ["paypal", "venmo"]).gte("paid_at", since).limit(2000);
+  if (error) return { checked: 0, failed: 0 };
+  const open = ((data ?? []) as { id: string; contractor_id: string; amount: number; rail: "paypal" | "venmo"; rail_ref: string | null; rail_status: string | null; paid_at: string }[])
+    .filter((r) => !["SUCCESS", "FAILED", "RETURNED", "REFUNDED", "BLOCKED", "DENIED", "REVERSED"].includes(String(r.rail_status)));
+  const groups = new Map<string, typeof open>();
+  for (const r of open) groups.set(String(r.rail_ref), [...(groups.get(String(r.rail_ref)) ?? []), r]);
+  let checked = 0, failed = 0;
+  for (const [ref, g] of groups) {
+    const name = PAYOUT_RAILS[g[0].rail].label;
+    const { data: pro } = await db().from("contractors").select("profile_id, email, business_name").eq("id", g[0].contractor_id).single();
+    if (!ref.includes(":")) {
+      if (Date.now() - new Date(g[0].paid_at).getTime() > 30 * 60000 && g[0].rail_status !== "CHECK_PAYPAL") {
+        await db().from("payouts").update({ rail_status: "CHECK_PAYPAL" }).in("id", g.map((r) => r.id));
+        await raiseAlert("payout", "critical", `${name} payout interrupted — ${pro?.business_name ?? g[0].contractor_id}`, `No PayPal confirmation was recorded for sender batch ${ref}. Look it up in PayPal → Activity. If it was NOT sent, mark these lines approved again in Hub → Money so the next run pays them.`).catch(() => {});
+      }
+      continue;
+    }
+    const [batchId, itemId] = ref.split(":");
+    const it = await paypalItem({ batchId, itemId: itemId || null }).catch(() => null);
+    if (!it) continue;
+    checked++;
+    const outcome = paypalItemOutcome(it.status);
+    const total = r2(g.reduce((t, r) => t + Number(r.amount), 0));
+    if (it.status !== g[0].rail_status) await db().from("payouts").update({ rail_status: it.status, rail_ref: `${batchId}:${it.itemId ?? ""}` }).in("id", g.map((r) => r.id));
+    if (outcome === "failed") {
+      failed++;
+      await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null, rail: null, rail_ref: null, rail_status: null, rail_fee: 0 }).in("id", g.map((r) => r.id));
+      await notify(pro?.profile_id ?? null, { title: `Your ${name} payout didn't go through`, body: `Check your ${name} details — we'll send ${money(total)} again on the next payout.`, data: { type: "earnings" },
+        email: { to: pro?.email ?? null, subject: `Your ${name} payout didn't go through`, text: `${name} sent back your ${BRAND.name} payout${it.error ? ` (${it.error})` : ""}. Nothing is lost: ${money(total)} is owed to you again and goes out on the next payout.\n\nPlease check your ${name} ${g[0].rail === "venmo" ? "phone number" : "email"}, or switch to free direct deposit to your bank: ${siteUrl()}/pro/onboarding#step-payout\n\n— ${BRAND.name}` } });
+      await raiseAlert("payout", "warn", `${name} payout returned — ${pro?.business_name ?? ""} ${money(total)}`, `PayPal status ${it.status}${it.error ? `: ${it.error}` : ""}. Put back to owed; the pro was asked to fix their details.`).catch(() => {});
+    } else if (outcome === "unclaimed" && g[0].rail_status !== "UNCLAIMED") {
+      await notify(pro?.profile_id ?? null, { title: `Claim your ${name} payout`, body: `We sent ${money(total)} — accept it in ${name} within 30 days.`, data: { type: "earnings" },
+        email: { to: pro?.email ?? null, subject: `Claim your ${BRAND.name} payout in ${name}`, text: `We sent your payout to ${name}, but there's no ${name} account on that ${g[0].rail === "venmo" ? "phone number" : "email"} yet. Sign up or add it in ${name} within 30 days to receive it — otherwise it comes back to us and we'll send it again.\n\nOr switch to free direct deposit to your bank: ${siteUrl()}/pro/onboarding#step-payout\n\n— ${BRAND.name}` } });
+    }
+  }
+  return { checked, failed };
+}
+
 /**
  * Mondays: send every pro their approved balance (jobs, show-up pay, stipends, materials,
  * referral bonuses, approved minimum top-ups, minus open clawbacks) to their Stripe account,
@@ -509,6 +620,7 @@ export const PAYOUT_CONCURRENCY = 6;
 export async function runWeeklyPayouts(now = new Date(), opts: { method: "weekly" | "manual"; budgetMs: number } = { method: "weekly", budgetMs: 240_000 }) {
   const week = mondayOf(now);
   const recovered = await recoverStrandedPayouts().catch((e) => { console.error("[payout recovery]", e); return null; });
+  await syncPaypalPayouts().catch((e) => console.error("[paypal sync]", e));
   if (!getStripe()) { await raiseAlert("payout", "warn", `Weekly payouts not sent (week of ${week})`, "Stripe isn't configured — pay pros manually in Finance."); return { paid: 0, waiting: 0, total: 0 }; }
   const { data: due } = await db().from("payouts").select("contractor_id").eq("status", "approved");
   const ids = [...new Set(((due ?? []) as { contractor_id: string }[]).map((x) => x.contractor_id))];
@@ -548,7 +660,7 @@ export async function recoverStrandedPayouts() {
   const s = getStripe();
   if (!s) return { matched: 0, reopened: 0 };
   const cutoff = new Date(Date.now() - 15 * 60000).toISOString();
-  const { data } = await db().from("payouts").select("id, contractor_id, paid_at, amount, week_of").eq("status", "paid").in("method", ["weekly", "manual"]).is("stripe_transfer_id", null).lt("paid_at", cutoff).gt("paid_at", new Date(Date.now() - 30 * 86400000).toISOString()).limit(1000);
+  const { data } = await db().from("payouts").select("id, contractor_id, paid_at, amount, week_of").eq("status", "paid").in("method", ["weekly", "manual"]).is("stripe_transfer_id", null).or("rail.is.null,rail.eq.stripe").lt("paid_at", cutoff).gt("paid_at", new Date(Date.now() - 30 * 86400000).toISOString()).limit(1000);
   const rows = (data ?? []) as { id: string; contractor_id: string; paid_at: string; amount: number; week_of: string | null }[];
   const groups = new Map<string, typeof rows>();
   for (const r of rows) groups.set(`${r.contractor_id}|${r.paid_at}`, [...(groups.get(`${r.contractor_id}|${r.paid_at}`) ?? []), r]);

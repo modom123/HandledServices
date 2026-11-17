@@ -207,7 +207,9 @@ export interface Contractor {
   agreement_signer?: string | null;
   license_expires?: string | null;
   background_checked_at?: string | null;
-  payout_method?: "ach" | "stripe_connect" | "check" | null;
+  payout_method?: "ach" | "stripe_connect" | "check" | "paypal" | "venmo" | null;
+  /** PayPal email or Venmo phone (+1…) when the pro is paid that way. */
+  payout_handle?: string | null;
   payout_account_last4?: string | null;
   onboarded_at?: string | null;
   offboarded_at?: string | null;
