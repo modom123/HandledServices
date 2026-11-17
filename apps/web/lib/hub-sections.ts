@@ -30,6 +30,11 @@
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  * UPDATED : 2026-11-10_0415 UTC — Pros & recruiting → Coverage map (/hub/map): pros and open services on a US map.
  * UPDATED : 2026-11-13_0715 UTC — Jobs → Job board (the internal job board).
+ * UPDATED : 2026-11-17_2000 UTC — clearer sections (owner): Jobs, Pros, Recruiting, Clients, Partners, Money, Marketing & AI,
+ *           Front Office. "Pros & recruiting" split in two — Pros = the people we have (Roster, Depth chart, Coverage map,
+ *           Pro files); Recruiting = finding and signing new ones (Pipeline, Openings, Indeed, Pro leads, Onboarding, Client
+ *           searches). Partners moved out of Clients into its own section. Jobs comes first (the day-to-day). Every page
+ *           keeps its address.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -54,23 +59,7 @@ export const HUB_TOP: readonly (readonly [href: string, icon: string, label: str
 ];
 
 export const HUB_SECTIONS: readonly HubSection[] = [
-  // Pros & recruiting, run like building a football team: the depth chart (every service is a position to fill) first,
-  // then the roster, the pipeline that feeds it, onboarding, and the engines that find more players.
-  { id: "pros", icon: "🏈", label: "Pros & recruiting", also: ["/hub/talent"], alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]],
-    links: [
-      ["/hub/depth", "Depth chart"],
-      ["/hub/map", "Coverage map"],
-      ["/hub/pros", "Roster"],
-      ["/hub/recruiting/pipeline", "Pipeline"],
-      ["/hub/recruiting/onboarding", "Onboarding"],
-      ["/hub/talent", "Client searches"],
-    ],
-    groups: {
-      "/hub/depth": [["/hub/depth", "Depth chart"], ["/hub/gaps", "Supply gaps"]],
-      "/hub/pros": [["/hub/pros", "Roster"], ["/hub/pro-program", "Pro Program"], ["/hub/rewards", "Rewards"]],
-      "/hub/recruiting/pipeline": [["/hub/recruiting/pipeline", "Pipeline"], ["/hub/recruiting/openings", "Openings"], ["/hub/recruiting/indeed", "Indeed"], ["/hub/leads", "Pro leads"], ["/hub/recruiting", "Overview"]],
-      "/hub/recruiting/onboarding": [["/hub/recruiting/onboarding", "Onboarding"], ["/hub/recruiting/files", "Pro files"]],
-    } },
+  // the day-to-day: every job, who's on it and what's happening now
   { id: "jobs", icon: "🗂️", label: "Jobs", links: [
     ["/hub/jobs", "Jobs"],
     ["/hub/job-board", "Job board"],
@@ -79,13 +68,43 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/texts", "Texts"],
     ["/hub/checklists", "Checklists"],
   ] },
-  { id: "clients", icon: "👥", label: "Clients & sales", also: ["/hub/business", "/hub/gov"], links: [
+  // the pros we have: who they are, which services each covers, where, and their files
+  { id: "pros", icon: "🧰", label: "Pros",
+    links: [
+      ["/hub/pros", "Roster"],
+      ["/hub/depth", "Depth chart"],
+      ["/hub/map", "Coverage map"],
+      ["/hub/recruiting/files", "Pro files"],
+    ],
+    groups: {
+      "/hub/pros": [["/hub/pros", "Roster"], ["/hub/pro-program", "Pro Program"], ["/hub/rewards", "Rewards"]],
+      "/hub/depth": [["/hub/depth", "Depth chart"], ["/hub/gaps", "Supply gaps"]],
+    } },
+  // finding and signing new pros, start to finish (and recruiting for client companies: Handled Talent)
+  { id: "recruiting", icon: "🎯", label: "Recruiting", also: ["/hub/talent"],
+    alias: [["^/hub/recruiting/[0-9a-f-]{36}", "/hub/recruiting/pipeline"], ["^/hub/recruiting/packet", "/hub/recruiting/pipeline"], ["^/hub/talent/[0-9a-f-]{36}", "/hub/talent"]],
+    links: [
+      ["/hub/recruiting/pipeline", "Pipeline"],
+      ["/hub/recruiting/openings", "Openings"],
+      ["/hub/recruiting/indeed", "Indeed"],
+      ["/hub/leads", "Pro leads"],
+      ["/hub/recruiting/onboarding", "Onboarding"],
+      ["/hub/talent", "Client searches"],
+    ],
+    groups: {
+      "/hub/recruiting/pipeline": [["/hub/recruiting/pipeline", "Pipeline"], ["/hub/recruiting", "Overview"]],
+    } },
+  // the people and companies who buy from us, and the leads that become them
+  { id: "clients", icon: "👥", label: "Clients", also: ["/hub/business", "/hub/gov"], links: [
     ["/hub/customers", "Customers & B2B"],
     ["/hub/inbox", "Lead inbox"],
     ["/hub/biz-leads", "Business leads"],
     ["/hub/bids", "Bids & contracts"],
     ["/hub/quotes", "Marketplace & quotes"],
-    ["/hub/partners", "Referral partners"],
+  ] },
+  // people who send us customers or sell for us (referrals, field sales tickets, commissions)
+  { id: "partners", icon: "🤝", label: "Partners", links: [
+    ["/hub/partners", "Referral & field sales partners"],
   ] },
   { id: "money", icon: "💵", label: "Money", links: [
     ["/hub/money", "Money"],
@@ -135,5 +154,10 @@ export const groupOf = (s: HubSection, path: string): readonly HubLink[] | null 
   const list = tab ? s.groups?.[tab] : null;
   return list && list.some(([h]) => h === path) ? list : null;
 };
-export const sectionOf = (sections: readonly HubSection[], path: string) =>
-  sections.find((s) => pagesOf(s).some(([h]) => under(path, h)) || s.also?.some((p) => under(path, p)));
+/** The section a page belongs to: the one with the most specific matching page (e.g. /hub/recruiting/files → Pros,
+ *  though /hub/recruiting is Recruiting's), else one that lists the prefix in `also`. */
+export const sectionOf = (sections: readonly HubSection[], path: string) => {
+  let best: HubSection | undefined, len = -1;
+  for (const s of sections) for (const [h] of pagesOf(s)) if (under(path, h) && h.length > len) { best = s; len = h.length; }
+  return best ?? sections.find((s) => s.also?.some((p) => under(path, p)));
+};

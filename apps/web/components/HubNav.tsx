@@ -9,6 +9,7 @@
  *           (Pros, Jobs, Clients, Money, Growth, AI team, Settings) — 9 links instead of 41. The pages inside the current
  *           section show as tabs across the top of the page (SectionTabs). The map lives in lib/hub-sections.
  * UPDATED : 2026-10-27_1700 UTC — the section's tab lights up by the most specific match or an alias (activeTab).
+ * UPDATED : 2026-11-17_2000 UTC — sections: Jobs, Pros, Recruiting, Clients, Partners, Money, Marketing & AI, Front Office.
  * UPDATED : 2026-11-05_0100 UTC — merged tabs: the pages behind the current tab show as a switch under the tabs (groupOf).
  */
 "use client";
