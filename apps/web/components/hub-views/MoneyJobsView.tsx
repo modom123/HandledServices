@@ -10,6 +10,8 @@
  *           One calculation for all of it (core jobMoney); the job page's Money card uses the same one.
  *           Admins only, like Finance. Refunds and payout actions stay on the job page and in Finance.
  * UPDATED : 2026-10-28_1735 UTC — now the "Jobs & payouts" view of Mastermind → Money (/hub/money); holds the one payout queue.
+ * UPDATED : 2026-11-17_1700 UTC — payout readiness shown from Stripe (connectStatus), not from "has an account id"; Pay
+ *           everyone now runs the payout immediately.
  */
 import Link from "next/link";
 import { PAYOUT_STAGE_LABEL, getService, jobMoney, money, nextMonday, type MoneyLine, type PayoutStage } from "@handled/core";
@@ -17,6 +19,9 @@ import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { adminOnly } from "@/components/AdminOnly";
 import { PayoutButton } from "@/components/HubActions";
+import { PayEveryoneButton } from "@/components/PayoutStatus";
+import { connectStatus } from "@/lib/stripe";
+import { proPayoutAccount } from "@/lib/pro-benefits";
 
 
 type Line = MoneyLine & { id: string; job_id: string | null; contractor_id: string; reason: string | null; created_at: string };
@@ -38,8 +43,8 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
   const jobIds = (jobs ?? []).map((j) => j.id as string);
   const { data: jobLines } = jobIds.length ? await db.from("payouts").select("id, job_id, contractor_id, amount, status, kind, reason, paid_at, week_of, created_at").in("job_id", jobIds).limit(10000) : { data: [] };
   const proIds = [...new Set([...(jobs ?? []).map((j) => j.contractor_id as string | null), ...((open ?? []) as Line[]).map((l) => l.contractor_id)].filter(Boolean))] as string[];
-  const { data: pros } = proIds.length ? await db.from("contractors").select("id, business_name, stripe_account_id").in("id", proIds) : { data: [] };
-  const pro = new Map(((pros ?? []) as { id: string; business_name: string; stripe_account_id: string | null }[]).map((p) => [p.id, p]));
+  const { data: pros } = proIds.length ? await db.from("contractors").select("id, business_name, email, stripe_account_id").in("id", proIds) : { data: [] };
+  const pro = new Map(((pros ?? []) as { id: string; business_name: string; email: string | null; stripe_account_id: string | null }[]).map((p) => [p.id, p]));
   const linesOf = new Map<string, Line[]>();
   for (const l of (jobLines ?? []) as Line[]) if (l.job_id) linesOf.set(l.job_id, [...(linesOf.get(l.job_id) ?? []), l]);
 
@@ -59,7 +64,14 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
   }
   const runRows = [...run.entries()].filter(([, r]) => r.owed > 0 || r.held > 0).sort((a, b) => b[1].owed - a[1].owed);
   const runTotal = runRows.reduce((t, [, r]) => t + Math.max(0, r.owed), 0);
-  const notReady = runRows.filter(([id, r]) => r.owed > 0 && !pro.get(id)?.stripe_account_id).length;
+  // live from Stripe for everyone owed (in parallel): the same readiness the payout run uses
+  const owedIds = runRows.filter(([, r]) => r.owed > 0).map(([id]) => id).slice(0, 80);
+  const status = new Map(await Promise.all(owedIds.map(async (id) => {
+    const p = pro.get(id);
+    const acct = p ? await proPayoutAccount({ id, profile_id: null, email: p.email, business_name: p.business_name, stripe_account_id: p.stripe_account_id }) : null;
+    return [id, await connectStatus(acct)] as const;
+  })));
+  const notReady = owedIds.filter((id) => status.get(id)?.state !== "ready").length;
   // the one payout queue in Mastermind: every line waiting to go out, with its action (approve a pending line, or pay early)
   const queue = ((open ?? []) as Line[]).filter((l) => ["approved", "pending", "held"].includes(l.status)).sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)));
   const qJobs = [...new Set(queue.map((l) => l.job_id).filter(Boolean))] as string[];
@@ -82,14 +94,15 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
         <Stat label="Pro pay" value={money(toPros)} hint={collected ? `${Math.round((toPros / collected) * 100)}% of what customers paid` : "—"} />
         <Stat label="Handled keeps" value={money(keep)} hint={collected ? `${Math.round((keep / collected) * 100)}% take · ${money(keep - fees)} after est. card fees` : "—"} />
         <Stat label="Tips (100% to pros)" value={money(tips)} hint="charged separately, passed through" />
-        <Stat label={`Monday ${nextMonday().slice(5)} run`} value={money(runTotal)} hint={`${runRows.filter(([, r]) => r.owed > 0).length} pros${notReady ? ` · ${notReady} not set up in Stripe` : ""}`} />
+        <Stat label={`Monday ${nextMonday().slice(5)} run`} value={money(runTotal)} hint={`${runRows.filter(([, r]) => r.owed > 0).length} pros${notReady ? ` · ${notReady} can't be paid yet` : ""}`} />
       </div>
 
       <section className="card overflow-x-auto p-0">
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 pb-2">
           <h2 className="font-bold">Next payout run — Monday {nextMonday()}</h2>
-          <span className="text-xs text-ink-soft">Sent automatically through Stripe. Pay early or approve lines in the payout queue below.</span>
+          <span className="text-xs text-ink-soft">Sent automatically through Stripe (Mondays 15:00 UTC, 6 pros at a time). Pay early or approve lines in the payout queue below.</span>
         </div>
+        <div className="px-4 pb-3"><PayEveryoneButton owed={runTotal} pros={runRows.filter(([, r]) => r.owed > 0).length} /></div>
         <table className="w-full min-w-[560px] text-sm">
           <thead><tr className="border-y border-line bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><th className="p-3">Pro</th><th className="p-3 text-right">Lines</th><th className="p-3 text-right">Owed Monday</th><th className="p-3 text-right">Held / pending</th><th className="p-3">Can be paid?</th></tr></thead>
           <tbody>
@@ -100,7 +113,7 @@ export default async function JobsAndPayouts({ searchParams }: { searchParams: P
                 <td className="p-3 text-right">{r.lines}</td>
                 <td className="p-3 text-right font-semibold">{money(Math.max(0, r.owed))}</td>
                 <td className={`p-3 text-right ${r.held ? "text-amber-800" : "text-ink-soft"}`}>{money(r.held)}</td>
-                <td className="p-3">{r.owed <= 0 ? <span className="text-ink-soft">—</span> : pro.get(id)?.stripe_account_id ? <span className="text-brand-dark">✓ Stripe set up</span> : <span className="font-semibold text-rose-700">✗ Payout setup missing — they've been asked</span>}</td>
+                <td className="p-3">{r.owed <= 0 ? <span className="text-ink-soft">—</span> : status.get(id)?.state === "ready" ? <span className="text-brand-dark">✓ Ready (Stripe)</span> : status.get(id)?.state === "error" ? <span className="font-semibold text-rose-700">⚠ Couldn't check Stripe — our side, not the pro's</span> : <Link href={`/hub/pros/${id}`} className="font-semibold text-rose-700 underline">✗ {status.get(id)?.state === "needs_info" ? "Stripe needs more info" : "Stripe setup not finished"} — see why</Link>}</td>
               </tr>
             ))}
           </tbody>

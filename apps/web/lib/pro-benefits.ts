@@ -19,6 +19,16 @@
  *           (the rest carries to the next run), per the pro agreement.
  * UPDATED : 2026-10-07_1610 UTC — payouts: only the transfer decides success (a failure after money moved is reported, never undone, so nothing is paid twice); runs check the Stripe balance first; per-attempt idempotency keys; the instant fee is sent back when the instant payout fails.
  * UPDATED : 2026-10-07_1900 UTC — arrival windows (late cancellations, show-up pay) use the job's time zone.
+ * UPDATED : 2026-11-17_1700 UTC — payout fix (a pro who finished setup got "finish your payout setup"):
+ *           • the pro's Stripe account is found even when it was made on their Partner page (same email) — proPayoutAccount
+ *           • readiness from connectStatus (transfers capability active), not bank "payouts_enabled"; a Stripe error is
+ *             never reported to the pro as "not set up" — the payout waits and staff get a critical alert to fix it
+ *           • a pro who really isn't ready is told exactly what Stripe still needs, with a direct link; staff see each
+ *             pro by name with the reason (not just a count)
+ *           • payContractor(): one pro's payout, used by the Monday run and by Hub "Pay now" (payNow, method manual)
+ *           • scale: the run has its own cron (/api/cron/payouts), pays 6 pros at a time within a time budget (68 pros ≈
+ *             under a minute), reserves Stripe funds before each transfer, and repairs any payout cut off mid-way
+ *             (marked paid, no transfer): matched to its Stripe transfer, or put back to be paid (recoverStrandedPayouts)
  * UPDATED : 2026-10-15_0300 UTC — cancelJob lets go of a "pay after" balance hold.
  */
 import "server-only";
@@ -29,7 +39,7 @@ import { adminClient } from "./supabase/server";
 import { addEvent, getJob, raiseAlert } from "./jobs";
 import { localeOf, notify } from "./push";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
-import { availableBalance as platformBalance, chargeSavedCard, connectReady, createCheckout, getStripe, refundAcross } from "./stripe";
+import { availableBalance as platformBalance, chargeSavedCard, connectStatus, createCheckout, dueInWords, getStripe, refundAcross } from "./stripe";
 import { uploadDoc } from "./photos";
 
 const db = () => adminClient();
@@ -194,7 +204,11 @@ export async function cashOutNow(contractorId: string) {
   if (!pro) return { ok: false, error: "Pro not found" };
   const no = whyNot(policy.instantPay, pro as Contractor);
   if (no) return { ok: false, error: `Instant pay: ${no}` };
-  if (!(await connectReady(pro.stripe_account_id))) return { ok: false, error: "Finish your Stripe payout setup first", needsSetup: true };
+  const acct = await proPayoutAccount(pro as PayoutPro);
+  const cs = await connectStatus(acct);
+  if (cs.state === "error") return { ok: false, error: "We couldn't reach Stripe just now — please try again in a few minutes" };
+  if (cs.state !== "ready" || !cs.payoutsEnabled) return { ok: false, error: "Finish your Stripe payout setup first", needsSetup: true };
+  pro.stripe_account_id = acct;
   const bal = await availableBalance(contractorId);
   const { rows, total } = bal;
   if (total < policy.instantPay.minAmount) return { ok: false, error: `Minimum cash-out is ${money(policy.instantPay.minAmount)} (you have ${money(total)})` };
@@ -384,73 +398,182 @@ function mondayOf(d: Date) {
   return m.toISOString().slice(0, 10);
 }
 
+type PayoutPro = { id: string; profile_id: string | null; email: string | null; business_name: string; stripe_account_id: string | null };
+
+/**
+ * The Stripe account a pro is paid to: their own, or — when they set up payouts on the Partner page with the same email
+ * — that one (then saved on the pro so it's found directly next time). Same person, same bank.
+ */
+export async function proPayoutAccount(pro: PayoutPro): Promise<string | null> {
+  if (pro.stripe_account_id) return pro.stripe_account_id;
+  if (!pro.email) return null;
+  const { data } = await db().from("referral_partners").select("stripe_account_id").ilike("email", pro.email.replace(/[\\%_]/g, "\\$&")).not("stripe_account_id", "is", null).limit(1).maybeSingle();
+  const acct = (data?.stripe_account_id as string | null) ?? null;
+  if (acct) await db().from("contractors").update({ stripe_account_id: acct }).eq("id", pro.id);
+  return acct;
+}
+
+export type PayResult =
+  | { kind: "paid"; amount: number; transfer: string }
+  | { kind: "nothing" }
+  | { kind: "not_ready"; amount: number; why: string }
+  | { kind: "error"; amount: number; why: string };
+
+/**
+ * Pay one pro their whole approved balance now (one Stripe transfer, one statement). Used by the Monday run and Hub
+ * "Pay now". Only the transfer decides success; a failure after money moved is reported, never undone.
+ */
+export async function payContractor(id: string, o: { week: string; method: "weekly" | "manual"; funds: { left: number | null }; remind: boolean }): Promise<PayResult> {
+  const s = getStripe();
+  if (!s) return { kind: "error", amount: 0, why: "Stripe isn't configured" };
+  const { data: pro } = await db().from("contractors").select("id, profile_id, email, business_name, stripe_account_id").eq("id", id).single();
+  if (!pro) return { kind: "error", amount: 0, why: "Pro not found" };
+  const bal = await availableBalance(id);
+  const { rows, total: amount } = bal;
+  if (amount <= 0) return { kind: "nothing" };
+  const acct = await proPayoutAccount(pro as PayoutPro);
+  const cs = await connectStatus(acct);
+  // our side couldn't read Stripe: never tell the pro they didn't set up — staff fix it and pay
+  if (cs.state === "error") return { kind: "error", amount, why: cs.error ?? "Couldn't read the pro's Stripe account" };
+  if (cs.state !== "ready") {
+    const steps = dueInWords(cs.due);
+    const why = !acct ? "never started Stripe payout setup" : cs.state === "not_started" ? "started Stripe setup but didn't finish it" : `Stripe needs more info${steps.length ? `: ${steps.join("; ")}` : ""}${cs.disabledReason ? ` (${cs.disabledReason})` : ""}`;
+    if (o.remind) {
+      const link = `${siteUrl()}/pro/onboarding#step-payout`;
+      const todo = steps.length ? `\n\nWhat Stripe still needs from you:\n${steps.map((x) => `  • ${x}`).join("\n")}` : "";
+      await notify(pro.profile_id, { title: `${money(amount)} is waiting for you`, body: !acct || cs.state === "not_started" ? "Connect your bank through Stripe so we can send it." : "Stripe needs a little more info before we can send it.", data: { type: "earnings" },
+        email: { to: pro.email, subject: `${money(amount)} is ready — ${!acct || cs.state === "not_started" ? "connect your bank to get it" : "Stripe needs one more thing"}`,
+          text: `You have ${money(amount)} approved and ready to send.${!acct ? " We don't have a bank on file for you yet." : cs.state === "not_started" ? " Your Stripe setup was started but not finished." : " Your Stripe account is set up, but Stripe has paused transfers until you finish a step."}${todo}\n\nIt takes a few minutes: ${link}\n\nAs soon as it's done, we send your money (you don't have to wait for next week). Questions? Just reply.\n\n— ${BRAND.name}` },
+        es: { title: `${money(amount)} le están esperando`, body: "Conecte su banco en Stripe para que podamos enviarlo.", subject: `${money(amount)} listos — termine su configuración de pagos`, text: `Tiene ${money(amount)} aprobados. ${!acct ? "Aún no tenemos su banco." : cs.state === "not_started" ? "Su configuración en Stripe quedó sin terminar." : "Stripe necesita un dato más antes de enviar transferencias."}\n\nToma unos minutos: ${link}\n\nEn cuanto termine, le enviamos su dinero.\n\n— ${BRAND.name}` } });
+    }
+    return { kind: "not_ready", amount, why };
+  }
+  // Stripe confirms the bank: make sure the pro's checklist says so too (an old "ach" entry would show setup unfinished)
+  await db().from("contractors").update({ payout_method: "stripe_connect" }).eq("id", id).neq("payout_method", "stripe_connect");
+  await db().from("contractors").update({ payout_method: "stripe_connect" }).eq("id", id).is("payout_method", null);
+  if (o.funds.left !== null && o.funds.left < amount) return { kind: "error", amount, why: `not enough available in Stripe yet (${money(o.funds.left)} available, ${money(amount)} needed) — card payments take ~2 days to become available` };
+  // reserve the money now (no await between the check and this line), so pros paid in parallel can't overspend the balance
+  if (o.funds.left !== null) o.funds.left = r2(o.funds.left - amount);
+  const release = () => { if (o.funds.left !== null) o.funds.left = r2(o.funds.left + amount); };
+  await prepareDeductions(bal);
+  const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
+  const neg = rows.filter((r) => r.status === "clawback").map((r) => r.id);
+  const stamp = new Date().toISOString();
+  // claim first so a parallel instant cash-out (or a second click) can't pay the same rows twice
+  const { data: claimed } = await db().from("payouts").update({ status: "paid", paid_at: stamp, method: o.method, week_of: o.week }).in("id", pos).eq("status", "approved").select("id");
+  if ((claimed ?? []).length !== pos.length) {
+    if (claimed?.length) await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
+    release();
+    return { kind: "error", amount, why: "balance changed while paying — try again" };
+  }
+  let t: { id: string };
+  try {
+    t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: acct!, description: `${BRAND.name} ${o.method === "weekly" ? "weekly payout" : "payout"} — week of ${o.week}`, metadata: { contractor_id: id, week_of: o.week } }, { idempotencyKey: `${o.method}-${id}-${o.week}-${stamp}` });
+  } catch (e) {
+    // Stripe didn't answer (network / 5xx): the transfer MAY have gone through. Don't guess — leave the rows claimed;
+    // recoverStrandedPayouts checks Stripe after 15 minutes and either records the transfer or re-queues the pay.
+    // Re-queuing now could pay the pro twice next run.
+    const err = e as { type?: string; statusCode?: number; message?: string };
+    if (err?.type === "StripeConnectionError" || (err?.statusCode ?? 0) >= 500) {
+      await raiseAlert("payout", "warn", `Payout outcome unknown — ${pro.business_name} ${money(amount)}`, `Stripe didn't answer (${err.message ?? "no response"}). The next payout run (or Pay now after 15 minutes) checks Stripe and records or re-queues it — never pays twice.`).catch(() => {});
+      return { kind: "error", amount, why: "Stripe didn't answer — will be checked and settled automatically (never paid twice)" };
+    }
+    await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", pos);
+    release();
+    return { kind: "error", amount, why: e instanceof Error ? e.message : "transfer failed" };
+  }
+  // money has moved: from here on, problems are reported, never undone (undoing would pay twice next week)
+  try {
+    await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", pos);
+    if (neg.length) await db().from("payouts").update({ paid_at: stamp, stripe_transfer_id: t.id, week_of: o.week }).in("id", neg);
+    await notify(pro.profile_id, { title: `Paid: ${money(amount)}`, body: `Your payout is on its way to your bank (${pos.length} item${pos.length === 1 ? "" : "s"}).`, data: { type: "earnings" },
+      email: { to: pro.email, subject: `${BRAND.name} payout: ${money(amount)}`, text: `We sent ${money(amount)} to your Stripe account${o.method === "weekly" ? ` for the week of ${o.week}` : ""}. It reaches your bank on Stripe's standard schedule (usually 2 business days).\n\nStatement for every job: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` },
+      es: { title: `Pagado: ${money(amount)}`, body: `Su pago va en camino a su banco (${pos.length} concepto${pos.length === 1 ? "" : "s"}).`, subject: `Pago de ${BRAND.name}: ${money(amount)}`, text: `Enviamos ${money(amount)} a su cuenta de Stripe${o.method === "weekly" ? ` por la semana del ${esDate(o.week)}` : ""}. Llegará a su banco según el calendario estándar de Stripe (normalmente 2 días hábiles).\n\nDetalle de cada trabajo: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
+  } catch (e) {
+    await raiseAlert("payout", "warn", `Payout sent but not fully recorded — ${pro.business_name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+  }
+  return { kind: "paid", amount, transfer: t.id };
+}
+
 /**
  * Mondays: send every pro their approved balance (jobs, show-up pay, stipends, materials,
  * referral bonuses, approved minimum top-ups, minus open clawbacks) to their Stripe account,
- * free. One transfer and one statement per pro. Pros without payout setup are reminded and
- * their balance waits for next week (or instant pay once set up).
+ * free. One transfer and one statement per pro. Pros who really aren't set up are told exactly what's missing; their
+ * balance waits (Hub "Pay now" sends it as soon as they finish). A Stripe error is ours to fix, never "not set up".
  */
-export async function runWeeklyPayouts(now = new Date()) {
-  const s = getStripe();
+export const PAYOUT_CONCURRENCY = 6;
+
+export async function runWeeklyPayouts(now = new Date(), opts: { method: "weekly" | "manual"; budgetMs: number } = { method: "weekly", budgetMs: 240_000 }) {
   const week = mondayOf(now);
-  if (!s) { await raiseAlert("payout", "warn", `Weekly payouts not sent (week of ${week})`, "Stripe isn't configured — pay pros manually in Finance."); return { paid: 0, waiting: 0, total: 0 }; }
+  const recovered = await recoverStrandedPayouts().catch((e) => { console.error("[payout recovery]", e); return null; });
+  if (!getStripe()) { await raiseAlert("payout", "warn", `Weekly payouts not sent (week of ${week})`, "Stripe isn't configured — pay pros manually in Finance."); return { paid: 0, waiting: 0, total: 0 }; }
   const { data: due } = await db().from("payouts").select("contractor_id").eq("status", "approved");
   const ids = [...new Set(((due ?? []) as { contractor_id: string }[]).map((x) => x.contractor_id))];
-  let funds = await platformBalance(); // card money takes ~2 days to become available in Stripe
-  let paid = 0, waiting = 0, total = 0;
-  const failed: string[] = [];
-  for (const id of ids) {
-    const { data: pro } = await db().from("contractors").select("id, profile_id, email, business_name, stripe_account_id").eq("id", id).single();
-    if (!pro) continue;
-    const bal = await availableBalance(id);
-    const { rows, total: amount } = bal;
-    if (amount <= 0) continue;
-    if (!(await connectReady(pro.stripe_account_id))) {
-      waiting++;
-      await notify(pro.profile_id, { title: `${money(amount)} is waiting for you`, body: "Finish your payout setup in Earnings so we can send it.", data: { type: "earnings" },
-        email: { to: pro.email, subject: `${money(amount)} is ready — finish your payout setup`, text: `You have ${money(amount)} approved. Finish your Stripe payout setup so we can send it: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` },
-        es: { title: `${money(amount)} le están esperando`, body: "Termine la configuración de pagos en Ganancias para que podamos enviarlo.", subject: `${money(amount)} listos — termine la configuración de pagos`, text: `Tiene ${money(amount)} aprobados. Termine la configuración de pagos en Stripe para que podamos enviarlos: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
-      continue;
+  const funds = { left: await platformBalance() }; // card money takes ~2 days to become available in Stripe
+  let paid = 0, total = 0;
+  const failed: string[] = [], waiting: string[] = [];
+  const names = new Map(((await db().from("contractors").select("id, business_name").in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"])).data ?? []).map((c: { id: string; business_name: string }) => [c.id, c.business_name]));
+  // several pros at once (Stripe allows far more), and stop starting new ones before the function's time limit:
+  // anyone not reached stays approved and is paid by the next run or Hub "Pay everyone now" — never half-paid
+  const started = Date.now();
+  const queue = [...ids];
+  const skipped: string[] = [];
+  const worker = async () => {
+    for (let id = queue.shift(); id; id = queue.shift()) {
+      if (Date.now() - started > opts.budgetMs) { skipped.push(names.get(id) ?? id); continue; }
+      const r = await payContractor(id, { week, method: opts.method, funds, remind: opts.method === "weekly" }).catch((e) => ({ kind: "error" as const, amount: 0, why: e instanceof Error ? e.message : String(e) }));
+      const who = names.get(id) ?? id;
+      if (r.kind === "paid") { paid++; total = r2(total + r.amount); }
+      else if (r.kind === "not_ready") waiting.push(`${who} — ${money(r.amount)}: ${r.why}${opts.method === "weekly" ? " (reminded with the exact steps)" : ""}`);
+      else if (r.kind === "error") failed.push(`${who} — ${money(r.amount)}: ${r.why}`);
     }
-    if (funds !== null && funds < amount) {
-      failed.push(`${pro.business_name}: not enough available in Stripe yet (${money(funds)} available, ${money(amount)} needed) — waits for the next run`);
-      continue;
-    }
-    await prepareDeductions(bal);
-    const pos = rows.filter((r) => r.status === "approved").map((r) => r.id);
-    const neg = rows.filter((r) => r.status === "clawback").map((r) => r.id);
-    const stamp = new Date().toISOString();
-    // claim first so a parallel instant cash-out can't pay the same rows twice
-    const { data: claimed } = await db().from("payouts").update({ status: "paid", paid_at: stamp, method: "weekly", week_of: week }).in("id", pos).eq("status", "approved").select("id");
-    if ((claimed ?? []).length !== pos.length) {
-      if (claimed?.length) await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
-      failed.push(`${pro.business_name} (balance changed)`);
-      continue;
-    }
-    let t: { id: string };
-    try {
-      t = await s.transfers.create({ amount: Math.round(amount * 100), currency: "usd", destination: pro.stripe_account_id, description: `${BRAND.name} weekly payout — week of ${week}`, metadata: { contractor_id: id, week_of: week } }, { idempotencyKey: `weekly-${id}-${week}-${stamp}` });
-    } catch (e) {
-      await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", pos);
-      failed.push(`${pro.business_name}: ${e instanceof Error ? e.message : "transfer failed"}`);
-      continue;
-    }
-    // money has moved: from here on, problems are reported, never undone (undoing would pay twice next week)
-    if (funds !== null) funds = r2(funds - amount);
-    paid++; total = r2(total + amount);
-    try {
-      await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", pos);
-      if (neg.length) await db().from("payouts").update({ paid_at: stamp, stripe_transfer_id: t.id, week_of: week }).in("id", neg);
-      await notify(pro.profile_id, { title: `Paid: ${money(amount)}`, body: `Your weekly payout is on its way to your bank (${pos.length} item${pos.length === 1 ? "" : "s"}).`, data: { type: "earnings" },
-        email: { to: pro.email, subject: `${BRAND.name} weekly payout: ${money(amount)}`, text: `We sent ${money(amount)} to your Stripe account for the week of ${week}. It reaches your bank on Stripe's standard schedule (usually 2 business days).\n\nStatement for every job: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` },
-        es: { title: `Pagado: ${money(amount)}`, body: `Su pago semanal va en camino a su banco (${pos.length} concepto${pos.length === 1 ? "" : "s"}).`, subject: `Pago semanal de ${BRAND.name}: ${money(amount)}`, text: `Enviamos ${money(amount)} a su cuenta de Stripe por la semana del ${esDate(week)}. Llegará a su banco según el calendario estándar de Stripe (normalmente 2 días hábiles).\n\nDetalle de cada trabajo: ${siteUrl()}/pro/earnings\n\n— ${BRAND.name}` } });
-    } catch (e) {
-      await raiseAlert("payout", "warn", `Payout sent but not fully recorded — ${pro.business_name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+  };
+  await Promise.all(Array.from({ length: Math.min(PAYOUT_CONCURRENCY, ids.length || 1) }, worker));
+  if (skipped.length) await raiseAlert("payout", "critical", `Payout run ran out of time: ${skipped.length} pro(s) not paid yet`, `${skipped.join(", ")}\n\nTheir balances are untouched. Hub → Money → "Pay everyone now" finishes the run.`);
+  if (failed.length) await raiseAlert("payout", "critical", `Weekly payouts: ${failed.length} NOT sent — fix and use Pay now`, `${failed.join("\n")}\n\nThese pros were NOT told anything was wrong on their side. Fix the cause, then Hub → Pros → (pro) → Pay now.`);
+  if (waiting.length) await raiseAlert("payout", "warn", `Weekly payouts: ${waiting.length} pro(s) waiting on Stripe setup`, `${waiting.join("\n")}\n\nCheck each in Hub → Pros → (pro) → Payout status. When they finish, use Pay now.`);
+  await raiseAlert("payout", "info", `${opts.method === "weekly" ? "Weekly payouts" : "Payout run"} sent: ${paid} pro(s), ${money(total)}`, recovered && (recovered.matched || recovered.reopened) ? `Repaired ${recovered.matched} interrupted payout(s) and re-queued ${recovered.reopened}.` : null);
+  return { paid, waiting: waiting.length, total, failed: failed.length, notReached: skipped.length };
+}
+
+/**
+ * Payouts cut off mid-way (rows claimed as paid, but no Stripe transfer recorded — e.g. the server stopped between the
+ * claim and the transfer). Older than 15 minutes: if Stripe has the transfer (same pro, after the claim), record it;
+ * if not, put the rows back to approved so they're paid on the next run. Nobody is paid twice or skipped.
+ */
+export async function recoverStrandedPayouts() {
+  const s = getStripe();
+  if (!s) return { matched: 0, reopened: 0 };
+  const cutoff = new Date(Date.now() - 15 * 60000).toISOString();
+  const { data } = await db().from("payouts").select("id, contractor_id, paid_at, amount, week_of").eq("status", "paid").in("method", ["weekly", "manual"]).is("stripe_transfer_id", null).lt("paid_at", cutoff).gt("paid_at", new Date(Date.now() - 30 * 86400000).toISOString()).limit(1000);
+  const rows = (data ?? []) as { id: string; contractor_id: string; paid_at: string; amount: number; week_of: string | null }[];
+  const groups = new Map<string, typeof rows>();
+  for (const r of rows) groups.set(`${r.contractor_id}|${r.paid_at}`, [...(groups.get(`${r.contractor_id}|${r.paid_at}`) ?? []), r]);
+  let matched = 0, reopened = 0;
+  for (const [key, g] of groups) {
+    const [cid, at] = key.split("|");
+    const { data: pro } = await db().from("contractors").select("stripe_account_id, business_name").eq("id", cid).single();
+    const since = Math.floor(new Date(at).getTime() / 1000) - 60;
+    const list = pro?.stripe_account_id ? await s.transfers.list({ destination: pro.stripe_account_id, created: { gte: since }, limit: 20 }).catch(() => null) : null;
+    if (pro?.stripe_account_id && !list) continue; // couldn't ask Stripe: leave it for the next run rather than guess
+    // our transfer for this claim: same pro and week (metadata), sent within 10 minutes of the claim
+    const t = list?.data.find((x) => x.metadata?.contractor_id === cid && x.metadata?.week_of === g[0].week_of && x.created <= since + 660 && !x.reversed);
+    if (t) { await db().from("payouts").update({ stripe_transfer_id: t.id }).in("id", g.map((r) => r.id)); matched += g.length; }
+    else {
+      await db().from("payouts").update({ status: "approved", paid_at: null, method: null, week_of: null }).in("id", g.map((r) => r.id)).is("stripe_transfer_id", null);
+      reopened += g.length;
+      await raiseAlert("payout", "warn", `Interrupted payout re-queued — ${pro?.business_name ?? cid}`, `${g.length} line(s) were marked paid but no Stripe transfer exists. Put back to approved; they go out on the next run or with Pay now.`).catch(() => {});
     }
   }
-  if (failed.length) await raiseAlert("payout", "critical", `Weekly payouts: ${failed.length} failed`, failed.join("\n"));
-  await raiseAlert("payout", "info", `Weekly payouts sent: ${paid} pro(s), ${money(total)}`, waiting ? `${waiting} pro(s) still need to finish payout setup — reminded.` : null);
-  return { paid, waiting, total, failed: failed.length };
+  return { matched, reopened };
+}
+
+/** Hub (admins) "Pay now": send one pro's approved balance right away (method manual), same checks as Monday. */
+export async function payNow(contractorId: string, actor: string) {
+  await recoverStrandedPayouts().catch((e) => console.error("[payout recovery]", e));
+  const r = await payContractor(contractorId, { week: mondayOf(new Date()), method: "manual", funds: { left: await platformBalance() }, remind: false });
+  if (r.kind === "paid") await raiseAlert("payout", "info", `Paid now by ${actor}: ${money(r.amount)}`, `Transfer ${r.transfer}`).catch(() => {});
+  return r;
 }
 
 // ─── Real numbers behind tiers and dispatch ──────────────────────────────────────

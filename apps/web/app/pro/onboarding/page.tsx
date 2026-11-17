@@ -21,6 +21,7 @@
  * UPDATED : 2026-11-11_2350 UTC — How you get paid: direct deposit through Stripe only (components/PayoutStep), naming the numbers
  *           Stripe asks for; the step is done once Stripe says the bank is ready. No paper checks.
  * UPDATED : 2026-11-11_2358 UTC — Verify ID: a pro switched to a video-call check can try the online check again (they were stuck with no button).
+ * UPDATED : 2026-11-17_1700 UTC — payout step: finds a Stripe account made on the Partner page; ready = Stripe transfers active.
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
@@ -54,7 +55,8 @@ export default async function Onboarding() {
     }
   }
   // payouts: direct deposit through Stripe only. Back from Stripe with a ready bank → the payout step is done.
-  const stripeAcct = (pro as Contractor & { stripe_account_id?: string | null }).stripe_account_id ?? null;
+  // the account may have been made on their Partner page (same email) — proPayoutAccount finds and links it
+  const stripeAcct = await (await import("@/lib/pro-benefits")).proPayoutAccount(pro as never).catch(() => null);
   const bankConnected = stripeAcct ? await connectReady(stripeAcct).catch(() => false) : false;
   if (bankConnected && pro.payout_method !== "stripe_connect") {
     await (await import("@/lib/supabase/server")).adminClient().from("contractors").update({ payout_method: "stripe_connect" }).eq("id", pro.id);

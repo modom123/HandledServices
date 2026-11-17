@@ -21,6 +21,11 @@
  * UPDATED : 2026-10-15_0300 UTC — book now, pay after: the first checkout on a "pay after" job is the 25% ("to book");
  *           holdOnSavedCard / captureHold / releaseHold put the balance on hold when the pro starts and take it when the job is done.
  * UPDATED : 2026-11-11_2340 UTC — connectOnboardingUrl can return the pro to Setup & documents (payout step) instead of Earnings.
+  * UPDATED : 2026-11-17_1700 UTC — payout readiness fixed (a pro who finished setup was told "payout not set up"):
+ *           connectStatus() reads the connected account properly — ready = the transfers capability is active (that is
+ *           what our payout transfer needs; bank-side "payouts_enabled" is reported separately), Stripe errors are retried
+ *           once and reported as "error" (never as "not set up"), and what Stripe still needs is given in plain words.
+ *           connectReady() = connectStatus().state === "ready".
  */
 import "server-only";
 import Stripe from "stripe";
@@ -346,10 +351,69 @@ export async function connectOnboardingUrl(contractor: { id: string; email: stri
   return link.url;
 }
 
-/** Is the pro's connected account ready to receive money? */
-export async function connectReady(accountId: string | null): Promise<boolean> {
+/**
+ * Where a connected account stands, from Stripe:
+ *   ready       — the transfers capability is active: our payout transfer will go through
+ *   needs_info  — set up, but Stripe needs more before money can be sent (see `due`)
+ *   not_started — no account yet, or Stripe onboarding never finished
+ *   error       — we couldn't read the account (Stripe down, wrong key or test vs live mode, account deleted). This
+ *                 is OUR problem to fix, never something to tell the pro they didn't do.
+ */
+export type ConnectState = "ready" | "needs_info" | "not_started" | "error";
+export type ConnectStatus = {
+  state: ConnectState;
+  accountId: string | null;
+  transfers: string | null;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  due: string[];
+  disabledReason: string | null;
+  error: string | null;
+};
+
+export async function connectStatus(accountId: string | null): Promise<ConnectStatus> {
+  const base: ConnectStatus = { state: "not_started", accountId, transfers: null, payoutsEnabled: false, detailsSubmitted: false, due: [], disabledReason: null, error: null };
   const s = getStripe();
-  if (!s || !accountId) return false;
-  const a = await s.accounts.retrieve(accountId).catch(() => null);
-  return Boolean(a?.payouts_enabled);
+  if (!s) return { ...base, state: "error", error: "Stripe isn't configured (STRIPE_SECRET_KEY missing)" };
+  if (!accountId) return base;
+  let a: Stripe.Account | null = null;
+  let err: unknown = null;
+  for (let i = 0; i < 2 && !a; i++) {
+    try { a = await s.accounts.retrieve(accountId); } catch (e) { err = e; if (i === 0) await new Promise((r) => setTimeout(r, 800)); }
+  }
+  if (!a) {
+    const code = (err as { code?: string } | null)?.code;
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ...base, state: "error", error: code === "resource_missing" || /No such account/i.test(msg)
+      ? `Stripe can't find account ${accountId} with the current key — usually a test-mode account used with live keys (or the reverse), or the account was deleted`
+      : `Couldn't reach Stripe: ${msg}` };
+  }
+  const req = a.requirements;
+  const due = [...new Set([...(req?.past_due ?? []), ...(req?.currently_due ?? [])])];
+  const transfers = (a.capabilities?.transfers as string | undefined) ?? null;
+  const st: ConnectStatus = { ...base, transfers, payoutsEnabled: Boolean(a.payouts_enabled), detailsSubmitted: Boolean(a.details_submitted), due, disabledReason: req?.disabled_reason ?? null };
+  if (transfers === "active") return { ...st, state: "ready" };
+  return { ...st, state: a.details_submitted ? "needs_info" : "not_started" };
+}
+
+/** Stripe's requirement codes → what the person actually has to do, in plain words (deduplicated). */
+export function dueInWords(due: string[]): string[] {
+  const word = (f: string) =>
+    /external_account/.test(f) ? "add your bank account (routing and account number)"
+    : /tos_acceptance/.test(f) ? "accept Stripe's terms"
+    : /ssn_last_4|id_number/.test(f) ? "confirm your Social Security number (or your business EIN)"
+    : /\.dob/.test(f) ? "enter your date of birth"
+    : /verification\.(additional_)?document/.test(f) ? "upload a photo of your ID"
+    : /address/.test(f) ? "enter your address"
+    : /phone/.test(f) ? "enter your phone number"
+    : /first_name|last_name|\.name/.test(f) ? "enter your legal name"
+    : /email/.test(f) ? "confirm your email"
+    : /business_profile|business_type|company\./.test(f) ? "fill in your business details"
+    : "answer the remaining questions Stripe asks";
+  return [...new Set(due.map(word))];
+}
+
+/** Is the pro's connected account ready to receive our payout transfer? */
+export async function connectReady(accountId: string | null): Promise<boolean> {
+  return (await connectStatus(accountId)).state === "ready";
 }

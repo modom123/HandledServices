@@ -179,7 +179,7 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.deepEqual([...LICENSED_TRADES].sort(), ["carpentry", "catering", "concrete", "demolition", "electrical", "fence_deck", "fire_safety", "flooring", "food_truck", "foundation", "freight", "gutter_install", "hvac", "insulation", "masonry", "medical_courier", "nuisance_wildlife", "painting", "pest", "plumbing", "remodel", "roofing", "security", "siding", "transportation", "waste_oil", "windows_doors"]);
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const ok = { status: "vetting", trades: ["cleaning"], legal_name: "Dana Reyes", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
-    agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
+    agreement_signed_at: "2026-10-01", insured_until: future, license_number: null, license_expires: null, background_checked: true, payout_method: "stripe_connect",
     specialties: ["standard_clean"], coverage: { bond: future, workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
     resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01",
     orientation: Object.fromEntries((await import("./orientation.ts")).ORIENTATION.map((l) => [l.id, "2026-10-01"])) };
@@ -237,7 +237,7 @@ test("insurance-optional work: no COI needed to activate or to get those jobs", 
   assert.equal(insuranceRequired(["no_such_trade"]), true, "unknown trades default to required");
   const future = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
   const pro = { status: "vetting", trades: ["web_design"], legal_name: "Ana Diaz", tin_last4: "1234", w9_received_at: "2026-10-01", agreement_version: AGREEMENT_VERSION,
-    agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "ach",
+    agreement_signed_at: "2026-10-01", insured_until: null, license_number: null, license_expires: null, background_checked: true, payout_method: "stripe_connect",
     specialties: ["business_site", "runs"], coverage: { workers_comp: "exempt" }, base_zip: "48201", base_address: "100 Main St", base_city: "Detroit", id_verified_at: "2026-10-01",
     resume_uploaded_at: "2026-10-01", photo_uploaded_at: "2026-10-01",
     orientation: Object.fromEntries((await import("./orientation.ts")).ORIENTATION.map((l) => [l.id, "2026-10-01"])) };
@@ -2889,4 +2889,16 @@ test("instant price up to $2,500: no call or site visit; over it, events, consul
   const biz = SERVICES.find((s) => s.category === "business")!;
   assert.ok(siteVisitReason(biz.slug, defaultAnswers(biz), 500)); // consultation-only
   assert.equal(siteVisitReason("house-cleaning", defaultAnswers(getService("house-cleaning")!), 210), null);
+});
+
+// ─── Payout setup counts only when Stripe confirmed the bank (2026-11-17_1700 UTC) ─────────────────
+import { onboardingChecklist } from "./compliance.ts";
+
+test("onboarding payout step: done only with Stripe (old ACH / check details can't be paid)", () => {
+  const base = { trades: ["cleaning"], w9_received_at: "2026-10-01", agreement_signed_at: "2026-10-01", insured_until: "2099-01-01", license_number: null, license_expires: null, background_checked: true, id_verified_at: "2026-10-01" } as never;
+  const step = (m: string | null) => onboardingChecklist({ ...(base as object), payout_method: m } as never).steps.find((x) => x.key === "payout")!;
+  assert.equal(step("stripe_connect").done, true);
+  assert.equal(step("ach").done, false);
+  assert.match(step("ach").detail, /Stripe/);
+  assert.equal(step(null).done, false);
 });

@@ -37,6 +37,7 @@
  * UPDATED : 2026-11-10_1415 UTC — full partner welcome email (payouts first; core partnerWelcomeEmail) and partnerPayoutReminders()
  *           (daily: days 1, 3, 7 and 14 after sign-up while payouts aren't set up).
  * UPDATED : 2026-11-10_1445 UTC — partnerGrowthStats(): the numbers the Partner Success roadmaps measure (/partner/grow).
+ * UPDATED : 2026-11-17_1700 UTC — payoutsReady uses connectStatus (transfers active), like pro payouts.
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -549,7 +550,8 @@ export async function payoutsReady(partner: Partner) {
   const s = getStripe();
   const acct = s ? await payoutAccount(partner) : null;
   if (!s || !acct) return false;
-  return Boolean((await s.accounts.retrieve(acct).catch(() => null))?.payouts_enabled);
+  // same readiness as pro payouts (2026-11-17): transfers capability active, Stripe errors retried
+  return (await (await import("./stripe")).connectStatus(acct)).state === "ready";
 }
 
 /**

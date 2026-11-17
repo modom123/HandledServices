@@ -6,12 +6,14 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0120 UTC — deductions list (proposed / upheld / waived) with links to respond.
  * PURPOSE : Pro earnings statement — this year by month, every payout, 1099 total so far.
+ * UPDATED : 2026-11-17_1700 UTC — readiness uses the pro's payout account (incl. one made on the Partner page).
  */
 import Link from "next/link";
 import { getService, instantPayFee, money, necThreshold, serviceText, t as tr, whyNot, type Contractor } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { availableBalance, getPolicy } from "@/lib/pro-benefits";
 import { connectReady } from "@/lib/stripe";
+import { proPayoutAccount } from "@/lib/pro-benefits";
 import { InstantPay } from "@/components/ProActions";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat } from "@/components/ui";
@@ -27,7 +29,7 @@ export default async function Earnings() {
   const year = new Date().getFullYear();
   const [{ data: me }, policy, bal] = await Promise.all([v.db.from("contractors").select("*").eq("id", v.contractorId).single(), getPolicy(), availableBalance(v.contractorId)]);
   const instantNo = me ? whyNot(policy.instantPay, me as Contractor) : "pro not found";
-  const ready = !instantNo && (await connectReady(me?.stripe_account_id ?? null));
+  const ready = !instantNo && Boolean(me) && (await connectReady(await proPayoutAccount(me as never)));
   const { data } = await v.db.from("payouts").select("id, amount, status, kind, method, instant_fee, created_at, paid_at, reason, jobs(ref, service_slug, scheduled_date)").gte("created_at", `${year}-01-01`).order("created_at", { ascending: false });
   const rows = (data ?? []) as Rec[];
   const { data: deds } = await v.db.from("pro_deductions").select("id, amount, status, reason, respond_by, created_at, jobs(ref)").order("created_at", { ascending: false }).limit(20);

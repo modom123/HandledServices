@@ -15,6 +15,8 @@
  * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
  *           (components/PersonFiles.tsx, lib/person-files.ts).
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
+ * UPDATED : 2026-11-17_1700 UTC — Payout status (admins): what Stripe says right now (ready / needs info / not started /
+ *           error, with the exact steps) and Pay now, so a pro is never wrongly told they aren't set up.
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -33,6 +35,9 @@ import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
 import { PersonFiles } from "@/components/PersonFiles";
+import { PayNowButton } from "@/components/PayoutStatus";
+import { connectStatus, dueInWords } from "@/lib/stripe";
+import { proPayoutAccount } from "@/lib/pro-benefits";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -119,6 +124,23 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         </div>
         <div className="space-y-4">
           <ProStatusControls id={id} status={pro.status} complete={complete} />
+          {admin && await (async () => {
+            const acct = await proPayoutAccount(pro as never);
+            const cs = await connectStatus(acct);
+            const steps = dueInWords(cs.due);
+            const tone = cs.state === "ready" ? "green" : cs.state === "error" ? "red" : "amber";
+            const label = { ready: "Ready — payouts go through", needs_info: "Stripe needs more info", not_started: acct ? "Stripe setup not finished" : "Not started", error: "Couldn't check Stripe" }[cs.state];
+            return (
+              <div className="card space-y-2 text-sm">
+                <div className="flex items-center justify-between"><div className="font-semibold">Payout status (live from Stripe)</div><Badge tone={tone as never}>{label}</Badge></div>
+                <div className="text-xs text-ink-soft">Account {acct ?? "none"}{acct && !(pro as { stripe_account_id?: string | null }).stripe_account_id ? " (from their Partner page)" : ""} · transfers {cs.transfers ?? "—"} · bank payouts {cs.payoutsEnabled ? "on" : "off"}{cs.disabledReason ? ` · ${cs.disabledReason}` : ""}</div>
+                {cs.state === "error" && <p className="rounded-lg bg-rose-50 p-2 text-rose-800">{cs.error}. This is on our side — the pro did nothing wrong. Check the Stripe keys / mode in Vercel.</p>}
+                {cs.state !== "ready" && cs.state !== "error" && <p>{steps.length ? <>The pro still needs to: {steps.join("; ")}.</> : "The pro needs to finish Stripe setup."} Their link: <span className="font-mono text-xs">/pro/onboarding#step-payout</span></p>}
+                {cs.state === "ready" && !cs.payoutsEnabled && <p className="text-xs text-amber-800">Transfers work; Stripe is holding bank payouts until the pro finishes a step{steps.length ? ` (${steps.join("; ")})` : ""}. Money waits safely in their Stripe balance.</p>}
+                <PayNowButton contractorId={id} owed={Math.max(0, owed)} />
+              </div>
+            );
+          })()}
           <div className="card text-sm"><div className="font-semibold">Recent reviews</div>
             {((reviews ?? []) as Rec[]).map((r, i) => <p key={i} className="mt-2">{"★".repeat(r.rating)} <span className="text-ink-soft">{r.comment ?? ""}</span></p>)}
             {!(reviews ?? []).length && <p className="mt-2 text-ink-soft">No reviews yet.</p>}</div>
