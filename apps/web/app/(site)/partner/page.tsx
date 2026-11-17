@@ -93,15 +93,15 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       )}
       <div>
         <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]}<span className="pro:hidden"> 👋</span></h1>
-        <p className="text-sm text-ink-soft">One program, two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price, or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} (your rate + 5 points). Both rise as you grow.{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
+        <p className="text-sm text-ink-soft">One program, two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of our profit on the job, or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} (your rate + 5 points). Both rise as you grow.{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
       </div>
       <Link href="/partner/grow" className="card flex flex-wrap items-center justify-between gap-3 border-t-4 border-t-brand hover:border-brand">
         <span><span className="block font-bold">Grow your partner business →</span><span className="text-sm text-ink-soft">Your roadmap: {roadmapFor(partner.kind).name}. Goals tracked from your real numbers, what to do next, and the services to sell.</span></span>
         <span className="btn-primary">See your roadmap</span>
       </Link>
       <div className="grid gap-3 sm:grid-cols-2">
-        <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of the job price today, up to {pct(REFERRAL_LADDER.topRate)} (half paid by the pro, half by us).</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
-        <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of the job price today (your rate + 5 points), up to {pct(PARTNER_LADDER.topRate)} — and it counts 1.5× toward your next raise.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
+        <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of our profit today, up to {pct(REFERRAL_LADDER.topRate)} (paid by us — the pro's pay is never cut).</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
+        <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of our profit today (your rate + 5 points), up to {pct(PARTNER_LADDER.topRate)} — and it counts 1.5× toward your next raise.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
       </div>
 
       {/* partner-v7: one ladder — what built it (referrals 1×, direct sales 1.5×), the rate now and what gets the next raise */}
@@ -134,7 +134,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       <h2 id="referrals" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 1 · Referrals</h2>
       <div className="card border-t-4 border-t-gold">
         <div className="flex flex-wrap items-baseline justify-between gap-2"><div><span className="text-3xl font-extrabold">{pct(stats.referral.rate)}</span> <span className="font-semibold">of every referred job</span></div><span className="text-sm text-ink-soft">{referralRange()} · the same on every service</span></div>
-        <p className="mt-1 text-sm text-ink-soft">Your rate is locked on each job when it&apos;s booked, for every job from the customer for {PARTNER_PROGRAM.months} months. Half is paid by the pro, half by us.</p>
+        <p className="mt-1 text-sm text-ink-soft">Your rate is locked on each job when it&apos;s booked, for every job from the customer for {PARTNER_PROGRAM.months} months. It's a share of our profit on the job, paid by us.</p>
       </div>
       {q.connect === "done" && <div className="card border-brand bg-brand-tint text-sm">{ready ? "Payouts are set up. You'll be paid every Monday." : "Thanks — Stripe is still checking your details. This page shows when payouts are ready."}</div>}
 
@@ -185,7 +185,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       <h2 id="direct" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 2 · Direct sales</h2>
       <section className="card">
         <h3 className="font-bold">Write a sales ticket</h3>
-        <p className="mb-3 mt-1 text-sm text-ink-soft">Sell any Handled service. The ticket holds everything needed to close: the service and its sizes, {SALES_TICKET.minPhotos}–{SALES_TICKET.maxPhotos} photos for on-site work (none for remote services like websites), the customer, when they need it, and the price you showed. We text them the pay link, or they pay right now on your phone. Once paid, the job goes to the job board; you&apos;re paid {pct(stats.level.rate)} of the job price (locked when it&apos;s booked) once it&apos;s completed. Their repeat visits for {PARTNER_PROGRAM.months} months pay you the same way.</p>
+        <p className="mb-3 mt-1 text-sm text-ink-soft">Sell any Handled service. The ticket holds everything needed to close: the service and its sizes, {SALES_TICKET.minPhotos}–{SALES_TICKET.maxPhotos} photos for on-site work (none for remote services like websites), the customer, when they need it, and the price you showed. We text them the pay link, or they pay right now on your phone. Once paid, the job goes to the job board; you&apos;re paid {pct(stats.level.rate)} of our profit on it (rate locked when it&apos;s booked) once it&apos;s completed. Their repeat visits for {PARTNER_PROGRAM.months} months pay you the same way.</p>
         <SalesTicketForm services={services} minPhotos={SALES_TICKET.minPhotos} maxPhotos={SALES_TICKET.maxPhotos} repCode={partner.code} />
       </section>
 

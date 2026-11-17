@@ -83,7 +83,7 @@ export default async function PartnersHub() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Referral partners</h1>
-        <p className="max-w-3xl text-sm text-ink-soft">Anyone can sign up at <a className="underline" href="/partners" target="_blank">/partners</a>. Partners earn a share of the job price — {partnerRateLines().join("; ")} — half paid by the pro (taken off their job payout, shown on the work order) and half by us (never more than our fee after card fees). Paid Mondays via Stripe once the job is {PARTNER_PROGRAM.holdDays} days past completion; refunds reduce or void it first and hand the pro&apos;s half back. Balances under {money(PARTNER_PROGRAM.minPayout)} roll over. Jobs booked before Oct 28 keep the old rule (10% of our fee).</p>
+        <p className="max-w-3xl text-sm text-ink-soft">Anyone can sign up at <a className="underline" href="/partners" target="_blank">/partners</a>. Partners earn a share of our profit on the job — {partnerRateLines().join("; ")} — paid by us alone (never more than our fee after card fees; the pro's pay is never cut). Partners who joined before partner-v7 keep 15%–30% of the price on referrals, half from the pro, until they sign v7 or 2026-12-18. Paid Mondays via Stripe once the job is {PARTNER_PROGRAM.holdDays} days past completion; refunds reduce or void it first and hand the pro&apos;s half back. Balances under {money(PARTNER_PROGRAM.minPayout)} roll over. Jobs booked before Oct 28 keep the old rule (10% of our fee).</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat label="Partners" value={PS.length} hint={`${PS.filter((p) => p.status === "active").length} active`} />
@@ -141,7 +141,7 @@ export default async function PartnersHub() {
 
       <section>
         <h2 className="mb-2 font-bold">Direct-sales tickets <span className="text-sm font-normal text-ink-soft">(Field Sales)</span></h2>
-        <p className="mb-2 text-sm text-ink-soft">Partners&apos; close-ready sales tickets. The customer is texted a pay link (or paid on the partner&apos;s phone); paid jobs go to the job board like any booking. Paid at the partner&apos;s rate + 5 points of the job price, by us alone (no pro fee). Unbooked tickets expire after 30 days.</p>
+        <p className="mb-2 text-sm text-ink-soft">Partners&apos; close-ready sales tickets. The customer is texted a pay link (or paid on the partner&apos;s phone); paid jobs go to the job board like any booking. Paid at the partner&apos;s rate + 5 points of our profit, by us alone (no pro fee). Unbooked tickets expire after 30 days.</p>
         {!SALES.length ? <Empty>No sales tickets yet.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Sent</th><th className="p-3">Partner</th><th className="p-3">Customer</th><th className="p-3">Service</th><th className="p-3">Price shown</th><th className="p-3">Ticket</th><th className="p-3">Job</th><th className="p-3">Lead pay</th></tr></thead>

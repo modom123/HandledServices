@@ -944,7 +944,7 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     return { ok: false, error: "Offer expired" };
   }
   // a referred job: only a pro on the current pro agreement (it has the partner-fee term) may take it
-  const { data: refJob } = await db().from("jobs").select("partner_id, partner_rate, partner_sale").eq("id", offer.job_id).maybeSingle();
+  const { data: refJob } = await db().from("jobs").select("partner_id, partner_rate, partner_sale, partner_tier").eq("id", offer.job_id).maybeSingle();
   if (refJob?.partner_id) {
     const { data: me } = await db().from("contractors").select("agreement_version").eq("id", contractorId).maybeSingle();
     if (!proCanTakeReferredJob(refJob, me?.agreement_version, AGREEMENT_VERSION)) return { ok: false, error: "This job came through a referral partner. Sign the updated pro agreement (Setup → Agreement) to take referred jobs." };
@@ -1183,9 +1183,11 @@ async function scheduleNextVisit(job: Job) {
   if ("balance_attempts" in job) Object.assign(pay, { balance_charge_at: null, balance_attempts: 0, balance_hold_intent: null, pay_in_full_discount: 0 });
   // Referral Partner Program: a recurring visit is a repeat job for the partner (an account stays an account)
   // (a direct sale stays a direct sale: no tier, no pro fee — lib/partners.ts)
-  if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id && (job.partner_tier || !(job as { partner_sale?: boolean }).partner_sale) ? (job.partner_tier === "account" ? "account" : "repeat") : null });
+  // partner-v7 jobs (rate locked, no tier) and direct sales stay that way: no tier, no pro fee
+  const v7 = Boolean(job.partner_id && (job as { partner_rate?: number | null }).partner_rate != null && !job.partner_tier);
+  if ("partner_tier" in job) Object.assign(pay, { partner_pro_fee: 0, partner_tier: job.partner_id && !v7 && !(job as { partner_sale?: boolean }).partner_sale ? (job.partner_tier === "account" ? "account" : "repeat") : null });
   // partner-v4: the next visit gets the partner's referral rate as it is now (their level may have gone up)
-  if ("partner_rate" in job && job.partner_id && (!job.partner_sale || job.partner_rate != null)) Object.assign(pay, { partner_rate: await (await import("./partners")).referralRateNow(job.partner_id).catch(() => job.partner_rate ?? null) });
+  if ("partner_rate" in job && job.partner_id && (!job.partner_sale || job.partner_rate != null)) { const P = await import("./partners"); Object.assign(pay, { partner_rate: await (v7 || job.partner_sale ? P.programRateNow(job.partner_id) : P.referralRateNow(job.partner_id)).catch(() => job.partner_rate ?? null) }); }
   const after = job.payment_plan === "after" ? bookNowPolicy(job.service_slug, nv.price_final) : null;
   if (after?.allowed) Object.assign(pay, { payment_plan: "after", deposit_amount: after.amount });
   else if ("pay_in_full_discount" in job && Number(job.pay_in_full_discount ?? 0) > 0) {

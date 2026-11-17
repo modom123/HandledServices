@@ -12,7 +12,10 @@
  *           agreement); conflicts of interest (no commission for a referred business's own people without that
  *           business's written consent); how credit is verified and disputed; payout timing.
  *           TEMPLATE — not legal advice; have counsel review before use.
- * UPDATED : 2026-11-17_1945 UTC — partner-v7, ONE program (owner): everyone starts at 15% of the job price and climbs to 30% on
+ * UPDATED : 2026-11-17_2015 UTC — partner-v7 final (owner): the old Field Sales formula from 15% — every commission is a share
+ *           of Handled's PROFIT on the job (price − pro pay − refunds), paid by Handled alone; 15% → 45% (direct sales +5,
+ *           20% → 50%), level n at $1M × (n/30)², formula stated; existing partners switch on PARTNER_PROGRAM.v7AllAt.
+ * UPDATED : 2026-11-17_1945 UTC — partner-v7 draft, ONE program (owner): everyone starts at 15% of the job price and climbs to 30% on
  *           the profit their jobs make Handled (direct sales count 1.5×); a direct sale pays the rate + 5 points. Referral
  *           commissions are shared 50/50 by the pro and Handled; direct sales are paid by Handled alone. No job-count
  *           path. Sections 5–8 and the summary rewritten; the portal shows referral, direct and total credit.
@@ -21,7 +24,7 @@
  *           referred jobs, up to 20%), what counts as level credit (Handled's profit on a job, not its price), that the
  *           rate is locked per job and doesn't go down, and a turnover example. Direct-sales milestones in section 8.
  */
-import { BRAND, DIRECT_BONUS, FIRST_PROJECT_REWARD, PARTNER_LADDER, PARTNER_PROGRAM as P, REFERRAL_LADDER as R, SALES_DRAW, ladderTable, partnerSplit, splitJob } from "@handled/core";
+import { BRAND, DIRECT_BONUS, FIRST_PROJECT_REWARD, PARTNER_LADDER, PARTNER_PROGRAM as P, REFERRAL_LADDER as R, SALES_DRAW, ladderLevels, ladderTable, programCommission, splitJob } from "@handled/core";
 import type { Contract, ContractSection } from "./types";
 
 const N = BRAND.name;
@@ -34,20 +37,25 @@ const numbered = (items: [string, string][]): ContractSection[] => items.map(([h
 
 // the worked example: a $450 completed rental unit turnover at the starting rate
 const EX_PRICE = 450;
-const EX = partnerSplit({ price: EX_PRICE, payout: splitJob(EX_PRICE, "unit-turnover").payout, tier: "account", rate: R.baseRate });
+const EX_PAY = splitJob(EX_PRICE, "unit-turnover").payout;
+const EX = { amount: programCommission({ price: EX_PRICE, payout: EX_PAY }, R.baseRate) };
 const EX_PROFIT = splitJob(EX_PRICE, "unit-turnover").take; // Handled's profit on that job = level credit it adds
 
 // the direct-sale example: the same job sold yourself (rate + 5 points, Handled alone)
-const EXD = partnerSplit({ price: EX_PRICE, payout: splitJob(EX_PRICE, "unit-turnover").payout, tier: "account", rate: R.baseRate, bonus: DIRECT_BONUS, handledPays: true });
+const EXD = { amount: programCommission({ price: EX_PRICE, payout: EX_PAY }, R.baseRate + DIRECT_BONUS) };
+const EX_TOP = programCommission({ price: EX_PRICE, payout: EX_PAY }, R.topRate);
+const LV = ladderLevels(R);
+const V7_ALL = new Date(P.v7AllAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Detroit" });
 const B = Math.round(DIRECT_BONUS * 100);
 
 // one ladder for everyone, straight from the code that sets the rates
-const STEPS = ladderTable(R).slice(1); // level 1 … 15
+const STEPS = ladderTable(R).slice(1); // level 1 … 30
 const ESCALATOR_SECTION: [string, string] = ["How your rate rises", p(
   `Everyone starts at the same place: ${pct(R.baseRate)} on referrals and ${pct(R.baseRate + DIRECT_BONUS)} on direct sales. Your rate goes up one point at each milestone below, to ${pct(R.topRate)} on referrals and ${pct(R.topRate + DIRECT_BONUS)} on direct sales.`,
-  `Milestones are measured in level credit: the profit your completed jobs have made ${N} — the job price minus what the pro is paid and any refunds, not the job price itself. Profit from jobs you sold yourself counts ${PARTNER_LADDER.directCredit}×; profit from jobs you referred counts ${PARTNER_LADDER.referralCredit}×.`,
+  `Milestones are measured in level credit: the profit your completed jobs have made ${N} — the job price minus what the pro is paid and any refunds. Profit from jobs you sold yourself counts ${PARTNER_LADDER.directCredit}×; profit from jobs you referred counts ${PARTNER_LADDER.referralCredit}×.`,
+  `The formula: level n is reached at $1,000,000 × (n ÷ ${LV})² of level credit, rounded to the nearest $100 (under $10,000), $500 (under $100,000) or $1,000 (above). Each level adds one point: your rate at level n is ${pct(R.baseRate)} + n points on referrals, ${pct(R.baseRate + DIRECT_BONUS)} + n points on direct sales. The first raises come quickly and later ones take longer.`,
   ul(...STEPS.map((x) => `${usd(x.profit)} of level credit → ${pct(x.rate)} on referrals, ${pct(x.rate + DIRECT_BONUS)} on direct sales`)),
-  `Example: one rental unit turnover completed for ${usd(EX_PRICE)} makes ${N} about ${usd(EX_PROFIT)} of profit. Referred, it adds ${usd(EX_PROFIT)} of credit; sold yourself, it adds ${usd(Math.round(EX_PROFIT * PARTNER_LADDER.directCredit * 100) / 100)}.`,
+  `Example: one rental unit turnover completed for ${usd(EX_PRICE)} makes ${N} about ${usd(EX_PROFIT)} of profit. Referred, it adds ${usd(EX_PROFIT)} of credit; sold yourself, it adds ${usd(Math.round(EX_PROFIT * PARTNER_LADDER.directCredit * 100) / 100)}. At the top rate (${pct(R.topRate)}) the same referred turnover pays you ${usd(EX_TOP)}.`,
   `Your rate is checked each time a job is booked from one of your customers, and that job keeps the rate it was booked at for good. Your credit is lifetime: it doesn't reset each year and isn't limited to one customer. It only goes down if a job is later refunded or charged back, in which case that job's credit is removed. Your partner page shows your credit from referrals, from direct sales, your total, your rate and exactly how much more gets you the next point.`,
 )];
 
@@ -59,10 +67,10 @@ export const REFERRAL_PARTNER_AGREEMENT: Contract = {
   appliesTo: `Anyone who joins the ${N} Partner Program to refer customers (people or businesses) or to sell ${N} services on a sales ticket.`,
   summary: [
     `Free to join. No website, storefront or paid account needed.`,
-    `One program for everyone. Refer a customer and earn ${pct(R.baseRate)} of the job price (what the customer pays, minus refunds; not sales tax or tips) on every completed job from them for ${P.months} months. Sell it yourself and earn ${B} points more: ${pct(R.baseRate + DIRECT_BONUS)}. Example: a ${usd(EX_PRICE)} completed turnover pays ${usd(EX.amount)} referred, ${usd(EXD.amount)} sold yourself.`,
-    `Your rate rises one point at a time to ${pct(R.topRate)} (${pct(R.topRate + DIRECT_BONUS)} on direct sales) as the profit your jobs make ${N} grows — direct sales count ${PARTNER_LADDER.directCredit}×. Full schedule in section 6.`,
+    `One program for everyone. Refer a customer and earn ${pct(R.baseRate)} of ${N}'s profit on every completed job from them for ${P.months} months (the job price minus what the pro is paid and any refunds). Sell it yourself and earn ${B} points more: ${pct(R.baseRate + DIRECT_BONUS)}. Example: a ${usd(EX_PRICE)} turnover makes ${N} about ${usd(EX_PROFIT)} and pays you ${usd(EX.amount)} referred, ${usd(EXD.amount)} sold yourself.`,
+    `Your rate rises one point at a time to ${pct(R.topRate)} (${pct(R.topRate + DIRECT_BONUS)} on direct sales) as the profit your jobs make ${N} grows — level n at $1,000,000 × (n ÷ ${LV})², direct sales counting ${PARTNER_LADDER.directCredit}×. Full schedule in section 6.`,
     `Businesses and property managers count: when a business you refer signs with ${N} and pays ${N} directly, every completed job on its account is credited to you for ${P.months} months. Their price is never raised because of you.`,
-    `Referral commissions are shared: half from the pro who does the job, half from ${N}. Direct sales are paid by ${N} alone. You receive the full rate except on refunds, chargebacks, redo visits, or a job where ${N}'s margin after card fees can't cover its part.`,
+    `${N} pays your commission in full — the pro's pay is never reduced. You receive the full rate except on refunds, chargebacks and redo visits.`,
     `Paid every Monday through Stripe once a job is ${P.holdDays} days past completion — about ${P.holdDays}–${P.holdDays + 6} days after the first job. Balances under ${usd(P.minPayout)} roll to the next week.`,
     `Every referred customer, job and commission is listed on your partner page. Report a missing credit within 90 days and we'll check it against our records.`,
     `No commission for referring yourself, your household, your own business, or a business you work for or help run — unless that business consents in writing first.`,
@@ -93,19 +101,19 @@ export const REFERRAL_PARTNER_AGREEMENT: Contract = {
     )],
     ["What you earn", p(
       `One program, two ways to earn. Referral: you send us the customer (link, code or referral ticket) and we do the selling — you earn your rate. Direct sale: you sell it yourself on a sales ticket and the customer pays ${N} directly — you earn your rate + ${B} points. Your rate starts at ${pct(R.baseRate)} (${pct(R.baseRate + DIRECT_BONUS)} on direct sales), is the same on every service, and rises as you grow (section 6). The rate is locked on each job when it's booked.`,
-      `Commissionable amount: the price the customer pays ${N} for a completed job, minus any refund, credit or chargeback on that job. It does not include sales tax or tips.`,
+      `Commissionable amount: ${N}'s profit on a completed job — the price the customer pays ${N}, minus what ${N} pays the pro for the job and any refund, credit or chargeback. Sales tax and tips are not included.`,
       `Your commission on a job = your locked rate (plus ${B} points on a direct sale) × the commissionable amount, rounded down to the cent.`,
-      `Example: a business you referred books a rental unit turnover. The job is completed for ${usd(EX_PRICE)} with no refund. At ${pct(R.baseRate)} you earn ${usd(EX.amount)} — ${usd(EX.fromPro)} from the pro's pay and ${usd(EX.fromUs)} from ${N}. Had you sold it yourself, you'd earn ${usd(EXD.amount)} (${pct(R.baseRate + DIRECT_BONUS)}), all from ${N}. Either way the business still pays ${usd(EX_PRICE)}.`,
+      `Example: a business you referred books a rental unit turnover. The job is completed for ${usd(EX_PRICE)} with no refund; the pro is paid ${usd(EX_PAY)}, so ${N}'s profit is ${usd(EX_PROFIT)}. At ${pct(R.baseRate)} you earn ${usd(EX.amount)}. Had you sold it yourself, you'd earn ${usd(EXD.amount)} (${pct(R.baseRate + DIRECT_BONUS)}). Either way the business still pays ${usd(EX_PRICE)} and the pro is still paid ${usd(EX_PAY)}.`,
+      `If you joined before this version: until you sign it, or until ${V7_ALL} (whichever comes first), referrals keep your earlier terms — 15% to 30% of the job price, half paid by the pro. From then on, every new job follows this agreement.`,
     )],
     ESCALATOR_SECTION,
     ["Who pays your commission, and what can reduce it", p(
-      `Referrals: half of each commission is paid by the ${N} pro who does the job (it comes out of their pay for that job, under the pro agreement they accepted) and half by ${N}. Referred jobs are only offered to pros who have accepted that term, so the pro's half is always paid.`,
-      `Direct sales: ${N} pays the whole commission; the pro's pay isn't reduced.`,
+      `${N} pays the whole commission, on referrals and direct sales alike; the pro's pay is never reduced because a job came from you.`,
       "Your commission on a job can be lower than your full rate, or zero, only when:",
       ul(
         "the job is refunded, credited or charged back (in part or in full) — the commission follows the amount the customer actually paid;",
         `the visit is a free redo or make-it-right visit under our guarantee — those earn nothing;`,
-        `on a job where what ${N} keeps after paying the pro and the card fee is less than ${N}'s part — ${N}'s part is then limited to what it kept, so a job never costs ${N} money; or`,
+        `on the rare job where your commission would be more than ${N} keeps after paying the pro and the card fee — it's then limited to what ${N} kept, so a job never costs ${N} money; or`,
         "the job was cancelled, or was booked after your 12-month credit ended.",
       ),
       `If a refund or chargeback happens after you were paid, the difference is taken from your next commissions.`,

@@ -263,15 +263,15 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
   const earn = es ? [
     "6. GANE MÁS: REFERIDOS Y PROGRAMA DE SOCIOS",
     `  • Recomiende a un profesional: ${usd(PRO_REFERRAL.bonus)} cuando un profesional que usted refirió complete ${PRO_REFERRAL.afterJobs} trabajos.`,
-    `  • Refiera clientes: gane del ${refRange} del precio de cada trabajo de ese cliente durante ${PARTNER_PROGRAM.months} meses. ¿Ve un trabajo que no es de su oficio? Tome fotos y envíenos un ticket de referido.`,
-    `  • Ventas directas: venda un trabajo con un ticket de venta y el cliente paga en el momento: gana 5 puntos más (del ${saleRange} del precio).`,
+    `  • Refiera clientes: gane del ${refRange} de nuestra ganancia en cada trabajo de ese cliente durante ${PARTNER_PROGRAM.months} meses. ¿Ve un trabajo que no es de su oficio? Tome fotos y envíenos un ticket de referido.`,
+    `  • Ventas directas: venda un trabajo con un ticket de venta y el cliente paga en el momento: gana 5 puntos más (del ${saleRange} de nuestra ganancia).`,
     "  • Su tasa sube un punto a la vez mientras crece y nunca baja. Las comisiones llegan con su pago semanal.",
     `  Empiece en Portal → Referir y ganar: ${site}/pro/refer`,
   ] : [
     "6. EARN MORE: REFERRALS AND THE PARTNER PROGRAM",
     `  • Refer a pro: ${usd(PRO_REFERRAL.bonus)} when a pro you referred finishes ${PRO_REFERRAL.afterJobs} jobs.`,
-    `  • Refer customers: earn ${refRange} of the price of every job from that customer for ${PARTNER_PROGRAM.months} months. See a job that isn't your trade? Snap photos and send us a referral ticket.`,
-    `  • Direct sales: sell a job on a sales ticket and the customer pays on the spot: you earn 5 points more (${saleRange} of the price).`,
+    `  • Refer customers: earn ${refRange} of our profit on every job from that customer for ${PARTNER_PROGRAM.months} months. See a job that isn't your trade? Snap photos and send us a referral ticket.`,
+    `  • Direct sales: sell a job on a sales ticket and the customer pays on the spot: you earn 5 points more (${saleRange} of our profit).`,
     "  • Your rate climbs one point at a time as you grow, and never goes down. Commissions arrive with your weekly payout.",
     `  Start in Pro portal → Refer & earn: ${site}/pro/refer`,
   ];

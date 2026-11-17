@@ -43,7 +43,7 @@ export default async function Careers() {
           <Link href="/partners?kind=sales_rep&utm_source=careers#field-sales" className="card mt-5 flex flex-col transition hover:border-brand sm:max-w-2xl">
             <span className="font-bold">{es ? "Socio de ventas — servicios para hogares y negocios" : "Field Sales Partner — home & business services"}</span>
             <span className="mt-1 text-sm text-ink-soft">{es ? "Área de Detroit · en persona o desde cualquier lugar (referidos)" : "Detroit metro · in person, or from anywhere (referrals)"}</span>
-            <span className="mt-2 text-sm">{es ? "Venda cualquier servicio con un ticket (fotos, precio al instante, el cliente paga en el momento) y gane del 20% al 35% del precio de cada trabajo. También puede referir clientes y ganar del 15% al 30% del trabajo. Pagado cada lunes." : "Sell any service on a ticket (photos, instant price, the customer pays on the spot) and earn 20% up to 35% of the price of every job. You can also refer customers and earn 15% up to 30% of the job. Paid every Monday."}</span>
+            <span className="mt-2 text-sm">{es ? "Venda cualquier servicio con un ticket (fotos, precio al instante, el cliente paga en el momento) y gane del 20% al 50% de nuestra ganancia en cada trabajo. También puede referir clientes y ganar del 15% al 45%. Pagado cada lunes." : "Sell any service on a ticket (photos, instant price, the customer pays on the spot) and earn 20% up to 50% of our profit on every job. You can also refer customers and earn 15% up to 45%. Paid every Monday."}</span>
             <span className="mt-3 text-sm font-semibold text-brand">{es ? "Ver cómo funciona y unirme →" : "See how it works & join →"}</span>
           </Link>
         </section>

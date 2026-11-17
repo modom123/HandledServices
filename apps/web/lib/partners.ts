@@ -40,15 +40,16 @@
  * UPDATED : 2026-11-17_1700 UTC — payoutsReady uses connectStatus (transfers active), like pro payouts.
  * UPDATED : 2026-11-17_2100 UTC — the Referral Partner Agreement (partner-v6) is e-signed at sign-up and by existing partners on their
  *           partner page (signAgreement); both recorded in contract_acceptances with the exact text.
- * UPDATED : 2026-11-17_1930 UTC — partner-v7, one program: direct sales are paid on the job price (ladder rate + 5 points), by
- *           Handled alone (referrals stay shared 50/50 with the pro), stored as tier 'sale'; the rate is locked at booking
+ * UPDATED : 2026-11-17_2000 UTC — partner-v7, one program (the old Field Sales formula from 15%): every commission is the
+ *           locked rate × Handled's profit (+5 points on a direct sale), paid by Handled alone; tiers 'program' / 'sale';
+ *           partnerOnV7 (signed v7, or from v7AllAt) decides at booking; existing partners keep partner-v4 until then; the rate is locked at booking
  *           for direct sales too; the level is one ladder from profit made for Handled (direct 1.5×); stats.credit for the portal.
  */
 import { REFERRAL_PARTNER_AGREEMENT } from "./contracts/partner";
 import { recordAcceptance } from "./contracts/record";
 import "server-only";
 import { cookies } from "next/headers";
-import { DIRECT_BONUS,
+import { REFERRAL_LADDER_V4, programJob, programCommission, DIRECT_BONUS,
   AGREEMENT_VERSION, BRAND, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING,
   cleanPartnerCode, firstProjectReward, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
   REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
@@ -282,17 +283,19 @@ export async function attributeJob(job: Job, typedCode?: string | null): Promise
     await db().from("jobs").update({ partner_id: partnerId, partner_tier: null }).eq("id", job.id);
     return partnerId;
   }
-  // a customer the partner sold on a sales ticket (partner-v7): the same ladder rate locked now; the direct-sale bonus is
-  // added at completion. Paid by Handled alone — no pro fee
-  if (ref?.source === "sale") {
-    const saleTier = partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(email, partnerId, job.id) });
-    let { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: saleTier, partner_rate: await referralRateNow(partnerId), partner_sale: true }).eq("id", job.id);
-    if (error) ({ error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_sale: true }).eq("id", job.id));
+  // partner-v7 (one program): the rate is a share of Handled's profit, locked now, paid by Handled alone — no tier (that
+  // marks a v7 job), no pro fee. Direct sales always use it (it pays more than the old Field Sales ladder); referrals use
+  // it once the partner signed v7 or from PARTNER_PROGRAM.v7AllAt (30 days' notice to existing partners)
+  const sale = ref?.source === "sale";
+  if (sale || await partnerOnV7(partnerId)) {
+    let { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_rate: await programRateNow(partnerId), ...(sale ? { partner_sale: true } : {}) }).eq("id", job.id);
+    if (error && sale) ({ error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_sale: true }).eq("id", job.id));
     if (error) await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id);
     return partnerId;
   }
   const tier = partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(email, partnerId, job.id) });
-  // partner-v4: lock the partner's referral rate (15%–30%) on the job now, so the pro sees their half before accepting
+  // partner-v4 (until the partner moves to v7): lock the referral rate (15%–30% of the price) now, so the pro sees their
+  // half before accepting
   const rate = await referralRateNow(partnerId);
   let { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier, partner_rate: rate }).eq("id", job.id);
   if (error) ({ error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier }).eq("id", job.id)); // before the partner-v4 SQL
@@ -308,7 +311,7 @@ async function isFirstJob(email: string, partnerId: string, jobId: string) {
 
 // ─── Commissions ─────────────────────────────────────────────────────────────
 
-type Split = { tier: PartnerTier | "legacy" | "direct" | "sale" | "self"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
+type Split = { tier: PartnerTier | "legacy" | "direct" | "sale" | "program" | "self"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
 
 /**
  * At completion, before the pro's payout line is written: the partner's share of this job and who pays it.
@@ -325,18 +328,19 @@ export async function partnerSplitForJob(job: Job): Promise<Split | null> {
     const amount = firstProjectReward(o);
     return amount > 0 ? { tier: "self", rate: 0.1, fromPro: 0, fromUs: amount, amount, take } : null;
   }
-  // direct sale (partner-v7, one program): the ladder rate + DIRECT_BONUS of the job price, paid by Handled alone (the
-  // pro keeps full pay), never more than Handled keeps after card fees. The rate was locked at booking.
-  if (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale) {
-    const locked = job.partner_rate != null ? Number(job.partner_rate) : null;
-    const rate = locked ?? await referralRateNow(job.partner_id);
-    const tier = job.partner_tier ?? partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(lower(job.contact_email), job.partner_id, job.id) });
-    const sp = partnerSplit({ ...o, tier, rate, bonus: DIRECT_BONUS, handledPays: true });
-    if (sp.amount <= 0) return null;
-    // lead pay: this lead's $10 draw was an advance from Handled — it comes back out of the commission
-    const back = await recoverLeadDraw(job.partner_id, job, sp.fromUs).catch(() => 0);
-    const fromUs = Math.round((sp.fromUs - back) * 100) / 100;
-    return { tier: "sale", rate: sp.rate, fromPro: 0, fromUs, amount: fromUs, take };
+  // partner-v7 (one program): the locked rate × Handled's profit on the job, + 5 points on a direct sale, paid by Handled
+  // alone (the pro keeps full pay), never more than Handled keeps after card fees. Direct sales booked before v7 (no
+  // locked rate) get the program rate now — more than the old Field Sales ladder paid.
+  const sale = ref.source === "sale" || Boolean((job as { partner_sale?: boolean }).partner_sale);
+  if (sale || programJob(job)) {
+    const base = job.partner_rate != null ? Number(job.partner_rate) : await programRateNow(job.partner_id);
+    const rate = Math.round((base + (sale ? DIRECT_BONUS : 0)) * 10000) / 10000;
+    const gross = programCommission(o, rate);
+    if (gross <= 0) return null;
+    // lead pay: a direct sale's $10 draw was an advance — it comes back out of this commission
+    const back = sale ? await recoverLeadDraw(job.partner_id, job, gross).catch(() => 0) : 0;
+    const amount = Math.round((gross - back) * 100) / 100;
+    return { tier: sale ? "sale" : "program", rate, fromPro: 0, fromUs: amount, amount, take };
   }
   if (partnerLegacyJob(job.created_at)) { // partner-v1: 10% of our take, Handled alone
     const amount = partnerCommission(o);
@@ -385,13 +389,14 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
   } else if (r.tier === "direct") { // direct sale: the locked ladder rate of our take, Handled alone
     now$ = live ? Math.min(Number(r.amount), partnerSaleCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) }, Number(r.rate ?? PARTNER_LADDER.baseRate))) : 0;
     newUs = now$;
+  } else if (r.tier === "program" || r.tier === "sale") { // partner-v7: the locked rate × Handled's profit, Handled alone
+    now$ = live ? Math.min(Number(r.amount), programCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) }, Number(r.rate ?? REFERRAL_LADDER.baseRate))) : 0;
+    newUs = now$;
   } else if (!r.tier || r.tier === "legacy") {
     now$ = live ? Math.min(Number(r.amount), partnerCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) })) : 0;
     newUs = now$;
   } else {
-    // a v7 direct sale ("sale") stores the rate it paid (ladder + bonus): re-split with the bonus
-    const isSale = r.tier === "sale";
-    const sp = live ? partnerSplit({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded), tier: (isSale ? "account" : r.tier) as PartnerTier, rate: isSale ? Math.max(0, Number(r.rate ?? 0) - DIRECT_BONUS) : r.rate ?? null, bonus: isSale ? DIRECT_BONUS : 0, handledPays: isSale }) : null;
+    const sp = live ? partnerSplit({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded), tier: r.tier as PartnerTier, rate: r.rate ?? null }) : null;
     newPro = sp && fromPro > 0 ? Math.min(fromPro, sp.fromPro) : 0;
     newUs = sp ? Math.min(fromUs, sp.fromUs) : 0;
     now$ = Math.round((newPro + newUs) * 100) / 100;
@@ -598,16 +603,31 @@ export async function directSalesLevel(partnerId: string) {
   return { ...lv, profit: credit.profit, jobs: credit.jobs, raw };
 }
 
-/** The partner's referral rate right now (partner-v4): 15% → 30% of the job price, from the same level credit. */
+/** partner-v4 referral rate right now (existing partners until v7): 15% → 30% of the job price. */
 export async function referralRateNow(partnerId: string): Promise<number> {
+  const d = await directSalesLevel(partnerId).catch(() => null);
+  if (!d) return REFERRAL_LADDER_V4.baseRate;
+  const credit = ladderCredit(d.raw);
+  return partnerLevel(credit.profit, credit.jobs, REFERRAL_LADDER_V4).rate;
+}
+
+/** partner-v7 program rate right now: 15% → 45% of Handled's profit (a direct sale adds DIRECT_BONUS at completion). */
+export async function programRateNow(partnerId: string): Promise<number> {
   return (await referralLevel(partnerId).catch(() => null))?.rate ?? REFERRAL_LADDER.baseRate;
+}
+
+/** Is this partner on partner-v7 (signed it, or it's past the notice date)? */
+export async function partnerOnV7(partnerId: string): Promise<boolean> {
+  if (Date.now() >= new Date(PARTNER_PROGRAM.v7AllAt).getTime()) return true;
+  const { data } = await db().from("referral_partners").select("terms_version").eq("id", partnerId).maybeSingle();
+  return String(data?.terms_version ?? "") >= "partner-v7";
 }
 
 /** The referral ladder level (same credit as direct sales: direct-sale profit 1.5×, referral profit 1×). */
 export async function referralLevel(partnerId: string) {
   const d = await directSalesLevel(partnerId);
   const credit = ladderCredit(d.raw);
-  return { ...partnerLevel(credit.profit, credit.jobs, REFERRAL_LADDER), profit: credit.profit, jobs: credit.jobs };
+  return { ...partnerLevel(credit.profit, 0, REFERRAL_LADDER), profit: credit.profit, jobs: credit.jobs };
 }
 
 /** Booking code box: is this an active partner's code? (The customer pays with their rep's code: credit, no discount.) */
