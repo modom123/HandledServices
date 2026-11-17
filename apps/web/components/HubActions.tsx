@@ -7,6 +7,10 @@
  * UPDATED : 2026-10-15_0300 UTC — PaymentPanel: "pay after" jobs (25% in, balance hold / failed tries) and the pay-in-full saving.
  * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
  * UPDATED : 2026-11-11_0030 UTC — Recruiting: Delete (one applicant) and DeleteApplicantsBulk (everyone "not a fit" / "dropped off"), admins.
+ * UPDATED : 2026-11-12_1900 UTC — Payment panel: a $1 name-your-price board post says when the rest is charged.
+ * UPDATED : 2026-11-12_2330 UTC — DocDecision is Handled review: open the policy, confirm the expiry, how it was checked
+ *           (policy or insurer), verify or reject with a reason.
+ * UPDATED : 2026-11-13_0030 UTC — ResetProPin (in the pro status controls).
  */
 "use client";
 
@@ -163,7 +167,7 @@ export function ActionDecision({ id }: { id: string }) {
   );
 }
 
-export function PaymentPanel({ job }: { job: { id: string; ref: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string; payment_plan?: string; deposit_amount?: number | null; deposit_paid_at?: string | null; balance_due_date?: string | null; balance_hold_intent?: string | null; balance_attempts?: number | null; pay_in_full_discount?: number | null } }) {
+export function PaymentPanel({ job }: { job: { id: string; ref: string; price_final: number | null; paid_at: string | null; amount_paid: number; amount_refunded: number; remedy: string | null; status: string; payment_plan?: string; deposit_amount?: number | null; deposit_paid_at?: string | null; balance_due_date?: string | null; balance_hold_intent?: string | null; balance_attempts?: number | null; pay_in_full_discount?: number | null; open_offer_until?: string | null } }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [method, setMethod] = useState("card by phone");
@@ -191,6 +195,7 @@ export function PaymentPanel({ job }: { job: { id: string; ref: string; price_fi
             </div>
             {job.paid_at ? <p className="text-brand-dark">✓ Paid in full {new Date(job.paid_at).toLocaleDateString()}</p>
               : job.deposit_paid_at && after ? <p className={Number(job.balance_attempts ?? 0) > 0 ? "text-rose-700" : ""}>25% paid {new Date(job.deposit_paid_at).toLocaleDateString()}. {Number(job.balance_attempts ?? 0) > 0 ? `Balance charge failed ${job.balance_attempts}× — payment link sent; retried daily. The pro is paid as usual.` : job.balance_hold_intent ? "Balance is on hold on the card (placed when the pro started) — taken when the job is complete." : "Balance goes on hold when the pro starts and is charged when the job is complete. The pro can start now."}</p>
+              : job.deposit_paid_at && job.open_offer_until && Number(job.deposit_amount) === 1 ? <p>$1 board post paid {new Date(job.deposit_paid_at).toLocaleDateString()} — on the job board until {job.open_offer_until.slice(0, 10)}. The rest is charged to the saved card when a pro takes it (a declined card keeps it on the board and sends the customer a link).</p>
               : job.deposit_paid_at ? <p>Deposit paid {new Date(job.deposit_paid_at).toLocaleDateString()} — balance is charged automatically{job.balance_due_date ? ` on ${job.balance_due_date}` : ""}. The pro can’t start until it’s paid.</p>
               : <p className="text-rose-700">Unpaid — nothing is dispatched until the {deposit ? "deposit" : "payment"} is in.</p>}
             {due > 0 && (
@@ -259,15 +264,112 @@ export function RemedyPanel({ jobId, paid, services }: { jobId: string; paid: bo
   );
 }
 
-export function DocDecision({ contractorId, docId }: { contractorId: string; docId: string }) {
+/**
+ * Handled review of a pro's document — the second way to verify (the first is the automatic AI check). Open the policy,
+ * confirm or correct the expiry date (prefilled from what the pro entered, else the AI's reading), say how you checked it
+ * (the certificate itself, or a call / email with the insurer or agent), then verify — or reject with a reason the pro sees.
+ */
+export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires, aiAdditional }: { contractorId: string; docId: string; kind?: string; expiresOn?: string | null; aiExpires?: string | null; aiAdditional?: boolean | null }) {
   const router = useRouter();
-  const act = async (decision: "verify" | "reject") => { await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision }); router.refresh(); };
-  return (
+  const [open, setOpen] = useState(false);
+  const [exp, setExp] = useState(expiresOn || aiExpires || "");
+  const [method, setMethod] = useState<"document" | "insurer">("document");
+  const [noExpiry, setNoExpiry] = useState((expiresOn ?? "") === "9999-12-31");
+  const [listedAs, setListedAs] = useState<"additional_insured" | "certificate_holder">(aiAdditional ? "additional_insured" : "certificate_holder");
+  const [notes, setNotes] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const dated = !kind || !["w9", "background", "agreement"].includes(kind);
+  const act = async (decision: "verify" | "reject") => {
+    if (decision === "reject" && !notes.trim()) return setMsg("Add the reason — the pro sees it.");
+    if (decision === "verify" && dated && !exp && !noExpiry) return setMsg("Enter the expiry date, or tick \"Doesn't expire\".");
+    setBusy(true); setMsg("");
+    const r = await call(`/api/hub/contractors/${contractorId}/documents/${docId}`, "POST", { decision, notes: notes.trim() || undefined, ...(decision === "verify" ? { expires_on: dated ? (noExpiry ? "9999-12-31" : exp) : undefined, method, ...(kind === "coi" ? { listed_as: listedAs } : {}) } : {}) });
+    setBusy(false);
+    if (!r.ok) return setMsg(r.json.error ?? "Failed");
+    router.refresh();
+  };
+  const href = `/api/hub/contractors/${contractorId}/documents/${docId}`;
+  if (!open) return (
     <div className="flex gap-2">
-      <a className="btn-ghost px-3 py-1 text-xs" href={`/api/hub/contractors/${contractorId}/documents/${docId}`} target="_blank">Open</a>
-      <button className="btn-ghost px-3 py-1 text-xs" onClick={() => act("reject")}>Reject</button>
-      <button className="btn-primary px-3 py-1 text-xs" onClick={() => act("verify")}>Verify</button>
+      <a className="btn-ghost px-3 py-1 text-xs" href={href} target="_blank">Open policy</a>
+      <button className="btn-primary px-3 py-1 text-xs" onClick={() => setOpen(true)}>Review</button>
     </div>
+  );
+  return (
+    <div className="w-full space-y-2 rounded-xl border border-line bg-paper p-3 text-xs sm:w-80">
+      <a className="btn-ghost block px-3 py-1 text-center" href={href} target="_blank">Open policy ↗</a>
+      {dated && (
+        <label className="block font-semibold">Expiry date on the policy
+          <input type="date" className="input mt-1 py-1 text-xs" value={noExpiry ? "" : exp === "9999-12-31" ? "" : exp} disabled={noExpiry} onChange={(e) => setExp(e.target.value)} />
+          {kind !== "coi" && <span className="mt-1 flex items-center gap-2 font-normal"><input type="checkbox" checked={noExpiry} onChange={(e) => setNoExpiry(e.target.checked)} /> Doesn't expire (USDOT number, one-time certification)</span>}
+          {aiExpires && expiresOn && aiExpires !== expiresOn && <span className="mt-1 block font-normal text-amber-800">Pro entered {expiresOn}; the AI read {aiExpires}. Use what the policy says.</span>}
+        </label>
+      )}
+      {kind === "coi" && <div className="rounded-lg bg-amber-50 p-2 text-amber-900">Required: general liability at the trade's per-occurrence minimum, <b>Handled Services LLC as additional insured or certificate holder</b>, not expired.</div>}
+      {kind === "coi" && (<>
+        <div className="font-semibold">Handled is listed as</div>
+        <label className="flex items-center gap-2"><input type="radio" checked={listedAs === "additional_insured"} onChange={() => setListedAs("additional_insured")} /> Additional insured — priority for jobs</label>
+        <label className="flex items-center gap-2"><input type="radio" checked={listedAs === "certificate_holder"} onChange={() => setListedAs("certificate_holder")} /> Certificate holder only</label>
+      </>)}
+      <div className="font-semibold">How you checked it</div>
+      <label className="flex items-center gap-2"><input type="radio" checked={method === "document"} onChange={() => setMethod("document")} /> Reviewed the certificate / policy</label>
+      <label className="flex items-center gap-2"><input type="radio" checked={method === "insurer"} onChange={() => setMethod("insurer")} /> Confirmed with the insurer or agent</label>
+      <input className="input py-1 text-xs" placeholder="Note (required to reject — the pro sees it)" value={notes} maxLength={500} onChange={(e) => setNotes(e.target.value)} />
+      <div className="flex justify-between gap-2">
+        <button className="btn-ghost px-3 py-1" disabled={busy} onClick={() => setOpen(false)}>Cancel</button>
+        <span className="flex gap-2">
+          <button className="btn-ghost px-3 py-1" disabled={busy} onClick={() => act("reject")}>Reject</button>
+          <button className="btn-primary px-3 py-1" disabled={busy} onClick={() => act("verify")}>{busy ? "…" : "Verify"}</button>
+        </span>
+      </div>
+      {msg && <div className="text-rose-700">{msg}</div>}
+    </div>
+  );
+}
+
+/** Staff: verify a license / USDOT number / certification without an upload (state lookup, agency, a call). */
+export function VerifyLicense({ id, current }: { id: string; current?: string | null }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [num, setNum] = useState(current ?? "");
+  const [exp, setExp] = useState("");
+  const [never, setNever] = useState(false);
+  const [how, setHow] = useState("");
+  const [msg, setMsg] = useState("");
+  if (!open) return <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setOpen(true)}>Verify license (no upload needed)</button>;
+  return (
+    <div className="w-full space-y-2 rounded-xl border border-line bg-paper p-3 text-xs">
+      <div className="font-semibold">Verify a license, USDOT number or certification</div>
+      <input className="input py-1 text-xs" placeholder="License / USDOT / certificate number" value={num} onChange={(e) => setNum(e.target.value)} />
+      <div className="flex flex-wrap items-center gap-2"><input type="date" className="input w-40 py-1 text-xs" value={exp} disabled={never} onChange={(e) => setExp(e.target.value)} />
+        <label className="flex items-center gap-1"><input type="checkbox" checked={never} onChange={(e) => setNever(e.target.checked)} /> Doesn't expire</label></div>
+      <input className="input py-1 text-xs" placeholder="How you checked it (e.g. LARA lookup, FMCSA SAFER, called the agency)" value={how} onChange={(e) => setHow(e.target.value)} />
+      <div className="flex gap-2">
+        <button className="btn-ghost px-3 py-1" onClick={() => setOpen(false)}>Cancel</button>
+        <button className="btn-primary px-3 py-1" onClick={async () => {
+          const r = await call(`/api/hub/contractors/${id}/license`, "POST", { license_number: num, expires_on: never ? "" : exp, no_expiry: never, how });
+          if (!r.ok) return setMsg(r.json.error ?? "Failed");
+          setOpen(false); router.refresh();
+        }}>Verify</button>
+      </div>
+      {msg && <div className="text-rose-700">{msg}</div>}
+    </div>
+  );
+}
+
+/** Staff: clear a pro's PIN (they create a new one the next time they open an accepted job). */
+export function ResetProPin({ id }: { id: string }) {
+  const [msg, setMsg] = useState("");
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button className="btn-ghost px-3 py-1.5 text-xs" onClick={async () => {
+        if (!confirm("Reset this pro's PIN? They'll create a new one the next time they open an accepted job.")) return;
+        const r = await call(`/api/hub/contractors/${id}/pin`, "POST", {});
+        setMsg(r.ok ? "PIN reset" : r.json.error ?? "Failed");
+      }}>Reset Pro PIN</button>
+      {msg && <span className="text-xs text-ink-soft">{msg}</span>}
+    </span>
   );
 }
 
@@ -282,6 +384,8 @@ export function ProStatusControls({ id, status, complete }: { id: string; status
       <div className="flex flex-wrap gap-2">
         {status !== "approved" && <button className="btn-primary px-3 py-1.5 text-xs" disabled={!complete} title={complete ? "" : "Finish onboarding first"} onClick={() => patch({ status: "approved" })}>Activate — start sending offers</button>}
         <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => patch({ background_checked: true })}>Mark background check cleared</button>
+        <ResetProPin id={id} />
+        <VerifyLicense id={id} />
       </div>
       {status === "approved" && (
         <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason to pause / offboard" value={reason} onChange={(e) => setReason(e.target.value)} />

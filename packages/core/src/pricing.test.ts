@@ -171,7 +171,8 @@ test("licensed work only goes to pros with a license on file", async () => {
   };
   const job = { service_slug: "water-heater", zip: "48201", scheduled_date: null };
   assert.equal(rankContractors([base], job).length, 0);
-  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123" }], job).length, 1);
+  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123" }], job).length, 0, "a number typed in isn't enough: Handled verifies it");
+  assert.equal(rankContractors([{ ...base, license_number: "MI-PL-123", license_expires: "2099-01-01" }], job).length, 1);
 });
 
 test("onboarding blocks activation until every step is done", async () => {
@@ -193,7 +194,10 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, photo_uploaded_at: null }).complete, false, "needs a profile photo");
   assert.equal(onboardingChecklist({ ...ok, tin_last4: null }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, agreement_version: "old" }).complete, false);
-  assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, false, "plumber needs a license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"] }).complete, true, "a plumber can start on unlicensed work (garbage disposals); licensed jobs wait for the license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["electrical"] }).complete, false, "an electrician's every service needs a license");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["electrical"], license_number: "EL-1" }).complete, false, "typed in, not yet verified");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["freight"], license_number: "USDOT 1234567", license_expires: "9999-12-31" }).steps.find((x) => x.key === "license")?.done, true, "a USDOT number doesn't expire");
   assert.equal(onboardingChecklist({ ...ok, trades: ["plumbing"], license_number: "PL-1", license_expires: future }).complete, true);
   assert.equal(onboardingChecklist({ ...ok, coverage: { workers_comp: "exempt" } }).complete, true, "residential cleaners need no bond (bond only for large commercial jobs)");
   assert.equal(onboardingChecklist({ ...ok, trades: ["remodel"], license_number: "RB-1", license_expires: future }).complete, false, "remodelers need a real workers' comp policy");
@@ -692,8 +696,8 @@ test("transportation: hourly minimums, licensed operators with passenger-carrier
   };
   const job = { service_slug: "limousine", zip: "48201", scheduled_date: null };
   assert.equal(rankContractors([pro], job).length, 0, "needs authority on file");
-  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1" }], job).length, 0, "needs passenger-carrier insurance");
-  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", coverage: { passenger_auto: "2099-01-01" } }], job).length, 1);
+  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", license_expires: "2099-01-01" }], job).length, 0, "needs passenger-carrier insurance");
+  assert.equal(rankContractors([{ ...pro, license_number: "MDOT-1", license_expires: "2099-01-01", coverage: { passenger_auto: "2099-01-01" } }], job).length, 1);
 });
 
 // ── Calculators: like adding rooms to a house cleaning, more of anything never costs less ──
@@ -1061,6 +1065,18 @@ test("market pricing: booking fee, sliding commission, counters, learning, offer
   // below the usual minimum (75%): still taken, straight to the job board for 30 days; below the 30% floor: refused
   assert.equal(offerCheck(70, 100).ok, true);
   assert.equal(offerCheck(70, 100).level, "board");
+  { // name your price is posted on the job board for $1, 90 days; the price is charged when a pro takes it
+    const { isBoardPost, BOARD_POST_FEE, OFFER_BOUNDS } = await import("./pricing.ts");
+    assert.equal(BOARD_POST_FEE, 1); assert.equal(OFFER_BOUNDS.boardDays, 90);
+    const until = "2027-02-10T00:00:00Z";
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "deposit", deposit_amount: 1 }), true);
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "deposit", deposit_amount: "1.00" }), true, "numeric strings from Postgres");
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "full", deposit_amount: null }), false, "older board jobs paid in full");
+    assert.equal(isBoardPost({ open_offer_until: null, payment_plan: "deposit", deposit_amount: 1 }), false);
+    assert.equal(isBoardPost({ open_offer_until: until, payment_plan: "deposit", deposit_amount: 250 }), false, "a real deposit");
+    const { clearedForWork } = await import("./pricing.ts");
+    assert.equal(clearedForWork({ payment_plan: "deposit", deposit_paid_at: "2026-11-12T00:00:00Z", paid_at: null }), false, "a pro can't start a $1 post until the price is charged");
+  }
   assert.equal(offerCheck(30, 100).level, "board");
   assert.equal(offerCheck(29, 100).ok, false);
   assert.equal(offerCheck(29, 100).floor, 30);
@@ -1277,6 +1293,37 @@ test("open job board: first looks first, then 30 min after the first targeted ro
   assert.equal(favoriteWindowHours("2026-10-14", now), FAVORITES.firstLookHours);
   assert.equal(favoriteWindowHours("2026-10-10", now), 1, "job today → short window so it still gets covered");
   assert.equal(favoriteWindowHours(null, now), FAVORITES.firstLookHours);
+  { // texts go only to pros in the job's area
+    const { inProArea } = await import("./dispatch.ts");
+    const pro = { base_lat: 42.33, base_lng: -83.05, service_radius_mi: 20, service_zips: [] as string[], zips_only: false } as unknown as Parameters<typeof inProArea>[0];
+    const near = { lat: 42.40, lng: -83.10, zip: "48206", service_slug: "lawn-care" }, far = { lat: 42.96, lng: -85.67, zip: "49503", service_slug: "lawn-care" };
+    assert.equal(inProArea(pro, near), true, "Detroit pro, Detroit job");
+    assert.equal(inProArea(pro, far), false, "Detroit pro, Grand Rapids job");
+    assert.equal(inProArea({ ...pro, base_lat: null, base_lng: null } as typeof pro, near), false, "no home base and no ZIP list: never texted");
+    assert.equal(inProArea(pro, { ...near, lat: null, lng: null }), false, "job not mapped and not in the ZIP list");
+    assert.equal(inProArea({ ...pro, service_zips: ["495*"] } as typeof pro, far), true, "a listed ZIP counts past the radius");
+    assert.equal(inProArea({ ...pro, zips_only: true, service_zips: ["48201"] } as typeof pro, near), false, "only these ZIPs");
+    assert.equal(inProArea(pro, { ...near, service_slug: "website-design" }), false, "remote work is never texted");
+  }
+  { // higher pay goes first
+    const { payRatio, topPay, offerPlan, boardOrder, PAY_PRIORITY } = await import("./board.ts");
+    assert.equal(payRatio({ customer_offer: 120, suggested_price: 100 }), 1.2);
+    assert.equal(payRatio({ customer_offer: null, suggested_price: 100 }), null, "took our price");
+    assert.equal(topPay({ customer_offer: 110, suggested_price: 100 }), true);
+    assert.equal(topPay({ customer_offer: 105, suggested_price: 100 }), false);
+    assert.deepEqual(offerPlan({ priority: "normal" }), { count: 1, hours: 2 });
+    assert.deepEqual(offerPlan({ priority: "high" }), { count: 2, hours: 1 });
+    assert.deepEqual(offerPlan({ priority: "normal", customer_offer: 130, suggested_price: 100 }), { count: PAY_PRIORITY.offerTo, hours: 1 }, "top pay: 3 pros, 1 hour");
+    assert.deepEqual(offerPlan({ priority: "normal", customer_offer: 70, suggested_price: 100 }), { count: 1, hours: 2 }, "a low offer goes out normally");
+    assert.equal(offerPlan({ priority: "normal", customer_offer: 130, suggested_price: 100 }, 5).count, 5, "never fewer than the AI picked");
+    const order = boardOrder([{ id: "a", pay: 300 }, { id: "b", pay: 80, priority: true }, { id: "c", pay: 120, topPay: true }, { id: "d", pay: 500 }]).map((c) => c.id);
+    assert.deepEqual(order, ["c", "b", "d", "a"], "top pay, then priority, then the most pay");
+    const now = new Date("2026-11-12T12:00:00Z");
+    const paid = { status: "dispatched", contractor_id: null, paid_at: "2026-11-12T10:00:00Z", scheduled_date: "2026-11-15" };
+    const justOffered = [{ kind: "job", status: "offered", offered_at: "2026-11-12T11:55:00Z" }];
+    assert.equal(onBoard(paid, justOffered, now), false, "a normal job waits for its first round");
+    assert.equal(onBoard({ ...paid, customer_offer: 130, suggested_price: 100 }, justOffered, now), true, "top pay is on the board right away");
+  }
 });
 
 test("job-posting letter: names their posting, keeps to what we promise, unsubscribe and address on every email", async () => {
@@ -2134,6 +2181,15 @@ test("omnichannel: channels from first touch, any lead payload normalized, hones
   assert.equal(channelOf("linkedin"), "linkedin");
   const meta = normalizeIntake({ field_data: [{ name: "full_name", values: ["Dana Ray"] }, { name: "email", values: ["DANA@Example.com"] }, { name: "phone_number", values: ["+1 313 555 0100"] }, { name: "what_do_you_need", values: ["Carpet cleaning for 3 rooms"] }], lead_id: "123" }, "instagram");
   assert.equal(meta.name, "Dana Ray"); assert.equal(meta.email, "dana@example.com"); assert.equal(meta.phone, "+1 313 555 0100");
+  // /post (Post your project): the whole description is kept, and form labels never pick the service
+  const longPost = `Posted project\nDetails: ${"Strip and refinish the back deck, then stain it. ".repeat(20)}\nTiming: Within a week\nBudget: Not sure yet`;
+  const posted = normalizeIntake({ name: "Lee", email: "lee@example.com", message: longPost, campaign: "post-project" }, "website");
+  assert.equal(posted.message, longPost, "a long posted project is not cut at 300 characters");
+  assert.equal(posted.campaign, "post-project");
+  assert.equal(posted.service_slug, "deck-build", "guessed from what they wrote");
+  for (const t of ["Need to replace 6 old wood double-hung front windows", "window replacement for a brick house", "install new vinyl windows", "replace the front door"]) assert.equal(guessService(t), "window-door-install", t);
+  for (const t of ["clean my windows", "window washing, 2 story", "renew my window cleaning plan"]) assert.equal(guessService(t), "window-cleaning", t);
+  assert.equal(normalizeIntake({ name: "Lee", email: "lee@example.com", message: "Posted project\nTiming: As soon as possible\nBudget: Under $500" }).service_slug, null, "\"Details:\" / \"Budget:\" labels don't match a service");
   assert.equal(meta.channel, "instagram"); assert.equal(meta.external_id, "123"); assert.equal(meta.service_slug, "carpet-cleaning"); assert.equal(meta.sms_consent, false);
   const google = normalizeIntake({ lead_id: "g1", user_column_data: [{ column_id: "FIRST_NAME", string_value: "Sam" }, { column_id: "LAST_NAME", string_value: "Lee" }, { column_id: "EMAIL", string_value: "sam@biz.com" }, { column_id: "COMPANY_NAME", string_value: "Lee Offices" }, { column_id: "POSTAL_CODE", string_value: "48226-1234" }], gclid: "GC" }, "google_ads");
   assert.equal(google.name, "Sam Lee"); assert.equal(google.company, "Lee Offices"); assert.equal(google.zip, "48226"); assert.equal(google.attribution?.gclid, "GC"); assert.equal(google.channel, "google_ads");
@@ -2587,7 +2643,8 @@ test("field sales ticket: close-ready check", async () => {
   // remote services sell without photos or a street address
   assert.deepEqual(ticketCloseCheck({ ...base, service_slug: remote.slug, answers: defaultAnswers(remote), photos: 0, address: null, urgency: remote.leadDays ? null : "month" }), []);
   // a required measurement blocks the ticket until it's entered
-  const measured = SERVICES.find((s) => s.questions.some((q) => q.type === "number" && q.required));
+  // a service whose required measurement shows with its default answers (organizing asks only for basements, attics and homes)
+  const measured = SERVICES.find((s) => s.questions.some((q) => q.type === "number" && q.required && questionVisible(q, defaultAnswers(s), s.questions)));
   if (measured) assert.ok(ticketCloseCheck({ ...base, service_slug: measured.slug, answers: defaultAnswers(measured), photos: 4 }).length > 0);
 });
 
@@ -2713,6 +2770,22 @@ test("pro welcome email: their services (cleared and not yet), how it works, pay
   const esMail = proWelcomeEmail(c, { site: "https://handledsvc.com", policy: PRO_POLICY_DEFAULTS, lang: "es" });
   assert.match(esMail.subject, /^Bienvenido a la Red Handled, Dana/);
   assert.ok(esMail.text.includes("CÓMO FUNCIONA SU PORTAL") && esMail.text.includes("lun, mar, mié, jue, vie"));
+  // honest about being new; the area section; a warning only when the home ZIP is missing (2026-11-12)
+  assert.ok(!/From today/i.test(en.text) && en.text.includes("Handled is a new company") && en.text.includes("some weeks there may be none"), "no 'jobs from today' promise");
+  assert.ok(esMail.text.includes("es una empresa nueva") && !esMail.text.includes("A partir de hoy le llegan ofertas"));
+  for (const k of ["YOUR AREA DECIDES WHICH JOBS REACH YOU", "How far you'll drive (miles)", "Only send me jobs in these ZIP codes", "https://handledsvc.com/pro/onboarding", "MORE WORK WHILE WE GROW", "Jobs near you"])
+    assert.ok(en.text.includes(k), "EN has: " + k);
+  assert.ok(!en.text.includes("We don't have your home ZIP"), "no warning when the ZIP is set");
+  const noZip = proWelcomeEmail({ ...c, base_zip: null, service_zips: [] } as unknown as Contractor, { site: "https://handledsvc.com", policy: PRO_POLICY_DEFAULTS });
+  assert.ok(noZip.text.includes("We don't have your home ZIP code yet"), "warns when the home ZIP is missing");
+  const order = ["1. WHAT YOU TOLD US", "2. YOUR AREA", "3. HOW YOUR PRO PORTAL", "4. HOW AND WHEN", "5. HOW YOU GROW", "6. EARN MORE", "7. MORE WORK", "8. GOOD TO KNOW"].map((h) => en.text.indexOf(h));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "sections in order");
+  assert.ok(order.every((i) => i >= 0));
+  // insurance: only for the services that need it; Handled as additional insured or certificate holder (2026-11-12)
+  assert.ok(en.text.includes("INSURANCE") && en.text.includes("additional insured or certificate holder"), "insurance block");
+  assert.ok(/These don't need insurance to start: .*House/.test(en.text), "cleaning needs no insurance");
+  assert.ok(esMail.text.includes("SEGURO") && esMail.text.includes("asegurado adicional o titular del certificado"));
+  assert.ok(en.text.includes("you get priority for jobs that need insurance"), "tells pros additional insured gets priority");
 });
 
 test("partner welcome: payouts first, both ways to earn, lead pay for Field Sales; payout reminders on set days (2026-11-10)", async () => {
@@ -2901,4 +2974,96 @@ test("onboarding payout step: done only with Stripe (old ACH / check details can
   assert.equal(step("ach").done, false);
   assert.match(step("ach").detail, /Stripe/);
   assert.equal(step(null).done, false);
+});
+
+test("insurance: two ways to verify — automatic when everything checks out, otherwise Handled review (2026-11-12)", async () => {
+  const { docAutoCheck } = await import("./compliance.ts");
+  const { glMinimum } = await import("./vetting.ts");
+  const today = new Date("2026-11-12T12:00:00Z");
+  const trades = ["cleaning"];
+  const good = { readable: true, matches_pro: true, expires_on: "2027-06-30", per_occurrence_limit: glMinimum(trades), additional_insured: true, meets_requirements: true, problems: [] as string[] };
+  assert.deepEqual(docAutoCheck("coi", good, { claimedExpiry: "2027-06-30", trades, today }), { auto: true, reasons: [] });
+  const why = (r: Partial<typeof good>, claimed = "2027-06-30") => docAutoCheck("coi", { ...good, ...r }, { claimedExpiry: claimed, trades, today }).reasons.join(" | ");
+  assert.match(why({ readable: false }), /couldn't be read/);
+  assert.match(why({ matches_pro: false }), /name on the policy/);
+  assert.match(why({ expires_on: "2026-11-01" }, "2026-11-01"), /expired/);
+  assert.match(why({}, "2027-07-30"), /doesn't match the policy/);
+  assert.match(why({ per_occurrence_limit: 100000 }), /limit below/);
+  assert.match(why({ additional_insured: false }), /additional insured/);
+  assert.match(why({ expires_on: "" }), /no expiry/);
+  assert.match(why({ meets_requirements: false, problems: ["missing aggregate limit"] }), /missing aggregate limit/);
+  assert.equal(docAutoCheck("coi", null, { trades, today }).auto, false, "no AI reading: a person checks");
+  assert.equal(docAutoCheck("license", good, { trades, today }).auto, false, "licenses are always checked by a person");
+  assert.equal(docAutoCheck("auto", { ...good, per_occurrence_limit: 0, additional_insured: false }, { claimedExpiry: "2027-06-30", trades, today }).auto, true, "other coverage: limits are judged by the AI's requirement check");
+});
+
+test("additional insured: Handled as additional insured gets priority on jobs that need insurance; certificate holder is accepted (2026-11-12)", async () => {
+  const { rankContractors, ADDITIONAL_INSURED_BOOST } = await import("./dispatch.ts");
+  const { docAutoCheck } = await import("./compliance.ts");
+  const { glMinimum } = await import("./vetting.ts");
+  const base = { status: "approved", trades: ["handyman"], specialties: [], license_number: null, insured_until: "2099-01-01", background_checked: true, coverage: {},
+    rating: 4.8, on_time_rate: 0.95, acceptance_rate: 0.9, jobs_completed: 10, daily_capacity: 3, base_lat: 42.33, base_lng: -83.05, service_radius_mi: 25, service_zips: [], zips_only: false, availability: null, time_off: [] };
+  const certOnly = { ...base, id: "c1", handled_additional_insured: false }, named = { ...base, id: "c2", handled_additional_insured: true };
+  const job = { service_slug: "handyman", zip: "48226", lat: 42.33, lng: -83.05, scheduled_date: null, time_window: "flexible", price_final: 100 };
+  const r = rankContractors([certOnly, named] as never, job as never);
+  assert.equal(r[0].contractor.id, "c2", "additional insured goes first");
+  assert.equal(Math.round((r[0].score - r[1].score) * 10) / 10, ADDITIONAL_INSURED_BOOST);
+  assert.ok(r[0].reasons.includes("Handled additional insured"));
+  const clean = rankContractors([certOnly, named] as never, { ...job, service_slug: "house-cleaning" } as never);
+  if (clean.length === 2) assert.equal(clean[0].score, clean[1].score, "no boost where insurance isn't needed");
+  const good = { readable: true, matches_pro: true, expires_on: "2027-06-30", per_occurrence_limit: glMinimum(["handyman"]), additional_insured: false, certificate_holder: true, meets_requirements: true, problems: [] as string[] };
+  assert.equal(docAutoCheck("coi", good, { claimedExpiry: "2027-06-30", trades: ["handyman"], today: new Date("2026-11-12") }).auto, true, "certificate holder is accepted");
+  assert.equal(docAutoCheck("coi", { ...good, certificate_holder: false }, { claimedExpiry: "2027-06-30", trades: ["handyman"], today: new Date("2026-11-12") }).auto, false, "Handled must be listed one way or the other");
+});
+
+test("pro PIN: an accepted work order behind the PIN hides the address, customer and entry details (2026-11-13)", async () => {
+  const { buildWorkOrder } = await import("./workorder.ts");
+  const job = { ref: "HD-1", service_slug: "handyman", address: "123 Main St", city: "Detroit", state: "MI", zip: "48226", contact_name: "Pat Lee", contact_phone: "313-555-0100", company_name: null,
+    access_info: "Lockbox 4321", scheduled_date: "2026-11-20", time_window: "morning", answers: {}, notes: null, instructions: null, contractor_payout: 100, payment_plan: "full", paid_at: "2026-11-12" };
+  const open = buildWorkOrder(job as never, { reveal: true });
+  assert.ok(open.where.includes("123 Main St") && open.customer?.phone === "313-555-0100" && open.access === "Lockbox 4321");
+  const locked = buildWorkOrder(job as never, { reveal: true, pinLocked: true });
+  assert.ok(!locked.where.includes("123 Main St") && locked.where.includes("enter your PIN"));
+  assert.equal(locked.customer, undefined); assert.equal(locked.access, null);
+  assert.ok(!buildWorkOrder(job as never, { reveal: false }).where.includes("123 Main St"), "offers never show it");
+});
+
+test("trade license: optional when some of the pro's work needs none; Handled verifies; licenses that don't expire (2026-11-13)", async () => {
+  const { licenseVerified, servicesNeedingLicense, NO_EXPIRY, onboardingChecklist } = await import("./compliance.ts");
+  const today = new Date("2026-11-13T12:00:00Z");
+  assert.equal(licenseVerified({ license_number: "PL-1", license_expires: null }, today), false, "not verified yet");
+  assert.equal(licenseVerified({ license_number: "PL-1", license_expires: "2026-11-01" }, today), false, "lapsed");
+  assert.equal(licenseVerified({ license_number: "USDOT 1", license_expires: NO_EXPIRY }, today), true, "doesn't expire");
+  assert.ok(servicesNeedingLicense(["plumbing"]).length >= 2 && !servicesNeedingLicense(["plumbing"]).some((n) => /disposal/i.test(n)));
+  const base = { trades: ["plumbing"], license_number: null, license_expires: null } as never;
+  const step = onboardingChecklist({ ...(base as object), trades: ["plumbing"] } as never).steps.find((x) => x.key === "license")!;
+  assert.ok(step.optional && step.done && /Not needed to start/.test(step.detail), "optional, says what it unlocks");
+});
+
+test("organizing & decluttering: priced by the space, its size and shape; 3+ photos; walkthrough for packed homes (2026-11-13)", async () => {
+  const { estimate } = await import("./pricing.ts");
+  const { photoRule, sizeNeedsSiteVisit } = await import("./intake.ts");
+  const p = (a: Record<string, string | number | boolean>) => estimate({ slug: "organizing", answers: { clutter: "moderate", haul: "none", ...a } }).point;
+  assert.ok(p({ space: "walkin", walkin_size: "large" }) > p({ space: "walkin", walkin_size: "small" }) && p({ space: "walkin", walkin_size: "small" }) > p({ space: "closet" }), "walk-in > reach-in; large > small");
+  assert.ok(p({ space: "garage", garage_size: "three" }) > p({ space: "garage", garage_size: "two" }) && p({ space: "garage", garage_size: "two" }) > p({ space: "garage", garage_size: "one" }), "3-car > 2-car > 1-car");
+  assert.ok(p({ space: "basement", area_sqft: 1200 }) > p({ space: "basement", area_sqft: 600 }), "basements by square feet");
+  assert.ok(p({ space: "attic", area_sqft: 500, attic_access: "hatch" }) > p({ space: "attic", area_sqft: 500, attic_access: "walkup" }), "a ceiling hatch takes longer than stairs");
+  assert.ok(p({ space: "storage", storage_size: "10x30" }) > p({ space: "storage", storage_size: "5x10" }));
+  assert.ok(p({ space: "room", awkward: true, stairs: true, heavy: true }) > p({ space: "room" }), "shape: awkward layout, stairs, heavy items");
+  assert.ok(p({ space: "garage", clutter: "extreme" }) > p({ space: "garage", clutter: "heavy" }));
+  assert.ok(p({ space: "garage", haul: "trailer" }) > p({ space: "garage", haul: "pickup" }) && p({ space: "garage", haul: "pickup" }) > p({ space: "garage", haul: "car" }), "haul sized to the load");
+  assert.ok(p({ space: "garage", haul: true }) > p({ space: "garage", haul: false }), "old yes/no haul answers still price");
+  assert.equal(photoRule("organizing")?.min, 3, "3–4 photos");
+  const more = estimate({ slug: "organizing", answers: { space: "garage", garage_size: "two", clutter: "moderate", haul: "none", extra_hours: 3 } });
+  assert.ok(more.point > p({ space: "garage", garage_size: "two" }) && more.items[0].label.startsWith("13 organizer-hours"), "extra hours are added");
+  assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", clutter: "extreme" }));
+  assert.ok(sizeNeedsSiteVisit("organizing", { space: "home", home_sqft: 4200, clutter: "moderate" }));
+  assert.equal(sizeNeedsSiteVisit("organizing", { space: "garage", clutter: "heavy" }), null);
+});
+
+test("name your price: every way people type a price (2026-11-13)", async () => {
+  const { parseMoney } = await import("./pricing.ts");
+  for (const [typed, want] of [["150", 150], ["$150", 150], ["150.00", 150], ["150.5", 151], ["$150.49", 150], ["1,200", 1200], ["1,200.00", 1200], ["$1,200.75", 1201], ["1 200", 1200], ["150,00", 150], ["1.200,50", 1201], [" 75 ", 75], ["$ 99.99", 100]] as const)
+    assert.equal(parseMoney(typed), want, typed);
+  assert.ok(Number.isNaN(parseMoney("")) && Number.isNaN(parseMoney("$")) && Number.isNaN(parseMoney("abc")));
 });

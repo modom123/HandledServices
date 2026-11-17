@@ -21,6 +21,8 @@
  * UPDATED : 2026-11-11_2350 UTC — How you get paid: direct deposit through Stripe only (components/PayoutStep), naming the numbers
  *           Stripe asks for; the step is done once Stripe says the bank is ready. No paper checks.
  * UPDATED : 2026-11-11_2358 UTC — Verify ID: a pro switched to a video-call check can try the online check again (they were stuck with no button).
+ * UPDATED : 2026-11-12_2330 UTC — COI upload: optional insurer, policy number and agent contact; the waiting message explains
+ *           the automatic check and Handled review.
  * UPDATED : 2026-11-17_1700 UTC — payout step: finds a Stripe account made on the Partner page; ready = Stripe transfers active.
  */
 import { VerifyId } from "@/components/VerifyId";
@@ -70,6 +72,7 @@ export default async function Onboarding() {
   /** Step labels and details from core are English; the dynamic ones are rebuilt here in Spanish. */
   const stepLabel = (s: { key: string; label: string }) => {
     if (!es) return s.label;
+    if (s.label === "Trade license — optional") return "Licencia del oficio — opcional";
     if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)} (verificado)`;
     return t(s.label);
   };
@@ -83,8 +86,11 @@ export default async function Onboarding() {
     if ((m = d.match(/^Valid until (.+)$/))) return `Válido hasta ${m[1]}`;
     if ((m = d.match(/^Uploaded (.+)$/))) return `Subido el ${m[1]}`;
     if ((m = d.match(/^Current version (.+)$/))) return `Versión actual ${m[1]}`;
-    if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled named as additional insured$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional`;
+    if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled listed as additional insured or certificate holder$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional o titular del certificado`;
     if ((m = d.match(/^#(.+) · until (.+)$/))) return `#${m[1]} · hasta ${m[2]}`;
+    if ((m = d.match(/^#(.+) · no expiry$/))) return `#${m[1]} · no vence`;
+    if ((m = d.match(/^#(.+) · waiting for Handled to verify$/))) return `#${m[1]} · Handled lo está verificando`;
+    if ((m = d.match(/^(?:#(.+?) · waiting for Handled to verify\. )?Not needed to start\. Add it to also get: (.+)$/))) return `${m[1] ? `#${m[1]} · Handled lo está verificando. ` : ""}No es necesaria para empezar. Agréguela para recibir también: ${m[2].replace(/ and (\d+) more$/, " y $1 más")}`;
     return t(d);
   };
   const body = (key: string) => {
@@ -144,14 +150,19 @@ export default async function Onboarding() {
         <p className="text-xs text-ink-soft">{t("A recent, well-lit photo of just you: no sunglasses, hats or group photos.")}</p>
       </StepForm>
     );
-    if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{t("Certificate received — we’re verifying it.")}</p> : (
+    if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{l === "es" ? "Certificado recibido. Lo revisamos automáticamente y, si hace falta, una persona de Handled lo revisa a mano (normalmente en 1 día hábil)." : "Certificate received. We check it automatically, and if anything needs a closer look a Handled team member reviews it by hand (usually within 1 business day)."}</p> : (
       <StepForm step="coi" cta={t("Upload certificate")} locale={l}>
         <div className="grid gap-3 sm:grid-cols-2"><Field label={t("Policy expires")} name="expires_on" type="date" required /><Field label={t("Certificate of insurance")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <p className="text-xs text-ink-soft">{l === "es" ? "El certificado debe incluir a Handled Services LLC como asegurado adicional o titular del certificado. Como asegurado adicional tiene prioridad en las ofertas de trabajos que requieren seguro." : "Your certificate must list Handled Services LLC as additional insured or certificate holder. Name us as additional insured and you get priority for jobs that need insurance."}</p>
+        {/* optional: lets Handled confirm the policy with the insurer or agent (the second way to verify) */}
+        <p className="text-xs text-ink-soft">{l === "es" ? "Opcional: ayuda a Handled a confirmar su póliza con la aseguradora o su agente si hace falta." : "Optional: helps Handled confirm your policy with the insurer or your agent if needed."}</p>
+        <div className="grid gap-3 sm:grid-cols-3"><Field label={l === "es" ? "Aseguradora" : "Insurance company"} name="insurer" /><Field label={l === "es" ? "Número de póliza" : "Policy number"} name="policy_number" /><Field label={l === "es" ? "Agente (nombre y teléfono o correo)" : "Agent (name and phone or email)"} name="agent_contact" /></div>
       </StepForm>
     );
     if (key === "license") return pending("license") ? <p className="mt-2 text-sm text-ink-soft">{t("License received — we’re verifying it.")}</p> : (
       <StepForm step="license" cta={t("Upload license")} locale={l}>
-        <div className="grid gap-3 sm:grid-cols-3"><Field label={t("License #")} name="license_number" defaultValue={pro.license_number ?? ""} required /><Field label={t("Expires")} name="expires_on" type="date" required /><Field label={t("License copy")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <div className="grid gap-3 sm:grid-cols-3"><Field label={t("License #")} name="license_number" defaultValue={pro.license_number ?? ""} required /><Field label={t("Expires")} name="expires_on" type="date" /><Field label={t("License copy")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="no_expiry" /> {l === "es" ? "No vence (por ejemplo, un número USDOT o una certificación única)" : "It doesn't expire (for example a USDOT number or a one-time certification)"}</label>
       </StepForm>
     );
     if (key === "area") {

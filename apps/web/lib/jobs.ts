@@ -59,10 +59,21 @@
  * UPDATED : 2026-11-10_1915 UTC — checkout never fails on a missing optional column (open_offer_until for name-your-price offers
  *           below our usual price, priced_by / pro_rate_pct, home_id): the booking is saved without it and staff get a critical
  *           alert naming the SQL to run.
+ * UPDATED : 2026-11-12_1900 UTC — name your price = post it on the job board: $1 now to post (card saved), up for 90 days,
+ *           the customer's price charged to the saved card when a pro takes it (acceptOffer, before the pro is assigned;
+ *           a declined card keeps the job on the board and sends the customer a payment link). No pro in 90 days →
+ *           cancelled, the $1 posting fee kept. Board posts skip the day/slot checks (the pro confirms the day).
+ * UPDATED : 2026-11-12_2000 UTC — name-your-price posts also go out as offers to pros in the area (any day — the pro
+ *           confirms it), as well as the board. Higher pay goes first (core offerPlan): an offer 10%+ above our price
+ *           goes to 3 pros at once for 1 hour, and the offer says "Top pay".
+ * UPDATED : 2026-11-12_2100 UTC — when a post or top-pay job is listed, every other pro it fits gets an instant board alert.
+ * UPDATED : 2026-11-12_2200 UTC — job offer texts go only to pros in the job's area (core inProArea); others get app + email.
+ * UPDATED : 2026-11-13_0030 UTC — Pro PIN: the job-confirmed and day-before emails, texts and pushes no longer carry the street
+ *           address, customer contact or entry details — the pro opens the job and enters their PIN.
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, inProArea, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -117,7 +128,13 @@ export const BookingSchema = z.object({
   /** Promo code, gift card or referral code typed at checkout. */
   promo_code: z.string().max(40).nullable().optional(),
   /** First-touch marketing source (utm_*, referrer, landing page) for "where bookings come from". */
-  attribution: z.record(z.string(), z.string().max(300)).nullable().optional(),
+  attribution: z.unknown().transform((v): Record<string, string> | null => {
+    // cleaned, never a reason to refuse a booking (a long ad click id used to fail checkout with "Please check the form")
+    if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+    const out: Record<string, string> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>).slice(0, 20)) if ((typeof x === "string" || typeof x === "number") && /^[\w-]{1,40}$/.test(k)) { const t = String(x).trim().slice(0, 300); if (t) out[k] = t; }
+    return Object.keys(out).length ? out : null;
+  }).optional(),
   /** Language the customer booked in — their texts, emails and timeline follow it. */
   locale: z.enum(["en", "es"]).default("en"),
   /** Booking for a business account's property (signed-in member). */
@@ -229,8 +246,9 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const chk = offerCheck(Math.round(customer_offer), suggested);
     if (!chk.ok) throw new Error(chk.level === "too_low" ? `Offers start at ${money(chk.floor)} for this job` : `Offers go up to ${money(chk.max)} — call us for bigger jobs`);
     offer = Math.round(customer_offer);
-    // below our usual minimum: straight to the job board at the customer's price for 30 days (refunded if nobody takes it)
-    if (chk.level === "board") openOfferUntil = new Date(Date.now() + OFFER_BOUNDS.boardDays * 86400000).toISOString();
+    // every named price is posted on the job board for 90 days: $1 to post, the price charged when a pro takes it
+    openOfferUntil = new Date(Date.now() + OFFER_BOUNDS.boardDays * 86400000).toISOString();
+    input.frequency = "once"; // a posted job is one visit (recurring plans book at our price)
   }
   const listPrice = proPick?.price ?? offer ?? suggested;
   const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
@@ -254,10 +272,12 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const pick = quoted?.contractor_id ?? proPick?.pro_id ?? null;
   const pref = pick ? { preferred_contractor_id: pick, requested_crew_member_id: null } : await (await import("./favorites")).bookingPreference(customerId, input.contact_email, preferred_pro_id, requested_crew_member_id);
   // how they pay: 25% now and the rest after the job, a deposit (events, site-visit work), or in full now with 5% off
-  const dep = price && !acct?.onTerms ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
-  const after = price && !acct?.onTerms ? bookNowPolicy(svc.slug, price) : null;
-  const chosen = resolvePlan(payment_plan, Boolean(dep?.allowed), Boolean(after?.allowed));
-  const plan = chosen === "deposit" ? dep : null;
+  // a board post (name your price): only the $1 posting fee now; business accounts on terms are invoiced as usual
+  const posting = Boolean(openOfferUntil && price && !acct?.onTerms);
+  const dep = price && !acct?.onTerms && !posting ? depositPolicy(svc.slug, price, input.scheduled_date) : null;
+  const after = price && !acct?.onTerms && !posting ? bookNowPolicy(svc.slug, price) : null;
+  const chosen = posting ? "deposit" : resolvePlan(payment_plan, Boolean(dep?.allowed), Boolean(after?.allowed));
+  const plan = posting ? { amount: BOARD_POST_FEE, balanceDue: null as string | null } : chosen === "deposit" ? dep : null;
   const later = chosen === "after" ? after : null;
   let saving = 0;
   if (price && listPrice && payout && !plan && !later && !acct?.onTerms) {
@@ -319,6 +339,11 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   for (let tries = 0; error && tries < 4; tries++) {
     const col = Object.keys(OPTIONAL_COLUMNS).find((c) => c in row && error!.message.includes(c));
     if (!col) break;
+    // a board post without its board window would be a $1 booking sent to pros at full price — stop instead
+    if (col === "open_offer_until" && posting) {
+      await raiseAlert("setup", "critical", `Run ${OPTIONAL_COLUMNS[col]}`, `A name-your-price post couldn't be saved: ${error.message}`).catch(() => {});
+      throw new Error(`Posting your own price isn't available for a few minutes. Book at our suggested price, or call us at ${BRAND.supportPhone}.`);
+    }
     await raiseAlert("setup", "critical", `Run ${OPTIONAL_COLUMNS[col]}`, `A booking was saved without jobs.${col} because the column is missing in the database: ${error.message}${col === "open_offer_until" ? "\nThis job went to pros the normal way at the customer's offer instead of the 30-day job board." : ""}`).catch(() => {});
     delete row[col];
     ({ data, error } = await db().from("jobs").insert(row).select("*").single());
@@ -434,7 +459,7 @@ export async function onBooked(job: Job, paymentUrl: string | null) {
  * releases it to dispatch; the job counts as paid (paid_at) only once it's paid in full,
  * which is what lets the pro start and get paid out. Change orders raise the price first.
  */
-export async function markPaid(jobId: string, p: { amount: number; via: string; kind?: string; paymentIntent?: string | null; paymentMethod?: string | null }) {
+export async function markPaid(jobId: string, p: { amount: number; via: string; kind?: string; paymentIntent?: string | null; paymentMethod?: string | null; quiet?: boolean }) {
   const job = await getJob(jobId);
   if (!job) return null;
   const svc = getService(job.service_slug);
@@ -466,6 +491,26 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
     await releaseHold(job.balance_hold_intent);
     await db().from("jobs").update({ balance_hold_intent: null }).eq("id", jobId);
   }
+  // a name-your-price board post: the $1 posting fee is in — it goes on the job board (dispatchJob) at their price
+  if (isBoardPost(paid) && !full && firstPayment) {
+    const svcName = svc?.name ?? "job", nameEs = svcEs(job.service_slug), until = paid.open_offer_until!.slice(0, 10);
+    await addEvent(jobId, "paid", `Posted on the job board — ${money(p.amount)} posting fee. Your ${money(price)} is charged only when a pro takes the job.`, p.via, true,
+      `Publicado en el tablero de trabajos — cargo de publicación de ${money(p.amount)}. Sus ${money(price)} se cobran solo cuando un profesional tome el trabajo.`);
+    await notify(paid.customer_id, {
+      title: "Your job is posted ✓", body: `Pros near you can take your ${svcName} at ${money(price)} until ${until}. You're charged only when one does.`, data: { type: "job", jobId: paid.id },
+      sms: { to: paid.contact_phone, body: `${BRAND.name}: your ${svcName} (${paid.ref}) is on our job board at ${money(price)} until ${until}. We charge your card only when a pro takes it — we'll text you. ${siteUrl()}/account/jobs/${paid.id}` },
+      email: { to: paid.contact_email, subject: `Posted: ${svcName} at ${money(price)} (${paid.ref})`,
+        text: `Thanks! Your ${svcName} is posted on the ${BRAND.name} job board at your price, ${money(price)}, until ${until}.\n\nHow it works:\n• Background-checked, vetted pros near you see it and can take it.\n• When a pro takes it, we charge ${money(amountDue(paid, "balance"))} to the card you used (the ${money(p.amount)} posting fee already counts toward your price) and the pro confirms the day with you.\n• Want it done sooner? Raise your offer any time: ${siteUrl()}/account/jobs/${paid.id}\n• If no pro takes it by ${until}, it's cancelled and you owe nothing more (the ${money(p.amount)} posting fee isn't refunded).\n\nInvoice & service agreement: ${invoiceUrl(paid.id)}\n\n${BRAND.promise}` },
+      locale: paid.locale,
+      es: { title: "Su trabajo está publicado ✓", body: `Los profesionales cerca de usted pueden tomar su ${nameEs} por ${money(price)} hasta el ${until}. Solo se le cobra cuando uno lo tome.`,
+        sms: `${BRAND.name}: su ${nameEs} (${paid.ref}) está en nuestro tablero de trabajos por ${money(price)} hasta el ${until}. Solo cobramos su tarjeta cuando un profesional lo tome; le avisaremos. ${siteUrl()}/account/jobs/${paid.id}`,
+        subject: `Publicado: ${nameEs} por ${money(price)} (${paid.ref})`,
+        text: `¡Gracias! Su ${nameEs} está publicado en el tablero de trabajos de ${BRAND.name} a su precio, ${money(price)}, hasta el ${until}.\n\nCómo funciona:\n• Profesionales verificados cerca de usted lo ven y pueden tomarlo.\n• Cuando un profesional lo tome, cobramos ${money(amountDue(paid, "balance"))} a la tarjeta que usó (el cargo de publicación de ${money(p.amount)} ya cuenta para su precio) y el profesional confirma el día con usted.\n• ¿Lo quiere antes? Suba su oferta cuando quiera: ${siteUrl()}/account/jobs/${paid.id}\n• Si ningún profesional lo toma antes del ${until}, se cancela y no debe nada más (el cargo de publicación de ${money(p.amount)} no se reembolsa).\n\nFactura y acuerdo de servicio: ${invoiceUrl(paid.id)}\n\n${PROMISE_ES}` },
+    });
+    if ((process.env.AUTO_DISPATCH ?? "true") === "true")
+      await dispatchJob(jobId).catch((e) => raiseAlert("dispatch", "warn", "Board post not listed yet", `${paid.ref}: ${e instanceof Error ? e.message : String(e)} — the dispatch cron will retry.`, jobId));
+    return paid;
+  }
   const label = p.kind === "change_order" ? "Change order paid" : full ? (firstPayment ? "Paid in full" : "Balance paid — paid in full") : after ? "25% received — you're booked" : "Deposit received";
   const labelEs = p.kind === "change_order" ? "Trabajo adicional pagado" : full ? (firstPayment ? "Pagado por completo" : "Saldo pagado — pagado por completo") : after ? "25% recibido — su reserva está hecha" : "Depósito recibido";
   const dueEs = after ? "cuando el trabajo esté terminado" : paid.balance_due_date ? `el ${dayEs(paid.balance_due_date)}` : "antes del trabajo";
@@ -473,7 +518,7 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
   const svcNameEs = svcEs(job.service_slug);
   await addEvent(jobId, "paid", `${label} — ${money(p.amount)}${!full ? ` · balance ${money(balance)} due ${dueEn}` : ""}.`, p.via, true,
     `${labelEs} — ${money(p.amount)}${!full ? ` · saldo de ${money(balance)}, vence ${dueEs}` : ""}.`);
-  if (firstPayment || full || p.kind === "change_order") await notify(paid.customer_id, {
+  if (!p.quiet && (firstPayment || full || p.kind === "change_order")) await notify(paid.customer_id, {
     title: full ? (firstPayment ? "Paid — you're locked in" : "Paid in full ✓") : after ? "25% received — you're booked" : "Deposit received — date locked in",
     body: !full ? (after ? `The rest (${money(balance)}) is charged to your card when the job is done.` : `Balance ${money(balance)} is charged to your card on ${paid.balance_due_date ?? "the day before"}.`) : paid.contractor_id ? `Your ${svc?.name} is confirmed.` : `We're matching your ${svc?.name} with a vetted pro now.`,
     data: { type: "job", jobId: paid.id },
@@ -589,6 +634,22 @@ export async function collectBalances() {
 /** Fresh payment link (email + returned URL). */
 export async function sendPaymentLink(job: Job) {
   const url = await paymentCheckoutUrl(job);
+  // a name-your-price board post: the $1 to post it, or (after a declined card) the price to confirm the pro
+  if (url && isBoardPost(job)) {
+    const posting = depositDue(job), amt = amountDue(job, posting ? "deposit" : "full"), svcName = getService(job.service_slug)?.name ?? "job";
+    if ((await localeOf(job.customer_id, job.locale)) === "es") {
+      await sendEmail(job.contact_email, posting ? `${BRAND.name}: publique su ${svcEs(job.service_slug)} por ${money(amt)}` : `${BRAND.name}: confirme su profesional — pague ${money(amt)} (${job.ref})`,
+        posting ? `Publique su ${svcEs(job.service_slug)} en nuestro tablero de trabajos por ${money(amt)}. Su precio (${money(job.price_final)}) se cobra solo cuando un profesional lo tome.\n\nPublíquelo aquí: ${url}\n\n— ${BRAND.name}`
+          : `Un profesional quiere tomar su ${svcEs(job.service_slug)} por ${money(job.price_final)}, pero su tarjeta no pasó. Pague ${money(amt)} para confirmarlo: ${url}\n\nMientras tanto, su trabajo sigue en el tablero.\n\n— ${BRAND.name}`);
+      await sendSms(job.contact_phone, posting ? `${BRAND.name}: publique su ${svcEs(job.service_slug)} por ${money(amt)}: ${url}` : `${BRAND.name}: un profesional quiere su ${svcEs(job.service_slug)} (${job.ref}). Su tarjeta no pasó — pague ${money(amt)} para confirmarlo: ${url}`);
+    } else {
+      await sendEmail(job.contact_email, posting ? `${BRAND.name}: post your ${svcName} for ${money(amt)}` : `${BRAND.name}: confirm your pro — pay ${money(amt)} (${job.ref})`,
+        posting ? `Post your ${svcName} on our job board for ${money(amt)}. Your price (${money(job.price_final)}) is charged only when a pro takes it.\n\nPost it here: ${url}\n\n— ${BRAND.name}`
+          : `A pro wants to take your ${svcName} at ${money(job.price_final)}, but your card didn't go through. Pay ${money(amt)} to confirm them: ${url}\n\nYour job stays on the board in the meantime.\n\n— ${BRAND.name}`);
+      await sendSms(job.contact_phone, posting ? `${BRAND.name}: post your ${svcName} for ${money(amt)}: ${url}` : `${BRAND.name}: a pro wants your ${svcName} (${job.ref}). Your card didn't go through — pay ${money(amt)} to confirm them: ${url}`);
+    }
+    return url;
+  }
   const deposit = depositDue(job);
   const amt = amountDue(job, deposit ? "deposit" : "full");
   if (url && (await localeOf(job.customer_id, job.locale)) === "es") {
@@ -612,14 +673,15 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     await raiseAlert("unpaid_dispatch", "info", `${job.ref} not dispatched — unpaid`, "Jobs go to pros only after payment.", job.id);
     return { offers: 0, reason: "unpaid" };
   }
-  // a low name-your-price offer: no targeted offers — it goes on the open job board at the customer's price
-  if (job.open_offer_until && !opts.siteVisit) {
+  // a name-your-price post: on the open job board for its whole window, and offered to pros in the area as usual
+  const open = Boolean(job.open_offer_until && !opts.siteVisit);
+  if (open) {
     if (job.status !== "dispatched") {
       await db().from("jobs").update({ status: "dispatched" }).eq("id", job.id);
-      await addEvent(job.id, "dispatch", `Posted on the pro job board at your price until ${job.open_offer_until.slice(0, 10)}. If no pro takes it by then, it's cancelled and fully refunded.`, "system", true,
-        `Publicado en el tablero de trabajos al precio que usted ofreció hasta el ${job.open_offer_until.slice(0, 10)}. Si ningún profesional lo toma para entonces, se cancela y se reembolsa por completo.`);
+      const post = isBoardPost(job);
+      await addEvent(job.id, "dispatch", `Posted on the pro job board at your price until ${job.open_offer_until!.slice(0, 10)}. ${post ? "We charge your card when a pro takes it. If no pro takes it by then, it's cancelled and you owe nothing more." : "If no pro takes it by then, it's cancelled and fully refunded."}`, "system", true,
+        `Publicado en el tablero de trabajos al precio que usted ofreció hasta el ${job.open_offer_until!.slice(0, 10)}. ${post ? "Cobramos su tarjeta cuando un profesional lo tome. Si nadie lo toma para entonces, se cancela y no debe nada más." : "Si ningún profesional lo toma para entonces, se cancela y se reembolsa por completo."}`);
     }
-    return { offers: 0, reason: "open offer on the job board" };
   }
   const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
   const sameDay = job.scheduled_date
@@ -639,8 +701,14 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
   const stats: Record<string, QualityStats> = {};
   for (const r of (cards ?? []) as { contractor_id: string; jobs_completed: number; redos: number; qa_passed: number; qa_checked: number }[])
     stats[r.contractor_id] = { qaPass: Number(r.qa_checked) >= 3 ? Number(r.qa_passed) / Number(r.qa_checked) : null, redoRate: Number(r.jobs_completed) >= 3 ? Number(r.redos) / Number(r.jobs_completed) : null };
-  const ranked = rankContractors((pros ?? []) as Contractor[], job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
+  // an open post's day is flexible (the pro confirms it with the customer), so any pro who works the area can take it
+  const ranked = rankContractors((pros ?? []) as Contractor[], open ? { ...job, scheduled_date: null } : job, load, stats).filter((c) => !opts.exclude?.includes(c.contractor.id));
   if (!ranked.length) {
+    // an open post stays on the board for pros joining the area: note it once, no critical alarm on every re-send
+    if (open) {
+      if (!(opts.exclude ?? []).length) await raiseAlert("no_pros", "info", `${job.ref}: no pro in the area for this post yet`, `On the job board until ${job.open_offer_until!.slice(0, 10)} at ${money(job.price_final)}. Recruit or ask a pro to take it.`, job.id);
+      return { offers: 0, reason: "open post on the board — no eligible pros to offer it to" };
+    }
     if (getService(job.service_slug)?.remote) {
       // websites, AI, formation, consulting: no specialist yet — staff start the paid project
       await raiseAlert("no_pros", "warn", `${job.ref}: paid project for staff`, `No specialist has signed up for ${getService(job.service_slug)!.name} yet. ${job.contact_name} (${job.contact_email}) ordered it with a deposit for ${job.scheduled_date ?? "their chosen day"} (${job.time_window}). Start the work and email them the kickoff details, or assign it to a specialist.`, job.id);
@@ -686,14 +754,16 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     : ai?.ranking.length
       ? ai.ranking.map((r) => ({ id: r.contractor_id, score: r.score, reason: r.reason }))
       : ranked.map((c) => ({ id: c.contractor.id, score: c.score, reason: c.reasons.join(" · ") }));
-  const count = mine ? 1 : team.length ? team.length : favs.length ? favs.length : ai?.offer_count ?? (job.priority === "normal" ? 1 : 2);
+  // higher pay goes first: top pay goes to more pros at once, for a shorter window (core offerPlan)
+  const plan = offerPlan(job, ai?.offer_count ?? null);
+  const count = mine ? 1 : team.length ? team.length : favs.length ? favs.length : plan.count;
   const picks = order.slice(0, count);
   const payout = job.contractor_payout ?? 0;
   const byId = Object.fromEntries((pros ?? []).map((p: Contractor) => [p.id, p]));
   // Pro+ / Elite pros are offered a bigger payout (clamped so our take stays ≥ 15%)
   const payFor = (id: string) => (byId[id] ? tierPayout(job.price_final, payout, proTier(byId[id])) : payout);
 
-  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : team.length ? BUSINESS_TERMS.dedicatedFirstLookHours : favs.length ? favoriteWindowHours(job.scheduled_date) : job.priority === "normal" ? 2 : 1;
+  const hours = mine ? (dibs!.kind === "recurring" ? 24 : 12) : team.length ? BUSINESS_TERMS.dedicatedFirstLookHours : favs.length ? favoriteWindowHours(job.scheduled_date) : plan.hours;
   const expires = new Date(Date.now() + hours * 3600 * 1000).toISOString();
   const offerKind = mine ? dibs!.kind : team.length ? "account" : favs.length ? "favorite" : "job";
   const { data: offerRows } = await db().from("job_offers").upsert(
@@ -718,30 +788,37 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
     const crewAskHere = crewAsk && p.id === favs[0]?.contractor.id ? crewAsk.name.split(" ")[0] : null;
     const hrs = `${hours} hour${hours === 1 ? "" : "s"}`, hrsEs = `${hours} hora${hours === 1 ? "" : "s"}`;
     const visitEn = svc.remote ? "scope review" : "site visit", visitEs = svc.remote ? "revisión del alcance" : "visita al sitio";
-    const lead = offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? visitEn : "job"} · ${pay ? money(pay) : visitEn}`;
+    const top = topPay(job) && offerKind === "job" && !opts.siteVisit;
+    const lead = top ? `Top pay · ${money(pay)}` : offerKind === "favorite" ? `${asked ? "A customer asked for you" : "A customer who favorited you"} · ${money(pay)}` : offerKind === "account" ? `Your business account · ${money(pay)}` : offerKind === "recurring" ? `Your recurring customer · ${money(pay)}` : offerKind === "redo" ? "First chance to fix a job" : `New ${opts.siteVisit ? visitEn : "job"} · ${pay ? money(pay) : visitEn}`;
     const nameEs = serviceText("es", svc.slug, svc).name;
-    const leadEs = offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? (svc.remote ? "Nueva consulta" : "Nueva visita al sitio") : "Nuevo trabajo"} · ${pay ? money(pay) : visitEs}`;
+    const leadEs = top ? `Pago alto · ${money(pay)}` : offerKind === "favorite" ? `${asked ? "Un cliente lo pidió a usted" : "Un cliente que lo marcó como favorito"} · ${money(pay)}` : offerKind === "account" ? `Su cuenta empresarial · ${money(pay)}` : offerKind === "recurring" ? `Su cliente recurrente · ${money(pay)}` : offerKind === "redo" ? "Primera oportunidad para corregir un trabajo" : `${opts.siteVisit ? (svc.remote ? "Nueva consulta" : "Nueva visita al sitio") : "Nuevo trabajo"} · ${pay ? money(pay) : visitEs}`;
     const whyEs = offerKind === "favorite" ? `Este cliente ${asked ? "lo pidió a usted" : "lo marcó como favorito"}: usted lo ve primero por ${hrsEs}. Puede pasar sin costo; luego se ofrece a otros profesionales.${crewAskHere ? ` Pidieron a ${crewAskHere}; usted decide quién va.` : ""}` : offerKind === "account" ? `La empresa lo eligió como uno de sus profesionales: usted lo ve primero por ${hours} horas. El primero en aceptar se lo lleva.` : offerKind === "recurring" ? `Se le ofrece primero a usted por ${hours} horas — si lo rechaza, pasa a otro profesional.` : offerKind === "redo" ? `El cliente no quedó satisfecho; usted tiene la primera oportunidad de corregirlo (sin pago extra, según su acuerdo). Si lo rechaza en ${hours} horas, se envía a otro profesional.` : "El primero en aceptar se lo lleva.";
+    const flexEs = open ? " Oferta abierta: el cliente fijó el precio; confirme el día con él." : "";
+    const flexEn = open ? " Open offer: the customer named this price — confirm the day with them." : "";
     const tz = jobTimeZone(job); // Washington jobs: Pacific time
     const expiresEs = `${new Date(expires).toLocaleTimeString("es-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}`;
     const why = offerKind === "favorite" ? `This customer ${asked ? "asked for you" : "favorited you"}: you see it first for ${hrs}. Pass at no cost; then it goes to other pros.${crewAskHere ? ` They asked for ${crewAskHere}; who goes is your call.` : ""}` : offerKind === "account" ? `The business picked you as one of its pros: you see it first for ${hours} hours. First to accept gets it.` : offerKind === "recurring" ? `Offered to you first for ${hours} hours — pass and it goes to another pro.` : offerKind === "redo" ? `The customer wasn't happy; you get the first chance to make it right (no extra pay, per your agreement). Pass within ${hours} hours and another pro is sent.` : "First to accept gets it.";
     await notify(pro.profile_id, {
       title: lead,
-      body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}`,
+      body: `${svc.icon} ${svc.name} · ${job.city} ${job.zip} · ${order0.when}. ${why}${flexEn}`,
       data: { type: "offer", offerId },
       channel: "offers",
-      sms: { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` },
+      // texts only to pros in the job's area (remote work: the specialist, wherever they are); otherwise app + email
+      sms: svc.remote || inProArea(pro, job) ? { to: pro.phone, body: `${BRAND.name}: ${lead} — ${svc.name}, ${job.city} ${job.zip}, ${order0.when}. ${offerKind === "job" ? "First to accept gets it" : why} ${siteUrl()}/pro/offers/${offerId}` } : null,
       email: { to: pro.email, subject: offerKind === "job" ? `New ${opts.siteVisit ? visitEn : "job"} offer: ${svc.name} · ${pay ? money(pay) : visitEn} · ${job.zip}` : `${lead}: ${svc.name} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${why}\n\n`}${workOrderText(order0)}\n\nACCEPT (${offerKind === "job" ? "first to accept gets it — " : ""}offer expires ${new Date(expires).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })} ${zoneLabel(tz)}):\n${siteUrl()}/pro/offers/${offerId}\nor open the ${BRAND.name} Pro app.` },
       es: {
         title: leadEs,
-        body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}`,
+        body: `${svc.icon} ${nameEs} · ${job.city} ${job.zip} · ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs}${flexEs}`,
         sms: `${BRAND.name}: ${leadEs} — ${nameEs}, ${job.city} ${job.zip}, ${buildWorkOrder(job, { reveal: false, locale: "es" }).when}. ${whyEs} ${siteUrl()}/pro/offers/${offerId}`,
         subject: offerKind === "job" ? `Oferta de ${opts.siteVisit ? visitEs : "trabajo"}: ${nameEs} · ${pay ? money(pay) : visitEs} · ${job.zip}` : `${leadEs}: ${nameEs} · ${job.zip}`,
         text: `${offerKind === "job" ? "" : `${whyEs}\n\n`}${workOrderText(buildWorkOrder(job, { reveal: false, payout: gross, locale: "es", agreementVersion: pro.agreement_version }), "es")}\n\nACEPTAR (${offerKind === "job" ? "el primero en aceptar se lo lleva — " : ""}la oferta vence a las ${expiresEs} ET):\n${siteUrl()}/pro/offers/${offerId}\no abra la app ${BRAND.name} Pro.`,
       },
     });
   }
+  // a post or top pay just went on the board: tell every other pro it fits, right away (lib/board alertBoardJob)
+  if (!opts.siteVisit && !(opts.exclude ?? []).length && (open || (topPay(job) && offerKind === "job")))
+    await (await import("./board")).alertBoardJob(job.id).catch((e) => console.error("[board alert]", e));
   return { offers: picks.length, ai: Boolean(ai) };
 }
 
@@ -770,7 +847,7 @@ export async function expireOpenOffers(now = new Date()): Promise<number> {
   const { data } = await db().from("jobs").select("id").not("open_offer_until", "is", null).lt("open_offer_until", now.toISOString()).is("contractor_id", null).in("status", ["dispatched", "scheduled", "requested"]).limit(500);
   let n = 0;
   for (const { id } of (data ?? []) as { id: string }[]) {
-    const r = await (await import("./pro-benefits")).cancelJob(id, "ops", "system", "No pro took this job at the offered price within 30 days.").catch(() => null);
+    const r = await (await import("./pro-benefits")).cancelJob(id, "ops", "system", `No pro took this job at the offered price within ${OFFER_BOUNDS.boardDays} days.`).catch(() => null);
     if (!r?.ok) continue;
     n++;
     const job = await getJob(id);
@@ -778,9 +855,17 @@ export async function expireOpenOffers(now = new Date()): Promise<number> {
     const svc = getService(job.service_slug);
     const again = `${siteUrl()}/book?service=${job.service_slug}`;
     const es = (await localeOf(job.customer_id, job.locale)) === "es";
+    const days = OFFER_BOUNDS.boardDays;
+    // a $1 board post: nothing else was charged, and the posting fee is kept
+    if (isBoardPost(job) && !Number(job.amount_refunded)) {
+      await (es
+        ? sendEmail(job.contact_email, `${BRAND.name}: su publicación ${job.ref} venció`, `Hola ${job.contact_name.split(" ")[0]}:\n\nNingún profesional tomó su ${svcEs(job.service_slug).toLowerCase()} al precio que ofreció en ${days} días, así que la publicación terminó. No se le cobró nada más (el cargo de publicación de ${money(BOARD_POST_FEE)} no se reembolsa).\n\n¿Lo intentamos de nuevo? Reserve al precio sugerido y le asignamos un profesional enseguida: ${again}\n\n— ${BRAND.name}`)
+        : sendEmail(job.contact_email, `${BRAND.name}: your job post ${job.ref} expired`, `Hi ${job.contact_name.split(" ")[0]},\n\nNo pro took your ${(svc?.name ?? "job").toLowerCase()} at the price you offered within ${days} days, so the post has ended. You weren't charged anything more (the ${money(BOARD_POST_FEE)} posting fee isn't refunded).\n\nWant to try again? Book at our suggested price and we'll match a pro right away: ${again}\n\n— ${BRAND.name}`)).catch(() => {});
+      continue;
+    }
     await (es
-      ? sendEmail(job.contact_email, `${BRAND.name}: su oferta ${job.ref} venció — reembolso completo`, `Hola ${job.contact_name.split(" ")[0]}:\n\nNingún profesional tomó su ${svcEs(job.service_slug).toLowerCase()} al precio que ofreció en 30 días, así que lo cancelamos y le reembolsamos todo.\n\n¿Lo intentamos de nuevo? Reserve al precio sugerido y le asignamos un profesional enseguida: ${again}\n\n— ${BRAND.name}`)
-      : sendEmail(job.contact_email, `${BRAND.name}: your offer ${job.ref} expired — full refund`, `Hi ${job.contact_name.split(" ")[0]},\n\nNo pro took your ${(svc?.name ?? "job").toLowerCase()} at the price you offered within 30 days, so we've cancelled it and refunded you in full.\n\nWant to try again? Book at our suggested price and we'll match a pro right away: ${again}\n\n— ${BRAND.name}`)).catch(() => {});
+      ? sendEmail(job.contact_email, `${BRAND.name}: su oferta ${job.ref} venció — reembolso completo`, `Hola ${job.contact_name.split(" ")[0]}:\n\nNingún profesional tomó su ${svcEs(job.service_slug).toLowerCase()} al precio que ofreció en ${days} días, así que lo cancelamos y le reembolsamos todo.\n\n¿Lo intentamos de nuevo? Reserve al precio sugerido y le asignamos un profesional enseguida: ${again}\n\n— ${BRAND.name}`)
+      : sendEmail(job.contact_email, `${BRAND.name}: your offer ${job.ref} expired — full refund`, `Hi ${job.contact_name.split(" ")[0]},\n\nNo pro took your ${(svc?.name ?? "job").toLowerCase()} at the price you offered within ${days} days, so we've cancelled it and refunded you in full.\n\nWant to try again? Book at our suggested price and we'll match a pro right away: ${again}\n\n— ${BRAND.name}`)).catch(() => {});
   }
   return n;
 }
@@ -811,6 +896,42 @@ export async function redispatchExpired() {
 }
 
 /** A pro accepts an offer. Race-safe: only one pro can win the job. */
+/**
+ * A pro is taking a name-your-price board post: charge what's left of the customer's price (their price minus the $1
+ * posting fee) to the card saved when they posted, so no pro is ever sent to an unpaid job. One charge at a time per
+ * job (balance_charge_at is the lock; Stripe's idempotency key backs it up). A declined card: the job stays on the board,
+ * the customer gets a payment link, and the pro is told they can take it once it's paid.
+ */
+async function chargeBoardPost(jobId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const job = await getJob(jobId);
+  if (!job || !isBoardPost(job) || job.paid_at) return { ok: true };
+  const due = amountDue(job, "balance");
+  if (!(due > 0)) return { ok: true };
+  const stale = new Date(Date.now() - 120000).toISOString();
+  const { data: locked, error: lockErr } = await db().from("jobs").update({ balance_charge_at: new Date().toISOString() }).eq("id", jobId).is("paid_at", null)
+    .or(`balance_charge_at.is.null,balance_charge_at.lt.${stale}`).select("id").maybeSingle();
+  // (before the pay-after SQL there's no lock column: Stripe's idempotency key still stops a double charge)
+  if (!locked && !(lockErr && /balance_charge_at/.test(lockErr.message))) return { ok: false, error: "Another pro is taking this job right now — try again in a minute." };
+  try {
+    const got = await chargeSavedCard(job, due, "balance", "board");
+    if (got >= due - 0.005) {
+      await markPaid(jobId, { amount: got, via: "saved card", kind: "balance", quiet: true });
+      return { ok: true };
+    }
+    const fresh = (await getJob(jobId)) ?? job;
+    await sendPaymentLink(fresh).catch(() => null);
+    await notify(job.customer_id, {
+      title: "A pro wants your job — confirm payment", body: `A pro is ready to take your ${getService(job.service_slug)?.name} at ${money(job.price_final)}, but your card didn't go through. Pay to lock them in.`,
+      data: { type: "job", jobId }, locale: job.locale,
+      es: { title: "Un profesional quiere su trabajo: confirme el pago", body: `Un profesional está listo para tomar su ${svcEs(job.service_slug)} por ${money(job.price_final)}, pero su tarjeta no pasó. Pague para asegurarlo.` },
+    }).catch(() => null);
+    await raiseAlert("payment", "warn", `${job.ref}: card declined when a pro took the board post (${money(due)})`, "Payment link sent to the customer. The job stays on the board; the first pro to accept after it's paid gets it.", jobId).catch(() => null);
+    return { ok: false, error: "The customer's card didn't go through, so this job isn't confirmed yet. We've sent them a payment link — it stays on the board and you can take it once it's paid." };
+  } finally {
+    await db().from("jobs").update({ balance_charge_at: null }).eq("id", jobId);
+  }
+}
+
 export async function acceptOffer(offerId: string, contractorId: string, meta: { ip?: string | null } = {}) {
   const { data: offer } = await db().from("job_offers").select("*").eq("id", offerId).eq("contractor_id", contractorId).maybeSingle();
   if (!offer || offer.status !== "offered") return { ok: false, error: "Offer is no longer available" };
@@ -818,6 +939,9 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
     await db().from("job_offers").update({ status: "expired" }).eq("id", offerId);
     return { ok: false, error: "Offer expired" };
   }
+  // a name-your-price board post: charge the customer's price now, before the pro is confirmed
+  const charged = await chargeBoardPost(offer.job_id);
+  if (!charged.ok) return { ok: false, error: charged.error };
   const { data: won } = await db()
     .from("jobs")
     .update({ contractor_id: contractorId, status: "assigned", contractor_payout: offer.payout || undefined })
@@ -869,14 +993,14 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   // pro: confirmed, here is the full work order
   if (pro) await notify(pro.profile_id, {
     title: `Job confirmed · ${job.ref}`,
-    body: `${svc?.name} · ${job.address}, ${job.city} · ${when}`,
+    body: `${svc?.name} · ${job.city} · ${when} · open the job and enter your Pro PIN for the address`,
     data: { type: "job_pro", jobId: job.id },
-    email: { to: pro.email, subject: `Confirmed: ${svc?.name} ${job.ref} — work order`, text: `You've got it, ${pro.contact_name?.split(" ")[0] ?? "pro"}. Full work order below.\n\n${workOrderText(buildWorkOrder(job, { reveal: true }))}\n\nOpen the job: ${siteUrl()}/pro/jobs/${job.id}` },
+    email: { to: pro.email, subject: `Confirmed: ${svc?.name} ${job.ref} — work order`, text: `You've got it, ${pro.contact_name?.split(" ")[0] ?? "pro"}. Full work order below. The street address, the customer's contact and entry details are in the app: open the job and enter your Pro PIN.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, pinLocked: true }))}\n\nOpen the job: ${siteUrl()}/pro/jobs/${job.id}` },
     es: {
       title: `Trabajo confirmado · ${job.ref}`,
-      body: `${nameEs} · ${job.address}, ${job.city} · ${whenEs}`,
+      body: `${nameEs} · ${job.city} · ${whenEs} · abra el trabajo e ingrese su PIN para ver la dirección`,
       subject: `Confirmado: ${nameEs} ${job.ref} — orden de trabajo`,
-      text: `Es suyo, ${pro.contact_name?.split(" ")[0] ?? "profesional"}. La orden de trabajo completa está abajo.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es" }), "es")}\n\nAbra el trabajo: ${siteUrl()}/pro/jobs/${job.id}`,
+      text: `Es suyo, ${pro.contact_name?.split(" ")[0] ?? "profesional"}. La orden de trabajo completa está abajo. La dirección, el contacto del cliente y los datos de entrada están en la app: abra el trabajo e ingrese su PIN de profesional.\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es", pinLocked: true }), "es")}\n\nAbra el trabajo: ${siteUrl()}/pro/jobs/${job.id}`,
     },
   });
   return { ok: true, job };
@@ -1107,16 +1231,16 @@ export async function sendDayBeforeReminders() {
       const { data: pro } = await db().from("contractors").select("profile_id, email, phone").eq("id", job.contractor_id).single();
       if (pro) await notify(pro.profile_id, {
         title: `Tomorrow · ${svc?.name} · ${job.ref}`,
-        body: `${job.address}, ${job.city} · ${window}`,
+        body: `${job.city} · ${window} · address in the app (Pro PIN)`,
         data: { type: "job_pro", jobId: job.id },
-        sms: { to: pro.phone, body: `${BRAND.name}: tomorrow ${svc?.name} ${job.ref} — ${job.address}, ${job.city}, ${window}. ${siteUrl()}/pro/jobs/${job.id}` },
-        email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: workOrderText(buildWorkOrder(job, { reveal: true })) },
+        sms: { to: pro.phone, body: `${BRAND.name}: tomorrow ${svc?.name} ${job.ref} — ${job.city}, ${window}. Address in the app (enter your Pro PIN): ${siteUrl()}/pro/jobs/${job.id}` },
+        email: { to: pro.email, subject: `Tomorrow: ${svc?.name} ${job.ref}`, text: `The street address, the customer's contact and entry details are in the app: open the job and enter your Pro PIN. ${siteUrl()}/pro/jobs/${job.id}\n\n${workOrderText(buildWorkOrder(job, { reveal: true, pinLocked: true }))}` },
         es: {
           title: `Mañana · ${nameEs} · ${job.ref}`,
-          body: `${job.address}, ${job.city} · ${windowEs}`,
-          sms: `${BRAND.name}: mañana ${nameEs} ${job.ref} — ${job.address}, ${job.city}, ${windowEs}. ${siteUrl()}/pro/jobs/${job.id}`,
+          body: `${job.city} · ${windowEs} · dirección en la app (PIN)`,
+          sms: `${BRAND.name}: mañana ${nameEs} ${job.ref} — ${job.city}, ${windowEs}. Dirección en la app (ingrese su PIN): ${siteUrl()}/pro/jobs/${job.id}`,
           subject: `Mañana: ${nameEs} ${job.ref}`,
-          text: workOrderText(buildWorkOrder(job, { reveal: true, locale: "es" }), "es"),
+          text: `La dirección, el contacto del cliente y los datos de entrada están en la app: abra el trabajo e ingrese su PIN de profesional. ${siteUrl()}/pro/jobs/${job.id}\n\n${workOrderText(buildWorkOrder(job, { reveal: true, locale: "es", pinLocked: true }), "es")}`,
         },
       });
     }

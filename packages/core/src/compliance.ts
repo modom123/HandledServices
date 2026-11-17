@@ -31,6 +31,11 @@
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
+ * UPDATED : 2026-11-12_2330 UTC — docAutoCheck: when the AI reading alone may verify an insurance certificate or coverage
+ *           document (everything checks out); anything else goes to Handled review, where staff verify by hand.
+ * UPDATED : 2026-11-13_0200 UTC — the trade license blocks activation only when every service in the pro's trades needs one
+ *           (otherwise optional, unlocking the licensed services, like insurance); NO_EXPIRY for licenses that don't expire
+ *           (USDOT numbers, one-time certifications); licenseVerified: number + verified expiry, not lapsed.
  * UPDATED : 2026-11-17_1700 UTC — payout step: done only with Stripe confirmed (stripe_connect); old ACH / check entries no longer count.
  */
 import { SERVICES } from "./services.ts";
@@ -133,8 +138,24 @@ export function servicesNeedingInsurance(trades: string[]): string[] {
 const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
 const valid = (d: string | null) => Boolean(d) && new Date(d!).getTime() >= Date.now() - 86400000;
 
+/** Licenses that don't expire (a USDOT number, a one-time certification): stored as this date. */
+export const NO_EXPIRY = "9999-12-31";
+
+/** A license Handled has verified (the number, and an expiry date — or NO_EXPIRY — set when it was verified) that hasn't lapsed. */
+export function licenseVerified(c: { license_number?: string | null; license_expires?: string | null }, today = new Date()): boolean {
+  return Boolean(c.license_number) && Boolean(c.license_expires) && new Date(`${c.license_expires}T23:59:59`) >= today;
+}
+
+/** The pro's services that need a trade license (what a verified license unlocks). */
+export function servicesNeedingLicense(trades: string[]): string[] {
+  return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && s.licensed).map((s) => s.name);
+}
+
 export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
+  // like insurance: the license blocks activation only when the pro has no work they can do without one
+  const mine = SERVICES.filter((s) => s.trades.some((t) => c.trades.includes(t)));
+  const licenseBlocks = licenseRequired && mine.length > 0 && mine.every((s) => s.licensed);
   const o = orientationStatus(c.orientation);
   const steps: Step[] = [
     { key: "orientation", label: "Welcome to Handled (orientation)", done: o.complete || c.status === "approved", detail: o.complete ? `All ${o.total} lessons done` : `${o.done} of ${ORIENTATION.length} lessons done · about 15 minutes` },
@@ -145,7 +166,7 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
     { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     insuranceRequired(c.trades)
-      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
+      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled listed as additional insured or certificate holder`, expiring: valid(c.insured_until) && soon(c.insured_until) }
       : (() => {
           const unlocks = servicesNeedingInsurance(c.trades);
           return { key: "coi" as const, label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : unlocks.length ? `Not needed to start. Add one to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` : "Not required for your work" };
@@ -166,7 +187,17 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     });
   }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push((() => {
+      const done = licenseVerified(c);
+      const until = c.license_expires === NO_EXPIRY ? "no expiry" : `until ${c.license_expires ?? "?"}`;
+      const shown = c.license_number ? `#${c.license_number}${c.license_expires ? ` · ${until}` : " · waiting for Handled to verify"}` : null;
+      // only blocks a pro when EVERY service in their trades needs a license; otherwise it just unlocks the licensed ones
+      if (!licenseBlocks) {
+        const unlocks = servicesNeedingLicense(c.trades);
+        return { key: "license" as const, label: "Trade license — optional", done: true, optional: true, detail: done ? shown! : `${shown ? `${shown}. ` : ""}Not needed to start. Add it to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` };
+      }
+      return { key: "license" as const, label: "Trade license verified", done, detail: shown ?? "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: done && soon(c.license_expires) };
+    })());
   steps.push(
     { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
@@ -193,4 +224,38 @@ export function uploadReminderDue(sent: number, lastAt: string | null | undefine
   if (sent >= UPLOAD_REMINDER_MAX) return false;
   if (!lastAt) return true;
   return (now.getTime() - new Date(lastAt).getTime()) / 86400000 >= UPLOAD_REMINDER_EVERY_DAYS;
+}
+
+/** What the AI read off an uploaded document (lib/ai/doccheck.ts). */
+export interface DocReading {
+  readable: boolean; matches_pro: boolean; expires_on: string; per_occurrence_limit: number; additional_insured: boolean; certificate_holder?: boolean; meets_requirements: boolean; problems: string[];
+}
+
+/**
+ * Two ways to verify insurance: (1) automatically, when the AI reading checks out on every point, or (2) Handled review,
+ * where staff open the policy (and can call the insurer) and verify by hand. Auto-verify only for the certificate of
+ * insurance and other coverage proofs (never licenses, the W-9 or background reports), and only when: readable, the
+ * named insured matches the pro, the AI found nothing missing, the expiry is in the future AND agrees with the date the
+ * pro entered, and for the COI the per-occurrence limit meets the trade minimum with Handled as additional insured or
+ * certificate holder (owner decision 2026-11-12: either is fine). `reasons` says why it needs a person (shown to staff and, gently, to the pro).
+ */
+export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExpiry?: string | null; trades: string[]; today?: Date }): { auto: boolean; reasons: string[] } {
+  if (kind !== "coi" && !(kind in COVERAGES)) return { auto: false, reasons: ["this kind of document is always checked by a person"] };
+  if (!r) return { auto: false, reasons: ["the automatic check didn't run"] };
+  const today = (o.today ?? new Date()).toISOString().slice(0, 10);
+  const reasons: string[] = [];
+  if (!r.readable) reasons.push("the file couldn't be read clearly");
+  if (!r.matches_pro) reasons.push("the name on the policy doesn't match the pro's business or legal name");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(r.expires_on ?? "")) reasons.push("no expiry date found");
+  else {
+    if (r.expires_on <= today) reasons.push("the policy has expired");
+    if (o.claimedExpiry && o.claimedExpiry !== r.expires_on) reasons.push(`the expiry date entered (${o.claimedExpiry}) doesn't match the policy (${r.expires_on})`);
+  }
+  if (kind === "coi") {
+    const min = glMinimum(o.trades);
+    if (!(r.per_occurrence_limit >= min)) reasons.push(`per-occurrence limit below $${min.toLocaleString("en-US")}`);
+    if (!r.additional_insured && !r.certificate_holder) reasons.push("Handled Services LLC isn't listed as additional insured or certificate holder");
+  }
+  if (!r.meets_requirements) for (const p of r.problems ?? []) if (p && !reasons.includes(p)) reasons.push(p);
+  return { auto: reasons.length === 0, reasons };
 }

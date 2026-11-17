@@ -14,10 +14,11 @@
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology (consultOnly): no estimate before the consultation; the price is set on the call.
+ * UPDATED : 2026-11-12_1900 UTC — a name-your-price board post: "$1 to post your job", then "charged when a pro takes it" (no pay button).
  */
 import { notFound, redirect } from "next/navigation";
 import { Ico } from "@/components/Glyph";
-import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, money, moneyRange, serviceText, t as tr, type Job, consultOnly } from "@handled/core";
+import { BRAND, LATE_CANCEL_FEE, TIME_WINDOW_LABEL, getService, isBoardPost, money, moneyRange, serviceText, t as tr, type Job, consultOnly } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { isLate } from "@/lib/pro-benefits";
 import { getViewer, type Viewer } from "@/lib/auth";
@@ -60,9 +61,14 @@ export default async function CustomerJob({ params }: { params: Promise<{ id: st
           <a href={`/invoice/${job.id}`} className="mt-2 inline-block text-sm font-semibold text-brand underline">{t("Invoice & service agreement")}</a>
           <div className="mt-4 text-2xl font-bold">{job.price_final ? money(job.price_final) : consultOnly(job.service_slug) ? (l === "es" ? "Precio en la consulta" : "Priced on your consultation") : moneyRange(job.estimate_low, job.estimate_high)}</div>
         </div>
-        {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && (
+        {isBoardPost(job) && job.deposit_paid_at && !job.paid_at && job.status !== "cancelled" && (
+          <p className="card text-sm">📋 {es
+            ? `Su trabajo está en el tablero de profesionales a ${money(job.price_final)} hasta el ${job.open_offer_until!.slice(0, 10)}. Se cobra a su tarjeta solo cuando un profesional lo tome.`
+            : `Your job is on the pro job board at ${money(job.price_final)} until ${job.open_offer_until!.slice(0, 10)}. Your card is charged only when a pro takes it.`}</p>
+        )}
+        {!job.paid_at && !job.remedy && job.price_final && job.status !== "cancelled" && !(isBoardPost(job) && job.deposit_paid_at) && (
           <PayNow jobId={job.id} amount={money((job.payment_plan === "deposit" || job.payment_plan === "after") && !job.deposit_paid_at ? Number(job.deposit_amount) : Number(job.price_final) - Number(job.amount_paid))}
-            label={job.payment_plan === "after" && !job.deposit_paid_at ? (es ? "(25%) para reservar" : "(25%) to book") : job.payment_plan === "after" ? (es ? "restante — se cobra automáticamente cuando el trabajo esté terminado, o páguelo ahora" : "remaining — charged automatically when the job is done, or pay it now") : job.payment_plan === "deposit" && !job.deposit_paid_at ? (es ? "de depósito" : "deposit") : job.deposit_paid_at ? (es ? `saldo${job.balance_due_date ? ` (se cobra automáticamente el ${job.balance_due_date})` : ""}` : `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}`) : ""} locale={l} />
+            label={isBoardPost(job) ? (es ? "para publicar su trabajo" : "to post your job") : job.payment_plan === "after" && !job.deposit_paid_at ? (es ? "(25%) para reservar" : "(25%) to book") : job.payment_plan === "after" ? (es ? "restante — se cobra automáticamente cuando el trabajo esté terminado, o páguelo ahora" : "remaining — charged automatically when the job is done, or pay it now") : job.payment_plan === "deposit" && !job.deposit_paid_at ? (es ? "de depósito" : "deposit") : job.deposit_paid_at ? (es ? `saldo${job.balance_due_date ? ` (se cobra automáticamente el ${job.balance_due_date})` : ""}` : `balance${job.balance_due_date ? ` (auto-charged ${job.balance_due_date})` : ""}`) : ""} locale={l} />
         )}
         {(job.paid_at || job.deposit_paid_at) && !job.contractor_id && !job.remedy && ["dispatched", "scheduled"].includes(job.status) && <MarketPanel jobId={job.id} price={Number(job.price_final)} suggested={job.suggested_price ?? null} locale={l} />}
         <TrackPro jobId={job.id} locale={l} />

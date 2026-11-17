@@ -47,6 +47,18 @@
  *           the job goes on the pro job board for 30 days and is fully refunded if no one takes it.
  * UPDATED : 2026-11-10_1500 UTC — checkout never gets stuck: a non-JSON server error or a dropped connection shows a clear message
  *           (with the support number) and frees the button, instead of leaving "Finalizing your price…" spinning.
+ * UPDATED : 2026-11-12_1900 UTC — name your price posts the job on the pro job board: "Post my job for $1" (no payment-plan
+ *           choice), up for 90 days, the price charged to the same card when a pro takes it; the day and slot don't have to be open.
+ * UPDATED : 2026-11-13_0400 UTC — name your price: the box can be cleared to type a new price (it used to refill with our
+ *           price the moment it was empty, so customers couldn't enter their own); our price shows as the placeholder.
+ * UPDATED : 2026-11-13_0530 UTC — name your price: no "How often" (a posted job is one visit; weekly / monthly use our price),
+ *           and the price panel shows what they pay — $1 today, the rest only when a pro takes it — instead of our
+ *           breakdown and the "25% books your pro" line.
+ * UPDATED : 2026-11-13_0600 UTC — name your price takes every way people type money ("$150", "150.00", "1,200", "150,00");
+ *           "150.00" used to read as $15,000 and snap back to our price.
+ * UPDATED : 2026-11-13_0630 UTC — editing the order while placing it: the step tabs go back to any earlier step (nothing
+ *           entered is lost), and Review shows "Your order" (service, every answer, notes, photos, when, where, price)
+ *           with an Edit link on each part.
  */
 "use client";
 
@@ -60,7 +72,7 @@ import { PhotoPicker } from "./PhotoPicker";
 import {
   BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, siteVisitReason, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
-  questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
+  questionVisible, offerCheck, parseMoney, OFFER_BOUNDS, BOARD_POST_FEE, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
 const FREQ_LABEL: Record<Frequency, string> = { once: "One time", weekly: "Weekly (save 20%)", biweekly: "Every 2 weeks (save 15%)", monthly: "Monthly (save 10%)", quarterly: "Quarterly (save 5%)" };
 const addDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -176,6 +188,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   };
 
   function pick(s: string) {
+    // the same service again (back from Review → Edit): keep everything they entered
+    if (s === slug) { setStep(1); return; }
     const next = getService(s)!;
     setSlug(s);
     setAnswers(defaultAnswers(next));
@@ -217,7 +231,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
+      body: JSON.stringify({ ...form, company_name: form.company_name || null, service_slug: slug, answers, frequency: named ? "once" : frequency, scheduled_date: date, time_window: win, notes: notesOut || null, photos, source: "web", accept_terms: agreed, payment_plan: plan, quote_token: quoteToken, promo_code: promo || null, attribution: readAttribution(), locale, urgency: svc?.leadDays ? null : urgency, customer_budget: Number(budget) > 0 ? Number(budget) : null, customer_offer: named ? offerNum : null, pro_choice: picked ? { pro_id: picked.pro_id, price: picked.price } : null, quote_bid: quote ? { request: quote.request, bid: quote.bid } : null, business_property_id: business?.propertyId ?? null, preferred_pro_id: ask?.proId ?? null, requested_crew_member_id: ask?.crewId ?? null, home_id: business ? null : homeId, access_info: business ? null : access.trim() || null, save_home: Boolean(!business && !homeId && saveHome && signedIn), ticket: ticket?.token ?? null }),
     }).catch(() => null);
     if (!res) { setBusy(false); return setError(es ? "Sin conexión: revise su internet e intente de nuevo." : "No connection: check your internet and try again."); }
     // a server error page (not JSON) used to throw here and leave the button stuck on "Finalizing your price…"
@@ -232,9 +246,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const suggested = quote ? quote.price : ai?.final_price ?? est?.point ?? 0;
   const proOffers = !siteVisit && !quote && suggested ? rankProOffers(proRows, suggested, slug) : [];
   const picked = proOffers.find((o) => o.pro_id === choice) ?? null;
-  const offerNum = Math.round(Number(offer) || 0);
+  // as typed: "$150", "150.00", "1,200" … (core parseMoney; whole dollars)
+  const offerNum = Number.isFinite(parseMoney(offer)) ? parseMoney(offer) : 0;
   const offerChk = offerNum && suggested ? offerCheck(offerNum, suggested) : null;
   const named = Boolean(!quote && !picked && offerChk?.ok && offerNum !== suggested);
+  // a posted job (name your price) is one visit, not a recurring plan
+  useEffect(() => { if (named && frequency !== "once") setFrequency("once"); }, [named, frequency]);
   const listTotal = picked ? picked.price : named ? offerNum : suggested;
   // Plus member saving + promo / gift card, from the server (same rules as at booking)
   async function checkPerks(code = promo) {
@@ -258,7 +275,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
         {business && <div className="mb-4 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark"><b>{business.company}</b> · {business.propertyName} ({business.address}, {business.city}) · {business.billing}</div>}
         <ol className="mb-6 flex gap-2 text-xs font-semibold">
           {["Service", "Details", "When & where", "Review"].map((lbl, i) => (
-            <li key={lbl} className={`rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : i < step ? "bg-brand-tint text-brand-dark" : "bg-white text-ink-soft border border-line"}`}>{i + 1}. {t(lbl)}</li>
+            <li key={lbl}>{i < step
+              // an earlier step: click to go back and change it (nothing entered is lost)
+              ? <button type="button" onClick={() => setStep(i)} className="rounded-full bg-brand-tint px-3 py-1 text-brand-dark underline-offset-2 hover:underline" title={es ? "Cambiar" : "Change"}>{i + 1}. {t(lbl)} ✎</button>
+              : <span className={`inline-block rounded-full px-3 py-1 ${i === step ? "bg-brand-deep text-white" : "border border-line bg-white text-ink-soft"}`}>{i + 1}. {t(lbl)}</span>}</li>
           ))}
         </ol>
 
@@ -327,7 +347,8 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
                 {q.type === "number" && q.required && !(Number(answers[q.id] ?? 0) > 0) && <p className="mt-1 text-xs font-semibold text-rose-700">{es ? "Escriba la medida para ver su precio." : "Enter the measurement to see your price."}</p>}
               </div>
             ))}
-            {svc.frequencies.length > 1 && (
+            {svc.frequencies.length > 1 && named && <p className="text-xs text-ink-soft">{es ? "Los trabajos con su propio precio son de una sola visita. ¿Lo quiere semanal o mensual? Use nuestro precio sugerido." : "Name-your-price jobs are one visit. Want it weekly or monthly? Use our suggested price."}</p>}
+            {svc.frequencies.length > 1 && !named && (
               <div>
                 <label className="label">{t("How often")}</label>
                 <div className="flex flex-wrap gap-2">
@@ -419,6 +440,39 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
           </div>
         )}
 
+        {step === 3 && svc && (() => {
+          // the order as entered, before paying: every part can be changed (Edit → back to that step, nothing lost)
+          const ans = (q: (typeof svc.questions)[number]) => {
+            const v = answers[q.id] ?? q.default;
+            if (q.type === "select") return t(q.options.find((o) => o.value === v)?.label ?? String(v));
+            if (q.type === "toggle") return v ? t("Yes") : t("No");
+            return `${typeof v === "number" ? v.toLocaleString(es ? "es-US" : "en-US") : v}${q.unit && q.unit !== "$" ? ` ${t(q.unit)}` : ""}`;
+          };
+          const shown = svc.questions.filter((q) => questionVisible(q, answers, svc.questions) && !(q.type === "number" && Number(answers[q.id] ?? q.default) === 0 && !q.required));
+          const edit = (to: number) => <button type="button" className="text-xs font-semibold text-brand underline" onClick={() => setStep(to)}>{es ? "Editar" : "Edit"}</button>;
+          const when = svc.leadDays ? `${date}` : urgency ? t(URGENCY.find((u) => u.id === urgency)?.label ?? urgency) : "—";
+          return (
+            <div className="card mb-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between"><h2 className="text-xl font-bold">{es ? "Su pedido" : "Your order"}</h2><span className="text-xs text-ink-soft">{es ? "Revise y cambie lo que necesite antes de pagar." : "Check it and change anything before you pay."}</span></div>
+              <div className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{svc.icon} {serviceText(locale, svc.slug, svc).name}</div>{edit(0)}</div>
+              </div>
+              <div className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{es ? "Detalles" : "Details"}</div>{edit(1)}</div>
+                <ul className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">{shown.map((q) => <li key={q.id}><span className="text-ink-soft">{t(q.label)}:</span> {ans(q)}</li>)}</ul>
+                {svc.frequencies.length > 1 && !named && <p className="mt-1"><span className="text-ink-soft">{t("How often")}:</span> {t(FREQ_LABEL[frequency])}</p>}
+                {notes.trim() && <p className="mt-1"><span className="text-ink-soft">{es ? "Notas" : "Notes"}:</span> “{notes.trim().slice(0, 300)}{notes.trim().length > 300 ? "…" : ""}”</p>}
+                <p className="mt-1 text-ink-soft">{photos.length ? (es ? `${photos.length} foto(s)` : `${photos.length} photo${photos.length === 1 ? "" : "s"}`) : (es ? "Sin fotos" : "No photos")}</p>
+              </div>
+              <div className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{es ? "Cuándo y dónde" : "When & where"}</div>{edit(2)}</div>
+                <p className="mt-1"><span className="text-ink-soft">{es ? "Cuándo" : "When"}:</span> {when}</p>
+                <p><span className="text-ink-soft">{es ? "Dónde" : "Where"}:</span> {[form.address, form.city, `${form.state} ${form.zip}`].filter((x) => x && x.trim()).join(", ")}{form.customer_type === "commercial" && form.company_name ? ` · ${form.company_name}` : ""}</p>
+              </div>
+              <div className="flex justify-between font-semibold"><span>{named ? (es ? "Su precio" : "Your price") : (es ? "Precio" : "Price")}</span><span>{money(listTotal)}{named ? (es ? ` · hoy ${money(BOARD_POST_FEE)}` : ` · ${money(BOARD_POST_FEE)} today`) : ""}</span></div>
+            </div>
+          );
+        })()}
         {step === 3 && (
           <div className="card space-y-5">
             <h2 className="text-xl font-bold">{t("Your contact info")}</h2>
@@ -428,7 +482,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <div><label className="label">{t("Mobile")}</label><input className="input" type="tel" autoComplete="tel" value={form.contact_phone} onChange={set("contact_phone")} /></div>
             </div>
             <SmsConsent es={es} purpose="booking" />
-            {svc && !siteVisit && est && (() => {
+            {svc && !siteVisit && est && !named && (() => {
               // how they pay: 25% now and the rest when it's done (default), or in full now with 5% off; events and site-visit work offer a deposit
               const dp = depositPolicy(svc.slug, total, date);
               const bn = bookNowPolicy(svc.slug, total);
@@ -458,12 +512,15 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             })()}
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? consult ? (es ? "la consulta es gratis; pago solo cuando apruebe el alcance y el precio fijo." : "the consultation is free; I pay only once I approve the scope and fixed price.") : t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
+              <span>{t("I agree to the")} <a href="/terms/service-agreement" target="_blank" className="font-semibold text-brand underline">{t("Service Agreement")}</a>: {siteVisit ? consult ? (es ? "la consulta es gratis; pago solo cuando apruebe el alcance y el precio fijo." : "the consultation is free; I pay only once I approve the scope and fixed price.") : t(svc?.remote ? "the scope review is free; I pay once I approve the firm price." : "the site visit is free; I pay upfront once I approve the firm quote.") : named ? (es
+                ? `pago ${money(BOARD_POST_FEE)} ahora para publicar mi trabajo (no reembolsable) y autorizo que se cobren ${money(offerNum)} a la misma tarjeta cuando un profesional lo tome; ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien.`
+                : `I pay ${money(BOARD_POST_FEE)} now to post my job (not refundable) and authorize ${money(offerNum)} to be charged to the same card when a pro takes it; you pay the pro after the job is done and checked; free redo or refund if it’s not right.`) : es ? "pago el 25% ahora y el resto a la misma tarjeta cuando el trabajo esté terminado (o todo ahora con 5% de descuento); ustedes le pagan al profesional cuando el trabajo esté hecho y revisado; lo rehacemos gratis o le devolvemos su dinero si no queda bien." : "I pay 25% now and the rest to the same card when the job is done (or everything now for 5% off); you pay the pro after the job is done and checked; free redo or refund if it’s not right."}</span>
             </label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" onClick={() => setStep(2)}>{t("Back")}</button>
-              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? t(siteVisit ? "Booking…" : "Finalizing your price…") : siteVisit ? consult ? (es ? "Reservar consulta gratis" : "Book my free consultation") : t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
+              <button className="btn-primary" disabled={!contactOk || !agreed || busy || aiBusy} onClick={book}>{aiBusy ? t("Checking your photos…") : busy ? (named ? (es ? "Publicando…" : "Posting…") : t(siteVisit ? "Booking…" : "Finalizing your price…")) : siteVisit ? consult ? (es ? "Reservar consulta gratis" : "Book my free consultation") : t(svc?.remote ? "Request my firm price" : "Book free site visit") : (() => {
+                if (named) return es ? `Publicar mi trabajo por ${money(BOARD_POST_FEE)}` : `Post my job for ${money(BOARD_POST_FEE)}`;
                 // what's charged today under the plan this booking actually gets
                 const dp = depositPolicy(svc!.slug, total, date), bn = bookNowPolicy(svc!.slug, total);
                 const p = resolvePlan(plan, dp.allowed, bn.allowed);
@@ -512,12 +569,14 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               <p className="mt-1 text-xs text-ink-soft">{locale === "es" ? `Sugerido: ${money(suggested)} — lo que los profesionales de su zona aceptan con más frecuencia. Ofrezca menos o más; los profesionales deciden.` : `Suggested: ${money(suggested)} — what pros near you accept most often. Offer less or more; pros decide.`}</p>
               <div className="mt-2 flex items-center gap-2">
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerCheck(1, suggested).floor, Math.round(listTotal * 0.95))))}>−5%</button>
-                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="numeric" value={offer || String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d]/g, ""))} aria-label={t("Your price")} /></div>
+                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right" inputMode="decimal" value={offer} placeholder={String(suggested)} onChange={(e) => setOffer(e.target.value.replace(/[^\d.,$\s]/g, "").slice(0, 14))} aria-label={t("Your price")} /></div>
                 <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round(listTotal * 1.05)))}>+5%</button>
               </div>
               {offerChk && !offerChk.ok && <p className="mt-1 text-xs text-rose-700">{offerChk.level === "too_low" ? (locale === "es" ? `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.` : `Offers start at ${money(offerChk.floor)} for this job.`) : (locale === "es" ? `Hasta ${money(offerChk.max)} — llámenos para trabajos más grandes.` : `Up to ${money(offerChk.max)} — call us for bigger jobs.`)}</p>}
-              {offerChk?.ok && offerChk.level === "board" && <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">📋 {locale === "es" ? "Por debajo de nuestro precio habitual: publicaremos su trabajo en el tablero de profesionales a este precio por 30 días. El primer profesional que lo tome confirma el día con usted. Si nadie lo toma, le reembolsamos todo." : "Below our usual price: we'll post your job on the pro job board at this price for 30 days. The first pro who takes it confirms the day with you. If no one takes it, you get a full refund."}</p>}
-              {offerChk?.ok && offerChk.level === "low" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
+              {named && <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">📋 {es
+                ? `Publicamos su trabajo en el tablero de profesionales a ${money(offerNum)} por ${OFFER_BOUNDS.boardDays} días. Hoy paga ${money(BOARD_POST_FEE)} para publicarlo; sus ${money(offerNum)} se cobran a la misma tarjeta solo cuando un profesional lo tome, y el profesional confirma el día con usted. Si nadie lo toma, no paga nada más.`
+                : `We'll post your job on the pro job board at ${money(offerNum)} for ${OFFER_BOUNDS.boardDays} days. You pay ${money(BOARD_POST_FEE)} today to post it; your ${money(offerNum)} is charged to the same card only when a pro takes it, and the pro confirms the day with you. If no one takes it, you pay nothing more.`}</p>}
+              {offerChk?.ok && named && offerChk.level !== "ok" && <p className="mt-1 text-xs text-amber-800">{t("Lower offers can take longer to get a pro — we'll let you know if no one takes it.")}</p>}
               {offerChk?.ok && offerNum > suggested && <p className="mt-1 text-xs text-brand-dark">✓ {t("A higher offer usually gets a pro faster.")}</p>}
               <p className="mt-2 text-xs text-ink-soft">{locale === "es" ? `Incluye un cargo por reserva de ${money(BOOKING_FEE)}` : `Includes a ${money(BOOKING_FEE)} booking fee`}</p>
             </div>
@@ -573,16 +632,24 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
               </p>
             );
           })()}
+          {named ? (
+          <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
+            <li className="flex justify-between gap-3"><span className="font-semibold">{es ? "Hoy: publicar su trabajo" : "Due today: post your job"}</span><span className="font-semibold">{money(BOARD_POST_FEE)}</span></li>
+            <li className="flex justify-between gap-3"><span className="text-ink-soft">{es ? "Cuando un profesional lo tome" : "When a pro takes it"}</span><span>{money(Math.max(0, offerNum - BOARD_POST_FEE))}</span></li>
+            <li className="text-xs text-ink-soft">{es ? `Su precio total: ${money(offerNum)}. Se cobra a la misma tarjeta solo si un profesional toma el trabajo.` : `Your total: ${money(offerNum)}. Charged to the same card only if a pro takes the job.`}</li>
+          </ul>
+          ) : (
           <ul className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
             {consult && <li className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo que eligió" : "What you picked"}</li>}
             {est.items.filter((i) => !consult || (i.amount > 0 && !/booking fee/i.test(i.label))).map((i) => (
               <li key={i.label} className="flex justify-between gap-3"><span className="text-ink-soft">{lineText(locale, i.label)}</span>{!consult && <span className={i.amount < 0 ? "text-brand" : ""}>{money(i.amount)}</span>}</li>
             ))}
           </ul>
+          )}
           {!siteVisit && svc.slug !== "event-package" && step < 3 && <SaveQuote slug={svc.slug} answers={answers} frequency={frequency} locale={locale} />}
           {needsCheck && !ai && step < 3 && <p className="mt-4 text-xs text-ink-soft"><Ico i="✨" />{t("Our AI checks your photos and notes before you pay.")}</p>}
           <p className="mt-4 text-xs text-ink-soft">
-            {consult ? (es ? "Consulta gratis por video: un especialista confirma el alcance y le envía un precio fijo por escrito; paga solo cuando lo apruebe." : "Free video consultation — a specialist confirms the scope and sends a fixed price in writing; you pay only once you approve it.") : t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : BRAND.promise)}
+            {consult ? (es ? "Consulta gratis por video: un especialista confirma el alcance y le envía un precio fijo por escrito; paga solo cuando lo apruebe." : "Free video consultation — a specialist confirms the scope and sends a fixed price in writing; you pay only once you approve it.") : t(svc.slug === "event-package" ? "Free planning call first. Your planner sends a firm plan at or under this budget; you pay once you approve it." : siteVisit ? (svc.remote ? "Free scope review — a specialist checks your order online and sends the firm price; you pay once you approve it." : "Free site visit — a pro confirms the firm price, then you pay to lock in the work.") : named ? (es ? "¿No quedó bien? Lo rehacemos gratis o le devolvemos su dinero dentro de 30 días." : "Not right? Free redo or your money back within 30 days.") : BRAND.promise)}
           </p>
         </aside>
       )}
@@ -593,8 +660,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
 /**
  * Number input + slider. Typing is free-form (no clamping per keystroke — that turned
  * "2500" into 10000); the value is applied live while in range and clamped on blur.
- * Big ranges (square feet) step by 50 on the slider.
+ * Big ranges (square feet) step by 50 on the slider. Clicking in clears a 0 and selects any other number, so typing
+ * replaces it; commas and anything after a decimal point are ignored.
  */
+/** The whole number in what was typed: "1,500" → "1500", "2500.5" → "2500". */
+const whole = (typed: string) => typed.replace(/,/g, "").split(".")[0].replace(/[^0-9]/g, "");
+
 function NumberField({ value, min, max, unit, onChange }: { value: number; min: number; max: number; unit?: string; onChange: (v: number) => void }) {
   const [text, setText] = useState(String(value));
   const [editing, setEditing] = useState(false);
@@ -605,15 +676,20 @@ function NumberField({ value, min, max, unit, onChange }: { value: number; min: 
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => { onChange(Number(e.target.value)); setText(e.target.value); }}
         className="flex-1 accent-[var(--color-brand)]" aria-label={unit ?? "amount"} />
       {unit === "$" && <span className="-mr-2 text-sm font-semibold text-ink-soft">$</span>}
-      <input type="text" inputMode="numeric" className="input w-28 text-right" value={shown}
-        onFocus={() => { setEditing(true); setText(String(value)); }}
+      <input type="text" inputMode="numeric" className="input w-28 text-right" value={shown} placeholder="0"
+        // clicking in starts fresh: a 0 is cleared and any other number is selected, so typing replaces it
+        // (the cursor used to land before the 0 — typing 5000 gave 50,000)
+        onFocus={(e) => { setEditing(true); setText(value ? String(value) : ""); const el = e.currentTarget; requestAnimationFrame(() => el.select()); }}
+        onMouseUp={(e) => e.preventDefault()}
         onChange={(e) => {
-          const raw = e.target.value.replace(/[^0-9]/g, "");
-          setText(raw);
+          // "1,500" and "1500.5" read as 1500 (whole numbers; the decimal point used to be dropped: 1500.5 → 15005)
+          const typed = e.target.value.replace(/[^0-9.,]/g, "");
+          setText(typed); // what they typed stays on screen (a "." too); the number ignores commas and decimals
+          const raw = whole(typed);
           const n = Number(raw);
           if (raw && n >= min && n <= max) onChange(n);
         }}
-        onBlur={() => { setEditing(false); const n = Number(text); onChange(Math.min(max, Math.max(min, Number.isFinite(n) && text ? n : value))); }}
+        onBlur={() => { setEditing(false); const raw = whole(text); const n = Number(raw); onChange(Math.min(max, Math.max(min, raw ? n : value))); }}
         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
       {unit && unit !== "$" && <span className="w-12 text-sm text-ink-soft">{unit}</span>}
     </div>

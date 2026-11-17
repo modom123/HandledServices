@@ -12,6 +12,8 @@
  * UPDATED : 2026-10-11_0608 UTC — remote services (websites, AI, formation, consulting) book from any ZIP even before a specialist signs up — staff take them.
  * UPDATED : 2026-10-12_0032 UTC — no pro in the ZIP yet: booked anyway when the Hub switch is on (default), and staff get an
  *           alert to recruit or line up a pro; with the switch off, waitlist as before.
+ * UPDATED : 2026-11-12_1900 UTC — name your price (a job board post, $1 to post): the day/slot and "no pro here yet"
+ *           checks are skipped — the pro who takes it confirms the day, and pros joining the area can take it.
  */
 import { after } from "next/server";
 import { BookingSchema, createJob, onBooked } from "@/lib/jobs";
@@ -42,11 +44,13 @@ export async function POST(req: Request) {
   if (a.mode === "closed") return Response.json({ error: a.market
     ? `${svcDef.name} is coming soon to ${a.market}. Join the waitlist on the booking page and we'll tell you the day it opens.`
     : `We serve ${SERVED_AREAS_LABEL.en} right now. Join the waitlist on the booking page and we'll tell you when we reach ${parsed.data.zip}.`, waitlist: true }, { status: 409 });
+  // name your price posts the job on the board (the pro confirms the day): no slot or "no pro here yet" checks
+  const boardPost = Boolean(parsed.data.customer_offer);
   // remote services are taken by Handled staff when no specialist has signed up yet
   const noPro = a.mode === "request" && !svcDef.remote && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-  if (noPro && !(await bookingWithoutPro()))
+  if (noPro && !boardPost && !(await bookingWithoutPro()))
     return Response.json({ error: `We don't have a pro for ${svcDef.name} in ${parsed.data.zip} yet. Join the waitlist and we'll tell you as soon as one is available — nothing is charged.`, waitlist: true }, { status: 409 });
-  if (parsed.data.scheduled_date) {
+  if (parsed.data.scheduled_date && !boardPost) {
     const day = a.days?.find((d: { date: string }) => d.date === parsed.data.scheduled_date);
     const w = parsed.data.time_window;
     if (a.mode === "live" && day && (day.closed || day.level === "full" || (w !== "flexible" && day.windows[w] === 0)))

@@ -6,6 +6,10 @@
  *           check it against what their trades require (named insured, policy type, limits,
  *           expiry, Handled as additional insured, license type). Staff see the findings next
  *           to the document and verify in one click. Advisory only — a human verifies.
+ * UPDATED : 2026-11-12_2355 UTC — reads additional insured and certificate holder separately (either is accepted;
+ *           additional insured gives the pro priority for jobs).
+ * UPDATED : 2026-11-13_0300 UTC — judged against the trades the pro selected, never their business name (a cleaner called
+ *           "EV Screening and Compliance" is a cleaner); the name is used only to match the named insured.
  */
 import "server-only";
 import { z } from "zod";
@@ -19,7 +23,8 @@ const DocSchema = z.object({
   matches_pro: z.boolean().describe("Named insured matches the pro's business or legal name (allow DBA / LLC variations)"),
   expires_on: z.string().describe("Expiry date as YYYY-MM-DD, or empty if not shown"),
   per_occurrence_limit: z.number().describe("General liability per-occurrence limit in USD, 0 if not shown or not applicable"),
-  additional_insured: z.boolean().describe(`${BRAND.legalName} (or ${BRAND.name}) is listed as certificate holder or additional insured`),
+  additional_insured: z.boolean().describe(`${BRAND.legalName} (or ${BRAND.name}) is named as ADDITIONAL INSURED (the additional-insured box is marked or an endorsement names it). Being only the certificate holder is false here`),
+  certificate_holder: z.boolean().describe(`${BRAND.legalName} (or ${BRAND.name}) is listed in the certificate holder box`),
   license_number: z.string().describe("License number if this is a license, else empty"),
   meets_requirements: z.boolean(),
   problems: z.array(z.string()).describe("Each requirement not met, in plain words"),
@@ -29,7 +34,7 @@ export type DocCheck = z.infer<typeof DocSchema>;
 export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boolean; pro: { business_name: string; legal_name?: string | null; trades: string[] }; claimedExpiry?: string | null }): Promise<DocCheck | null> {
   const trades = o.pro.trades.map((t) => `${t}${TRADE_PROFILES[t]?.license ? ` (license: ${TRADE_PROFILES[t].license})` : ""}`).join("; ");
   const need =
-    o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or certificate holder, not expired.`
+    o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or listed as certificate holder (either is accepted; say which), not expired.`
     : o.kind === "license" ? `A current state license that covers these trades: ${trades}.`
     : COVERAGES[o.kind as CoverageKey] ? `${COVERAGES[o.kind as CoverageKey].label}: ${COVERAGES[o.kind as CoverageKey].detail} Not expired.`
     : "A current, readable document of the type uploaded.";
@@ -37,8 +42,10 @@ export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boo
   return structured({
     kind: "doc_check",
     schema: DocSchema,
-    system: "You check contractor compliance documents for a home-services marketplace. Read only what the document shows; never guess numbers or dates. Today's date matters for expiry.",
-    content: [block, { type: "text", text: `Today: ${new Date().toISOString().slice(0, 10)}\nPro: ${o.pro.business_name}${o.pro.legal_name ? ` (legal name ${o.pro.legal_name})` : ""}\nUploaded as: ${o.kind}${o.claimedExpiry ? `, pro says it expires ${o.claimedExpiry}` : ""}\nRequirement: ${need}` }] as ContentBlocks,
+    system: "You check contractor compliance documents for a home-services marketplace. Read only what the document shows; never guess numbers or dates. Today's date matters for expiry. " +
+      "Judge the requirement ONLY against the trades the pro selected (listed below). The business name is used for one thing: checking the named insured is this pro (allow DBA / LLC / personal-name variations). " +
+      "Never infer the pro's work from their business name, and never fail a document because the business name or the policy's description of operations suggests other work — a general liability policy covers the pro whatever the business is called.",
+    content: [block, { type: "text", text: `Today: ${new Date().toISOString().slice(0, 10)}\nPro (for the name match only): ${o.pro.business_name}${o.pro.legal_name ? ` (legal name ${o.pro.legal_name})` : ""}\nTrades they selected (what they do): ${o.pro.trades.join(", ") || "—"}\nUploaded as: ${o.kind}${o.claimedExpiry ? `, pro says it expires ${o.claimedExpiry}` : ""}\nRequirement: ${need}` }] as ContentBlocks,
     effort: "low",
     maxTokens: 4000,
   });

@@ -10,6 +10,11 @@
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: a tick-box (checked by default) joins the Partner Program and pays 10%
  *           back, up to $250, on the poster's own first project (needs an email). The done state shows their code.
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-12_1700 UTC — checks for an email or a full phone number before sending (the server said no only
+ *           after the click), a dropped connection no longer leaves the button stuck on "Posting…", the description
+ *           shows how much room is left, and the partner box says when it's skipped for lack of an email.
+ * UPDATED : 2026-11-12_1800 UTC — photos (optional, up to 6): taken or chosen on a phone, dragged in on a desktop; saved
+ *           with the lead so staff see the job before they call. Posting waits until uploads finish.
  * UPDATED : 2026-11-17_1446 UTC — Estimate first. 1) Describe the project (photos optional) → 2) an instant estimate
  *           right away, no contact details needed (/api/post/estimate: the AI reads the project, the rules engine
  *           prices it) → 3) the customer picks what's next: book now at that price, work it through with their AI
@@ -27,7 +32,7 @@ import { useRef, useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
 import { BRAND, INSTANT_PRICE_UP_TO, callCalendarLinks, firstProjectLine, money, moneyRange } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
-import { PhotoPicker } from "./PhotoPicker";
+import { PhotoPicker } from "@/components/PhotoPicker";
 import { CallScheduler, browserTz } from "./CallScheduler";
 
 type Opt = { slug: string; name: string };
@@ -46,6 +51,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
   const [f, setF] = useState({ service: preset ?? "", details: "", timing: "", budget: "", zip: "", name: "", email: "", phone: "", website: "" });
   const [photos, setPhotos] = useState<string[]>([]);
   const [showPhotos, setShowPhotos] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [sms, setSms] = useState(false);
   const [earn, setEarn] = useState(true);
   const [partner, setPartner] = useState<{ code: string; reward: boolean } | null>(null);
@@ -69,6 +75,8 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
 
   async function getEstimate(service = f.service) {
     if (!service && f.details.trim().length < 10 && !photos.length) { setErr(L("Tell us what you need — pick a service or describe the project.", "Díganos qué necesita: elija un servicio o describa el proyecto.")); return; }
+    if (uploading) { setErr(L("Wait for your photos to finish uploading.", "Espere a que terminen de subir sus fotos.")); return; }
+    if (f.zip && !/^\d{5}$/.test(f.zip.trim())) { setErr(L("ZIP code should be 5 digits.", "El código postal debe tener 5 dígitos.")); return; }
     setState("busy"); setErr("");
     const r = await fetch("/api/post/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: service || null, details: f.details || null, zip: f.zip || null, photos, locale: es ? "es" : "en" }) }).catch(() => null);
     const j = r ? await r.json().catch(() => ({})) : {};
@@ -93,7 +101,12 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
     e.preventDefault();
     const at = callMode === "schedule" ? callAt : null;
     if (callMode === "schedule" && !at) { setErr(L("Pick a day and time for your call.", "Elija el día y la hora de su llamada.")); return; }
-    if (at && !f.phone.trim()) { setErr(L("Add your phone number so we can call you.", "Agregue su teléfono para poder llamarle.")); return; }
+    if (!f.name.trim()) { setErr(L("Add your name.", "Agregue su nombre.")); return; }
+    const phoneOk = f.phone.replace(/\D/g, "").length >= 10;
+    if (at && !phoneOk) { setErr(L("Add your full phone number with area code so we can call you.", "Agregue su teléfono completo con código de área para poder llamarle.")); return; }
+    if (!f.email.trim() && !phoneOk) { setErr(f.phone.trim() ? L("Enter your full phone number with area code, or add an email.", "Escriba su teléfono completo con código de área, o agregue un correo.") : L("Add an email or phone number so we can reach you.", "Agregue un correo o teléfono para poder contactarle.")); return; }
+    if (uploading) { setErr(L("Wait for your photos to finish uploading.", "Espere a que terminen de subir sus fotos.")); return; }
+    if (f.zip && !/^\d{5}$/.test(f.zip.trim())) { setErr(L("ZIP code should be 5 digits.", "El código postal debe tener 5 dígitos.")); return; }
     setState("busy"); setErr("");
     const message = [
       "Posted project",
@@ -103,13 +116,18 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       est?.service_name && `Matched service: ${est.service_name}`,
       priceText ? `Online estimate shown: ${priceText}${est?.site_visit ? ` (firm price after free site visit${est.visit_reason ? `: ${est.visit_reason}` : ""})` : " (instant price, bookable now)"}` : est?.consult_only ? "Online estimate: consultation-only (no price shown)" : null,
       est?.assumptions.length ? `Estimate assumed: ${est.assumptions.map((a) => `${a.label}: ${a.value}`).join("; ")}` : null,
-      photos.length ? `Photos: ${photos.length} uploaded` : null,
+      photos.length ? `Photos: ${photos.length} (see below)` : null,
     ].filter(Boolean).join("\n");
-    const r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      name: f.name, email: f.email || null, phone: f.phone || null, zip: f.zip || null, service: est?.service_slug || f.service || null, message,
-      campaign: "post-project", sms_consent: sms && Boolean(f.phone), partner_optin: earn && Boolean(f.email), attribution: readAttribution(), website: f.website,
-      call_at: at, call_tz: at ? browserTz() : null,
-    }) });
+    let r: Response;
+    try {
+      r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        name: f.name.trim(), email: f.email.trim() || null, phone: phoneOk ? f.phone.trim() : null, zip: f.zip.trim() || null, service: est?.service_slug || f.service || null, message, photos,
+        campaign: "post-project", sms_consent: sms && phoneOk, partner_optin: earn && Boolean(f.email.trim()), attribution: readAttribution(), website: f.website,
+        call_at: at, call_tz: at ? browserTz() : null,
+      }) });
+    } catch {
+      setState("idle"); setErr(L("Couldn't reach us — check your connection and try again.", "No pudimos conectar: revise su conexión e intente de nuevo.")); return;
+    }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       setState("idle");
@@ -173,12 +191,13 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
         <div>
           <label className="text-sm font-semibold">{L("Describe the project", "Describa el proyecto")}</label>
           <textarea className="input mt-1 min-h-28" maxLength={2500} placeholder={L("What needs to be done, how big it is (rooms, sq ft, items…), anything we should know. The more detail, the sharper your estimate.", "Qué hay que hacer, de qué tamaño es (cuartos, pies², artículos…), cualquier cosa que debamos saber. Más detalle = estimado más preciso.")} value={f.details} onChange={set("details")} />
+          {f.details.length > 2000 && <p className="mt-1 text-right text-xs text-ink-soft">{2500 - f.details.length} {L("characters left", "caracteres restantes")}</p>}
         </div>
         {showPhotos || photos.length ? (
           <div>
             <label className="text-sm font-semibold">{L("Photos (optional)", "Fotos (opcional)")}</label>
             <p className="mb-2 text-xs text-ink-soft">{L("Photos let the AI size the job — usually a tighter estimate.", "Las fotos permiten a la IA medir el trabajo: normalmente un estimado más preciso.")}</p>
-            <PhotoPicker value={photos} onChange={setPhotos} onError={setErr} locale={es ? "es" : "en"} />
+            <PhotoPicker value={photos} onChange={setPhotos} max={6} onError={setErr} onBusy={setUploading} locale={es ? "es" : "en"} />
           </div>
         ) : (
           <button type="button" className="text-sm font-semibold text-brand" onClick={() => setShowPhotos(true)}><Ico i="📸" />{L("Add photos for a sharper estimate", "Agregue fotos para un estimado más preciso")}</button>
@@ -194,7 +213,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
           </select>
           <input className="input" inputMode="numeric" maxLength={5} placeholder={L("ZIP code", "Código postal")} value={f.zip} onChange={set("zip")} aria-label={L("ZIP code", "Código postal")} />
         </div>
-        <button className="btn-primary w-full py-3 text-base" disabled={state === "busy"}>{state === "busy" ? L("Pricing your project…", "Calculando su proyecto…") : est ? L("Update my estimate", "Actualizar mi estimado") : L("Get my free estimate", "Obtener mi estimado gratis")}</button>
+        <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{uploading ? L("Uploading photos…", "Subiendo fotos…") : state === "busy" ? L("Pricing your project…", "Calculando su proyecto…") : est ? L("Update my estimate", "Actualizar mi estimado") : L("Get my free estimate", "Obtener mi estimado gratis")}</button>
         <p className="text-center text-xs text-ink-soft">{L("Instant, free, no contact details needed to see your price.", "Al instante, gratis y sin datos de contacto para ver su precio.")}</p>
         {err && !est && <p className="text-sm text-rose-700">{err}</p>}
       </form>
@@ -281,13 +300,14 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
                 <input type="checkbox" className="mt-1" checked={earn} onChange={(e) => setEarn(e.target.checked)} />
                 <span><b>{L(`Get ${firstProjectLine()} on this project`, `Reciba ${firstProjectLine(true)} en este proyecto`)}</b> — {L("make me a Handled partner. When we complete your first project, we pay you 10% of the price (up to $250) in cash, and you earn on every job from people you send us. Needs your email.", "hágame socio de Handled. Cuando terminemos su primer proyecto, le pagamos el 10% del precio (hasta $250) en efectivo, y gana en cada trabajo de las personas que nos envíe. Requiere su correo.")}{" "}
                   <span className="text-xs text-ink-soft">{L("By ticking this you agree to the", "Al marcar esto acepta los")} <a href="/partners#join" target="_blank" className="underline">{L("partner terms", "términos de socio")}</a>.</span>
+                  {earn && !f.email.trim() && <span className="mt-1 block text-xs font-semibold text-amber-700">{L("Add your email above to get this.", "Agregue su correo arriba para recibir esto.")}</span>}
                 </span>
               </label>
               <label className="flex items-start gap-2 text-xs text-ink-soft">
                 <input type="checkbox" className="mt-0.5" checked={sms} onChange={(e) => setSms(e.target.checked)} />
                 <span>{L(`Text me about my project. By checking this, you agree to receive text messages from ${BRAND.name} at the number above about your request. Message and data rates may apply; reply STOP to opt out. Consent isn't required to buy.`, `Envíenme mensajes de texto sobre mi proyecto. Al marcar esto, acepta recibir mensajes de ${BRAND.name} al número indicado sobre su solicitud. Pueden aplicar tarifas de mensajes y datos; responda STOP para cancelar. No es necesario para comprar.`)}</span>
               </label>
-              <button className="btn-primary w-full py-3 text-base" disabled={state === "busy"}>{state === "busy" ? L("Posting…", "Publicando…") : callMode === "schedule" ? L("Book my call", "Reservar mi llamada") : L("Post my project & call me", "Publicar y llamarme")}</button>
+              <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{state === "busy" ? L("Posting…", "Publicando…") : callMode === "schedule" ? L("Book my call", "Reservar mi llamada") : L("Post my project & call me", "Publicar y llamarme")}</button>
               <p className="text-center text-xs text-ink-soft">{L("Free, no obligation. Your details go only to Handled — we never sell or share them.", "Gratis y sin compromiso. Sus datos solo los recibe Handled: nunca los vendemos ni compartimos.")}</p>
             </form>
           )}

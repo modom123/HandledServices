@@ -13,6 +13,11 @@
  * UPDATED : 2026-10-23_1900 UTC — free-text phrases for landscaping, roofing, masonry, concrete, demolition, furniture assembly and power washing.
  * UPDATED : 2026-10-23_2100 UTC — free-text phrases for services 76–100.
  * UPDATED : 2026-11-07_1614 UTC — Nextdoor channel (posts and neighborhood groups) and Flyers & print (QR codes, door hangers, yard signs).
+ * UPDATED : 2026-11-12_1700 UTC — the lead's message keeps up to 3,000 characters (it was cut at 300, losing most of a
+ *           posted project), and the service is guessed from what the person wrote, not from form labels such as
+ *           "Details:" or "Budget:" (which matched car detailing and event packages).
+ * UPDATED : 2026-11-12_1730 UTC — "replace 6 old wood windows" / "window replacement" → window & door replacement (a few words
+ *           between "replace" and "windows" fell through to window cleaning).
  */
 import { BRAND } from "./brand.ts";
 import { SERVICE_BY_SLUG } from "./services.ts";
@@ -112,7 +117,7 @@ const SERVICE_PHRASES: [RegExp, string][] = [
   [/demoli|tear[- ]?out|tear down|knock down/, "demolition"],
   [/power ?wash|pressure ?wash/, "power-washing"],
   [/gutter (install|replace)|new gutters|seamless gutter/, "gutter-install"],
-  [/(replace|new|install)\w* (my |the )?(windows?|front door|entry door|storm door|patio door)/, "window-door-install"],
+  [/\b(replac|install|new\b)\w*\b[^.\n]{0,50}?\b(windows?|front door|entry door|storm door|patio door)\b|\b(windows?|doors?) (replace|install)/, "window-door-install"],
   [/move[- ]?out|move[- ]?in clean|deep clean|maid|janitor|office clean|house ?clean|cleaning service/, "house-cleaning"],
   [/carpet|rug|upholster/, "carpet-cleaning"],
   [/window/, "window-cleaning"],
@@ -180,7 +185,10 @@ export function normalizeIntake(raw: Record<string, unknown>, channelHint?: stri
   const email = get("email", "email_address", "work_email", "business_email")?.toLowerCase() ?? null;
   const phoneRaw = get("phone", "phone_number", "mobile", "mobile_phone", "work_phone", "cell", "telephone");
   const digits = phoneRaw?.replace(/[^\d+]/g, "") ?? "";
-  const message = get("message", "comments", "comment", "notes", "details", "description", "what_do_you_need", "project_details", "question", "inquiry");
+  const getLong = (...names: string[]) => { for (const n of names) { const v = clean(flat[key(n)], 3000); if (v) return v; } return null; };
+  const message = getLong("message", "comments", "comment", "notes", "details", "description", "what_do_you_need", "project_details", "question", "inquiry");
+  // guess from the person's words: drop "Label:" prefixes a form adds ("Details: …", "Budget: …")
+  const said = message?.split("\n").map((line) => line.replace(/^\s*[A-Za-z][A-Za-z ]{1,24}:\s*/, "")).join("\n") ?? null;
   const service = get("service", "service_slug", "service_type", "interest", "what_service", "job_type", "category");
   const utm: Record<string, string> = {};
   for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "gcl_id", "fbclid", "ttclid", "referrer", "landing"]) { const v = get(k); if (v) utm[k === "gcl_id" ? "gclid" : k] = v; }
@@ -193,7 +201,7 @@ export function normalizeIntake(raw: Record<string, unknown>, channelHint?: stri
     company: get("company", "company_name", "business", "business_name", "organization", "companyname"),
     zip: get("zip", "zip_code", "postal_code", "zipcode", "postcode")?.match(/\d{5}/)?.[0] ?? null,
     city: get("city", "town"),
-    service_slug: guessService(service) ?? guessService(message),
+    service_slug: guessService(service) ?? guessService(said),
     message: [service && !guessService(service) ? `Interested in: ${service}` : null, message].filter(Boolean).join("\n").slice(0, 3000) || null,
     channel: CHANNEL_BY_ID[channel] ? channel : "other",
     campaign: get("campaign", "campaign_name", "utm_campaign", "ad_name", "form_name", "campaign_id"),
