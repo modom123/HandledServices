@@ -2877,10 +2877,11 @@ import { siteVisitReason, INSTANT_PRICE_UP_TO } from "./intake.ts";
 test("instant price up to $2,500: no call or site visit; over it, events, consults and safety cases need one", () => {
   assert.equal(INSTANT_PRICE_UP_TO, 2500);
   const tree = getService("tree-removal")!;
-  assert.equal(siteVisitReason("tree-removal", defaultAnswers(tree), 976), null); // used to always need a visit
-  assert.equal(siteVisitReason("foundation-repair", defaultAnswers(getService("foundation-repair")!), 1192), null);
-  assert.equal(siteVisitReason("tree-removal", defaultAnswers(tree), 2500), null); // up to and including $2,500
-  assert.match(siteVisitReason("tree-removal", defaultAnswers(tree), 2501)!, /2,500/);
+  assert.match(siteVisitReason("tree-removal", defaultAnswers(tree), 976)!, /Tree/); // always a free site visit
+  assert.match(siteVisitReason("foundation-repair", defaultAnswers(getService("foundation-repair")!), 1192)!, /Foundation/);
+  const lawn = getService("lawn-mowing") ?? SERVICES.find((s) => !s.siteVisit && s.category !== "business" && s.category !== "events")!;
+  assert.equal(siteVisitReason(lawn.slug, defaultAnswers(lawn), 2500), null); // up to and including $2,500
+  assert.match(siteVisitReason(lawn.slug, defaultAnswers(lawn), 2501)!, /2,500/);
   assert.match(siteVisitReason("roofing", { ...defaultAnswers(getService("roofing")!), work: "replace" }, 9000)!, /roof replacement/i); // size reason over the limit
   assert.equal(siteVisitReason("deck-build", { ...defaultAnswers(getService("deck-build")!), job: "new" }, 2400), null); // a small new deck: instant
   assert.match(siteVisitReason("water-damage", { ...defaultAnswers(getService("water-damage")!), water: "black" }, 800)!, /Sewage/); // safety, any price

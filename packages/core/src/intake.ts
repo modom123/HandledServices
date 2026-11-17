@@ -11,8 +11,9 @@
  *             • scopeChange()     — the pro on site finds more work → priced difference = change order
  *             • siteVisitReason() — (2026-11-17_1600 UTC) THE rule: any project up to $2,500 gets an instant,
  *               bookable price with no call or site visit. A visit / call is needed only over $2,500, for
- *               Business & Technology (free consultation), event planning, and three safety cases (sewage
- *               water, mold in the ducts, out-of-state charters).
+ *               Business & Technology (free consultation), event planning, tree removal and foundation repair
+ *               (always a free site visit, 2026-11-17_1630 UTC), and three safety cases (sewage water, mold in the
+ *               ducts, out-of-state charters).
  *             • sizeNeedsSiteVisit() — jobs too big for an instant price (a commercial repaint, 15+
  *                                    rooms) always get a free site visit and a firm quote
  * UPDATED : 2026-10-23_1900 UTC — photo rules and site-visit triggers for roofing, masonry, concrete, demolition, landscaping and furniture assembly.
@@ -194,6 +195,12 @@ export function sizeNeedsSiteVisit(slug: string, answers: Answers): string | nul
 /** Projects priced up to this get an instant, bookable price — no call, no site visit. */
 export const INSTANT_PRICE_UP_TO = SITE_VISIT_OVER;
 
+/** Services a pro always sees first, whatever the price (hidden risk: trees near the house or lines, structural work). */
+const ALWAYS_VISIT_SERVICES: Record<string, string> = {
+  "tree-removal": "Tree work — a pro checks the tree and what's around it",
+  "foundation-repair": "Foundation work — a pro inspects the structure first",
+};
+
 /** Safety and legal checks that need eyes on the job whatever the price. */
 const ALWAYS_VISIT_IF: Record<string, (a: Answers) => string | null> = {
   "charter-bus": (a) => (a.out_of_state === true || a.out_of_state === "true" ? "Out-of-state trip (routing and federal authority confirmed first)" : null),
@@ -212,6 +219,7 @@ export function siteVisitReason(slug: string, answers: Answers, price: number | 
   if (!svc) return null;
   if (consultOnly(slug)) return "Custom work — a free consultation sets the scope and fixed price";
   if (svc.category === "events" && svc.siteVisit) return "Event planning — a free planning call comes first";
+  if (ALWAYS_VISIT_SERVICES[slug]) return ALWAYS_VISIT_SERVICES[slug];
   const safety = ALWAYS_VISIT_IF[slug]?.(answers);
   if (safety) return safety;
   if (overDepositLimit(price)) return SITE_VISIT_IF[slug]?.(answers) ?? `Over $${SITE_VISIT_OVER.toLocaleString("en-US")}`;
