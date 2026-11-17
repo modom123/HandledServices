@@ -35,6 +35,8 @@
  *           Pro files); Recruiting = finding and signing new ones (Pipeline, Openings, Indeed, Pro leads, Onboarding, Client
  *           searches). Partners moved out of Clients into its own section. Jobs comes first (the day-to-day). Every page
  *           keeps its address.
+ * UPDATED : 2026-11-17_2300 UTC — Front Office: Mark Odom's office (CEO: ops tools) and Cecilia Gulley's office (strategy &
+ *           recruiting tools), each with email, Zoom and the to-do list shared between them. Admins only.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -124,7 +126,9 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/assistant", "AI assistant"],
   ] },
   // the business itself: who works here, the contracts we use, and getting (and staying) ready to operate
-  { id: "front-office", icon: "🏢", label: "Front Office", links: [
+  { id: "front-office", icon: "🏢", label: "Front Office", alias: [["^/hub/office/odom", "/hub/office/odom"], ["^/hub/office/gulley", "/hub/office/gulley"]], links: [
+    ["/hub/office/odom", "Mark Odom · CEO"],
+    ["/hub/office/gulley", "Cecilia Gulley · Strategy & Recruiting"],
     ["/hub/team", "Team"],
     ["/hub/contracts", "Contract library"],
     ["/hub/setup", "Go-live setup"],
@@ -133,7 +137,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
 // need-to-know (2026-11-06): money pages and the partner program (commissions) are admin-only too
-export const ADMIN_PAGES = new Set(["/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners"]);
+export const ADMIN_PAGES = new Set(["/hub/office/odom", "/hub/office/gulley", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);

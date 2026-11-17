@@ -67,6 +67,7 @@
  * UPDATED : 2026-11-11_0100 UTC — checks 20261111010000_biz_lead_refresh and the outreach domain mailbox (OUTREACH_*).
  * UPDATED : 2026-11-10_2230 UTC — checks 20261110223000_iebc_team_expansion (the 9 new IEBC agents, incl. Legal & Compliance).
  * UPDATED : 2026-11-12_2100 UTC — checks the job board alerts SQL (contractors.board_alerts).
+ * UPDATED : 2026-11-17_2300 UTC — checks the office_todos migration (Front Office to-do list).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -282,6 +283,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261028224500_pro_orientation", "Welcome to Handled orientation and photos on referral tickets (or run supabase/setup/ADD_PRO_WELCOME_2026-10-28_2300.sql)", () => db.from("referral_customers").select("photos").limit(1).then(async (r) => (r.error ? r : await db.from("contractors").select("orientation").limit(1)))],
     ["20261028173500_hub_customer_totals", "Mastermind customer list covers every customer (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("hub_customer_totals").select("email").limit(1)],
     ["20261105000000_person_files", "person files (Mastermind → anyone's documents & photos)", () => db.from("person_files").select("id").limit(1)],
+    ["20261117230000_office_todos", "Front Office to-do list between the offices (or run supabase/setup/RUN_ONCE_OFFICE_TODOS_2026-11-17_2300.sql)", () => db.from("office_todos").select("id").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

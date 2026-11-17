@@ -11,6 +11,8 @@
  *           Settings (Vercel → Environment Variables, never pasted in chat or email):
  *             SMTP_USER=info@handledsvc.com, SMTP_PASSWORD=<mailbox password>
  *             optional SMTP_HOST / SMTP_PORT / IMAP_HOST / IMAP_PORT (Hostinger defaults)
+ * UPDATED : 2026-11-17_2300 UTC — optional MailAccount on every call, so Front Office offices use their own mailbox on the same host
+ *           (default stays the company mailbox).
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -23,36 +25,44 @@ export const mailboxReady = () => Boolean(mailboxUser() && process.env.SMTP_PASS
 const smtpHost = () => process.env.SMTP_HOST || "smtp.hostinger.com";
 const imapHost = () => process.env.IMAP_HOST || "imap.hostinger.com";
 
-let transport: Transporter | null = null;
-function smtp() {
-  if (!transport) {
+/** A mailbox on the same host: the company one (default) or an office's (lib/offices.ts). */
+export interface MailAccount { user: string; pass: string }
+const company = (): MailAccount => ({ user: mailboxUser()!, pass: process.env.SMTP_PASSWORD! });
+const ready = (a?: MailAccount) => (a ? Boolean(a.user && a.pass) : mailboxReady());
+
+const transports = new Map<string, Transporter>();
+function smtp(a: MailAccount = company()) {
+  let t = transports.get(a.user);
+  if (!t) {
     const port = Number(process.env.SMTP_PORT || 465);
-    transport = nodemailer.createTransport({ host: smtpHost(), port, secure: port === 465, auth: { user: mailboxUser()!, pass: process.env.SMTP_PASSWORD! }, pool: true, maxConnections: 2 });
+    t = nodemailer.createTransport({ host: smtpHost(), port, secure: port === 465, auth: { user: a.user, pass: a.pass }, pool: true, maxConnections: 2 });
+    transports.set(a.user, t);
   }
-  return transport;
+  return t;
 }
 
 export interface OutMail { to: string; subject: string; text: string; html?: string; fromName?: string; replyTo?: string | null; headers?: Record<string, string>; inReplyTo?: string | null; references?: string | null }
 
 /** Send one email from the company mailbox. Returns the Message-ID. */
-export async function sendMail(m: OutMail): Promise<string> {
-  if (!mailboxReady()) throw new Error("Mailbox not set up (SMTP_USER / SMTP_PASSWORD)");
-  const info = await smtp().sendMail({
-    from: { name: m.fromName ?? "Handled", address: mailboxUser()! }, to: m.to, subject: m.subject, text: m.text, html: m.html,
+export async function sendMail(m: OutMail, acct?: MailAccount): Promise<string> {
+  if (!ready(acct)) throw new Error(acct ? `Mailbox ${acct.user || ""} not set up` : "Mailbox not set up (SMTP_USER / SMTP_PASSWORD)");
+  const a = acct ?? company();
+  const info = await smtp(a).sendMail({
+    from: { name: m.fromName ?? "Handled", address: a.user }, to: m.to, subject: m.subject, text: m.text, html: m.html,
     replyTo: m.replyTo || undefined, headers: m.headers, inReplyTo: m.inReplyTo || undefined, references: m.references || undefined,
   });
   return info.messageId;
 }
 
-function imap() {
-  return new ImapFlow({ host: imapHost(), port: Number(process.env.IMAP_PORT || 993), secure: true, auth: { user: mailboxUser()!, pass: process.env.SMTP_PASSWORD! }, logger: false });
+function imap(a: MailAccount = company()) {
+  return new ImapFlow({ host: imapHost(), port: Number(process.env.IMAP_PORT || 993), secure: true, auth: { user: a.user, pass: a.pass }, logger: false });
 }
 
 /** Log in to SMTP and IMAP; what works and what doesn't. */
-export async function verifyMailbox(): Promise<{ smtp: string; imap: string }> {
-  if (!mailboxReady()) return { smtp: "not set up", imap: "not set up" };
-  const smtpRes = await smtp().verify().then(() => "ok").catch((e: Error) => e.message);
-  const c = imap();
+export async function verifyMailbox(acct?: MailAccount): Promise<{ smtp: string; imap: string }> {
+  if (!ready(acct)) return { smtp: "not set up", imap: "not set up" };
+  const smtpRes = await smtp(acct).verify().then(() => "ok").catch((e: Error) => e.message);
+  const c = imap(acct);
   const imapRes = await c.connect().then(async () => { await c.logout(); return "ok"; }).catch((e: Error) => e.message);
   return { smtp: smtpRes, imap: imapRes };
 }
@@ -60,9 +70,9 @@ export async function verifyMailbox(): Promise<{ smtp: string; imap: string }> {
 export interface InboxItem { uid: number; from: string; fromName: string | null; subject: string; date: string; seen: boolean; preview?: string }
 
 /** Latest messages in INBOX (newest first). */
-export async function listInbox(limit = 40): Promise<InboxItem[]> {
-  if (!mailboxReady()) return [];
-  const c = imap();
+export async function listInbox(limit = 40, acct?: MailAccount): Promise<InboxItem[]> {
+  if (!ready(acct)) return [];
+  const c = imap(acct);
   await c.connect();
   const items: InboxItem[] = [];
   try {
@@ -83,9 +93,9 @@ export async function listInbox(limit = 40): Promise<InboxItem[]> {
 
 export interface FullMessage { uid: number; from: string; fromName: string | null; to: string; subject: string; date: string; text: string; messageId: string | null; references: string | null }
 
-export async function readMessage(uid: number): Promise<FullMessage | null> {
-  if (!mailboxReady()) return null;
-  const c = imap();
+export async function readMessage(uid: number, acct?: MailAccount): Promise<FullMessage | null> {
+  if (!ready(acct)) return null;
+  const c = imap(acct);
   await c.connect();
   try {
     const lock = await c.getMailboxLock("INBOX");
@@ -104,11 +114,11 @@ export async function readMessage(uid: number): Promise<FullMessage | null> {
 }
 
 /** Copy a one-off reply into the Sent folder (Hostinger doesn't keep SMTP sends there). */
-export async function saveToSent(raw: { to: string; subject: string; text: string; fromName: string; messageId: string; inReplyTo?: string | null }) {
-  if (!mailboxReady()) return;
-  const source = [`From: ${raw.fromName} <${mailboxUser()}>`, `To: ${raw.to}`, `Subject: ${raw.subject}`, `Date: ${new Date().toUTCString()}`, `Message-ID: ${raw.messageId}`,
+export async function saveToSent(raw: { to: string; subject: string; text: string; fromName: string; messageId: string; inReplyTo?: string | null }, acct?: MailAccount) {
+  if (!ready(acct)) return;
+  const source = [`From: ${raw.fromName} <${(acct ?? company()).user}>`, `To: ${raw.to}`, `Subject: ${raw.subject}`, `Date: ${new Date().toUTCString()}`, `Message-ID: ${raw.messageId}`,
     ...(raw.inReplyTo ? [`In-Reply-To: ${raw.inReplyTo}`] : []), "MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "", raw.text].join("\r\n");
-  const c = imap();
+  const c = imap(acct);
   await c.connect();
   try {
     const boxes = await c.list();
