@@ -33,8 +33,10 @@
  * UPDATED : 2026-11-12_2330 UTC — decideDocument: two ways to verify insurance (automatic AI check, or Handled review by
  *           policy or insurer); staff can confirm or correct the expiry date; a verify with no date uses the AI's reading.
  * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: the new pro's state is set from their first ZIP.
+ * UPDATED : 2026-11-17_2200 UTC — every application triggers the Legal & Compliance team (legalOnProApplication).
  */
 import "server-only";
+import { legalOnProApplication } from "./legal-intake";
 import { stateForZip, BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
@@ -126,6 +128,8 @@ function stepsList(c: Contractor, lang = "en") {
 export async function onApplication(appId: string) {
   const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
   if (!app) return;
+  // Legal & Compliance team: license / insurance / classification / new-state tasks for this sign-up (never throws)
+  await legalOnProApplication(appId);
   const settings = await getRecruitingSettings();
   if (settings.instantSignup && settings.autoInvite) {
     const inv = await inviteApplicant(appId, "instant sign-up", "account opened at sign-up");

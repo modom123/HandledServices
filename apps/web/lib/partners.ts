@@ -44,10 +44,12 @@
  *           locked rate × Handled's profit (+5 points on a direct sale), paid by Handled alone; tiers 'program' / 'sale';
  *           partnerOnV7 (signed v7, or from v7AllAt) decides at booking; existing partners keep partner-v4 until then; the rate is locked at booking
  *           for direct sales too; the level is one ladder from profit made for Handled (direct 1.5×); stats.credit for the portal.
+ * UPDATED : 2026-11-17_2200 UTC — every new partner triggers the Legal & Compliance team (legalOnPartnerSignup).
  */
 import { REFERRAL_PARTNER_AGREEMENT } from "./contracts/partner";
 import { recordAcceptance } from "./contracts/record";
 import "server-only";
+import { legalOnPartnerSignup } from "./legal-intake";
 import { cookies } from "next/headers";
 import { REFERRAL_LADDER_V4, programJob, programCommission, DIRECT_BONUS,
   AGREEMENT_VERSION, BRAND, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING,
@@ -97,6 +99,8 @@ export async function signUp(o: { name: string; email: string; phone?: string | 
   // the signed Referral Partner Agreement: exact text, name, time and IP (contract_acceptances)
   await recordAcceptance([REFERRAL_PARTNER_AGREEMENT], { email, signerName: o.name.trim(), method: "signature", ip: o.ip, userAgent: o.userAgent ?? null }).catch(() => {});
   await sendWelcome(partner, false);
+  // Legal & Compliance team: agreement / referral-fee rules / conflict tasks for this sign-up (never throws)
+  await legalOnPartnerSignup(partner.id);
   if (opsEmail()) await sendEmail(opsEmail(), `New referral partner: ${partner.name}${partner.company ? ` (${partner.company})` : ""}`, `${partner.kind} · ${email} · code ${partner.code}\n${partner.how ?? ""}\n\nHub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { partner, existing: false };
 }

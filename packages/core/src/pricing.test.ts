@@ -3100,3 +3100,20 @@ test("all 50 states + DC; ZIP → state; license line for the pro's own state", 
   assert.equal(licenseFor("USDOT number and operating authority", "TX"), "USDOT number and operating authority", "not Michigan-specific: unchanged");
   assert.equal(licenseFor(null, "TX"), null);
 });
+
+test("sign-up compliance checks: pros and partners get the right legal tasks", async () => {
+  const { signupLegalChecks } = await import("./signup-legal.ts");
+  const keys = (x: { key: string }[]) => x.map((c) => c.key).sort();
+  // Michigan electrician, no license, insured: license task only
+  assert.deepEqual(keys(signupLegalChecks({ kind: "pro", name: "A", zips: ["48201"], trades: ["electrical"], licensedTrades: ["electrical"], licenseGiven: false, insured: true })), ["license"]);
+  // California cleaner, uninsured, first in state: insurance, classification (attorney), new state (attorney)
+  const ca = signupLegalChecks({ kind: "pro", name: "B", zips: ["90210"], trades: ["cleaning"], licensedTrades: ["electrical"], licenseGiven: false, insured: false });
+  assert.deepEqual(keys(ca), ["classification-CA", "insurance", "new-state-CA"]);
+  assert.ok(ca.filter((c) => c.key !== "insurance").every((c) => c.attorney));
+  // Texas, not the first pro there: no new-state task
+  assert.deepEqual(keys(signupLegalChecks({ kind: "pro", name: "C", zips: ["75001"], trades: ["cleaning"], licensedTrades: [], licenseGiven: false, insured: true, firstInState: false })), []);
+  // property manager on the current agreement: referral-fee rules only
+  assert.deepEqual(keys(signupLegalChecks({ kind: "partner", name: "D", partnerKind: "property_manager", agreementVersion: "partner-v7", currentVersion: "partner-v7" })), ["referral-fee-rules"]);
+  // customer on an old agreement: re-sign task only
+  assert.deepEqual(keys(signupLegalChecks({ kind: "partner", name: "E", partnerKind: "customer", agreementVersion: "partner-v4", currentVersion: "partner-v7" })), ["agreement-partner-v7"]);
+});
