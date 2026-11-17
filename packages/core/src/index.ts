@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Public entry point for @handled/core.
+ * UPDATED : 2026-11-17_1530 UTC — call-schedule (customers book a time for a Handled person to call).
  * UPDATED : 2026-10-12_0005 UTC — scheduling-gaps (texts, calendar feed, saved homes).
  * UPDATED : 2026-10-12_0138 UTC — stripe-setup (webhook events and key checks for Hub → Setup).
  * UPDATED : 2026-10-19_2015 UTC — gov-awards (SAM.gov Contract Awards API: recompetes and incumbents).
@@ -82,3 +83,4 @@ export * from "./pro-welcome.ts";
 export * from "./partner-welcome.ts";
 export * from "./partner-success.ts";
 export * from "./pro-showcase.ts";
+export * from "./call-schedule.ts";

@@ -8,6 +8,8 @@
  * UPDATED : 2026-11-07_1614 UTC — accepts a campaign (e.g. "post-project" from /post).
  * UPDATED : 2026-11-07_1500 UTC — Post & earn: partner_optin (the /post tick-box) joins the Partner Program and sets up
  *           10% back, up to $250, on the poster's own first project. Needs an email; never fails the lead.
+ * UPDATED : 2026-11-17_1530 UTC — call_at (+ call_tz): book a time for a Handled person to call. Checked against the open
+ *           call slots right before saving; a time that was just taken comes back as 409 so the customer picks another.
  */
 import { z } from "zod";
 import { channelOf } from "@handled/core";
@@ -15,6 +17,7 @@ import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { enrollFromPost } from "@/lib/partners";
 import { intakeLead } from "@/lib/lead-intake";
 import { supabaseConfigured } from "@/lib/supabase/env";
+import { callSlotOpen, safeTz } from "@/lib/call-schedule";
 
 const s = (max: number) => z.string().trim().max(max).optional().nullable();
 const Body = z.object({
@@ -30,6 +33,8 @@ const Body = z.object({
   partner_optin: z.boolean().optional(),
   attribution: z.record(z.string(), z.string().max(300)).nullable().optional(),
   website: s(200), // honeypot: people never fill it
+  call_at: z.string().datetime({ offset: true }).optional().nullable(),
+  call_tz: s(60),
 });
 
 export async function POST(req: Request) {
@@ -39,9 +44,11 @@ export async function POST(req: Request) {
   if (!b.success || (!b.data.email && !b.data.phone)) return Response.json({ error: "Add your name and an email or phone number" }, { status: 400 });
   if (b.data.website) return Response.json({ ok: true }); // a bot filled the hidden field
   if (!supabaseConfigured || !process.env.SUPABASE_SERVICE_ROLE_KEY) return Response.json({ error: "Not available right now" }, { status: 503 });
-  const { attribution, website: _w, partner_optin, ...lead } = b.data;
+  const { attribution, website: _w, partner_optin, call_at, call_tz, ...lead } = b.data;
+  if (call_at && !b.data.phone) return Response.json({ error: "Add a phone number so we can call you" }, { status: 400 });
+  if (call_at && !(await callSlotOpen(call_at))) return Response.json({ error: "That time was just taken — please pick another", slot_taken: true }, { status: 409 });
   const ch = channelOf(attribution ?? null);
-  const r = await intakeLead({ ...(attribution ?? {}), ...lead, email: lead.email || null }, { channel: ch === "direct" ? "website" : ch });
+  const r = await intakeLead({ ...(attribution ?? {}), ...lead, email: lead.email || null }, { channel: ch === "direct" ? "website" : ch, call: call_at ? { at: call_at, tz: safeTz(call_tz) } : null });
   if (!r.ok) return Response.json({ error: r.error ?? "Couldn't send — try again" }, { status: 400 });
   const partner = partner_optin && lead.email ? await enrollFromPost({ name: lead.name, email: lead.email, phone: lead.phone, service_slug: lead.service, ip: clientIp(req) }) : null;
   return Response.json(partner ? { ok: true, partner } : { ok: true });

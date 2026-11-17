@@ -15,14 +15,18 @@
  *           prices it) → 3) the customer picks what's next: book now at that price, work it through with their AI
  *           project manager (chat that knows the project, re-prices as the scope changes and hands off to a person),
  *           or have a person call (the Lead inbox, now with the estimate attached for whoever calls).
+ * UPDATED : 2026-11-17_1530 UTC — appointment calendar: "Have a person call me" now offers "As soon as possible" or
+ *           "Pick a time" (CallScheduler: our open call times, in the visitor's time zone). A booked time needs a phone;
+ *           if it was just taken, the calendar reloads. The done screen shows the time with Add-to-calendar links.
  */
 "use client";
 
 import { useRef, useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
-import { BRAND, firstProjectLine, moneyRange } from "@handled/core";
+import { BRAND, callCalendarLinks, firstProjectLine, moneyRange } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 import { PhotoPicker } from "./PhotoPicker";
+import { CallScheduler, browserTz } from "./CallScheduler";
 
 type Opt = { slug: string; name: string };
 type Est = {
@@ -46,6 +50,10 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
   const [est, setEst] = useState<Est | null>(null);
   const [next, setNext] = useState<"pm" | "call" | null>(null);
   const [state, setState] = useState<"idle" | "busy" | "done">("idle");
+  const [callMode, setCallMode] = useState<"asap" | "schedule">("asap");
+  const [callAt, setCallAt] = useState<string | null>(null);
+  const [reloadSlots, setReloadSlots] = useState(0);
+  const [booked, setBooked] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   const L = (en: string, sp: string) => (es ? sp : en);
@@ -78,6 +86,9 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
 
   async function sendLead(e: React.FormEvent) {
     e.preventDefault();
+    const at = callMode === "schedule" ? callAt : null;
+    if (callMode === "schedule" && !at) { setErr(L("Pick a day and time for your call.", "Elija el día y la hora de su llamada.")); return; }
+    if (at && !f.phone.trim()) { setErr(L("Add your phone number so we can call you.", "Agregue su teléfono para poder llamarle.")); return; }
     setState("busy"); setErr("");
     const message = [
       "Posted project",
@@ -92,9 +103,15 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
     const r = await fetch("/api/leads/web", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       name: f.name, email: f.email || null, phone: f.phone || null, zip: f.zip || null, service: est?.service_slug || f.service || null, message,
       campaign: "post-project", sms_consent: sms && Boolean(f.phone), partner_optin: earn && Boolean(f.email), attribution: readAttribution(), website: f.website,
+      call_at: at, call_tz: at ? browserTz() : null,
     }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { setState("idle"); setErr(String(j.error ?? L("Couldn't send — try again", "No se pudo enviar; intente de nuevo"))); return; }
+    if (!r.ok) {
+      setState("idle");
+      if (j.slot_taken) { setCallAt(null); setReloadSlots((n) => n + 1); setErr(L("Sorry — someone just booked that time. Please pick another.", "Lo sentimos: alguien acaba de reservar esa hora. Elija otra.")); return; }
+      setErr(String(j.error ?? L("Couldn't send — try again", "No se pudo enviar; intente de nuevo"))); return;
+    }
+    setBooked(at);
     trackConversion("Lead", { id: `post-${Date.now()}` });
     if (j.partner) setPartner(j.partner);
     setState("done");
@@ -102,11 +119,22 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
 
   if (state === "done") {
     return (
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <div className="card text-center">
           <div className="text-2xl"><ThemedIcon icon="✅" size="md" /></div>
-          <div className="mt-2 text-lg font-bold">{L("Your project is posted. We're on it.", "Su proyecto está publicado. Nos encargamos.")}</div>
-          <p className="mt-1 text-sm text-ink-soft">{L("Check your email for our reply. A real person will call you shortly", "Revise su correo: ya le respondimos. Una persona real le llamará pronto")}{BRAND.supportPhone ? ` ${L("from", "desde el")} ${BRAND.supportPhone}` : ""}{priceText ? L(` — they'll have your ${priceText} estimate in hand.`, `; tendrá a mano su estimado de ${priceText}.`) : "."}</p>
+          <div className="mt-2 text-lg font-bold">{booked ? L("Your call is booked.", "Su llamada está reservada.") : L("Your project is posted. We're on it.", "Su proyecto está publicado. Nos encargamos.")}</div>
+          {booked ? (
+            <>
+              <div className="mt-2 text-xl font-extrabold text-brand">{new Date(booked).toLocaleString(es ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+              <p className="mt-1 text-sm text-ink-soft">{L("A real Handled person will call you then", "Una persona real de Handled le llamará a esa hora")}{BRAND.supportPhone ? ` ${L("from", "desde el")} ${BRAND.supportPhone}` : ""}{priceText ? L(`, with your ${priceText} estimate in hand.`, `, con su estimado de ${priceText} a mano.`) : "."} {L("We emailed you a confirmation.", "Le enviamos una confirmación por correo.")}</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2 text-sm">
+                <a className="btn-ghost" target="_blank" rel="noopener" href={callCalendarLinks({ at: booked, minutes: 30 }).google}>{L("Add to Google Calendar", "Agregar a Google Calendar")}</a>
+                <a className="btn-ghost" href={`/api/call-slots/ics?${new URLSearchParams({ at: booked, m: "30" })}`}>{L("Apple / Outlook (.ics)", "Apple / Outlook (.ics)")}</a>
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-ink-soft">{L("Check your email for our reply. A real person will call you shortly", "Revise su correo: ya le respondimos. Una persona real le llamará pronto")}{BRAND.supportPhone ? ` ${L("from", "desde el")} ${BRAND.supportPhone}` : ""}{priceText ? L(` — they'll have your ${priceText} estimate in hand.`, `; tendrá a mano su estimado de ${priceText}.`) : "."}</p>
+          )}
           {partner && (
             <div className="mt-4 rounded-xl border border-line bg-paper p-3 text-left text-sm">
               <div className="font-semibold"><Ico i="🎉" />{L("You're a Handled partner", "Ya es socio de Handled")} · {L("code", "código")} <span className="font-mono">{partner.code}</span></div>
@@ -123,7 +151,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {/* 1 — describe it */}
       <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); void getEstimate(); }}>
         <div className="flex items-center justify-between">
@@ -227,10 +255,21 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
 
           {next === "call" && (
             <form className="space-y-3 border-t border-line pt-3" onSubmit={sendLead}>
+              <div>
+                <div className="text-sm font-semibold">{L("When should we call?", "¿Cuándo le llamamos?")}</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {([["asap", L("As soon as possible", "Lo antes posible"), L("Within minutes during business hours", "En minutos, en horario laboral")], ["schedule", L("Pick a time", "Elegir una hora"), L("Book a call on our calendar", "Reserve una llamada en el calendario")]] as const).map(([k, t, d]) => (
+                    <button key={k} type="button" onClick={() => { setCallMode(k); setErr(""); }} className={`rounded-xl border p-3 text-left text-sm ${callMode === k ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
+                      <div className="font-semibold"><Ico i={k === "asap" ? "⚡" : "📅"} />{t}</div><div className="text-xs text-ink-soft">{d}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {callMode === "schedule" && <CallScheduler es={es} value={callAt} onChange={setCallAt} reload={reloadSlots} />}
               <div className="grid gap-3 sm:grid-cols-3">
                 <input className="input" required placeholder={L("Your name", "Su nombre")} value={f.name} onChange={set("name")} aria-label={L("Your name", "Su nombre")} />
                 <input className="input" type="email" placeholder={L("Email", "Correo")} value={f.email} onChange={set("email")} aria-label={L("Email", "Correo")} />
-                <input className="input" type="tel" placeholder={L("Phone", "Teléfono")} value={f.phone} onChange={set("phone")} aria-label={L("Phone", "Teléfono")} />
+                <input className="input" type="tel" required={callMode === "schedule"} placeholder={L("Phone", "Teléfono")} value={f.phone} onChange={set("phone")} aria-label={L("Phone", "Teléfono")} />
               </div>
               <input className="hidden" tabIndex={-1} autoComplete="off" aria-hidden value={f.website} onChange={set("website")} />
               <label className="flex items-start gap-2 rounded-xl border border-line bg-paper p-3 text-sm">
@@ -243,7 +282,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
                 <input type="checkbox" className="mt-0.5" checked={sms} onChange={(e) => setSms(e.target.checked)} />
                 <span>{L(`Text me about my project. By checking this, you agree to receive text messages from ${BRAND.name} at the number above about your request. Message and data rates may apply; reply STOP to opt out. Consent isn't required to buy.`, `Envíenme mensajes de texto sobre mi proyecto. Al marcar esto, acepta recibir mensajes de ${BRAND.name} al número indicado sobre su solicitud. Pueden aplicar tarifas de mensajes y datos; responda STOP para cancelar. No es necesario para comprar.`)}</span>
               </label>
-              <button className="btn-primary w-full py-3 text-base" disabled={state === "busy"}>{state === "busy" ? L("Posting…", "Publicando…") : L("Post my project & call me", "Publicar y llamarme")}</button>
+              <button className="btn-primary w-full py-3 text-base" disabled={state === "busy"}>{state === "busy" ? L("Posting…", "Publicando…") : callMode === "schedule" ? L("Book my call", "Reservar mi llamada") : L("Post my project & call me", "Publicar y llamarme")}</button>
               <p className="text-center text-xs text-ink-soft">{L("Free, no obligation. Your details go only to Handled — we never sell or share them.", "Gratis y sin compromiso. Sus datos solo los recibe Handled: nunca los vendemos ni compartimos.")}</p>
             </form>
           )}

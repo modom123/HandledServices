@@ -12,6 +12,7 @@
  * UPDATED : 2026-10-05_0221 UTC — job checklists.
  * UPDATED : 2026-10-05_0246 UTC — pro screening interview.
  * UPDATED : 2026-10-05_0418 UTC — pro rewards.
+ * UPDATED : 2026-11-17_1530 UTC — call appointments (open slots, capacity, notice, DST, settings clean-up, calendar links).
  * UPDATED : 2026-10-05_1433 UTC — security tests; calendar test pins its clock (it broke on the Monday it was written for).
  * UPDATED : 2026-10-06_0526 UTC — dead animal removal: size, location, extra animals, add-ons, wildlife trade.
  * UPDATED : 2026-10-06_0606 UTC — property-manager sales email now leads with move-out cleans (cleaning push).
@@ -2827,4 +2828,45 @@ test("business leads: new outreach domain warms up; list health; re-engagement e
   assert.match(e.text, /Not interested\? One click/);
   assert.match(e.text, /1 Main St/);
   assert.equal(bizReengageEmail({ ...ctx, step: 5 }).subject, "Closing the loop");
+});
+
+// ─── Call appointments (call-schedule.ts) ───────────────────────────────────────
+import { DEFAULT_CALL_HOURS, callSlots, cleanCallHours, isOpenCallSlot, zonedMinute, callCalendarLinks, formatCallTime } from "./call-schedule.ts";
+
+test("call slots: business hours in Detroit, notice, capacity, closed Sunday", () => {
+  const h = { ...DEFAULT_CALL_HOURS, horizonDays: 7 };
+  const now = new Date("2026-11-16T14:10:00Z"); // Monday 9:10 AM EST
+  const days = callSlots(h, [], now);
+  assert.equal(days[0].date, "2026-11-16");
+  assert.equal(days[0].slots[0].at, "2026-11-16T15:30:00.000Z"); // 10:30 AM EST: 60 min notice, on the half hour
+  assert.equal(days[0].slots.at(-1)!.at, "2026-11-16T22:30:00.000Z"); // last slot 5:30 PM EST
+  assert.ok(!days.some((d) => d.date === "2026-11-22")); // Sunday closed
+  const sat = days.find((d) => d.date === "2026-11-21")!;
+  assert.equal(sat.slots.length, 8); // 10:00–14:00 in 30-min slots
+  const booked = callSlots(h, ["2026-11-16T15:30:00.000Z"], now);
+  assert.equal(booked[0].slots[0].at, "2026-11-16T16:00:00.000Z");
+  assert.equal(callSlots({ ...h, callers: 2 }, ["2026-11-16T15:30:00Z"], now)[0].slots[0].left, 1);
+  assert.ok(isOpenCallSlot(h, [], "2026-11-17T14:00:00.000Z", now));
+  assert.ok(!isOpenCallSlot(h, [], "2026-11-17T14:10:00.000Z", now)); // not on a slot boundary
+  assert.ok(!isOpenCallSlot(h, [], "2026-11-16T14:30:00.000Z", now)); // inside the notice window
+});
+
+test("call slots: wall-clock times survive DST", () => {
+  assert.equal(zonedMinute("2026-07-01", 9 * 60, "America/Detroit").toISOString(), "2026-07-01T13:00:00.000Z");
+  assert.equal(zonedMinute("2026-12-01", 9 * 60, "America/Detroit").toISOString(), "2026-12-01T14:00:00.000Z");
+  assert.equal(zonedMinute("2026-11-01", 9 * 60 + 30, "America/Los_Angeles").toISOString(), "2026-11-01T17:30:00.000Z");
+  assert.match(formatCallTime("2026-11-18T19:30:00Z", "America/Detroit"), /2:30\sPM/);
+});
+
+test("call hours settings are cleaned; calendar links", () => {
+  const c = cleanCallHours({ tz: "Not/AZone", slotMinutes: 7, callers: 99, days: [null, ["18:00", "09:00"], ["08:00", "12:00"], null, null, null, null] });
+  assert.equal(c.tz, DEFAULT_CALL_HOURS.tz);
+  assert.equal(c.slotMinutes, 30);
+  assert.equal(c.callers, 20);
+  assert.equal(c.days[1], null);
+  assert.deepEqual(c.days[2], ["08:00", "12:00"]);
+  assert.deepEqual(cleanCallHours(null), DEFAULT_CALL_HOURS);
+  const l = callCalendarLinks({ at: "2026-11-18T19:30:00Z", minutes: 30 });
+  assert.match(l.google, /dates=20261118T193000Z%2F20261118T200000Z/);
+  assert.match(l.ics, /DTSTART:20261118T193000Z/);
 });

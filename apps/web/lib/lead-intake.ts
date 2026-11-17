@@ -11,9 +11,14 @@
  *           Callers: /api/leads/web (website form), /api/leads/intake (Zapier / Make: TikTok, LinkedIn, Yelp, Google
  *           Local Services…), /api/webhooks/meta-leads (Facebook / Instagram Lead Ads), /api/webhooks/google-leads
  *           (Google Ads lead forms) and the website AI chat.
+ * UPDATED : 2026-11-17_1530 UTC — call appointments: a lead can come with a booked call time (o.callAt, already checked
+ *           as open by the caller). Saved in leads.call_at / call_tz (and in the message, so it's never lost); the
+ *           instant reply confirms the time with Add-to-calendar links, and the staff alert says when to call instead
+ *           of "within 5 minutes". A repeat lead within a day moves its call to the new time.
  */
 import "server-only";
-import { BRAND, channelLabel, normalizeIntake, type IntakeLead } from "@handled/core";
+import { BRAND, callCalendarLinks, channelLabel, formatCallTime, normalizeIntake, timeZoneForZip, type IntakeLead } from "@handled/core";
+import { getCallHours } from "./call-schedule";
 import { adminClient } from "./supabase/server";
 import { sendEmail, siteUrl } from "./notify";
 import { sendSms } from "./sms";
@@ -25,8 +30,12 @@ const like = (e: string) => e.replace(/[\\%_]/g, "\\$&");
 
 export interface IntakeResult { ok: boolean; id?: string; duplicate?: boolean; error?: string }
 
-export async function intakeLead(raw: Record<string, unknown>, o: { channel?: string | null; actor?: string } = {}): Promise<IntakeResult> {
+export type CallBooking = { at: string; tz?: string | null };
+
+export async function intakeLead(raw: Record<string, unknown>, o: { channel?: string | null; actor?: string; call?: CallBooking | null } = {}): Promise<IntakeResult> {
   const l = normalizeIntake(raw, o.channel);
+  const call = o.call ? { at: new Date(o.call.at).toISOString(), tz: o.call.tz || timeZoneForZip(l.zip) } : null;
+  if (call) l.message = [`📅 Scheduled call: ${formatCallTime(call.at, "America/Detroit")} (customer's time: ${formatCallTime(call.at, call.tz)})`, l.message].filter(Boolean).join("\n");
   if (!l.email && !l.phone) return { ok: false, error: "A lead needs an email or a phone number" };
   // the same platform lead twice (webhook retries), or the same person within a day: keep one
   if (l.external_id) {
@@ -41,21 +50,26 @@ export async function intakeLead(raw: Record<string, unknown>, o: { channel?: st
   const recent = byEmail ?? byPhone;
   if (recent) {
     if (l.message) await db().from("leads").update({ message: l.message }).eq("id", recent.id);
+    if (call) {
+      await db().from("leads").update({ call_at: call.at, call_tz: call.tz }).eq("id", recent.id);
+      await speedToLead(recent.id, l, call).catch((e) => console.error("[speed-to-lead]", e));
+    }
     return { ok: true, id: recent.id, duplicate: true };
   }
   const base = { name: l.name, email: l.email, phone: l.phone, zip: l.zip, service_slug: l.service_slug, message: l.message, source: l.channel };
   let { data: row, error } = await db().from("leads").insert({
     ...base, city: l.city, company: l.company, channel: l.channel, campaign: l.campaign, attribution: l.attribution, external_id: l.external_id, sms_consent: l.sms_consent, status: "new",
+    ...(call ? { call_at: call.at, call_tz: call.tz } : {}),
   }).select("id").single();
   // before the omnichannel migration is run: save the lead with the original columns so nobody is lost
   if (error && /column|schema cache/i.test(error.message)) {
     ({ data: row, error } = await db().from("leads").insert({ ...base, message: [l.company && `Company: ${l.company}`, l.message].filter(Boolean).join("\n") || null }).select("id").single());
-    if (row) { await raiseAlert("sales", "warn", `New lead — ${channelLabel(l.channel)}: ${l.name ?? l.email ?? l.phone}`, `Call them: ${l.phone ?? l.email}. (Run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql to turn on the Lead inbox and instant replies.)`); return { ok: true, id: row.id }; }
+    if (row) { await raiseAlert("sales", "warn", `${call ? "Call booked" : "New lead"} — ${channelLabel(l.channel)}: ${l.name ?? l.email ?? l.phone}`, `Call them: ${l.phone ?? l.email}. (Run supabase/setup/RUN_ONCE_ALL_NEW_2026-10-21_0000.sql to turn on the Lead inbox and instant replies.)`); return { ok: true, id: row.id }; }
   }
   if (error || !row) return { ok: false, error: error?.message ?? "Couldn't save the lead" };
   const bizId = l.company ? await toBusinessLead(l).catch(() => null) : null;
   if (bizId) await db().from("leads").update({ biz_lead_id: bizId }).eq("id", row.id);
-  await speedToLead(row.id, l).catch((e) => console.error("[speed-to-lead]", e));
+  await speedToLead(row.id, l, call).catch((e) => console.error("[speed-to-lead]", e));
   return { ok: true, id: row.id };
 }
 
@@ -78,15 +92,21 @@ async function toBusinessLead(l: IntakeLead): Promise<string | null> {
 }
 
 /** The instant reply (email; text only with consent) and the alert to call now. */
-async function speedToLead(id: string, l: IntakeLead) {
-  const reply = await speedToLeadReply(l, { siteUrl: siteUrl(), phone: BRAND.supportPhone || null });
+async function speedToLead(id: string, l: IntakeLead, call: { at: string; tz: string } | null = null) {
+  const when = call ? formatCallTime(call.at, call.tz) : null;
+  const reply = await speedToLeadReply(l, { siteUrl: siteUrl(), phone: BRAND.supportPhone || null, callTime: when });
+  if (call && when) {
+    const minutes = (await getCallHours()).slotMinutes;
+    const cal = callCalendarLinks({ at: call.at, minutes, uid: id });
+    reply.email += `\n\nYour call: ${when}${BRAND.supportPhone ? `, from ${BRAND.supportPhone}` : ""}\nAdd it to Google Calendar: ${cal.google}\nAdd it to Apple or Outlook: ${siteUrl()}/api/call-slots/ics?${new URLSearchParams({ at: call.at, m: String(minutes) })}\nNeed a different time? Just reply to this email.`;
+  }
   const opted = l.email ? (await db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", l.email)).count : 0;
   let replied = false;
   if (l.email && !opted) replied = await sendEmail(l.email, reply.subject, reply.email).catch(() => false);
   if (l.phone && l.sms_consent) replied = (await sendSms(l.phone, reply.sms).catch(() => false)) || replied;
   if (replied) await db().from("leads").update({ first_reply_at: new Date().toISOString() }).eq("id", id);
-  await raiseAlert("sales", "warn", `New lead — ${channelLabel(l.channel)}: ${l.name ?? l.company ?? l.email ?? l.phone}`,
-    [`${reply.call_note}`, l.phone ? `📞 Call within 5 minutes: ${l.phone}` : `No phone — answer by email: ${l.email}`, l.company ? `Business: ${l.company} (on the Call desk now)` : null,
+  await raiseAlert("sales", "warn", `${call ? "Call booked" : "New lead"} — ${channelLabel(l.channel)}: ${l.name ?? l.company ?? l.email ?? l.phone}`,
+    [`${reply.call_note}`, call ? `📅 Scheduled call: ${formatCallTime(call.at, "America/Detroit")} — call ${l.phone ?? l.email} then (Hub → Lead inbox → Scheduled calls)` : l.phone ? `📞 Call within 5 minutes: ${l.phone}` : `No phone — answer by email: ${l.email}`, l.company ? `Business: ${l.company} (on the Call desk now)` : null,
       l.message ? `They wrote: "${l.message.slice(0, 400)}"` : null, replied ? `Instant reply sent${l.sms_consent && l.phone ? " (email + text)" : ""}.` : "No instant reply sent (no email, or they opted out).", "Hub → Lead inbox"].filter(Boolean).join("\n"));
 }
 
