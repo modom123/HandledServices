@@ -15,6 +15,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-17_2100 UTC — links the full Referral Partner Agreement.
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
@@ -135,6 +136,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
           </div>
           <div>
             <h2 className="text-lg font-bold">Partner terms <span className="text-xs font-normal text-ink-soft">({P.termsVersion})</span></h2>
+            <p className="mt-1 text-sm">The short version is below. The full, signable <a href="/terms/referral-partner-agreement" className="font-semibold text-brand underline">Referral Partner Agreement</a> covers business and property-manager referrals, what's commissionable, how credit is checked and when you're paid.</p>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-ink-soft">{partnerTerms().map((t, i) => <li key={i}>{t}</li>)}</ol>
           </div>
         </div>

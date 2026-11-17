@@ -70,10 +70,12 @@
  * UPDATED : 2026-11-12_2200 UTC — job offer texts go only to pros in the job's area (core inProArea); others get app + email.
  * UPDATED : 2026-11-13_0030 UTC — Pro PIN: the job-confirmed and day-before emails, texts and pushes no longer carry the street
  *           address, customer contact or entry details — the pro opens the job and enters their PIN.
+ * UPDATED : 2026-11-17_2100 UTC — referred jobs go only to pros on the current pro agreement (they pay half the partner's
+ *           commission): filtered in dispatch and checked again when a pro accepts (core proCanTakeReferredJob).
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, inProArea, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, inProArea, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, AGREEMENT_VERSION, proCanTakeReferredJob, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -683,7 +685,9 @@ export async function dispatchJob(jobId: string, opts: { siteVisit?: boolean; ex
         `Publicado en el tablero de trabajos al precio que usted ofreció hasta el ${job.open_offer_until!.slice(0, 10)}. ${post ? "Cobramos su tarjeta cuando un profesional lo tome. Si nadie lo toma para entonces, se cancela y no debe nada más." : "Si ningún profesional lo toma para entonces, se cancela y se reembolsa por completo."}`);
     }
   }
-  const { data: pros } = await db().from("contractors").select("*").eq("status", "approved");
+  const { data: approved } = await db().from("contractors").select("*").eq("status", "approved");
+  // a referred job only goes to pros on the current pro agreement: they pay half the partner's commission (2026-11-17)
+  const pros = ((approved ?? []) as Contractor[]).filter((c) => proCanTakeReferredJob(job, c.agreement_version, AGREEMENT_VERSION));
   const sameDay = job.scheduled_date
     ? (await db().from("jobs").select("contractor_id").eq("scheduled_date", job.scheduled_date).not("contractor_id", "is", null)).data ?? []
     : [];
@@ -938,6 +942,12 @@ export async function acceptOffer(offerId: string, contractorId: string, meta: {
   if (new Date(offer.expires_at) < new Date()) {
     await db().from("job_offers").update({ status: "expired" }).eq("id", offerId);
     return { ok: false, error: "Offer expired" };
+  }
+  // a referred job: only a pro on the current pro agreement (it has the partner-fee term) may take it
+  const { data: refJob } = await db().from("jobs").select("partner_id, partner_rate, partner_sale").eq("id", offer.job_id).maybeSingle();
+  if (refJob?.partner_id) {
+    const { data: me } = await db().from("contractors").select("agreement_version").eq("id", contractorId).maybeSingle();
+    if (!proCanTakeReferredJob(refJob, me?.agreement_version, AGREEMENT_VERSION)) return { ok: false, error: "This job came through a referral partner. Sign the updated pro agreement (Setup → Agreement) to take referred jobs." };
   }
   // a name-your-price board post: charge the customer's price now, before the pro is confirmed
   const charged = await chargeBoardPost(offer.job_id);

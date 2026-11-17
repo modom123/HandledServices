@@ -14,6 +14,7 @@
  * UPDATED : 2026-11-10_0400 UTC — lead pay status ($10 per lead, unlock progress: 10 leads + first paid-out sale, waiting / paid).
  * UPDATED : 2026-11-10_1415 UTC — a "Step 1: set up your payouts" banner at the top until Stripe payouts are ready.
  * UPDATED : 2026-11-10_1450 UTC — "Grow your partner business" card linking the Partner Success roadmap (/partner/grow).
+ * UPDATED : 2026-11-17_2100 UTC — partners who joined under earlier terms see "Sign the Referral Partner Agreement" at the top.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -23,7 +24,7 @@ import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
 import { leadPayStatus, partnerFor, partnerLink, partnerStats, payoutsReady } from "@/lib/partners";
 import { Badge, Empty, Stat } from "@/components/ui";
-import { CopyButton, PartnerPayoutButton, ReferralTicket, SalesTicketForm } from "@/components/PartnerUI";
+import { AgreementSign, CopyButton, PartnerPayoutButton, ReferralTicket, SalesTicketForm } from "@/components/PartnerUI";
 import { ticketsFor } from "@/lib/sales-tickets";
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
@@ -70,6 +71,14 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   return (
     <div className="wrap space-y-6 py-10">
+      {/* the current Referral Partner Agreement: partners who joined under earlier terms sign it here */}
+      {(partner as { terms_version?: string | null }).terms_version !== PARTNER_PROGRAM.termsVersion && (
+        <div className="card space-y-2 border-2 border-brand/40">
+          <div className="font-bold">Sign the Referral Partner Agreement</div>
+          <p className="text-sm text-ink-soft">Our partner terms are now one signable agreement: the same rates, written out — business and property-manager referrals, exactly what's commissionable, how credit is checked and when you're paid. <a href="/terms/referral-partner-agreement" target="_blank" className="font-semibold text-brand underline">Read it</a>, then sign below.</p>
+          <AgreementSign defaultName={partner.name} />
+        </div>
+      )}
       {/* payouts first: until Stripe is set up we can't pay them (pros are paid with their job payouts) */}
       {!ready && q.connect !== "done" && (
         <div id="payouts-first" className="card flex flex-wrap items-center justify-between gap-3 border-2 border-amber-300 bg-amber-50">

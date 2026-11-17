@@ -3088,3 +3088,17 @@ test("payout methods: Stripe free, PayPal / Venmo $1.50; handles checked; PayPal
   const step = (m: string, h: string | null) => onboardingChecklist({ trades: ["cleaning"], payout_method: m, payout_handle: h, background_checked: true } as never).steps.find((x) => x.key === "payout")!;
   assert.equal(step("paypal", "pro@example.com").done, true); assert.equal(step("venmo", null).done, false);
 });
+
+// ─── Referred jobs: only pros on the current pro agreement (they pay half the partner fee) — 2026-11-17_2100 UTC ───
+import { proCanTakeReferredJob } from "./partners.ts";
+import { AGREEMENT_VERSION as PRO_AGREEMENT_NOW } from "./compliance.ts";
+
+test("referred jobs go only to pros on the current pro agreement; other jobs to anyone", () => {
+  const ref = { partner_id: "p1", partner_rate: 0.15, partner_sale: false };
+  assert.equal(proCanTakeReferredJob(ref, PRO_AGREEMENT_NOW, PRO_AGREEMENT_NOW), true);
+  assert.equal(proCanTakeReferredJob(ref, "2026-10-v10", PRO_AGREEMENT_NOW), false);
+  assert.equal(proCanTakeReferredJob(ref, null, PRO_AGREEMENT_NOW), false);
+  assert.equal(proCanTakeReferredJob({ partner_id: null }, "2026-10-v3", PRO_AGREEMENT_NOW), true, "not referred");
+  assert.equal(proCanTakeReferredJob({ ...ref, partner_sale: true }, "2026-10-v3", PRO_AGREEMENT_NOW), true, "direct sale: Handled pays alone");
+  assert.equal(proCanTakeReferredJob({ partner_id: "p1", partner_rate: null }, "2026-10-v3", PRO_AGREEMENT_NOW), true, "legacy job: Handled pays alone");
+});

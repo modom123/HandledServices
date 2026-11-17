@@ -27,6 +27,8 @@
  *           exception to "referring yourself doesn't count".
  * UPDATED : 2026-11-10_0400 UTC — partner-v5: lead pay — $10 per lead as a draw against that lead's commission, unlocked
  *           after 10 leads and one paid-out sale (SALES_DRAW, drawUnlocked, drawRecovery).
+ * UPDATED : 2026-11-17_2100 UTC — partner-v6: the Referral Partner Agreement (apps/web/lib/contracts/partner.ts), signed at sign-up or on
+ *           the partner page; referral jobs only go to pros on the current pro agreement, so the pro's half is always paid.
  */
 import { BRAND } from "./brand.ts";
 import { CARD_FEE } from "./pricing.ts";
@@ -47,7 +49,7 @@ export const PARTNER_PROGRAM = {
   holdDays: BRAND.guaranteeDays, // paid after the make-it-right window, so refunds come first
   minPayout: 25,           // smaller balances roll to the next weekly run (keeps Stripe fees sensible)
   cookieDays: 90,          // a click on a partner link counts for this long
-  termsVersion: "partner-v5",
+  termsVersion: "partner-v6", // v6: the signable Referral Partner Agreement (business referrals, conflicts, credit checks); same money rules as v5
   /** Jobs booked before this keep the partner-v1 rule (10% of Handled's take, paid by Handled alone). */
   effectiveAt: "2026-10-28T00:00:00Z",
   /** partner-v1, for jobs booked before effectiveAt. */
@@ -279,6 +281,16 @@ export function partnerSplit(o: { price: number; payout: number; refunded?: numb
   return { tier: o.tier, rate, target: target / 100, fromPro: fromPro / 100, fromUs: fromUs / 100, amount: (fromPro + fromUs) / 100 };
 }
 export type PartnerSplit = ReturnType<typeof partnerSplit>;
+
+/**
+ * A referred job (partner-v4+: the referral rate is locked on the job) can only go to a pro who signed the pro agreement
+ * that makes them pay half the partner's commission — so partners always get the full rate (owner, 2026-11-17).
+ * Direct sales and Post & earn are paid by Handled alone and need no pro term.
+ */
+export function proCanTakeReferredJob(job: { partner_id?: string | null; partner_rate?: number | string | null; partner_sale?: boolean | null }, agreementVersion: string | null | undefined, current: string): boolean {
+  if (!job.partner_id || job.partner_sale || job.partner_rate == null) return true;
+  return String(agreementVersion ?? "") >= current;
+}
 
 /** partner-v1 (jobs booked before PARTNER_PROGRAM.effectiveAt): what Handled keeps after the pro and refunds. */
 export function partnerTake(o: { price: number; payout: number; refunded?: number }): number {

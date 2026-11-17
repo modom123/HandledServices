@@ -38,7 +38,11 @@
  *           (daily: days 1, 3, 7 and 14 after sign-up while payouts aren't set up).
  * UPDATED : 2026-11-10_1445 UTC — partnerGrowthStats(): the numbers the Partner Success roadmaps measure (/partner/grow).
  * UPDATED : 2026-11-17_1700 UTC — payoutsReady uses connectStatus (transfers active), like pro payouts.
+ * UPDATED : 2026-11-17_2100 UTC — the Referral Partner Agreement (partner-v6) is e-signed at sign-up and by existing partners on their
+ *           partner page (signAgreement); both recorded in contract_acceptances with the exact text.
  */
+import { REFERRAL_PARTNER_AGREEMENT } from "./contracts/partner";
+import { recordAcceptance } from "./contracts/record";
 import "server-only";
 import { cookies } from "next/headers";
 import {
@@ -66,7 +70,13 @@ export const partnerLink = (code: string, path = "/home") => `${siteUrl()}${path
 
 // ─── Sign-up ─────────────────────────────────────────────────────────────────
 
-export async function signUp(o: { name: string; email: string; phone?: string | null; company?: string | null; kind: PartnerKind; how?: string | null; ip: string | null }): Promise<{ partner: Partner; existing: boolean }> {
+/** An existing partner signs the current Referral Partner Agreement (partner page). */
+export async function signAgreement(partner: Partner, o: { signerName: string; ip: string | null; userAgent: string | null; company?: string | null; title?: string | null }) {
+  await db().from("referral_partners").update({ terms_version: PARTNER_PROGRAM.termsVersion, terms_accepted_at: new Date().toISOString(), terms_ip: o.ip }).eq("id", partner.id);
+  await recordAcceptance([REFERRAL_PARTNER_AGREEMENT], { email: partner.email, signerName: o.signerName, method: "signature", ip: o.ip, userAgent: o.userAgent, ...(o.company ? { onBehalfOf: o.company, signerTitle: o.title || null } : {}) });
+}
+
+export async function signUp(o: { name: string; email: string; phone?: string | null; company?: string | null; kind: PartnerKind; how?: string | null; ip: string | null; userAgent?: string | null }): Promise<{ partner: Partner; existing: boolean }> {
   const email = lower(o.email);
   const { data: found } = await db().from("referral_partners").select("*").eq("email", email).maybeSingle();
   if (found) { await sendWelcome(found as Partner, true); return { partner: found as Partner, existing: true }; }
@@ -80,6 +90,8 @@ export async function signUp(o: { name: string; email: string; phone?: string | 
     else if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
   }
   if (!partner) throw new Error("Couldn't create a partner code — try again");
+  // the signed Referral Partner Agreement: exact text, name, time and IP (contract_acceptances)
+  await recordAcceptance([REFERRAL_PARTNER_AGREEMENT], { email, signerName: o.name.trim(), method: "signature", ip: o.ip, userAgent: o.userAgent ?? null }).catch(() => {});
   await sendWelcome(partner, false);
   if (opsEmail()) await sendEmail(opsEmail(), `New referral partner: ${partner.name}${partner.company ? ` (${partner.company})` : ""}`, `${partner.kind} · ${email} · code ${partner.code}\n${partner.how ?? ""}\n\nHub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { partner, existing: false };
