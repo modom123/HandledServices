@@ -59,11 +59,11 @@ export default async function PartnersHub() {
   for (const c of C) {
     if (c.status === "void" || c.tier === "self") continue; // the first-project reward doesn't build level credit
     const x = lad.get(c.partner_id) ?? { directProfit: 0, referralProfit: 0, directJobs: 0, referralJobs: 0, best: 0 };
-    if (c.tier === "direct") { x.directProfit += Number(c.take); x.directJobs++; x.best = Math.max(x.best, Number(c.rate ?? 0)); }
+    if (c.tier === "direct" || c.tier === "sale") { x.directProfit += Number(c.take); x.directJobs++; }
     else { x.referralProfit += Number(c.take); x.referralJobs++; }
     lad.set(c.partner_id, x);
   }
-  const ladder = (id: string) => { const x = lad.get(id); const cr = ladderCredit(x ?? { directProfit: 0, referralProfit: 0, directJobs: 0, referralJobs: 0 }); return { rate: Math.max(partnerLevel(cr.profit, cr.jobs).rate, Math.min(x?.best ?? 0, PARTNER_LADDER.topRate)), credit: cr.profit, direct: x?.directProfit ?? 0 }; };
+  const ladder = (id: string) => { const x = lad.get(id); const cr = ladderCredit(x ?? { directProfit: 0, referralProfit: 0, directJobs: 0, referralJobs: 0 }); return { rate: partnerLevel(cr.profit, cr.jobs, PARTNER_LADDER).rate, credit: cr.profit, direct: x?.directProfit ?? 0 }; }; // partner-v7: one ladder; the direct-sale rate (referral + 5)
   const salesOf = new Map<string, number>(); for (const t of SALES) salesOf.set(t.partner_id, (salesOf.get(t.partner_id) ?? 0) + 1);
   const pctR = (r: number) => `${Math.round(r * 100)}%`;
   const PS = (partners ?? []) as P[];
@@ -141,7 +141,7 @@ export default async function PartnersHub() {
 
       <section>
         <h2 className="mb-2 font-bold">Direct-sales tickets <span className="text-sm font-normal text-ink-soft">(Field Sales)</span></h2>
-        <p className="mb-2 text-sm text-ink-soft">Partners&apos; close-ready sales tickets. The customer is texted a pay link (or paid on the partner&apos;s phone); paid jobs go to the job board like any booking. Paid at the partner&apos;s ladder rate of our profit, by us alone (no pro fee). Unbooked tickets expire after 30 days.</p>
+        <p className="mb-2 text-sm text-ink-soft">Partners&apos; close-ready sales tickets. The customer is texted a pay link (or paid on the partner&apos;s phone); paid jobs go to the job board like any booking. Paid at the partner&apos;s rate + 5 points of the job price, by us alone (no pro fee). Unbooked tickets expire after 30 days.</p>
         {!SALES.length ? <Empty>No sales tickets yet.</Empty> : (
           <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="p-3">Sent</th><th className="p-3">Partner</th><th className="p-3">Customer</th><th className="p-3">Service</th><th className="p-3">Price shown</th><th className="p-3">Ticket</th><th className="p-3">Job</th><th className="p-3">Lead pay</th></tr></thead>

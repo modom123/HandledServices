@@ -12,6 +12,7 @@
  *                                      (the daily sweep, no extra state needed), and the reminder itself
  *           Every number comes from the shared rules (PARTNER_PROGRAM, REFERRAL_LADDER, PARTNER_LADDER, SALES_DRAW).
  * UPDATED : 2026-11-10_1450 UTC — the welcome includes their Partner Success roadmap (partner-success.ts) and /partner/grow.
+ * UPDATED : 2026-11-17_1930 UTC — partner-v7 one program: same ladder for everyone (15% → 30% of the job price), direct sales + 5 points.
  */
 import { BRAND } from "./brand.ts";
 import { PARTNER_LADDER, PARTNER_PROGRAM, REFERRAL_LADDER, SALES_DRAW, ladderTable, type PartnerKind } from "./partners.ts";
@@ -72,14 +73,13 @@ export function partnerWelcomeEmail(p: { name: string; code: string; kind: Partn
     "",
     "TWO WAYS TO EARN",
     `1. Referrals: you send them, we sell it. Share your link or code, or send a referral ticket from your partner page. You earn ${refBase} of the job price on every completed job from that customer for ${P.months} months, rising to ${refTop} as you grow.`,
-    `2. Direct sales: you sell it. Write a sales ticket (3–4 photos with the customer's OK) and the customer pays ${BRAND.name} on your phone or from our text. You earn ${saleBase} of our profit on the job, rising to ${saleTop}, on every job from that customer for ${P.months} months.`,
+    `2. Direct sales: you sell it and earn more. Write a sales ticket (3–4 photos with the customer's OK) and the customer pays ${BRAND.name} on your phone or from our text. You earn your rate + 5 points — ${saleBase} of the job price to start, rising to ${saleTop} — on every job from that customer for ${P.months} months.`,
     sales ? `   Field Sales lead pay: ${usd(SALES_DRAW.perLead)} for every lead (a complete sales ticket for a new customer), up to ${SALES_DRAW.weeklyCap} a week. It's an advance on that lead's commission: when the job pays, the ${usd(SALES_DRAW.perLead)} comes out of it; if the lead never books, you keep it. Lead pay starts after your first ${SALES_DRAW.unlockLeads} leads and ${SALES_DRAW.unlockPaidSales} paid-out sale, and what you built up is paid that week.` : null,
     "",
     "HOW YOUR RATE CLIMBS",
-    "Every raise is one point, the first ones come quickly, and your rate never goes down. Raises come from the profit your customers' jobs bring in (direct sales count 1.5×, referrals 1×):",
-    `  • Referrals: ${at(ref, [1, 2, 5, 10, 15])}`,
-    `  • Direct sales: ${at(sale, [1, 2, 5, 10, 20, 35])}`,
-    `  • Fast track: every ${PARTNER_LADDER.jobsPerStep} jobs also moves you up a point, up to ${pct(PARTNER_LADDER.jobsCapRate)}.`,
+    "One program, one ladder: everyone starts at the same place, every raise is one point, and the first ones come quickly. Raises come from the profit your customers' jobs make Handled (direct sales count 1.5×, referrals 1×):",
+    `  • Your rate: ${at(ref, [0, 1, 2, 5, 10, 15])}`,
+    `  • Direct sales always pay your rate + 5 points (${saleBase} → ${saleTop}).`,
     "Your partner page shows your rate and exactly what gets you the next raise.",
     "",
     "WHAT COUNTS AS YOUR CUSTOMER",

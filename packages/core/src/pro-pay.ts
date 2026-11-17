@@ -29,6 +29,7 @@ export function proPaysReferralFee(job: ProPayJob, agreementVersion: string | nu
 /** The pro's half of the referral fee on this job at this payout (hidden from the pro; it's already out of their pay). */
 export function proReferralFee(job: ProPayJob, payout: number | null | undefined, agreementVersion: string | null | undefined): number {
   const pay = Number(payout ?? 0);
+  // direct sales are paid by Handled alone (owner, 2026-11-17): only referrals carry the pro's half
   if (!(pay > 0) || !job.partner_id || job.partner_sale || !job.partner_tier) return 0;
   if (job.status === "completed" && job.partner_pro_fee != null) return Math.min(pay, Number(job.partner_pro_fee));
   if (!proPaysReferralFee(job, agreementVersion)) return 0;
