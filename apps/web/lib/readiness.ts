@@ -67,6 +67,7 @@
  * UPDATED : 2026-11-11_0100 UTC — checks 20261111010000_biz_lead_refresh and the outreach domain mailbox (OUTREACH_*).
  * UPDATED : 2026-11-17_2335 UTC — the outreach mailbox must be on handledsvc.net (never the company domain); checks
  *           20261117233500_ai_outreach_handledsvc_net (AI-personalized outreach, threaded follow-ups, reply drafts).
+ * UPDATED : 2026-11-17_2350 UTC — checks 20261117235000_walkthroughs (self-booked walkthroughs).
  * UPDATED : 2026-11-10_2230 UTC — checks 20261110223000_iebc_team_expansion (the 9 new IEBC agents, incl. Legal & Compliance).
  */
 import "server-only";
@@ -257,6 +258,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261110031000_open_offers", "name-your-price open offers (job board, 30 days)", () => db.from("jobs").select("open_offer_until").limit(1)],
     ["20261110040000_lead_pay", "Field Sales lead pay ($10 per lead, a draw)", () => db.from("partner_draws").select("id").limit(1)],
     ["20261110200000_pro_showcase", "new pros on the website (opt-in showcase)", () => db.from("contractors").select("showcase_opt_in").limit(1)],
+    ["20261117235000_walkthroughs", "free walkthroughs businesses book themselves (or run supabase/setup/ADD_WALKTHROUGHS_2026-11-17_2350.sql)", () => db.from("walkthrough_settings").select("id").limit(1)],
     ["20261117233500_ai_outreach_handledsvc_net", "AI email outreach from handledsvc.net: personalized emails, threaded follow-ups, one-click reply drafts (or run supabase/setup/ADD_AI_OUTREACH_HANDLEDSVC_NET_2026-11-17_2335.sql)", () => db.from("biz_leads").select("thread_message_id, reply_draft").limit(1)],
     ["20261111010000_biz_lead_refresh", "business leads stay fresh (rest, re-engage, retire, duplicates) and our own outreach domain (or run supabase/setup/ADD_BIZ_LEAD_REFRESH_2026-11-11_0100.sql)", () => db.from("biz_leads").select("dedupe_key, rest_until, next_send_at").limit(1)],
     ["20261110223000_iebc_team_expansion", "expanded IEBC team: Partner & Pro Success, gov capture, Legal & Compliance (or run supabase/setup/ADD_IEBC_TEAM_2026-11-10_2230.sql)", () => db.from("iebc_agents").select("id").eq("iebc_employee_id", "olivia").limit(1).then((r) => (r.error ? r : { error: r.data?.length ? null : { message: "not added yet" } }))],

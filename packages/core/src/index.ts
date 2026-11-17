@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-27_1700 UTC — recruiting-division (openings on three tracks, Indeed post kit, shared pipeline stages).
  * UPDATED : 2026-10-27_2100 UTC — job-money (one job's money end to end: customer paid → split → pro payout lines → Monday).
  * UPDATED : 2026-11-17_2335 UTC — outreach-ai (handledsvc.net outreach domain, guardrails for AI-written outreach, reply drafts and campaigns).
+ * UPDATED : 2026-11-17_2350 UTC — walkthrough (self-booked free walkthroughs) and BIZ_LANDINGS (a landing page per kind of business).
  */
 
 export * from "./types.ts";
@@ -56,6 +57,7 @@ export * from "./biz-lead-engine.ts";
 export * from "./board.ts";
 export * from "./email-center.ts";
 export * from "./outreach-ai.ts";
+export * from "./walkthrough.ts";
 export * from "./checklists.ts";
 export * from "./interview.ts";
 export * from "./rewards.ts";

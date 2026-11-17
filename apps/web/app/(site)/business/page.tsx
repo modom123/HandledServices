@@ -24,9 +24,12 @@
  *           while scrolling; the hero buttons already go to Services and Order).
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-17_2350 UTC — "Book a free walkthrough" next to Order now (hero and order section), and "Pages for your business" linking
+ *           the landing page for each kind of business (/business/<slug>).
  */
 import Link from "next/link";
-import { BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
+import { BIZ_LANDINGS, BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
+import { LeadLink } from "@/components/LeadLink";
 import { Ico, ThemedIcon } from "@/components/Glyph";
 
 export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, ordered online with a 25% deposit." };
@@ -64,7 +67,7 @@ export default function BusinessPage() {
             <p className="mt-4 max-w-xl text-lg text-white/80">Offices, property managers, clinics, retail and restaurants use one account for janitorial, move-out and turnover cleans — plus grounds, repairs, courier, transportation and events.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href={ORDER} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Order now</Link>
-              <a href="#services" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See business services</a>
+              <LeadLink href="/walkthrough" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">Book a free walkthrough</LeadLink>
             </div>
           </div>
           <ul className="grid grid-cols-2 gap-3">
@@ -77,6 +80,7 @@ export default function BusinessPage() {
       <section id="industries" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who we serve</h2>
         <p className="mt-2 text-ink-soft">What businesses like yours order most — tap one to get your price and order it.</p>
+        <p className="mt-2 text-sm">Pages for your business: {BIZ_LANDINGS.map((l, i) => <span key={l.slug}>{i ? " · " : ""}<Link href={`/business/${l.slug}`} className="font-semibold text-brand hover:underline">{l.name}</Link></span>)}</p>
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {INDUSTRIES.map((i) => (
             <div key={i.id} className="card p-3 sm:p-4">
@@ -138,7 +142,10 @@ export default function BusinessPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Order for your business</h2>
             <p className="mt-2 text-ink-soft">Pick the service, get your exact price in about a minute and pay a 25% deposit to book it. Your order starts as a business order — just add your company name.</p>
-            <Link href={ORDER} className="btn-primary mt-5 inline-block px-8 py-3 text-base">Order now</Link>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Link href={ORDER} className="btn-primary inline-block px-8 py-3 text-base">Order now</Link>
+              <LeadLink href="/walkthrough" className="btn-ghost inline-block px-6 py-3 text-base">Not sure yet? Book a free walkthrough</LeadLink>
+            </div>
           </div>
           <div>
             <div className="font-semibold">Built for facilities teams</div>

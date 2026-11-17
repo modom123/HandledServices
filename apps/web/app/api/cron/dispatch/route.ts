@@ -15,6 +15,7 @@
  * UPDATED : 2026-11-05_1240 UTC — also accepts the GitHub Actions token (no CRON_SECRET in GitHub); every run is recorded
  *           (site_settings cron_dispatch) so Go-live setup can confirm the 10-minute run.
  * UPDATED : 2026-11-11_0100 UTC — reads the outreach inbox (own outreach domain) for replies and bounces.
+ * UPDATED : 2026-11-17_2350 UTC — walkthrough reminders (one email about a day before).
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
@@ -47,5 +48,6 @@ export async function GET(req: Request) {
   } : null;
   // our own outreach domain: replies and bounces every 10 minutes
   const outreach = outreachReady() ? await checkOutreachInbox().catch((e) => ({ ok: false, error: String(e) })) : null;
-  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach });
+  const walkthroughs = await (await import("@/lib/walkthroughs")).walkthroughReminders().catch((e) => { console.error("[walkthrough reminders]", e); return null; });
+  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach, walkthroughs });
 }

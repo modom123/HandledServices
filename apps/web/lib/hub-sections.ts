@@ -29,6 +29,7 @@
  *           Client searches; the merged pages show as a switch under the tabs (groupOf, components/HubNav).
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  * UPDATED : 2026-11-10_0415 UTC — Pros & recruiting → Coverage map (/hub/map): pros and open services on a US map.
+ * UPDATED : 2026-11-17_2350 UTC — Clients & sales → Walkthroughs (/hub/walkthroughs): free walkthroughs businesses booked themselves.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -81,6 +82,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/customers", "Customers & B2B"],
     ["/hub/inbox", "Lead inbox"],
     ["/hub/biz-leads", "Business leads"],
+    ["/hub/walkthroughs", "Walkthroughs"],
     ["/hub/bids", "Bids & contracts"],
     ["/hub/quotes", "Marketplace & quotes"],
     ["/hub/partners", "Referral partners"],

@@ -4,6 +4,7 @@
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Unit tests for the pricing engine and dispatch ranking.
  * UPDATED : 2026-11-17_2335 UTC — AI outreach from handledsvc.net (domain guard, footer split, AI draft and reply guardrails).
+ * UPDATED : 2026-11-17_2350 UTC — self-booked walkthroughs (slots, time zones, DST, lead time) and business landing pages.
  * UPDATED : 2026-10-02_0233 UTC — calculator checks for every service: more of anything never
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
@@ -2856,4 +2857,43 @@ test("AI outreach: handledsvc.net only, footer kept by code, AI drafts checked",
   assert.ok(checkOutreachDraft({ ...good, body: good.body + " Click here to unsubscribe." }, rules).length >= 2);
   assert.deepEqual(checkReplyDraft(`Thanks for writing back. Send the address and move-out date and we'll get you a price today: ${link}`, [link]), []);
   assert.ok(checkReplyDraft("Thanks! It's $150 for a two-bedroom, see https://other.example", [link]).length === 2);
+});
+
+test("walkthroughs: open times in Detroit time, booked and too-soon times left out, DST-safe", async () => {
+  const { WALKTHROUGH_DEFAULTS, walkthroughSlots, slotIsOpen, wallTimeToUtc, walkthroughWhen, googleCalendarUrl } = await import("./walkthrough.ts");
+  assert.equal(wallTimeToUtc("2026-11-20", 9 * 60 + 30, "America/Detroit").toISOString(), "2026-11-20T14:30:00.000Z"); // EST
+  assert.equal(wallTimeToUtc("2026-07-20", 9 * 60, "America/Detroit").toISOString(), "2026-07-20T13:00:00.000Z"); // EDT
+  assert.equal(wallTimeToUtc("2026-11-02", 9 * 60, "America/Detroit").toISOString(), "2026-11-02T14:00:00.000Z"); // day after DST ends
+  assert.equal(wallTimeToUtc("2026-07-20", 9 * 60, "America/Los_Angeles").toISOString(), "2026-07-20T16:00:00.000Z");
+  const now = new Date("2026-11-17T23:50:00Z"); // Tue 6:50 PM in Detroit
+  const days = walkthroughSlots(WALKTHROUGH_DEFAULTS, [], now);
+  assert.equal(days[0].date, "2026-11-18"); // 18 hours' notice: tomorrow from 1 PM
+  assert.equal(days[0].slots[0].label, "1:00 PM");
+  assert.ok(days.every((d) => ![0, 6].includes(new Date(`${d.date}T12:00:00Z`).getUTCDay())), "weekdays only");
+  assert.equal(days[1].slots.length, 16); // 9–5 every 30 minutes
+  const first = days[1].slots[0].start;
+  assert.ok(slotIsOpen(WALKTHROUGH_DEFAULTS, first, [], now));
+  assert.ok(!slotIsOpen(WALKTHROUGH_DEFAULTS, first, [first], now), "one per slot by default");
+  assert.ok(slotIsOpen({ ...WALKTHROUGH_DEFAULTS, per_slot: 2 }, first, [first], now));
+  assert.ok(!slotIsOpen(WALKTHROUGH_DEFAULTS, "2026-11-19T14:10:00.000Z", [], now), "only real slot starts");
+  assert.deepEqual(walkthroughSlots({ ...WALKTHROUGH_DEFAULTS, enabled: false }, [], now), []);
+  assert.match(walkthroughWhen(first, "America/Detroit"), /^Thursday, Nov 19 at 9:00 AM \(Detroit time\)$/);
+  assert.match(googleCalendarUrl({ title: "Walkthrough", start: first, minutes: 45, details: "x" }), /dates=20261119T140000Z%2F20261119T144500Z/);
+});
+
+test("business landing pages: every service exists, sales-email leads land on their page", async () => {
+  const { BIZ_LANDINGS, landingSlugFor, bizLanding } = await import("./walkthrough.ts");
+  const { getService } = await import("./services.ts");
+  const { BIZ_SEGMENTS } = await import("./biz-lead-engine.ts");
+  assert.equal(new Set(BIZ_LANDINGS.map((l) => l.slug)).size, BIZ_LANDINGS.length);
+  for (const l of BIZ_LANDINGS) {
+    for (const x of l.services) assert.ok(getService(x), `${l.slug}: unknown service ${x}`);
+    assert.ok(l.bullets.length >= 3 && l.faq.length >= 3, `${l.slug} needs bullets and FAQ`);
+    assert.doesNotMatch(JSON.stringify(l), /\$\s?\d/, `${l.slug}: no $ prices on landing pages`);
+  }
+  for (const seg of Object.keys(BIZ_SEGMENTS)) assert.ok(landingSlugFor(seg), `no landing page for ${seg}`);
+  assert.equal(landingSlugFor("property_manager"), "property-managers");
+  assert.equal(landingSlugFor("facilities", "Janitor"), "hiring");
+  assert.equal(landingSlugFor("partner"), null);
+  assert.equal(bizLanding("nope"), null);
 });
