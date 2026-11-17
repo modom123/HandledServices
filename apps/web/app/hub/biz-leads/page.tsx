@@ -15,6 +15,8 @@
  * UPDATED : 2026-10-28_1935 UTC — Sales letters card: what the engine sends, plus the two one-page letter templates (PDF / Word).
  * UPDATED : 2026-11-11_0100 UTC — List health (fresh / in sequence / warm / resting / retired, added in 30 days, next wake) and the
  *           own-outreach-domain setup banner; the Instantly banner only shows while Instantly is the sender.
+ * UPDATED : 2026-11-17_2335 UTC — handledsvc.net is the outreach domain (banner names the exact problem); "Replied" list says which have an
+ *           AI draft waiting; the job-posting form can start the own sequence.
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
@@ -24,7 +26,7 @@ import { noteSummaries } from "@/lib/notes";
 import { instantlyBizReady } from "@/lib/instantly";
 import { Stat } from "@/components/ui";
 import { leadFreshness } from "@handled/core";
-import { outreachReady } from "@/lib/outreach-mail";
+import { outreachProblem, outreachReady } from "@/lib/outreach-mail";
 import { BizLeadSettingsForm, BizLeadStatus, JobPostLeadForm } from "@/components/BizLeadAdmin";
 
 export const dynamic = "force-dynamic";
@@ -60,11 +62,11 @@ export default async function BizLeads() {
     <div className="space-y-6">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">Business leads</h1><Link href="/hub/biz-leads/calls" className="btn-primary text-sm">📞 Call desk</Link></div>
-        <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send a 3-email sequence with a pilot offer (from our own outreach domain, or Instantly). Leads that don’t answer rest, get one seasonal re-engagement round, then retire for a year, while new businesses keep coming in, so the list stays fresh. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
+        <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send a 3-email sequence with a pilot offer (written for each business by the AI and sent from handledsvc.net, our outreach domain — or Instantly). Leads that don’t answer rest, get one seasonal re-engagement round, then retire for a year, while new businesses keep coming in, so the list stays fresh. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
         {dealPlan && <details className="card mt-3" open={Date.now() - new Date(dealPlan.created_at).getTime() < 86400000}><summary className="cursor-pointer font-semibold">🎯 {dealPlan.title} <span className="text-xs font-normal text-ink-soft">({new Date(dealPlan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" })}, Deal hunter)</span></summary><pre className="mt-2 whitespace-pre-wrap text-sm">{dealPlan.body}</pre></details>}
         {s.sender !== "own" && !instantlyBizReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Instantly isn’t connected yet. Missing in Vercel (Production): <b>{missingInstantly.join(", ")}</b>. Add {missingInstantly.length === 1 ? "it" : "them"} in Vercel → your project → Settings → Environment Variables, then <b>redeploy</b> (new variables only reach the site after a redeploy). The campaign id for 1ST OUTREACH DETROIT is <code>3de836a0-4845-4350-80af-db9725831b43</code>.</p>}
       </div>
-      {s.sender === "own" && !outreachReady() && <p className="rounded-lg bg-amber-50 p-2 text-sm">Sending from your outreach domain is selected, but its mailbox isn’t connected. In Vercel add <b>OUTREACH_SMTP_USER</b> (the mailbox on the new domain), <b>OUTREACH_SMTP_PASSWORD</b>, <b>OUTREACH_FROM_NAME</b> and <b>BUSINESS_POSTAL_ADDRESS</b>, redeploy, then press <b>Check outreach mailbox</b> below (SPF, DKIM and DMARC must all show ✓).</p>}
+      {s.sender === "own" && !outreachReady() && <p className="rounded-lg bg-amber-50 p-2 text-sm">Sending from <b>handledsvc.net</b> is selected, but its mailbox isn’t ready: {outreachProblem()} In Vercel set <b>OUTREACH_SMTP_USER</b> (e.g. mark@handledsvc.net), <b>OUTREACH_SMTP_PASSWORD</b>, <b>OUTREACH_FROM_NAME</b> and <b>BUSINESS_POSTAL_ADDRESS</b>, redeploy, then press <b>Check outreach mailbox</b> below (SPF, DKIM and DMARC must all show ✓).</p>}
       {(() => {
         const h = leadFreshness(leads as unknown as { status: string; created_at: string; segment: string; rest_until: string | null }[]);
         return (
@@ -106,7 +108,7 @@ export default async function BizLeads() {
       <section className="card">
         <h2 className="text-lg font-bold">Add a business from a job posting</h2>
         <p className="mb-3 text-sm text-ink-soft">A business hiring a cleaner, handyman, maintenance tech, groundskeeper or mover is a business that needs that work done. They get the letter “book the work as a service instead of hiring for it” (cost comparison, upfront prices, vetted pros, guarantee, pilot offer) as a 3-email sequence, or print it / save it as a PDF from the letter page.</p>
-        <JobPostLeadForm sendingReady={instantlyBizReady()} />
+        <JobPostLeadForm sendingReady={s.sender === "own" ? outreachReady() && Boolean(process.env.BUSINESS_POSTAL_ADDRESS) : instantlyBizReady()} />
       </section>
       <section className="card">
         <h2 className="text-lg font-bold">Sales letters</h2>
@@ -117,7 +119,7 @@ export default async function BizLeads() {
         </ul>
       </section>
       {leads.some((l) => l.job_title) && <section><h2 className="mb-2 text-lg font-bold">From job postings</h2>{table(leads.filter((l) => l.job_title).slice(0, 50))}</section>}
-      {n("replied") > 0 && <section><h2 className="mb-2 text-lg font-bold">Replied: answer today</h2>{table(leads.filter((l) => l.status === "replied"))}</section>}
+      {n("replied") > 0 && <section><h2 className="mb-1 text-lg font-bold">Replied: answer today</h2><p className="mb-2 text-sm text-ink-soft">Open a business to read their reply and the AI’s draft answer, edit it, and send it from handledsvc.net in one click.</p>{table(leads.filter((l) => l.status === "replied"))}</section>}
       {n("call") > 0 && <section><h2 className="mb-2 text-lg font-bold">Call list (no email found)</h2>{table(leads.filter((l) => l.status === "call").slice(0, 50))}</section>}
       <section><h2 className="mb-2 text-lg font-bold">Top leads</h2>{leads.length ? table(leads.filter((l) => !["call", "replied"].includes(l.status)).slice(0, 100)) : <p className="text-sm text-ink-soft">No leads yet. Turn the engine on (and set GOOGLE_PLACES_API_KEY) or wait for the next weekday run.</p>}</section>
     </div>

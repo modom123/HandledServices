@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Unit tests for the pricing engine and dispatch ranking.
+ * UPDATED : 2026-11-17_2335 UTC — AI outreach from handledsvc.net (domain guard, footer split, AI draft and reply guardrails).
  * UPDATED : 2026-10-02_0233 UTC — calculator checks for every service: more of anything never
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
@@ -2827,4 +2828,32 @@ test("business leads: new outreach domain warms up; list health; re-engagement e
   assert.match(e.text, /Not interested\? One click/);
   assert.match(e.text, /1 Main St/);
   assert.equal(bizReengageEmail({ ...ctx, step: 5 }).subject, "Closing the loop");
+});
+
+test("AI outreach: handledsvc.net only, footer kept by code, AI drafts checked", async () => {
+  const { outreachDomainProblem, splitOutreachFooter, checkOutreachDraft, checkReplyDraft, OUTREACH_DOMAIN } = await import("./outreach-ai.ts");
+  const { bizLeadEmail } = await import("./biz-lead-engine.ts");
+  assert.equal(OUTREACH_DOMAIN, "handledsvc.net");
+  assert.equal(outreachDomainProblem("mark@handledsvc.net"), null);
+  assert.match(String(outreachDomainProblem("info@handledsvc.com")), /company domain/);
+  assert.match(String(outreachDomainProblem("me@gmail.com")), /free mailbox/);
+  assert.match(String(outreachDomainProblem(null)), /not set/);
+  const m = bizLeadEmail({ step: 0, businessName: "Acme PM", segment: "property_manager", pilotPct: 0, pilotJobs: 0, signupUrl: "https://handledsvc.com/b/abc12345", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St, Detroit, MI" });
+  const { body, footer } = splitOutreachFooter(m.text);
+  assert.match(footer, /1 Main St/);
+  assert.doesNotMatch(body, /1 Main St/);
+  const link = "https://handledsvc.com/b/abc12345";
+  const good = { subject: "Turnovers at Acme PM in Detroit", body: `Hi Acme PM team,\n\nI saw you manage rentals around Detroit. When a unit turns over, we handle the cleanout, deep clean and touch-ups in one booking, with photos of every room and an exact price up front. It's 25% to book.\n\nBook a first turnover:\n${link}\n\nThe Handled team` };
+  const rules = { signupUrl: link, pilotPct: 0, firstEmail: true };
+  assert.deepEqual(checkOutreachDraft(good, rules), []);
+  assert.ok(checkOutreachDraft({ ...good, body: good.body.replace(link, "https://evil.example") }, rules).some((p) => /missing/.test(p)));
+  assert.ok(checkOutreachDraft({ ...good, body: good.body + " Only $99 a visit." }, rules).some((p) => /price/.test(p)));
+  assert.ok(checkOutreachDraft({ ...good, body: good.body + " Take 40% off." }, rules).some((p) => /percentage/.test(p)));
+  assert.deepEqual(checkOutreachDraft({ ...good, body: good.body + " Take 40% off." }, { ...rules, pilotPct: 40 }), []);
+  assert.ok(checkOutreachDraft({ ...good, subject: "Re: turnovers" }, rules).some((p) => /deceptive/.test(p)));
+  assert.deepEqual(checkOutreachDraft({ ...good, subject: "Re: turnovers" }, { ...rules, firstEmail: false }), []);
+  assert.ok(checkOutreachDraft({ ...good, body: good.body + " Hi [First Name]" }, rules).some((p) => /placeholder/.test(p)));
+  assert.ok(checkOutreachDraft({ ...good, body: good.body + " Click here to unsubscribe." }, rules).length >= 2);
+  assert.deepEqual(checkReplyDraft(`Thanks for writing back. Send the address and move-out date and we'll get you a price today: ${link}`, [link]), []);
+  assert.ok(checkReplyDraft("Thanks! It's $150 for a two-bedroom, see https://other.example", [link]).length === 2);
 });

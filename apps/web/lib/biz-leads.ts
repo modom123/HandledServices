@@ -43,10 +43,18 @@
  *                                 OUTREACH_*), step by step (day 0, 4, 10), within a warm-up ramp (core warmupCap) and
  *                                 the daily limit; checkOutreachInbox reads replies and bounces every 10 minutes
  *             discovery skips businesses already on the list (dedupe key).
+ * UPDATED : 2026-11-17_2335 UTC — AI email outreach from handledsvc.net (the marketing / outreach domain):
+ *             ai_personalize    — each step is rewritten by the AI writer for that business (lib/ai/outreach-writer.ts),
+ *                                 checked by core checkOutreachDraft, else the plain template goes; footer added by code
+ *             threading         — email 1's Message-ID is kept (thread_message_id); follow-ups reply in the same thread
+ *             replies           — a reply's text, Message-ID and the AI's checked draft answer are saved on the lead;
+ *                                 staff edit and send it from Hub → the lead (sendOutreachReply), threaded, from the
+ *                                 outreach mailbox; redraftOutreachReply asks the AI again
+ *             job-posting leads added with "send now" start on the own sequence when the own domain is the sender.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -56,16 +64,17 @@ import { addLeadToCampaign, blockInInstantly, instantlyBizReady, instantlyBizSyn
 import { aiEnabled, structured } from "./ai/client";
 import { safeFetch } from "./safe-fetch";
 import { outreachReady, outreachReplies, sendOutreach } from "./outreach-mail";
+import { personalizeOutreach } from "./ai/outreach-writer";
 
 const db = () => adminClient();
 // Michigan (Detroit metro focus) + Washington (Puget Sound and Spokane) — the states we serve
 const WA_CITIES = ["Seattle", "Bellevue", "Redmond", "Kirkland", "Renton", "Kent", "Tacoma", "Federal Way", "Everett", "Lynnwood", "Olympia", "Vancouver", "Spokane"];
 const METRO = [...FOCUS_CITIES.map((c) => ({ city: c, state: "MI" })), ...WA_CITIES.map((c) => ({ city: c, state: "WA" }))];
 
-export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number; sender: "instantly" | "own"; rest_days: number; max_rounds: number; first_own_send_at: string | null; outreach_last_uid: number }
+export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number; sender: "instantly" | "own"; rest_days: number; max_rounds: number; first_own_send_at: string | null; outreach_last_uid: number; ai_personalize: boolean }
 export async function getBizLeadSettings(): Promise<BizLeadSettings> {
   const { data } = await db().from("biz_lead_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, sender: "instantly", rest_days: LEAD_REFRESH.restDays, max_rounds: LEAD_REFRESH.maxRounds, first_own_send_at: null, outreach_last_uid: 0, ...(data ?? {}) } as BizLeadSettings;
+  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, sender: "instantly", rest_days: LEAD_REFRESH.restDays, max_rounds: LEAD_REFRESH.maxRounds, first_own_send_at: null, outreach_last_uid: 0, ai_personalize: true, ...(data ?? {}) } as BizLeadSettings;
 }
 
 async function event(leadId: string, kind: string, note?: string | null, actor = "engine") {
@@ -278,7 +287,11 @@ export async function addJobPostLead(l: JobPostLead, actor: string): Promise<{ o
   if (error || !data) return { ok: false, error: error?.message ?? "Couldn't save" };
   await event(data.id, "found", `job posting${l.posting_source ? ` on ${l.posting_source}` : ""}: ${l.job_title}`, actor);
   let sent = false;
-  if (email && l.send_now && instantlyBizReady()) sent = (await sendTo([data as LeadRow])).sent > 0;
+  if (email && l.send_now) {
+    const s = await getBizLeadSettings();
+    if (s.sender === "own" && outreachReady() && process.env.BUSINESS_POSTAL_ADDRESS) sent = (await sendOwnStep(data as OwnLead, 0, s)) === "sent";
+    else if (s.sender !== "own" && instantlyBizReady()) sent = (await sendTo([data as LeadRow])).sent > 0;
+  }
   return { ok: true, id: data.id, sent };
 }
 
@@ -405,7 +418,7 @@ ${text.slice(0, 6000)}
 }
 
 /** Instantly events for business leads (handled_biz_lead_id, the business campaign's id, or a known address). */
-export async function onBizInstantlyEvent(e: { type: string; email: string; leadId?: string | null; text?: string | null; fromBizCampaign?: boolean; via?: "instantly" | "own"; lead?: { first_name?: string | null; last_name?: string | null; company_name?: string | null; phone?: string | null; website?: string | null } }) {
+export async function onBizInstantlyEvent(e: { type: string; email: string; leadId?: string | null; text?: string | null; fromBizCampaign?: boolean; via?: "instantly" | "own"; messageId?: string | null; references?: string | null; subject?: string | null; lead?: { first_name?: string | null; last_name?: string | null; company_name?: string | null; phone?: string | null; website?: string | null } }) {
   const email = e.email.trim().toLowerCase();
   let { data: lead } = e.leadId && /^[0-9a-f-]{36}$/.test(e.leadId)
     ? await db().from("biz_leads").select("id, status, business_name, token").eq("id", e.leadId).maybeSingle()
@@ -427,11 +440,12 @@ export async function onBizInstantlyEvent(e: { type: string; email: string; lead
       if (!done) await db().from("biz_leads").update({ status: "not_interested" }).eq("id", lead.id);
       await blockInInstantly(email);
     } else if (ai?.intent !== "out_of_office" && !done) await db().from("biz_leads").update({ status: "replied" }).eq("id", lead.id);
+    if (e.via === "own") await saveReplyForAnswer(lead, e, ai);
     if (ai) await event(lead.id, `ai:reply:${ai.intent}`, [ai.summary, ai.next_step && `Next: ${ai.next_step}`, ai.follow_up_days != null && `Follow up in ${ai.follow_up_days} days`, ai.suggested_reply && `Draft reply:\n${ai.suggested_reply}`].filter(Boolean).join("\n\n"), "ai");
     const warm = !ai || ["interested", "question", "referral", "other"].includes(ai.intent);
     if (warm || ai?.intent === "not_now")
       await raiseAlert("sales", warm ? "warn" : "info", `${ai?.intent === "interested" ? "Interested" : "A business replied"}: ${lead.business_name}`,
-        `${e.text ? `"${e.text.slice(0, 500)}"\n\n` : ""}${ai ? `AI read: ${ai.summary}\nNext: ${ai.next_step}\n\nDraft reply (check it, then send it from ${e.via === "own" ? "the outreach mailbox" : "Instantly's Unibox"}):\n${ai.suggested_reply}` : `Answer from ${e.via === "own" ? "the outreach mailbox" : "Instantly's Unibox"} today (a warm business lead), then mark them in Hub → Business leads.`}`);
+        `${e.text ? `"${e.text.slice(0, 500)}"\n\n` : ""}${ai ? `AI read: ${ai.summary}\nNext: ${ai.next_step}\n\nDraft reply (check it, then send it ${e.via === "own" ? `from Hub → Business leads → ${lead.business_name} (one click, from the outreach mailbox)` : "from Instantly's Unibox"}):\n${ai.suggested_reply}` : `Answer from ${e.via === "own" ? "the outreach mailbox" : "Instantly's Unibox"} today (a warm business lead), then mark them in Hub → Business leads.`}`);
   } else if (t.includes("click")) { if (["queued", "emailing"].includes(lead.status)) await db().from("biz_leads").update({ status: "clicked" }).eq("id", lead.id); }
   else if (t.includes("sent")) await db().from("biz_leads").update({ last_contact_at: new Date().toISOString() }).eq("id", lead.id);
   if (e.via === "own" && !t.includes("sent") && !t.includes("click")) await db().from("biz_leads").update({ next_send_at: null }).eq("id", lead.id); // any answer stops our sequence
@@ -533,7 +547,7 @@ export async function bizLeadEngine() {
 
 // ─── Own outreach domain: our 3-email sequence, step by step ────────────────
 
-type OwnLead = LeadRow & { round: number | null; seq_step: number | null; status: string };
+type OwnLead = LeadRow & { round: number | null; seq_step: number | null; status: string; state?: string | null; rating?: number | null; review_count?: number | null; posting_pay?: string | null; thread_message_id?: string | null; thread_subject?: string | null };
 const STEP_GAP = BIZ_LEAD_SEQUENCE.map((d, i) => (i ? d - BIZ_LEAD_SEQUENCE[i - 1] : 0)); // days between steps: 0, 4, 6
 
 /** How many outreach emails went out today (UTC), all steps and rounds together. */
@@ -543,7 +557,7 @@ async function ownSentToday() {
 }
 
 /** Send one step of a lead's sequence (round 1 = the first sequence, round 2+ = re-engagement). */
-async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings): Promise<"sent" | "skipped" | "failed"> {
+async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings, aiUntil = Infinity): Promise<"sent" | "skipped" | "failed"> {
   const email = l.email.toLowerCase();
   const [{ data: acct }, { count: out }] = await Promise.all([
     db().from("business_members").select("account_id").eq("email", email).limit(1).maybeSingle(),
@@ -554,18 +568,27 @@ async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings): Promis
   const ctx = { step, businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, segment: l.segment, city: l.city, pilotPct: s.pilot_pct, pilotJobs: s.pilot_jobs,
     signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS!, jobTitle: l.job_title ?? null, postingSource: l.posting_source ?? null };
   const round = Math.max(1, Number(l.round ?? 1));
-  const m = round > 1 ? bizReengageEmail(ctx) : bizLeadEmail(ctx);
+  const template = round > 1 ? bizReengageEmail(ctx) : bizLeadEmail(ctx);
+  // the AI writer personalizes it for this business; anything that fails the guardrails sends the template instead
+  const thread = step > 0 ? l.thread_message_id ?? null : null;
+  const m = (s.ai_personalize && Date.now() < aiUntil ? await personalizeOutreach({
+    lead: { businessName: l.business_name, firstName: ctx.firstName, segment: l.segment, city: l.city, state: l.state ?? null, rating: l.rating ?? null, reviewCount: l.review_count ?? null, jobTitle: l.job_title ?? null, postingPay: l.posting_pay ?? null, website: l.website },
+    step, steps: BIZ_LEAD_SEQUENCE.length, round, template, signupUrl: ctx.signupUrl, pilotPct: s.pilot_pct, keepSubject: step > 0,
+  }).catch(() => null) : null) ?? { ...template, ai: false };
+  // follow-ups go in the same thread as email 1 (so "Re:" is a real reply)
+  const subject = thread && !/^re:/i.test(m.subject) ? `Re: ${l.thread_subject ?? m.subject}` : m.subject;
+  let messageId: string;
   try {
-    await sendOutreach({ to: l.email, subject: m.subject, text: m.text, unsubscribeUrl: ctx.unsubscribeUrl });
+    messageId = await sendOutreach({ to: l.email, subject, text: m.text, unsubscribeUrl: ctx.unsubscribeUrl, inReplyTo: thread });
   } catch (e) { await event(l.id, "outreach:send_failed", e instanceof Error ? e.message.slice(0, 300) : String(e), "outreach"); return "failed"; }
   const now = new Date();
   const last = step >= BIZ_LEAD_SEQUENCE.length - 1;
   await db().from("biz_leads").update({
     status: "emailing", sent_via: "own", seq_step: step + 1,
     next_send_at: last ? null : new Date(now.getTime() + STEP_GAP[step + 1] * 86400000).toISOString(),
-    ...(step === 0 ? { last_contact_at: now.toISOString() } : {}),
+    ...(step === 0 ? { last_contact_at: now.toISOString(), thread_message_id: messageId, thread_subject: subject } : {}),
   }).eq("id", l.id);
-  await event(l.id, "outreach:sent", `round ${round}, email ${step + 1} of ${BIZ_LEAD_SEQUENCE.length}: ${m.subject}`, "outreach");
+  await event(l.id, "outreach:sent", `round ${round}, email ${step + 1} of ${BIZ_LEAD_SEQUENCE.length}${m.ai ? " (AI-personalized)" : ""}: ${subject}\n\n${m.text.slice(0, 1800)}`, "outreach");
   return "sent";
 }
 
@@ -574,14 +597,16 @@ export async function sendOwnOutreach(s: BizLeadSettings) {
   if (!outreachReady() || !process.env.BUSINESS_POSTAL_ADDRESS) return { sent: 0, skipped: 0, error: "Set OUTREACH_SMTP_USER / OUTREACH_SMTP_PASSWORD and BUSINESS_POSTAL_ADDRESS" };
   let budget = warmupCap(s.first_own_send_at, s.emails_per_day) - (await ownSentToday());
   let sent = 0, skipped = 0;
+  // AI writing takes a few seconds an email: personalize for the first ~2.5 minutes of the run, then send templates, so the cron never times out
+  const aiUntil = Date.now() + 150_000;
   const run = async (rows: OwnLead[], stepOf: (l: OwnLead) => number) => {
     for (const l of rows) {
       if (budget <= 0) break;
-      const r = await sendOwnStep(l, stepOf(l), s);
+      const r = await sendOwnStep(l, stepOf(l), s, aiUntil);
       if (r === "sent") { sent++; budget--; } else skipped++;
     }
   };
-  const cols = "id, token, email, business_name, contact_name, segment, city, phone, website, job_title, posting_source, round, seq_step, status";
+  const cols = "id, token, email, business_name, contact_name, segment, city, state, phone, website, rating, review_count, job_title, posting_source, posting_pay, round, seq_step, status, thread_message_id, thread_subject";
   const { data: due } = await db().from("biz_leads").select(cols).in("status", ["emailing", "clicked"]).lte("next_send_at", new Date().toISOString()).not("email", "is", null).order("next_send_at").limit(200);
   await run((due ?? []) as unknown as OwnLead[], (l) => Number(l.seq_step ?? 0));
   if (budget > 0) {
@@ -602,7 +627,7 @@ export async function checkOutreachInbox(): Promise<{ ok: boolean; read: number;
       read++; lastUid = Math.max(lastUid, m.uid);
       if (m.bounce) {
         if (m.bouncedTo && (await onBizInstantlyEvent({ type: "bounce", email: m.bouncedTo, via: "own" }).catch(() => false))) bounces++;
-      } else if (await onBizInstantlyEvent({ type: "reply_received", email: m.from, text: m.text, via: "own" }).catch(() => false)) replies++;
+      } else if (await onBizInstantlyEvent({ type: "reply_received", email: m.from, text: m.text, via: "own", messageId: m.messageId, references: m.references, subject: m.subject }).catch(() => false)) replies++;
     }
   } catch (e) {
     return { ok: false, read, replies, bounces, error: e instanceof Error ? e.message.slice(0, 300) : String(e) };
@@ -684,4 +709,72 @@ export async function refreshBizLeads(s: BizLeadSettings) {
   if (s.enabled && health.fresh < s.emails_per_day * 5)
     await raiseAlert("sales", "info", `Business leads: only ${health.fresh} fresh lead(s) left`, `That's under a week of sending at ${s.emails_per_day}/day. ${process.env.GOOGLE_PLACES_API_KEY ? `Raise "find per day" in Hub → Business leads (now ${s.discover_per_day}),` : "Set GOOGLE_PLACES_API_KEY so new businesses are found every weekday,"} ${process.env.ADZUNA_APP_ID ? "" : "add ADZUNA_APP_ID / ADZUNA_APP_KEY for businesses that are hiring, "}or import a CSV of new businesses.`);
   return { ...out, health };
+}
+
+// ─── Answering replies from the outreach mailbox ────────────────────────────
+
+/** A reply to our outreach: keep their words, the thread ids and the AI's draft answer (if it passes the honesty checks). */
+async function saveReplyForAnswer(lead: { id: string; token?: string | null }, e: { text?: string | null; messageId?: string | null; references?: string | null; subject?: string | null }, ai: BizReplyTriage | null) {
+  const s = await getBizLeadSettings();
+  const link = lead.token ? `${siteUrl()}/b/${lead.token}` : `${siteUrl()}/business`;
+  const draft = ai?.suggested_reply?.trim() || null;
+  const problems = draft ? checkReplyDraft(draft, [link, `${siteUrl()}/business`, siteUrl()], s.pilot_pct) : [];
+  await db().from("biz_leads").update({
+    reply_text: e.text?.slice(0, 8000) ?? null, reply_message_id: e.messageId ?? null, reply_references: e.references?.slice(0, 4000) ?? null,
+    reply_subject: e.subject?.slice(0, 300) ?? null, reply_at: new Date().toISOString(), reply_draft: draft && !problems.length ? draft : null,
+    reply_intent: ai?.intent ?? null,
+  }).eq("id", lead.id);
+  if (draft && problems.length) await event(lead.id, "ai:reply_draft_held", `The AI's draft wasn't kept (${problems.join("; ")}). Write the answer yourself or press "Draft with AI" again.`, "ai");
+}
+
+/** Ask the AI for a fresh draft answer to the business's last reply. */
+export async function redraftOutreachReply(id: string): Promise<{ ok: boolean; draft?: string; error?: string }> {
+  const { data: l } = await db().from("biz_leads").select("id, business_name, token, reply_text").eq("id", id).maybeSingle();
+  if (!l?.reply_text) return { ok: false, error: "No reply from this business to answer yet." };
+  const ai = await triageBizReply(l, l.reply_text).catch(() => null);
+  if (!ai?.suggested_reply) return { ok: false, error: aiEnabled() ? "The AI didn't draft an answer (their email may not need one)." : "AI is off (ANTHROPIC_API_KEY)." };
+  const s = await getBizLeadSettings();
+  const link = l.token ? `${siteUrl()}/b/${l.token}` : `${siteUrl()}/business`;
+  const problems = checkReplyDraft(ai.suggested_reply, [link, `${siteUrl()}/business`, siteUrl()], s.pilot_pct);
+  if (problems.length) return { ok: false, error: `The draft broke our rules (${problems.join("; ")}). Try again or write it yourself.` };
+  await db().from("biz_leads").update({ reply_draft: ai.suggested_reply, reply_intent: ai.intent }).eq("id", id);
+  return { ok: true, draft: ai.suggested_reply };
+}
+
+/** Staff send the (edited) answer from the outreach mailbox, in the business's thread. */
+export async function sendOutreachReply(id: string, text: string, actor: string): Promise<{ ok: boolean; error?: string }> {
+  const { data: l } = await db().from("biz_leads").select("id, email, status, reply_message_id, reply_references, reply_subject, thread_subject").eq("id", id).maybeSingle();
+  if (!l?.email) return { ok: false, error: "This lead has no email address." };
+  if (!outreachReady()) return { ok: false, error: "The outreach mailbox (handledsvc.net) isn't connected yet." };
+  const { count: out } = await db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", l.email.toLowerCase());
+  if (out || ["unsubscribed", "do_not_contact"].includes(l.status)) return { ok: false, error: "They asked not to be emailed. Don't send." };
+  const s = await getBizLeadSettings();
+  // staff may add their own links and words; a price still belongs in a quote or the booking link
+  if (checkReplyDraft(text, [], s.pilot_pct).some((p) => p.startsWith("a price"))) return { ok: false, error: "Prices go in a quote or the booking link, not in this email. Remove the $ amount." };
+  const base = (l.reply_subject || l.thread_subject || "Handled").replace(/^\s*(re|fwd?)\s*:\s*/i, "");
+  try {
+    await sendOutreach({ to: l.email, subject: `Re: ${base}`, text: `${text.trim()}\n\n—\n${BRAND.legalName} · ${process.env.BUSINESS_POSTAL_ADDRESS ?? ""}`.trim(), inReplyTo: l.reply_message_id, references: l.reply_references });
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message.slice(0, 300) : String(e) }; }
+  await db().from("biz_leads").update({ reply_draft: null, reply_answered_at: new Date().toISOString(), last_contact_at: new Date().toISOString() }).eq("id", id);
+  await event(id, "outreach:reply_sent", text.slice(0, 2000), actor);
+  return { ok: true };
+}
+
+/** What the engine would send this lead at a step (AI-personalized when on), without sending anything. */
+export async function previewOutreachEmail(id: string, step: number): Promise<{ ok: boolean; subject?: string; text?: string; ai?: boolean; error?: string }> {
+  const { data: l } = await db().from("biz_leads").select("*").eq("id", id).maybeSingle();
+  if (!l) return { ok: false, error: "Lead not found" };
+  if (l.segment === "partner") return { ok: false, error: "Teaming partners never get the sales emails." };
+  const s = await getBizLeadSettings();
+  const email = l.email ?? "preview@example.com";
+  const ctx = { step, businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, segment: l.segment as BizSegment, city: l.city, pilotPct: s.pilot_pct, pilotJobs: s.pilot_jobs,
+    signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: unsubscribeUrl(email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS ?? "[BUSINESS_POSTAL_ADDRESS]", jobTitle: l.job_title ?? null, postingSource: l.posting_source ?? null };
+  const round = Math.max(1, Number(l.round ?? 1));
+  const template = round > 1 ? bizReengageEmail(ctx) : bizLeadEmail(ctx);
+  const ai = s.ai_personalize ? await personalizeOutreach({
+    lead: { businessName: l.business_name, firstName: ctx.firstName, segment: ctx.segment, city: l.city, state: l.state ?? null, rating: l.rating ?? null, reviewCount: l.review_count ?? null, jobTitle: l.job_title ?? null, postingPay: l.posting_pay ?? null, website: l.website },
+    step, steps: BIZ_LEAD_SEQUENCE.length, round, template, signupUrl: ctx.signupUrl, pilotPct: s.pilot_pct, keepSubject: step > 0,
+  }).catch(() => null) : null;
+  const m = ai ?? template;
+  return { ok: true, subject: m.subject, text: m.text, ai: Boolean(ai) };
 }

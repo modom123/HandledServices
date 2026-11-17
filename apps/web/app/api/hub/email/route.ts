@@ -14,6 +14,8 @@
  *             { action: "compose", to, subject, text }       — a one-off email from the company mailbox
  *             { action: "optout", email }                    — add someone to the do-not-email list
  * UPDATED : 2026-10-11_0451 UTC — campaigns, settings and checks are admins only; dispatchers can reply, compose one-off emails and record opt-outs.
+ * UPDATED : 2026-11-17_2335 UTC — { action: "ai_write", audience, goal, offer?, spanish? } — the AI campaign writer drafts subject, preview
+ *           text and body (and Spanish) for the editor; nothing is saved or sent (admins).
  */
 import { z } from "zod";
 import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, type EmailAudience } from "@handled/core";
@@ -37,6 +39,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reply"), uid: z.number().int(), to: z.string().email(), subject: z.string().min(1).max(200), text: z.string().min(1).max(50000), in_reply_to: z.string().max(500).nullable().optional(), references: z.string().max(5000).nullable().optional() }),
   z.object({ action: z.literal("compose"), to: z.string().email(), subject: z.string().min(1).max(200), text: z.string().min(1).max(50000) }),
   z.object({ action: z.literal("optout"), email: z.string().email() }),
+  z.object({ action: z.literal("ai_write"), audience: aud, goal: z.string().trim().min(10).max(1500), offer: z.string().trim().max(300).nullable().optional(), spanish: z.boolean().optional() }),
 ]);
 
 export async function POST(req: Request) {
@@ -117,6 +120,11 @@ export async function POST(req: Request) {
         await saveToSent({ to: d.to, subject, text: signed, fromName: s.from_name, messageId: id, inReplyTo: d.action === "reply" ? d.in_reply_to : null }).catch((e) => console.error("[mailbox] save to Sent", e));
         return Response.json({ ok: true });
       } catch (e) { return deny(502, e instanceof Error ? e.message : "Send failed"); }
+    }
+    case "ai_write": {
+      const { writeCampaign } = await import("@/lib/ai/outreach-writer");
+      const r = await writeCampaign({ audience: d.audience as EmailAudience, goal: d.goal, offer: d.offer ?? null, spanish: Boolean(d.spanish) });
+      return r ? Response.json({ ok: true, draft: r }) : deny(409, process.env.ANTHROPIC_API_KEY ? "The AI couldn't write this one — try a clearer goal." : "AI is off (ANTHROPIC_API_KEY not set).");
     }
     case "optout": {
       await db.from("email_optouts").upsert({ email: d.email.trim().toLowerCase() });

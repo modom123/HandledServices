@@ -5,13 +5,16 @@
  * PURPOSE : One business lead (or teaming partner): who they are, contact details, status, the letter (sales leads),
  *           and the full conversation history — every note, call, email, meeting and text, plus automated events —
  *           newest first. Notes are permanent; the history is the account's story.
+ * UPDATED : 2026-11-17_2335 UTC — "They replied" card (their words, the AI's draft answer, send from handledsvc.net in their thread)
+ *           and a preview of what the AI writer would send them.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { timeline } from "@/lib/notes";
-import { BizLeadStatus } from "@/components/BizLeadAdmin";
+import { BizLeadStatus, EmailPreview, OutreachReplyBox } from "@/components/BizLeadAdmin";
+import { outreachReady } from "@/lib/outreach-mail";
 import { AddNote, Timeline } from "@/components/AccountNotes";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +39,8 @@ export default async function BizLead({ params }: { params: Promise<{ id: string
         </div>
         <BizLeadStatus id={id} partner={partner} />
       </div>
+      {l.reply_text && <section className="card"><h2 className="mb-2 text-lg font-bold">They replied</h2><OutreachReplyBox id={id} replyText={l.reply_text} replyAt={l.reply_at} draft={l.reply_draft} intent={l.reply_intent} answeredAt={l.reply_answered_at} canSend={outreachReady() && Boolean(l.email)} /></section>}
+      {!partner && l.email && <details className="card"><summary className="cursor-pointer font-semibold">Email preview (what the AI writer would send from handledsvc.net)</summary><div className="mt-3"><EmailPreview id={id} /></div></details>}
       {l.notes && <section className="card text-sm"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">About</div><p className="mt-1 whitespace-pre-wrap">{l.notes}</p></section>}
       <section className="card"><h2 className="mb-2 text-lg font-bold">Add to the history</h2><AddNote subjectType="biz_lead" subjectId={id} /></section>
       <section className="card"><h2 className="mb-3 text-lg font-bold">History ({items.length})</h2><Timeline items={items} /></section>
