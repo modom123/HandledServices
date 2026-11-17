@@ -62,7 +62,7 @@
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, sizeNeedsSiteVisit, containerPickup, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, splitJob, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -196,14 +196,16 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
   const same = q && q.slug === svc.slug && JSON.stringify(q.answers) === JSON.stringify(input.answers) && q.frequency === input.frequency
     && JSON.stringify(q.photos) === JSON.stringify(input.photos) && (q.notes ?? null) === (input.notes?.trim() || null) && q.rush === rush;
   const consult = consultOnly(svc.slug); // Business & Technology: custom work, scoped and priced on a free consultation
-  const { ai } = svc.siteVisit || quoted || consult
+  // one rule (core siteVisitReason): up to $2,500 is an instant, bookable price — no call or site visit
+  const visitWhy = siteVisitReason(svc.slug, input.answers, est.point);
+  const { ai } = visitWhy || quoted || consult
     ? { ai: null }
     : same
       ? { ai: q.ai as AiQuote | null }
       : await aiQuote({ slug: svc.slug, answers: input.answers, frequency: input.frequency, notes: input.notes, photoUrls: await signedUrls(input.photos), rush, market, region });
   // remote work (websites, AI…) is never a visit: it is ordered with a deposit on the price from the answers
   // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
-  const siteVisit = !quoted && (consult || svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, input.answers)) || overDepositLimit(est.point) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
+  const siteVisit = !quoted && (consult || Boolean(visitWhy) || overDepositLimit(ai?.final_price) || (!svc.remote && (ai?.action === "site_visit" || Boolean(ai?.needs_site_visit))));
   if (ai?.answers) input.answers = ai.answers as BookingInput["answers"]; // book on the corrected scope the price was set on
   const loc = await geocodeAddress({ address: input.address, city: input.city, state: input.state, zip: input.zip }).then((g) => (g ? { lat: g.lat, lng: g.lng } : null));
   // containers are two visits: drop off on the booked date, pick up when the rental ends

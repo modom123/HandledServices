@@ -22,11 +22,11 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { BRAND, SERVICES, estimate, getService, moneyRange, consultOnly, formatCallTime, timeZoneForZip } from "@handled/core";
+import { BRAND, SERVICES, estimate, getService, moneyRange, consultOnly, formatCallTime, timeZoneForZip, siteVisitReason } from "@handled/core";
 import { FALLBACK, MODEL, aiEnabled, anthropic, logRun } from "./client";
 import { systemFor } from "./agent-tasks";
 
-const catalog = SERVICES.map((s) => `- ${s.slug}: ${s.name} — ${s.tagline} (${consultOnly(s.slug) ? "no price quoted: custom work, a free video consultation sets the scope and a fixed price" : `from $${s.minimum}${s.siteVisit ? ", firm price after site visit" : ""}`})`).join("\n");
+const catalog = SERVICES.map((s) => `- ${s.slug}: ${s.name} — ${s.tagline} (${consultOnly(s.slug) ? "no price quoted: custom work, a free video consultation sets the scope and a fixed price" : `from $${s.minimum}`})`).join("\n");
 
 const SYSTEM = `You are the ${BRAND.name} concierge. ${BRAND.pitch}
 Services (slug: name):
@@ -36,7 +36,7 @@ How to help:
 - Figure out which service fits, ask at most 2 short questions, then call get_estimate with your best answers.
 - Also ask how soon they need it (asap, this_week, two_weeks, month or flexible) and, if it helps, their budget. If our price is above their budget, suggest a smaller scope, a flexible date (no priority fee) or a recurring plan — never promise a lower price.
 - Quote only numbers returned by get_estimate, as a range. Mention that photos + notes at booking can tighten the price.
-- For tree work, remodels, HVAC, commercial or very large painting and other big jobs, explain a pro confirms the firm price on a free site visit.
+- Projects up to $2,500 get an instant price they can book right away — no call or site visit needed. Only when get_estimate says site_visit_required (over $2,500, event planning, or a safety case) explain that a pro confirms the firm price on a free site visit.
 - Some services need photos at booking (e.g. junk removal, repairs, painting); tell the customer which shots help.
 - When the customer is ready, point them to /book?service=<slug>&when=<asap|this_week|two_weeks|month|flexible>&budget=<number, if given>. If they'd rather be called, collect name + phone/email and call save_lead; to book the call for a set time, use list_call_times and pass the chosen time as call_at.
 - Payment: customers pay the full price upfront when they book (site visits are free; they pay once the firm quote is approved). ${BRAND.promise}
@@ -60,7 +60,7 @@ const tools = [
       const defaults = Object.fromEntries(svc.questions.map((q) => [q.id, q.default]));
       const region = zip ? await (await import("../launch")).regionFactor(zip, service_slug) : 1;
       const e = estimate({ slug: service_slug, answers: { ...defaults, ...answers }, frequency, region });
-      return JSON.stringify({ range: moneyRange(e.low, e.high), ...(zip ? {} : { note: "Prices vary by area: ask for the ZIP to quote exactly (Washington is higher)." }), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: e.siteVisit, items: e.items });
+      return JSON.stringify({ range: moneyRange(e.low, e.high), ...(zip ? {} : { note: "Prices vary by area: ask for the ZIP to quote exactly (Washington is higher)." }), per: frequency && frequency !== "once" ? "visit" : "job", site_visit_required: Boolean(siteVisitReason(service_slug, { ...defaults, ...answers }, e.point)), visit_reason: siteVisitReason(service_slug, { ...defaults, ...answers }, e.point), items: e.items });
     },
   }),
   betaZodTool({

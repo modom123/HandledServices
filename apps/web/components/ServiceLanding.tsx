@@ -24,7 +24,7 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  */
 import Link from "next/link";
-import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service, consultOnly } from "@handled/core";
+import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, siteVisitReason, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service, consultOnly } from "@handled/core";
 import { categoryHref } from "./site";
 import { Ico, ThemedIcon } from "@/components/Glyph";
 import type { PublicReview } from "@/lib/reviews";
@@ -44,8 +44,9 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
   const book = `/book?service=${s.slug}`;
   const pct = `${Math.round(BOOK_NOW.share * 100)}%`;
   // over $2,500 there's no deposit: a free site visit (remote: an online scope review) sets the firm price first
-  const big = !consult && !s.siteVisit && overDepositLimit(estimate({ slug: s.slug, answers: defaultAnswers(s) }).point);
-  const visitFirst = s.siteVisit || big;
+  // one rule (core siteVisitReason, 2026-11-17_1600 UTC): a typical job up to $2,500 is ordered at an instant price
+  const big = !consult && overDepositLimit(estimate({ slug: s.slug, answers: defaultAnswers(s) }).point);
+  const visitFirst = Boolean(siteVisitReason(s.slug, defaultAnswers(s), estimate({ slug: s.slug, answers: defaultAnswers(s) }).point));
   const limit = `$${SITE_VISIT_OVER.toLocaleString("en-US")}`;
   const cta = consult ? (es ? "Reservar consulta gratis" : "Book a free consultation") : visitFirst ? (es ? tr(locale, "Get my price") : "Get my price") : es ? "Ordenar ahora" : "Order now";
   const steps = consult
@@ -120,7 +121,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         {s.slug === "junk-container" && (
           <Link href="/services/junk-removal" className="mt-3 block rounded-xl border border-line p-3 text-sm hover:border-brand"><Ico i="🚛" /><b>Want us to do the lifting?</b> Book full-service Junk Removal instead.</Link>
         )}
-        {s.siteVisit && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
+        {visitFirst && !consult && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
         {big && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{s.remote ? `Over ${limit}? No deposit — a specialist sends your firm price online first.` : `Over ${limit}? No deposit — a free site visit confirms the firm price first.`}</p>}
         <Link href={book} className="btn-primary mt-5 w-full py-3">{cta}</Link>
         <Link href={`/post?service=${s.slug}`} className="mt-2 block text-center text-sm font-semibold text-brand">{es ? "¿Proyecto distinto? Publíquelo y le llamamos →" : "Something different? Post your project and we'll call you →"}</Link>

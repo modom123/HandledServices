@@ -2870,3 +2870,22 @@ test("call hours settings are cleaned; calendar links", () => {
   assert.match(l.google, /dates=20261118T193000Z%2F20261118T200000Z/);
   assert.match(l.ics, /DTSTART:20261118T193000Z/);
 });
+
+// ─── Instant price up to $2,500, no call or site visit (siteVisitReason, 2026-11-17_1600 UTC) ───────
+import { siteVisitReason, INSTANT_PRICE_UP_TO } from "./intake.ts";
+
+test("instant price up to $2,500: no call or site visit; over it, events, consults and safety cases need one", () => {
+  assert.equal(INSTANT_PRICE_UP_TO, 2500);
+  const tree = getService("tree-removal")!;
+  assert.equal(siteVisitReason("tree-removal", defaultAnswers(tree), 976), null); // used to always need a visit
+  assert.equal(siteVisitReason("foundation-repair", defaultAnswers(getService("foundation-repair")!), 1192), null);
+  assert.equal(siteVisitReason("tree-removal", defaultAnswers(tree), 2500), null); // up to and including $2,500
+  assert.match(siteVisitReason("tree-removal", defaultAnswers(tree), 2501)!, /2,500/);
+  assert.match(siteVisitReason("roofing", { ...defaultAnswers(getService("roofing")!), work: "replace" }, 9000)!, /roof replacement/i); // size reason over the limit
+  assert.equal(siteVisitReason("deck-build", { ...defaultAnswers(getService("deck-build")!), job: "new" }, 2400), null); // a small new deck: instant
+  assert.match(siteVisitReason("water-damage", { ...defaultAnswers(getService("water-damage")!), water: "black" }, 800)!, /Sewage/); // safety, any price
+  assert.ok(siteVisitReason("event-planning", defaultAnswers(getService("event-planning")!), 900)); // planning call first
+  const biz = SERVICES.find((s) => s.category === "business")!;
+  assert.ok(siteVisitReason(biz.slug, defaultAnswers(biz), 500)); // consultation-only
+  assert.equal(siteVisitReason("house-cleaning", defaultAnswers(getService("house-cleaning")!), 210), null);
+});

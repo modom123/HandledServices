@@ -28,7 +28,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { BRAND, consultOnly, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, sizeNeedsSiteVisit, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
+import { BRAND, consultOnly, RUSH_SURCHARGE, securityAdvice, URGENCY, budgetFit, budgetMessage, neededBy, type Urgency, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, photoProblem, photoRule, siteVisitReason, TIME_WINDOW_LABEL, type DaySlots, BOOKING_FEE, offerCheck, splitJob, defaultAnswers, estimate, getService, isRush, questionVisible, missingMeasurements, money, moneyRange, type Answers, type Frequency, type TimeWindow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 import { API_URL, api } from "../../lib/supabase";
 import { Button, C, Card, Chip, ErrorState, Field, Form, StickyBar, s } from "../../components/ui";
 import { payForJob } from "../../lib/pay";
@@ -119,7 +119,9 @@ function BookService({ slug: _slug }: { slug: string }) {
   const listTotal = named ? offerNum : suggested;
   const dp = depositPolicy(svc.slug, listTotal, date);
   const bn = bookNowPolicy(svc.slug, listTotal);
-  const quoteLater = consultOnly(svc.slug) || svc.siteVisit || Boolean(sizeNeedsSiteVisit(svc.slug, answers));
+  // one rule (core siteVisitReason): up to $2,500 is an instant, bookable price — no call or site visit
+  const visitWhy = siteVisitReason(svc.slug, answers, est.point);
+  const quoteLater = Boolean(visitWhy);
   // 25% now and the rest when it's done (default), in full now with 5% off, or a deposit (events, site-visit work)
   const payPlan = quoteLater ? "full" : resolvePlan(plan, dp.allowed, bn.allowed);
   const useDeposit = payPlan === "deposit";
@@ -129,9 +131,9 @@ function BookService({ slug: _slug }: { slug: string }) {
 
   const rule = photoRule(svc.slug);
   const photosMissing = photoProblem(svc.slug, photos.length, locale);
-  const bigJob = sizeNeedsSiteVisit(svc.slug, answers);
+  const bigJob = visitWhy && !consultOnly(svc.slug) ? visitWhy : null; // why a visit: over $2,500 (or the size), events, safety
   const consult = consultOnly(svc.slug); // Business & Technology: custom work, scoped and priced on a free consultation
-  const siteVisit = consult || svc.siteVisit || Boolean(bigJob);
+  const siteVisit = consult || Boolean(visitWhy);
 
   /** Before paying: required photos, then the AI price check (books at exactly the price shown). */
   async function checkAndBook() {

@@ -18,12 +18,14 @@
  * UPDATED : 2026-11-17_1530 UTC — appointment calendar: "Have a person call me" now offers "As soon as possible" or
  *           "Pick a time" (CallScheduler: our open call times, in the visitor's time zone). A booked time needs a phone;
  *           if it was just taken, the calendar reloads. The done screen shows the time with Add-to-calendar links.
+ * UPDATED : 2026-11-17_1600 UTC — up to $2,500: the estimate is the exact price to book now, no call or site visit needed
+ *           (headline price + typical range); over that, or for events / safety cases, the range and why a visit comes first.
  */
 "use client";
 
 import { useRef, useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
-import { BRAND, callCalendarLinks, firstProjectLine, moneyRange } from "@handled/core";
+import { BRAND, INSTANT_PRICE_UP_TO, callCalendarLinks, firstProjectLine, money, moneyRange } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 import { PhotoPicker } from "./PhotoPicker";
 import { CallScheduler, browserTz } from "./CallScheduler";
@@ -32,8 +34,8 @@ type Opt = { slug: string; name: string };
 type Est = {
   service_slug: string | null; service_name: string | null; alternatives: Opt[]; summary: string | null;
   assumptions: { label: string; value: string }[]; answers: Record<string, string | number | boolean>; notes: string | null;
-  price: { low: number; high: number; items: { label: string; amount: number }[] } | null;
-  site_visit: boolean; consult_only: boolean; ai: boolean; tailored: boolean;
+  price: { point: number; low: number; high: number; items: { label: string; amount: number }[] } | null;
+  site_visit: boolean; visit_reason: string | null; consult_only: boolean; ai: boolean; tailored: boolean;
 };
 type Turn = { role: "user" | "assistant"; content: string };
 
@@ -60,7 +62,10 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
   const timings = [["asap", L("As soon as possible", "Lo antes posible")], ["week", L("Within a week", "En una semana")], ["month", L("Within a month", "En un mes")], ["flexible", L("I'm flexible", "Tengo flexibilidad")]];
   const budgets = [["u500", L("Under $500", "Menos de $500")], ["500-2000", "$500 – $2,000"], ["2000-10000", "$2,000 – $10,000"], ["10000+", L("Over $10,000", "Más de $10,000")], ["unsure", L("Not sure yet", "Aún no sé")]];
   const label = (list: string[][], v: string) => list.find(([k]) => k === v)?.[1] ?? "";
-  const priceText = est?.price ? moneyRange(est.price.low, est.price.high) : null;
+  // up to $2,500 the estimate is the price to book now (no call); bigger jobs show a range until the free site visit
+  const instant = Boolean(est?.price && !est.site_visit);
+  const priceText = est?.price ? (instant ? money(est.price.point) : moneyRange(est.price.low, est.price.high)) : null;
+  const limit = `$${INSTANT_PRICE_UP_TO.toLocaleString("en-US")}`;
 
   async function getEstimate(service = f.service) {
     if (!service && f.details.trim().length < 10 && !photos.length) { setErr(L("Tell us what you need — pick a service or describe the project.", "Díganos qué necesita: elija un servicio o describa el proyecto.")); return; }
@@ -96,7 +101,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       f.timing && `Timing: ${label(timings, f.timing)}`,
       f.budget && `Budget: ${label(budgets, f.budget)}`,
       est?.service_name && `Matched service: ${est.service_name}`,
-      priceText ? `Online estimate shown: ${priceText}${est?.site_visit ? " (firm price after free site visit)" : ""}` : est?.consult_only ? "Online estimate: consultation-only (no price shown)" : null,
+      priceText ? `Online estimate shown: ${priceText}${est?.site_visit ? ` (firm price after free site visit${est.visit_reason ? `: ${est.visit_reason}` : ""})` : " (instant price, bookable now)"}` : est?.consult_only ? "Online estimate: consultation-only (no price shown)" : null,
       est?.assumptions.length ? `Estimate assumed: ${est.assumptions.map((a) => `${a.label}: ${a.value}`).join("; ")}` : null,
       photos.length ? `Photos: ${photos.length} uploaded` : null,
     ].filter(Boolean).join("\n");
@@ -210,8 +215,8 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
                 {est.consult_only
                   ? <div className="text-xl font-bold">{L("Custom quote after a free video consultation", "Precio a medida tras una consulta gratis por video")}</div>
                   : <div className="text-3xl font-extrabold tracking-tight">{priceText}</div>}
-                {est.price && est.site_visit && <p className="mt-1 text-xs text-ink-soft">{L("Ballpark range. Big jobs get a free site visit for a firm, fixed price before you pay anything.", "Rango aproximado. Los trabajos grandes reciben una visita gratis para un precio fijo antes de pagar.")}</p>}
-                {est.price && !est.site_visit && <p className="mt-1 text-xs text-ink-soft">{L("You'll see the exact price before you pay — the price shown at checkout is the price charged.", "Verá el precio exacto antes de pagar: el precio al pagar es el precio cobrado.")}</p>}
+                {est.price && est.site_visit && <p className="mt-1 text-xs text-ink-soft">{L(`Ballpark range${est.visit_reason ? ` (${est.visit_reason})` : ""}. A free site visit sets the firm, fixed price before you pay anything.`, `Rango aproximado${est.visit_reason ? ` (${est.visit_reason})` : ""}. Una visita gratis fija el precio antes de pagar.`)}</p>}
+                {est.price && instant && <p className="mt-1 text-sm"><span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{L("Book now — no call or site visit needed", "Reserve ya: sin llamada ni visita")}</span> <span className="text-xs text-ink-soft">{L(`Typical range ${moneyRange(est.price.low, est.price.high)}. Projects up to ${limit} are priced instantly; photos at checkout let us confirm it, and the price you approve is the price charged.`, `Rango típico ${moneyRange(est.price.low, est.price.high)}. Los proyectos hasta ${limit} tienen precio al instante; con fotos lo confirmamos, y el precio que aprueba es el que se cobra.`)}</span></p>}
                 {est.price && f.budget && BUDGET_MAX[f.budget] && est.price.low > BUDGET_MAX[f.budget] && <p className="mt-2 rounded-lg bg-gold-light/30 p-2 text-xs">{L("That's above the budget you gave. Your AI project manager can help find a smaller first phase or a flexible date that fits.", "Está por encima de su presupuesto. Su gerente de proyecto con IA puede ayudarle a encontrar una primera fase más pequeña o una fecha flexible.")}</p>}
               </div>
               {est.summary && <p className="text-sm">{est.summary}</p>}

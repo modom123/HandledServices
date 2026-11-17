@@ -58,7 +58,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, sizeNeedsSiteVisit, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
+  BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, siteVisitReason, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
@@ -194,15 +194,17 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     setQuoteToken(json.quote_token ?? null);
   }
   // the AI price check runs automatically before payment whenever there are photos or notes
-  const needsCheck = Boolean(!quote && svc && !consult && !svc.siteVisit && !(svc && sizeNeedsSiteVisit(svc.slug, answers)) && (notesOut.trim() || photos.length));
+  // one rule (core siteVisitReason): up to $2,500 is an instant, bookable price — no call or site visit
+  const visitWhy = svc && est ? siteVisitReason(svc.slug, answers, est.point) : null;
+  const needsCheck = Boolean(!quote && svc && !consult && !visitWhy && (notesOut.trim() || photos.length));
   useEffect(() => {
     if (step === 3 && needsCheck && !aiTried && !aiBusy) runAi();
   }, [step, needsCheck, aiTried, aiBusy]); // eslint-disable-line react-hooks/exhaustive-deps
-  const bigJob = svc ? sizeNeedsSiteVisit(svc.slug, answers) : null;
+  const overLimit = Boolean(est && !consult && overDepositLimit(est.point));
+  const bigJob = visitWhy && !consult && !overLimit && svc?.category !== "events" ? visitWhy : null; // a safety reason (sewage, mold in ducts, out-of-state charter)
   // remote work (websites, AI…) is never a visit: it is priced from the answers and ordered with a deposit
   // over $2,500: no deposit — a free site visit (remote: an online scope review) confirms the firm price first
-  const overLimit = Boolean(est && !consult && !svc?.siteVisit && overDepositLimit(est.point));
-  const siteVisit = !quote && Boolean(consult || svc?.siteVisit || bigJob || overLimit || (ai?.action === "site_visit" && !svc?.remote));
+  const siteVisit = !quote && Boolean(consult || visitWhy || overDepositLimit(ai?.final_price) || (ai?.action === "site_visit" && !svc?.remote));
   const rule = svc ? photoRule(svc.slug) : null;
   const photosMissing = svc ? photoProblem(svc.slug, photos.length, locale) : null;
   // required measurements (yard sq ft, weight, height…) must be filled in before the price step
