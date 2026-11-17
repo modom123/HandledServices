@@ -9,6 +9,9 @@
  *                                  recruiting tools (pipeline by stage, new applications, pros in vetting, legal checks on pros)
  *           The to-do list is shared between the two offices and goes back and forth (lib/office-todos.ts).
  *           Setup (env names) in lib/offices.ts and lib/zoom.ts.
+ * UPDATED : 2026-11-17_2330 UTC — email reads in place (OfficeMail): opening an email stays on the office page, and Back
+ *           (the link or the browser's) returns to the inbox instead of leaving the office. The page also loads faster:
+ *           the inbox loads after the page instead of holding it up.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,10 +20,9 @@ import { adminClient } from "@/lib/supabase/server";
 import { adminOnly } from "@/components/AdminOnly";
 import { Stat } from "@/components/ui";
 import { OFFICES, officeBySlug, officeEmail, officeMail, officeZoomLink, officeZoomUser, type Office } from "@/lib/offices";
-import { listInbox } from "@/lib/mailbox";
 import { upcomingZoomMeetings, zoomReady } from "@/lib/zoom";
 import { listTodos, otherOffice } from "@/lib/office-todos";
-import { OfficeCompose, TodoBoard, VerifyMailbox, ZoomScheduler, type TodoView } from "@/components/Office";
+import { OfficeMail, TodoBoard, VerifyMailbox, ZoomScheduler, type TodoView } from "@/components/Office";
 
 export const dynamic = "force-dynamic";
 
@@ -109,32 +111,17 @@ async function RecruitingTools() {
   );
 }
 
-async function Mail({ o }: { o: Office }) {
+function Mail({ o }: { o: Office }) {
   const acct = officeMail(o);
-  let error: string | null = null;
-  const items = acct ? await listInbox(12, acct).catch((e: Error) => { error = e.message; return []; }) : [];
   return (
     <section className="card space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">✉️ Email{officeEmail(o) ? ` · ${officeEmail(o)}` : ""}</h2>
         {acct && <VerifyMailbox office={o.slug} />}
       </div>
-      {!acct && <p className="rounded bg-amber-50 p-2 text-sm">Not connected yet. In Vercel → Environment Variables add <code>OFFICE_{o.key}_EMAIL</code> ({o.first}&apos;s mailbox address) and <code>OFFICE_{o.key}_PASSWORD</code>, then redeploy.</p>}
-      {error && <p className="rounded bg-rose-50 p-2 text-sm">Couldn&apos;t open the inbox: {error}</p>}
-      {acct && (
-        <ul className="divide-y divide-line text-sm">
-          {items.map((m) => (
-            <li key={m.uid}>
-              <Link href={`/hub/office/${o.slug}/mail/${m.uid}`} className="flex flex-wrap justify-between gap-2 py-1.5 hover:bg-paper">
-                <span className={m.seen ? "" : "font-semibold"}>{m.fromName ?? m.from} — {m.subject}</span>
-                <span className="text-xs text-ink-soft">{when(m.date)}</span>
-              </Link>
-            </li>
-          ))}
-          {!items.length && !error && <li className="py-1.5 text-ink-soft">Inbox is empty.</li>}
-        </ul>
+      {acct ? <OfficeMail office={o.slug} first={o.first} /> : (
+        <p className="rounded bg-amber-50 p-2 text-sm">Not connected yet. In Vercel → Environment Variables add <code>OFFICE_{o.key}_EMAIL</code> ({o.first}&apos;s mailbox address) and <code>OFFICE_{o.key}_PASSWORD</code>, then redeploy.</p>
       )}
-      {acct && <details><summary className="cursor-pointer text-sm font-semibold text-brand">New email</summary><div className="mt-2"><OfficeCompose office={o.slug} first={o.first} /></div></details>}
     </section>
   );
 }

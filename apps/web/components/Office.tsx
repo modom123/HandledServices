@@ -7,7 +7,7 @@
  *           (TodoBoard: on my desk / with the other office, send back and forth, done, notes, history). All POST /api/hub/office.
  */
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 async function call(body: Record<string, unknown>) {
@@ -221,6 +221,90 @@ export function TodoBoard({ office, other, names, todos, done, error }: { office
           <summary className="cursor-pointer text-ink-soft">Recently done ({done.length})</summary>
           <ul className="divide-y divide-line">{done.map((t) => <TodoItem key={t.id} t={t} office={office} other={other} names={names} />)}</ul>
         </details>
+      )}
+    </div>
+  );
+}
+
+// ─── the office mailbox, read in place (2026-11-17_2330): opening an email never leaves the office page, and the
+//     browser's Back button just closes the email (history entry ?mail=<uid>) ───
+interface MailItem { uid: number; from: string; fromName: string | null; subject: string; date: string; seen: boolean }
+interface MailFull extends MailItem { to: string; text: string; messageId: string | null; references: string | null }
+
+export function OfficeMail({ office, first }: { office: string; first: string }) {
+  const [items, setItems] = useState<MailItem[] | null>(null);
+  const [err, setErr] = useState("");
+  const [open, setOpen] = useState<MailFull | null>(null);
+  const [loading, setLoading] = useState<number | null>(null);
+  const [compose, setCompose] = useState(false);
+
+  const load = async () => {
+    setErr("");
+    const r = await call({ action: "inbox", office, limit: 25 });
+    if (r.ok) setItems(r.data.items as MailItem[]); else { setErr(r.data.error ?? "Couldn't load the inbox"); setItems((x) => x ?? []); }
+  };
+  const show = async (uid: number, push: boolean) => {
+    setLoading(uid); setErr("");
+    const r = await call({ action: "read", office, uid });
+    setLoading(null);
+    if (!r.ok) { setErr(r.data.error ?? "Couldn't open that email"); return; }
+    setOpen(r.data.message as MailFull);
+    setItems((xs) => xs?.map((m) => (m.uid === uid ? { ...m, seen: true } : m)) ?? xs);
+    if (push) window.history.pushState({ mail: uid }, "", `?mail=${uid}`);
+  };
+  const close = () => {
+    if (window.history.state?.mail) window.history.back(); // pops our entry → popstate closes it
+    else setOpen(null);
+  };
+
+  useEffect(() => {
+    void load();
+    const deep = Number(new URLSearchParams(window.location.search).get("mail"));
+    if (deep) void show(deep, false);
+    const onPop = () => {
+      const uid = Number(new URLSearchParams(window.location.search).get("mail"));
+      if (uid) void show(uid, false); else setOpen(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const when = (iso: string) => new Date(iso).toLocaleString("en-US", { timeZone: "America/Detroit", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  if (open) return (
+    <div className="space-y-3 text-sm">
+      <button className="text-brand underline" onClick={close}>← Back to inbox</button>
+      <div className="space-y-1">
+        <h3 className="text-base font-bold">{open.subject}</h3>
+        <p className="text-xs text-ink-soft">From {open.fromName ? `${open.fromName} <${open.from}>` : open.from} · {when(open.date)}</p>
+      </div>
+      <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded bg-paper p-2 font-sans text-sm">{open.text}</pre>
+      {open.from && <OfficeReply office={office} uid={open.uid} to={open.from} subject={open.subject} inReplyTo={open.messageId} references={open.references} />}
+      {err && <p className="text-xs text-rose-700">{err}</p>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="flex items-center gap-3">
+        <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setCompose(!compose)}>{compose ? "Close" : "✏️ New email"}</button>
+        <button className="text-xs text-brand underline" onClick={() => { setItems(null); void load(); }}>Refresh</button>
+      </div>
+      {compose && <OfficeCompose office={office} first={first} />}
+      {err && <p className="text-xs text-rose-700">{err}</p>}
+      {items === null ? <p className="text-ink-soft">Loading inbox…</p> : (
+        <ul className="divide-y divide-line">
+          {items.map((m) => (
+            <li key={m.uid}>
+              <button className="flex w-full flex-wrap justify-between gap-2 py-1.5 text-left hover:bg-paper" onClick={() => show(m.uid, true)} disabled={loading !== null}>
+                <span className={m.seen ? "" : "font-semibold"}>{m.fromName ?? m.from} — {m.subject}</span>
+                <span className="text-xs text-ink-soft">{loading === m.uid ? "Opening…" : when(m.date)}</span>
+              </button>
+            </li>
+          ))}
+          {!items.length && !err && <li className="py-1.5 text-ink-soft">Inbox is empty.</li>}
+        </ul>
       )}
     </div>
   );

@@ -3,6 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-11-17_2300 UTC
  * PURPOSE : Front Office → an office's email: read one message from the office's own mailbox and reply from it (admins only).
+ * UPDATED : 2026-11-17_2330 UTC — kept for old links; the office page now reads mail in place (components/Office OfficeMail).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";

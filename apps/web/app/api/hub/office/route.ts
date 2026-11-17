@@ -14,11 +14,13 @@
  *             { action: "todo_done" | "todo_reopen", office, id, note? }
  *             { action: "todo_note", office, id, note }
  *             { action: "todo_delete", office, id }
+ * UPDATED : 2026-11-17_2330 UTC — smoother email: the office page reads mail in place (no page change), so going back never
+ *           leaves the office:  { action: "inbox", office, limit? }  { action: "read", office, uid }
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin } from "@/lib/auth";
 import { officeBySlug, officeMail, officeSignature, officeZoomUser } from "@/lib/offices";
-import { saveToSent, sendMail, verifyMailbox } from "@/lib/mailbox";
+import { listInbox, readMessage, saveToSent, sendMail, verifyMailbox } from "@/lib/mailbox";
 import { createZoomMeeting } from "@/lib/zoom";
 import { addTodo, deleteTodo, noteTodo, sendTodo, setTodoDone } from "@/lib/office-todos";
 
@@ -30,6 +32,8 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("zoom"), office, topic: z.string().trim().min(2).max(200), start: z.string().datetime({ offset: true }), minutes: z.number().int().min(10).max(480),
     invite: z.string().email().nullable().optional().or(z.literal("")), note: z.string().max(2000).nullable().optional() }),
   z.object({ action: z.literal("verify"), office }),
+  z.object({ action: z.literal("inbox"), office, limit: z.number().int().min(1).max(100).optional() }),
+  z.object({ action: z.literal("read"), office, uid: z.number().int().min(1) }),
   z.object({ action: z.literal("todo_add"), office, to: office, title: z.string().trim().min(2).max(200), details: z.string().max(4000).nullable().optional(),
     due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal("")), priority: z.enum(["normal", "high"]).optional() }),
   z.object({ action: z.enum(["todo_send", "todo_done", "todo_reopen", "todo_delete"]), office, id: z.string().uuid(), note: z.string().max(2000).nullable().optional() }),
@@ -55,6 +59,14 @@ export async function POST(req: Request) {
       case "todo_reopen": await setTodoDone(d.id, d.office, false, d.note ?? null, v!.email); return Response.json({ ok: true });
       case "todo_note": await noteTodo(d.id, d.office, d.note, v!.email); return Response.json({ ok: true });
       case "todo_delete": await deleteTodo(d.id); return Response.json({ ok: true });
+      case "inbox":
+        if (!acct) return deny(409, mailOff);
+        return Response.json({ ok: true, items: await listInbox(d.limit ?? 25, acct) });
+      case "read": {
+        if (!acct) return deny(409, mailOff);
+        const m = await readMessage(d.uid, acct);
+        return m ? Response.json({ ok: true, message: m }) : deny(404, "That email isn't in the inbox anymore");
+      }
       case "verify":
         return Response.json({ ok: true, ...(await verifyMailbox(acct ?? { user: "", pass: "" })) });
       case "compose":
