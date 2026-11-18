@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-28_0122 UTC — partner-v2 rates from @handled/core (same rate on every service).
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
+ * UPDATED : 2026-11-18_0125 UTC — direct sales 15% → 45% (the Handled Sales Force).
  */
 import Link from "next/link";
 import { PARTNER_PROGRAM, referralRange } from "@handled/core";
@@ -26,7 +27,7 @@ export function PartnerBand({ es }: { es: boolean }) {
             <p className="mt-3 max-w-xl text-white/80">{es ? `Comparta su enlace o envíenos un cliente y gane del ${referralRange()} de cada trabajo durante ${PARTNER_PROGRAM.months} meses, pagado cada lunes. Gratis para unirse, ideal para agentes inmobiliarios, administradores de propiedades, negocios locales y cualquiera con una red.` : `Share your link or send us a customer and earn ${referralRange()} of every job they book for ${PARTNER_PROGRAM.months} months, paid every Monday. Free to join, great for realtors, property managers, local businesses and anyone with a network.`}</p>
             <div className="mt-4 grid max-w-xl gap-2 text-sm sm:grid-cols-2">
               <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "1 · Referidos" : "1 · Referrals"}</b><br />{es ? `Usted los envía, nosotros vendemos: del ${referralRange()} del trabajo.` : `You send them, we sell it: ${referralRange()} of the job.`}</div>
-              <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "2 · Ventas directas" : "2 · Direct sales"}</b><br />{es ? "Usted vende con un ticket y el cliente paga en el momento: del 10% al 45% de nuestra ganancia, medio tiempo o completo." : "You sell it on a ticket and the customer pays on the spot: 10% up to 45% of our profit. Part-time or full-time."}</div>
+              <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "2 · Ventas directas" : "2 · Direct sales"}</b><br />{es ? "Usted vende con un ticket y el cliente paga en el momento: del 15% al 45% de nuestra ganancia, medio tiempo o completo." : "You sell it on a ticket and the customer pays on the spot: 15% up to 45% of our profit. Part-time or full-time."}</div>
             </div>
           </div>
           <div className="flex flex-col gap-3 md:items-end">

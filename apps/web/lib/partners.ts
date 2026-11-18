@@ -41,6 +41,7 @@
  *           profit, never below the ladder rate they already earned (core sellerRate); after a client's first 12 months a
  *           member keeps earning their book share (tier 'book') while active; the Monday run also pays sales_pay lines
  *           (team shares, walkthroughs held, first-sale and promotion bonuses).
+ * UPDATED : 2026-11-18_0125 UTC — a partner's first direct sale puts them in the Sales Force, so every direct sale is paid at a rank share (15% → 45%).
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -309,7 +310,12 @@ export async function partnerSplitForJob(job: Job): Promise<Split | null> {
   if (!ref) return null;
   const o = { price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) };
   const take = partnerTake(o);
-  const salesRank = ref.source === "sale" ? await (await import("./sales-force")).salesRankOf(job.partner_id).catch(() => null) : null;
+  let salesRank = ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale ? await (await import("./sales-force")).salesRankOf(job.partner_id).catch(() => null) : null;
+  // one way to be paid for direct sales: a partner's first completed direct sale puts them in the Sales Force (Associate AE)
+  if (!salesRank && (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale)) {
+    const sf = await import("./sales-force");
+    if (await sf.salesForceReady().catch(() => false) && (await sf.joinSalesForce(job.partner_id, null, "first direct sale")).ok) salesRank = "associate";
+  }
   if (new Date(job.created_at) > new Date(ref.expires_at)) {
     // booked after the 12 months: only a Sales Force rep's own client still pays, at their book share
     const book = salesRank ? SALES_RANKS[salesRank].bookShare : 0;

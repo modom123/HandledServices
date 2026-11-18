@@ -16,10 +16,11 @@
  * UPDATED : 2026-11-10_1450 UTC — "Grow your partner business" card linking the Partner Success roadmap (/partner/grow).
  * UPDATED : 2026-11-18_0105 UTC — Sales Force card (rank, commission, next rank, team and recruit link, leaderboard, pay) for
  *           members; a link to the sales careers page for everyone else.
+ * UPDATED : 2026-11-18_0125 UTC — direct-sales rate shown is the Sales Force rank share (15% → 45%); the old ladder card is replaced.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { roadmapFor, PARTNER_LADDER, PARTNER_PROGRAM, SALES_DRAW, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
+import { SALES_RANKS, sellerRate, roadmapFor, PARTNER_LADDER, PARTNER_PROGRAM, SALES_DRAW, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
@@ -61,6 +62,8 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     db.from("partner_commissions").select("*, jobs(ref, service_slug, completed_at, contact_email)").eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(500),
   ]);
   const link = partnerLink(partner.code), short = `${siteUrl()}/r/${partner.code}`;
+  // direct sales: the rank's share (Sales Force), never below a ladder rate already earned; 15% before the first sale
+  const directRate = salesForce ? sellerRate(salesForce.rank, stats.level.rate) : SALES_RANKS.associate.sellerShare;
   const services = SERVICES.map((s) => [s.slug, s.name] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
   type Comm = { id: string; amount: number; status: string; eligible_at: string; paid_at: string | null; tier?: string | null; rate?: number | null; jobs: { ref: string; service_slug: string; completed_at: string | null; contact_email: string } | null };
   const C = (comms ?? []) as unknown as Comm[];
@@ -87,7 +90,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       )}
       <div>
         <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]}<span className="pro:hidden"> 👋</span></h1>
-        <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price (rising to {pct(REFERRAL_LADDER.topRate)}), or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} of our profit (rising to {pct(PARTNER_LADDER.topRate)}).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
+        <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price (rising to {pct(REFERRAL_LADDER.topRate)}), or <b>sell</b> the job yourself and earn {pct(directRate)} of our profit (rising to {pct(SALES_RANKS.vp.sellerShare)} as you move up the Sales Force).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
       </div>
       <Link href="/partner/grow" className="card flex flex-wrap items-center justify-between gap-3 border-t-4 border-t-brand hover:border-brand">
         <span><span className="block font-bold">Grow your partner business →</span><span className="text-sm text-ink-soft">Your roadmap: {roadmapFor(partner.kind).name}. Goals tracked from your real numbers, what to do next, and the services to sell.</span></span>
@@ -97,30 +100,15 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
         : <Link href="/careers/sales" className="card flex flex-wrap items-center justify-between gap-3 hover:border-brand"><span><span className="block font-bold">Want to sell for a living?</span><span className="text-sm text-ink-soft">The Handled Sales Force: start as an Associate AE and grow to VP of Sales, on the money you make Handled.</span></span><span className="btn-ghost">See the path</span></Link>}
       <div className="grid gap-3 sm:grid-cols-2">
         <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of the job price today, up to {pct(REFERRAL_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
-        <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of our profit today, up to {pct(PARTNER_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
+        <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(directRate)} of our profit today, up to {pct(SALES_RANKS.vp.sellerShare)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
       </div>
 
-      <section className="card">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-bold">Your direct-sales level: {stats.level.level} · {pct(stats.level.rate)} of profit</h2>
-          <span className="text-sm text-ink-soft">Level credit: <b>{money(stats.level.profit)}</b> · {stats.level.jobs} job credit{stats.level.jobs === 1 ? "" : "s"}</span>
-        </div>
-        {stats.level.next ? (() => {
-          const n = stats.level.next!, from = ladderTable()[stats.level.level].profit;
-          const done = Math.max(0, Math.min(100, ((stats.level.profit - from) / Math.max(1, n.profit - from)) * 100));
-          return (<>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-brand" style={{ width: `${done}%` }} /></div>
-            <p className="mt-2 text-sm">Next raise to <b>{pct(n.rate)}</b>: {money(n.profitToGo)} more credit{n.jobsToGo !== null && n.jobsToGo > 0 ? <> — or {n.jobsToGo} more job credit{n.jobsToGo === 1 ? "" : "s"}</> : null}.</p>
-          </>);
-        })() : <p className="mt-2 text-sm font-semibold text-brand-dark">You&apos;re at the top rate. Thank you for everything you&apos;ve built with us.</p>}
-        <p className="mt-2 text-xs text-ink-soft">Both ways build your level: profit from your direct sales counts {PARTNER_LADDER.directCredit}×, from your referrals {PARTNER_LADDER.referralCredit}×. Profit = the job price minus what the pro is paid and any refunds. Your level credit sets both rates: direct sales on this ladder, referrals on the referral ladder below. Levels never go down.</p>
-        <details className="mt-3 text-sm"><summary className="cursor-pointer text-ink-soft">See the whole ladder</summary>
-          <p className="mt-2 text-xs text-ink-soft">Every level is +1 point. Every {PARTNER_LADDER.jobsPerStep} job credits also moves you up one level, up to {pct(PARTNER_LADDER.jobsCapRate)}.</p>
-          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">{ladderTable().map((r) => (
-            <div key={r.level} className={`flex justify-between ${r.level === stats.level.level ? "font-bold text-brand-dark" : ""}`}><span>{pct(r.rate)}</span><span className="tabular-nums">{money(r.profit)}</span></div>
-          ))}</div>
-        </details>
-      </section>
+      {!salesForce && (
+        <section className="card text-sm">
+          <h2 className="font-bold">Direct sales pay {pct(SALES_RANKS.associate.sellerShare)} → {pct(SALES_RANKS.vp.sellerShare)} of our profit</h2>
+          <p className="mt-1 text-ink-soft">Your first direct sale makes you an Associate Account Executive in the Handled Sales Force. From there your share rises with every promotion, based on your totals since day one. <a href="/careers/sales" className="font-semibold text-brand underline">See the promotion chart</a></p>
+        </section>
+      )}
 
       <h2 id="referrals" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 1 · Referrals</h2>
       <div className="card border-t-4 border-t-gold">
@@ -181,7 +169,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       <h2 id="direct" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 2 · Direct sales</h2>
       <section className="card">
         <h3 className="font-bold">Write a sales ticket</h3>
-        <p className="mb-3 mt-1 text-sm text-ink-soft">Sell any Handled service. The ticket holds everything needed to close: the service and its sizes, {SALES_TICKET.minPhotos}–{SALES_TICKET.maxPhotos} photos for on-site work (none for remote services like websites), the customer, when they need it, and the price you showed. We text them the pay link, or they pay right now on your phone. Once paid, the job goes to the job board; you&apos;re paid {pct(stats.level.rate)} of our profit when it&apos;s completed. Their repeat visits for {PARTNER_PROGRAM.months} months pay you the same way.</p>
+        <p className="mb-3 mt-1 text-sm text-ink-soft">Sell any Handled service. The ticket holds everything needed to close: the service and its sizes, {SALES_TICKET.minPhotos}–{SALES_TICKET.maxPhotos} photos for on-site work (none for remote services like websites), the customer, when they need it, and the price you showed. We text them the pay link, or they pay right now on your phone. Once paid, the job goes to the job board; you&apos;re paid {pct(directRate)} of our profit when it&apos;s completed. Their repeat visits for {PARTNER_PROGRAM.months} months pay you the same way.</p>
         <SalesTicketForm services={services} minPhotos={SALES_TICKET.minPhotos} maxPhotos={SALES_TICKET.maxPhotos} repCode={partner.code} />
       </section>
 

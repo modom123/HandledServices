@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-07_0033 UTC — owner: a fifth door, Business & Technology → /technology, where the websites, operating systems and
  *           automation services are (they're no longer on the home page itself). Five across on wide screens; on phones it
  *           spans the full row under the other four.
+ * UPDATED : 2026-11-18_0125 UTC — direct sales 15% → 45% (the Handled Sales Force).
  */
 import Link from "next/link";
 import { referralRange } from "@handled/core";
@@ -20,7 +21,7 @@ export function HomeDoors({ es, servicesCount }: { es: boolean; servicesCount: n
   const doors = [
     { href: "/services", icon: "🧽", title: es ? "Servicios" : "Services", body: es ? `Los ${servicesCount} servicios, con precio al instante` : `All ${servicesCount} services, priced instantly`, cta: es ? "Ver servicios" : "See services" },
     { href: "/pros#apply", icon: "🧰", title: es ? "Hágase profesional" : "Become a Pro", body: es ? "Trabajos pagados, pago semanal, sin cuotas" : "Paid jobs, weekly pay, no lead fees", cta: es ? "Postularme" : "Apply now" },
-    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? `Refiera (${referralRange()} del trabajo) o venda usted mismo (del 10% al 45% de la ganancia)` : `Refer (${referralRange()} of the job) or sell it yourself (10% up to 45% of profit)`, cta: es ? "Registrarme" : "Sign up" },
+    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? `Refiera (${referralRange()} del trabajo) o venda usted mismo (del 15% al 45% de la ganancia)` : `Refer (${referralRange()} of the job) or sell it yourself (15% up to 45% of profit)`, cta: es ? "Registrarme" : "Sign up" },
     { href: "/network", icon: "🌐", title: es ? "Red Handled" : "Handled Network", body: es ? "Su portal: clientes, empresas, profesionales, socios y equipo" : "Your portal: customers, businesses, pros, partners & team", cta: es ? "Entrar" : "Sign in" },
     { href: "/technology", icon: "💡", title: es ? "Negocios y tecnología" : "Business & Technology", body: es ? "Sitios web inteligentes, sistemas para negocios y automatización" : "Intelligent websites, business systems and automation", cta: es ? "Ver servicios de automatización" : "See automation services", wide: true },
   ];

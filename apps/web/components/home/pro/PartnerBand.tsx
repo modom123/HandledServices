@@ -10,6 +10,7 @@
  * UPDATED : 2026-11-09_0200 UTC — no emoji in the badge; squarer corners.
  * UPDATED : 2026-11-09_0330 UTC — part of the Professional look (lib/theme.ts "pro"); the original look keeps components/home/*.
  * UPDATED : 2026-11-10_0100 UTC — synced with main: two ways to earn (referrals at the referral range, direct sales 10%–45% of profit).
+ * UPDATED : 2026-11-18_0125 UTC — direct sales 15% → 45% (the Handled Sales Force).
  */
 import Link from "next/link";
 import { PARTNER_PROGRAM, referralRange } from "@handled/core";
@@ -26,7 +27,7 @@ export function PartnerBand({ es }: { es: boolean }) {
             <p className="mt-2 max-w-xl text-white/80">{es ? `Comparta su enlace o envíenos un cliente y gane del ${referralRange()} de cada trabajo durante ${PARTNER_PROGRAM.months} meses, pagado cada lunes. Su tasa sube a medida que crece.` : `Share your link or send us a customer and earn ${referralRange()} of every job they book for ${PARTNER_PROGRAM.months} months, paid every Monday. Your rate climbs as you grow.`}</p>
             <div className="mt-4 grid max-w-xl gap-2 text-sm sm:grid-cols-2">
               <div className="rounded-lg bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "1 · Referidos" : "1 · Referrals"}</b><br />{es ? `Usted los envía, nosotros vendemos: del ${referralRange()} del trabajo.` : `You send them, we sell it: ${referralRange()} of the job.`}</div>
-              <div className="rounded-lg bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "2 · Ventas directas" : "2 · Direct sales"}</b><br />{es ? "Usted vende con un ticket y el cliente paga en el momento: del 10% al 45% de nuestra ganancia." : "You sell it on a ticket and the customer pays on the spot: 10% up to 45% of our profit."}</div>
+              <div className="rounded-lg bg-white/10 p-3 ring-1 ring-white/15"><b className="text-gold-light">{es ? "2 · Ventas directas" : "2 · Direct sales"}</b><br />{es ? "Usted vende con un ticket y el cliente paga en el momento: del 15% al 45% de nuestra ganancia." : "You sell it on a ticket and the customer pays on the spot: 15% up to 45% of our profit."}</div>
             </div>
           </div>
           <div className="flex flex-col gap-3 md:items-end">

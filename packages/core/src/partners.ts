@@ -25,10 +25,13 @@
  *           the Partner Program and gets FIRST_PROJECT_REWARD back on their OWN first project — 10% of the price, up to
  *           $250, paid by Handled alone (referral_customers.source 'self', partner_commissions.tier 'self'). The one
  *           exception to "referring yourself doesn't count".
+ * UPDATED : 2026-11-18_0125 UTC — partner-v6: direct sales are the Handled Sales Force (rank shares 15% → 45% of profit, cumulative ranks,
+ *           book share after 12 months, team shares); the Field Sales ladder only sets referral level credit now.
  * UPDATED : 2026-11-10_0400 UTC — partner-v5: lead pay — $10 per lead as a draw against that lead's commission, unlocked
  *           after 10 leads and one paid-out sale (SALES_DRAW, drawUnlocked, drawRecovery).
  */
 import { BRAND } from "./brand.ts";
+import { SALES_RANKS } from "./sales-force.ts";
 import { CARD_FEE } from "./pricing.ts";
 import { getService, missingMeasurements, type Answers } from "./services.ts";
 import { photoRule } from "./intake.ts";
@@ -47,7 +50,7 @@ export const PARTNER_PROGRAM = {
   holdDays: BRAND.guaranteeDays, // paid after the make-it-right window, so refunds come first
   minPayout: 25,           // smaller balances roll to the next weekly run (keeps Stripe fees sensible)
   cookieDays: 90,          // a click on a partner link counts for this long
-  termsVersion: "partner-v5",
+  termsVersion: "partner-v6",
   /** Jobs booked before this keep the partner-v1 rule (10% of Handled's take, paid by Handled alone). */
   effectiveAt: "2026-10-28T00:00:00Z",
   /** partner-v1, for jobs booked before effectiveAt. */
@@ -391,7 +394,7 @@ export function partnerTerms(): string[] {
   return [
     `You earn a share of the job price (what the customer pays, minus any refunds) on every completed job from a customer you refer, for ${p.months} months from the referral: your referral rate, the same on every service. It starts at ${Math.round(REFERRAL_LADDER.baseRate * 100)}% and rises one point at a time to ${Math.round(REFERRAL_LADDER.topRate * 100)}% as your level credit grows (${Math.round(REFERRAL_LADDER.topRate * 100)}% at $${REFERRAL_LADDER.topProfit.toLocaleString("en-US")}: the lifetime profit you've generated for ${BRAND.name}, with direct sales counting ${PARTNER_LADDER.directCredit}× and referrals ${PARTNER_LADDER.referralCredit}×), or every ${REFERRAL_LADDER.jobsPerStep} job credits up to ${Math.round(REFERRAL_LADDER.jobsCapRate * 100)}%. Each job keeps the rate you had when it was booked.`,
     `Half of what you earn is paid by the pro who does the job and half by ${BRAND.name}. ${BRAND.name}'s half never exceeds what ${BRAND.name} keeps on the job after card fees, so on the rare job where our fee is too thin, you earn less than the full rate.`,
-    `Direct sales: when you sell a customer yourself on a sales ticket (they pay ${BRAND.name} directly, on your phone or from our text), you earn a share of ${BRAND.name}'s profit on the job (the price minus what the pro is paid and any refunds) instead, on every completed job from that customer for ${p.months} months, paid by ${BRAND.name} alone. Your share starts at ${PARTNER_LADDER.baseRate * 100}% and rises one point at a time to ${PARTNER_LADDER.topRate * 100}% as the lifetime profit from your direct sales grows (${PARTNER_LADDER.topRate * 100}% at $${PARTNER_LADDER.topProfit.toLocaleString("en-US")}), or every ${PARTNER_LADDER.jobsPerStep} completed direct-sale jobs up to ${PARTNER_LADDER.jobsCapRate * 100}%. Your rate is set when each job is completed and never goes down.`,
+    `Direct sales (the Handled Sales Force): when you sell a customer yourself on a sales ticket (they pay ${BRAND.name} directly, on your phone or from our text), you join the Sales Force as an Associate Account Executive and earn your rank's share of ${BRAND.name}'s profit on the job (the price minus what the pro is paid and any refunds) instead of the referral rate, on every completed job from that customer for ${p.months} months, paid by ${BRAND.name} alone. Shares run from ${Math.round(SALES_RANKS.associate.sellerShare * 100)}% (Associate AE) to ${Math.round(SALES_RANKS.vp.sellerShare * 100)}% (VP of Sales); ranks come from your totals since your first day (profit made for ${BRAND.name}, deals, clients won, and your team's totals for leaders), never go down, and are shown with the promotion chart at handledsvc.com/careers/sales. After a customer's first ${p.months} months you keep earning your rank's smaller book share while you're active. Leaders also earn a team share on their team's direct sales while they keep selling. Your rate never drops below a direct-sales rate you already earned. You are an independent contractor: you choose your hours, where and how you sell.`,
     `A customer counts as yours when they book through your link (within ${p.cookieDays} days of clicking it), type your partner code when they pay, or after you send them to us on a referral ticket or a sales ticket from your partner page, and they are new to ${BRAND.name}. Each customer belongs to one partner: the first one.`,
     `Lead pay: you earn $${SALES_DRAW.perLead} for every lead (a complete sales ticket for a new customer), paid weekly, up to ${SALES_DRAW.weeklyCap} leads a week. It's an advance (a draw) against that lead's commission: when the lead's job pays you a commission, the $${SALES_DRAW.perLead} is taken back out of it; if the lead never books, you keep it. Lead pay starts once you've written ${SALES_DRAW.unlockLeads} leads and at least ${SALES_DRAW.unlockPaidSales} of your sales has closed and been paid out; what you built up before then is paid on the next weekly payout. Fake or duplicate leads earn nothing and can end the partnership.`,
     `Sales tickets: only photograph property with the owner's or manager's permission, only submit customers who asked to hear from us, and never take payment yourself. Once a job is paid, it goes to our pros.`,
