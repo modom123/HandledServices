@@ -2,6 +2,8 @@
  * FILE    : apps/web/app/(site)/careers/sales/page.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-11-18_0020 UTC
+ * UPDATED : 2026-11-18_0100 UTC — the chart leads with the profit made for Handled (own and team, 90 days): promotions follow the
+ *           same money the commission rises with.
  * UPDATED : 2026-11-18_0050 UTC — the promotion chart (commission, deals in 90 days, active clients, team deals and clients) and
  *           the from-zero timeline; promotion targets are counts, not dollars.
  * UPDATED : 2026-11-18_0040 UTC — "Three ways to $100K a year" from commercial business services (core PATHS_TO_100K / earningsPlan).
@@ -26,6 +28,8 @@ const LEADER: SalesRank[] = ["team_lead", "manager", "director", "vp"];
 function req(r: SalesRank): string {
   const q = SALES_RANKS[r].requires;
   const bits = [
+    q.profit && `${money(q.profit)} profit for Handled from your clients`,
+    q.teamProfit && `${money(q.teamProfit)} from your team`,
     q.deals && `${q.deals} deals of your own`,
     q.activeClients && `${q.activeClients} active clients`,
     q.activeReps && `${q.activeReps} reps with a deal`,
@@ -34,7 +38,7 @@ function req(r: SalesRank): string {
     q.teamClients && `${q.teamClients.toLocaleString("en-US")} active team clients`,
   ].filter(Boolean);
   if (!bits.length) return "Where everyone starts";
-  return `${bits.join(" · ")} (deals in the last 90 days)${q.approval ? ", plus owner approval" : ""}`;
+  return `${bits.join(" · ")} (last 90 days)${q.approval ? ", plus owner approval" : ""}`;
 }
 
 const num = (n: number) => (n ? n.toLocaleString("en-US") : "—");
@@ -46,11 +50,11 @@ function PromotionChart() {
   return (
     <section id="chart" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
       <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">The promotion chart</h2>
-      <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts from zero. You move up on three numbers the app counts for you: your commission rate, the deals you closed in the last 90 days, and your active clients. Leaders also count their team.</p>
+      <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts from zero. Your commission rises with the money you make Handled, and so do your promotions: the main number is the profit your clients brought Handled in the last 90 days (your team’s, for leaders). Deals and active clients are the minimums, so the profit comes from real, lasting clients. The app counts all of it for you.</p>
       <div className="mt-5 overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
-            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Commission</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Your deals (90 days)</th><th className="p-3 text-right">Active clients</th><th className="p-3 text-right">Team deals (90 days)</th><th className="p-3 text-right">Team clients</th><th className="p-3">Also</th></tr>
+            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Commission</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Profit you make Handled (90 days)</th><th className="p-3 text-right">Team profit (90 days)</th><th className="p-3 text-right">Your deals (90 days)</th><th className="p-3 text-right">Active clients</th><th className="p-3 text-right">Team deals (90 days)</th><th className="p-3 text-right">Team clients</th><th className="p-3">Also</th></tr>
           </thead>
           <tbody>
             {rows.map((r) => (
@@ -58,6 +62,8 @@ function PromotionChart() {
                 <td className="p-3"><div className="font-semibold">{r.title}</div><div className="text-[11px] text-ink-soft">{r.path === "leader" ? "Leader path" : r.path === "seller" ? "Seller path" : "Start"}</div></td>
                 <td className="p-3 text-right font-bold">{pct(r.commission)}</td>
                 <td className="p-3 text-right">{r.team ? pct(r.team) : "—"}</td>
+                <td className="p-3 text-right font-semibold">{r.profit ? money(r.profit) : "—"}</td>
+                <td className="p-3 text-right font-semibold">{r.teamProfit ? money(r.teamProfit) : "—"}</td>
                 <td className="p-3 text-right">{num(r.deals)}</td>
                 <td className="p-3 text-right">{num(r.activeClients)}</td>
                 <td className="p-3 text-right">{num(r.teamDeals)}</td>
@@ -69,7 +75,7 @@ function PromotionChart() {
         </table>
       </div>
       <p className="mt-3 text-sm"><b>From zero at 4 deals a month</b> (about one a week): {timeline.slice(1).map((t) => `${SALES_RANKS[t.rank].short} in month ${t.month}`).join(", ")}. Leaders move up as their team does.</p>
-      <p className="mt-1 text-xs text-ink-soft">A deal is a new client’s first paid job or contract. An active client booked in the last 90 days or is on a recurring plan. Commission is a share of our profit on the deals you close; team share is on your whole team’s deals.</p>
+      <p className="mt-1 text-xs text-ink-soft">A deal is a new client’s first paid job or contract. An active client booked in the last 90 days or is on a recurring plan. Profit is what Handled keeps after paying the pro, from every job your clients book (new and repeat). Commission is your share of that profit; team share is on your whole team’s.</p>
     </section>
   );
 }

@@ -4,6 +4,7 @@
   CREATED : 2026-11-18_0020 UTC
   UPDATED : 2026-11-18_0050 UTC — promotions on counts (deals in 90 days, active clients, team deals / clients); everyone starts
             from zero; three paths to $100K from commercial business services; business pricing (up to 50%, pros paid home dollars).
+  UPDATED : 2026-11-18_0100 UTC — promotions follow the money: profit made for Handled (90 days, own and team) is the main measure.
   PURPOSE : The Handled Sales Force: a career path from Associate Account Executive to VP of Sales, built on the
             Partner Program's 15% → 45% ladder. PROPOSAL — review with an attorney before it goes live in payouts.
 -->
@@ -17,22 +18,26 @@ salary, and leaders share in the profit they build.
 
 ## The promotion chart (everyone starts from zero)
 
-A **deal** is a new client's first paid job or contract. An **active client** booked in the last 90 days or is on a
-recurring plan. Deals count over the last 90 days.
+Commission rises with the money a rep makes Handled, and promotions follow the same number: **the profit their clients
+brought Handled in the last 90 days** (their team's, for leaders). Profit = what Handled keeps after paying the pro, on
+every job their clients book, new and repeat. Deals and active clients are minimums, so the profit comes from real,
+lasting clients. A **deal** is a new client's first paid job or contract; an **active client** booked in the last 90
+days or is on a recurring plan.
 
-| Rank | Path | Commission (of our profit) | Team share | Your deals | Active clients | Team deals | Team clients | Also | Promotion bonus |
-|---|---|---|---|---|---|---|---|---|---|
-| Associate AE | Start | **15%** | — | — | — | — | — | Sales Academy | — |
-| Account Executive | Seller | **20%** | — | 5 | 3 | — | — | Academy | $250 |
-| Senior AE | Seller | **25%** | — | 9 | 10 | — | — | refunds < 5% | $500 |
-| Principal AE | Seller | **35%** | — | 12 | 30 | — | — | refunds < 5% | $1,500 |
-| Team Lead | Leader | **30%** | 8% | 3 | — | 18 | 40 | 3 reps with a deal | $1,000 |
-| Sales Manager | Leader | **35%** | 5% | 3 | — | 60 | 150 | 2 Team Leads, 10 reps | $2,500 |
-| Director of Sales | Leader | **40%** | 4% | 3 | — | 180 | 500 | 3 Managers | $5,000 |
-| VP of Sales | Leader | **45%** | 3% | 3 | — | 450 | 1,500 | 2 Directors, owner approval | $10,000 |
+| Rank | Commission (of profit) | Team share | Profit you make Handled | Team profit | Your deals | Active clients | Also | Bonus |
+|---|---|---|---|---|---|---|---|---|
+| Associate AE | **15%** | — | — | — | — | — | Sales Academy | — |
+| Account Executive | **20%** | — | **$5,000** | — | 5 | 3 | Academy | $250 |
+| Senior AE | **25%** | — | **$20,000** | — | 9 | 10 | refunds < 5% | $500 |
+| Principal AE | **35%** | — | **$60,000** | — | 12 | 30 | refunds < 5% | $1,500 |
+| Team Lead | **30%** | 8% | $5,000 | **$75,000** | 3 | — | 3 reps with a deal; 18 team deals; 40 team clients | $1,000 |
+| Sales Manager | **35%** | 5% | $5,000 | **$250,000** | 3 | — | 2 Team Leads, 10 reps; 60 team deals; 150 team clients | $2,500 |
+| Director of Sales | **40%** | 4% | $5,000 | **$750,000** | 3 | — | 3 Managers; 180 team deals; 500 team clients | $5,000 |
+| VP of Sales | **45%** | 3% | $5,000 | **$2,000,000** | 3 | — | 2 Directors; 450 team deals; 1,500 team clients; owner approval | $10,000 |
 
-From zero at 4 deals a month (about one a week): AE in month 2, Senior AE in month 3, Principal AE in month 9.
-At 2 deals a month a rep stays an AE (Senior AE needs 3 a month).
+All numbers are over the last 90 days. From zero, with $1,500-a-month accounts: at 4 deals a month (about one a week)
+a rep reaches AE in month 2, Senior AE in month 4 and Principal AE in month 9; at 3 a month, AE in month 2 and Senior AE
+in month 5; at 2 a month they stay an AE.
 
 ## Three ways to $100K a year (commercial business services)
 
