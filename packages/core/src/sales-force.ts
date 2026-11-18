@@ -20,7 +20,8 @@
  *             fast money      — $25 for every walkthrough held, $100 first-sale bonus, paid the next Monday
  *             promotion bonus — one-time cash when you move up
  *           Growing with the company:
- *             BASE_PAY        — Directors and the VP move to a salary (W-2) once their region's profit supports it
+ *             LEADER_RETAINER — Directors and the VP earn a monthly leadership retainer (1099) once their region's profit
+ *                               supports it
  *             PROFIT_SHARE    — Directors share in their region's profit, the VP in the company's
  *             new markets     — each new city opens a Director and Manager seat; current leaders get first claim
  *           Promotions follow the money and everything is CUMULATIVE from day one: total profit made for Handled (team
@@ -28,6 +29,9 @@
  *           Totals only go up, so a rank, and its commission, is never lost. promotionChart() is the one chart everyone
  *           sees; sellerTimeline() shows the month each rank is reached starting from zero.
  *           salesPay() splits one job's profit across the seller and their leaders, never more than the pool.
+ * UPDATED : 2026-11-18_0056 UTC — everyone is an independent contractor (1099, owner decision): the Sales Academy is optional, not a
+ *           promotion requirement; leaders mentor and support (they don't direct how reps work); the Director / VP salary
+ *           became a monthly 1099 leadership retainer (LEADER_RETAINER); reps choose their hours, methods and where they sell.
  * UPDATED : 2026-11-18_0120 UTC — leaderboard (LEADERBOARD, leaderboard()): last-90-days revenue ranks who's on top right now, for
  *           recognition and perks; promotions stay cumulative.
  * UPDATED : 2026-11-18_0110 UTC — everything cumulative (owner): total profit made for Handled, total deals, clients won, reps
@@ -105,21 +109,21 @@ export const SALES_RANKS: Record<SalesRank, RankRule> = {
     title: "Associate Account Executive", short: "Associate AE", path: "start", level: 1,
     sellerShare: 0.15, bookShare: 0, override: 0, promotionBonus: 0,
     requires: { from: [] },
-    role: "Learn the product, book walkthroughs and close your first customers with a coach.",
-    perks: ["Sales Academy and a coach from day one", "$25 for every walkthrough held, $100 for your first sale", "Paid every Monday"],
+    role: "Learn the product at your own pace, book walkthroughs and close your first clients.",
+    perks: ["Free Sales Academy and a mentor, if you want them", "$25 for every walkthrough held, $100 for your first sale", "Paid every Monday"],
   },
   ae: {
     title: "Account Executive", short: "AE", path: "seller", level: 2,
     sellerShare: 0.20, bookShare: 0.05, override: 0, promotionBonus: 250,
-    requires: { from: ["associate"], profit: 5_000, deals: 5, clients: 3, academy: true },
-    role: "Own your territory's homes and small businesses; build a book of repeat customers.",
+    requires: { from: ["associate"], profit: 5_000, deals: 5, clients: 3 },
+    role: "Sell to homes and small businesses wherever you choose; build a book of repeat clients.",
     perks: ["Your own book: 5% of the profit on your customers after year one", "Business cards and an @handledsvc.net email"],
   },
   senior_ae: {
     title: "Senior Account Executive", short: "Senior AE", path: "seller", level: 3,
     sellerShare: 0.25, bookShare: 0.08, override: 0, promotionBonus: 500,
-    requires: { from: ["ae"], profit: 25_000, deals: 15, clients: 10, maxRefundRate: 0.05, academy: true },
-    role: "Commercial accounts: offices, property managers, facilities. Mentor new Associates.",
+    requires: { from: ["ae"], profit: 25_000, deals: 15, clients: 10, maxRefundRate: 0.05 },
+    role: "Commercial accounts: offices, property managers, facilities. Help new Associates if you like.",
     perks: ["First pick of warm leads from the AI outreach engine", "Protected accounts: nobody else sells to your customers"],
   },
   principal_ae: {
@@ -132,40 +136,52 @@ export const SALES_RANKS: Record<SalesRank, RankRule> = {
   team_lead: {
     title: "Team Lead", short: "Team Lead", path: "leader", level: 4,
     sellerShare: 0.30, bookShare: 0.08, override: 0.08, promotionBonus: 1_000,
-    requires: { from: ["senior_ae", "principal_ae"], teamProfit: 150_000, reps: 3, teamDeals: 40, maxRefundRate: 0.05, academy: true },
-    role: "Recruit, train and ride along with up to 8 reps; you earn when they earn.",
-    perks: ["8% of the profit on your team's sales", "Leadership track in the Sales Academy"],
+    requires: { from: ["senior_ae", "principal_ae"], teamProfit: 150_000, reps: 3, teamDeals: 40, maxRefundRate: 0.05 },
+    role: "Bring reps onto your team and mentor the ones who want help; you earn when they earn.",
+    perks: ["8% of the profit on your team's sales", "Free leadership track in the Sales Academy"],
   },
   manager: {
     title: "Sales Manager", short: "Manager", path: "leader", level: 5,
     sellerShare: 0.35, bookShare: 0.08, override: 0.05, promotionBonus: 2_500,
     requires: { from: ["team_lead"], teamProfit: 750_000, leaders: 2, reps: 10, teamDeals: 150, maxRefundRate: 0.05 },
-    role: "Run a city's sales team through your Team Leads; own the forecast.",
+    role: "Support a city's Team Leads and reps with leads, tools and know-how.",
     perks: ["5% of the profit on everyone under you", "Quarterly team bonus pool"],
   },
   director: {
     title: "Director of Sales", short: "Director", path: "leader", level: 6,
     sellerShare: 0.40, bookShare: 0.10, override: 0.04, promotionBonus: 5_000,
     requires: { from: ["manager"], teamProfit: 3_000_000, leaders: 3, teamDeals: 500, maxRefundRate: 0.04 },
-    role: "Own a region: open new cities, hire Managers, set targets with the owners.",
-    perks: ["Salary once your region supports it", "Share of your region's profit", "First claim to run new markets"],
+    role: "Grow a region: help open new cities and bring on Managers.",
+    perks: ["Monthly leadership retainer once your region supports it", "Share of your region's profit", "First claim to run new markets"],
   },
   vp: {
     title: "VP of Sales", short: "VP", path: "leader", level: 7,
     sellerShare: 0.45, bookShare: 0.10, override: 0.03, promotionBonus: 10_000,
     requires: { from: ["director"], teamProfit: 10_000_000, leaders: 2, teamDeals: 1500, approval: true },
-    role: "Lead the whole sales force with the owners; build the next layer of Directors.",
-    perks: ["Executive salary", "Share of company profit", "Seat at the leadership table"],
+    role: "Work with the owners to grow the whole sales force and the next Directors.",
+    perks: ["Executive leadership retainer", "Share of company profit", "Seat at the leadership table"],
   },
 };
 
 export const RANK_ORDER: SalesRank[] = ["associate", "ae", "senior_ae", "principal_ae", "team_lead", "manager", "director", "vp"];
 export const LEADER_RANKS: SalesRank[] = ["team_lead", "manager", "director", "vp"];
 
-/** Directors and the VP move to a salary (W-2) when the profit they lead can carry it. */
-export const BASE_PAY: Partial<Record<SalesRank, { salary: number; whenQuarterlyTeamProfit: number }>> = {
-  director: { salary: 75_000, whenQuarterlyTeamProfit: 250_000 },
-  vp: { salary: 120_000, whenQuarterlyTeamProfit: 1_000_000 },
+/** Everyone is an independent contractor (1099): they choose their hours, methods and where they sell. */
+export const CONTRACTOR = {
+  status: "1099",
+  form: "1099-NEC",
+  promises: [
+    "You choose your hours, where you sell and how you sell",
+    "No quotas, no required schedule, no required meetings",
+    "Training and mentoring are free and optional",
+    "Ranks raise your commission; nobody loses work for missing a target",
+  ],
+} as const;
+
+/** Directors and the VP earn a monthly leadership retainer (1099) when the profit their team brings in can carry it. */
+export const LEADER_RETAINER: Partial<Record<SalesRank, { monthly: number; whenQuarterlyTeamProfit: number }>> = {
+  director: { monthly: 6_250, whenQuarterlyTeamProfit: 250_000 },
+  vp: { monthly: 10_000, whenQuarterlyTeamProfit: 1_000_000 },
 };
 
 /** Growing with the company: a share of the profit they help build, paid quarterly, on top of everything else. */
@@ -343,7 +359,7 @@ export const PATHS_TO_100K: { id: string; title: string; who: string; plan: Earn
   {
     id: "leader", title: "Team builder", who: "Team Lead",
     plan: { rank: "team_lead", accountsPerMonth: 1, accountMonthly: 1500, teamReps: 6, teamAccountsPerRep: 2 },
-    week: ["Lead 6 reps who each close 2 accounts a month", "Ride along on their walkthroughs and coach", "Still close about 1 account a month yourself"],
+    week: ["Your team of 6 reps each closes 2 accounts a month", "Mentor the reps who ask for help on their walkthroughs", "Still close about 1 account a month yourself"],
   },
 ];
 

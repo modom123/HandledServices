@@ -2,6 +2,8 @@
  * FILE    : apps/web/app/(site)/careers/sales/page.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-11-18_0020 UTC
+ * UPDATED : 2026-11-18_0056 UTC — independent contractors (1099): your hours, your methods; training optional; leader retainer instead
+ *           of salary; contractor note.
  * UPDATED : 2026-11-18_0120 UTC — the 90-day revenue leaderboard (recognition and perks; rank stays cumulative).
  * UPDATED : 2026-11-18_0110 UTC — everything cumulative: total profit made for Handled, total deals, clients won, team totals;
  *           ranks never go down; from-zero timeline at 4, 3 and 2 deals a month.
@@ -17,7 +19,7 @@
  *           approved and live in payouts.
  */
 import Link from "next/link";
-import { BASE_PAY, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
+import { CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
 export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays.", robots: { index: false, follow: false } };
 
@@ -116,7 +118,7 @@ export default function SalesCareers() {
         <div className="wrap py-10 md:py-16 pro:md:py-10">
           <p className="text-sm font-semibold uppercase tracking-wide text-gold-light">The Handled Sales Force</p>
           <h1 className="mt-3 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Start as an Account Executive. Grow to VP of Sales.</h1>
-          <p className="mt-4 max-w-2xl text-lg text-white/80">A career, not a gig. You earn a real share of the profit on every customer you bring in, keep earning on the accounts you keep, and move up on numbers you can see. As Handled opens new cities, our own people lead them.</p>
+          <p className="mt-4 max-w-2xl text-lg text-white/80">Build your own sales business with Handled. You earn a real share of the profit on every customer you bring in, keep earning on the accounts you keep, and move up on numbers you can see. As Handled opens new cities, our own people lead them.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href={APPLY} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Apply in 2 minutes</Link>
             <a href="#chart" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See the promotion chart</a>
@@ -133,7 +135,7 @@ export default function SalesCareers() {
 
       <section id="path" className="wrap scroll-mt-24 pb-10 sm:pb-14">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Two paths up, both pay</h2>
-        <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts as an Associate AE with a coach. After Senior AE you choose: keep selling and become a Principal AE, or build a team and lead it to VP of Sales. You can switch paths.</p>
+        <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts as an Associate AE, with free training and a mentor if you want them. After Senior AE you choose: keep selling and become a Principal AE, or build a team and lead it to VP of Sales. You can switch paths.</p>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div><h3 className="mb-3 font-bold uppercase tracking-wide text-ink-soft">Seller path</h3><ol className="space-y-3">{SELLER.map((r) => <Rank key={r} r={r} />)}</ol></div>
           <div><h3 className="mb-3 font-bold uppercase tracking-wide text-ink-soft">Leader path (from Senior AE)</h3><ol className="space-y-3">{LEADER.map((r) => <Rank key={r} r={r} />)}</ol></div>
@@ -164,7 +166,7 @@ export default function SalesCareers() {
         <div className="wrap">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Grow with the company</h2>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <div className="card"><div className="font-bold">A salary at the top</div><p className="mt-1 text-sm text-ink-soft">Directors move to a {money(BASE_PAY.director!.salary)} salary and the VP to {money(BASE_PAY.vp!.salary)}, on top of commission, once the profit they lead can carry it.</p></div>
+            <div className="card"><div className="font-bold">A retainer at the top</div><p className="mt-1 text-sm text-ink-soft">Directors earn a {money(LEADER_RETAINER.director!.monthly)}-a-month leadership retainer and the VP {money(LEADER_RETAINER.vp!.monthly)} a month, on top of commission, once their team’s profit can carry it.</p></div>
             <div className="card"><div className="font-bold">A share of the profit you build</div><p className="mt-1 text-sm text-ink-soft">Directors share {pct(PROFIT_SHARE.director!.share)} of {PROFIT_SHARE.director!.of}; the VP shares {pct(PROFIT_SHARE.vp!.share)} of {PROFIT_SHARE.vp!.of}, paid quarterly.</p></div>
             <div className="card"><div className="font-bold">New cities, led by our people</div><p className="mt-1 text-sm text-ink-soft">Every new market opens a Director and Manager seat. Our own leaders get first claim before we hire from outside.</p></div>
           </div>
@@ -190,18 +192,20 @@ export default function SalesCareers() {
               <li>✓ <b>Promotions on your totals,</b> shown in the app with exactly what’s left to the next rank.</li>
               <li>✓ <b>Your rank never goes down:</b> everything counts from your first day and keeps adding up.</li>
               <li>✓ <b>The leaderboard:</b> your revenue in the last {LEADERBOARD.windowDays} days ranks you against the team. {LEADERBOARD.rewards.map((r) => r.reward).join(". ")}.</li>
-              <li>✓ <b>Training:</b> the Handled Sales Academy for every rank, ride-alongs with your Team Lead.</li>
+              <li>✓ <b>Free, optional training:</b> the Handled Sales Academy and a mentor, whenever you want them.</li>
             </ul>
           </div>
           <div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Fair rules</h2>
             <ul className="mt-4 space-y-2 text-sm">
+              {CONTRACTOR.promises.map((p) => <li key={p}>✓ {p}.</li>)}
               <li>✓ No fees, no kits, nothing to buy. Ever.</li>
               <li>✓ Leaders earn only on real jobs sold to real customers, never on sign-ups.</li>
               <li>✓ Leaders keep selling themselves to earn on their team.</li>
               <li>✓ Up to {pct(SALES_POOL.firstYearMax)} of our profit on a new customer’s first year goes to the sales force.</li>
             </ul>
             <Link href={APPLY} className="btn-primary mt-6 inline-block px-8 py-3 text-base">Apply in 2 minutes</Link>
+            <p className="mt-3 text-xs text-ink-soft">Everyone in the Handled Sales Force is an independent contractor (1099), not an employee. Titles show your commission level. We send a {CONTRACTOR.form} each year you earn $600 or more.</p>
           </div>
         </div>
       </section>

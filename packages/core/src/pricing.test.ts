@@ -2922,9 +2922,10 @@ test("sales force: pay splits within the 60% pool, leaders paid only on real sal
   assert.equal(salesPay({ profit: 100, seller: "senior_ae", leaders: [{ rank: "team_lead" }], newCustomer: false }).total, 8);
   // promotions: cumulative totals, led by the profit made for Handled
   const n = { rank: "associate" as const, profit: 5_000, teamProfit: 0, deals: 4, clients: 3, reps: 0, leaders: 0, teamDeals: 0, refundRate: 0, academyDone: [] };
-  assert.deepEqual(promotionGaps(n, "ae"), ["1 more deal", "Finish the AE Sales Academy"]);
-  assert.deepEqual(promotionGaps({ ...n, deals: 5, academyDone: ["ae"] }, "ae"), []);
-  assert.deepEqual(promotionGaps({ ...n, profit: 4_000, deals: 5, academyDone: ["ae"] }, "ae"), ["$1,000 more profit for Handled from your clients"]);
+  assert.deepEqual(promotionGaps(n, "ae"), ["1 more deal"]); // 1099: training is optional, never a promotion requirement
+  for (const r of RANK_ORDER) assert.ok(!SALES_RANKS[r].requires.academy, `${r} requires training`);
+  assert.deepEqual(promotionGaps({ ...n, deals: 5 }, "ae"), []);
+  assert.deepEqual(promotionGaps({ ...n, profit: 4_000, deals: 5 }, "ae"), ["$1,000 more profit for Handled from your clients"]);
   assert.deepEqual(nextRanks("senior_ae"), ["principal_ae", "team_lead"]);
   assert.deepEqual(nextRanks("director"), ["vp"]);
   assert.ok(promotionGaps({ ...n, rank: "director", leaders: 5, teamDeals: 9999, teamProfit: 2e7 }, "vp").includes("Owner approval"));

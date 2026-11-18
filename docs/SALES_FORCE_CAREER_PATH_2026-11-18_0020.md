@@ -5,6 +5,7 @@
   UPDATED : 2026-11-18_0050 UTC — promotions on counts (deals in 90 days, active clients, team deals / clients); everyone starts
             from zero; three paths to $100K from commercial business services; business pricing (up to 50%, pros paid home dollars).
   UPDATED : 2026-11-18_0100 UTC — promotions follow the money: profit made for Handled (90 days, own and team) is the main measure.
+  UPDATED : 2026-11-18_0056 UTC — everyone 1099 (owner decision): training optional, leaders mentor, retainer instead of salary.
   UPDATED : 2026-11-18_0120 UTC — the 90-day revenue leaderboard (recognition and perks; never rank).
   UPDATED : 2026-11-18_0110 UTC — everything cumulative (total profit made for Handled, total deals, clients won, team totals);
             ranks never go down.
@@ -30,8 +31,8 @@ A **deal** is a paid sale: a new client, or a new service or site for an existin
 
 | Rank | Commission (of profit) | Team share | Total profit made Handled | Team total profit | Total deals | Clients won | Also | Bonus |
 |---|---|---|---|---|---|---|---|---|
-| Associate AE | **15%** | — | — | — | — | — | Sales Academy | — |
-| Account Executive | **20%** | — | **$5,000** | — | 5 | 3 | Academy | $250 |
+| Associate AE | **15%** | — | — | — | — | — | — | — |
+| Account Executive | **20%** | — | **$5,000** | — | 5 | 3 | — | $250 |
 | Senior AE | **25%** | — | **$25,000** | — | 15 | 10 | refunds < 5% | $500 |
 | Principal AE | **35%** | — | **$150,000** | — | 40 | 30 | refunds < 5% | $1,500 |
 | Team Lead | **30%** | 8% | — | **$150,000** | — | — | 3 reps with a deal; 40 team deals | $1,000 |
@@ -74,10 +75,20 @@ Assumptions: $1,500-a-month accounts, 1 in 3 walkthroughs becomes an account, 3%
 
 After Senior AE, people choose: keep selling (Principal AE) or lead (Team Lead → VP). Both pay well, and people can switch.
 
+## Independent contractors (1099)
+
+Everyone in the Sales Force is a 1099 independent contractor (owner decision, 2026-11-18). To keep that true in
+practice: reps choose their hours, where they sell and how they sell; there are no quotas, schedules or required
+meetings; training and mentoring are free and optional, never a promotion requirement; leaders mentor and support
+rather than direct; ranks raise commission and nobody loses work for missing a target; Directors and the VP earn a
+1099 leadership retainer, not a salary. A 1099-NEC goes to anyone paid $600+ in a year. **Have an employment attorney
+confirm this in each state** (MI, WA, NY, NJ, NV): New Jersey's test is strict, and Washington and New York review
+contractor sales roles closely.
+
 ## Growing with the company
 
-- **Salary at the top:** Directors $75,000, the VP $120,000 (W-2), on top of commission, once the profit they lead
-  supports it ($250,000 / $1,000,000 a quarter).
+- **Retainer at the top:** Directors $6,250 a month, the VP $10,000 a month (1099 leadership retainer), on top of
+  commission, once their team's profit supports it ($250,000 / $1,000,000 a quarter).
 - **Profit share:** Directors 2% of their region's net profit; the VP 1% of company net profit; paid quarterly.
 - **New markets:** each new city opens a Director and a Manager seat; current leaders get first claim.
 - **Ranks never go down:** everything is cumulative from the first day.
