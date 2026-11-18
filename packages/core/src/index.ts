@@ -64,6 +64,7 @@ export * from "./email-center.ts";
 export * from "./outreach-ai.ts";
 export * from "./walkthrough.ts";
 export * from "./sales-force.ts";
+export * from "./sales-scorecard.ts";
 export * from "./checklists.ts";
 export * from "./interview.ts";
 export * from "./rewards.ts";

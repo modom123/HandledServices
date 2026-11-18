@@ -3313,3 +3313,20 @@ test("sales force live pay: seller rate, team shares within the pool, automatic 
   const top = autoPromote({ ...zero, rank: "director", teamProfit: 2e7, leaders: 3, teamDeals: 5000 });
   assert.equal(top.rank, "director"); assert.equal(top.awaitingApproval, "vp");
 });
+
+test("sales scorecard: every job belongs to one team; AI team vs outside sales force on the same numbers", async () => {
+  const { teamOf, scorecard, groupTotals, aiRunCost } = await import("./sales-scorecard.ts");
+  assert.equal(teamOf({ partner_id: "p", partner_sale: true }), "sales_force");
+  assert.equal(teamOf({ partner_id: "p", partner_sale: false }), "referrals");
+  assert.equal(teamOf({ partner_id: "p", partner_self: true }), "ai_inbound");
+  assert.equal(teamOf({ biz_lead: "abc12345" }), "ai_outbound");
+  assert.equal(teamOf({}), "ai_inbound");
+  const job = (o: Partial<{ partner_id: string; partner_sale: boolean; biz_lead: string; first: boolean; completed: boolean; refunded: number }>) => ({ contact_email: "a@x.com", price: 400, payout: 260, refunded: 0, completed: true, first: true, ...o });
+  const s = scorecard([job({ biz_lead: "t1" }), job({ biz_lead: "t2", first: false }), job({ partner_id: "p", partner_sale: true }), job({ partner_id: "p", partner_sale: true, completed: false })], { ai_outbound: 20, sales_force: 70 });
+  const ai = s.find((r) => r.team === "ai_outbound")!, sf = s.find((r) => r.team === "sales_force")!;
+  assert.deepEqual([ai.newClients, ai.jobs, ai.revenue, ai.profit, ai.cost, ai.profitAfterCost, ai.costPerClient, ai.roi], [1, 2, 800, 280, 20, 260, 20, 13]);
+  assert.deepEqual([sf.newClients, sf.revenue, sf.profit, sf.profitAfterCost, sf.costPerClient], [2, 800, 140, 70, 35]);
+  const g = groupTotals(s);
+  assert.equal(g.ai.profitAfterCost, 260); assert.equal(g.outside.profitAfterCost, 70);
+  assert.equal(aiRunCost({ input_tokens: 1_000_000, output_tokens: 100_000 }), 6);
+});
