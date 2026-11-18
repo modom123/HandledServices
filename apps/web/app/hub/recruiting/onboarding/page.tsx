@@ -34,7 +34,7 @@ export default async function Onboarding() {
     db.from("contractor_documents").select("id, contractor_id, kind, status, created_at, notes, storage_path, ai_check").eq("status", "pending").not("storage_path", "is", null).order("created_at").limit(1000),
     db.from("talent_placements").select("id, start_date, created_at, talent_candidates(full_name), talent_searches(title), talent_clients!inner(internal)").eq("talent_clients.internal", true).order("created_at", { ascending: false }).limit(20),
   ]);
-  type Doc = { id: string; contractor_id: string; kind: string; created_at: string; notes: string | null; ai_check: { meets_requirements?: boolean; expires_on?: string | null; problems?: string[] } | null };
+  type Doc = { id: string; contractor_id: string; kind: string; created_at: string; notes: string | null; ai_check: { meets_requirements?: boolean; expires_on?: string | null; problems?: string[]; additional_insured?: boolean } | null };
   const docsOf = (id: string) => ((docs ?? []) as Doc[]).filter((d) => d.contractor_id === id);
   const rows = ((pros ?? []) as (Contractor & Record<string, unknown>)[]).map((c) => {
     const { steps, complete } = onboardingChecklist(c as never);
@@ -52,7 +52,7 @@ export default async function Onboarding() {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Link href={`/hub/pros/${r.c.id}`} className="font-semibold underline decoration-dotted">{String(r.c.business_name)}</Link>
-          <div className="text-xs text-ink-soft">{String(r.c.contact_name)} · {String(r.c.email)} · {(r.c.trades ?? []).join(", ")} · invited {days(r.c.invited_at as string) ?? "?"}d ago · {Number(r.c.onboarding_reminders ?? 0)} reminder(s)</div>
+          <div className="text-xs text-ink-soft">{String(r.c.contact_name)} · {String(r.c.email)} · <b>Does: {((r.c.trades ?? []) as string[]).map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ") || "no trades picked"}</b> · invited {days(r.c.invited_at as string) ?? "?"}d ago · {Number(r.c.onboarding_reminders ?? 0)} reminder(s)</div>
         </div>
         <div className="text-right text-xs"><div className="font-semibold">{r.done}/{r.steps.length} steps</div>{r.bg && <div className={["consider", "suspended"].includes(r.bg) ? "font-semibold text-rose-700" : "text-ink-soft"}>background: {r.bg}</div>}</div>
       </div>
@@ -62,7 +62,7 @@ export default async function Onboarding() {
           {r.pending.map((d) => (
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
               <span><b>{DOC_LABEL[d.kind] ?? d.kind}</b> uploaded {days(d.created_at)}d ago{d.ai_check ? <span className="text-xs text-ink-soft"> · AI read: {d.ai_check.meets_requirements ? "✓ meets requirements" : `⚠ ${d.ai_check.problems?.join("; ") || "check it"}`}{d.ai_check.expires_on ? ` · expires ${d.ai_check.expires_on}` : ""}</span> : null}</span>
-              <DocDecision contractorId={r.c.id} docId={d.id} />
+              <DocDecision contractorId={r.c.id} docId={d.id} kind={d.kind} aiExpires={d.ai_check?.expires_on ?? null} aiAdditional={d.ai_check?.additional_insured ?? null} />
             </li>
           ))}
         </ul>

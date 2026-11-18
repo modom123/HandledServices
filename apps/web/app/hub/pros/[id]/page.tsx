@@ -15,6 +15,10 @@
  * UPDATED : 2026-11-05_0000 UTC — Files: every document and photo that belongs to this person, plus "Add a file"
  *           (components/PersonFiles.tsx, lib/person-files.ts).
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
+ * UPDATED : 2026-11-13_0300 UTC — "Does:" — the trades and skills the pro picked, front and center (not the business name).
+ * UPDATED : 2026-11-17_1700 UTC — Payout status (admins): what Stripe says right now (ready / needs info / not started /
+ *           error, with the exact steps) and Pay now, so a pro is never wrongly told they aren't set up.
+ * UPDATED : 2026-11-17_1900 UTC — Payout status shows PayPal / Venmo pros (method, masked handle, PayPal connected).
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -33,6 +37,11 @@ import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
 import { PersonFiles } from "@/components/PersonFiles";
+import { PayNowButton } from "@/components/PayoutStatus";
+import { connectStatus, dueInWords } from "@/lib/stripe";
+import { proPayoutAccount } from "@/lib/pro-benefits";
+import { PAYOUT_RAILS, maskHandle, railOf } from "@handled/core";
+import { paypalConfigured } from "@/lib/paypal";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -70,7 +79,10 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
           <Link href="/hub/pros" className="text-xs text-ink-soft">← Pros</Link>
           <h1 className="text-2xl font-bold">{pro.business_name} {(pro as { pro_no?: string | null }).pro_no && <span className="font-mono text-base font-normal text-ink-soft">{(pro as { pro_no?: string | null }).pro_no}</span>}</h1>
           <p className="text-sm text-ink-soft">{pro.contact_name} · {pro.phone} · {pro.email} · <Link className="text-brand underline" href={`/hub/contracts?q=${encodeURIComponent(pro.email)}`}>Signed contracts</Link></p>
-          <p className="text-xs text-ink-soft">{pro.trades.map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ")} · ZIPs {pro.service_zips.join(", ") || "—"}</p>
+          {/* what they DO (the trades and skills they picked) — requirements and jobs follow these, never the business name */}
+          <div className="mt-1 flex flex-wrap items-center gap-1 text-sm"><span className="font-semibold">Does:</span>{pro.trades.map((t) => <span key={t} className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{TRADES.find((x) => x.id === t)?.label ?? t}</span>)}{!pro.trades.length && <span className="text-rose-700">no trades picked</span>}</div>
+          {specialtiesFor(pro.trades).filter((s) => (pro.specialties ?? []).includes(s.id)).length > 0 && <p className="text-xs text-ink-soft">Skills: {specialtiesFor(pro.trades).filter((s) => (pro.specialties ?? []).includes(s.id)).map((s) => s.label).join(", ")}</p>}
+          <p className="text-xs text-ink-soft">ZIPs {pro.service_zips.join(", ") || "—"} · Requirements follow what they do, not the business name.</p>
           <p className="text-xs text-ink-soft">
             <b>{proTier(pro).badge} {proTier(pro).name}</b>{pro.jobs_completed < PROBATION.jobs ? ` · probation (${PROBATION.jobs - pro.jobs_completed} job(s) left, max $${PROBATION.maxJobPrice})` : ""}
             {" · Specialties: "}{specialtiesFor(pro.trades).filter((x) => pro.specialties?.includes(x.id)).map((x) => x.label).join(", ") || "none chosen"}
@@ -111,7 +123,7 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
                     </div>
                   )}
                 </div>
-                {d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank">Open</a> : null}
+                {d.storage_path && d.status === "pending" ? <DocDecision contractorId={id} docId={d.id} kind={d.kind} expiresOn={d.expires_on} aiExpires={d.ai_check?.expires_on ?? null} aiAdditional={d.ai_check?.additional_insured ?? null} /> : d.storage_path ? <a className="text-xs underline" href={`/api/hub/contractors/${id}/documents/${d.id}`} target="_blank">Open</a> : null}
               </div>
             ))}
           </div>
@@ -119,6 +131,36 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
         </div>
         <div className="space-y-4">
           <ProStatusControls id={id} status={pro.status} complete={complete} />
+          {admin && await (async () => {
+            const rail = railOf(pro.payout_method);
+            if (rail !== "stripe") {
+              const handle = (pro as { payout_handle?: string | null }).payout_handle ?? null;
+              const on = paypalConfigured();
+              return (
+                <div className="card space-y-2 text-sm">
+                  <div className="flex items-center justify-between"><div className="font-semibold">Payout status</div><Badge tone={on && handle ? "green" : on ? "amber" : "red"}>{!on ? "PayPal not connected" : handle ? `Ready — ${PAYOUT_RAILS[rail].label}` : `No ${rail === "venmo" ? "Venmo phone" : "PayPal email"}`}</Badge></div>
+                  <div className="text-xs text-ink-soft">Paid by {PAYOUT_RAILS[rail].label} {handle ? `· ${maskHandle(handle)}` : ""} · ${PAYOUT_RAILS[rail].fee.toFixed(2)} per payout kept by Handled · sent from Handled's PayPal balance</div>
+                  {!on && <p className="rounded-lg bg-rose-50 p-2 text-rose-800">PayPal isn't connected: add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in Vercel. This is on our side — the pro did nothing wrong.</p>}
+                  <PayNowButton contractorId={id} owed={Math.max(0, owed)} />
+                </div>
+              );
+            }
+            const acct = await proPayoutAccount(pro as never);
+            const cs = await connectStatus(acct);
+            const steps = dueInWords(cs.due);
+            const tone = cs.state === "ready" ? "green" : cs.state === "error" ? "red" : "amber";
+            const label = { ready: "Ready — payouts go through", needs_info: "Stripe needs more info", not_started: acct ? "Stripe setup not finished" : "Not started", error: "Couldn't check Stripe" }[cs.state];
+            return (
+              <div className="card space-y-2 text-sm">
+                <div className="flex items-center justify-between"><div className="font-semibold">Payout status (live from Stripe)</div><Badge tone={tone as never}>{label}</Badge></div>
+                <div className="text-xs text-ink-soft">Account {acct ?? "none"}{acct && !(pro as { stripe_account_id?: string | null }).stripe_account_id ? " (from their Partner page)" : ""} · transfers {cs.transfers ?? "—"} · bank payouts {cs.payoutsEnabled ? "on" : "off"}{cs.disabledReason ? ` · ${cs.disabledReason}` : ""}</div>
+                {cs.state === "error" && <p className="rounded-lg bg-rose-50 p-2 text-rose-800">{cs.error}. This is on our side — the pro did nothing wrong. Check the Stripe keys / mode in Vercel.</p>}
+                {cs.state !== "ready" && cs.state !== "error" && <p>{steps.length ? <>The pro still needs to: {steps.join("; ")}.</> : "The pro needs to finish Stripe setup."} Their link: <span className="font-mono text-xs">/pro/onboarding#step-payout</span></p>}
+                {cs.state === "ready" && !cs.payoutsEnabled && <p className="text-xs text-amber-800">Transfers work; Stripe is holding bank payouts until the pro finishes a step{steps.length ? ` (${steps.join("; ")})` : ""}. Money waits safely in their Stripe balance.</p>}
+                <PayNowButton contractorId={id} owed={Math.max(0, owed)} />
+              </div>
+            );
+          })()}
           <div className="card text-sm"><div className="font-semibold">Recent reviews</div>
             {((reviews ?? []) as Rec[]).map((r, i) => <p key={i} className="mt-2">{"★".repeat(r.rating)} <span className="text-ink-soft">{r.comment ?? ""}</span></p>)}
             {!(reviews ?? []).length && <p className="mt-2 text-ink-soft">No reviews yet.</p>}</div>

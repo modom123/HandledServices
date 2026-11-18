@@ -14,6 +14,8 @@
  * UPDATED : 2026-10-28_0122 UTC — referred jobs: the pro's half of the partner's share is a job term (v4).
  * UPDATED : 2026-11-06_1800 UTC — the referral fee uses the rate locked on the job (partner-v4, jobs.partner_rate).
  * UPDATED : 2026-11-06_1800 UTC — the payout shown is the pro's NET pay; no referral-fee term or math on the work order.
+ * UPDATED : 2026-11-13_0030 UTC — pinLocked: an accepted work order without the address, customer contact or entry details
+ *           (behind the pro's PIN — emails, texts, a device not unlocked yet).
  */
 import { AGREEMENT_VERSION } from "./compliance.ts";
 import { proNetPay, type ProPayJob } from "./pro-pay.ts";
@@ -67,7 +69,10 @@ const WO_ES: Record<string, string> = {
   "Start time": "Hora de inicio",
 };
 
-export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null; agreementVersion?: string | null }): WorkOrder {
+export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payout?: number | null; locale?: Locale | string | null; agreementVersion?: string | null; pinLocked?: boolean }): WorkOrder {
+  // an accepted job behind the pro's PIN (emails, texts, a device not unlocked yet): the address, customer and entry
+  // details stay in the app until the pro enters their PIN
+  const locked = opts.reveal && Boolean(opts.pinLocked);
   const es = opts.locale === "es";
   const L = (s: string) => (es ? WO_ES[s] ?? tr("es", s) : s);
   const svc = getService(job.service_slug);
@@ -109,11 +114,12 @@ export function buildWorkOrder(job: WorkOrderJob, opts: { reveal: boolean; payou
     icon: svc?.icon ?? "🧰",
     payout: payout ? money(payout) : L("Site visit"),
     when: `${date} · ${L(TIME_WINDOW_LABEL[job.time_window])}`,
-    where: opts.reveal ? `${job.address}, ${job.city}, ${job.state} ${job.zip}` : `${job.city}, ${job.state} ${job.zip} ${es ? "(dirección exacta al aceptar)" : "(exact address after you accept)"}`,
+    where: locked ? `${job.city}, ${job.state} ${job.zip} ${es ? "(la dirección está en la app: ingrese su PIN)" : "(address in the app — enter your PIN)"}`
+      : opts.reveal ? `${job.address}, ${job.city}, ${job.state} ${job.zip}` : `${job.city}, ${job.state} ${job.zip} ${es ? "(dirección exacta al aceptar)" : "(exact address after you accept)"}`,
     revealed: opts.reveal,
     checklist: resolveChecklist({ service_slug: job.service_slug, answers: job.answers as Record<string, unknown>, notes: job.notes, instructions: job.instructions, checklist: job.checklist, checklist_extra: job.checklist_extra }),
-    customer: opts.reveal ? { name: job.contact_name, phone: job.contact_phone, company: job.company_name } : undefined,
-    access: opts.reveal ? job.access_info ?? null : null,
+    customer: opts.reveal && !locked ? { name: job.contact_name, phone: job.contact_phone, company: job.company_name } : undefined,
+    access: opts.reveal && !locked ? job.access_info ?? null : null,
     scope,
     includes: (svc?.includes ?? []).map(L),
     customerNotes: job.notes,

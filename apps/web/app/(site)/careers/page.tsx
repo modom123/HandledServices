@@ -44,7 +44,7 @@ export default async function Careers() {
           <Link href="/careers/sales?utm_source=careers" className="card mt-5 flex flex-col transition hover:border-brand sm:max-w-2xl">
             <span className="font-bold">{es ? "Account Executive — servicios comerciales y para hogares" : "Account Executive — commercial & home services"}</span>
             <span className="mt-1 text-sm text-ink-soft">{es ? "Área de Detroit y nuestras otras ciudades · contratista independiente" : "Detroit metro and our other cities · independent contractor"}</span>
-            <span className="mt-2 text-sm">{es ? "Gane del 15% al 45% de nuestra ganancia en lo que vende, siga ganando con sus clientes, y suba de rango con el dinero que genera para Handled. Tres caminos a $100K al año con cuentas comerciales. Pagado cada lunes." : "Earn 15% rising to 45% of our profit on what you sell, keep earning on your clients, and move up on the money you make Handled. Three paths to $100K a year with commercial accounts. Paid every Monday."}</span>
+            <span className="mt-2 text-sm">{es ? "Gane del 20% al 50% de nuestra ganancia en lo que vende, siga ganando con sus clientes, y suba de rango con el dinero que genera para Handled. Tres caminos a $100K al año con cuentas comerciales. Pagado cada lunes." : "Earn 20% rising to 50% of our profit on what you sell, keep earning on your clients, and move up on the money you make Handled. Three paths to $100K a year with commercial accounts. Paid every Monday."}</span>
             <span className="mt-3 text-sm font-semibold text-brand">{es ? "Ver el camino y unirme →" : "See the path & join →"}</span>
           </Link>
         </section>

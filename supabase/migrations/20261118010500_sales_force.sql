@@ -77,7 +77,7 @@ do $$ begin
   end if;
 end $$;
 
--- a Sales Force rep's customer after their first 12 months: the rep's book share (tier 'book')
+-- a Sales Force rep's customer after their first 12 months: the rep's book share (tier 'book'); keeps partner-v7's 'program' / 'sale'
 alter table public.partner_commissions drop constraint if exists partner_commissions_tier_check;
 alter table public.partner_commissions add constraint partner_commissions_tier_check
-  check (tier is null or tier in ('one_time','repeat','account','legacy','direct','self','book'));
+  check (tier is null or tier in ('one_time','repeat','account','legacy','direct','self','program','sale','book'));

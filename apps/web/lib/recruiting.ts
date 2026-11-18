@@ -30,9 +30,14 @@
  * UPDATED : 2026-11-10_1330 UTC — activation sends the full "Welcome to the Handled Network" email (core proWelcomeEmail):
  *           the services they're cleared for, how the portal works, pay, tiers, rewards, referrals, Partner Program, help and
  *           the PDF guide. The push notification stays short.
+ * UPDATED : 2026-11-12_2330 UTC — decideDocument: two ways to verify insurance (automatic AI check, or Handled review by
+ *           policy or insurer); staff can confirm or correct the expiry date; a verify with no date uses the AI's reading.
+ * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: the new pro's state is set from their first ZIP.
+ * UPDATED : 2026-11-17_2200 UTC — every application triggers the Legal & Compliance team (legalOnProApplication).
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
+import { legalOnProApplication } from "./legal-intake";
+import { stateForZip, BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -123,6 +128,8 @@ function stepsList(c: Contractor, lang = "en") {
 export async function onApplication(appId: string) {
   const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
   if (!app) return;
+  // Legal & Compliance team: license / insurance / classification / new-state tasks for this sign-up (never throws)
+  await legalOnProApplication(appId);
   const settings = await getRecruitingSettings();
   if (settings.instantSignup && settings.autoInvite) {
     const inv = await inviteApplicant(appId, "instant sign-up", "account opened at sign-up");
@@ -178,6 +185,8 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
     business_name: app.business_name, contact_name: app.contact_name, email: String(app.email).toLowerCase(), phone: app.phone,
     trades: app.trades, specialties: app.specialties ?? [], service_zips: zips, license_number: app.license_number, status: "vetting",
     daily_capacity: Math.max(2, Math.min(10, (app.crew_size ?? 1) * 2)), application_id: app.id, invited_at: now, dropped_at: null,
+    // all 50 states (2026-11-17): their state from their first ZIP (they can change it in setup)
+    ...(stateForZip(zips.find((z: string) => /^\d{5}$/.test(z)) ?? null) ? { base_state: stateForZip(zips.find((z: string) => /^\d{5}$/.test(z)) ?? null) } : {}),
   }, { onConflict: "email" }).select("*").single();
   if (error || !pro) return { ok: false, error: error?.message ?? "Couldn't create the pro" };
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);
@@ -523,13 +532,28 @@ export async function revivePro(contractorId: string, actor: string, note?: stri
  * license_expires; trade coverage sets coverage[kind]; a background report clears the check.
  * Then setup is re-checked (background check / auto-activate).
  */
-export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null) {
+/**
+ * Verify or reject a document. Two ways to verify insurance: the automatic AI check (actor "AI check") or Handled
+ * review — staff open the policy, or confirm it with the insurer / agent (`method`), and can confirm or correct the
+ * expiry date (`expiresOn`; it sets insured_until / coverage). A verify with no expiry anywhere uses the AI's reading.
+ */
+export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null, o: { expiresOn?: string | null; method?: "document" | "insurer" | "auto" | null; handledListedAs?: "additional_insured" | "certificate_holder" | null } = {}) {
   const { data: doc } = await db().from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", contractorId).single();
   if (!doc) throw new Error("No such document");
   const now = new Date().toISOString();
-  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: notes ?? doc.notes }).eq("id", docId);
+  const aiExpiry = (doc.ai_check as { expires_on?: string } | null)?.expires_on;
+  if (decision === "verify") doc.expires_on = o.expiresOn || doc.expires_on || (aiExpiry && /^\d{4}-\d{2}-\d{2}$/.test(aiExpiry) ? aiExpiry : null);
+  const how = o.method === "insurer" ? "confirmed with the insurer / agent" : o.method === "document" ? "reviewed the policy" : o.method === "auto" ? "automatic check" : null;
+  const note = [notes ?? doc.notes, decision === "verify" && how ? `Verified: ${how}` : null].filter(Boolean).join(" · ") || null;
+  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: note, ...(decision === "verify" ? { expires_on: doc.expires_on } : {}) }).eq("id", docId);
   if (decision === "verify") {
     if (doc.kind === "coi" && doc.expires_on) await db().from("contractors").update({ insured_until: doc.expires_on }).eq("id", contractorId);
+    // Handled as ADDITIONAL INSURED (not only certificate holder) → priority for jobs that need insurance (core ADDITIONAL_INSURED_BOOST)
+    if (doc.kind === "coi") {
+      const named = o.handledListedAs ? o.handledListedAs === "additional_insured" : Boolean((doc.ai_check as { additional_insured?: boolean } | null)?.additional_insured);
+      const { error } = await db().from("contractors").update({ handled_additional_insured: named }).eq("id", contractorId);
+      if (error && /handled_additional_insured/.test(error.message)) await raiseAlert("setup", "warn", "Run ADD_ADDITIONAL_INSURED_PRIORITY_2026-11-12_2355.sql", "A COI was verified, but the additional-insured job priority can't be saved until that SQL is run.").catch(() => {});
+    }
     if (doc.kind === "license" && doc.expires_on) await db().from("contractors").update({ license_expires: doc.expires_on }).eq("id", contractorId);
     if ((COVERAGE_KINDS as readonly string[]).includes(doc.kind) && doc.expires_on) {
       const { data: c } = await db().from("contractors").select("coverage").eq("id", contractorId).single();

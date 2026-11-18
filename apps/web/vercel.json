@@ -1,9 +1,28 @@
 {
   "crons": [
-    { "path": "/api/cron/daily-brief", "schedule": "0 12 * * *" },
-    { "path": "/api/cron/sweep", "schedule": "0 13 * * *" },
-    { "path": "/api/cron/leads", "schedule": "30 14 * * 1-5" },
-    { "path": "/api/cron/gov", "schedule": "10 13 * * 1-5" },
-    { "path": "/api/cron/accounting", "schedule": "20 11 * * *" }
+    {
+      "path": "/api/cron/daily-brief",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/sweep",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/leads",
+      "schedule": "30 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron/gov",
+      "schedule": "10 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron/accounting",
+      "schedule": "20 11 * * *"
+    },
+    {
+      "path": "/api/cron/payouts",
+      "schedule": "0 15 * * 1"
+    }
   ]
 }

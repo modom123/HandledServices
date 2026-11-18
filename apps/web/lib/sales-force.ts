@@ -64,7 +64,7 @@ export async function repTotals(): Promise<{ all: SalesMember[]; totals: Map<str
   for (const id of ids) own.set(id, { profit: 0, deals: new Set(), clients: new Set(), voided: 0, count: 0, revenue90: 0, profit90: 0 });
   const since90 = Date.now() - 90 * DAY;
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await db().from("partner_commissions").select("partner_id, take, status, created_at, tier, jobs(contact_email, service_slug, price_final, amount_refunded)").in("partner_id", ids.slice(i, i + 200)).in("tier", ["direct", "book"]).limit(100000);
+    const { data } = await db().from("partner_commissions").select("partner_id, take, status, created_at, tier, jobs(contact_email, service_slug, price_final, amount_refunded)").in("partner_id", ids.slice(i, i + 200)).in("tier", ["direct", "sale", "book"]).limit(100000);
     for (const c of (data ?? []) as unknown as Comm[]) {
       const o = own.get(c.partner_id)!;
       o.count++;
@@ -155,7 +155,7 @@ async function leaderChain(partnerId: string): Promise<{ id: string; rank: Sales
     const { data: l } = await db().from("referral_partners").select("id, status, sales_rank, sales_leader_id").eq("id", id).maybeSingle();
     if (!l) break;
     if (l.status === "active" && l.sales_rank) {
-      const { data: c } = await db().from("partner_commissions").select("take").eq("partner_id", id).in("tier", ["direct", "book"]).neq("status", "void").gte("created_at", new Date(Date.now() - 90 * DAY).toISOString()).limit(5000);
+      const { data: c } = await db().from("partner_commissions").select("take").eq("partner_id", id).in("tier", ["direct", "sale", "book"]).neq("status", "void").gte("created_at", new Date(Date.now() - 90 * DAY).toISOString()).limit(5000);
       const p90 = (c ?? []).reduce((t, r: { take: number }) => t + Number(r.take), 0);
       out.push({ id, rank: l.sales_rank as SalesRank, selling: p90 >= SALES_POOL.leaderMinPersonalProfit });
     }
@@ -166,7 +166,7 @@ async function leaderChain(partnerId: string): Promise<{ id: string; rank: Sales
 
 /** At completion of a rep's direct sale: their leaders' team shares and the rep's first-sale bonus. */
 export async function accrueTeamPay(job: Job, sp: { tier: string; rate: number; take: number; amount: number } | null) {
-  if (!job.partner_id || !sp || sp.tier !== "direct" || sp.amount <= 0) return;
+  if (!job.partner_id || !sp || !["direct", "sale"].includes(sp.tier) || sp.amount <= 0) return; // a direct sale (v7 tier "sale")
   const rank = await salesRankOf(job.partner_id);
   if (!rank) return;
   const done = job.completed_at ? new Date(job.completed_at) : new Date();

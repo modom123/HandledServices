@@ -14,6 +14,8 @@
  *           pro would be offered it there (dispatch's eligible(): trade, license, insurance, background check, service
  *           area), and closes again if no pro covers it. The waitlist for that service and ZIP is told on the next sweep.
  * UPDATED : 2026-11-06_0500 UTC — New York, New Jersey and Nevada (Las Vegas) are served states.
+ * UPDATED : 2026-11-17_2045 UTC — all 50 states: outside the served states a service is bookable in a ZIP once an approved pro
+ *           covers it there (proCovers); otherwise closed with "no pro here yet" and the waitlist.
  */
 import "server-only";
 import { eligible, getService, marketForZip, serviceOpen, type Contractor, type LaunchMarket } from "@handled/core";
@@ -52,7 +54,13 @@ export async function openFor(slug: string, zip: string | null | undefined): Pro
   if (getService(slug)?.remote) return { open: true, market: null }; // done remotely: any US ZIP
   try {
     const market = marketForZip(await launchMarkets(), zip);
-    if (!market) return { open: Boolean(servedState(zip)), market: null };
+    // all 50 states (owner, 2026-11-17): outside our launched states a service opens in a ZIP as soon as an approved pro
+    // covers it there — services appear where pros sign up. (Never auto-create a market there: an empty launch list
+    // would open every service.)
+    if (!market) {
+      if (servedState(zip)) return { open: true, market: null };
+      return (await proCovers(slug, zip)) ? { open: true, market: null, viaPro: true } : { open: false, market: null };
+    }
     if (serviceOpen(market, slug)) return { open: true, market: market.name ?? null };
     // pro-led rollout: not on the city's launch list yet, but a vetted pro covers it here → bookable
     if (await proCovers(slug, zip)) return { open: true, market: market.name ?? null, viaPro: true };

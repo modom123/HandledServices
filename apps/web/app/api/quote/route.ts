@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 import { getMarketFactor } from "@/lib/market";
-import { isPhotoPath, getService, isRush, photoProblem, sizeNeedsSiteVisit } from "@handled/core";
+import { isPhotoPath, getService, isRush, photoProblem, siteVisitReason } from "@handled/core";
 import { quoteToken } from "@/lib/invoice";
 import { aiQuote } from "@/lib/ai/quote";
 import { signedUrls } from "@/lib/photos";
@@ -48,5 +48,5 @@ export async function POST(req: Request) {
   });
   const notes = b.ai ? b.notes?.trim() || null : null;
   const token = b.ai ? quoteToken({ slug: b.service_slug, answers: b.answers, frequency: b.frequency, photos: b.photos, notes, rush, ai, exp: Date.now() + 2 * 3600 * 1000 }) : null;
-  return Response.json({ baseline, ai, quote_token: token, photo_problem: photoProblem(b.service_slug, b.photos.length, b.locale), site_visit: sizeNeedsSiteVisit(b.service_slug, b.answers) });
+  return Response.json({ baseline, ai, quote_token: token, photo_problem: photoProblem(b.service_slug, b.photos.length, b.locale), site_visit: siteVisitReason(b.service_slug, b.answers, baseline?.point) });
 }

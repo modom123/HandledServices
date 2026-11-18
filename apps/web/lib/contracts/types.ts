@@ -9,7 +9,7 @@
  * UPDATED : 2026-10-03_0047 UTC — Spanish translations (ContractTranslation); English controls.
  */
 
-export type ContractAudience = "customer" | "business" | "pro";
+export type ContractAudience = "customer" | "business" | "pro" | "partner";
 
 export interface ContractSection {
   /** Heading, numbered: "4. Payment". */

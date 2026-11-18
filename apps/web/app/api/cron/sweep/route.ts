@@ -24,11 +24,15 @@
  * UPDATED : 2026-10-19_1308 UTC — renewal reminders for active pros' insurance, coverages and licenses (lib/recruiting renewalSweep).
  * UPDATED : 2026-11-10_0310 UTC — daily: low name-your-price offers nobody took in 30 days are cancelled and refunded.
  * UPDATED : 2026-11-10_1415 UTC — daily: remind partners to set up payouts (lib/partners partnerPayoutReminders).
+ * UPDATED : 2026-11-12_2100 UTC — daily job board summary to pros ("N new jobs near you").
+ * UPDATED : 2026-11-17_1700 UTC — the Monday pro payout run moved to its own cron (/api/cron/payouts) so it has the whole
+ *           time limit to itself instead of running after everything else here.
+ * UPDATED : 2026-11-17_1900 UTC — daily: follow PayPal / Venmo payouts (syncPaypalPayouts).
  * UPDATED : 2026-11-18_0105 UTC — daily: Sales Force promotions from cumulative totals (lib/sales-force refreshRanks).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
-import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee, runWeeklyPayouts } from "@/lib/pro-benefits";
+import { grantStipends, payReferralBonuses, refreshProStats, runGuarantee } from "@/lib/pro-benefits";
 import { recruitingSweep, renewalSweep, uploadReminderSweep } from "@/lib/recruiting";
 import { clearStaleLocations } from "@/lib/roster";
 import { notifyWaitlist } from "@/lib/waitlist";
@@ -46,7 +50,9 @@ export async function GET(req: Request) {
 
   // 1. Expired offers → re-dispatch (also runs every 10 minutes: /api/cron/dispatch)
   const { expired, redispatched } = await redispatchExpired();
-  const openOffersExpired = await (await import("@/lib/jobs")).expireOpenOffers().catch((e) => { console.error("[open offers]", e); return null; }); // name-your-price jobs nobody took in 30 days
+  // job board: each pro's daily "new jobs near you" summary (lib/board boardDigest)
+  const boardDigest = await (await import("@/lib/board")).boardDigest().catch((e) => { console.error("[board digest]", e); return null; });
+  const openOffersExpired = await (await import("@/lib/jobs")).expireOpenOffers().catch((e) => { console.error("[open offers]", e); return null; }); // name-your-price board posts nobody took in 90 days
 
   // 2. Unassigned jobs within 24h → critical alert (once per job)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -87,7 +93,8 @@ export async function GET(req: Request) {
   const waitlist = await notifyWaitlist().catch((e) => { console.error("[waitlist]", e); return 0; }); // their area is open now → tell them
   const monday = new Date().getUTCDay() === 1;
   const guarantee = monday ? await runGuarantee() : null; // Mondays: last week's minimums
-  const payouts = monday ? await runWeeklyPayouts() : null; // Mondays: free weekly payout to every pro
+  const paypal = await (await import("@/lib/pro-benefits")).syncPaypalPayouts().catch((e) => { console.error("[paypal sync]", e); return null; }); // daily: PayPal / Venmo payouts landed, returned or unclaimed
+  const payouts = monday ? "runs at /api/cron/payouts" : null; // Mondays: the pro payout run has its own cron (2026-11-17)
   const ticketsExpired = await (await import("@/lib/sales-tickets")).expireTickets().catch((e) => { console.error("[sales tickets]", e); return null; }); // Field Sales tickets unbooked for 30 days
   const partnerPayouts = monday ? await (await import("@/lib/partners")).runPartnerPayouts().catch((e) => { console.error("[partner payouts]", e); return null; }) : null; // Mondays: referral commissions
   const partnerPayoutNudges = await (await import("@/lib/partners")).partnerPayoutReminders().catch((e) => { console.error("[partner payout reminders]", e); return null; }); // daily: payouts not set up (days 1, 3, 7, 14)
@@ -99,5 +106,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ salesForce, renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ salesForce, paypal, renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, boardDigest, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

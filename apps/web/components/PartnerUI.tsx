@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-17_2100 UTC — the sign-up checkbox e-signs the Referral Partner Agreement (linked); AgreementSign for existing partners.
  * UPDATED : 2026-11-18_0105 UTC — sign-up sends ?leader= (a Sales Force leader's recruit link) so the new rep joins that team.
  */
 "use client";
@@ -66,7 +67,7 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
       </div>
       <label className="block text-sm">I am a…<select className="input mt-1" value={f.kind} onChange={set("kind")}>{kinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
       <label className="block text-sm">How will you refer people? (optional)<textarea className="input mt-1" rows={2} value={f.how} onChange={set("how")} placeholder="e.g. I list 40 homes a year and my sellers always need move-out cleans" /></label>
-      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} />I agree to the partner terms below.</label>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} /><span>I've read and sign the <a href="/terms/referral-partner-agreement" target="_blank" className="font-semibold underline">Referral Partner Agreement</a>. My name above is my electronic signature.</span></label>
       <button className="btn-primary w-full" disabled={busy || !f.agree}>{busy ? "Signing you up…" : "Get my partner link"}</button>
       {err && <p className="text-sm text-rose-700">{err}</p>}
     </form>
@@ -389,3 +390,27 @@ export function SalesTicketForm({ services, minPhotos, maxPhotos, repCode }: { s
 }
 
 const FREQ: Record<Frequency, string> = { once: "One time", weekly: "Weekly", biweekly: "Every 2 weeks", monthly: "Monthly", quarterly: "Quarterly" };
+
+/** Partner page: sign the current Referral Partner Agreement (partners who joined under earlier terms). */
+export function AgreementSign({ defaultName }: { defaultName: string }) {
+  const [name, setName] = useState(defaultName);
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={async (e) => {
+      e.preventDefault();
+      setBusy(true); setMsg("");
+      const r = await fetch("/api/partner", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sign", signer_name: name, agree: true }) }).catch(() => null);
+      const j = r ? await r.json().catch(() => ({})) : {};
+      setBusy(false);
+      if (r?.ok) { setMsg("✓ Signed — thank you."); setTimeout(() => location.reload(), 900); }
+      else setMsg(String(j.error ?? "Couldn't sign — try again"));
+    }}>
+      <label className="text-sm">Your full name (signature)<input className="input mt-1 w-64" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />I've read and sign it</label>
+      <button className="btn-primary" disabled={busy || !ok || name.trim().length < 2}>{busy ? "Signing…" : "Sign the agreement"}</button>
+      {msg && <span className="text-sm" role="status">{msg}</span>}
+    </form>
+  );
+}

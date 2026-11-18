@@ -34,7 +34,7 @@ export default async function ContractLibrary({ searchParams }: { searchParams: 
       .or(`email.ilike.${like},signer_name.ilike.${like}`).order("accepted_at", { ascending: false }).limit(300);
     found = (data ?? []) as unknown as AcceptanceRow[];
   }
-  const groups: Contract["audience"][] = ["customer", "business", "pro"];
+  const groups: Contract["audience"][] = ["customer", "business", "partner", "pro"];
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">

@@ -8,20 +8,27 @@
  *           (bookings by first-touch source), so money goes where customers come from.
  * UPDATED : 2026-11-07_1615 UTC — "Links to share": tracked links to Post your project (/post) for Facebook groups, Nextdoor, bios,
  *           Google Business Profile, flyers, email and texts; their leads show up by channel below.
+ * UPDATED : 2026-11-17_1530 UTC — Scheduled calls: calls customers booked on the appointment calendar (today and coming
+ *           up, soonest first, with tap-to-call); booked leads aren't flagged as "waiting"; admins set the call hours.
  */
 import Link from "next/link";
 import { CHANNELS, SERVICE_BY_SLUG, channelLabel, channelOf, money } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
 import { LeadStatusButtons } from "@/components/LeadInbox";
+import { CallHoursEditor } from "@/components/CallHoursEditor";
+import { getViewer } from "@/lib/auth";
+import { getCallHours } from "@/lib/call-schedule";
 import { siteUrl } from "@/lib/site-url";
+import { signedUrls } from "@/lib/photos";
 
 export const dynamic = "force-dynamic";
 
-type Lead = { id: string; name: string | null; email: string | null; phone: string | null; company: string | null; zip: string | null; city: string | null; service_slug: string | null; message: string | null; channel: string | null; source: string; campaign: string | null; status: string | null; sms_consent: boolean | null; first_reply_at: string | null; contacted_at: string | null; biz_lead_id: string | null; created_at: string };
+type Lead = { id: string; name: string | null; email: string | null; phone: string | null; company: string | null; zip: string | null; city: string | null; service_slug: string | null; message: string | null; photos?: string[] | null; channel: string | null; source: string; campaign: string | null; status: string | null; sms_consent: boolean | null; first_reply_at: string | null; contacted_at: string | null; biz_lead_id: string | null; created_at: string; call_at?: string | null };
 
 const mins = (a: string, b: string | null) => (b ? (new Date(b).getTime() - new Date(a).getTime()) / 60000 : null);
 const fmtMins = (m: number | null) => (m == null ? "—" : m < 1 ? "<1 min" : m < 90 ? `${Math.round(m)} min` : m < 2880 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`);
+const callTime = (at: string) => new Date(at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Detroit", timeZoneName: "short" });
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 
 const POST_LINKS: [string, string][] = [
@@ -40,11 +47,16 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
   const days = [7, 30, 90].includes(Number(d)) ? Number(d) : 30;
   const since = new Date(Date.now() - days * 86400000).toISOString();
   const db = adminClient();
-  const [{ data: leadRows }, { data: jobs }, { data: calls }] = await Promise.all([
+  const [{ data: leadRows }, { data: jobs }, { data: calls }, { data: callRows }, viewer, hours] = await Promise.all([
     db.from("leads").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(5000),
     db.from("jobs").select("status, price_final, attribution, created_at").gte("created_at", since).limit(20000),
     db.from("biz_lead_events").select("kind").like("kind", "call:%").gte("created_at", since).limit(20000),
+    // booked calls from 2 hours ago on (a missed one stays visible for a bit); empty until the call-appointments SQL is run
+    db.from("leads").select("*").gte("call_at", new Date(Date.now() - 2 * 3600000).toISOString()).order("call_at", { ascending: true }).limit(200),
+    getViewer(),
+    getCallHours(),
   ]);
+  const scheduled = ((callRows ?? []) as Lead[]).filter((l) => !["lost", "spam", "booked"].includes(l.status ?? "new"));
   const leads = ((leadRows ?? []) as Lead[]).map((l) => ({ ...l, channel: l.channel ?? channelOf(l.source) }));
   const open = leads.filter((l) => (l.status ?? "new") === "new" || l.status === "contacted").filter((l) => !channel || l.channel === channel);
   const firstReply = leads.map((l) => mins(l.created_at, l.first_reply_at)).filter((x): x is number => x != null);
@@ -57,6 +69,11 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
     const fast = ls.filter((l) => { const m = mins(l.created_at, l.contacted_at); return m != null && m <= 5; }).length;
     return { c, leads: ls.length, booked: ls.filter((l) => l.status === "booked").length, fast, bookings: bk.length, revenue: bk.reduce((t, j) => t + Number(j.price_final ?? 0), 0) };
   }).filter((r) => r.leads || r.bookings).sort((a, b) => b.revenue - a.revenue || b.leads - a.leads);
+  // posted photos (Post your project): short-lived signed links for the open leads on screen
+  const shown = open.slice(0, 200);
+  const photoPaths = shown.flatMap((l) => l.photos ?? []);
+  const urls = photoPaths.length ? await signedUrls(photoPaths).catch(() => [] as string[]) : [];
+  const photoUrl = new Map(photoPaths.map((p, i) => [p, urls[i]] as const));
   const tab = (href: string, label: string, on: boolean) => <Link href={href} className={`rounded-full border px-3 py-1 text-xs ${on ? "border-brand bg-brand-tint font-semibold" : "border-line"}`}>{label}</Link>;
   return (
     <div className="space-y-6">
@@ -64,6 +81,32 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
         <h1 className="text-2xl font-bold">Lead inbox</h1>
         <p className="max-w-3xl text-sm text-ink-soft">Every inbound lead from every channel lands here and gets an instant reply (email, plus a text only if they agreed to texts). Businesses also go to the top of the <Link href="/hub/biz-leads/calls" className="text-brand underline">Call desk</Link>. Call new leads within 5 minutes: the odds of reaching someone drop fast after that. Bookings are counted by the customer’s first-touch channel.</p>
       </div>
+      <section className="card">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold">📅 Scheduled calls</h2>
+          <span className="text-xs text-ink-soft">Booked by customers on Post your project and in the AI project manager · times in Eastern</span>
+        </div>
+        {scheduled.length ? (
+          <div className="mt-3 divide-y divide-line">
+            {scheduled.map((l) => {
+              const due = new Date(l.call_at!).getTime() - Date.now();
+              return (
+                <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <div>
+                    <div className={`font-bold ${due < 0 && (l.status ?? "new") === "new" ? "text-rose-700" : ""}`}>{callTime(l.call_at!)}{due < 0 && (l.status ?? "new") === "new" ? " · overdue" : due < 15 * 60000 ? " · now" : ""}</div>
+                    <div>{l.name ?? "(no name)"} — {l.service_slug ? SERVICE_BY_SLUG[l.service_slug]?.name ?? l.service_slug : "Service not given"}{l.zip ? ` · ${l.zip}` : ""}{l.status === "contacted" ? " · ✅ called" : ""}</div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    {l.phone && <a href={`tel:${l.phone.replace(/[^\d+]/g, "")}`} className="btn-primary">📞 {l.phone}</a>}
+                    <LeadStatusButtons id={l.id} status={l.status ?? "new"} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : <p className="mt-2 text-sm text-ink-soft">No calls booked yet. Customers book them from Post your project (“Have a person call me” → Pick a time) and the AI project manager.</p>}
+        {viewer?.role === "admin" && <CallHoursEditor initial={hours} />}
+      </section>
       {/* where to post: tracked links to "Post your project" (/post); each lead shows its channel below */}
       <section className="card">
         <h2 className="text-lg font-bold">Links to share — Post your project</h2>
@@ -116,7 +159,7 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
         </div>
         {open.length ? (
           <div className="space-y-2">
-            {open.slice(0, 200).map((l) => {
+            {shown.map((l) => {
               const wait = mins(l.created_at, l.contacted_at ?? new Date().toISOString());
               return (
                 <div key={l.id} className="card text-sm">
@@ -125,8 +168,15 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
                       <div className="text-xs font-semibold uppercase tracking-wide text-brand">{channelLabel(l.channel)}{l.campaign ? ` · ${l.campaign}` : ""}</div>
                       <div className="font-bold">{l.name ?? "(no name)"}{l.company ? ` — ${l.company}` : ""}</div>
                       <div className="text-xs text-ink-soft">{l.service_slug ? SERVICE_BY_SLUG[l.service_slug]?.name ?? l.service_slug : "Service not given"}{l.city || l.zip ? ` · ${[l.city, l.zip].filter(Boolean).join(" ")}` : ""} · {new Date(l.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Detroit" })}</div>
-                      {l.message && <p className="mt-1 whitespace-pre-wrap text-xs">{l.message.slice(0, 400)}</p>}
-                      <div className="mt-1 text-xs text-ink-soft">{l.first_reply_at ? `Instant reply sent (${fmtMins(mins(l.created_at, l.first_reply_at))})` : "No instant reply"}{l.sms_consent ? " · OK to text" : " · no texts"}{(l.status ?? "new") === "new" ? <b className={wait != null && wait > 5 ? " text-rose-700" : ""}> · waiting {fmtMins(wait)}</b> : ` · contacted after ${fmtMins(mins(l.created_at, l.contacted_at))}`}{l.biz_lead_id ? <> · <Link href={`/hub/biz-leads/${l.biz_lead_id}`} className="underline">business lead</Link></> : null}</div>
+                      {l.message && (l.message.length > 400
+                        ? <details className="mt-1 text-xs"><summary className="cursor-pointer whitespace-pre-wrap">{l.message.slice(0, 400)}… <span className="text-brand underline">more</span></summary><p className="whitespace-pre-wrap">{l.message.slice(400)}</p></details>
+                        : <p className="mt-1 whitespace-pre-wrap text-xs">{l.message}</p>)}
+                      {(l.photos ?? []).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">{(l.photos ?? []).map((p) => photoUrl.get(p)
+                          ? <a key={p} href={photoUrl.get(p)} target="_blank" rel="noreferrer"><img src={photoUrl.get(p)} alt="Customer photo" className="h-20 w-20 rounded-lg border border-line object-cover" /></a>
+                          : <span key={p} className="grid h-20 w-20 place-items-center rounded-lg bg-paper text-xs text-ink-soft">photo</span>)}</div>
+                      )}
+                      <div className="mt-1 text-xs text-ink-soft">{l.first_reply_at ? `Instant reply sent (${fmtMins(mins(l.created_at, l.first_reply_at))})` : "No instant reply"}{l.sms_consent ? " · OK to text" : " · no texts"}{l.call_at && (l.status ?? "new") === "new" ? <b> · 📅 call booked {callTime(l.call_at)}</b> : (l.status ?? "new") === "new" ? <b className={wait != null && wait > 5 ? " text-rose-700" : ""}> · waiting {fmtMins(wait)}</b> : ` · contacted after ${fmtMins(mins(l.created_at, l.contacted_at))}`}{l.biz_lead_id ? <> · <Link href={`/hub/biz-leads/${l.biz_lead_id}`} className="underline">business lead</Link></> : null}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1 text-xs">
                       {l.phone && <a href={`tel:${l.phone.replace(/[^\d+]/g, "")}`} className="btn-primary">📞 {l.phone}</a>}

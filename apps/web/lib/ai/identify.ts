@@ -25,7 +25,7 @@ const Schema = z.object({
 });
 
 function catalog() {
-  return SERVICES.map((s) => `${s.slug} — ${s.name}: ${s.tagline}${s.siteVisit ? " (free site visit)" : ""}\n  questions: ${s.questions.map((q) => q.type === "select" ? `${q.id} [${q.options.map((o) => o.value).join("|")}]` : q.type === "number" ? `${q.id} (number ${q.min ?? 0}–${q.max ?? "?"}${q.unit ? ` ${q.unit}` : ""})` : `${q.id} (yes/no)`).join("; ")}`).join("\n");
+  return SERVICES.map((s) => `${s.slug} — ${s.name}: ${s.tagline}\n  questions: ${s.questions.map((q) => q.type === "select" ? `${q.id} [${q.options.map((o) => o.value).join("|")}]` : q.type === "number" ? `${q.id} (number ${q.min ?? 0}–${q.max ?? "?"}${q.unit ? ` ${q.unit}` : ""})` : `${q.id} (yes/no)`).join("; ")}`).join("\n");
 }
 
 /** Keep only answers that fit the service's questions (valid option, number in range, yes/no). */

@@ -9,6 +9,8 @@
  * UPDATED : 2026-10-14_2330 UTC — Stats and insights only. The AI morning brief, alerts and today's schedule moved to
  *           Daily Briefing (app/hub/briefing). Tiles compare month-to-date with the same days last month and open
  *           drill-down history pages.
+ * UPDATED : 2026-11-17_2000 UTC — tiles split into 🧰 Pros (active pros, supply gaps, insurance) and 🎯 Recruiting (pipeline,
+ *           applications, pro leads, conversion, drop-offs), matching the new Hub sections.
  * UPDATED : 2026-10-15_0010 UTC — 🧰 Pros & recruiting is the first section: active roster, candidates in the pipeline,
  *           applications, jobs no pro could take, pro-lead outreach, insurance expiring, drop-offs and applicant → active
  *           conversion, plus the recruiting funnel by stage. Recruiting insights lead the list.
@@ -148,14 +150,16 @@ export default async function HubDashboard() {
   const vsMonth = "same days last month";
 
   const groups: [string, Tile[]][] = [
-    ["🧰 Pros & recruiting", [
+    ["🧰 Pros", [
       { label: "Active pros", value: String(activePros.length), hint: `+${act.cur.length} activated this month · ${roster.length} on file`, trend: { text: trendLabel(pctChange(act.cur.length, act.prev.length), `activations ${vsMonth}`), good: up(pctChange(act.cur.length, act.prev.length)) }, href: "/hub/pros" },
+      { label: "Jobs no pro could take (30 days)", value: String(noProJobs), hint: noProJobs ? "see where to recruit" : "every job found a pro", href: "/hub/gaps", alert: noProJobs > 0 },
+      { label: "Insurance expiring (30 days)", value: String(insExpiring), hint: insExpired ? `${insExpired} already expired` : "active pros only", href: "/hub/pros", alert: insExpired > 0 },
+    ]],
+    ["🎯 Recruiting", [
       { label: "Candidates in pipeline", value: String(inPipeline), hint: needDecision ? `${needDecision} need a decision from you` : "nobody waiting on a decision", href: "/hub/recruiting", alert: needDecision > 0 },
       { label: "New applications (month)", value: String(appSplit.cur.length), hint: `${newApps} not reviewed yet`, trend: { text: trendLabel(pctChange(appSplit.cur.length, appSplit.prev.length), vsMonth), good: up(pctChange(appSplit.cur.length, appSplit.prev.length)) }, href: stat("applications") },
-      { label: "Jobs no pro could take (30 days)", value: String(noProJobs), hint: noProJobs ? "see where to recruit" : "every job found a pro", href: "/hub/gaps", alert: noProJobs > 0 },
       { label: "Pro leads in outreach", value: String(leadsOut), hint: `${leadsReplied} replied · ${leadsApplied} applied · ${leads.length} found`, href: "/hub/leads" },
       { label: "Applicant → active (90 days)", value: conversion === null ? "—" : `${conversion}%`, hint: `${recent.filter((r) => r.stage === "active").length} of ${recent.length} applicants now active`, href: "/hub/recruiting?stage=active" },
-      { label: "Insurance expiring (30 days)", value: String(insExpiring), hint: insExpired ? `${insExpired} already expired` : "active pros only", href: "/hub/pros", alert: insExpired > 0 },
       { label: "Dropped off (month)", value: String(droppedMonth), hint: "pros who stopped mid-setup or left", href: "/hub/recruiting?stage=dropped", alert: droppedMonth > 0 },
     ]],
     ["Money", [

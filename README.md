@@ -138,7 +138,7 @@ Headers: Authorization: Bearer $IEBC_API_KEY
 | `pro_success` | `pro_success.pros`, `pro_success.message` | Grace O'Connor (Pro Success), Leo Fitzgerald (at-risk watch, suggest) |
 | `bids` | `bids.pipeline`, `bids.decide`† | Veronica Chase (gov capture), Margaret Okonkwo |
 | `social` | `social.calendar`, `social.new_pros`, `social.draft_post`, `social.edit_post`, `social.write_week`, `social.set_status` (approve = †, it publishes) | Samantha Lee (Brand & Social) |
-| `legal` | `legal.contracts`, `legal.disputes`, `legal.licensing`, `legal.flag` | Legal & Compliance: Olivia Grant (clients & contracts, suggest), Rafael Ortiz (pros, + `recruiting`), Margaret Okonkwo (city/state regs & permits, suggest) |
+| `legal` | `legal.contracts`, `legal.disputes`, `legal.licensing`, `legal.flag`, `legal.signup_queue`, `legal.task_done` (every pro application and partner sign-up files review tasks automatically — lib/legal-intake.ts) | Legal & Compliance: Olivia Grant (clients & contracts, suggest), Rafael Ortiz (pros, + `recruiting`), Margaret Okonkwo (city/state regs & permits, suggest) |
 
 † high-risk: always waits for human approval. \* cancelling a job is high-risk.
 Sofia Rossi (payments & reconciliation) shares `finance` with Eleanor Wei. The Legal & Compliance agents draft and flag only;
