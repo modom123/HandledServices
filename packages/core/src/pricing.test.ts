@@ -3004,3 +3004,23 @@ test("sales force: the 90-day revenue leaderboard ranks people, never their rank
   assert.match(String(b[1].reward), /Top 3/);
   assert.equal(b[0].rank, "senior_ae"); // the board never changes anyone's rank
 });
+
+test("sales force live pay: seller rate, team shares within the pool, automatic promotions", async () => {
+  const { sellerRate, teamOverrides, autoPromote } = await import("./sales-force.ts");
+  assert.equal(sellerRate("associate"), 0.15);
+  assert.equal(sellerRate("associate", 0.22), 0.22); // never below the ladder rate they already earned
+  assert.equal(sellerRate("vp", 0.9), 0.45);
+  const chain = [{ id: "tl", rank: "team_lead" as const, selling: true }, { id: "m", rank: "manager" as const, selling: false }, { id: "d", rank: "director" as const, selling: true }, { id: "v", rank: "vp" as const, selling: true }];
+  assert.deepEqual(teamOverrides({ take: 1000, sellerRate: 0.2, sellerRank: "ae", leaders: chain }).map((x) => [x.id, x.amount]), [["tl", 80], ["d", 40], ["v", 30]]);
+  // never over 60% together: a 45% seller leaves room for 8% + 5% only
+  const tight = teamOverrides({ take: 1000, sellerRate: 0.45, sellerRank: "ae", leaders: [{ id: "tl", rank: "team_lead", selling: true }, { id: "m", rank: "manager", selling: true }, { id: "d", rank: "director", selling: true }] });
+  assert.deepEqual(tight.map((x) => x.id), ["tl", "m"]);
+  const zero = { rank: "associate" as const, profit: 0, teamProfit: 0, deals: 0, clients: 0, reps: 0, leaders: 0, teamDeals: 0, refundRate: 0, academyDone: [] };
+  assert.equal(autoPromote(zero).rank, "associate");
+  assert.deepEqual(autoPromote({ ...zero, profit: 30_000, deals: 16, clients: 12 }).steps, ["ae", "senior_ae"]);
+  // with a team, the leader path is taken
+  assert.equal(autoPromote({ ...zero, rank: "senior_ae", profit: 200_000, deals: 50, clients: 40, reps: 3, teamDeals: 60, teamProfit: 200_000 }).rank, "team_lead");
+  // VP waits for the owners
+  const top = autoPromote({ ...zero, rank: "director", teamProfit: 2e7, leaders: 3, teamDeals: 5000 });
+  assert.equal(top.rank, "director"); assert.equal(top.awaitingApproval, "vp");
+});

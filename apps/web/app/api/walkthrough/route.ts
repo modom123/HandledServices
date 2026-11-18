@@ -5,12 +5,14 @@
  * PURPOSE : Free walkthroughs, public (businesses book themselves).
  *             GET  — the open times (next ~2 weeks, in the business's time zone)
  *             POST { kind, start, name, company, email, phone?, address?, city?, state?, zip?, needs?, properties?, landing?, lead?, attribution? }
- *           Rate-limited like every public form. Returns { ok, token } (their manage link is /walkthrough/<token>).
+ *           Rate-limited like every public form. The partner cookie (a rep's link) credits the walkthrough to that rep. Returns { ok, token } (their manage link is /walkthrough/<token>).
  */
 import { z } from "zod";
 import { rateLimit } from "@/lib/ratelimit";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { bookWalkthrough, openSlots } from "@/lib/walkthroughs";
+import { cleanPartnerCode } from "@handled/core";
+import { PARTNER_COOKIE } from "@/lib/partners";
 
 export const dynamic = "force-dynamic";
 const ready = () => supabaseConfigured && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -45,6 +47,8 @@ export async function POST(req: Request) {
   if (!b.success) return Response.json({ error: "Check your details: name, company, a valid email and a time." }, { status: 400 });
   if (!b.data.phone?.replace(/\D/g, "")) return Response.json({ error: "Add a phone number so we can reach you." }, { status: 400 });
   if (!ready()) return Response.json({ error: "Booking isn't available right now — call or email us." }, { status: 503 });
-  const r = await bookWalkthrough({ ...b.data, zip: b.data.zip || null });
+  // the rep whose link the business came from (partner cookie) gets credit for the walkthrough
+  const partnerCode = cleanPartnerCode(req.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${PARTNER_COOKIE}=([^;]+)`))?.[1] ?? null);
+  const r = await bookWalkthrough({ ...b.data, zip: b.data.zip || null, partnerCode });
   return Response.json(r, { status: r.ok ? 200 : 409 });
 }

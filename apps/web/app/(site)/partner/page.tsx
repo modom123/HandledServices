@@ -14,6 +14,8 @@
  * UPDATED : 2026-11-10_0400 UTC — lead pay status ($10 per lead, unlock progress: 10 leads + first paid-out sale, waiting / paid).
  * UPDATED : 2026-11-10_1415 UTC — a "Step 1: set up your payouts" banner at the top until Stripe payouts are ready.
  * UPDATED : 2026-11-10_1450 UTC — "Grow your partner business" card linking the Partner Success roadmap (/partner/grow).
+ * UPDATED : 2026-11-18_0105 UTC — Sales Force card (rank, commission, next rank, team and recruit link, leaderboard, pay) for
+ *           members; a link to the sales careers page for everyone else.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -25,6 +27,8 @@ import { leadPayStatus, partnerFor, partnerLink, partnerStats, payoutsReady } fr
 import { Badge, Empty, Stat } from "@/components/ui";
 import { CopyButton, PartnerPayoutButton, ReferralTicket, SalesTicketForm } from "@/components/PartnerUI";
 import { ticketsFor } from "@/lib/sales-tickets";
+import { salesForceView } from "@/lib/sales-force";
+import { SalesForceCard } from "@/components/SalesForceCard";
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
 const SALE_STATUS: Record<string, [string, "green" | "amber" | "red" | "brand" | "slate"]> = {
@@ -47,7 +51,8 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     </div></div>
   );
   const db = adminClient();
-  const [lead, stats, ready, sales, { data: customers }, { data: comms }] = await Promise.all([
+  const [salesForce, lead, stats, ready, sales, { data: customers }, { data: comms }] = await Promise.all([
+    salesForceView(partner.id).catch(() => null),
     leadPayStatus(partner.id).catch(() => null),
     partnerStats(partner.id),
     payoutsReady(partner),
@@ -88,6 +93,8 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
         <span><span className="block font-bold">Grow your partner business →</span><span className="text-sm text-ink-soft">Your roadmap: {roadmapFor(partner.kind).name}. Goals tracked from your real numbers, what to do next, and the services to sell.</span></span>
         <span className="btn-primary">See your roadmap</span>
       </Link>
+      {salesForce ? <SalesForceCard v={salesForce} ladderRate={stats.level.rate} />
+        : <Link href="/careers/sales" className="card flex flex-wrap items-center justify-between gap-3 hover:border-brand"><span><span className="block font-bold">Want to sell for a living?</span><span className="text-sm text-ink-soft">The Handled Sales Force: start as an Associate AE and grow to VP of Sales, on the money you make Handled.</span></span><span className="btn-ghost">See the path</span></Link>}
       <div className="grid gap-3 sm:grid-cols-2">
         <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of the job price today, up to {pct(REFERRAL_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
         <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of our profit today, up to {pct(PARTNER_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>

@@ -11,6 +11,8 @@
  *             setWalkthroughStatus — staff: done / no-show / cancelled, notes, who's going; "done" can send the
  *                                    follow-up email with the order link
  *             walkthroughReminders — every 10 minutes (dispatch cron): one reminder about a day before
+ * UPDATED : 2026-11-18_0105 UTC — the rep whose link the business came from (partner cookie or code) is saved on the walkthrough;
+ *           marking it done pays them $25 if they're in the Sales Force (lib/sales-force.ts walkthroughHeld).
  *           Confirmations go from the company address (handledsvc.com): they asked for this, it isn't outreach.
  */
 import "server-only";
@@ -49,6 +51,8 @@ export interface WalkthroughInput {
   kind: WalkthroughKind; start: string; name: string; company: string; email: string; phone?: string | null;
   address?: string | null; city?: string | null; state?: string | null; zip?: string | null; needs?: string | null; properties?: number | null;
   landing?: string | null; lead?: string | null; attribution?: Record<string, string> | null;
+  /** the partner code from the rep's link (cookie), if any */
+  partnerCode?: string | null;
 }
 
 const manageUrl = (token: string) => `${siteUrl()}/walkthrough/${token}`;
@@ -62,7 +66,10 @@ export async function bookWalkthrough(w: WalkthroughInput): Promise<{ ok: boolea
   const leadToken = w.lead && /^[a-z0-9]{8,40}$/.test(w.lead) ? w.lead : w.attribution?.biz_lead && /^[a-z0-9]{8,40}$/.test(w.attribution.biz_lead) ? w.attribution.biz_lead : null;
   const { data: lead } = leadToken ? await db().from("biz_leads").select("id, status, segment, business_name").eq("token", leadToken).maybeSingle() : { data: null };
   const landing = w.landing ? bizLanding(w.landing) : null;
+  const { data: rep } = w.partnerCode ? await db().from("referral_partners").select("id, status").eq("code", w.partnerCode).maybeSingle() : { data: null };
+  const partnerId = rep?.status === "active" && await (await import("./sales-force")).salesForceReady() ? rep.id : null; // the column comes with the Sales Force SQL
   const { data: row, error } = await db().from("walkthroughs").insert({
+    ...(partnerId ? { partner_id: partnerId } : {}),
     kind: w.kind, starts_at: new Date(w.start).toISOString(), minutes: WALKTHROUGH_KINDS[w.kind].minutes, name: w.name.trim(), company: w.company.trim(), email: w.email.trim().toLowerCase(),
     phone: w.phone?.trim() || null, address: w.address?.trim() || null, city: w.city?.trim() || null, state: w.state?.trim().toUpperCase() || null, zip: w.zip?.trim() || null,
     needs: w.needs?.trim() || null, properties: w.properties ?? null, landing: landing?.slug ?? null, segment: lead?.segment ?? (landing && landing.segment !== "hiring" ? landing.segment : null),
@@ -149,6 +156,7 @@ export async function setWalkthroughStatus(id: string, p: { status?: "booked" | 
     if (ok) patch.followed_up_at = new Date().toISOString();
   }
   if (p.status === "cancelled" && w.status === "booked") await sendConfirmation(w.token, "cancelled").catch(() => {});
+  if (p.status === "done" && w.status !== "done") await (await import("./sales-force")).walkthroughHeld(id).catch((e) => console.error("[sales force walkthrough]", e)); // $25 to the rep
   await db().from("walkthroughs").update(patch).eq("id", id);
   if (w.biz_lead_id && p.status && p.status !== w.status) await db().from("biz_lead_events").insert({ lead_id: w.biz_lead_id, kind: `walkthrough:${p.status}`, note: p.staff_notes ?? null, actor });
   return { ok: true };

@@ -1017,6 +1017,7 @@ export async function finalizeJob(jobId: string, summary?: string) {
   if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
   if (job.partner_id) await (await import("./partners")).accrueCommission(job, partnerCut).catch((e) => console.error("[partners]", e));
+  if (job.partner_id) await (await import("./sales-force")).accrueTeamPay(job, partnerCut).catch((e) => console.error("[sales force]", e)); // leaders' team shares, first-sale bonus
   await (await import("./loyalty")).earnForJob(job).catch((e) => console.error("[loyalty]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
 }

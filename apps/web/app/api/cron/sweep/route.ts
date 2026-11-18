@@ -24,6 +24,7 @@
  * UPDATED : 2026-10-19_1308 UTC — renewal reminders for active pros' insurance, coverages and licenses (lib/recruiting renewalSweep).
  * UPDATED : 2026-11-10_0310 UTC — daily: low name-your-price offers nobody took in 30 days are cancelled and refunded.
  * UPDATED : 2026-11-10_1415 UTC — daily: remind partners to set up payouts (lib/partners partnerPayoutReminders).
+ * UPDATED : 2026-11-18_0105 UTC — daily: Sales Force promotions from cumulative totals (lib/sales-force refreshRanks).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -78,6 +79,7 @@ export async function GET(req: Request) {
   const stipends = await grantStipends();
   const recruiting = await recruitingSweep(); // setup reminders, stuck applicants, drop-offs, auto-activation
   const uploads = await uploadReminderSweep().catch((e) => { console.error("[upload reminders]", e); return null; }); // live pros missing resume / photo
+  const salesForce = await (await import("@/lib/sales-force")).refreshRanks().catch((e) => { console.error("[sales force ranks]", e); return null; }); // promotions from cumulative totals
   const renewals = await renewalSweep().catch((e) => { console.error("[renewals]", e); return null; }); // insurance / license expiring → remind pro, alert ops
   const locationsCleared = await clearStaleLocations(); // privacy: forget old phone locations
   const stats = await refreshProStats(); // acceptance + on-time → tiers and dispatch ranking
@@ -97,5 +99,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ salesForce, renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }

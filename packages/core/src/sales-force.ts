@@ -29,6 +29,8 @@
  *           Totals only go up, so a rank, and its commission, is never lost. promotionChart() is the one chart everyone
  *           sees; sellerTimeline() shows the month each rank is reached starting from zero.
  *           salesPay() splits one job's profit across the seller and their leaders, never more than the pool.
+ * UPDATED : 2026-11-18_0105 UTC — live pay: sellerRate (never below the ladder rate already earned), teamOverrides (within the
+ *           60% pool), autoPromote (cumulative totals, leader path first, VP waits for the owners).
  * UPDATED : 2026-11-18_0056 UTC — everyone is an independent contractor (1099, owner decision): the Sales Academy is optional, not a
  *           promotion requirement; leaders mentor and support (they don't direct how reps work); the Director / VP salary
  *           became a monthly 1099 leadership retainer (LEADER_RETAINER); reps choose their hours, methods and where they sell.
@@ -390,4 +392,54 @@ export function leaderboard(rows: LeaderboardRow[]): (LeaderboardRow & { place: 
     const reward = LEADERBOARD.rewards.find((x) => place <= x.top)?.reward ?? null;
     return { ...r, place, reward };
   });
+}
+
+// ─── Live pay (web lib/sales-force.ts) ───────────────────────────────────────
+
+/** The seller's commission rate: their rank's share, never below the Field Sales ladder rate they already earned. */
+export function sellerRate(rank: SalesRank, ladderRate = 0): number {
+  return Math.max(SALES_RANKS[rank].sellerShare, Math.min(ladderRate, 0.45));
+}
+
+export interface TeamLeader { id: string; rank: SalesRank; selling: boolean }
+
+/**
+ * One job's team pay on top of the seller's own commission: each leader above the seller (nearest first) earns their
+ * rank's team share of our profit, once per rank, only while they're still selling. Everything together (seller +
+ * leaders) stays within SALES_POOL.firstYearMax of the profit; the farthest leaders are dropped first. Cents, down.
+ */
+export function teamOverrides(o: { take: number; sellerRate: number; sellerRank: SalesRank; leaders: TeamLeader[] }): { id: string; rank: SalesRank; share: number; amount: number }[] {
+  const cents = Math.max(0, Math.round(o.take * 100));
+  const out: { id: string; rank: SalesRank; share: number; amount: number }[] = [];
+  const seen = new Set<SalesRank>(LEADER_RANKS.includes(o.sellerRank) ? [o.sellerRank] : []);
+  let used = o.sellerRate;
+  for (const l of o.leaders) {
+    if (!LEADER_RANKS.includes(l.rank) || seen.has(l.rank) || !l.selling) continue;
+    seen.add(l.rank);
+    const share = SALES_RANKS[l.rank].override;
+    if (used + share > SALES_POOL.firstYearMax + 1e-9) break;
+    used += share;
+    const amount = Math.floor(cents * share) / 100;
+    if (amount > 0) out.push({ id: l.id, rank: l.rank, share, amount });
+  }
+  return out;
+}
+
+/**
+ * Promotions from cumulative totals: the highest rank reachable from `n.rank` without an owner's approval, one step at
+ * a time (the leader path is taken when its numbers are met). Never lower than today. Also says whether the next
+ * step is waiting on an owner (VP).
+ */
+export function autoPromote(n: RepNumbers): { rank: SalesRank; steps: SalesRank[]; awaitingApproval: SalesRank | null } {
+  let cur = n.rank;
+  const steps: SalesRank[] = [];
+  let awaiting: SalesRank | null = null;
+  for (let guard = 0; guard < RANK_ORDER.length; guard++) {
+    const options = nextRanks(cur).sort((a, b) => (SALES_RANKS[b].path === "leader" ? 1 : 0) - (SALES_RANKS[a].path === "leader" ? 1 : 0));
+    const ready = options.find((r) => promotionGaps({ ...n, rank: cur }, r).every((g) => g === "Owner approval"));
+    if (!ready) break;
+    if (SALES_RANKS[ready].requires.approval) { awaiting = ready; break; }
+    cur = ready; steps.push(ready);
+  }
+  return { rank: cur, steps, awaitingApproval: awaiting };
 }

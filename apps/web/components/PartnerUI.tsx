@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-18_0105 UTC — sign-up sends ?leader= (a Sales Force leader's recruit link) so the new rep joins that team.
  */
 "use client";
 
@@ -50,7 +51,10 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
   return (
     <form className="card space-y-3" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setErr(null);
-      const r = await post("/api/partners", f);
+      // a Sales Force leader's recruit link carries ?leader=CODE: the new rep joins that team
+      let leader: string | null = null;
+      try { leader = new URL(window.location.href).searchParams.get("leader"); } catch { /* no URL */ }
+      const r = await post("/api/partners", { ...f, leader: leader && /^[A-Za-z0-9-]{3,20}$/.test(leader) ? leader : null });
       setBusy(false);
       if (r.ok) setDone(r.data as never); else setErr(r.error);
     }}>

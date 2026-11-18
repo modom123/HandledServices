@@ -29,6 +29,7 @@
  *           Client searches; the merged pages show as a switch under the tabs (groupOf, components/HubNav).
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
  * UPDATED : 2026-11-10_0415 UTC — Pros & recruiting → Coverage map (/hub/map): pros and open services on a US map.
+ * UPDATED : 2026-11-18_0105 UTC — Clients & sales → Sales Force (/hub/sales-force, admins).
  * UPDATED : 2026-11-17_2350 UTC — Clients & sales → Walkthroughs (/hub/walkthroughs): free walkthroughs businesses booked themselves.
  */
 
@@ -86,6 +87,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/bids", "Bids & contracts"],
     ["/hub/quotes", "Marketplace & quotes"],
     ["/hub/partners", "Referral partners"],
+    ["/hub/sales-force", "Sales Force"],
   ] },
   { id: "money", icon: "💵", label: "Money", links: [
     ["/hub/money", "Money"],
@@ -114,7 +116,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
 // need-to-know (2026-11-06): money pages and the partner program (commissions) are admin-only too
-export const ADMIN_PAGES = new Set(["/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners"]);
+export const ADMIN_PAGES = new Set(["/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners", "/hub/sales-force"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);

@@ -15,17 +15,17 @@
  * PURPOSE : The Handled Sales Force careers page: start as an Associate Account Executive and grow to VP of Sales.
  *           Two paths (Seller and Leader), what each rank earns (shown per $1,000 of profit sold), how promotions work,
  *           how people grow with the company (salary, profit share, new markets), example months, fair rules, apply.
- *           Rules from core sales-force.ts. PREVIEW: not indexed and not linked from /careers until the new pay is
- *           approved and live in payouts.
+ *           Rules from core sales-force.ts. Live (2026-11-18): indexed, linked from /careers; ?leader=CODE (a leader's
+ *           recruit link) carries to the sign-up so the new rep joins that team.
  */
 import Link from "next/link";
 import { CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
-export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays.", robots: { index: false, follow: false } };
+export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays." };
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const pct = (r: number) => `${Math.round(r * 100)}%`;
-const APPLY = "/partners?kind=sales_rep&utm_source=careers_sales#join";
+const APPLY_BASE = "/partners?kind=sales_rep&utm_source=careers_sales";
 
 const SELLER: SalesRank[] = ["associate", "ae", "senior_ae", "principal_ae"];
 const LEADER: SalesRank[] = ["team_lead", "manager", "director", "vp"];
@@ -85,7 +85,10 @@ function PromotionChart() {
   );
 }
 
-export default function SalesCareers() {
+export default async function SalesCareers({ searchParams }: { searchParams: Promise<{ leader?: string }> }) {
+  // a leader's recruit link (?leader=CODE) carries through to the sign-up, so the new rep joins their team
+  const leader = (await searchParams).leader;
+  const APPLY = `${APPLY_BASE}${leader && /^[A-Za-z0-9-]{3,20}$/.test(leader) ? `&leader=${encodeURIComponent(leader)}` : ""}#join`;
   const examples = [
     { rank: "ae" as const, who: "Account Executive, month 4", m: exampleMonth({ rank: "ae", homeJobs: 20, homeProfitEach: 100, newAccounts: 2, accountProfitMonthly: 375, bookAccounts: 6 }), note: "20 home jobs, 2 new office accounts, 6 accounts from earlier months still paying" },
     { rank: "senior_ae" as const, who: "Senior AE", m: exampleMonth({ rank: "senior_ae", homeJobs: 10, homeProfitEach: 100, newAccounts: 4, accountProfitMonthly: 375, bookAccounts: 15 }), note: "10 home jobs, 4 new accounts, 15 accounts still paying" },

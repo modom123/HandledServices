@@ -110,10 +110,24 @@ contractor sales roles closely.
 - Senior AE: **$2,206** (10 home jobs, 4 new accounts, 15 accounts paying)
 - Sales Manager: **$3,838** (own sales plus 5% of a team bringing in $40,000 profit a month)
 
-## Status
+## Status: live (2026-11-18)
 
-- Rules and tests: `packages/core/src/sales-force.ts` (pricing.test.ts)
-- Careers page preview: `/careers/sales` (not indexed, not linked yet)
-- **Not live yet:** today's payouts still use the Partner Program ladder. Going live needs: ranks and who-reports-to-whom
-  in the database, payouts using `salesPay()`, walkthrough and first-sale bonuses, a promotion check each quarter,
-  the rep's "next promotion" card in the partner app, a Hub page to manage the team, and attorney review.
+**Run once:** `supabase/setup/ADD_BUSINESS_PRICING_2026-11-18_0040.sql`, `ADD_WALKTHROUGHS_2026-11-17_2350.sql`, then
+`ADD_SALES_FORCE_2026-11-18_0105.sql` (Supabase → SQL Editor).
+
+| Piece | Where |
+|---|---|
+| Rules and tests | `packages/core/src/sales-force.ts` (pricing.test.ts) |
+| Live pay, ranks, team pay, leaderboard | `apps/web/lib/sales-force.ts` |
+| Seller commission (rank share, never below the ladder rate already earned) and book share after year one | `lib/partners.ts` partnerSplitForJob (tier `direct` / `book`) |
+| Team shares and first-sale bonus at job completion | `lib/jobs.ts` → `accrueTeamPay` |
+| $25 walkthrough held (the rep whose link it came from) | `lib/walkthroughs.ts` → `walkthroughHeld` |
+| Promotions every night, promotion bonus, email | `/api/cron/sweep` → `refreshRanks` |
+| Monday payout includes team pay and bonuses | `lib/partners.ts` runPartnerPayouts (`sales_pay`) |
+| Rep view | `/partner#sales-force` |
+| Admin | Hub → Clients & sales → Sales Force |
+| Careers page (indexed, linked from /careers) | `/careers/sales` (`?leader=CODE` = a leader's recruit link) |
+| Indeed post | `docs/INDEED_JOB_SALES_FORCE_AE_2026-11-18_0105.md` |
+
+Existing Field Sales partners start as Associate AEs; their commission never drops below the ladder rate they already
+earned. Lead pay ($10 per lead) keeps working as before.

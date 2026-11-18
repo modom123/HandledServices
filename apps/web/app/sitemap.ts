@@ -24,6 +24,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // city pages only where they're indexed: focus services + each market's featured services (see services/[slug]/in/[city])
   const cities = SERVICES.flatMap((s) => CITY_PAGE_CITIES.filter((c) => isIndexedCityPage(s.slug, c.slug)).map((c) => ({ url: `${base}/services/${s.slug}/in/${c.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 })));
   const markets = [{ url: `${base}/areas`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 }, ...SITE_MARKETS.map((m) => ({ url: `${base}/areas/${m.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.9 }))];
-  const bizPages = [...BIZ_LANDINGS.map((l) => ({ url: `${base}/business/${l.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 })), { url: `${base}/walkthrough`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.6 }];
+  const bizPages = [...BIZ_LANDINGS.map((l) => ({ url: `${base}/business/${l.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 })), { url: `${base}/walkthrough`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.6 }, { url: `${base}/careers/sales`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 }];
   return [...pages, ...bizPages, ...markets, ...services, ...cities];
 }
