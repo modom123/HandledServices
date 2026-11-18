@@ -14,6 +14,7 @@
  * UPDATED : 2026-10-27_2100 UTC — job-money (one job's money end to end: customer paid → split → pro payout lines → Monday).
  * UPDATED : 2026-11-17_2335 UTC — outreach-ai (handledsvc.net outreach domain, guardrails for AI-written outreach, reply drafts and campaigns).
  * UPDATED : 2026-11-17_2350 UTC — walkthrough (self-booked free walkthroughs) and BIZ_LANDINGS (a landing page per kind of business).
+ * UPDATED : 2026-11-18_0020 UTC — sales-force (career path Associate AE → VP of Sales, profit-share pay, overrides, promotions).
  */
 
 export * from "./types.ts";
@@ -58,6 +59,7 @@ export * from "./board.ts";
 export * from "./email-center.ts";
 export * from "./outreach-ai.ts";
 export * from "./walkthrough.ts";
+export * from "./sales-force.ts";
 export * from "./checklists.ts";
 export * from "./interview.ts";
 export * from "./rewards.ts";

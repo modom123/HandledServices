@@ -5,6 +5,7 @@
  * PURPOSE : Unit tests for the pricing engine and dispatch ranking.
  * UPDATED : 2026-11-17_2335 UTC — AI outreach from handledsvc.net (domain guard, footer split, AI draft and reply guardrails).
  * UPDATED : 2026-11-17_2350 UTC — self-booked walkthroughs (slots, time zones, DST, lead time) and business landing pages.
+ * UPDATED : 2026-11-18_0020 UTC — Sales Force career path (pay split within the pool, overrides, promotions, rank protection).
  * UPDATED : 2026-10-02_0233 UTC — calculator checks for every service: more of anything never
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
@@ -2896,4 +2897,37 @@ test("business landing pages: every service exists, sales-email leads land on th
   assert.equal(landingSlugFor("facilities", "Janitor"), "hiring");
   assert.equal(landingSlugFor("partner"), null);
   assert.equal(bizLanding("nope"), null);
+});
+
+test("sales force: pay splits within the 60% pool, leaders paid only on real sales, promotions from real numbers", async () => {
+  const { salesPay, promotionGaps, nextRanks, keepsRank, SALES_RANKS, RANK_ORDER, SALES_POOL } = await import("./sales-force.ts");
+  // AE sells a $400 job with $100 profit, no leaders: $20 (the ladder: 15% Associate → 45% VP)
+  assert.deepEqual(salesPay({ profit: 100, seller: "ae" }), { lines: [{ who: "seller", rank: "ae", share: 0.2, amount: 20 }], total: 20, handledKeeps: 80 });
+  assert.equal(SALES_RANKS.associate.sellerShare, 0.15); assert.equal(SALES_RANKS.vp.sellerShare, 0.45);
+  // a Principal AE under a full leadership chain: 35% + 8 + 5 + 4 + 3 = 55%, inside the 60% pool
+  const full = salesPay({ profit: 1000, seller: "principal_ae", leaders: [{ rank: "team_lead" }, { rank: "manager" }, { rank: "director" }, { rank: "vp" }] });
+  assert.equal(full.total, 550); assert.equal(full.handledKeeps, 450);
+  // every combination stays within the pool
+  for (const s of RANK_ORDER) {
+    const r = salesPay({ profit: 777.77, seller: s, leaders: [{ rank: "team_lead" }, { rank: "manager" }, { rank: "director" }, { rank: "vp" }, { rank: "vp" }] });
+    assert.ok(r.total <= 777.77 * SALES_POOL.firstYearMax + 0.001, s);
+  }
+  // a leader who stopped selling earns no override; a leader's own sale has no override at their own rank
+  assert.equal(salesPay({ profit: 100, seller: "ae", leaders: [{ rank: "team_lead", selling: false }] }).total, 20);
+  assert.equal(salesPay({ profit: 100, seller: "team_lead", leaders: [{ rank: "team_lead" }, { rank: "manager" }] }).total, 35);
+  // after year one: the seller's book share only
+  assert.equal(salesPay({ profit: 100, seller: "senior_ae", leaders: [{ rank: "team_lead" }], newCustomer: false }).total, 8);
+  // promotions
+  const n = { rank: "associate" as const, personalProfit: 2_000, activeAccounts: 0, activeReps: 0, leaders: 0, teamProfit: 0, refundRate: 0, paidSales: 4, academyDone: [] };
+  assert.deepEqual(promotionGaps(n, "ae"), ["1 more paid sale", "$500 more profit from your own sales (90 days)", "Finish the AE Sales Academy"]);
+  assert.deepEqual(promotionGaps({ ...n, paidSales: 5, personalProfit: 3_000, academyDone: ["ae"] }, "ae"), []);
+  assert.deepEqual(nextRanks("senior_ae"), ["principal_ae", "team_lead"]);
+  assert.deepEqual(nextRanks("director"), ["vp"]);
+  assert.ok(promotionGaps({ ...n, rank: "director", leaders: 5, teamProfit: 2e6 }, "vp").includes("Owner approval"));
+  assert.ok(keepsRank(1) && !keepsRank(2));
+  // every rank but the first can be reached; the ladder reaches VP
+  for (const r of RANK_ORDER.slice(1)) assert.ok(SALES_RANKS[r].requires.from.length, r);
+  let path: string = "associate"; const seen = [path];
+  while (path !== "vp") { const next = nextRanks(path as never); path = next[next.length - 1]; seen.push(path); }
+  assert.deepEqual(seen, ["associate", "ae", "senior_ae", "team_lead", "manager", "director", "vp"]);
 });
