@@ -85,7 +85,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
   const update: Record<string, unknown> = { ...patch };
   if (patch.price_final !== undefined) {
-    update.contractor_payout = splitJob(patch.price_final, job.service_slug).payout;
+    update.contractor_payout = splitJob(patch.price_final, job.service_slug, { business: Boolean(job.business_pricing) }).payout;
     update.estimate_low = patch.price_final;
     update.estimate_high = patch.price_final;
   }

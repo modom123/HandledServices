@@ -2,6 +2,9 @@
  * FILE    : apps/web/app/(site)/careers/sales/page.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-11-18_0020 UTC
+ * UPDATED : 2026-11-18_0050 UTC — the promotion chart (commission, deals in 90 days, active clients, team deals and clients) and
+ *           the from-zero timeline; promotion targets are counts, not dollars.
+ * UPDATED : 2026-11-18_0040 UTC — "Three ways to $100K a year" from commercial business services (core PATHS_TO_100K / earningsPlan).
  * PURPOSE : The Handled Sales Force careers page: start as an Associate Account Executive and grow to VP of Sales.
  *           Two paths (Seller and Leader), what each rank earns (shown per $1,000 of profit sold), how promotions work,
  *           how people grow with the company (salary, profit share, new markets), example months, fair rules, apply.
@@ -9,7 +12,7 @@
  *           approved and live in payouts.
  */
 import Link from "next/link";
-import { BASE_PAY, FAST_MONEY, PROFIT_SHARE, RANK_ORDER, RANK_PROTECTION, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
+import { BASE_PAY, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, PROFIT_SHARE, RANK_ORDER, RANK_PROTECTION, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
 export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays.", robots: { index: false, follow: false } };
 
@@ -23,15 +26,52 @@ const LEADER: SalesRank[] = ["team_lead", "manager", "director", "vp"];
 function req(r: SalesRank): string {
   const q = SALES_RANKS[r].requires;
   const bits = [
-    q.paidSales && `${q.paidSales} paid sales`,
-    q.personalProfit && `${money(q.personalProfit)} profit from your sales`,
-    q.activeAccounts && `${q.activeAccounts} active accounts`,
-    q.activeReps && `${q.activeReps} reps with a paid sale`,
+    q.deals && `${q.deals} deals of your own`,
+    q.activeClients && `${q.activeClients} active clients`,
+    q.activeReps && `${q.activeReps} reps with a deal`,
     q.leaders && `${q.leaders} leaders reporting to you`,
-    q.teamProfit && `${money(q.teamProfit)} team profit`,
+    q.teamDeals && `${q.teamDeals} team deals`,
+    q.teamClients && `${q.teamClients.toLocaleString("en-US")} active team clients`,
   ].filter(Boolean);
   if (!bits.length) return "Where everyone starts";
-  return `${bits.join(" · ")} in 90 days${q.approval ? ", plus owner approval" : ""}`;
+  return `${bits.join(" · ")} (deals in the last 90 days)${q.approval ? ", plus owner approval" : ""}`;
+}
+
+const num = (n: number) => (n ? n.toLocaleString("en-US") : "—");
+
+/** The promotion chart: one row per rank, the same numbers the app measures. */
+function PromotionChart() {
+  const rows = promotionChart();
+  const timeline = sellerTimeline(PATHS_TO_100K[0].plan.accountsPerMonth);
+  return (
+    <section id="chart" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
+      <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">The promotion chart</h2>
+      <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts from zero. You move up on three numbers the app counts for you: your commission rate, the deals you closed in the last 90 days, and your active clients. Leaders also count their team.</p>
+      <div className="mt-5 overflow-x-auto rounded-xl border border-line bg-white">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
+            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Commission</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Your deals (90 days)</th><th className="p-3 text-right">Active clients</th><th className="p-3 text-right">Team deals (90 days)</th><th className="p-3 text-right">Team clients</th><th className="p-3">Also</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.rank} className={`border-t border-line ${r.path === "leader" ? "bg-paper/50" : ""}`}>
+                <td className="p-3"><div className="font-semibold">{r.title}</div><div className="text-[11px] text-ink-soft">{r.path === "leader" ? "Leader path" : r.path === "seller" ? "Seller path" : "Start"}</div></td>
+                <td className="p-3 text-right font-bold">{pct(r.commission)}</td>
+                <td className="p-3 text-right">{r.team ? pct(r.team) : "—"}</td>
+                <td className="p-3 text-right">{num(r.deals)}</td>
+                <td className="p-3 text-right">{num(r.activeClients)}</td>
+                <td className="p-3 text-right">{num(r.teamDeals)}</td>
+                <td className="p-3 text-right">{num(r.teamClients)}</td>
+                <td className="p-3 text-xs">{[r.activeReps && `${r.activeReps} reps with a deal`, r.leaders && `${r.leaders} leaders`, r.approval && "owner approval", r.bonus && `${money(r.bonus)} bonus`].filter(Boolean).join(" · ") || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-sm"><b>From zero at 4 deals a month</b> (about one a week): {timeline.slice(1).map((t) => `${SALES_RANKS[t.rank].short} in month ${t.month}`).join(", ")}. Leaders move up as their team does.</p>
+      <p className="mt-1 text-xs text-ink-soft">A deal is a new client’s first paid job or contract. An active client booked in the last 90 days or is on a recurring plan. Commission is a share of our profit on the deals you close; team share is on your whole team’s deals.</p>
+    </section>
+  );
 }
 
 export default function SalesCareers() {
@@ -70,7 +110,7 @@ export default function SalesCareers() {
           <p className="mt-4 max-w-2xl text-lg text-white/80">A career, not a gig. You earn a real share of the profit on every customer you bring in, keep earning on the accounts you keep, and move up on numbers you can see. As Handled opens new cities, our own people lead them.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href={APPLY} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Apply in 2 minutes</Link>
-            <a href="#path" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See the path</a>
+            <a href="#chart" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See the promotion chart</a>
           </div>
           <ul className="mt-8 grid gap-3 sm:grid-cols-4">
             {[[pct(SALES_RANKS.associate.sellerShare) + " → " + pct(SALES_RANKS.vp.sellerShare), "of the profit on what you sell, rising with every promotion"], [money(FAST_MONEY.walkthroughHeld), "for every walkthrough held"], ["7 ranks", "from Associate AE to VP"], ["Every Monday", "paid by direct deposit"]].map(([a, b]) => (
@@ -80,13 +120,35 @@ export default function SalesCareers() {
         </div>
       </section>
 
-      <section id="path" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
+      <PromotionChart />
+
+      <section id="path" className="wrap scroll-mt-24 pb-10 sm:pb-14">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Two paths up, both pay</h2>
         <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts as an Associate AE with a coach. After Senior AE you choose: keep selling and become a Principal AE, or build a team and lead it to VP of Sales. You can switch paths.</p>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div><h3 className="mb-3 font-bold uppercase tracking-wide text-ink-soft">Seller path</h3><ol className="space-y-3">{SELLER.map((r) => <Rank key={r} r={r} />)}</ol></div>
           <div><h3 className="mb-3 font-bold uppercase tracking-wide text-ink-soft">Leader path (from Senior AE)</h3><ol className="space-y-3">{LEADER.map((r) => <Rank key={r} r={r} />)}</ol></div>
         </div>
+      </section>
+
+      <section id="100k" className="wrap scroll-mt-24 pb-10 sm:pb-14">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Three ways to $100K a year</h2>
+        <p className="mt-2 max-w-3xl text-ink-soft">Commercial business services are where the money is: offices, property managers, clinics and facilities that need cleaning and upkeep every week. One account at {money(1500)} a month earns you a share of about {money(earningsPlan(PATHS_TO_100K[0].plan).profitPerAccount)} of profit every month it stays.</p>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          {PATHS_TO_100K.map((p) => {
+            const e = earningsPlan(p.plan);
+            return (
+              <div key={p.id} className="card flex flex-col">
+                <div className="text-sm font-semibold uppercase tracking-wide text-ink-soft">{p.title}</div>
+                <div className="text-lg font-bold">{p.who}</div>
+                <div className="mt-3 flex items-baseline gap-3"><div><div className="text-[11px] text-ink-soft">Year 1</div><div className="text-xl font-bold">{money(e.year1)}</div></div><div><div className="text-[11px] text-ink-soft">Year 2 on</div><div className="text-3xl font-extrabold text-brand">{money(e.year2)}</div></div></div>
+                <div className="mt-3 text-xs font-semibold">Your week:</div>
+                <ul className="mt-1 space-y-1 text-sm">{p.week.map((w) => <li key={w}>✓ {w}</li>)}</ul>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-ink-soft">Examples, not a promise. They assume {money(1500)}-a-month accounts, about 1 in 3 walkthroughs becoming an account and 3% of accounts leaving each month. Year 2 is higher because the accounts you closed keep paying you.</p>
       </section>
 
       <section className="border-y border-line bg-paper-deep py-10 sm:py-14 pro:sm:py-10">
