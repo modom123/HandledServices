@@ -23,11 +23,15 @@
  *             BASE_PAY        — Directors and the VP move to a salary (W-2) once their region's profit supports it
  *             PROFIT_SHARE    — Directors share in their region's profit, the VP in the company's
  *             new markets     — each new city opens a Director and Manager seat; current leaders get first claim
- *           Promotions follow the money: profit made for Handled in the last 90 days (team profit for leaders), with deals,
- *           active clients, reps and leaders as minimums; plus refund rate. promotionChart() is the one chart everyone sees;
- *           sellerTimeline() shows the month each rank is reached starting from zero. Ranks are protected: a rank is lost only after two quarters in a row
- *           under half its keep-up level.
+ *           Promotions follow the money and everything is CUMULATIVE from day one: total profit made for Handled (team
+ *           total for leaders), with total deals, clients won, reps developed and leaders as minimums; plus refund rate.
+ *           Totals only go up, so a rank, and its commission, is never lost. promotionChart() is the one chart everyone
+ *           sees; sellerTimeline() shows the month each rank is reached starting from zero.
  *           salesPay() splits one job's profit across the seller and their leaders, never more than the pool.
+ * UPDATED : 2026-11-18_0120 UTC — leaderboard (LEADERBOARD, leaderboard()): last-90-days revenue ranks who's on top right now, for
+ *           recognition and perks; promotions stay cumulative.
+ * UPDATED : 2026-11-18_0110 UTC — everything cumulative (owner): total profit made for Handled, total deals, clients won, reps
+ *           developed, team totals; ranks never go down (rank protection removed).
  * UPDATED : 2026-11-18_0100 UTC — promotions follow the money: profit made for Handled in the last 90 days (own clients; team for
  *           leaders) is the main measure, the same thing the commission rises with; deals and active clients are minimums.
  * UPDATED : 2026-11-18_0050 UTC — promotions measured on counts (deals, active clients, team deals / clients), not profit dollars;
@@ -52,7 +56,7 @@ export interface RankRule {
   override: number;
   /** one-time cash on reaching this rank */
   promotionBonus: number;
-  /** what it takes to get here (rolling 90 days unless noted) */
+  /** what it takes to get here: totals since they started (cumulative) */
   requires: RankRequirement;
   /** what this rank is about, in one line */
   role: string;
@@ -61,22 +65,20 @@ export interface RankRule {
 
 export interface RankRequirement {
   from: SalesRank[];
-  /** profit they made Handled in the last 90 days, from every client they sold (new and repeat) — the main measure */
+  /** total profit their clients have made Handled since they started (every job, new and repeat) — the main measure */
   profit?: number;
-  /** profit their whole org made Handled in the last 90 days, their own included (leaders) */
+  /** total profit their whole org has made Handled, their own included (leaders) */
   teamProfit?: number;
-  /** deals they closed themselves in the last 90 days (a deal = a new client's first paid job or contract) */
+  /** total deals they closed (a deal = a paid sale: a new client, or a new service or site for a client) */
   deals?: number;
-  /** clients they sold who are still active (booked in the last 90 days or on a recurring plan) */
-  activeClients?: number;
-  /** reps on their team with a deal in the last 90 days */
-  activeReps?: number;
+  /** total clients they won */
+  clients?: number;
+  /** reps they brought onto their team who have closed a deal */
+  reps?: number;
   /** leaders reporting to them (Team Leads for a Manager, Managers for a Director, Directors for the VP) */
   leaders?: number;
-  /** deals closed by their whole org in the last 90 days, their own included */
+  /** total deals closed by their whole org, their own included */
   teamDeals?: number;
-  /** active clients across their whole org */
-  teamClients?: number;
   /** most refunds allowed, as a share of their deals */
   maxRefundRate?: number;
   /** finished the Sales Academy for this rank */
@@ -109,49 +111,49 @@ export const SALES_RANKS: Record<SalesRank, RankRule> = {
   ae: {
     title: "Account Executive", short: "AE", path: "seller", level: 2,
     sellerShare: 0.20, bookShare: 0.05, override: 0, promotionBonus: 250,
-    requires: { from: ["associate"], profit: 5_000, deals: 5, activeClients: 3, academy: true },
+    requires: { from: ["associate"], profit: 5_000, deals: 5, clients: 3, academy: true },
     role: "Own your territory's homes and small businesses; build a book of repeat customers.",
     perks: ["Your own book: 5% of the profit on your customers after year one", "Business cards and an @handledsvc.net email"],
   },
   senior_ae: {
     title: "Senior Account Executive", short: "Senior AE", path: "seller", level: 3,
     sellerShare: 0.25, bookShare: 0.08, override: 0, promotionBonus: 500,
-    requires: { from: ["ae"], profit: 20_000, deals: 9, activeClients: 10, maxRefundRate: 0.05, academy: true },
+    requires: { from: ["ae"], profit: 25_000, deals: 15, clients: 10, maxRefundRate: 0.05, academy: true },
     role: "Commercial accounts: offices, property managers, facilities. Mentor new Associates.",
     perks: ["First pick of warm leads from the AI outreach engine", "Protected accounts: nobody else sells to your customers"],
   },
   principal_ae: {
     title: "Principal Account Executive", short: "Principal AE", path: "seller", level: 4,
     sellerShare: 0.35, bookShare: 0.10, override: 0, promotionBonus: 1_500,
-    requires: { from: ["senior_ae"], profit: 60_000, deals: 12, activeClients: 30, maxRefundRate: 0.05 },
+    requires: { from: ["senior_ae"], profit: 150_000, deals: 40, clients: 30, maxRefundRate: 0.05 },
     role: "Our biggest accounts and multi-site contracts. Top of the seller path.",
     perks: ["Exclusive named accounts", "President's Club eligibility", "Seat on the sales council"],
   },
   team_lead: {
     title: "Team Lead", short: "Team Lead", path: "leader", level: 4,
     sellerShare: 0.30, bookShare: 0.08, override: 0.08, promotionBonus: 1_000,
-    requires: { from: ["senior_ae", "principal_ae"], profit: 5_000, teamProfit: 75_000, deals: 3, activeReps: 3, teamDeals: 18, teamClients: 40, maxRefundRate: 0.05, academy: true },
+    requires: { from: ["senior_ae", "principal_ae"], teamProfit: 150_000, reps: 3, teamDeals: 40, maxRefundRate: 0.05, academy: true },
     role: "Recruit, train and ride along with up to 8 reps; you earn when they earn.",
     perks: ["8% of the profit on your team's sales", "Leadership track in the Sales Academy"],
   },
   manager: {
     title: "Sales Manager", short: "Manager", path: "leader", level: 5,
     sellerShare: 0.35, bookShare: 0.08, override: 0.05, promotionBonus: 2_500,
-    requires: { from: ["team_lead"], profit: 5_000, teamProfit: 250_000, deals: 3, leaders: 2, activeReps: 10, teamDeals: 60, teamClients: 150, maxRefundRate: 0.05 },
+    requires: { from: ["team_lead"], teamProfit: 750_000, leaders: 2, reps: 10, teamDeals: 150, maxRefundRate: 0.05 },
     role: "Run a city's sales team through your Team Leads; own the forecast.",
     perks: ["5% of the profit on everyone under you", "Quarterly team bonus pool"],
   },
   director: {
     title: "Director of Sales", short: "Director", path: "leader", level: 6,
     sellerShare: 0.40, bookShare: 0.10, override: 0.04, promotionBonus: 5_000,
-    requires: { from: ["manager"], profit: 5_000, teamProfit: 750_000, deals: 3, leaders: 3, teamDeals: 180, teamClients: 500, maxRefundRate: 0.04 },
+    requires: { from: ["manager"], teamProfit: 3_000_000, leaders: 3, teamDeals: 500, maxRefundRate: 0.04 },
     role: "Own a region: open new cities, hire Managers, set targets with the owners.",
     perks: ["Salary once your region supports it", "Share of your region's profit", "First claim to run new markets"],
   },
   vp: {
     title: "VP of Sales", short: "VP", path: "leader", level: 7,
     sellerShare: 0.45, bookShare: 0.10, override: 0.03, promotionBonus: 10_000,
-    requires: { from: ["director"], profit: 5_000, teamProfit: 2_000_000, deals: 3, leaders: 2, teamDeals: 450, teamClients: 1500, approval: true },
+    requires: { from: ["director"], teamProfit: 10_000_000, leaders: 2, teamDeals: 1500, approval: true },
     role: "Lead the whole sales force with the owners; build the next layer of Directors.",
     perks: ["Executive salary", "Share of company profit", "Seat at the leadership table"],
   },
@@ -172,67 +174,62 @@ export const PROFIT_SHARE: Partial<Record<SalesRank, { share: number; of: string
   vp: { share: 0.01, of: "Handled's company-wide net profit" },
 };
 
-/** Ranks are protected: lost only after this many quarters in a row under KEEP_UP of the rank's numbers. */
-export const RANK_PROTECTION = { quarters: 2, keepUp: 0.5 } as const;
+/** Everything is cumulative, so ranks never go down. */
+export const RANKS_NEVER_DROP = true;
 
 export interface RepNumbers {
   rank: SalesRank;
-  /** profit made for Handled, last 90 days: their own clients, and their whole org's */
-  profit: number; teamProfit: number;
-  deals: number; activeClients: number; activeReps: number; leaders: number; teamDeals: number; teamClients: number;
+  /** totals since they started: profit made for Handled (own clients, and whole org), deals, clients, reps, leaders */
+  profit: number; teamProfit: number; deals: number; clients: number; reps: number; leaders: number; teamDeals: number;
   refundRate: number; academyDone: SalesRank[];
 }
 
-/** What's still missing for one rank (empty = ready to promote; VP also needs owner approval). */
+/** What's still missing for one rank (empty = ready to promote; VP also needs owner approval). All totals, all-time. */
 export function promotionGaps(n: RepNumbers, to: SalesRank): string[] {
   const r = SALES_RANKS[to].requires;
   const out: string[] = [];
-  const more = (need: number | undefined, have: number, one: string, many: string) => { if (need && have < need) out.push(`${need - have} more ${need - have === 1 ? one : many}`); };
   const money = (x: number) => `$${Math.ceil(x).toLocaleString("en-US")}`;
+  const more = (need: number | undefined, have: number, one: string, many: string) => { if (need && have < need) out.push(`${need - have} more ${need - have === 1 ? one : many}`); };
   if (!r.from.includes(n.rank)) out.push(`Reach ${r.from.map((x) => SALES_RANKS[x].short).join(" or ")} first`);
-  if (r.profit && n.profit < r.profit) out.push(`${money(r.profit - n.profit)} more profit for Handled from your clients (90 days)`);
-  if (r.teamProfit && n.teamProfit < r.teamProfit) out.push(`${money(r.teamProfit - n.teamProfit)} more profit for Handled from your team (90 days)`);
-  more(r.deals, n.deals, "deal of your own (90 days)", "deals of your own (90 days)");
-  more(r.activeClients, n.activeClients, "active client", "active clients");
-  more(r.activeReps, n.activeReps, "rep on your team with a deal", "reps on your team with a deal");
+  if (r.profit && n.profit < r.profit) out.push(`${money(r.profit - n.profit)} more profit for Handled from your clients`);
+  if (r.teamProfit && n.teamProfit < r.teamProfit) out.push(`${money(r.teamProfit - n.teamProfit)} more profit for Handled from your team`);
+  more(r.deals, n.deals, "deal", "deals");
+  more(r.clients, n.clients, "client", "clients");
+  more(r.reps, n.reps, "rep on your team with a deal", "reps on your team with a deal");
   more(r.leaders, n.leaders, "leader reporting to you", "leaders reporting to you");
-  more(r.teamDeals, n.teamDeals, "team deal (90 days)", "team deals (90 days)");
-  more(r.teamClients, n.teamClients, "active team client", "active team clients");
+  more(r.teamDeals, n.teamDeals, "team deal", "team deals");
   if (r.maxRefundRate != null && n.refundRate > r.maxRefundRate) out.push(`Refunds under ${Math.round(r.maxRefundRate * 100)}% of your deals`);
   if (r.academy && !n.academyDone.includes(to)) out.push(`Finish the ${SALES_RANKS[to].short} Sales Academy`);
   if (r.approval) out.push("Owner approval");
   return out;
 }
 
-/** One row per rank for the promotion chart: commission, team share, and the numbers to reach it (90 days). */
+/** One row per rank for the promotion chart: commission, team share, and the totals to reach it. */
 export function promotionChart() {
   return RANK_ORDER.map((k) => {
     const r = SALES_RANKS[k];
     return { rank: k, title: r.title, path: r.path, commission: r.sellerShare, book: r.bookShare, team: r.override, bonus: r.promotionBonus,
-      profit: r.requires.profit ?? 0, teamProfit: r.requires.teamProfit ?? 0,
-      deals: r.requires.deals ?? 0, activeClients: r.requires.activeClients ?? 0, activeReps: r.requires.activeReps ?? 0, leaders: r.requires.leaders ?? 0,
-      teamDeals: r.requires.teamDeals ?? 0, teamClients: r.requires.teamClients ?? 0, approval: Boolean(r.requires.approval), from: r.requires.from };
+      profit: r.requires.profit ?? 0, teamProfit: r.requires.teamProfit ?? 0, deals: r.requires.deals ?? 0, clients: r.requires.clients ?? 0,
+      reps: r.requires.reps ?? 0, leaders: r.requires.leaders ?? 0, teamDeals: r.requires.teamDeals ?? 0, approval: Boolean(r.requires.approval), from: r.requires.from };
   });
 }
 
 /**
- * Starting from zero (no clients, no book): the month a seller reaches each seller rank at a steady pace of new deals a
- * month, with clients leaving at `churn` a month. Deals count over the last 90 days; active clients build up.
+ * Starting from zero: the month a seller reaches each seller rank at a steady pace of new deals a month (each a new
+ * client on a `accountMonthly` account, clients leaving at `churn` a month). All totals are cumulative.
  */
 export function sellerTimeline(dealsPerMonth: number, churn = 0.03, months = 36, accountMonthly = 1500): { rank: SalesRank; month: number }[] {
   const out: { rank: SalesRank; month: number }[] = [{ rank: "associate", month: 0 }];
   const ladder: SalesRank[] = ["ae", "senior_ae", "principal_ae"];
   const perClient = accountProfit(accountMonthly);
-  const history: number[] = [];
-  let clients = 0, i = 0;
+  let clients = 0, profit = 0, i = 0;
   for (let m = 1; m <= months && i < ladder.length; m++) {
     clients = clients * (1 - churn) + dealsPerMonth;
-    history.push(clients * perClient);
-    const profit90 = history.slice(-3).reduce((a, b) => a + b, 0);
-    const deals90 = dealsPerMonth * Math.min(3, m);
+    profit += clients * perClient;
+    const deals = dealsPerMonth * m;
     while (i < ladder.length) {
       const r = SALES_RANKS[ladder[i]].requires;
-      if (profit90 >= (r.profit ?? 0) && deals90 >= (r.deals ?? 0) && Math.floor(clients) >= (r.activeClients ?? 0)) { out.push({ rank: ladder[i], month: m }); i++; } else break;
+      if (profit >= (r.profit ?? 0) && deals >= (r.deals ?? 0) && deals >= (r.clients ?? 0)) { out.push({ rank: ladder[i], month: m }); i++; } else break;
     }
   }
   return out;
@@ -241,11 +238,6 @@ export function sellerTimeline(dealsPerMonth: number, churn = 0.03, months = 36,
 /** The ranks someone can move up to next (one seller step and/or one leader step). */
 export function nextRanks(rank: SalesRank): SalesRank[] {
   return RANK_ORDER.filter((r) => SALES_RANKS[r].requires.from.includes(rank));
-}
-
-/** Rank protection: lose a rank only after RANK_PROTECTION.quarters quarters in a row under half its numbers. */
-export function keepsRank(quartersBelowHalf: number): boolean {
-  return quartersBelowHalf < RANK_PROTECTION.quarters;
 }
 
 export interface PayLine { who: "seller" | SalesRank; rank: SalesRank; share: number; amount: number }
@@ -354,3 +346,32 @@ export const PATHS_TO_100K: { id: string; title: string; who: string; plan: Earn
     week: ["Lead 6 reps who each close 2 accounts a month", "Ride along on their walkthroughs and coach", "Still close about 1 account a month yourself"],
   },
 ];
+
+// ─── The leaderboard: last 90 days of revenue ───────────────────────────────
+
+/**
+ * Promotions are cumulative and never go down; the LEADERBOARD shows who is selling the most right now: the revenue
+ * (what their clients paid, new and repeat) in the last 90 days. It decides recognition and perks, never rank or pay rates.
+ */
+export const LEADERBOARD = {
+  windowDays: 90,
+  metric: "revenue",
+  rewards: [
+    { top: 1, reward: "#1 of the quarter: President's Club trip and first pick of warm leads next quarter" },
+    { top: 3, reward: "Top 3: first pick of warm leads from the AI outreach engine next quarter" },
+    { top: 10, reward: "Top 10: named on the leaderboard and in the monthly sales email" },
+  ],
+} as const;
+
+export interface LeaderboardRow { id: string; name: string; rank: SalesRank; revenue90: number }
+
+/** Highest 90-day revenue first; ties share a place. Each row gets its place and the best reward it has earned. */
+export function leaderboard(rows: LeaderboardRow[]): (LeaderboardRow & { place: number; reward: string | null })[] {
+  const sorted = [...rows].filter((r) => r.revenue90 > 0).sort((a, b) => b.revenue90 - a.revenue90 || a.name.localeCompare(b.name));
+  let place = 0, last = Number.NaN;
+  return sorted.map((r, i) => {
+    if (r.revenue90 !== last) { place = i + 1; last = r.revenue90; }
+    const reward = LEADERBOARD.rewards.find((x) => place <= x.top)?.reward ?? null;
+    return { ...r, place, reward };
+  });
+}

@@ -2,6 +2,9 @@
  * FILE    : apps/web/app/(site)/careers/sales/page.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-11-18_0020 UTC
+ * UPDATED : 2026-11-18_0120 UTC — the 90-day revenue leaderboard (recognition and perks; rank stays cumulative).
+ * UPDATED : 2026-11-18_0110 UTC — everything cumulative: total profit made for Handled, total deals, clients won, team totals;
+ *           ranks never go down; from-zero timeline at 4, 3 and 2 deals a month.
  * UPDATED : 2026-11-18_0100 UTC — the chart leads with the profit made for Handled (own and team, 90 days): promotions follow the
  *           same money the commission rises with.
  * UPDATED : 2026-11-18_0050 UTC — the promotion chart (commission, deals in 90 days, active clients, team deals and clients) and
@@ -14,7 +17,7 @@
  *           approved and live in payouts.
  */
 import Link from "next/link";
-import { BASE_PAY, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, PROFIT_SHARE, RANK_ORDER, RANK_PROTECTION, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
+import { BASE_PAY, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
 export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays.", robots: { index: false, follow: false } };
 
@@ -30,15 +33,14 @@ function req(r: SalesRank): string {
   const bits = [
     q.profit && `${money(q.profit)} profit for Handled from your clients`,
     q.teamProfit && `${money(q.teamProfit)} from your team`,
-    q.deals && `${q.deals} deals of your own`,
-    q.activeClients && `${q.activeClients} active clients`,
-    q.activeReps && `${q.activeReps} reps with a deal`,
+    q.deals && `${q.deals} deals`,
+    q.clients && `${q.clients} clients won`,
+    q.reps && `${q.reps} reps with a deal on your team`,
     q.leaders && `${q.leaders} leaders reporting to you`,
-    q.teamDeals && `${q.teamDeals} team deals`,
-    q.teamClients && `${q.teamClients.toLocaleString("en-US")} active team clients`,
+    q.teamDeals && `${q.teamDeals.toLocaleString("en-US")} team deals`,
   ].filter(Boolean);
   if (!bits.length) return "Where everyone starts";
-  return `${bits.join(" · ")} (last 90 days)${q.approval ? ", plus owner approval" : ""}`;
+  return `${bits.join(" · ")} (totals since you started)${q.approval ? ", plus owner approval" : ""}`;
 }
 
 const num = (n: number) => (n ? n.toLocaleString("en-US") : "—");
@@ -46,15 +48,15 @@ const num = (n: number) => (n ? n.toLocaleString("en-US") : "—");
 /** The promotion chart: one row per rank, the same numbers the app measures. */
 function PromotionChart() {
   const rows = promotionChart();
-  const timeline = sellerTimeline(PATHS_TO_100K[0].plan.accountsPerMonth);
+  const paces = [4, 3, 2].map((d) => ({ d, t: sellerTimeline(d).slice(1) }));
   return (
     <section id="chart" className="wrap scroll-mt-24 py-10 sm:py-14 pro:sm:py-10">
       <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">The promotion chart</h2>
-      <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts from zero. Your commission rises with the money you make Handled, and so do your promotions: the main number is the profit your clients brought Handled in the last 90 days (your team’s, for leaders). Deals and active clients are the minimums, so the profit comes from real, lasting clients. The app counts all of it for you.</p>
+      <p className="mt-2 max-w-3xl text-ink-soft">Everyone starts from zero. Your commission rises with the money you make Handled, and so do your promotions: the main number is the total profit your clients have made Handled since your first day (your team’s, for leaders). Deals and clients won are the minimums, so the profit comes from real clients. Everything adds up and never resets, so you never lose a rank. The app counts all of it for you.</p>
       <div className="mt-5 overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
-            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Commission</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Profit you make Handled (90 days)</th><th className="p-3 text-right">Team profit (90 days)</th><th className="p-3 text-right">Your deals (90 days)</th><th className="p-3 text-right">Active clients</th><th className="p-3 text-right">Team deals (90 days)</th><th className="p-3 text-right">Team clients</th><th className="p-3">Also</th></tr>
+            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Commission</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Total profit you’ve made Handled</th><th className="p-3 text-right">Team total profit</th><th className="p-3 text-right">Total deals</th><th className="p-3 text-right">Clients won</th><th className="p-3 text-right">Team deals</th><th className="p-3">Also</th></tr>
           </thead>
           <tbody>
             {rows.map((r) => (
@@ -65,17 +67,18 @@ function PromotionChart() {
                 <td className="p-3 text-right font-semibold">{r.profit ? money(r.profit) : "—"}</td>
                 <td className="p-3 text-right font-semibold">{r.teamProfit ? money(r.teamProfit) : "—"}</td>
                 <td className="p-3 text-right">{num(r.deals)}</td>
-                <td className="p-3 text-right">{num(r.activeClients)}</td>
+                <td className="p-3 text-right">{num(r.clients)}</td>
                 <td className="p-3 text-right">{num(r.teamDeals)}</td>
-                <td className="p-3 text-right">{num(r.teamClients)}</td>
-                <td className="p-3 text-xs">{[r.activeReps && `${r.activeReps} reps with a deal`, r.leaders && `${r.leaders} leaders`, r.approval && "owner approval", r.bonus && `${money(r.bonus)} bonus`].filter(Boolean).join(" · ") || "—"}</td>
+                <td className="p-3 text-xs">{[r.reps && `${r.reps} reps with a deal`, r.leaders && `${r.leaders} leaders`, r.approval && "owner approval", r.bonus && `${money(r.bonus)} bonus`].filter(Boolean).join(" · ") || "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-sm"><b>From zero at 4 deals a month</b> (about one a week): {timeline.slice(1).map((t) => `${SALES_RANKS[t.rank].short} in month ${t.month}`).join(", ")}. Leaders move up as their team does.</p>
-      <p className="mt-1 text-xs text-ink-soft">A deal is a new client’s first paid job or contract. An active client booked in the last 90 days or is on a recurring plan. Profit is what Handled keeps after paying the pro, from every job your clients book (new and repeat). Commission is your share of that profit; team share is on your whole team’s.</p>
+      <div className="mt-3 text-sm"><b>Starting from zero</b> with {money(1500)}-a-month commercial accounts:
+        <ul className="mt-1 space-y-0.5">{paces.map(({ d, t }) => <li key={d}>• {d} deals a month{d === 4 ? " (about one a week)" : ""}: {t.map((x) => `${SALES_RANKS[x.rank].short} in month ${x.month}`).join(", ")}</li>)}</ul>
+        Leaders move up as their team’s totals grow.</div>
+      <p className="mt-2 text-xs text-ink-soft">A deal is a paid sale: a new client, or a new service or site for a client you already have. Profit is what Handled keeps after paying the pro, on every job your clients book, new and repeat, for as long as they book. Commission is your share of that profit; team share is on your whole team’s. All totals count from your first day.</p>
     </section>
   );
 }
@@ -184,8 +187,9 @@ export default function SalesCareers() {
               <li>✓ <b>Paid on profit, shown in dollars.</b> The app shows what you’ll earn before you sell.</li>
               <li>✓ <b>Paid every Monday</b> after the job is done and paid. If it’s refunded within {SALES_POOL.clawbackDays} days, that pay comes back out.</li>
               <li>✓ <b>Fast money while you learn:</b> {money(FAST_MONEY.walkthroughHeld)} for every walkthrough held, {money(FAST_MONEY.firstSale)} for your first sale.</li>
-              <li>✓ <b>Promotions on real numbers,</b> checked every quarter, shown in the app with exactly what’s left.</li>
-              <li>✓ <b>Your rank is protected:</b> you only move down after {RANK_PROTECTION.quarters} quarters in a row under half your rank’s numbers.</li>
+              <li>✓ <b>Promotions on your totals,</b> shown in the app with exactly what’s left to the next rank.</li>
+              <li>✓ <b>Your rank never goes down:</b> everything counts from your first day and keeps adding up.</li>
+              <li>✓ <b>The leaderboard:</b> your revenue in the last {LEADERBOARD.windowDays} days ranks you against the team. {LEADERBOARD.rewards.map((r) => r.reward).join(". ")}.</li>
               <li>✓ <b>Training:</b> the Handled Sales Academy for every rank, ride-alongs with your Team Lead.</li>
             </ul>
           </div>

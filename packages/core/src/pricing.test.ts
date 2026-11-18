@@ -8,6 +8,7 @@
  * UPDATED : 2026-11-18_0020 UTC — Sales Force career path (pay split within the pool, overrides, promotions, rank protection).
  * UPDATED : 2026-11-18_0040 UTC — business pricing: up to 50% for Handled, pros never paid less than at home prices.
  * UPDATED : 2026-11-18_0100 UTC — promotions follow the profit made for Handled.
+ * UPDATED : 2026-11-18_0110 UTC — promotions on cumulative totals; ranks never drop.
  * UPDATED : 2026-10-02_0233 UTC — calculator checks for every service: more of anything never
  *           costs less, and every amount question actually moves the price.
  *           Run: npm test (node --test, no extra dependencies).
@@ -2902,7 +2903,7 @@ test("business landing pages: every service exists, sales-email leads land on th
 });
 
 test("sales force: pay splits within the 60% pool, leaders paid only on real sales, promotions from real numbers", async () => {
-  const { salesPay, promotionGaps, nextRanks, keepsRank, SALES_RANKS, RANK_ORDER, SALES_POOL } = await import("./sales-force.ts");
+  const { salesPay, promotionGaps, nextRanks, SALES_RANKS, RANK_ORDER, SALES_POOL } = await import("./sales-force.ts");
   // AE sells a $400 job with $100 profit, no leaders: $20 (the ladder: 15% Associate → 45% VP)
   assert.deepEqual(salesPay({ profit: 100, seller: "ae" }), { lines: [{ who: "seller", rank: "ae", share: 0.2, amount: 20 }], total: 20, handledKeeps: 80 });
   assert.equal(SALES_RANKS.associate.sellerShare, 0.15); assert.equal(SALES_RANKS.vp.sellerShare, 0.45);
@@ -2919,18 +2920,16 @@ test("sales force: pay splits within the 60% pool, leaders paid only on real sal
   assert.equal(salesPay({ profit: 100, seller: "team_lead", leaders: [{ rank: "team_lead" }, { rank: "manager" }] }).total, 35);
   // after year one: the seller's book share only
   assert.equal(salesPay({ profit: 100, seller: "senior_ae", leaders: [{ rank: "team_lead" }], newCustomer: false }).total, 8);
-  // promotions: counts, not dollars
-  const n = { rank: "associate" as const, profit: 5_000, teamProfit: 0, deals: 4, activeClients: 3, activeReps: 0, leaders: 0, teamDeals: 0, teamClients: 0, refundRate: 0, academyDone: [] };
-  assert.deepEqual(promotionGaps(n, "ae"), ["1 more deal of your own (90 days)", "Finish the AE Sales Academy"]);
+  // promotions: cumulative totals, led by the profit made for Handled
+  const n = { rank: "associate" as const, profit: 5_000, teamProfit: 0, deals: 4, clients: 3, reps: 0, leaders: 0, teamDeals: 0, refundRate: 0, academyDone: [] };
+  assert.deepEqual(promotionGaps(n, "ae"), ["1 more deal", "Finish the AE Sales Academy"]);
   assert.deepEqual(promotionGaps({ ...n, deals: 5, academyDone: ["ae"] }, "ae"), []);
+  assert.deepEqual(promotionGaps({ ...n, profit: 4_000, deals: 5, academyDone: ["ae"] }, "ae"), ["$1,000 more profit for Handled from your clients"]);
   assert.deepEqual(nextRanks("senior_ae"), ["principal_ae", "team_lead"]);
   assert.deepEqual(nextRanks("director"), ["vp"]);
-  assert.ok(promotionGaps({ ...n, rank: "director", deals: 9, leaders: 5, teamDeals: 999, teamClients: 9999, teamProfit: 3e6 }, "vp").includes("Owner approval"));
-  assert.deepEqual(promotionGaps({ ...n, rank: "team_lead", deals: 3, activeReps: 10, leaders: 1, teamDeals: 60, teamClients: 150, teamProfit: 250_000 }, "manager"), ["1 more leader reporting to you"]);
-  // promotions follow the money made for Handled
-  assert.deepEqual(promotionGaps({ ...n, profit: 4_000, deals: 5, academyDone: ["ae"] }, "ae"), ["$1,000 more profit for Handled from your clients (90 days)"]);
-  assert.ok(promotionGaps({ ...n, rank: "senior_ae", deals: 9, activeReps: 3, teamDeals: 18, teamClients: 40, teamProfit: 70_000, academyDone: ["team_lead"] }, "team_lead").includes("$5,000 more profit for Handled from your team (90 days)"));
-  assert.ok(keepsRank(1) && !keepsRank(2));
+  assert.ok(promotionGaps({ ...n, rank: "director", leaders: 5, teamDeals: 9999, teamProfit: 2e7 }, "vp").includes("Owner approval"));
+  assert.deepEqual(promotionGaps({ ...n, rank: "team_lead", reps: 10, leaders: 1, teamDeals: 150, teamProfit: 750_000 }, "manager"), ["1 more leader reporting to you"]);
+  assert.ok(promotionGaps({ ...n, rank: "senior_ae", reps: 3, teamDeals: 40, teamProfit: 145_000, academyDone: ["team_lead"] }, "team_lead").includes("$5,000 more profit for Handled from your team"));
   // every rank but the first can be reached; the ladder reaches VP
   for (const r of RANK_ORDER.slice(1)) assert.ok(SALES_RANKS[r].requires.from.length, r);
   let path: string = "associate"; const seen = [path];
@@ -2975,16 +2974,32 @@ test("sales force: three real paths to $100K a year from commercial accounts", a
   assert.ok(earningsPlan({ ...base, monthlyChurn: 0 }).year2 > earningsPlan(base).year2);
 });
 
-test("sales force: promotion chart climbs; from zero, steady deals move a seller up", async () => {
-  const { promotionChart, sellerTimeline, PATHS_TO_100K } = await import("./sales-force.ts");
+test("sales force: promotion chart climbs on cumulative totals; from zero, steady deals move a seller up", async () => {
+  const { promotionChart, sellerTimeline, PATHS_TO_100K, RANKS_NEVER_DROP } = await import("./sales-force.ts");
+  assert.equal(RANKS_NEVER_DROP, true);
   const c = promotionChart();
   const seller = c.filter((r) => r.path !== "leader"), leader = c.filter((r) => r.path === "leader");
-  for (let i = 1; i < seller.length; i++) assert.ok(seller[i].commission > seller[i - 1].commission && seller[i].profit > seller[i - 1].profit && seller[i].deals >= seller[i - 1].deals && seller[i].activeClients > seller[i - 1].activeClients, seller[i].rank);
-  for (let i = 1; i < leader.length; i++) assert.ok(leader[i].commission > leader[i - 1].commission && leader[i].teamProfit > leader[i - 1].teamProfit && leader[i].teamDeals > leader[i - 1].teamDeals && leader[i].teamClients > leader[i - 1].teamClients, leader[i].rank);
-  // starting from zero at 4 deals a month (the $100K seller path): AE in month 2, Senior AE by month 4, Principal within a year
+  for (let i = 1; i < seller.length; i++) assert.ok(seller[i].commission > seller[i - 1].commission && seller[i].profit > seller[i - 1].profit && seller[i].deals > seller[i - 1].deals && seller[i].clients > seller[i - 1].clients, seller[i].rank);
+  for (let i = 1; i < leader.length; i++) assert.ok(leader[i].commission > leader[i - 1].commission && leader[i].teamProfit > leader[i - 1].teamProfit && leader[i].teamDeals > leader[i - 1].teamDeals, leader[i].rank);
+  // from zero at 4 deals a month (the $100K seller path): AE in month 2, Senior AE by month 4, Principal within a year
   const t = sellerTimeline(PATHS_TO_100K[0].plan.accountsPerMonth);
   assert.deepEqual(t.map((x) => x.rank), ["associate", "ae", "senior_ae", "principal_ae"]);
   assert.ok(t[1].month <= 2 && t[2].month <= 4 && t[3].month <= 12, JSON.stringify(t));
-  // 1 deal a month never gets past AE's deal count (5 in 90 days)
-  assert.equal(sellerTimeline(1).length, 1);
+  // cumulative: slower sellers still move up, just later
+  const slow = sellerTimeline(2);
+  assert.ok(slow.length >= 3 && slow[2].month > t[2].month, JSON.stringify(slow));
+});
+
+test("sales force: the 90-day revenue leaderboard ranks people, never their rank", async () => {
+  const { leaderboard } = await import("./sales-force.ts");
+  const b = leaderboard([
+    { id: "a", name: "Ann", rank: "ae", revenue90: 30_000 },
+    { id: "b", name: "Ben", rank: "senior_ae", revenue90: 45_000 },
+    { id: "c", name: "Cy", rank: "associate", revenue90: 30_000 },
+    { id: "d", name: "Dee", rank: "principal_ae", revenue90: 0 },
+  ]);
+  assert.deepEqual(b.map((r) => [r.id, r.place]), [["b", 1], ["a", 2], ["c", 2]]);
+  assert.match(String(b[0].reward), /President's Club/);
+  assert.match(String(b[1].reward), /Top 3/);
+  assert.equal(b[0].rank, "senior_ae"); // the board never changes anyone's rank
 });
