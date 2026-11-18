@@ -1210,7 +1210,7 @@ test("city scorecard: stages climb gate by gate, and replicate needs the last 30
   assert.equal(scoreCity(traction).next, "proven");
   assert.ok(scoreCity(traction).todo.length > 0);
   const proven = { ...traction, completedJobs: 300, bookings: month(70_000), take: month(21_000), netTake: month(18_000), refunded: month(1_000), fillRate: 0.95, hoursToAssign: 1.2,
-    activePros: 30, customers: 200, repeatRate: 0.35, planConversion: 0.25, avgRating: 4.85, reviews: 120, redoRate: 0.02, aiDrivenRate: 0.85 };
+    activePros: 30, customers: 200, repeatRate: 0.35, planConversion: 0.25, avgRating: 4.85, reviews: 120, redoRate: 0.02, aiDrivenRate: 0.85, goingDirect: 0.05, goingDirectCount: 2, proRetention: 0.9 };
   assert.equal(scoreCity(proven).stage, "proven");
   const big = { ...proven, bookings: month(160_000), take: month(48_000), netTake: month(42_000), refunded: month(2_000), repeatRate: 0.45, activePros: 45 };
   const recentGood = { ...big, days: 30, completedJobs: 120, bookings: 160_000, take: 48_000, netTake: 42_000, refunded: 2_000 };
@@ -3329,4 +3329,29 @@ test("sales scorecard: every job belongs to one team; AI team vs outside sales f
   const g = groupTotals(s);
   assert.equal(g.ai.profitAfterCost, 260); assert.equal(g.outside.profitAfterCost, 70);
   assert.equal(aiRunCost({ input_tokens: 1_000_000, output_tokens: 100_000 }), 6);
+});
+
+test("marketplace guardrails: customers going around Handled, busy pros gone quiet, opening a city", async () => {
+  const { goingDirectPairs, proRetention, canOpenCity, CITY_GATES } = await import("./city-scorecard.ts");
+  const now = new Date("2026-11-18T12:00:00Z");
+  const ago = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
+  const jobs = [
+    // Ann used Pro A twice, nothing for 60 days, Pro A still busy: going direct
+    { customer: "ann", pro: "A", completedAt: ago(80) }, { customer: "ann", pro: "A", completedAt: ago(60) }, { customer: "zed", pro: "A", completedAt: ago(5) },
+    // Bob used Pro B twice and booked again last week: fine
+    { customer: "bob", pro: "B", completedAt: ago(70) }, { customer: "bob", pro: "B", completedAt: ago(50) }, { customer: "bob", pro: "C", completedAt: ago(7) },
+    // Cy used Pro D twice, quiet, but Pro D stopped working too: not counted
+    { customer: "cy", pro: "D", completedAt: ago(85) }, { customer: "cy", pro: "D", completedAt: ago(75) },
+  ];
+  const g = goingDirectPairs(jobs, now);
+  assert.equal(g.repeatPairs, 3);
+  assert.deepEqual(g.quiet.map((p) => [p.customer, p.pro, p.jobs]), [["ann", "A", 2]]);
+  assert.equal(Math.round((g.rate ?? 0) * 100), 33);
+  const busy = [40, 50, 60].flatMap((d) => [{ customer: "x", pro: "P1", completedAt: ago(d) }, { customer: "y", pro: "P2", completedAt: ago(d) }]);
+  const r = proRetention([...busy, { customer: "x", pro: "P1", completedAt: ago(3) }], now);
+  assert.deepEqual([r.busy, r.quietPros, r.rate], [2, ["P2"], 0.5]);
+  assert.equal(canOpenCity([{ readyToReplicate: false }]).ok, false);
+  assert.equal(canOpenCity([{ readyToReplicate: false }], "Anchor client signed for 40 buildings there").ok, true);
+  assert.equal(canOpenCity([{ readyToReplicate: true }]).ok, true);
+  assert.ok(CITY_GATES.some((x) => x.key === "direct") && CITY_GATES.some((x) => x.key === "pros_kept"));
 });
