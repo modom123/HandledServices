@@ -2,8 +2,8 @@
  * FILE    : apps/web/components/WalkthroughAdmin.tsx
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-11-17_2350 UTC
- * PURPOSE : Hub → Walkthroughs controls: close one out (done + follow-up email with the order link, no-show, cancel),
- *           who's going and notes; booking hours and days (admins).
+ * PURPOSE : Hub → Walkthroughs controls: close one out (Done emails the order link, No-show, Cancel); booking hours (admins).
+ * UPDATED : 2026-11-18_0015 UTC — trimmed: three buttons per walkthrough; days and hours up front, the rest under More options.
  */
 "use client";
 
@@ -17,25 +17,17 @@ async function post(body: Record<string, unknown>) {
   return r.ok && j.ok !== false ? null : String(j.error ?? "Failed");
 }
 
-export function WalkthroughRowActions({ id, status, notes, assigned, followedUp }: { id: string; status: string; notes: string | null; assigned: string | null; followedUp: boolean }) {
+/** Three buttons. "Done" always emails them the order link (once). */
+export function WalkthroughRowActions({ id }: { id: string }) {
   const router = useRouter();
-  const [n, setN] = useState(notes ?? "");
-  const [who, setWho] = useState(assigned ?? "");
   const [msg, setMsg] = useState("");
-  const act = async (body: Record<string, unknown>, ok: string) => { const e = await post({ action: "update", id, ...body }); setMsg(e ?? ok); router.refresh(); };
+  const act = async (status: string, ok: string) => { const e = await post({ action: "update", id, status, follow_up: status === "done" }); setMsg(e ?? ok); router.refresh(); };
+  if (msg) return <span className="text-xs text-ink-soft">{msg}</span>;
   return (
-    <div className="space-y-2 text-xs">
-      <div className="flex flex-wrap gap-2">
-        <input className="input w-40 text-xs" placeholder="Who’s going" value={who} onChange={(e) => setWho(e.target.value)} onBlur={() => who !== (assigned ?? "") && act({ assigned_to: who || null }, "Saved")} />
-        {status === "booked" && <>
-          <button className="btn-primary px-3 py-1 text-xs" onClick={() => act({ status: "done", follow_up: true, staff_notes: n || null }, followedUp ? "Done" : "Done — follow-up email with the order link sent")}>Done + send order link</button>
-          <button className="btn-ghost px-3 py-1 text-xs" onClick={() => act({ status: "done", staff_notes: n || null }, "Done")}>Done</button>
-          <button className="btn-ghost px-3 py-1 text-xs" onClick={() => act({ status: "no_show", staff_notes: n || null }, "Marked no-show — call them to rebook")}>No-show</button>
-          <button className="btn-ghost px-3 py-1 text-xs" onClick={() => { if (confirm("Cancel it? They get an email with a link to rebook.")) act({ status: "cancelled", staff_notes: n || null }, "Cancelled"); }}>Cancel</button>
-        </>}
-      </div>
-      <textarea className="input h-14 text-xs" placeholder="Notes: scope, sizes, who decides, next step" value={n} onChange={(e) => setN(e.target.value)} onBlur={() => n !== (notes ?? "") && act({ staff_notes: n || null }, "Notes saved")} />
-      {msg && <div className="text-ink-soft">{msg}</div>}
+    <div className="flex flex-wrap gap-2">
+      <button className="btn-primary px-3 py-1 text-xs" onClick={() => act("done", "Done — order link sent")}>Done</button>
+      <button className="btn-ghost px-3 py-1 text-xs" onClick={() => act("no_show", "No-show — call to rebook")}>No-show</button>
+      <button className="btn-ghost px-3 py-1 text-xs" onClick={() => { if (confirm("Cancel it? They get an email with a link to rebook.")) act("cancelled", "Cancelled"); }}>Cancel</button>
     </div>
   );
 }
@@ -56,12 +48,17 @@ export function WalkthroughSettingsForm({ s }: { s: WalkthroughSettings & { noti
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-1">From <input type="time" className="input w-auto" value={hhmm(f.start_min)} onChange={(e) => setF({ ...f, start_min: toMin(e.target.value) })} /></label>
         <label className="flex items-center gap-1">to <input type="time" className="input w-auto" value={hhmm(f.end_min)} onChange={(e) => setF({ ...f, end_min: toMin(e.target.value) })} /></label>
-        <label className="flex items-center gap-1">Every <input className="input w-16" inputMode="numeric" value={f.slot_minutes} onChange={num("slot_minutes", 240)} /> min</label>
-        <label className="flex items-center gap-1" title="How many walkthroughs can happen at the same time (people who can go)">Per time <input className="input w-14" inputMode="numeric" value={f.per_slot} onChange={num("per_slot", 20)} /></label>
-        <label className="flex items-center gap-1">At least <input className="input w-14" inputMode="numeric" value={f.lead_hours} onChange={num("lead_hours", 168)} /> hours ahead</label>
-        <label className="flex items-center gap-1">Up to <input className="input w-14" inputMode="numeric" value={f.horizon_days} onChange={num("horizon_days", 60)} /> days out</label>
-        <label className="flex items-center gap-1">Time zone <select className="input w-auto" value={f.time_zone} onChange={(e) => setF({ ...f, time_zone: e.target.value })}>{["America/Detroit", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"].map((z) => <option key={z}>{z}</option>)}</select></label>
       </div>
+      <details>
+        <summary className="cursor-pointer text-xs text-ink-soft">More options</summary>
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-1">Every <input className="input w-16" inputMode="numeric" value={f.slot_minutes} onChange={num("slot_minutes", 240)} /> min</label>
+          <label className="flex items-center gap-1" title="How many walkthroughs can happen at the same time">At once <input className="input w-14" inputMode="numeric" value={f.per_slot} onChange={num("per_slot", 20)} /></label>
+          <label className="flex items-center gap-1">Notice <input className="input w-14" inputMode="numeric" value={f.lead_hours} onChange={num("lead_hours", 168)} /> hours</label>
+          <label className="flex items-center gap-1">Up to <input className="input w-14" inputMode="numeric" value={f.horizon_days} onChange={num("horizon_days", 60)} /> days out</label>
+          <label className="flex items-center gap-1">Time zone <select className="input w-auto" value={f.time_zone} onChange={(e) => setF({ ...f, time_zone: e.target.value })}>{["America/Detroit", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"].map((z) => <option key={z}>{z}</option>)}</select></label>
+        </div>
+      </details>
       <input className="input" placeholder="Email new bookings to (comma-separated; default: OPS_EMAIL)" value={f.notify_emails ?? ""} onChange={(e) => setF({ ...f, notify_emails: e.target.value })} />
       <div className="flex items-center gap-2">
         <button className="btn-primary" onClick={async () => { const e = await post({ action: "settings", ...f, notify_emails: f.notify_emails || null }); setMsg(e ?? "Saved"); router.refresh(); }}>Save</button>
