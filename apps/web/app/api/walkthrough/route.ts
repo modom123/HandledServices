@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   if (limited) return limited;
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return Response.json({ error: "Check your details: name, company, a valid email and a time." }, { status: 400 });
-  if (b.data.kind === "call" && !b.data.phone?.replace(/\D/g, "")) return Response.json({ error: "Add a phone number so we can call you." }, { status: 400 });
+  if (!b.data.phone?.replace(/\D/g, "")) return Response.json({ error: "Add a phone number so we can reach you." }, { status: 400 });
   if (!ready()) return Response.json({ error: "Booking isn't available right now — call or email us." }, { status: 503 });
   const r = await bookWalkthrough({ ...b.data, zip: b.data.zip || null });
   return Response.json(r, { status: r.ok ? 200 : 409 });

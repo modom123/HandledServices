@@ -37,7 +37,7 @@ export default async function Walkthroughs() {
       <td className="p-3 text-sm">
         <div className="font-semibold">{w.company}{w.biz_lead_id && <> · <Link href={`/hub/biz-leads/${w.biz_lead_id}`} className="text-xs text-brand underline">lead{converted.has(w.biz_lead_id) ? " ✓ customer" : ""}</Link></>}</div>
         <div className="text-xs">{w.name} · <a href={`mailto:${w.email}`} className="underline">{w.email}</a>{w.phone ? <> · <a href={`tel:${w.phone}`} className="underline">{w.phone}</a></> : null}</div>
-        {w.kind === "onsite" && w.address && <div className="text-xs"><a className="underline" target="_blank" rel="noreferrer" href={`https://maps.google.com/?q=${encodeURIComponent(`${w.address}, ${w.city ?? ""} ${w.zip ?? ""}`)}`}>{w.address}, {w.city}</a></div>}
+        {w.kind === "onsite" && w.address && <div className="text-xs"><a className="underline" target="_blank" rel="noreferrer" href={`https://maps.google.com/?q=${encodeURIComponent(`${w.address}, ${w.city ?? ""} ${w.zip ?? ""}`)}`}>{[w.address, w.city].filter(Boolean).join(", ")}</a></div>}
         {w.needs && <div className="mt-1 whitespace-pre-wrap text-xs text-ink-soft">“{w.needs}”{w.properties ? ` · ${w.properties} properties` : ""}</div>}
         <div className="mt-1 text-[11px] text-ink-soft">{w.landing ? `from the ${bizLanding(w.landing)?.name ?? w.landing} page` : w.biz_lead_id ? "from the sales emails" : "from the website"} · {w.status.replace("_", " ")}{w.followed_up_at ? " · order link sent" : ""}</div>
       </td>

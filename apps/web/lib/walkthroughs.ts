@@ -58,7 +58,7 @@ export async function bookWalkthrough(w: WalkthroughInput): Promise<{ ok: boolea
   const s = await getWalkthroughSettings();
   if (!s.enabled) return { ok: false, error: "Online booking is paused. Call or email us and we'll set a time." };
   if (!slotIsOpen(s, w.start, await bookedStarts())) return { ok: false, error: "That time was just taken. Pick another one." };
-  if (w.kind === "onsite" && !(w.address && w.city && w.zip)) return { ok: false, error: "Add the property address for an on-site walkthrough." };
+  if (w.kind === "onsite" && !w.address?.trim()) return { ok: false, error: "Add the property address so we know where to come." };
   const leadToken = w.lead && /^[a-z0-9]{8,40}$/.test(w.lead) ? w.lead : w.attribution?.biz_lead && /^[a-z0-9]{8,40}$/.test(w.attribution.biz_lead) ? w.attribution.biz_lead : null;
   const { data: lead } = leadToken ? await db().from("biz_leads").select("id, status, segment, business_name").eq("token", leadToken).maybeSingle() : { data: null };
   const landing = w.landing ? bizLanding(w.landing) : null;

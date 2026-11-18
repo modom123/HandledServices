@@ -4,7 +4,9 @@
  * CREATED : 2026-11-17_2350 UTC
  * PURPOSE : Free walkthrough booking for businesses (no back-and-forth):
  *             SlotPicker         — days across the top, open times below (in the business's time zone)
- *             WalkthroughBooker  — on-site walkthrough or 10-minute call → time → details → booked (with manage link)
+ *             WalkthroughBooker  — one short screen: pick a time, name / company / email / phone (+ address on site), Book
+ * UPDATED : 2026-11-18_0005 UTC — simpler: no numbered steps or kind cards; one address line; "what do you need" optional; a small link
+ *           switches between an on-site visit and a call.
  *             WalkthroughManage  — their manage link: pick a new time or cancel
  */
 "use client";
@@ -49,77 +51,58 @@ export function SlotPicker({ value, onChange, refresh = 0 }: { value: string; on
 
 export interface Prefill { company: string; name: string; email: string; phone: string; city: string; state: string }
 
+/** One short screen: pick a time, four boxes (plus the address for an on-site visit), Book. */
 export function WalkthroughBooker({ initialKind, landing, lead, prefill }: { initialKind: WalkthroughKind; landing: string | null; lead: string | null; prefill: Prefill | null }) {
   const [kind, setKind] = useState<WalkthroughKind>(initialKind);
   const [start, setStart] = useState(""); const [when, setWhen] = useState("");
-  const [f, setF] = useState({ name: prefill?.name ?? "", company: prefill?.company ?? "", email: prefill?.email ?? "", phone: prefill?.phone ?? "", address: "", city: prefill?.city ?? "", state: prefill?.state || "MI", zip: "", needs: "", properties: "" });
+  const [f, setF] = useState({ name: prefill?.name ?? "", company: prefill?.company ?? "", email: prefill?.email ?? "", phone: prefill?.phone ?? "", address: "", needs: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   const onsite = kind === "onsite";
-  const ok = start && f.name.trim().length > 1 && f.company.trim().length > 1 && /\S+@\S+\.\S+/.test(f.email) && (onsite ? f.address.trim() && f.city.trim() && /^\d{5}$/.test(f.zip) : f.phone.replace(/\D/g, "").length >= 10);
+  const phoneOk = f.phone.replace(/\D/g, "").length >= 10;
+  const ok = start && f.name.trim().length > 1 && f.company.trim().length > 1 && /\S+@\S+\.\S+/.test(f.email) && phoneOk && (!onsite || f.address.trim().length > 5);
 
   if (done) return (
     <div className="card space-y-3 text-center">
       <div className="text-4xl">✅</div>
       <h2 className="text-2xl font-bold">You’re booked</h2>
-      <p>{WALKTHROUGH_KINDS[kind].label}: <b>{when}</b></p>
-      <p className="text-sm text-ink-soft">A confirmation is on its way to {f.email}, with an “Add to calendar” link. We’ll send a reminder the day before.</p>
-      <a className="btn-ghost inline-block" href={`/walkthrough/${done}`}>Change or cancel</a>
+      <p><b>{when}</b></p>
+      <p className="text-sm text-ink-soft">We emailed the details to {f.email}. Need to change it? Use the link in that email.</p>
     </div>
   );
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {(Object.keys(WALKTHROUGH_KINDS) as WalkthroughKind[]).map((k) => (
-          <button key={k} type="button" onClick={() => setKind(k)} className={`card text-left transition ${kind === k ? "ring-2 ring-brand" : "hover:ring-1 hover:ring-line"}`}>
-            <div className="font-bold">{WALKTHROUGH_KINDS[k].label}</div>
-            <p className="mt-1 text-sm text-ink-soft">{WALKTHROUGH_KINDS[k].blurb}</p>
-          </button>
-        ))}
+    <div className="space-y-5">
+      <SlotPicker value={start} onChange={(s, l) => { setStart(s); setWhen(l); }} refresh={refresh} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input className="input" placeholder="Your name" value={f.name} onChange={set("name")} autoComplete="name" />
+        <input className="input" placeholder="Company" value={f.company} onChange={set("company")} autoComplete="organization" />
+        <input className="input" type="email" placeholder="Email" value={f.email} onChange={set("email")} autoComplete="email" />
+        <input className="input" type="tel" placeholder="Phone" value={f.phone} onChange={set("phone")} autoComplete="tel" />
+        {onsite && <input className="input sm:col-span-2" placeholder="Property address (street, city, ZIP)" value={f.address} onChange={set("address")} autoComplete="street-address" />}
+        <input className="input sm:col-span-2" placeholder="What do you need done? (optional)" value={f.needs} onChange={set("needs")} />
       </div>
-      <section>
-        <h2 className="mb-2 text-lg font-bold">1. Pick a time</h2>
-        <SlotPicker value={start} onChange={(s, l) => { setStart(s); setWhen(l); }} refresh={refresh} />
-      </section>
-      <section className="space-y-2">
-        <h2 className="text-lg font-bold">2. Your details</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input className="input" placeholder="Your name *" value={f.name} onChange={set("name")} autoComplete="name" />
-          <input className="input" placeholder="Company *" value={f.company} onChange={set("company")} autoComplete="organization" />
-          <input className="input" type="email" placeholder="Work email *" value={f.email} onChange={set("email")} autoComplete="email" />
-          <input className="input" type="tel" placeholder={onsite ? "Phone" : "Phone (we call you) *"} value={f.phone} onChange={set("phone")} autoComplete="tel" />
-        </div>
-        {onsite && (
-          <div className="grid gap-2 sm:grid-cols-[2fr_1fr_80px_100px]">
-            <input className="input" placeholder="Property address *" value={f.address} onChange={set("address")} autoComplete="street-address" />
-            <input className="input" placeholder="City *" value={f.city} onChange={set("city")} autoComplete="address-level2" />
-            <input className="input" placeholder="State" maxLength={2} value={f.state} onChange={set("state")} autoComplete="address-level1" />
-            <input className="input" placeholder="ZIP *" inputMode="numeric" maxLength={5} value={f.zip} onChange={set("zip")} autoComplete="postal-code" />
-          </div>
-        )}
-        <div className="grid gap-2 sm:grid-cols-[1fr_160px]">
-          <textarea className="input h-20" placeholder="What do you need done? (e.g. move-out cleans for 12 units, weekly office cleaning, 3,000 sq ft)" value={f.needs} onChange={set("needs")} />
-          <input className="input h-fit" inputMode="numeric" placeholder="# of properties" value={f.properties} onChange={(e) => setF({ ...f, properties: e.target.value.replace(/\D/g, "") })} />
-        </div>
-      </section>
       {err && <p className="rounded-lg bg-rose-50 p-2 text-sm text-rose-800">{err}</p>}
-      <button className="btn-primary w-full py-3 text-base sm:w-auto sm:px-10" disabled={!ok || busy} onClick={async () => {
+      <button className="btn-primary w-full py-3 text-base" disabled={!ok || busy} onClick={async () => {
         setBusy(true); setErr("");
         const attr = Object.fromEntries(Object.entries(readAttribution() ?? {}).filter(([, v]) => typeof v === "string").map(([k, v]) => [k, String(v).slice(0, 200)]));
+        const zip = onsite ? f.address.match(/\b(\d{5})(?:-\d{4})?\s*$/)?.[1] ?? null : null;
         const r = await fetch("/api/walkthrough", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-          kind, start, ...f, phone: f.phone || null, address: onsite ? f.address : null, city: f.city || null, state: f.state || null, zip: onsite ? f.zip : null,
-          needs: f.needs || null, properties: f.properties ? Number(f.properties) : null, landing, lead, attribution: Object.keys(attr).length ? attr : null,
+          kind, start, name: f.name, company: f.company, email: f.email, phone: f.phone, address: onsite ? f.address : null, zip,
+          needs: f.needs || null, landing, lead, attribution: Object.keys(attr).length ? attr : null,
         }) }).catch(() => null);
         const j = r ? await r.json().catch(() => ({})) : {};
         setBusy(false);
         if (r?.ok && j.ok) { setDone(j.token); try { trackConversion("Lead", { id: `walkthrough-${j.token}` }); } catch { /* ads blocked */ } }
         else { setErr(String(j.error ?? "Couldn't book — check your connection and try again.")); if (r?.status === 409) { setStart(""); setRefresh((x) => x + 1); } }
-      }}>{busy ? "Booking…" : start ? `Book ${when}` : "Pick a time above"}</button>
-      <p className="text-xs text-ink-soft">Free, no obligation. We use your details only to set up and follow up on this walkthrough.</p>
+      }}>{busy ? "Booking…" : !start ? "Pick a time above" : `Book ${when}`}</button>
+      <p className="text-center text-sm text-ink-soft">
+        {onsite ? "We come to you and walk the property." : "We call you for 10 minutes."}{" "}
+        <button type="button" className="font-semibold text-brand underline" onClick={() => setKind(onsite ? "call" : "onsite")}>{onsite ? "Rather have a quick call?" : "Rather we come see it?"}</button>
+      </p>
     </div>
   );
 }

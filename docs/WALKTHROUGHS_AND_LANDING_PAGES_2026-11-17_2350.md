@@ -2,6 +2,7 @@
   FILE    : docs/WALKTHROUGHS_AND_LANDING_PAGES_2026-11-17_2350.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-11-17_2350 UTC
+  UPDATED : 2026-11-18_0005 UTC — simpler booking: one screen, four boxes (+ address on site), Book.
   PURPOSE : Self-booked free walkthroughs and the landing page for each kind of business.
 -->
 
@@ -28,12 +29,12 @@ page links to all of them. Copy lives in `packages/core/src/walkthrough.ts` (`BI
 
 ## Walkthrough booking (`/walkthrough`)
 
-1. They choose **on-site walkthrough** (address required) or **10-minute call** (phone required).
-2. They pick a day and time (open times only; weekdays 9–5 Detroit time, every 30 minutes, at least 18 hours ahead,
-   up to 14 days out by default).
-3. Details: name, company, email, phone, what they need, number of properties. A sales-email lead is pre-filled.
-4. They get a confirmation with **Add to Google Calendar** and a private link to **change or cancel**
-   (`/walkthrough/<token>`), plus a reminder about a day before.
+1. They tap a day and a time.
+2. They fill in four boxes: name, company, email, phone. For an on-site visit there's one more: the property address.
+   "What do you need done?" is optional. A sales-email lead is pre-filled.
+3. They press **Book**. That's it. A small link switches between "we come see it" and "a quick call".
+4. They get a confirmation email with **Add to Google Calendar** and a link to change or cancel, plus a reminder about
+   a day before.
 5. You get a Hub alert and an email (OPS_EMAIL, or the addresses set in Hub → Walkthroughs). A lead that books stops
    getting sales emails and is marked warm.
 

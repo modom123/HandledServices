@@ -21,7 +21,7 @@ export default async function ManageWalkthrough({ params }: { params: Promise<{ 
   return (
     <div className="wrap max-w-2xl py-8 sm:py-12">
       <h1 className="text-3xl font-extrabold tracking-tight">Your walkthrough</h1>
-      <p className="mt-1 text-ink-soft">{w.company}{w.kind === "onsite" && w.address ? ` · ${w.address}, ${w.city}` : ""}</p>
+      <p className="mt-1 text-ink-soft">{w.company}{w.kind === "onsite" && w.address ? ` · ${[w.address, w.city].filter(Boolean).join(", ")}` : ""}</p>
       <div className="mt-6">
         <WalkthroughManage token={w.token} kindLabel={WALKTHROUGH_KINDS[w.kind as WalkthroughKind].label} when={walkthroughWhen(w.starts_at, s.time_zone)} active={w.status === "booked" && !past} />
       </div>

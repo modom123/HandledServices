@@ -24,7 +24,7 @@ export default async function WalkthroughPage({ searchParams }: { searchParams: 
     <div className="wrap max-w-3xl py-8 sm:py-12">
       {landing && <Link href={`/business/${landing.slug}${lead ? `?lead=${lead}` : ""}`} className="text-sm text-brand">← {landing.name}</Link>}
       <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Book a free walkthrough</h1>
-      <p className="mt-2 text-ink-soft">{prefill ? `Hi${prefill.name ? ` ${prefill.name.split(" ")[0]}` : ""} — pick a time that works for ${prefill.company}.` : "Pick a time that works for you."} We see the work, answer your questions and send an exact price the same day. No charge, no obligation.</p>
+      <p className="mt-2 text-ink-soft">{prefill ? `Hi${prefill.name ? ` ${prefill.name.split(" ")[0]}` : ""}, pick` : "Pick"} a time. We send an exact price the same day. Free, no obligation.</p>
       <div className="mt-6"><WalkthroughBooker initialKind={kind} landing={landing?.slug ?? null} lead={lead} prefill={prefill} /></div>
       <p className="mt-8 text-sm text-ink-soft">Already know what you need? <Link href={`/book?for=business${lead ? `&lead=${lead}` : ""}`} className="font-semibold text-brand">Order online</Link> and see your price in about a minute.</p>
     </div>
