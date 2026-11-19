@@ -17,9 +17,10 @@
  *           how people grow with the company (salary, profit share, new markets), example months, fair rules, apply.
  *           Rules from core sales-force.ts. Live (2026-11-18): indexed, linked from /careers; ?leader=CODE (a leader's
  *           recruit link) carries to the sign-up so the new rep joins that team.
+ * UPDATED : 2026-11-19_1600 UTC — headline pay from Partner Program v7 (20% → 50% on direct sales); the chart notes reps get the higher of the two.
  */
 import Link from "next/link";
-import { CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
+import { DIRECT_BONUS, REFERRAL_LADDER, CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
 export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays." };
 
@@ -80,7 +81,7 @@ function PromotionChart() {
       <div className="mt-3 text-sm"><b>Starting from zero</b> with {money(1500)}-a-month commercial accounts:
         <ul className="mt-1 space-y-0.5">{paces.map(({ d, t }) => <li key={d}>• {d} deals a month{d === 4 ? " (about one a week)" : ""}: {t.map((x) => `${SALES_RANKS[x.rank].short} in month ${x.month}`).join(", ")}</li>)}</ul>
         Leaders move up as their team’s totals grow.</div>
-      <p className="mt-2 text-xs text-ink-soft">A deal is a paid sale: a new client, or a new service or site for a client you already have. Profit is what Handled keeps after paying the pro, on every job your clients book, new and repeat, for as long as they book. Commission is your share of that profit; team share is on your whole team’s. All totals count from your first day.</p>
+      <p className="mt-2 text-xs text-ink-soft">A deal is a paid sale: a new client, or a new service or site for a client you already have. Profit is what Handled keeps after paying the pro, on every job your clients book, new and repeat, for as long as they book. Commission is your share of that profit; team share is on your whole team’s. You’re always paid the higher of your rank’s share and your Partner Program direct-sales rate ({pct(REFERRAL_LADDER.baseRate + DIRECT_BONUS)} to start, up to {pct(REFERRAL_LADDER.topRate + DIRECT_BONUS)}). All totals count from your first day.</p>
     </section>
   );
 }
@@ -127,7 +128,7 @@ export default async function SalesCareers({ searchParams }: { searchParams: Pro
             <a href="#chart" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">See the promotion chart</a>
           </div>
           <ul className="mt-8 grid gap-3 sm:grid-cols-4">
-            {[[pct(SALES_RANKS.associate.sellerShare) + " → " + pct(SALES_RANKS.vp.sellerShare), "of the profit on what you sell, rising with every promotion"], [money(FAST_MONEY.walkthroughHeld), "for every walkthrough held"], ["7 ranks", "from Associate AE to VP"], ["Every Monday", "paid by direct deposit"]].map(([a, b]) => (
+            {[[pct(REFERRAL_LADDER.baseRate + DIRECT_BONUS) + " → " + pct(REFERRAL_LADDER.topRate + DIRECT_BONUS), "of the profit on what you sell, rising as you grow"], [money(FAST_MONEY.walkthroughHeld), "for every walkthrough held"], ["7 ranks", "from Associate AE to VP"], ["Every Monday", "paid by direct deposit"]].map(([a, b]) => (
               <li key={b} className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/15"><div className="text-xl font-bold">{a}</div><div className="text-sm text-white/75">{b}</div></li>
             ))}
           </ul>

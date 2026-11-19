@@ -2,6 +2,8 @@
   FILE    : docs/INDEED_JOB_SALES_FORCE_AE_2026-11-18_0105.md
   PROJECT : Handled (HandledServices) — AI-run home & business services
   CREATED : 2026-11-18_0105 UTC
+  UPDATED : 2026-11-19_1600 UTC — pay matches Partner Program v7 + the Sales Force: 20% → 50% of profit on direct sales
+            (the higher of the v7 rate + 5 points and the rank share); a PDF copy in docs/.
   PURPOSE : Indeed post for the Handled Sales Force (Account Executive, 1099), replacing
             docs/INDEED_JOB_FIELD_SALES_REP_2026-11-10_0355.md. Pay matches core sales-force.ts.
 -->
@@ -13,7 +15,7 @@
 | Job title | **Account Executive — Commercial Services** |
 | Job type | **Contract** (independent contractor, 1099) |
 | Location | Detroit, MI (add our other cities as they open) |
-| Pay | Commission: 15% rising to 45% of profit on every sale, plus $25 per walkthrough held |
+| Pay | Commission: 20% rising to 50% of profit on every sale, plus $25 per walkthrough held |
 | Supplemental pay | Commission pay · Bonus opportunities |
 | Application | `https://handledsvc.com/careers/sales?utm_source=indeed&utm_campaign=sales_force` |
 | Screening questions | "Do you have reliable transportation?" · "Do you have B2B, commercial or field sales experience?" |
@@ -34,7 +36,7 @@ grounds, repairs, hauling and more, done by background-checked, vetted pros with
 - Optional: build a team of your own reps and earn on their sales
 
 **How you're paid** (every Monday, by direct deposit)
-- **Commission:** 15% of Handled's profit on what you sell to start, rising with every promotion to 45%
+- **Commission:** 20% of Handled's profit on what you sell to start, rising as you grow to 50%
 - **Your book:** keep earning on your clients after their first year
 - **$25 for every walkthrough held** from your link, **$100 for your first sale**, and a cash bonus with every promotion
 - **Three paths to $100K a year** from commercial accounts (examples on the careers page; earnings depend on what you sell)
