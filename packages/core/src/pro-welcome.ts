@@ -32,7 +32,7 @@ import { REWARD_DEFAULTS } from "./rewards.ts";
 import { SERVICES, TRADES } from "./services.ts";
 import { glMinimum } from "./vetting.ts";
 import { TIME_WINDOW_LABEL, type Contractor } from "./types.ts";
-import { PROBATION } from "./vetting.ts";
+import { DEFAULT_RADIUS_MI, PROBATION } from "./vetting.ts";
 
 type Lang = "en" | "es";
 const pct = (r: number) => `${+(r * 100).toFixed(2)}%`;
@@ -74,7 +74,7 @@ export function proWelcomeEmail(c: Contractor, o: { site: string; policy: ProPol
 
   // ── what they told us ──
   const area = [c.base_city, [c.base_state, c.base_zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-  const radius = c.service_radius_mi ?? 25;
+  const radius = c.service_radius_mi ?? DEFAULT_RADIUS_MI;
   const days = c.availability?.days?.length ? c.availability.days.slice().sort().map((d) => DAYS[l][d] ?? String(d)).join(", ") : null;
   const windows = c.availability?.windows?.length ? c.availability.windows.map((w) => (es ? WINDOW_ES[w] : TIME_WINDOW_LABEL[w as keyof typeof TIME_WINDOW_LABEL]) ?? w).join(", ") : null;
   const trades = (c.trades ?? []).map((t) => tradeName(t, l)).join(", ");

@@ -193,7 +193,10 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, base_zip: null }).complete, false, "needs work area & hours");
   assert.equal(onboardingChecklist({ ...ok, orientation: { welcome: "2026-10-01" } }).complete, false, "needs the Welcome to Handled orientation");
   assert.equal(onboardingChecklist({ ...ok, orientation: null, status: "approved" }).complete, true, "pros approved before orientation existed aren't blocked");
-  assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, false, "needs a place of business, not just a ZIP");
+  // owner, 2026-11-19: the ZIP is what's required (no ZIP, no approval); the street address is optional
+  assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, true, "a ZIP alone is enough");
+  assert.equal(onboardingChecklist({ ...ok, base_zip: "4820" }).complete, false, "not a real ZIP: not approved");
+  assert.match(String(onboardingChecklist({ ...ok, base_address: null }).steps.find((x) => x.key === "area")?.detail), /48201, up to 100 mi/, "100 miles around the ZIP by default");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");
   assert.equal(onboardingChecklist(ok).complete, true);
   assert.equal(onboardingChecklist({ ...ok, resume_uploaded_at: null }).complete, false, "no paid work without a resume");
@@ -2972,7 +2975,7 @@ test("insurance: two ways to verify — automatic when everything checks out, ot
   assert.match(why({ readable: false }), /couldn't be read/);
   assert.match(why({ matches_pro: false }), /name on the policy/);
   assert.match(why({ expires_on: "2026-11-01" }, "2026-11-01"), /expired/);
-  assert.match(why({}, "2027-07-30"), /doesn't match the policy/);
+  assert.equal(docAutoCheck("coi", good, { claimedExpiry: "2027-07-30", trades, today }).auto, true, "a mistyped date doesn't hold a good certificate (the policy's date is used)");
   assert.match(why({ per_occurrence_limit: 100000 }), /limit below/);
   assert.match(why({ additional_insured: false }), /additional insured/);
   assert.match(why({ expires_on: "" }), /no expiry/);

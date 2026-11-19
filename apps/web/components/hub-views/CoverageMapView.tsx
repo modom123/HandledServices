@@ -18,7 +18,7 @@ import { feature } from "topojson-client";
 import { geoAlbersUsa, geoPath } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
 import us from "us-atlas/states-albers-10m.json";
-import { SERVICES, getService, type Position } from "@handled/core";
+import { DEFAULT_RADIUS_MI, SERVICES, getService, type Position } from "@handled/core";
 
 
 export type Pro = { id: string; business_name: string; status: string; trades: string[] | null; base_lat: number | null; base_lng: number | null; base_zip: string | null; base_state: string | null; base_city: string | null; service_radius_mi: number | null };
@@ -75,7 +75,7 @@ export default function CoverageMapView({ q, proRows, marketRows, depth = [] }: 
   const dots = pros.flatMap((p) => {
     if (p.base_lat == null || p.base_lng == null) return [];
     const xy = project([Number(p.base_lng), Number(p.base_lat)]);
-    return xy ? [{ p, x: xy[0], y: xy[1], r: Math.max(3, Math.min(60, Number(p.service_radius_mi ?? 25) * 0.42)) }] : [];
+    return xy ? [{ p, x: xy[0], y: xy[1], r: Math.max(3, Math.min(60, Number(p.service_radius_mi ?? DEFAULT_RADIUS_MI) * 0.42)) }] : [];
   });
 
   const totals = { active: pros.filter(isActive).length, onboarding: pros.filter((p) => !isActive(p)).length, states: [...by.values()].filter((r) => r.active).length, located: dots.length };
@@ -135,7 +135,7 @@ export default function CoverageMapView({ q, proRows, marketRows, depth = [] }: 
           {dots.map(({ p, x, y }) => (
             <a key={p.id} href={`/hub/pros/${p.id}`}>
               <circle cx={x} cy={y} r={4} fill={isActive(p) ? "#0f6b50" : "#c4993a"} stroke="#fff" strokeWidth={1.2} className="cursor-pointer">
-                <title>{`${p.business_name} · ${isActive(p) ? "active" : "onboarding"} · ${[p.base_city, p.base_state].filter(Boolean).join(", ")} · ${p.service_radius_mi ?? 25} mi · ${(p.trades ?? []).join(", ")}`}</title>
+                <title>{`${p.business_name} · ${isActive(p) ? "active" : "onboarding"} · ${[p.base_city, p.base_state].filter(Boolean).join(", ")} · ${p.service_radius_mi ?? DEFAULT_RADIUS_MI} mi · ${(p.trades ?? []).join(", ")}`}</title>
               </circle>
             </a>
           ))}
@@ -208,7 +208,7 @@ export default function CoverageMapView({ q, proRows, marketRows, depth = [] }: 
                           <Link href={`/hub/pros/${p.id}`} className="font-semibold underline">{p.business_name}</Link>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isActive(p) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{isActive(p) ? "active" : "onboarding"}</span>
                         </div>
-                        <div className="text-xs text-ink-soft">{[p.base_city, p.base_zip].filter(Boolean).join(" ") || "no address yet"} · {p.service_radius_mi ?? 25} mi radius{p.base_lat == null ? " · not on the map yet" : ""}</div>
+                        <div className="text-xs text-ink-soft">{[p.base_city, p.base_zip].filter(Boolean).join(" ") || "no address yet"} · {p.service_radius_mi ?? DEFAULT_RADIUS_MI} mi radius{p.base_lat == null ? " · not on the map yet" : ""}</div>
                         {list.length ? (
                           <details className="mt-1.5">
                             <summary className="cursor-pointer text-xs font-semibold text-brand">{list.length} service{list.length === 1 ? "" : "s"} offered</summary>
