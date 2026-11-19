@@ -31,6 +31,8 @@
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
+ * UPDATED : 2026-11-19_1800 UTC — handledListingRequired: only general liability and cargo must list Handled; a "Handled isn't
+ *           listed" finding on commercial auto (or workers' comp, bond…) no longer holds the document.
  * UPDATED : 2026-11-19_1745 UTC — work area: a ZIP code is required to be approved (street address optional); 100 miles
  *           around it by default, or only the ZIP codes the pro lists. docAutoCheck trusts the policy's own expiry date
  *           when the pro typed a different one (it was the main reason a good certificate sat waiting for a person).
@@ -247,6 +249,12 @@ export interface DocReading {
  * pro entered, and for the COI the per-occurrence limit meets the trade minimum with Handled as additional insured or
  * certificate holder (owner decision 2026-11-12: either is fine). `reasons` says why it needs a person (shown to staff and, gently, to the pro).
  */
+/** Policies that must list Handled (additional insured or certificate holder): general liability and motor truck cargo.
+ * Commercial auto, workers' comp, bonds, liquor and passenger auto never need Handled on them (owner, 2026-11-19). */
+export function handledListingRequired(kind: string): boolean {
+  return kind === "coi" || kind === "cargo";
+}
+
 export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExpiry?: string | null; trades: string[]; today?: Date }): { auto: boolean; reasons: string[] } {
   if (kind !== "coi" && !(kind in COVERAGES)) return { auto: false, reasons: ["this kind of document is always checked by a person"] };
   if (!r) return { auto: false, reasons: ["the automatic check didn't run"] };
@@ -264,6 +272,8 @@ export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExp
     if (!(r.per_occurrence_limit >= min)) reasons.push(`per-occurrence limit below $${min.toLocaleString("en-US")}`);
     if (!r.additional_insured && !r.certificate_holder) reasons.push("Handled Services LLC isn't listed as additional insured or certificate holder");
   }
-  if (!r.meets_requirements) for (const p of r.problems ?? []) if (p && !reasons.includes(p)) reasons.push(p);
+  // the AI sometimes flags "Handled isn't listed" on a policy that never has to list Handled (commercial auto…): ignore it there
+  const aboutHandled = (p: string) => /handled|additional insured|certificate holder/i.test(p);
+  if (!r.meets_requirements) for (const p of r.problems ?? []) if (p && !reasons.includes(p) && (handledListingRequired(kind) || !aboutHandled(p))) reasons.push(p);
   return { auto: reasons.length === 0, reasons };
 }
