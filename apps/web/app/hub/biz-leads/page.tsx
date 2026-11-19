@@ -17,11 +17,12 @@
  *           own-outreach-domain setup banner; the Instantly banner only shows while Instantly is the sender.
  * UPDATED : 2026-11-17_2335 UTC — handledsvc.net is the outreach domain (banner names the exact problem); "Replied" list says which have an
  *           AI draft waiting; the job-posting form can start the own sequence.
+ * UPDATED : 2026-11-19_0010 UTC — "Where pros need work": the ZIPs of idle pros that discovery searches first, and for which businesses.
  */
 import Link from "next/link";
-import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "@handled/core";
+import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, PRO_NEEDS_WORK, type BizSegment } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
-import { getBizLeadSettings } from "@/lib/biz-leads";
+import { getBizLeadSettings, idleProTargets } from "@/lib/biz-leads";
 import { noteSummaries } from "@/lib/notes";
 import { instantlyBizReady } from "@/lib/instantly";
 import { Stat } from "@/components/ui";
@@ -37,6 +38,7 @@ export default async function BizLeads() {
   const [s, { data }, { data: dealPlan }] = await Promise.all([getBizLeadSettings(), db.from("biz_leads").select("*").order("score", { ascending: false }).limit(2000),
     db.from("ops_alerts").select("title, body, created_at").eq("kind", "deal_plan").order("created_at", { ascending: false }).limit(1).maybeSingle()]);
   const everyone = (data ?? []) as Lead[];
+  const targets = await idleProTargets(8).catch(() => []);
   // which setting is missing, by name only (never the values)
   const missingInstantly = ["INSTANTLY_API_KEY", "INSTANTLY_BIZ_CAMPAIGN_ID", "BUSINESS_POSTAL_ADDRESS"].filter((k) => !process.env[k]?.trim());
   // teaming partners are tracked here but kept out of the sales funnel, call list and stats
@@ -81,6 +83,15 @@ export default async function BizLeads() {
           </div>
         );
       })()}
+      <div className="card text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold">Where pros need work</h2><span className="text-xs text-ink-soft">pros with fewer than {PRO_NEEDS_WORK.jobsPer30} jobs in 30 days · searched first every weekday</span></div>
+        {targets.length ? (
+          <ul className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">{targets.map((t) => (
+            <li key={t.zip}><b>{t.zip}</b>: {t.idlePros} pro{t.idlePros === 1 ? "" : "s"} ({t.trades.slice(0, 3).join(", ")}{t.trades.length > 3 ? "…" : ""}) → {t.segments.slice(0, 3).map((x) => BIZ_SEGMENTS[x].label.toLowerCase()).join(", ")}</li>
+          ))}</ul>
+        ) : <p className="mt-1 text-ink-soft">Every approved pro has steady work right now, so discovery uses the usual city rotation.</p>}
+        <p className="mt-2 text-xs text-ink-soft">About 70% of each day&apos;s business searches go near these ZIPs, for the kinds of business that buy those pros&apos; trades. Those leads are emailed first.</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-6">
         <Stat label="Found" value={leads.length} />
         <Stat label="With email" value={leads.filter((l) => l.email).length} />

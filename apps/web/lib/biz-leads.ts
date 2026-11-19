@@ -53,10 +53,13 @@
  *             job-posting leads added with "send now" start on the own sequence when the own domain is the sender.
  * UPDATED : 2026-11-17_2350 UTC — the email link lands on the page for the lead's kind of business (/business/<slug>); the AI's reply
  *           drafts offer the walkthrough booking link (/walkthrough?lead=…) so a warm business picks its own time.
+ * UPDATED : 2026-11-19_0010 UTC — discovery goes where pros need work first: ~70% of each day's searches near the ZIPs of approved
+ *           pros with < 4 jobs in 30 days (idleProTargets, core outreachTargets), for the businesses that buy their trades;
+ *           those leads score +15 so they're emailed first.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -83,37 +86,70 @@ async function event(leadId: string, kind: string, note?: string | null, actor =
   await db().from("biz_lead_events").insert({ lead_id: leadId, kind, note: note ?? null, actor });
 }
 
+/**
+ * Where approved pros need work (fewer than PRO_NEEDS_WORK.jobsPer30 completed jobs in 30 days), by their base ZIP, with
+ * the kinds of business that buy their trades (core outreachTargets). Discovery searches these first.
+ */
+export async function idleProTargets(limit = 12) {
+  const { data: pros } = await db().from("contractors").select("id, base_zip, zip, trades").eq("status", "approved").limit(10000);
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { data: done } = await db().from("jobs").select("contractor_id").eq("status", "completed").gte("completed_at", since).not("contractor_id", "is", null).limit(50000);
+  const jobs = new Map<string, number>();
+  for (const j of (done ?? []) as { contractor_id: string }[]) jobs.set(j.contractor_id, (jobs.get(j.contractor_id) ?? 0) + 1);
+  return outreachTargets(((pros ?? []) as { id: string; base_zip: string | null; zip: string | null; trades: string[] | null }[]).map((x) => ({ zip: x.base_zip ?? x.zip, trades: x.trades ?? [], jobs30: jobs.get(x.id) ?? 0 })),
+    (slug) => getService(slug)?.trades ?? [], limit);
+}
+
 export async function discoverBizLeads(s: BizLeadSettings) {
   const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key || !s.segments.length) return { searches: 0, added: 0 };
+  if (!key || !s.segments.length) return { searches: 0, added: 0, nearIdlePros: 0 };
   const day = Math.floor(Date.now() / 86400000);
-  const list = Array.from({ length: s.discover_per_day }, (_, i) => ({ segment: s.segments[(day + i) % s.segments.length], ...METRO[(day * 3 + i) % METRO.length] }));
-  let added = 0;
+  // first, where pros need work: ~70% of today's searches near idle pros, for the businesses that buy their trades
+  const targets = await idleProTargets().catch(() => []);
+  const nTarget = targets.length ? Math.ceil(s.discover_per_day * 0.7) : 0;
+  type Search = { segment: BizSegment; where: string; city: string | null; state: string | null; idle: number };
+  const near: Search[] = Array.from({ length: nTarget }, (_, i) => {
+    const t = targets[(day + i) % targets.length];
+    const wanted = t.segments.filter((x) => s.segments.includes(x));
+    const segs = wanted.length ? wanted : t.segments;
+    return { segment: segs[Math.floor((day + i) / targets.length) % segs.length], where: t.zip, city: null, state: null, idle: t.idlePros };
+  });
+  const usual: Search[] = Array.from({ length: s.discover_per_day - nTarget }, (_, i) => {
+    const mt = METRO[(day * 3 + i) % METRO.length];
+    return { segment: s.segments[(day + i) % s.segments.length], where: `${mt.city}, ${mt.state}`, city: mt.city, state: mt.state, idle: 0 };
+  });
+  const list = [...near, ...usual];
+  let added = 0, nearIdlePros = 0;
   for (const t of list) {
     const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.addressComponents" },
-      body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} in ${t.city}, ${t.state}`, maxResultCount: 20 }),
+      body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} ${t.idle ? "near" : "in"} ${t.where}`, maxResultCount: 20 }),
       signal: AbortSignal.timeout(10000),
     }).catch(() => null);
     if (!r?.ok) continue;
-    const j = (await r.json()) as { places?: { id: string; displayName?: { text: string }; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string; addressComponents?: { longText: string; types: string[] }[] }[] };
+    const j = (await r.json()) as { places?: { id: string; displayName?: { text: string }; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string; addressComponents?: { longText: string; shortText?: string; types: string[] }[] }[] };
     for (const p of j.places ?? []) {
       if (p.businessStatus && p.businessStatus !== "OPERATIONAL") continue;
       const comp = (type: string) => p.addressComponents?.find((c) => c.types.includes(type))?.longText ?? null;
+      const compShort = (type: string) => p.addressComponents?.find((c) => c.types.includes(type))?.shortText ?? null;
       const row = {
         source: "google_places", external_id: p.id, business_name: p.displayName?.text ?? "Business", segment: t.segment,
-        city: comp("locality") ?? t.city, state: t.state, zip: comp("postal_code"), phone: p.nationalPhoneNumber ?? null, website: p.websiteUri ?? null,
+        city: comp("locality") ?? t.city, state: compShort("administrative_area_level_1") ?? t.state, zip: comp("postal_code"), phone: p.nationalPhoneNumber ?? null, website: p.websiteUri ?? null,
         rating: p.rating ?? null, review_count: p.userRatingCount ?? null, details_expire_at: new Date(Date.now() + 30 * 86400000).toISOString(),
-        score: bizLeadScore({ rating: p.rating, reviewCount: p.userRatingCount, website: p.websiteUri, phone: p.nationalPhoneNumber }),
+        // near pros who need work: emailed first (the send queue goes by score)
+        score: Math.min(100, bizLeadScore({ rating: p.rating, reviewCount: p.userRatingCount, website: p.websiteUri, phone: p.nationalPhoneNumber }) + (t.idle ? 15 : 0)),
       };
       const key = bizDedupeKey({ website: row.website, phone: row.phone });
       if (key && (await db().from("biz_leads").select("id", { count: "exact", head: true }).eq("dedupe_key", key)).count) continue; // already on the list
       const { data: ins } = await db().from("biz_leads").upsert({ ...row, dedupe_key: key }, { onConflict: "source,external_id", ignoreDuplicates: true }).select("id");
-      if (ins?.length) { added++; await event(ins[0].id, "found", `${BIZ_SEGMENTS[t.segment].search} in ${t.city}, ${t.state}`); }
+      if (ins?.length) {
+        added++; if (t.idle) nearIdlePros++;
+        await event(ins[0].id, "found", t.idle ? `${BIZ_SEGMENTS[t.segment].search} near ${t.where}, where ${t.idle} pro${t.idle === 1 ? "" : "s"} need work` : `${BIZ_SEGMENTS[t.segment].search} in ${t.where}`);
+      }
     }
   }
-  return { searches: list.length, added };
+  return { searches: list.length, added, nearIdlePros };
 }
 
 export const jobBoardReady = () => Boolean(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);

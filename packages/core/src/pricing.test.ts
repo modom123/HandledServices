@@ -1210,7 +1210,7 @@ test("city scorecard: stages climb gate by gate, and replicate needs the last 30
   assert.equal(scoreCity(traction).next, "proven");
   assert.ok(scoreCity(traction).todo.length > 0);
   const proven = { ...traction, completedJobs: 300, bookings: month(70_000), take: month(21_000), netTake: month(18_000), refunded: month(1_000), fillRate: 0.95, hoursToAssign: 1.2,
-    activePros: 30, customers: 200, repeatRate: 0.35, planConversion: 0.25, avgRating: 4.85, reviews: 120, redoRate: 0.02, aiDrivenRate: 0.85 };
+    activePros: 30, customers: 200, repeatRate: 0.35, planConversion: 0.25, avgRating: 4.85, reviews: 120, redoRate: 0.02, aiDrivenRate: 0.85, goingDirect: 0.05, goingDirectCount: 2, proRetention: 0.9 };
   assert.equal(scoreCity(proven).stage, "proven");
   const big = { ...proven, bookings: month(160_000), take: month(48_000), netTake: month(42_000), refunded: month(2_000), repeatRate: 0.45, activePros: 45 };
   const recentGood = { ...big, days: 30, completedJobs: 120, bookings: 160_000, take: 48_000, netTake: 42_000, refunded: 2_000 };
@@ -3312,4 +3312,64 @@ test("sales force live pay: seller rate, team shares within the pool, automatic 
   // VP waits for the owners
   const top = autoPromote({ ...zero, rank: "director", teamProfit: 2e7, leaders: 3, teamDeals: 5000 });
   assert.equal(top.rank, "director"); assert.equal(top.awaitingApproval, "vp");
+});
+
+test("sales scorecard: every job belongs to one team; AI team vs outside sales force on the same numbers", async () => {
+  const { teamOf, scorecard, groupTotals, aiRunCost } = await import("./sales-scorecard.ts");
+  assert.equal(teamOf({ partner_id: "p", partner_sale: true }), "sales_force");
+  assert.equal(teamOf({ partner_id: "p", partner_sale: false }), "referrals");
+  assert.equal(teamOf({ partner_id: "p", partner_self: true }), "ai_inbound");
+  assert.equal(teamOf({ biz_lead: "abc12345" }), "ai_outbound");
+  assert.equal(teamOf({}), "ai_inbound");
+  const job = (o: Partial<{ partner_id: string; partner_sale: boolean; biz_lead: string; first: boolean; completed: boolean; refunded: number }>) => ({ contact_email: "a@x.com", price: 400, payout: 260, refunded: 0, completed: true, first: true, ...o });
+  const s = scorecard([job({ biz_lead: "t1" }), job({ biz_lead: "t2", first: false }), job({ partner_id: "p", partner_sale: true }), job({ partner_id: "p", partner_sale: true, completed: false })], { ai_outbound: 20, sales_force: 70 });
+  const ai = s.find((r) => r.team === "ai_outbound")!, sf = s.find((r) => r.team === "sales_force")!;
+  assert.deepEqual([ai.newClients, ai.jobs, ai.revenue, ai.profit, ai.cost, ai.profitAfterCost, ai.costPerClient, ai.roi], [1, 2, 800, 280, 20, 260, 20, 13]);
+  assert.deepEqual([sf.newClients, sf.revenue, sf.profit, sf.profitAfterCost, sf.costPerClient], [2, 800, 140, 70, 35]);
+  const g = groupTotals(s);
+  assert.equal(g.ai.profitAfterCost, 260); assert.equal(g.outside.profitAfterCost, 70);
+  assert.equal(aiRunCost({ input_tokens: 1_000_000, output_tokens: 100_000 }), 6);
+});
+
+test("marketplace guardrails: customers going around Handled, busy pros gone quiet, opening a city", async () => {
+  const { goingDirectPairs, proRetention, canOpenCity, CITY_GATES } = await import("./city-scorecard.ts");
+  const now = new Date("2026-11-18T12:00:00Z");
+  const ago = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
+  const jobs = [
+    // Ann used Pro A twice, nothing for 60 days, Pro A still busy: going direct
+    { customer: "ann", pro: "A", completedAt: ago(80) }, { customer: "ann", pro: "A", completedAt: ago(60) }, { customer: "zed", pro: "A", completedAt: ago(5) },
+    // Bob used Pro B twice and booked again last week: fine
+    { customer: "bob", pro: "B", completedAt: ago(70) }, { customer: "bob", pro: "B", completedAt: ago(50) }, { customer: "bob", pro: "C", completedAt: ago(7) },
+    // Cy used Pro D twice, quiet, but Pro D stopped working too: not counted
+    { customer: "cy", pro: "D", completedAt: ago(85) }, { customer: "cy", pro: "D", completedAt: ago(75) },
+  ];
+  const g = goingDirectPairs(jobs, now);
+  assert.equal(g.repeatPairs, 3);
+  assert.deepEqual(g.quiet.map((p) => [p.customer, p.pro, p.jobs]), [["ann", "A", 2]]);
+  assert.equal(Math.round((g.rate ?? 0) * 100), 33);
+  const busy = [40, 50, 60].flatMap((d) => [{ customer: "x", pro: "P1", completedAt: ago(d) }, { customer: "y", pro: "P2", completedAt: ago(d) }]);
+  const r = proRetention([...busy, { customer: "x", pro: "P1", completedAt: ago(3) }], now);
+  assert.deepEqual([r.busy, r.quietPros, r.rate], [2, ["P2"], 0.5]);
+  assert.equal(canOpenCity([{ readyToReplicate: false }]).ok, false);
+  assert.equal(canOpenCity([{ readyToReplicate: false }], "Anchor client signed for 40 buildings there").ok, true);
+  assert.equal(canOpenCity([{ readyToReplicate: true }]).ok, true);
+  assert.ok(CITY_GATES.some((x) => x.key === "direct") && CITY_GATES.some((x) => x.key === "pros_kept"));
+});
+
+test("sales engine goes where pros need work: idle pros' ZIPs first, with the businesses that buy their trades", async () => {
+  const { outreachTargets, segmentsForTrades, PRO_NEEDS_WORK } = await import("./biz-lead-engine.ts");
+  const { getService } = await import("./services.ts");
+  const tradesOf = (s: string) => getService(s)?.trades ?? [];
+  const cleaning = getService("house-cleaning")!.trades;
+  const hauling = getService("junk-removal")!.trades;
+  assert.ok(segmentsForTrades(cleaning, tradesOf).includes("property_manager"));
+  assert.ok(segmentsForTrades(hauling, tradesOf).includes("storage"));
+  const t = outreachTargets([
+    { zip: "48201", trades: cleaning, jobs30: 0 }, { zip: "48201", trades: hauling, jobs30: 1 },
+    { zip: "48075", trades: cleaning, jobs30: 2 },
+    { zip: "48226", trades: cleaning, jobs30: PRO_NEEDS_WORK.jobsPer30 }, // busy: not a target
+    { zip: null, trades: cleaning, jobs30: 0 },
+  ], tradesOf);
+  assert.deepEqual(t.map((x) => [x.zip, x.idlePros]), [["48201", 2], ["48075", 1]]);
+  assert.ok(t[0].segments.includes("storage") && t[0].segments.includes("property_manager"));
 });

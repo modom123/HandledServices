@@ -6,15 +6,18 @@
  *           A ZIP prefix can belong to one market only, so jobs are never counted twice.
  * UPDATED : 2026-10-04_1934 UTC — { id, launch_services: [...] | null }: which services a city has open (null = all).
  * UPDATED : 2026-10-11_0451 UTC — admins only (which cities and services are open).
+ * UPDATED : 2026-11-18_0240 UTC — guardrail: a new named city opens only when an existing city is ready to replicate (City
+ *           scorecard), or with a written reason (override_reason, 15+ characters) that's logged as a Hub alert.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { clearLaunchCache } from "@/lib/launch";
-import { LAUNCH_SET_RECOMMENDED, getService } from "@handled/core";
+import { LAUNCH_SET_RECOMMENDED, canOpenCity, getService } from "@handled/core";
+import { raiseAlert } from "@/lib/jobs";
 
 const Body = z.union([
-  z.object({ name: z.string().trim().min(2).max(80), state: z.string().trim().length(2), zip_prefixes: z.array(z.string().regex(/^\d{3}$/)).min(1).max(30) }),
+  z.object({ name: z.string().trim().min(2).max(80), state: z.string().trim().length(2), zip_prefixes: z.array(z.string().regex(/^\d{3}$/)).min(1).max(30), override_reason: z.string().trim().max(500).nullable().optional() }),
   z.object({ id: z.string().uuid(), active: z.boolean() }),
   z.object({ id: z.string().uuid(), launch_services: z.array(z.string()).max(100).nullable() }),
 ]);
@@ -37,11 +40,16 @@ export async function POST(req: Request) {
     clearLaunchCache();
     return error ? deny(500, error.message) : Response.json({ ok: true });
   }
+  // win a city before opening the next (core canOpenCity): ready to replicate, or a written reason
+  const { loadCityScorecard } = await import("@/lib/city-scorecard");
+  const gate = canOpenCity((await loadCityScorecard()).cards.filter((c) => c.market.active).map((c) => c.score), b.data.override_reason);
+  if (!gate.ok) return Response.json({ error: gate.why, needs_reason: true }, { status: 409 });
   const prefixes = [...new Set(b.data.zip_prefixes)];
   const { data: taken } = await db.from("markets").select("name, zip_prefixes").overlaps("zip_prefixes", prefixes);
   if (taken?.length) return deny(409, `Already in ${taken.map((m: { name: string }) => m.name).join(", ")}: ${prefixes.filter((p) => taken.some((m: { zip_prefixes: string[] }) => m.zip_prefixes.includes(p))).join(", ")}`);
   // a new city opens with the recommended launch set (constraint-driven launch); widen it in the scorecard
   const { error } = await db.from("markets").insert({ name: b.data.name, state: b.data.state.toUpperCase(), zip_prefixes: prefixes, launch_services: [...LAUNCH_SET_RECOMMENDED] });
+  if (!error && gate.why === "override") await raiseAlert("expansion", "warn", `New city opened before any city is ready to replicate: ${b.data.name}, ${b.data.state.toUpperCase()}`, `By ${v!.email}. Reason: ${b.data.override_reason}`);
   clearLaunchCache();
   return error ? deny(500, error.message) : Response.json({ ok: true });
 }

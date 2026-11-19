@@ -37,6 +37,7 @@
  *           keeps its address.
  * UPDATED : 2026-11-17_2300 UTC — Front Office: Mark Odom's office (CEO: ops tools) and Cecilia Gulley's office (strategy &
  *           recruiting tools), each with email, Zoom and the to-do list shared between them. Admins only.
+ * UPDATED : 2026-11-18_0215 UTC — Partners → AI vs Sales Force (/hub/scorecard, admins): the sales scorecard.
  * UPDATED : 2026-11-18_0105 UTC — Clients & sales → Sales Force (/hub/sales-force, admins).
  * UPDATED : 2026-11-17_2350 UTC — Clients & sales → Walkthroughs (/hub/walkthroughs): free walkthroughs businesses booked themselves.
  */
@@ -111,6 +112,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
   { id: "partners", icon: "🤝", label: "Partners", links: [
     ["/hub/partners", "Referral & field sales partners"],
     ["/hub/sales-force", "Sales Force"],
+    ["/hub/scorecard", "AI vs Sales Force"],
   ] },
   { id: "money", icon: "💵", label: "Money", links: [
     ["/hub/money", "Money"],
@@ -141,7 +143,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
 
 /** Pages only admins can open — hidden from dispatchers (each page and its API check again). */
 // need-to-know (2026-11-06): money pages and the partner program (commissions) are admin-only too
-export const ADMIN_PAGES = new Set(["/hub/office/odom", "/hub/office/gulley", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners", "/hub/sales-force"]);
+export const ADMIN_PAGES = new Set(["/hub/office/odom", "/hub/office/gulley", "/hub/accounting", "/hub/charges", "/hub/factoring", "/hub/site", "/hub/setup", "/hub/money", "/hub/partners", "/hub/sales-force", "/hub/scorecard"]);
 
 export const sectionsFor = (admin: boolean): HubSection[] =>
   HUB_SECTIONS.map((s) => (admin ? s : { ...s, links: s.links.filter(([href]) => !ADMIN_PAGES.has(href)) })).filter((s) => s.links.length);
