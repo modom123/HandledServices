@@ -9,6 +9,8 @@
   UPDATED : 2026-11-18_0120 UTC — the 90-day revenue leaderboard (recognition and perks; never rank).
   UPDATED : 2026-11-18_0110 UTC — everything cumulative (total profit made for Handled, total deals, clients won, team totals);
             ranks never go down.
+  UPDATED : 2026-11-19_1550 UTC — merged with Partner Program v7: a member's direct sale pays the higher of the v7 rate (+5
+            points) and their rank share; one SQL file; Hub location; PDF copy in docs/.
   PURPOSE : The Handled Sales Force: a career path from Associate Account Executive to VP of Sales, built on the
             Partner Program's 15% → 45% ladder. PROPOSAL — review with an attorney before it goes live in payouts.
 -->
@@ -17,8 +19,8 @@
 
 The Partner Program's **15% → 45% of our profit** ladder was always meant to let people grow. This plan keeps that
 range and turns each step into a **title with clear targets**, so a rep can see the next promotion in weeks, not at
-$1M of lifetime profit. People grow as the company grows: new cities become promotions, the top ranks move to a
-salary, and leaders share in the profit they build.
+$1M of lifetime profit. People grow as the company grows: new cities become promotions, the top ranks earn a monthly
+leadership retainer, and leaders share in the profit they build.
 
 ## The promotion chart (everyone starts from zero, everything cumulative)
 
@@ -96,6 +98,8 @@ contractor sales roles closely.
 ## Pay rules
 
 - Paid on **our profit** (price − pro payout − refunds), shown to the rep **in dollars** before they sell.
+- **Never less than the Partner Program:** a member's direct sale pays the **higher** of their Partner Program v7 rate
+  (their ladder rate + 5 points, 20% → 50%) and their rank's share above. The Sales Force only ever adds pay.
 - The whole sales force together gets at most **60% of our profit** in a new customer's first 12 months. A full
   chain (Principal 35% + Team Lead 8% + Manager 5% + Director 4% + VP 3%) is 55%. Handled keeps every unfilled share.
 - **Book share** after year one, while the rep is active: they keep earning on accounts they keep happy.
@@ -110,24 +114,23 @@ contractor sales roles closely.
 - Senior AE: **$2,206** (10 home jobs, 4 new accounts, 15 accounts paying)
 - Sales Manager: **$3,838** (own sales plus 5% of a team bringing in $40,000 profit a month)
 
-## Status: live (2026-11-18)
+## Status: live (2026-11-19)
 
-**Run once:** `supabase/setup/ADD_BUSINESS_PRICING_2026-11-18_0040.sql`, `ADD_WALKTHROUGHS_2026-11-17_2350.sql`, then
-`ADD_SALES_FORCE_2026-11-18_0105.sql` (Supabase → SQL Editor).
+**Database:** `supabase/setup/RUN_ONCE_ALL_PENDING_2026-11-19_1520.sql` (run in Supabase → SQL Editor).
 
 | Piece | Where |
 |---|---|
 | Rules and tests | `packages/core/src/sales-force.ts` (pricing.test.ts) |
 | Live pay, ranks, team pay, leaderboard | `apps/web/lib/sales-force.ts` |
-| Seller commission (rank share, never below the ladder rate already earned) and book share after year one | `lib/partners.ts` partnerSplitForJob (tier `direct` / `book`) |
+| Seller commission (higher of the v7 rate + 5 points and the rank share) and book share after year one | `lib/partners.ts` partnerSplitForJob (tier `sale` / `book`) |
 | Team shares and first-sale bonus at job completion | `lib/jobs.ts` → `accrueTeamPay` |
 | $25 walkthrough held (the rep whose link it came from) | `lib/walkthroughs.ts` → `walkthroughHeld` |
 | Promotions every night, promotion bonus, email | `/api/cron/sweep` → `refreshRanks` |
 | Monday payout includes team pay and bonuses | `lib/partners.ts` runPartnerPayouts (`sales_pay`) |
 | Rep view | `/partner#sales-force` |
-| Admin | Hub → Clients & sales → Sales Force |
+| Admin | Hub → Partners → Sales Force; Hub → Partners → AI vs Sales Force |
 | Careers page (indexed, linked from /careers) | `/careers/sales` (`?leader=CODE` = a leader's recruit link) |
 | Indeed post | `docs/INDEED_JOB_SALES_FORCE_AE_2026-11-18_0105.md` |
 
-Existing Field Sales partners start as Associate AEs; their commission never drops below the ladder rate they already
-earned. Lead pay ($10 per lead) keeps working as before.
+Existing Field Sales partners start as Associate AEs, and a partner's first direct sale puts them in the Sales Force;
+nobody's commission drops below what the Partner Program pays. Lead pay ($10 per lead) keeps working as before.
