@@ -195,6 +195,14 @@ test("onboarding blocks activation until every step is done", async () => {
   assert.equal(onboardingChecklist({ ...ok, orientation: null, status: "approved" }).complete, true, "pros approved before orientation existed aren't blocked");
   // owner, 2026-11-19: the ZIP is what's required (no ZIP, no approval); the street address is optional
   assert.equal(onboardingChecklist({ ...ok, base_address: null }).complete, true, "a ZIP alone is enough");
+  // owner, 2026-11-19 (Gblb Handyman): commercial auto blocks only when every service needs it; otherwise it unlocks hauling
+  const { coverageBlocks } = await import("./compliance.ts");
+  const hh = onboardingChecklist({ ...ok, trades: ["handyman", "hauling"], coverage: { workers_comp: "exempt" } });
+  assert.equal(hh.complete, true, "a handyman who also hauls can start without commercial auto");
+  assert.equal(hh.steps.find((x) => x.key === "coverage:auto")?.optional, true);
+  assert.match(String(hh.steps.find((x) => x.key === "coverage:auto")?.detail), /Not needed to start/);
+  assert.equal(coverageBlocks(["hauling"], "auto"), true, "hauling alone still needs commercial auto");
+  assert.equal(onboardingChecklist({ ...ok, trades: ["hauling"], specialties: [], coverage: { workers_comp: "exempt" } }).complete, false);
   assert.equal(onboardingChecklist({ ...ok, base_zip: "4820" }).complete, false, "not a real ZIP: not approved");
   assert.match(String(onboardingChecklist({ ...ok, base_address: null }).steps.find((x) => x.key === "area")?.detail), /48201, up to 100 mi/, "100 miles around the ZIP by default");
   assert.equal(onboardingChecklist({ ...ok, id_verified_at: null }).complete, false, "needs a verified photo ID");

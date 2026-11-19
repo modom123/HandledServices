@@ -31,6 +31,8 @@
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
+ * UPDATED : 2026-11-19_1830 UTC — trade coverages (commercial auto, bond, cargo…) block activation only when every service
+ *           the pro does needs them (coverageBlocks); otherwise optional, unlocking those services — like insurance and licenses.
  * UPDATED : 2026-11-19_1800 UTC — handledListingRequired: only general liability and cargo must list Handled; a "Handled isn't
  *           listed" finding on commercial auto (or workers' comp, bond…) no longer holds the document.
  * UPDATED : 2026-11-19_1745 UTC — work area: a ZIP code is required to be approved (street address optional); 100 miles
@@ -159,6 +161,17 @@ export function servicesNeedingLicense(trades: string[]): string[] {
   return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && s.licensed).map((s) => s.name);
 }
 
+/** The pro's services that need this coverage (the trades the service uses that the pro has, e.g. hauling → commercial auto). */
+export function servicesNeedingCoverage(trades: string[], k: CoverageKey): string[] {
+  return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && requiredCoverages(s.trades.filter((t) => trades.includes(t))).includes(k)).map((s) => s.name);
+}
+
+/** Does this coverage block activation? Only when every service the pro's trades can take needs it (or none match). */
+export function coverageBlocks(trades: string[], k: CoverageKey): boolean {
+  const mine = SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)));
+  return !mine.length || mine.every((s) => requiredCoverages(s.trades.filter((t) => trades.includes(t))).includes(k));
+}
+
 export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
   // like insurance: the license blocks activation only when the pro has no work they can do without one
@@ -188,6 +201,17 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
   for (const k of needs) {
     const v = c.coverage?.[k];
     const ok = coverageValid(c.coverage, k, new Date(), !required.includes(k)); // remodelers need a real workers' comp policy
+    // like insurance and licenses: a trade coverage (commercial auto, bond, cargo…) blocks activation only when EVERY
+    // service the pro does needs it; otherwise it just unlocks the ones that do (dispatch checks it per job) — 2026-11-19
+    if (k !== "workers_comp" && !ok) {
+      const blocks = coverageBlocks(c.trades, k);
+      if (!blocks) {
+        const unlocks = servicesNeedingCoverage(c.trades, k);
+        steps.push({ key: `coverage:${k}`, label: `${COVERAGES[k].label} — optional`, done: true, optional: true,
+          detail: `${v ? `Expired ${v}. ` : ""}Not needed to start. Add it to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}. ${COVERAGES[k].detail}` });
+        continue;
+      }
+    }
     steps.push({
       key: `coverage:${k}`,
       label: k === "workers_comp" ? "Workers' comp (or no-employees statement)" : `${COVERAGES[k].label} verified`,
