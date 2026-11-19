@@ -81,7 +81,7 @@ export default async function Onboarding() {
   const stepLabel = (s: { key: string; label: string }) => {
     if (!es) return s.label;
     if (s.label === "Trade license — optional") return "Licencia del oficio — opcional";
-    if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)} (verificado)`;
+    if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)}${s.label.endsWith("— optional") ? " — opcional" : " (verificado)"}`;
     return t(s.label);
   };
   const stepDetail = (d: string) => {
