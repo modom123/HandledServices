@@ -104,6 +104,7 @@ export const CAMPAIGN_GOALS: { key: string; label: string; goal: string }[] = [
   { key: "winback", label: "Win back lapsed customers", goal: "Customers who haven't booked in 90+ days: a friendly check-in, what's new, and an easy way to book again." },
   { key: "new_service", label: "Announce a service", goal: "Announce a service customers may not know we offer, with who it's for and how to book." },
   { key: "biz_followup", label: "Business accounts update", goal: "Business account members: recurring cleaning and turnover work, one account for every property, priority scheduling." },
+  { key: "post", label: "Post a project", goal: "Get customers to post the projects on their list (fences, decks, painting, cleanouts) with the {{post_url}} button: a price estimate in a minute, booked on the spot for most projects. Ask them to forward it to a friend with a project." },
   { key: "reviews", label: "Ask for referrals", goal: `Happy customers: refer a friend or neighbor; ${BRAND.name} is local, vetted and priced up front.` },
   { key: "pros", label: "Pro network news", goal: "Approved pros: network news and how to get more of the jobs they want. Never pressure to take jobs." },
 ];

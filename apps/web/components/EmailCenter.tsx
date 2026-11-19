@@ -7,6 +7,7 @@
  *           inbox reply and one-off compose; add to the do-not-email list.
  * UPDATED : 2026-11-17_2335 UTC — "✨ Write with AI": pick a goal (or type one), an optional offer and Spanish; the AI campaign writer
  *           fills subject, preview text and body for you to edit, test and send. Nothing is sent by the AI.
+ * UPDATED : 2026-11-19_1540 UTC — {{post_url}} in the tag list and preview.
  */
 "use client";
 
@@ -22,7 +23,7 @@ async function call(body: Record<string, unknown>) {
 
 export interface Draft { id?: string; name: string; subject: string; preheader: string; body: string; subject_es: string; body_es: string; audience: EmailAudience; custom_list: string; custom_consent: boolean }
 
-const SAMPLE = { first_name: "Alex", company: "Sample Property Co.", city: "Detroit", email: "alex@example.com", book_url: "https://handledsvc.com/book", site_url: "https://handledsvc.com" };
+const SAMPLE = { first_name: "Alex", company: "Sample Property Co.", city: "Detroit", email: "alex@example.com", book_url: "https://handledsvc.com/book", post_url: "https://handledsvc.com/post", site_url: "https://handledsvc.com" };
 
 export function CampaignEditor({ initial, me }: { initial: Draft; me: string }) {
   const router = useRouter();
@@ -63,7 +64,7 @@ export function CampaignEditor({ initial, me }: { initial: Draft; me: string }) 
     return id;
   }
 
-  const tags = ["{{first_name|there}}", "{{company}}", "{{city}}", "{{book_url}}", "{{site_url}}"];
+  const tags = ["{{first_name|there}}", "{{company}}", "{{city}}", "{{book_url}}", "{{post_url}}", "{{site_url}}"];
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-3 text-sm">

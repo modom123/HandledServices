@@ -92,8 +92,8 @@ export async function writeCampaign(o: { audience: EmailAudience; goal: string; 
       `You write marketing emails for ${BRAND.name}. ${BRAND.pitch}\n` +
       `Audience: ${a.label} (they get it because ${a.why}).${a.note ? ` Note: ${a.note}` : ""}\n` +
       "Format of the body: blank line = new paragraph; **bold**; a line like [Book now]({{book_url}}) on its own = a button (one button, near the end); lines starting with • = a list. " +
-      "Merge tags you may use: {{first_name|there}}, {{company}}, {{city}}, {{book_url}}, {{site_url}}. Start with 'Hi {{first_name|there}},'. " +
-      `Links: only {{book_url}}, {{site_url}} or pages on ${site}. The unsubscribe link and postal address are added automatically, so never write them. ` +
+      "Merge tags you may use: {{first_name|there}}, {{company}}, {{city}}, {{book_url}}, {{post_url}} (post a project, get an instant estimate), {{site_url}}. Start with 'Hi {{first_name|there}},'. " +
+      `Links: only {{book_url}}, {{post_url}}, {{site_url}} or pages on ${site}. The unsubscribe link and postal address are added automatically, so never write them. ` +
       "Honest and specific: never invent prices, $ amounts, discounts, deadlines, statistics or testimonials. Mention an offer only if the staff note gives one, worded exactly. " +
       `Plain, warm, local voice; 80–160 words; no exclamation marks in the subject; sign off as "The ${BRAND.name} team". ` +
       (o.spanish ? "Also write natural Spanish (not word-for-word) in subject_es / body_es with the same tags and button." : "Leave subject_es and body_es empty.") +
