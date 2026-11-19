@@ -6,6 +6,7 @@
  *           area, where they are on the way to approval, documents and expiry dates, payout, contracts, orientation
  *           and referral code. Read-only; each section links to where it's changed.
  * UPDATED : 2026-11-10_2000 UTC — "Feature me on the website" opt-in (New pros in the Handled Network, components/ShowcaseToggle).
+ * UPDATED : 2026-11-19_1850 UTC — "Change my work area & ZIP codes" link straight to the area form.
  */
 import Link from "next/link";
 import { DEFAULT_RADIUS_MI, TRADES, onboardingChecklist, orientationStatus, specialtiesFor, type Contractor } from "@handled/core";
@@ -68,6 +69,7 @@ export default async function MyInfo() {
         <Row k={es ? "Oficios" : "Trades"} v={(c.trades ?? []).map(tradeName).join(", ")} />
         <Row k={es ? "Especialidades" : "Specialties"} v={specs.join(", ")} />
         <Row k={es ? "Zona" : "Area"} v={c.base_zip ? `${c.base_city ?? ""} ${c.base_zip} · ${c.zips_only && c.service_zips?.length ? c.service_zips.join(", ") : `${c.service_radius_mi ?? DEFAULT_RADIUS_MI} mi`}` : ""} />
+        <p className="mt-1 text-right"><Link href="/pro/onboarding#step-area" className="font-semibold text-brand underline">{c.base_zip ? (es ? "Cambiar mi zona de trabajo y códigos postales" : "Change my work area & ZIP codes") : (es ? "Agregar mi código postal (obligatorio)" : "Add my ZIP code (required)")}</Link></p>
       </section>
 
       <section className="card text-sm">

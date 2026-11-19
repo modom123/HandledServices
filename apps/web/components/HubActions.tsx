@@ -11,6 +11,7 @@
  * UPDATED : 2026-11-12_2330 UTC — DocDecision is Handled review: open the policy, confirm the expiry, how it was checked
  *           (policy or insurer), verify or reject with a reason.
  * UPDATED : 2026-11-13_0030 UTC — ResetProPin (in the pro status controls).
+ * UPDATED : 2026-11-19_1850 UTC — WorkAreaEditor: staff set a pro's ZIP, driving distance and ZIP list.
  * UPDATED : 2026-11-19_1800 UTC — DocDecision: commercial auto, workers' comp, bonds… say Handled does not need to be on the policy.
  */
 "use client";
@@ -676,6 +677,39 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instan
         setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
       }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
       {msg && <p>{msg}</p>}
+    </div>
+  );
+}
+
+/**
+ * Staff: set a pro's work area (2026-11-19). The ZIP is required to be approved; the area is the driving distance
+ * around it (100 miles by default) unless ZIP codes are listed, which then become the whole area.
+ */
+export function WorkAreaEditor({ id, zip, radius, zips }: { id: string; zip: string | null; radius: number; zips: string[] }) {
+  const router = useRouter();
+  const [z, setZ] = useState(zip ?? "");
+  const [r, setR] = useState(String(radius));
+  const [list, setList] = useState(zips.join(", "));
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!/^\d{5}$/.test(z.trim())) return setMsg("Enter a 5-digit ZIP.");
+    setBusy(true); setMsg("");
+    const res = await call(`/api/hub/contractors/${id}`, "PATCH", { base_zip: z.trim(), service_radius_mi: Math.min(150, Math.max(1, Number(r) || 100)), zip_list: list });
+    setBusy(false);
+    setMsg(res.ok ? "Saved." : res.json.error ?? "Failed");
+    if (res.ok) router.refresh();
+  };
+  return (
+    <div className="card space-y-2 text-sm">
+      <div className="font-semibold">Work area</div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block text-xs font-semibold">ZIP (required)<input className="input mt-1 py-1" value={z} maxLength={5} inputMode="numeric" onChange={(e) => setZ(e.target.value)} /></label>
+        <label className="block text-xs font-semibold">Drives up to (miles)<input className="input mt-1 py-1" type="number" min={1} max={150} value={r} onChange={(e) => setR(e.target.value)} /></label>
+      </div>
+      <label className="block text-xs font-semibold">Only these ZIP codes (optional)<input className="input mt-1 py-1" placeholder="48201, 48226, 481*" value={list} onChange={(e) => setList(e.target.value)} /></label>
+      <p className="text-xs text-ink-soft">Leave the list empty to use the driving distance around the ZIP. Listed ZIPs become the pro's whole area.</p>
+      <div className="flex items-center gap-2"><button className="btn-primary px-3 py-1 text-xs" disabled={busy} onClick={save}>{busy ? "…" : "Save work area"}</button>{msg && <span className={`text-xs ${msg === "Saved." ? "text-brand-dark" : "text-rose-700"}`}>{msg}</span>}</div>
     </div>
   );
 }
