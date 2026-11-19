@@ -2983,6 +2983,9 @@ test("insurance: two ways to verify — automatic when everything checks out, ot
   assert.equal(docAutoCheck("coi", null, { trades, today }).auto, false, "no AI reading: a person checks");
   assert.equal(docAutoCheck("license", good, { trades, today }).auto, false, "licenses are always checked by a person");
   assert.equal(docAutoCheck("auto", { ...good, per_occurrence_limit: 0, additional_insured: false }, { claimedExpiry: "2027-06-30", trades, today }).auto, true, "other coverage: limits are judged by the AI's requirement check");
+  assert.equal(docAutoCheck("auto", { ...good, additional_insured: false, certificate_holder: false, meets_requirements: false, problems: ["Handled Services LLC is not listed as additional insured"] }, { claimedExpiry: "2027-06-30", trades, today }).auto, true, "commercial auto never has to list Handled (2026-11-19)");
+  assert.equal(docAutoCheck("auto", { ...good, meets_requirements: false, problems: ["Handled not listed", "personal auto policy, excludes business use"] }, { claimedExpiry: "2027-06-30", trades, today }).reasons.join("|"), "personal auto policy, excludes business use", "real problems still go to a person");
+  assert.equal(docAutoCheck("cargo", { ...good, meets_requirements: false, problems: ["Handled not named as certificate holder"] }, { claimedExpiry: "2027-06-30", trades, today }).auto, false, "cargo does need Handled as certificate holder");
 });
 
 test("additional insured: Handled as additional insured gets priority on jobs that need insurance; certificate holder is accepted (2026-11-12)", async () => {

@@ -11,11 +11,12 @@
  * UPDATED : 2026-11-13_0300 UTC — judged against the trades the pro selected, never their business name (a cleaner called
  *           "EV Screening and Compliance" is a cleaner); the name is used only to match the named insured.
  * UPDATED : 2026-11-17_2045 UTC — the license it checks for is the one for the pro's state (core licenseFor).
+ * UPDATED : 2026-11-19_1800 UTC — commercial auto, workers' comp, bonds, liquor: Handled doesn't need to be on the policy.
  * UPDATED : 2026-11-19_1745 UTC — a date the pro typed differently from the policy is not a problem (the policy's date is used).
  */
 import "server-only";
 import { z } from "zod";
-import { licenseFor, BRAND, COVERAGES, TRADE_PROFILES, glMinimum, type CoverageKey } from "@handled/core";
+import { handledListingRequired, licenseFor, BRAND, COVERAGES, TRADE_PROFILES, glMinimum, type CoverageKey } from "@handled/core";
 import { structured, type ContentBlocks } from "./client";
 
 const DocSchema = z.object({
@@ -38,7 +39,7 @@ export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boo
   const need =
     o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or listed as certificate holder (either is accepted; say which), not expired.`
     : o.kind === "license" ? `A current state license that covers these trades: ${trades}.`
-    : COVERAGES[o.kind as CoverageKey] ? `${COVERAGES[o.kind as CoverageKey].label}: ${COVERAGES[o.kind as CoverageKey].detail} Not expired.`
+    : COVERAGES[o.kind as CoverageKey] ? `${COVERAGES[o.kind as CoverageKey].label}: ${COVERAGES[o.kind as CoverageKey].detail} Not expired.${handledListingRequired(o.kind) ? "" : ` ${BRAND.legalName} does NOT need to be named on this policy: never list that as a problem, and judge meets_requirements without it.`}`
     : "A current, readable document of the type uploaded.";
   const block = o.isPdf ? { type: "document" as const, source: { type: "url" as const, url: o.url } } : { type: "image" as const, source: { type: "url" as const, url: o.url } };
   return structured({

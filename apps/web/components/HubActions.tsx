@@ -11,6 +11,7 @@
  * UPDATED : 2026-11-12_2330 UTC — DocDecision is Handled review: open the policy, confirm the expiry, how it was checked
  *           (policy or insurer), verify or reject with a reason.
  * UPDATED : 2026-11-13_0030 UTC — ResetProPin (in the pro status controls).
+ * UPDATED : 2026-11-19_1800 UTC — DocDecision: commercial auto, workers' comp, bonds… say Handled does not need to be on the policy.
  */
 "use client";
 
@@ -306,6 +307,7 @@ export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires, a
           {aiExpires && expiresOn && aiExpires !== expiresOn && <span className="mt-1 block font-normal text-amber-800">Pro entered {expiresOn}; the AI read {aiExpires}. Use what the policy says.</span>}
         </label>
       )}
+      {kind && kind !== "coi" && kind !== "cargo" && !["w9", "background", "agreement", "license"].includes(kind) && <div className="rounded-lg bg-paper-deep p-2 text-ink-soft">Handled does <b>not</b> need to be named on this policy. Check the coverage type, limit and expiry only.</div>}
       {kind === "coi" && <div className="rounded-lg bg-amber-50 p-2 text-amber-900">Required: general liability at the trade's per-occurrence minimum, <b>Handled Services LLC as additional insured or certificate holder</b>, not expired.</div>}
       {kind === "coi" && (<>
         <div className="font-semibold">Handled is listed as</div>
