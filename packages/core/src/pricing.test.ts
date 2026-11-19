@@ -3355,3 +3355,21 @@ test("marketplace guardrails: customers going around Handled, busy pros gone qui
   assert.equal(canOpenCity([{ readyToReplicate: true }]).ok, true);
   assert.ok(CITY_GATES.some((x) => x.key === "direct") && CITY_GATES.some((x) => x.key === "pros_kept"));
 });
+
+test("sales engine goes where pros need work: idle pros' ZIPs first, with the businesses that buy their trades", async () => {
+  const { outreachTargets, segmentsForTrades, PRO_NEEDS_WORK } = await import("./biz-lead-engine.ts");
+  const { getService } = await import("./services.ts");
+  const tradesOf = (s: string) => getService(s)?.trades ?? [];
+  const cleaning = getService("house-cleaning")!.trades;
+  const hauling = getService("junk-removal")!.trades;
+  assert.ok(segmentsForTrades(cleaning, tradesOf).includes("property_manager"));
+  assert.ok(segmentsForTrades(hauling, tradesOf).includes("storage"));
+  const t = outreachTargets([
+    { zip: "48201", trades: cleaning, jobs30: 0 }, { zip: "48201", trades: hauling, jobs30: 1 },
+    { zip: "48075", trades: cleaning, jobs30: 2 },
+    { zip: "48226", trades: cleaning, jobs30: PRO_NEEDS_WORK.jobsPer30 }, // busy: not a target
+    { zip: null, trades: cleaning, jobs30: 0 },
+  ], tradesOf);
+  assert.deepEqual(t.map((x) => [x.zip, x.idlePros]), [["48201", 2], ["48075", 1]]);
+  assert.ok(t[0].segments.includes("storage") && t[0].segments.includes("property_manager"));
+});

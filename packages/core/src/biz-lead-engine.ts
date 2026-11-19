@@ -363,3 +363,31 @@ export function bizReengageEmail(c: BizLeadEmailCtx & { now?: Date }): { subject
   const pick = list[Math.min(c.step, list.length - 1)];
   return { subject: pick.subject, text: pick.text + foot };
 }
+
+// ─── Send the sales engine where pros need work ─────────────────────────────
+
+/** A pro "needs work" when they completed fewer than this many jobs in the last 30 days. */
+export const PRO_NEEDS_WORK = { jobsPer30: 4 } as const;
+
+export interface ProCapacity { zip: string | null; trades: string[]; jobs30: number }
+export interface OutreachTarget { zip: string; idlePros: number; trades: string[]; segments: BizSegment[] }
+
+/** Which kinds of business buy work from these trades (a segment fits when one of its services uses the trade). */
+export function segmentsForTrades(trades: string[], tradesOf: (slug: string) => string[]): BizSegment[] {
+  return (Object.keys(BIZ_SEGMENTS) as BizSegment[]).filter((seg) => BIZ_SEGMENTS[seg].services.some((s) => tradesOf(s).some((t) => trades.includes(t))));
+}
+
+/**
+ * Where to look for business customers first: the ZIPs where approved pros need work, most idle pros first, each with
+ * the kinds of business that buy their trades (ranked by how many idle pros they'd keep busy).
+ */
+export function outreachTargets(pros: ProCapacity[], tradesOf: (slug: string) => string[], limit = 12): OutreachTarget[] {
+  const byZip = new Map<string, ProCapacity[]>();
+  for (const p of pros) if (p.zip && /^\d{5}$/.test(p.zip) && p.jobs30 < PRO_NEEDS_WORK.jobsPer30 && p.trades.length) byZip.set(p.zip, [...(byZip.get(p.zip) ?? []), p]);
+  return [...byZip.entries()].map(([zip, ps]) => {
+    const trades = [...new Set(ps.flatMap((p) => p.trades))];
+    const fit = new Map<BizSegment, number>();
+    for (const p of ps) for (const seg of segmentsForTrades(p.trades, tradesOf)) fit.set(seg, (fit.get(seg) ?? 0) + 1);
+    return { zip, idlePros: ps.length, trades, segments: [...fit.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s) };
+  }).filter((t) => t.segments.length).sort((a, b) => b.idlePros - a.idlePros || a.zip.localeCompare(b.zip)).slice(0, limit);
+}
