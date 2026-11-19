@@ -13,6 +13,7 @@
  * UPDATED : 2026-11-13_0030 UTC — ResetProPin (in the pro status controls).
  * UPDATED : 2026-11-19_1850 UTC — WorkAreaEditor: staff set a pro's ZIP, driving distance and ZIP list.
  * UPDATED : 2026-11-19_1800 UTC — DocDecision: commercial auto, workers' comp, bonds… say Handled does not need to be on the policy.
+ * UPDATED : 2026-11-19_1910 UTC — ProStatusControls: what is still missing, and "Activate anyway" with a reason (admins).
  */
 "use client";
 
@@ -376,10 +377,11 @@ export function ResetProPin({ id }: { id: string }) {
   );
 }
 
-export function ProStatusControls({ id, status, complete }: { id: string; status: string; complete: boolean }) {
+export function ProStatusControls({ id, status, complete, missing = [] }: { id: string; status: string; complete: boolean; missing?: string[] }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [reason, setReason] = useState("");
+  const [why, setWhy] = useState("");
   const patch = async (body: object) => { const r = await call(`/api/hub/contractors/${id}`, "PATCH", body); setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh(); };
   return (
     <div className="card space-y-3 text-sm">
@@ -390,6 +392,14 @@ export function ProStatusControls({ id, status, complete }: { id: string; status
         <ResetProPin id={id} />
         <VerifyLicense id={id} />
       </div>
+      {status !== "approved" && !complete && (
+        <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+          {missing.length > 0 && <div>Still missing: <b>{missing.join(" · ")}</b></div>}
+          <div>Admins can activate anyway. Jobs still need the insurance, license, coverage and background check each job requires, so the pro only gets work they're cleared for.</div>
+          <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason (logged), e.g. verified by phone" value={why} onChange={(e) => setWhy(e.target.value)} />
+            <button className="btn-primary px-3 py-1 text-xs" disabled={why.trim().length < 3} onClick={() => patch({ status: "approved", override_reason: why.trim() })}>Activate anyway</button></div>
+        </div>
+      )}
       {status === "approved" && (
         <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason to pause / offboard" value={reason} onChange={(e) => setReason(e.target.value)} />
           <button className="btn-ghost px-3 py-1 text-xs text-rose-700" disabled={reason.length < 3} onClick={() => patch({ offboard_reason: reason })}>Pause</button></div>

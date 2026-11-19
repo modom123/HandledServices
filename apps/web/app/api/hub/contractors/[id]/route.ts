@@ -9,6 +9,7 @@
  *           it was the last step). Before, both only flipped the column.
  * UPDATED : 2026-11-19_1850 UTC — work area set by staff: base_zip (located from the ZIP, city and state filled in),
  *           service_radius_mi and a typed ZIP list (zip_list: "48201, 481*" — listed ZIPs become the whole area).
+ * UPDATED : 2026-11-19_1910 UTC — override_reason (admins): activate a pro whose setup isn't complete.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
@@ -30,6 +31,8 @@ const Patch = z.object({
   base_zip: z.string().trim().regex(/^\d{5}$/, "Enter a 5-digit ZIP").optional(),
   service_radius_mi: z.number().int().min(1).max(150).optional(),
   zip_list: z.string().max(3000).optional(),
+  // admin: activate even though setup isn't complete (the reason and what's missing are logged)
+  override_reason: z.string().trim().min(3).max(300).optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -41,7 +44,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
   const db = adminClient();
   const who = v!.fullName ?? v!.email ?? "staff";
-  const { status, background_checked, base_zip, zip_list, ...rest } = parsed.data;
+  const { status, background_checked, base_zip, zip_list, override_reason, ...rest } = parsed.data;
+  if (override_reason && !isAdmin(v)) return deny(403, ADMINS_ONLY);
   const update: Record<string, unknown> = { ...rest };
   if (base_zip) {
     const loc = await zipCentroid(base_zip);
@@ -66,9 +70,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (status === "approved") {
     const { data: c } = await db.from("contractors").select("*").eq("id", id).single();
     const { steps, complete } = onboardingChecklist(c);
-    if (!complete) return deny(400, `Finish onboarding first: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
+    if (!complete && !override_reason) return deny(400, `Finish onboarding first: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
     // activatePro: logs "activated" (time-to-live metrics) and tells the pro they're live
-    await activatePro(id, who);
+    await activatePro(id, who, { overrideReason: override_reason ?? null });
   }
   return Response.json({ ok: true });
 }
