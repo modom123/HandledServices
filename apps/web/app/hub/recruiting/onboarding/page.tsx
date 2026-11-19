@@ -12,13 +12,14 @@
  *           (core onboardingChecklist); the daily sweep sends the reminders. Contracts: Hub → Recruiting → Contracts.
  *           New hires on our own team: their employee paperwork runs in payroll, listed at the bottom.
  * UPDATED : 2026-10-27_1900 UTC — "Add an approved pro" (after your phone interview): entered here, invited at once.
+ * UPDATED : 2026-11-19_1910 UTC — each pro card: add the ZIP / work area when missing, and admins can "Activate anyway" with a reason.
  */
 import Link from "next/link";
-import { TRADES, onboardingChecklist, type Contractor } from "@handled/core";
+import { DEFAULT_RADIUS_MI, TRADES, onboardingChecklist, type Contractor } from "@handled/core";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { ApproveProForm } from "@/components/RecruitingIntake";
-import { DocDecision, ProStatusControls, RecruitingRowActions } from "@/components/HubActions";
+import { DocDecision, ProStatusControls, RecruitingRowActions, WorkAreaEditor } from "@/components/HubActions";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,9 @@ export default async function Onboarding() {
       {["consider", "suspended"].includes(r.bg) && <p className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">Background result needs review in your screening provider. Follow the adverse-action process before any decision.</p>}
       {r.left.length > 0 && <div className="mt-2 text-xs text-ink-soft">Still to do: {r.left.map((s) => s.label).join(" · ")}</div>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {r.complete && admin && <div className="w-full"><ProStatusControls id={r.c.id} status={String(r.c.status)} complete={r.complete} /></div>}
+        {/* no ZIP yet: staff can add it right here (no ZIP, no approval) */}
+        {r.left.some((s) => s.key === "area") && <div className="w-full"><WorkAreaEditor id={r.c.id} zip={(r.c.base_zip as string | null) ?? null} radius={Number(r.c.service_radius_mi ?? DEFAULT_RADIUS_MI)} zips={(r.c.service_zips as string[] | null) ?? []} /></div>}
+        {admin && <div className="w-full"><ProStatusControls id={r.c.id} status={String(r.c.status)} complete={r.complete} missing={r.left.map((s) => s.label)} /></div>}
         {!r.complete && <RecruitingRowActions appId={(r.c.application_id as string) ?? null} contractorId={r.c.id} stage="onboarding" />}
       </div>
     </div>

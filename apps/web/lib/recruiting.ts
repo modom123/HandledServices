@@ -35,6 +35,7 @@
  * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: the new pro's state is set from their first ZIP.
  * UPDATED : 2026-11-17_2200 UTC — every application triggers the Legal & Compliance team (legalOnProApplication).
  * UPDATED : 2026-11-19_1745 UTC — decideDocument: a follow-up error after the decision is saved no longer makes Verify fail.
+ * UPDATED : 2026-11-19_1910 UTC — activatePro: admins can activate anyway with a reason (logged with what was still missing).
  */
 import "server-only";
 import { legalOnProApplication } from "./legal-intake";
@@ -294,12 +295,16 @@ export async function maybeActivate(contractorId: string) {
 }
 
 /** Activate a pro whose setup is complete. Only Handled staff (Hub → Pros → Activate) call this. */
-export async function activatePro(contractorId: string, actor: string) {
+export async function activatePro(contractorId: string, actor: string, o: { overrideReason?: string | null } = {}) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c) throw new Error("No such pro");
   if (c.status === "approved") return true;
   const { steps, complete } = onboardingChecklist(c as never);
-  if (!complete) throw new Error(`Setup incomplete: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
+  const missing = steps.filter((x) => !x.done).map((x) => x.label);
+  // an admin can activate anyway, with a reason (logged). Dispatch still checks insurance, licenses, coverage and the
+  // background check on every job, so a pro activated this way only gets the jobs they're actually cleared for.
+  if (!complete && !o.overrideReason) throw new Error(`Setup incomplete: ${missing.join(", ")}`);
+  if (!complete) await logRecruiting("activated_override", { contractorId }, `${o.overrideReason} · still missing: ${missing.join(", ")}`, actor);
   const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
