@@ -8,7 +8,7 @@
  * UPDATED : 2026-11-10_2000 UTC — "Feature me on the website" opt-in (New pros in the Handled Network, components/ShowcaseToggle).
  */
 import Link from "next/link";
-import { TRADES, onboardingChecklist, orientationStatus, specialtiesFor, type Contractor } from "@handled/core";
+import { DEFAULT_RADIUS_MI, TRADES, onboardingChecklist, orientationStatus, specialtiesFor, type Contractor } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
 import { adminClient } from "@/lib/supabase/server";
@@ -67,7 +67,7 @@ export default async function MyInfo() {
         {c.pro_no ? <Row k={es ? "ID de profesional" : "Pro ID"} v={String(c.pro_no)} /> : null}
         <Row k={es ? "Oficios" : "Trades"} v={(c.trades ?? []).map(tradeName).join(", ")} />
         <Row k={es ? "Especialidades" : "Specialties"} v={specs.join(", ")} />
-        <Row k={es ? "Zona" : "Area"} v={c.base_zip ? `${c.base_city ?? ""} ${c.base_zip} · ${c.zips_only && c.service_zips?.length ? c.service_zips.join(", ") : `${c.service_radius_mi ?? 25} mi`}` : ""} />
+        <Row k={es ? "Zona" : "Area"} v={c.base_zip ? `${c.base_city ?? ""} ${c.base_zip} · ${c.zips_only && c.service_zips?.length ? c.service_zips.join(", ") : `${c.service_radius_mi ?? DEFAULT_RADIUS_MI} mi`}` : ""} />
       </section>
 
       <section className="card text-sm">

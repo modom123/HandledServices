@@ -14,7 +14,7 @@
 import "server-only";
 import {
   ON_CALL_DEFAULT_HOURS, ON_CALL_MAX_HOURS, PRO_STATUS_LABEL, liveLocation, localDate, milesBetween, onCall, proCalendar, proStatus,
-  type Contractor, type TimeWindow, proTimeZone } from "@handled/core";
+  type Contractor, type TimeWindow, proTimeZone, DEFAULT_RADIUS_MI } from "@handled/core";
 import { adminClient } from "./supabase/server";
 
 const db = () => adminClient();
@@ -93,7 +93,7 @@ export async function liveRoster() {
     return {
       id: c.id, name: c.business_name, contact: c.contact_name, phone: c.phone, trades: c.trades,
       status, statusLabel: PRO_STATUS_LABEL[status], onCallUntil: onCall(c) ? c.on_call_until : null,
-      location: here, baseZip: c.base_zip ?? c.zip ?? null, radius: c.service_radius_mi ?? 25,
+      location: here, baseZip: c.base_zip ?? c.zip ?? null, radius: c.service_radius_mi ?? DEFAULT_RADIUS_MI,
       today: todays.map((j) => ({ id: j.id, ref: j.ref, service: j.service_slug, window: j.time_window, status: j.status, city: j.city })),
       milesToJob: toJob == null ? null : Math.round(toJob * 10) / 10,
       week: week.map((d) => ({ date: d.date, off: d.off, booked: d.jobs.length, capacity: d.capacity })),

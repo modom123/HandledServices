@@ -14,7 +14,7 @@
  *             license    license_number, expires_on, file (staff verifies → license_expires)
  *             agreement  signer_name, agree=true   (signs the current version)
  *             payout     payout_method (stripe_connect only; normally set when Stripe confirms the bank)
- *             area       base_zip, service_radius_mi, service_zips ("48201, 481*"), zips_only ("on" = only those ZIPs), daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
+ *             area       base_zip (required), base_address / base_city / base_state (optional), service_radius_mi (default 100), service_zips ("48201, 481*" — listed ZIPs become the whole area), daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
  *             specialties specialties (repeat the field once per specialty)
  *             coverage   coverage (auto | workers_comp | bond | liquor), expires_on, file —
  *                        or coverage=workers_comp + exempt=true for the no-employees statement
@@ -38,12 +38,18 @@
  *           staff can confirm with the insurer. An unreadable file no longer bounces the pro: a person looks first.
  * UPDATED : 2026-11-13_0200 UTC — license step: "doesn't expire" (USDOT numbers, one-time certifications) instead of a date.
  * UPDATED : 2026-11-17_1900 UTC — payout step: bank direct deposit (Stripe), PayPal (email) or Venmo (phone), checked by core cleanPayoutHandle.
+ * UPDATED : 2026-11-19_1745 UTC — insurance auto-verify that actually lands: the route gets 120 s so the AI reading (run after
+ *           the response) finishes instead of being cut off; an auto-verified certificate uses the policy's own expiry date.
+ *           Area step: only the ZIP is required (street, city and state optional; city and state come from the ZIP); the
+ *           radius defaults to 100 miles; listing ZIP codes makes them the pro's whole area.
  */
+// the AI reads the uploaded certificate after the response is sent (after()); that work shares this function's time limit
+export const maxDuration = 120;
 import { cleanPayoutHandle } from "@handled/core";
 
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, NO_EXPIRY, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
+import { DEFAULT_RADIUS_MI, stateForZip, AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, NO_EXPIRY, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { UPLOAD_TYPES, confirmDocUpload, isDocStep, removeDoc, uploadDoc } from "@/lib/photos";
@@ -73,7 +79,7 @@ const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("specialties") }),
   z.object({ step: z.literal("resume") }),
   z.object({ step: z.literal("photo") }),
-  z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
+  z.object({ step: z.literal("area"), base_address: z.string().trim().max(200).optional(), base_city: z.string().trim().max(80).optional(), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/).optional().or(z.literal("")), base_zip: z.string().trim().regex(/^\d{5}$/, "Enter your 5-digit ZIP code"), service_radius_mi: z.coerce.number().int().min(1).max(150).optional().or(z.literal("").transform(() => undefined)), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
   // bank direct deposit through Stripe (free), or PayPal / Venmo ($1.50 per payout) — owner, 2026-11-17. No paper checks.
   z.object({ step: z.literal("payout"), payout_method: z.enum(["stripe_connect", "paypal", "venmo"]), payout_handle: z.string().trim().max(254).optional() }),
@@ -140,22 +146,26 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const windows = form.getAll("windows").map(String).filter((w) => ["morning", "midday", "afternoon"].includes(w));
     if (!days.length || !windows.length) return deny(400, "Pick at least one day and one time of day");
     const timeOff = (b.time_off ?? "").split(/[,\s]+/).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 120);
-    const loc = await geocodeAddress({ address: b.base_address, city: b.base_city, state: b.base_state, zip: b.base_zip });
+    // city and state come from the ZIP when the pro leaves them blank (ZIP lookup caches them in zip_geo)
+    const street = b.base_address && b.base_address.length >= 4 ? b.base_address : null;
+    const loc = await geocodeAddress({ address: street, city: b.base_city || null, state: b.base_state || null, zip: b.base_zip });
+    const { data: zg } = await db.from("zip_geo").select("city, state").eq("zip", b.base_zip).maybeSingle();
+    const city = b.base_city || zg?.city || null, state = (b.base_state || zg?.state || stateForZip(b.base_zip) || "").toUpperCase() || null;
     // location lookup down → never leave a pro matching jobs everywhere: fall back to their ZIP area
     // ZIP codes the pro wants (typed list); with none typed, keep what's there, or fall back to their ZIP area if the lookup is down
     const typed = b.service_zips !== undefined ? parseZipList(b.service_zips) : null;
     const { data: cur } = await db.from("contractors").select("service_zips").eq("id", id).single();
     const zips = typed?.length ? typed : !loc && !(cur?.service_zips ?? []).length ? [b.base_zip, `${b.base_zip.slice(0, 3)}*`] : typed ? [] : undefined;
-    if (b.zips_only === "on" && !typed?.length) return deny(400, "List the ZIP codes you want, or untick “Only these ZIP codes”");
     must(await db.from("contractors").update({
       ...(zips ? { service_zips: zips } : {}),
-      base_address: b.base_address, base_city: b.base_city, base_state: b.base_state.toUpperCase(), base_located: loc ? (loc.exact ? "address" : "zip") : null,
-      base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi,
+      base_address: street, base_city: city, base_state: state, base_located: loc ? (loc.exact ? "address" : "zip") : null,
+      base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi ?? DEFAULT_RADIUS_MI,
       ...(b.daily_capacity ? { daily_capacity: b.daily_capacity } : {}),
       availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
     }).eq("id", id));
     // separate so the rest still saves before the 2026-10-12 migration (zips_only) is run
-    await db.from("contractors").update({ zips_only: b.zips_only === "on" && Boolean(typed?.length) }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
+    // listed ZIP codes ARE the pro's area (owner, 2026-11-19); no list → DEFAULT_RADIUS_MI (or their own radius) around the ZIP
+    if (typed) await db.from("contractors").update({ zips_only: typed.length > 0 }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
     return done({ located: Boolean(loc), exact: Boolean(loc?.exact) });
   }
   if (b.step === "specialties") {
@@ -241,7 +251,8 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
       // way 1: everything checks out → verified automatically (insurance and coverage proofs only)
       const auto = docAutoCheck(kind, check, { claimedExpiry: claimed, trades: (pro.trades ?? []) as string[] });
       if (auto.auto) {
-        await decideDocument(id, theDoc, "verify", "AI check", null, { method: "auto" });
+        // the date on the policy, not the one typed in (they can differ by a typo; the policy is what counts)
+        await decideDocument(id, theDoc, "verify", "AI check", null, { method: "auto", expiresOn: check?.expires_on || null });
         await notify(pro.profile_id, { title: "Insurance verified ✓", body: "Your document checked out. You're one step closer to jobs.", data: { type: "onboarding" },
           es: { title: "Seguro verificado ✓", body: "Su documento está en orden. Está un paso más cerca de recibir trabajos." } });
         await raiseAlert("pro_document", "info", `${docName(kind, "en")} verified automatically for ${pro.business_name}`, "Every point checked out (insured name, expiry, limits, Handled listed). Spot-check it any time in Handled Hub → Pros.");

@@ -28,7 +28,7 @@ import { getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
 import { proTier } from "./pro-program.ts";
 import { liveLocation, localDate, onCall, timeZoneForZip } from "./roster.ts";
-import { PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
+import { DEFAULT_RADIUS_MI, PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
 
 export interface DispatchCandidate {
   contractor: Contractor;
@@ -115,7 +115,7 @@ export function inProArea(c: Contractor, job: Pick<DispatchJob, "lat" | "lng" | 
   const listed = zipCovered(c.service_zips, job.zip);
   if (c.zips_only && c.service_zips?.length) return listed;
   const miles = proDistance(c, job);
-  return listed || (miles != null && miles <= (c.service_radius_mi ?? 25));
+  return listed || (miles != null && miles <= (c.service_radius_mi ?? DEFAULT_RADIUS_MI));
 }
 
 /** Parse what a pro typed ("48201, 48226 481*, 482") into a clean ZIP list (max 200). */
@@ -142,7 +142,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (svc?.remote) { /* any location */ } else if (c.zips_only && c.service_zips.length) {
     if (!listed) return "outside the pro's ZIP codes";
   } else if (miles != null) {
-    if (miles > (c.service_radius_mi ?? 25) && !listed) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
+    if (miles > (c.service_radius_mi ?? DEFAULT_RADIUS_MI) && !listed) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? DEFAULT_RADIUS_MI})`;
   } else if (c.service_zips.length && !listed)
     return "outside service area";
   // general liability: every job except the insurance-optional ones (remote work, errands, courier, assistant)
@@ -208,7 +208,7 @@ export function rankContractors(
       if (live != null) reasons.push("live location");
       if (remote) score += 8;
       else if (miles != null) {
-        score += 12 * Math.max(0, 1 - miles / Math.max(1, c.service_radius_mi ?? 25));
+        score += 12 * Math.max(0, 1 - miles / Math.max(1, c.service_radius_mi ?? DEFAULT_RADIUS_MI));
         reasons.push(`${miles < 1 ? "<1" : Math.round(miles)} mi away`);
       } else score += c.service_zips.includes(job.zip) ? 8 : 5;
       // availability

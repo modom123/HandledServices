@@ -34,6 +34,7 @@
  *           policy or insurer); staff can confirm or correct the expiry date; a verify with no date uses the AI's reading.
  * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: the new pro's state is set from their first ZIP.
  * UPDATED : 2026-11-17_2200 UTC — every application triggers the Legal & Compliance team (legalOnProApplication).
+ * UPDATED : 2026-11-19_1745 UTC — decideDocument: a follow-up error after the decision is saved no longer makes Verify fail.
  */
 import "server-only";
 import { legalOnProApplication } from "./legal-intake";
@@ -569,6 +570,7 @@ export async function decideDocument(contractorId: string, docId: string, decisi
         subject: "Vuelva a subir un documento", text: `Su ${docEs} no fue aceptado${notes ? `: ${notes}` : ""}.\n\nSuba uno nuevo aquí: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` }, title: "Please re-upload a document", body: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.`, data: { type: "onboarding" },
       email: { to: c.email, subject: "Please re-upload a document", text: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.\n\nUpload a new one here: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` } });
   }
-  await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor);
+  // the decision is saved; a follow-up hiccup (background-check order, alert) must not make Verify look like it failed
+  await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor).catch((e) => console.error("[decideDocument] after step", e));
   return { document: doc.kind, decision };
 }
