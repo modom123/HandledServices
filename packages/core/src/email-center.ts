@@ -17,6 +17,7 @@
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: "House cleaning in Metro Detroit" (customers, English & Spanish) and
  *           "Office & turnover cleaning" (business leads) templates.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-19_1540 UTC — {{post_url}} (the Post-your-project page, our own leads instead of buying them) and the "Got a project? Post it" template.
  */
 import { BRAND } from "./brand.ts";
 
@@ -95,6 +96,35 @@ You can now book **[service name]** on {{brand}}: an upfront price in about a mi
 [See the price]({{book_url}})
 
 The {{brand}} team`,
+  },
+  {
+    key: "post_project", name: "Got a project? Post it (our own leads)", audience: "customers",
+    subject: "Got a project on your list?", preheader: "Describe it in a minute and see a price right away.",
+    body: `Hi {{first_name|there}},
+
+Fence, deck, a room to paint, a garage to clear out? Tell us about it in a minute and you'll see a price estimate right away. Most projects up to $2,500 can be booked on the spot, no call or site visit.
+
+• Background-checked, vetted pros
+• An exact price before anything is booked
+• Photos when it's done, and we make it right if it isn't
+
+[Post my project]({{post_url}})
+
+Know someone with a project? Send them the same link.
+
+The {{brand}} team`,
+    subject_es: "¿Tiene un proyecto pendiente?",
+    body_es: `Hola {{first_name|there}},
+
+¿Una cerca, una terraza, un cuarto que pintar, un garaje que vaciar? Cuéntenos en un minuto y verá un precio estimado al instante. La mayoría de los proyectos de hasta $2,500 se reservan en el momento, sin llamada ni visita.
+
+• Profesionales verificados y con antecedentes revisados
+• Un precio exacto antes de reservar
+• Fotos al terminar, y lo arreglamos si algo no queda bien
+
+[Publicar mi proyecto]({{post_url}})
+
+El equipo de {{brand}}`,
   },
   {
     key: "business", name: "Business account (property managers & offices)", audience: "business_accounts",
@@ -184,7 +214,7 @@ export function mergeTags(text: string, vars: MergeVars): string {
 
 /** Tags a body uses that we don't fill (typos like {{firstname}}). */
 export function unknownTags(text: string): string[] {
-  const known = new Set(["first_name", "company", "city", "email", "book_url", "site_url", "brand", "guarantee_days"]);
+  const known = new Set(["first_name", "company", "city", "email", "book_url", "post_url", "site_url", "brand", "guarantee_days"]);
   return [...new Set([...text.matchAll(/\{\{\s*([a-z_]+)/gi)].map((m) => m[1]).filter((k) => !known.has(k)))];
 }
 

@@ -12,6 +12,7 @@
  *             clickUrl / recordClick — signed click-tracking links (no open pixels)
  *           Every email: why they get it, the business postal address, one-click unsubscribe (CAN-SPAM).
  * UPDATED : 2026-10-05_2134 UTC — business-lead audience never includes teaming partners.
+ * UPDATED : 2026-11-19_1540 UTC — {{post_url}}: the Post-your-project page with the campaign's tracking (lands in the Lead inbox).
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -128,7 +129,7 @@ export async function recordClick(recipientId: string, url: string, s: string | 
 export function renderFor(c: Pick<Campaign, "id" | "subject" | "body" | "preheader" | "subject_es" | "body_es" | "audience">, r: Pick<Recipient, "email" | "locale" | "vars">, recipientId: string | null) {
   const es = r.locale === "es" && Boolean(c.subject_es?.trim() && c.body_es?.trim());
   const unsub = `${unsubscribeUrl(r.email)}${recipientId ? `&c=${c.id}` : ""}`;
-  const vars = { ...r.vars, email: r.email, site_url: siteUrl(), book_url: `${siteUrl()}/book?utm_source=email&utm_campaign=${c.id.slice(0, 8)}` };
+  const vars = { ...r.vars, email: r.email, site_url: siteUrl(), book_url: `${siteUrl()}/book?utm_source=email&utm_campaign=${c.id.slice(0, 8)}`, post_url: `${siteUrl()}/post?utm_source=email&utm_campaign=${c.id.slice(0, 8)}` };
   const subject = mergeTags(es ? c.subject_es! : c.subject, vars);
   const body = mergeTags(es ? c.body_es! : c.body, vars);
   const footer = marketingFooter(c.audience, process.env.BUSINESS_POSTAL_ADDRESS ?? "[set BUSINESS_POSTAL_ADDRESS]", unsub, es ? "es" : "en");

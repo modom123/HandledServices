@@ -7,6 +7,7 @@
  *           One offer (their first job) and one main button: book a free walkthrough. "Order online" for those
  *           ready now. Sales-email links land here (/b/<token> picks the page from the lead's segment) and ?lead= is
  *           carried to the walkthrough and the order, so the lead is credited.
+ * UPDATED : 2026-11-19_1540 UTC — "or post a project and get an estimate" (/post, our own lead) next to the walkthrough and order buttons.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -107,6 +108,7 @@ export default async function BizLandingPage({ params }: { params: Promise<{ slu
             <p className="mt-2 text-sm text-ink-soft">Pick a time that suits you. We’ll see the work and send an exact price the same day.</p>
             <LeadLink href={walk} className="btn-primary mt-4 inline-block px-8 py-3 text-base">Book a free walkthrough</LeadLink>
             <p className="mt-3 text-sm"><LeadLink href={order} className="font-semibold text-brand">or order online now →</LeadLink></p>
+            <p className="mt-1 text-sm"><LeadLink href={`/post?utm_source=business_page&utm_campaign=${l.slug}`} className="font-semibold text-brand">or post a project and get an estimate →</LeadLink></p>
           </div>
         </div>
       </section>
