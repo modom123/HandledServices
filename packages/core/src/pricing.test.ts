@@ -3399,3 +3399,19 @@ test("outreach runs all business day, a few at a time (2026-11-20)", async () =>
   assert.equal(outreachSlice(40, new Date("2026-11-21T16:00:00Z")), 0, "Saturday: nothing");
   assert.equal(outreachSlice(0, new Date("2026-11-19T16:00:00Z")), 0, "nothing left today");
 });
+
+test("pro invitations: weekly for 60 days (or 90), then retire (2026-11-20)", async () => {
+  const { proInviteEmails, proInviteNext, proInviteDone, leadEmail } = await import("./lead-engine.ts");
+  assert.equal(proInviteEmails(60), 9, "weeks 0–8");
+  assert.equal(proInviteEmails(90), 13, "weeks 0–12");
+  const t = new Date("2026-11-20T15:00:00Z");
+  assert.equal(proInviteNext(1, 60, t)?.toISOString(), "2026-11-27T15:00:00.000Z", "a week later");
+  assert.equal(proInviteNext(9, 60, t), null, "after the 9th email: no more");
+  assert.equal(proInviteDone("2026-09-20T15:00:00Z", 9, 60, t), true, "61 days, all sent: retire");
+  assert.equal(proInviteDone("2026-10-01T15:00:00Z", 9, 60, t), false, "50 days: not yet");
+  assert.equal(proInviteDone("2026-09-20T15:00:00Z", 9, 90, t), false, "90-day setting: keep going");
+  const ctx = { businessName: "Acme Lawn", trade: "lawn", applyUrl: "https://x/l/1", unsubscribeUrl: "https://x/u", postalAddress: "1 Main St" };
+  assert.match(leadEmail({ ...ctx, step: 8, total: 9 }).subject, /Last note/, "goodbye on the last one");
+  assert.doesNotMatch(leadEmail({ ...ctx, step: 4, total: 9 }).subject, /Last note/, "not in the middle");
+  assert.match(leadEmail({ ...ctx, step: 2, total: 3 }).subject, /Last note/, "the 3-email Instantly campaign still ends with it");
+});

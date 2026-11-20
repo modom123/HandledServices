@@ -59,6 +59,7 @@
  * UPDATED : 2026-11-20_0130 UTC — always on: leadTopUp searches for more businesses (hourly, up to 4×/day) when fewer than 3 days of
  *           first emails are ready; outreachTick sends this hour's share of today's outreach (weekdays 9–5 Eastern); bizEngineWatchdog
  *           alerts staff (hourly) when sending stalls, discovery finds nothing for 3 days, or nobody is left to email.
+ * UPDATED : 2026-11-20_0200 UTC — the outreach inbox also stops pro invitations on a reply or bounce.
  */
 import "server-only";
 import { z } from "zod";
@@ -738,9 +739,11 @@ export async function checkOutreachInbox(): Promise<{ ok: boolean; read: number;
   try {
     for (const m of await outreachReplies(lastUid)) {
       read++; lastUid = Math.max(lastUid, m.uid);
+      // business leads first; otherwise it may be a pro we invited from the same mailbox
+      const pro = async (type: "reply" | "bounce", email: string | null) => (email ? (await import("./leads")).onProOutreachInbound({ type, email, text: m.text }).catch(() => false) : false);
       if (m.bounce) {
-        if (m.bouncedTo && (await onBizInstantlyEvent({ type: "bounce", email: m.bouncedTo, via: "own" }).catch(() => false))) bounces++;
-      } else if (await onBizInstantlyEvent({ type: "reply_received", email: m.from, text: m.text, via: "own", messageId: m.messageId, references: m.references, subject: m.subject }).catch(() => false)) replies++;
+        if (m.bouncedTo && ((await onBizInstantlyEvent({ type: "bounce", email: m.bouncedTo, via: "own" }).catch(() => false)) || (await pro("bounce", m.bouncedTo)))) bounces++;
+      } else if ((await onBizInstantlyEvent({ type: "reply_received", email: m.from, text: m.text, via: "own", messageId: m.messageId, references: m.references, subject: m.subject }).catch(() => false)) || (await pro("reply", m.from))) replies++;
     }
   } catch (e) {
     return { ok: false, read, replies, bounces, error: e instanceof Error ? e.message.slice(0, 300) : String(e) };

@@ -17,6 +17,7 @@
  * UPDATED : 2026-11-11_0100 UTC — reads the outreach inbox (own outreach domain) for replies and bounces.
  * UPDATED : 2026-11-17_2350 UTC — walkthrough reminders (one email about a day before).
  * UPDATED : 2026-11-20_0130 UTC — hourly: this hour's share of today's outreach (outreachTick), lead top-up and engine watchdog.
+ * UPDATED : 2026-11-20_0200 UTC — hourly weekly pro invitations (proOutreachTick).
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
@@ -53,9 +54,11 @@ export async function GET(req: Request) {
   // runs low, and a check that the engine hasn't stalled
   const hourly = new Date().getUTCMinutes() < 10;
   const sending = hourly ? await outreachTick().catch((e) => ({ sent: 0, skipped: 0, error: String(e) })) : null;
+  // pros: weekly invitations from the same mailbox (60 or 90 days, then retired)
+  const proInvites = hourly ? await (await import("@/lib/leads")).proOutreachTick().catch((e) => ({ sent: 0, error: String(e) })) : null;
   // keep the pipeline full: more businesses when fewer than ~3 days of first emails are ready (any day, up to 4×/day)
   const topUp = hourly ? await leadTopUp().catch((e) => ({ topUp: false, error: String(e) })) : null;
   const watchdog = hourly ? await bizEngineWatchdog().catch((e) => ({ checked: false, error: String(e) })) : null;
   const walkthroughs = await (await import("@/lib/walkthroughs")).walkthroughReminders().catch((e) => { console.error("[walkthrough reminders]", e); return null; });
-  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach, sending, topUp, watchdog, walkthroughs });
+  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach, sending, proInvites, topUp, watchdog, walkthroughs });
 }
