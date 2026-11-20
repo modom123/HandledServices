@@ -10,6 +10,8 @@
  *           section show as tabs across the top of the page (SectionTabs). The map lives in lib/hub-sections.
  * UPDATED : 2026-10-27_1700 UTC — the section's tab lights up by the most specific match or an alias (activeTab).
  * UPDATED : 2026-11-17_2000 UTC — sections: Jobs, Pros, Recruiting, Clients, Partners, Money, Marketing & AI, Front Office.
+ * UPDATED : 2026-11-20_0100 UTC — Clients & Marketing shows its funnel (leads → businesses talking → walkthroughs → campaigns
+ *           → quotes → business clients) above the tabs, each number a link (lib/clients-funnel).
  * UPDATED : 2026-11-05_0100 UTC — merged tabs: the pages behind the current tab show as a switch under the tabs (groupOf).
  */
 "use client";
@@ -54,7 +56,7 @@ export function HubNav({ sections }: { sections: HubSection[] }) {
 }
 
 /** Tabs for the pages in the current section, across the top of the page. Nothing on pages outside a section. */
-export function SectionTabs({ sections }: { sections: HubSection[] }) {
+export function SectionTabs({ sections, funnel }: { sections: HubSection[]; funnel?: { href: string; label: string; n: number | null; hint: string }[] }) {
   const path = usePathname();
   const s = sectionOf(sections, path);
   if (!s) return null;
@@ -63,6 +65,19 @@ export function SectionTabs({ sections }: { sections: HubSection[] }) {
   return (
     <div className="mb-6 -mt-1 border-b border-line">
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{s.icon} {s.label}</div>
+      {/* Clients & Marketing: the whole funnel in one line, every number a link (owner, 2026-11-20) */}
+      {s.id === "clients" && funnel?.length ? (
+        <ol className="mb-3 flex flex-wrap items-stretch gap-1 text-xs" aria-label="Funnel">
+          {funnel.map((f, i) => (
+            <li key={f.href} className="flex items-center gap-1">
+              {i > 0 && <span aria-hidden className="text-ink-soft">→</span>}
+              <Link href={f.href} title={f.hint} className={`rounded-lg border px-2.5 py-1 hover:border-brand ${path === f.href || path.startsWith(`${f.href}/`) ? "border-brand bg-brand-tint" : "border-line bg-white"}`}>
+                <b className="text-sm text-ink">{f.n ?? "—"}</b> <span className="text-ink-soft">{f.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      ) : null}
       <nav className="-mb-px flex gap-1 overflow-x-auto" aria-label={s.label}>
         {s.links.map(([href, label]) => {
           const on = href === tab;
