@@ -16,24 +16,28 @@
  *             { action: "todo_delete", office, id }
  * UPDATED : 2026-11-17_2330 UTC — smoother email: the office page reads mail in place (no page change), so going back never
  *           leaves the office:  { action: "inbox", office, limit? }  { action: "read", office, uid }
+ * UPDATED : 2026-11-20_1500 UTC — `box: "leads"` on compose / reply / inbox / read / verify uses the business-leads mailbox
+ *           (mark@handledsvc.net, Mark's office only); reading one shows which business lead wrote.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin } from "@/lib/auth";
-import { officeBySlug, officeMail, officeSignature, officeZoomUser } from "@/lib/offices";
+import { leadsMail, officeBySlug, officeMail, officeSignature, officeZoomUser } from "@/lib/offices";
+import { adminClient } from "@/lib/supabase/server";
 import { listInbox, readMessage, saveToSent, sendMail, verifyMailbox } from "@/lib/mailbox";
 import { createZoomMeeting } from "@/lib/zoom";
 import { addTodo, deleteTodo, noteTodo, sendTodo, setTodoDone } from "@/lib/office-todos";
 
 const office = z.string().refine((s) => Boolean(officeBySlug(s)), "Unknown office");
+const box = z.enum(["office", "leads"]).optional();
 const Body = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("compose"), office, to: z.string().email(), subject: z.string().trim().min(1).max(200), text: z.string().min(1).max(50000) }),
-  z.object({ action: z.literal("reply"), office, uid: z.number().int(), to: z.string().email(), subject: z.string().min(1).max(200), text: z.string().min(1).max(50000),
+  z.object({ action: z.literal("compose"), office, box, to: z.string().email(), subject: z.string().trim().min(1).max(200), text: z.string().min(1).max(50000) }),
+  z.object({ action: z.literal("reply"), office, box, uid: z.number().int(), to: z.string().email(), subject: z.string().min(1).max(200), text: z.string().min(1).max(50000),
     in_reply_to: z.string().max(500).nullable().optional(), references: z.string().max(5000).nullable().optional() }),
   z.object({ action: z.literal("zoom"), office, topic: z.string().trim().min(2).max(200), start: z.string().datetime({ offset: true }), minutes: z.number().int().min(10).max(480),
     invite: z.string().email().nullable().optional().or(z.literal("")), note: z.string().max(2000).nullable().optional() }),
-  z.object({ action: z.literal("verify"), office }),
-  z.object({ action: z.literal("inbox"), office, limit: z.number().int().min(1).max(100).optional() }),
-  z.object({ action: z.literal("read"), office, uid: z.number().int().min(1) }),
+  z.object({ action: z.literal("verify"), office, box }),
+  z.object({ action: z.literal("inbox"), office, box, limit: z.number().int().min(1).max(100).optional() }),
+  z.object({ action: z.literal("read"), office, box, uid: z.number().int().min(1) }),
   z.object({ action: z.literal("todo_add"), office, to: office, title: z.string().trim().min(2).max(200), details: z.string().max(4000).nullable().optional(),
     due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal("")), priority: z.enum(["normal", "high"]).optional() }),
   z.object({ action: z.enum(["todo_send", "todo_done", "todo_reopen", "todo_delete"]), office, id: z.string().uuid(), note: z.string().max(2000).nullable().optional() }),
@@ -47,8 +51,11 @@ export async function POST(req: Request) {
   if (!b.success) return deny(400, b.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   const d = b.data;
   const o = officeBySlug(d.office)!;
-  const acct = officeMail(o);
-  const mailOff = `${o.name}'s mailbox isn't connected yet (OFFICE_${o.key}_EMAIL and OFFICE_${o.key}_PASSWORD in Vercel).`;
+  const leads = "box" in d && d.box === "leads";
+  if (leads && !o.leadsInbox) return deny(403, "This office has no business-leads inbox");
+  const acct = leads ? leadsMail() : officeMail(o);
+  const mailOff = leads ? "The business-leads mailbox isn't connected yet (OUTREACH_SMTP_USER and OUTREACH_SMTP_PASSWORD in Vercel)."
+    : `${o.name}'s mailbox isn't connected yet (OFFICE_${o.key}_EMAIL and OFFICE_${o.key}_PASSWORD in Vercel).`;
 
   try {
     switch (d.action) {
@@ -65,7 +72,10 @@ export async function POST(req: Request) {
       case "read": {
         if (!acct) return deny(409, mailOff);
         const m = await readMessage(d.uid, acct);
-        return m ? Response.json({ ok: true, message: m }) : deny(404, "That email isn't in the inbox anymore");
+        if (!m) return deny(404, "That email isn't in the inbox anymore");
+        // the business-leads inbox: who this is on our lead list
+        const lead = leads && m.from ? (await adminClient().from("biz_leads").select("id, business_name, status").ilike("email", m.from.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle()).data : null;
+        return Response.json({ ok: true, message: m, lead });
       }
       case "verify":
         return Response.json({ ok: true, ...(await verifyMailbox(acct ?? { user: "", pass: "" })) });

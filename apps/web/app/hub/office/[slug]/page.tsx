@@ -12,6 +12,8 @@
  * UPDATED : 2026-11-17_2330 UTC — email reads in place (OfficeMail): opening an email stays on the office page, and Back
  *           (the link or the browser's) returns to the inbox instead of leaving the office. The page also loads faster:
  *           the inbox loads after the page instead of holding it up.
+ * UPDATED : 2026-11-20_1500 UTC — Mark's office: a second inbox, Business leads email (mark@handledsvc.net — outreach replies),
+ *           next to his own email; read and reply in place, with a link to the lead.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,7 +21,7 @@ import { PIPELINE } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { adminOnly } from "@/components/AdminOnly";
 import { Stat } from "@/components/ui";
-import { OFFICES, officeBySlug, officeEmail, officeMail, officeZoomLink, officeZoomUser, type Office } from "@/lib/offices";
+import { OFFICES, leadsEmail, leadsMail, officeBySlug, officeEmail, officeMail, officeZoomLink, officeZoomUser, type Office } from "@/lib/offices";
 import { upcomingZoomMeetings, zoomReady } from "@/lib/zoom";
 import { listTodos, otherOffice } from "@/lib/office-todos";
 import { OfficeMail, TodoBoard, VerifyMailbox, ZoomScheduler, type TodoView } from "@/components/Office";
@@ -126,6 +128,23 @@ function Mail({ o }: { o: Office }) {
   );
 }
 
+/** Mark's office: the business-leads mailbox (cold outreach replies to mark@handledsvc.net). */
+function LeadsMail({ o }: { o: Office }) {
+  const connected = Boolean(leadsMail());
+  return (
+    <section className="card space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold">📨 Business leads email{leadsEmail() ? ` · ${leadsEmail()}` : ""}</h2>
+        {connected && <VerifyMailbox office={o.slug} box="leads" />}
+      </div>
+      <p className="text-xs text-ink-soft">Replies to the business-leads outreach. The sales agent reads them too and stops emailing anyone who says no; answer the interested ones here. <a className="text-brand underline" href="/hub/biz-leads">All business leads →</a></p>
+      {connected ? <OfficeMail office={o.slug} first={o.first} box="leads" /> : (
+        <p className="rounded bg-amber-50 p-2 text-sm">Not connected yet. In Vercel → Environment Variables add <code>OUTREACH_SMTP_USER</code> (mark@handledsvc.net), <code>OUTREACH_SMTP_PASSWORD</code> and <code>OUTREACH_FROM_NAME</code>, then redeploy.</p>
+      )}
+    </section>
+  );
+}
+
 async function Zoom({ o }: { o: Office }) {
   const link = officeZoomLink(o);
   const user = officeZoomUser(o);
@@ -171,8 +190,9 @@ export default async function OfficePage({ params }: { params: Promise<{ slug: s
       {o.tools === "ops" ? <OpsTools /> : <RecruitingTools />}
       <div className="grid gap-6 lg:grid-cols-2">
         <Mail o={o} />
-        <Zoom o={o} />
+        {o.leadsInbox ? <LeadsMail o={o} /> : <Zoom o={o} />}
       </div>
+      {o.leadsInbox && <Zoom o={o} />}
     </div>
   );
 }

@@ -13,6 +13,7 @@
  *             optional SMTP_HOST / SMTP_PORT / IMAP_HOST / IMAP_PORT (Hostinger defaults)
  * UPDATED : 2026-11-17_2300 UTC — optional MailAccount on every call, so Front Office offices use their own mailbox on the same host
  *           (default stays the company mailbox).
+ * UPDATED : 2026-11-20_1500 UTC — MailAccount can name its own hosts / ports (the outreach mailbox on handledsvc.net).
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -26,7 +27,7 @@ const smtpHost = () => process.env.SMTP_HOST || "smtp.hostinger.com";
 const imapHost = () => process.env.IMAP_HOST || "imap.hostinger.com";
 
 /** A mailbox on the same host: the company one (default) or an office's (lib/offices.ts). */
-export interface MailAccount { user: string; pass: string }
+export interface MailAccount { user: string; pass: string; smtpHost?: string; smtpPort?: number; imapHost?: string; imapPort?: number }
 const company = (): MailAccount => ({ user: mailboxUser()!, pass: process.env.SMTP_PASSWORD! });
 const ready = (a?: MailAccount) => (a ? Boolean(a.user && a.pass) : mailboxReady());
 
@@ -34,8 +35,8 @@ const transports = new Map<string, Transporter>();
 function smtp(a: MailAccount = company()) {
   let t = transports.get(a.user);
   if (!t) {
-    const port = Number(process.env.SMTP_PORT || 465);
-    t = nodemailer.createTransport({ host: smtpHost(), port, secure: port === 465, auth: { user: a.user, pass: a.pass }, pool: true, maxConnections: 2 });
+    const port = a.smtpPort ?? Number(process.env.SMTP_PORT || 465);
+    t = nodemailer.createTransport({ host: a.smtpHost ?? smtpHost(), port, secure: port === 465, auth: { user: a.user, pass: a.pass }, pool: true, maxConnections: 2 });
     transports.set(a.user, t);
   }
   return t;
@@ -55,7 +56,7 @@ export async function sendMail(m: OutMail, acct?: MailAccount): Promise<string> 
 }
 
 function imap(a: MailAccount = company()) {
-  return new ImapFlow({ host: imapHost(), port: Number(process.env.IMAP_PORT || 993), secure: true, auth: { user: a.user, pass: a.pass }, logger: false });
+  return new ImapFlow({ host: a.imapHost ?? imapHost(), port: a.imapPort ?? Number(process.env.IMAP_PORT || 993), secure: true, auth: { user: a.user, pass: a.pass }, logger: false });
 }
 
 /** Log in to SMTP and IMAP; what works and what doesn't. */

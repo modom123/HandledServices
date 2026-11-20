@@ -5,6 +5,8 @@
  * PURPOSE : Front Office → office widgets (client): compose / reply from the office's mailbox, schedule a Zoom meeting
  *           (optionally emailing the invite), test the mailbox login, and the shared to-do board between the offices
  *           (TodoBoard: on my desk / with the other office, send back and forth, done, notes, history). All POST /api/hub/office.
+ * UPDATED : 2026-11-20_1500 UTC — `box` on the mail widgets: "leads" = the business-leads mailbox (mark@handledsvc.net) in
+ *           Mark's office; reading a lead's reply links to that lead.
  */
 "use client";
 import { useEffect, useState } from "react";
@@ -16,7 +18,7 @@ async function call(body: Record<string, unknown>) {
   return { ok: r.ok, data } as { ok: boolean; data: { error?: string; [k: string]: unknown } };
 }
 
-export function OfficeCompose({ office, first, defaultTo = "" }: { office: string; first: string; defaultTo?: string }) {
+export function OfficeCompose({ office, first, defaultTo = "", box }: { office: string; first: string; defaultTo?: string; box?: "office" | "leads" }) {
   const [f, setF] = useState({ to: defaultTo, subject: "", text: "" });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,7 +31,7 @@ export function OfficeCompose({ office, first, defaultTo = "" }: { office: strin
       <textarea className="input h-28" placeholder={`Message (${first}'s name and title are added as the signature)`} value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
       <div className="flex items-center gap-2">
         <button className="btn-primary" disabled={busy || !f.to.includes("@") || !f.subject || !f.text} onClick={async () => {
-          setBusy(true); const r = await call({ action: "compose", office, ...f }); setBusy(false);
+          setBusy(true); const r = await call({ action: "compose", office, box, ...f }); setBusy(false);
           if (r.ok) { setF({ to: "", subject: "", text: "" }); setMsg("Sent."); } else setMsg(r.data.error ?? "Failed");
         }}>Send</button>
         {msg && <span className="text-ink-soft">{msg}</span>}
@@ -38,7 +40,7 @@ export function OfficeCompose({ office, first, defaultTo = "" }: { office: strin
   );
 }
 
-export function OfficeReply({ office, uid, to, subject, inReplyTo, references }: { office: string; uid: number; to: string; subject: string; inReplyTo: string | null; references: string | null }) {
+export function OfficeReply({ office, uid, to, subject, inReplyTo, references, box }: { office: string; uid: number; to: string; subject: string; inReplyTo: string | null; references: string | null; box?: "office" | "leads" }) {
   const [text, setText] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,7 +50,7 @@ export function OfficeReply({ office, uid, to, subject, inReplyTo, references }:
       <div className="flex items-center gap-2">
         <button className="btn-primary" disabled={busy || !text} onClick={async () => {
           setBusy(true);
-          const r = await call({ action: "reply", office, uid, to, subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`, text, in_reply_to: inReplyTo, references: [references, inReplyTo].filter(Boolean).join(" ") || null });
+          const r = await call({ action: "reply", office, box, uid, to, subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`, text, in_reply_to: inReplyTo, references: [references, inReplyTo].filter(Boolean).join(" ") || null });
           setBusy(false);
           if (r.ok) { setText(""); setMsg("Sent."); } else setMsg(r.data.error ?? "Failed");
         }}>Reply</button>
@@ -104,13 +106,13 @@ export function ZoomScheduler({ office, ready, defaultTopic = "", defaultInvite 
   );
 }
 
-export function VerifyMailbox({ office }: { office: string }) {
+export function VerifyMailbox({ office, box }: { office: string; box?: "office" | "leads" }) {
   const [msg, setMsg] = useState("");
   return (
     <span className="text-xs">
       <button className="text-brand underline" onClick={async () => {
         setMsg("Checking…");
-        const r = await call({ action: "verify", office });
+        const r = await call({ action: "verify", office, box });
         setMsg(r.ok ? `Sending: ${r.data.smtp} · Inbox: ${r.data.imap}` : r.data.error ?? "Failed");
       }}>Test mailbox</button>{msg && <span className="ml-2 text-ink-soft">{msg}</span>}
     </span>
@@ -231,7 +233,10 @@ export function TodoBoard({ office, other, names, todos, done, error }: { office
 interface MailItem { uid: number; from: string; fromName: string | null; subject: string; date: string; seen: boolean }
 interface MailFull extends MailItem { to: string; text: string; messageId: string | null; references: string | null }
 
-export function OfficeMail({ office, first }: { office: string; first: string }) {
+export function OfficeMail({ office, first, box = "office" }: { office: string; first: string; box?: "office" | "leads" }) {
+  // each inbox keeps its own browser-history key, so Back closes the right one
+  const key = box === "leads" ? "lead_mail" : "mail";
+  const [lead, setLead] = useState<{ id: string; business_name: string | null; status: string } | null>(null);
   const [items, setItems] = useState<MailItem[] | null>(null);
   const [err, setErr] = useState("");
   const [open, setOpen] = useState<MailFull | null>(null);
@@ -240,29 +245,30 @@ export function OfficeMail({ office, first }: { office: string; first: string })
 
   const load = async () => {
     setErr("");
-    const r = await call({ action: "inbox", office, limit: 25 });
+    const r = await call({ action: "inbox", office, box, limit: 25 });
     if (r.ok) setItems(r.data.items as MailItem[]); else { setErr(r.data.error ?? "Couldn't load the inbox"); setItems((x) => x ?? []); }
   };
   const show = async (uid: number, push: boolean) => {
     setLoading(uid); setErr("");
-    const r = await call({ action: "read", office, uid });
+    const r = await call({ action: "read", office, box, uid });
     setLoading(null);
     if (!r.ok) { setErr(r.data.error ?? "Couldn't open that email"); return; }
     setOpen(r.data.message as MailFull);
+    setLead((r.data.lead as typeof lead) ?? null);
     setItems((xs) => xs?.map((m) => (m.uid === uid ? { ...m, seen: true } : m)) ?? xs);
-    if (push) window.history.pushState({ mail: uid }, "", `?mail=${uid}`);
+    if (push) window.history.pushState({ [key]: uid }, "", `?${key}=${uid}`);
   };
   const close = () => {
-    if (window.history.state?.mail) window.history.back(); // pops our entry → popstate closes it
+    if (window.history.state?.[key]) window.history.back(); // pops our entry → popstate closes it
     else setOpen(null);
   };
 
   useEffect(() => {
     void load();
-    const deep = Number(new URLSearchParams(window.location.search).get("mail"));
+    const deep = Number(new URLSearchParams(window.location.search).get(key));
     if (deep) void show(deep, false);
     const onPop = () => {
-      const uid = Number(new URLSearchParams(window.location.search).get("mail"));
+      const uid = Number(new URLSearchParams(window.location.search).get(key));
       if (uid) void show(uid, false); else setOpen(null);
     };
     window.addEventListener("popstate", onPop);
@@ -279,8 +285,9 @@ export function OfficeMail({ office, first }: { office: string; first: string })
         <h3 className="text-base font-bold">{open.subject}</h3>
         <p className="text-xs text-ink-soft">From {open.fromName ? `${open.fromName} <${open.from}>` : open.from} · {when(open.date)}</p>
       </div>
+      {lead && <p className="rounded bg-brand-tint p-2 text-xs">Business lead: <a className="font-semibold text-brand underline" href={`/hub/biz-leads/${lead.id}`}>{lead.business_name ?? "open lead"}</a> · {lead.status}. The sales agent has read this reply too — check the lead for its summary and draft answer.</p>}
       <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded bg-paper p-2 font-sans text-sm">{open.text}</pre>
-      {open.from && <OfficeReply office={office} uid={open.uid} to={open.from} subject={open.subject} inReplyTo={open.messageId} references={open.references} />}
+      {open.from && <OfficeReply office={office} box={box} uid={open.uid} to={open.from} subject={open.subject} inReplyTo={open.messageId} references={open.references} />}
       {err && <p className="text-xs text-rose-700">{err}</p>}
     </div>
   );
@@ -291,7 +298,7 @@ export function OfficeMail({ office, first }: { office: string; first: string })
         <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setCompose(!compose)}>{compose ? "Close" : "✏️ New email"}</button>
         <button className="text-xs text-brand underline" onClick={() => { setItems(null); void load(); }}>Refresh</button>
       </div>
-      {compose && <OfficeCompose office={office} first={first} />}
+      {compose && <OfficeCompose office={office} first={first} box={box} />}
       {err && <p className="text-xs text-rose-700">{err}</p>}
       {items === null ? <p className="text-ink-soft">Loading inbox…</p> : (
         <ul className="divide-y divide-line">

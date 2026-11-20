@@ -13,15 +13,17 @@
  *             OFFICE_<KEY>_ZOOM_USER  their Zoom login email, for scheduling meetings (defaults to OFFICE_<KEY>_EMAIL)
  *           Scheduling Zoom meetings also needs the company Zoom app (lib/zoom.ts).
  *           Offices are admin-only pages (personal mail).
+ * UPDATED : 2026-11-20_1500 UTC — Mark's office also reads the business-leads mailbox (leadsMail: the OUTREACH_* mailbox,
+ *           e.g. mark@handledsvc.net). Replies there are read by the sales agent too (by UID, so nothing conflicts).
  */
 import "server-only";
 import type { MailAccount } from "./mailbox";
 
 export type OfficeTools = "ops" | "recruiting";
-export interface Office { slug: string; key: string; name: string; first: string; title: string; tools: OfficeTools; icon: string }
+export interface Office { slug: string; key: string; name: string; first: string; title: string; tools: OfficeTools; icon: string; leadsInbox?: boolean }
 
 export const OFFICES: Office[] = [
-  { slug: "odom", key: "ODOM", name: "Mark Odom", first: "Mark", title: "CEO", tools: "ops", icon: "👔" },
+  { slug: "odom", key: "ODOM", name: "Mark Odom", first: "Mark", title: "CEO", tools: "ops", icon: "👔", leadsInbox: true },
   { slug: "gulley", key: "GULLEY", name: "Cecilia Gulley", first: "Cecilia", title: "Chief Strategy & Recruiting Officer", tools: "recruiting", icon: "🎯" },
 ];
 
@@ -35,5 +37,14 @@ export const officeMail = (o: Office): MailAccount | null => {
 };
 export const officeZoomLink = (o: Office) => env(o, "ZOOM_LINK");
 export const officeZoomUser = (o: Office) => env(o, "ZOOM_USER") ?? env(o, "EMAIL");
+/** The business-leads outreach mailbox (mark@handledsvc.net — lib/outreach-mail.ts OUTREACH_*), read in Mark's office. */
+export function leadsMail(): MailAccount | null {
+  const user = process.env.OUTREACH_SMTP_USER?.trim(), pass = process.env.OUTREACH_SMTP_PASSWORD;
+  if (!user || !pass) return null;
+  const n = (v?: string) => (v ? Number(v) : undefined);
+  return { user, pass, smtpHost: process.env.OUTREACH_SMTP_HOST || undefined, smtpPort: n(process.env.OUTREACH_SMTP_PORT), imapHost: process.env.OUTREACH_IMAP_HOST || undefined, imapPort: n(process.env.OUTREACH_IMAP_PORT) };
+}
+export const leadsEmail = () => process.env.OUTREACH_SMTP_USER?.trim() || null;
+
 /** The sign-off on emails from an office. */
 export const officeSignature = (o: Office) => `\n\n${o.name}\n${o.title}, Handled`;
