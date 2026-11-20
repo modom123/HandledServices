@@ -12,6 +12,8 @@
  *             clickUrl / recordClick — signed click-tracking links (no open pixels)
  *           Every email: why they get it, the business postal address, one-click unsubscribe (CAN-SPAM).
  * UPDATED : 2026-10-05_2134 UTC — business-lead audience never includes teaming partners.
+ * UPDATED : 2026-11-20_0040 UTC — campaigns go out from the handledsvc.net marketing mailbox (OUTREACH_SMTP_USER, e.g.
+ *           mark@handledsvc.net) when it's connected; the company mailbox (SMTP_USER) is only the fallback.
  * UPDATED : 2026-11-19_1540 UTC — {{post_url}}: the Post-your-project page with the campaign's tracking (lands in the Lead inbox).
  */
 import "server-only";
@@ -20,7 +22,13 @@ import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, marketingFooter, mergeTags
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
-import { mailboxReady, sendMail } from "./mailbox";
+import { mailboxReady, sendMail as sendCompanyMail, type OutMail } from "./mailbox";
+import { outreachReady, outreachUser, sendMarketingFromOutreach } from "./outreach-mail";
+
+/** Marketing goes out from handledsvc.net (owner, 2026-11-17); the company mailbox only when that isn't connected. */
+const sendMail = (m: OutMail) => (outreachReady() ? sendMarketingFromOutreach(m) : sendCompanyMail(m));
+/** Which mailbox campaigns send from right now (shown in the Email Center). */
+export const campaignSender = () => (outreachReady() ? outreachUser() : mailboxReady() ? process.env.SMTP_USER ?? null : null);
 
 const db = () => adminClient();
 const lower = (e: string) => e.trim().toLowerCase();
@@ -139,7 +147,7 @@ export function renderFor(c: Pick<Campaign, "id" | "subject" | "body" | "prehead
 
 export function sendingProblems(): string[] {
   const p: string[] = [];
-  if (!mailboxReady()) p.push("Mailbox isn't connected: set SMTP_USER and SMTP_PASSWORD in Vercel.");
+  if (!outreachReady() && !mailboxReady()) p.push("No mailbox connected for marketing email: in Vercel set OUTREACH_SMTP_USER (e.g. mark@handledsvc.net) and OUTREACH_SMTP_PASSWORD, then redeploy.");
   if (!process.env.BUSINESS_POSTAL_ADDRESS) p.push("BUSINESS_POSTAL_ADDRESS isn't set — the law requires it on marketing email.");
   return p;
 }

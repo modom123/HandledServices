@@ -16,6 +16,7 @@
  * UPDATED : 2026-10-11_0451 UTC — campaigns, settings and checks are admins only; dispatchers can reply, compose one-off emails and record opt-outs.
  * UPDATED : 2026-11-17_2335 UTC — { action: "ai_write", audience, goal, offer?, spanish? } — the AI campaign writer drafts subject, preview
  *           text and body (and Spanish) for the editor; nothing is saved or sent (admins).
+ * UPDATED : 2026-11-20_0040 UTC — verify checks the mailbox campaigns send from (handledsvc.net when set) and names it.
  */
 import { z } from "zod";
 import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, type EmailAudience } from "@handled/core";
@@ -106,8 +107,14 @@ export async function POST(req: Request) {
       return error ? deny(500, error.message) : Response.json({ ok: true });
     }
     case "verify": {
+      // campaigns send from the handledsvc.net marketing mailbox when it's set; check that one (else the company mailbox)
+      const om = await import("@/lib/outreach-mail");
+      if (om.outreachUser()) {
+        const [login, dns] = await Promise.all([om.verifyOutreach(), om.outreachDns()]);
+        return Response.json({ ok: true, ...login, dns, sender: om.outreachUser() });
+      }
       const [login, dns] = await Promise.all([verifyMailbox(), checkDomainDns()]);
-      return Response.json({ ok: true, ...login, dns });
+      return Response.json({ ok: true, ...login, dns, sender: process.env.SMTP_USER ?? null });
     }
     case "reply":
     case "compose": {
