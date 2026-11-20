@@ -3387,3 +3387,14 @@ test("sales engine goes where pros need work: idle pros' ZIPs first, with the bu
   assert.deepEqual(t.map((x) => [x.zip, x.idlePros]), [["48201", 2], ["48075", 1]]);
   assert.ok(t[0].segments.includes("storage") && t[0].segments.includes("property_manager"));
 });
+
+test("outreach runs all business day, a few at a time (2026-11-20)", async () => {
+  const { outreachSlice } = await import("./biz-lead-engine.ts");
+  // Thursday 2026-11-19, Detroit is UTC-5
+  assert.equal(outreachSlice(40, new Date("2026-11-19T14:00:00Z")), 1, "9:00 ET: 40 left over 48 runs → 1");
+  assert.equal(outreachSlice(40, new Date("2026-11-19T21:40:00Z")), 20, "16:40 ET: 2 runs left → half each");
+  assert.equal(outreachSlice(40, new Date("2026-11-19T13:50:00Z")), 0, "before 9:00 ET: nothing");
+  assert.equal(outreachSlice(40, new Date("2026-11-19T22:00:00Z")), 0, "17:00 ET: done for the day");
+  assert.equal(outreachSlice(40, new Date("2026-11-21T16:00:00Z")), 0, "Saturday: nothing");
+  assert.equal(outreachSlice(0, new Date("2026-11-19T16:00:00Z")), 0, "nothing left today");
+});

@@ -16,19 +16,20 @@
  *           (site_settings cron_dispatch) so Go-live setup can confirm the 10-minute run.
  * UPDATED : 2026-11-11_0100 UTC — reads the outreach inbox (own outreach domain) for replies and bounces.
  * UPDATED : 2026-11-17_2350 UTC — walkthrough reminders (one email about a day before).
+ * UPDATED : 2026-11-20_0130 UTC — every run sends its share of today's outreach (outreachTick); hourly lead top-up and engine watchdog.
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
 import { runEmailCenter } from "@/lib/email-center";
 import { publishDue } from "@/lib/social";
 import { quoteSweep } from "@/lib/quotes";
-import { checkOutreachInbox, syncBizCampaign, syncBizReplies } from "@/lib/biz-leads";
+import { bizEngineWatchdog, checkOutreachInbox, leadTopUp, outreachTick, syncBizCampaign, syncBizReplies } from "@/lib/biz-leads";
 import { outreachReady } from "@/lib/outreach-mail";
 import { syncProReplies } from "@/lib/leads";
 import { cronAuthorized, githubActionsAuthorized } from "@/lib/cron-auth";
 import { adminClient } from "@/lib/supabase/server";
 
-export const maxDuration = 120;
+export const maxDuration = 300; // outreach, the lead top-up and replies run here too (2026-11-20)
 
 export async function GET(req: Request) {
   const viaSecret = cronAuthorized(req);
@@ -48,6 +49,12 @@ export async function GET(req: Request) {
   } : null;
   // our own outreach domain: replies and bounces every 10 minutes
   const outreach = outreachReady() ? await checkOutreachInbox().catch((e) => ({ ok: false, error: String(e) })) : null;
+  // always on: this run's share of today's outreach (weekdays 9–5 Eastern), and an hourly check that the engine hasn't stalled
+  const sending = await outreachTick().catch((e) => ({ sent: 0, skipped: 0, error: String(e) }));
+  const hourly = new Date().getUTCMinutes() < 10;
+  // keep the pipeline full: more businesses when fewer than ~3 days of first emails are ready (any day, up to 4×/day)
+  const topUp = hourly ? await leadTopUp().catch((e) => ({ topUp: false, error: String(e) })) : null;
+  const watchdog = hourly ? await bizEngineWatchdog().catch((e) => ({ checked: false, error: String(e) })) : null;
   const walkthroughs = await (await import("@/lib/walkthroughs")).walkthroughReminders().catch((e) => { console.error("[walkthrough reminders]", e); return null; });
-  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach, walkthroughs });
+  return Response.json({ ...dispatch, coverage, email, social, quotes, instantly, outreach, sending, topUp, watchdog, walkthroughs });
 }

@@ -23,6 +23,7 @@
  * UPDATED : 2026-10-07_2030 UTC — job-posting discovery: JOB_POST_AREAS (Michigan + Washington), JOB_POST_QUERIES, parseAdzuna, screenJobPosting
  *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-20_0130 UTC — outreachSlice / OUTREACH_WINDOW: outreach spread across the business day (every 10 minutes).
  */
 import { BRAND } from "./brand.ts";
 
@@ -320,6 +321,23 @@ export function warmupCap(firstSendAt: string | null | undefined, wanted: number
   const d = firstSendAt ? Math.floor(ageDays(firstSendAt, now)) : 0;
   const ramp = d < 7 ? 10 : d < 14 ? 20 : d < 21 ? 30 : d < 28 ? 40 : Infinity;
   return Math.max(0, Math.min(wanted, ramp));
+}
+
+/**
+ * Outreach goes out all business day, a few at a time, not in one burst (owner, 2026-11-20: "a system that is constantly
+ * working"): weekdays 9:00–17:00 in the business's time zone, every 10-minute run sends its share of what's left of
+ * today's limit. Outside the window: 0. Spreading sends reads as a person writing and is kinder to a new domain.
+ */
+export const OUTREACH_WINDOW = { startHour: 9, endHour: 17, everyMinutes: 10, timeZone: "America/Detroit" } as const;
+export function outreachSlice(remaining: number, now = new Date(), w: { startHour: number; endHour: number; everyMinutes: number; timeZone: string } = OUTREACH_WINDOW): number {
+  if (remaining <= 0) return 0;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: w.timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now).map((p) => [p.type, p.value]));
+  if (parts.weekday === "Sat" || parts.weekday === "Sun") return 0;
+  const minute = Number(parts.hour) * 60 + Number(parts.minute);
+  const start = w.startHour * 60, end = w.endHour * 60;
+  if (minute < start || minute >= end) return 0;
+  const runsLeft = Math.max(1, Math.ceil((end - minute) / w.everyMinutes));
+  return Math.ceil(remaining / runsLeft);
 }
 
 /** List health for the Hub. */

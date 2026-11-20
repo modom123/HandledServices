@@ -56,10 +56,13 @@
  * UPDATED : 2026-11-19_0010 UTC — discovery goes where pros need work first: ~70% of each day's searches near the ZIPs of approved
  *           pros with < 4 jobs in 30 days (idleProTargets, core outreachTargets), for the businesses that buy their trades;
  *           those leads score +15 so they're emailed first.
+ * UPDATED : 2026-11-20_0130 UTC — always on: leadTopUp searches for more businesses (hourly, up to 4×/day) when fewer than 3 days of
+ *           first emails are ready; outreachTick sends this 10-minute run's share of today's outreach (weekdays 9–5 Eastern); bizEngineWatchdog
+ *           alerts staff (hourly) when sending stalls, discovery finds nothing for 3 days, or nobody is left to email.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -100,10 +103,12 @@ export async function idleProTargets(limit = 12) {
     (slug) => getService(slug)?.trades ?? [], limit);
 }
 
-export async function discoverBizLeads(s: BizLeadSettings) {
+export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: number; searches?: number } = {}) {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key || !s.segments.length) return { searches: 0, added: 0, nearIdlePros: 0 };
-  const day = Math.floor(Date.now() / 86400000);
+  // which cities and segments to search rotates by day; a top-up passes its own rotation so it searches somewhere new
+  const day = o.rotation ?? Math.floor(Date.now() / 86400000);
+  if (o.searches) s = { ...s, discover_per_day: Math.max(1, Math.min(s.discover_per_day, o.searches)) };
   // first, where pros need work: ~70% of today's searches near idle pros, for the businesses that buy their trades
   const targets = await idleProTargets().catch(() => []);
   const nTarget = targets.length ? Math.ceil(s.discover_per_day * 0.7) : 0;
@@ -633,13 +638,19 @@ async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings, aiUntil
   return "sent";
 }
 
-/** Daily: follow-ups that are due first, then new leads, within today's limit and the new domain's warm-up ramp. */
-export async function sendOwnOutreach(s: BizLeadSettings) {
+/**
+ * Follow-ups that are due first, then new leads, within today's limit and the new domain's warm-up ramp. Runs every 10
+ * minutes in business hours (outreachTick) and sends only this run's share of what's left today (core outreachSlice),
+ * so outreach goes out all day instead of in one burst.
+ */
+export async function sendOwnOutreach(s: BizLeadSettings, o: { aiMs?: number } = {}) {
   if (!outreachReady() || !process.env.BUSINESS_POSTAL_ADDRESS) return { sent: 0, skipped: 0, error: "Set OUTREACH_SMTP_USER / OUTREACH_SMTP_PASSWORD and BUSINESS_POSTAL_ADDRESS" };
-  let budget = warmupCap(s.first_own_send_at, s.emails_per_day) - (await ownSentToday());
+  const left = Math.max(0, warmupCap(s.first_own_send_at, s.emails_per_day) - (await ownSentToday()));
+  let budget = outreachSlice(left);
+  if (budget <= 0) return { sent: 0, skipped: 0, budgetLeft: left, note: left ? "outside sending hours (weekdays 9–5 Eastern)" : "today's limit reached" };
   let sent = 0, skipped = 0;
-  // AI writing takes a few seconds an email: personalize for the first ~2.5 minutes of the run, then send templates, so the cron never times out
-  const aiUntil = Date.now() + 150_000;
+  // AI writing takes a few seconds an email: personalize for the first part of the run, then send templates, so the cron never times out
+  const aiUntil = Date.now() + (o.aiMs ?? 150_000);
   const run = async (rows: OwnLead[], stepOf: (l: OwnLead) => number) => {
     for (const l of rows) {
       if (budget <= 0) break;
@@ -655,7 +666,68 @@ export async function sendOwnOutreach(s: BizLeadSettings) {
     await run((fresh ?? []) as unknown as OwnLead[], () => 0);
   }
   if (sent && !s.first_own_send_at) await db().from("biz_lead_settings").update({ first_own_send_at: new Date().toISOString() }).eq("id", 1);
-  return { sent, skipped, budgetLeft: Math.max(0, budget) };
+  return { sent, skipped, budgetLeft: Math.max(0, left - sent) };
+}
+
+/**
+ * Hourly (dispatch cron), any day: keep the pipeline full. When fewer businesses are ready for a first email than
+ * three days of sending, search a few new cities / segments and look up their emails. At most once every 3 hours and
+ * 4 times a day, so the Google Places quota stays small. The daily run (cron/leads) still does the full search.
+ */
+export async function leadTopUp() {
+  const s = await getBizLeadSettings();
+  if (!s.enabled || !process.env.GOOGLE_PLACES_API_KEY) return null;
+  const { count: ready } = await db().from("biz_leads").select("id", { count: "exact", head: true }).eq("status", "queued").not("email", "is", null).neq("segment", "partner");
+  const want = Math.max(20, s.emails_per_day * 3);
+  if ((ready ?? 0) >= want) return { ready, topUp: false };
+  const { data: row } = await db().from("site_settings").select("value").eq("key", "biz_lead_topup").maybeSingle();
+  const v = (row?.value ?? {}) as { at?: string; day?: string; n?: number };
+  const today = new Date().toISOString().slice(0, 10);
+  const n = v.day === today ? Number(v.n ?? 0) : 0;
+  if (n >= 4 || (v.at && Date.now() - new Date(v.at).getTime() < 3 * 3600000)) return { ready, topUp: false, waiting: true };
+  await db().from("site_settings").upsert({ key: "biz_lead_topup", value: { at: new Date().toISOString(), day: today, n: n + 1 }, updated_at: new Date().toISOString(), updated_by: "cron" });
+  // a different rotation from the daily search (hours since 1970), and few searches so it fits in the 10-minute job
+  const found = await discoverBizLeads(s, { rotation: Math.floor(Date.now() / 3600000) * 7, searches: 3 }).catch((e) => ({ searches: 0, added: 0, error: String(e) }));
+  const emails = await enrichBizLeads(8).catch(() => 0);
+  console.log(`[biz leads top-up] ready ${ready ?? 0} < ${want}: searched ${found.searches}, added ${found.added}, emails found ${emails}`);
+  return { ready, topUp: true, found, emails };
+}
+
+/** Every 10 minutes (dispatch cron): this run's share of today's outreach, when the engine is on and sends from our domain. */
+export async function outreachTick() {
+  const s = await getBizLeadSettings();
+  if (!s.enabled || s.sender !== "own" || !outreachReady()) return null;
+  return sendOwnOutreach(s, { aiMs: 60_000 });
+}
+
+/**
+ * Hourly watchdog (dispatch cron): tells staff when the engine that should run by itself has stalled — nothing sent by
+ * early afternoon on a weekday, no new businesses found for 3 days, or nobody left to email. One open alert per problem.
+ */
+export async function bizEngineWatchdog() {
+  const s = await getBizLeadSettings();
+  if (!s.enabled) return { checked: false };
+  const problems: [string, string][] = [];
+  const hourET = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
+  const weekday = !["Sat", "Sun"].includes(new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", weekday: "short" }).format(new Date()));
+  const [{ count: queued }, { count: due }, { data: newest }] = await Promise.all([
+    db().from("biz_leads").select("id", { count: "exact", head: true }).eq("status", "queued").not("email", "is", null).neq("segment", "partner"),
+    db().from("biz_leads").select("id", { count: "exact", head: true }).in("status", ["emailing", "clicked"]).lte("next_send_at", new Date().toISOString()),
+    db().from("biz_leads").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const ownOk = s.sender !== "own" || (outreachReady() && Boolean(process.env.BUSINESS_POSTAL_ADDRESS));
+  if (!ownOk) problems.push(["Outreach is on but the handledsvc.net mailbox isn't connected", "Set OUTREACH_SMTP_USER, OUTREACH_SMTP_PASSWORD and BUSINESS_POSTAL_ADDRESS in Vercel and redeploy. Hub → Business leads → Check mailbox shows what's wrong."]);
+  else if (s.sender === "own" && weekday && hourET >= 13 && hourET < 17 && (queued ?? 0) + (due ?? 0) > 0 && (await ownSentToday()) === 0)
+    problems.push(["Outreach hasn't sent anything today", `${queued ?? 0} businesses are waiting for a first email and ${due ?? 0} follow-ups are due, but nothing has gone out since midnight. Check the mailbox in Hub → Business leads (login, password) and that the 10-minute job is running.`]);
+  if (process.env.GOOGLE_PLACES_API_KEY && newest?.created_at && Date.now() - new Date(newest.created_at).getTime() > 3 * 86400000)
+    problems.push(["No new businesses found in 3 days", "The daily search found nothing new. Add cities or segments in Hub → Business leads, or check the GOOGLE_PLACES_API_KEY quota."]);
+  if ((queued ?? 0) === 0 && (due ?? 0) === 0)
+    problems.push(["Nobody left to email", "Every found business has been emailed. Add cities or segments in Hub → Business leads so the daily search finds more."]);
+  for (const [title, body] of problems) {
+    const { count } = await db().from("ops_alerts").select("id", { count: "exact", head: true }).eq("kind", "sales").eq("title", title).eq("resolved", false);
+    if (!count) await raiseAlert("sales", "warn", title, body);
+  }
+  return { checked: true, problems: problems.map(([t]) => t) };
 }
 
 /** Every 10 minutes: replies and bounces in the outreach inbox → the same path as Instantly's events (AI read, alerts, stop). */
