@@ -45,6 +45,7 @@
  *           Campaigns (Email, Social media, Growth), Customers (Customers & B2B, Points), Quotes & bids, Markets & pricing
  *           (City scorecard, Pricing). The AI team and Website look moved to Front Office. Every page keeps its address.
  * UPDATED : 2026-11-17_2350 UTC — Clients & sales → Walkthroughs (/hub/walkthroughs): free walkthroughs businesses booked themselves.
+ * UPDATED : 2026-11-20_0415 UTC — one Dashboard entry in the sidebar (Today | This month), instead of Daily Briefing + Dashboard.
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -63,9 +64,9 @@ export type HubSection = {
 };
 
 /** Always at the top of the sidebar. */
+// one Dashboard (owner, 2026-11-20: no bloat): opens on Today; This month is a switch at the top of the page
 export const HUB_TOP: readonly (readonly [href: string, icon: string, label: string])[] = [
-  ["/hub/briefing", "☀️", "Daily Briefing"],
-  ["/hub", "📊", "Dashboard"],
+  ["/hub/briefing", "📊", "Dashboard"],
 ];
 
 export const HUB_SECTIONS: readonly HubSection[] = [
@@ -156,7 +157,8 @@ export const sectionsFor = (admin: boolean): HubSection[] =>
 const under = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
 
 /** Whether a top link is the current page ("/hub" itself and its drill-downs only, not every hub page). */
-export const topActive = (path: string, href: string) => (href === "/hub" ? path === "/hub" || path.startsWith("/hub/stats") : under(path, href));
+export const topActive = (path: string, href: string) =>
+  href === "/hub/briefing" ? path === "/hub" || path.startsWith("/hub/stats") || under(path, "/hub/briefing") : href === "/hub" ? path === "/hub" || path.startsWith("/hub/stats") : under(path, href);
 export const linkActive = (path: string, href: string) => under(path, href);
 /** Every page behind a tab: [page href, tab href] — the tab itself, plus the pages merged into it. */
 const pagesOf = (s: HubSection) => [...s.links.map(([h]) => [h, h] as const), ...Object.entries(s.groups ?? {}).flatMap(([tab, list]) => list.map(([h]) => [h, tab] as const))];

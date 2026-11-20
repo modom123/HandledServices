@@ -6,8 +6,10 @@
  *           scannable: only the queues that need someone (chips); the AI brief as today's top actions + three
  *           one-liners with every other section folded; today's schedule as a compact list by arrival window with
  *           "needs a pro" flagged; urgent alerts first (two lines each), the rest folded.
+ * UPDATED : 2026-11-20_0415 UTC — one Dashboard: Today | This month switch (DashboardSwitch).
  */
 import Link from "next/link";
+import { DashboardSwitch } from "@/components/DashboardSwitch";
 import { getService, type Job } from "@handled/core";
 import { Badge, StatusBadge } from "@/components/ui";
 import { ResolveAlert } from "@/components/HubActions";
@@ -69,7 +71,7 @@ export default function BriefingView({ funnel, open, alerts, todays, apps, iebcP
           <h1 className="text-2xl font-bold">Good {new Date().getHours() < 12 ? "morning" : "afternoon"}</h1>
           <p className="text-sm text-ink-soft">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {jobs.length} visit{jobs.length === 1 ? "" : "s"} today{noPro ? ` (${noPro} without a pro)` : ""} · {waiting ? `${waiting} thing${waiting === 1 ? "" : "s"} waiting on you` : "nothing waiting on you"}</p>
         </div>
-        <div className="flex flex-wrap gap-2"><Link href="/hub" className="btn-ghost">📊 Dashboard</Link><Link href="/hub/assistant" className="btn-dark">✨ Ask the AI</Link></div>
+        <div className="flex flex-wrap items-center gap-2"><DashboardSwitch on="today" /><Link href="/hub/assistant" className="btn-dark">✨ Ask the AI</Link></div>
       </div>
 
       {/* waiting on a person: only what needs someone */}
