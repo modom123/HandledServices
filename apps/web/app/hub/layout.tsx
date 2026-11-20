@@ -38,6 +38,7 @@
  *           page; 📊 Dashboard is stats and insights with drill-down history (/hub/stats/[metric]).
  * UPDATED : 2026-10-15_0100 UTC — declutter: sidebar is Briefing, Dashboard + one link per section (Pros, Jobs, Clients,
  *           Money, Growth, AI team, Settings); each section's pages are tabs across the top. Map: lib/hub-sections.
+ * UPDATED : 2026-11-20_0100 UTC — Clients & Marketing funnel counts passed to SectionTabs.
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -47,6 +48,7 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import { NotConfigured } from "@/components/ui";
 import { HubNav, SectionTabs } from "@/components/HubNav";
 import { sectionsFor } from "@/lib/hub-sections";
+import { clientsFunnel } from "@/lib/clients-funnel";
 import { adminClient } from "@/lib/supabase/server";
 
 export const metadata = { title: { default: "Mastermind", template: "%s · Mastermind" } };
@@ -71,6 +73,8 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   const { data: me } = await adminClient().from("profiles").select("staff_no").eq("id", v.userId).maybeSingle().then((r) => r, () => ({ data: null }));
   const staffNo = (me as { staff_no?: string | null } | null)?.staff_no ?? null;
   const sections = sectionsFor(isAdmin(v));
+  // the Clients & Marketing funnel (cheap head counts); SectionTabs shows it only on that section's pages
+  const funnel = await clientsFunnel().catch(() => []);
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="bg-brand-deep p-4 text-white md:min-h-screen">
@@ -79,7 +83,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
         <HubNav sections={sections} />
         <div className="mt-8 hidden px-2 text-xs text-white/40 md:block">{v.fullName ?? v.email}<br />{v.role}{staffNo ? ` · ${staffNo}` : ""}<form action="/auth/signout" method="post"><button className="mt-2 underline">Sign out</button></form></div>
       </aside>
-      <main className="min-w-0 bg-paper p-4 md:p-8"><SectionTabs sections={sections} />{children}</main>
+      <main className="min-w-0 bg-paper p-4 md:p-8"><SectionTabs sections={sections} funnel={funnel} />{children}</main>
     </div>
   );
 }

@@ -3,7 +3,7 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-15_0100 UTC
  * PURPOSE : One map of Mastermind (the Handled hub). The sidebar shows Daily Briefing, Dashboard and one link per
- *           section (Pros & recruiting, Jobs, Clients & sales, Money, Marketing & AI, Front Office); the pages inside a section show as tabs
+ *           section (Jobs, Pros, Recruiting, Clients & Marketing, Partners, Money, Front Office); the pages inside a section show as tabs
  *           across the top (components/HubNav → SectionTabs). Add a page here and it appears in both places.
  *           Shared by the server layout and the client nav, so no server-only imports.
  * UPDATED : 2026-10-15_0200 UTC — four merges, each one tab with a two-way switch (components/ViewSwitch): Roster + Network
@@ -39,6 +39,10 @@
  *           recruiting tools), each with email, Zoom and the to-do list shared between them. Admins only.
  * UPDATED : 2026-11-18_0215 UTC — Partners → AI vs Sales Force (/hub/scorecard, admins): the sales scorecard.
  * UPDATED : 2026-11-18_0105 UTC — Clients & sales → Sales Force (/hub/sales-force, admins).
+ * UPDATED : 2026-11-20_0100 UTC — Clients and Marketing & AI combined into one section, Clients & Marketing (owner: they
+ *           overlap): five tabs in the order a customer comes in — Leads (Lead inbox, Business leads, Walkthroughs),
+ *           Campaigns (Email, Social media, Growth), Customers (Customers & B2B, Points), Quotes & bids, Markets & pricing
+ *           (City scorecard, Pricing). The AI team and Website look moved to Front Office. Every page keeps its address.
  * UPDATED : 2026-11-17_2350 UTC — Clients & sales → Walkthroughs (/hub/walkthroughs): free walkthroughs businesses booked themselves.
  */
 
@@ -99,15 +103,23 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     groups: {
       "/hub/recruiting/pipeline": [["/hub/recruiting/pipeline", "Pipeline"], ["/hub/recruiting", "Overview"]],
     } },
-  // the people and companies who buy from us, and the leads that become them
-  { id: "clients", icon: "👥", label: "Clients", also: ["/hub/business", "/hub/gov"], links: [
-    ["/hub/customers", "Customers & B2B"],
-    ["/hub/inbox", "Lead inbox"],
-    ["/hub/biz-leads", "Business leads"],
-    ["/hub/walkthroughs", "Walkthroughs"],
-    ["/hub/bids", "Bids & contracts"],
-    ["/hub/quotes", "Marketplace & quotes"],
-  ] },
+  // one funnel (owner, 2026-11-20): leads come in → campaigns reach them → they become customers → quotes and bids → which
+  // markets to grow. Marketing and clients overlapped, so they're one section; the switch under each tab holds the rest.
+  { id: "clients", icon: "👥", label: "Clients & Marketing", also: ["/hub/business", "/hub/gov"],
+    links: [
+      ["/hub/inbox", "Leads"],
+      ["/hub/email", "Campaigns"],
+      ["/hub/customers", "Customers"],
+      ["/hub/quotes", "Quotes & bids"],
+      ["/hub/cities", "Markets & pricing"],
+    ],
+    groups: {
+      "/hub/inbox": [["/hub/inbox", "Lead inbox"], ["/hub/biz-leads", "Business leads"], ["/hub/walkthroughs", "Walkthroughs"]],
+      "/hub/email": [["/hub/email", "Email"], ["/hub/social", "Social media"], ["/hub/growth", "Growth"]],
+      "/hub/customers": [["/hub/customers", "Customers & B2B"], ["/hub/loyalty", "Points"]],
+      "/hub/quotes": [["/hub/quotes", "Marketplace & quotes"], ["/hub/bids", "Bids & contracts"]],
+      "/hub/cities": [["/hub/cities", "City scorecard"], ["/hub/pricing", "Pricing"]],
+    } },
   // people who send us customers or sell for us (referrals, field sales tickets, commissions)
   { id: "partners", icon: "🤝", label: "Partners", links: [
     ["/hub/partners", "Referral & field sales partners"],
@@ -120,23 +132,15 @@ export const HUB_SECTIONS: readonly HubSection[] = [
     ["/hub/charges", "Quick Charge"],
     ["/hub/factoring", "Factoring"],
   ] },
-  { id: "growth", icon: "📈", label: "Marketing & AI", links: [
-    ["/hub/growth", "Growth"],
-    ["/hub/social", "Social media"],
-    ["/hub/email", "Email"],
-    ["/hub/loyalty", "Points"],
-    ["/hub/pricing", "Pricing"],
-    ["/hub/cities", "City scorecard"],
-    ["/hub/site", "Website look"],
-    ["/hub/agents", "AI agents & IEBC"],
-    ["/hub/assistant", "AI assistant"],
-  ] },
   // the business itself: who works here, the contracts we use, and getting (and staying) ready to operate
   { id: "front-office", icon: "🏢", label: "Front Office", alias: [["^/hub/office/odom", "/hub/office/odom"], ["^/hub/office/gulley", "/hub/office/gulley"]], links: [
     ["/hub/office/odom", "Mark Odom · CEO"],
     ["/hub/office/gulley", "Cecilia Gulley · Strategy & Recruiting"],
     ["/hub/team", "Team"],
     ["/hub/contracts", "Contract library"],
+    ["/hub/agents", "AI agents & IEBC"],
+    ["/hub/assistant", "AI assistant"],
+    ["/hub/site", "Website look"],
     ["/hub/setup", "Go-live setup"],
   ] },
 ];
