@@ -14,6 +14,9 @@
  * UPDATED : 2026-11-17_2330 UTC — email reads in place (OfficeMail): opening an email stays on the office page, and Back
  *           (the link or the browser's) returns to the inbox instead of leaving the office. The page also loads faster:
  *           the inbox loads after the page instead of holding it up.
+ * UPDATED : 2026-11-20_0400 UTC — tool links come from the Hub map (lib/hub-sections), so they stay current as pages are
+ *           added or moved: the CEO's office lists every section, the recruiting office Recruiting and Pros. The CEO's
+ *           office also shows the sales & marketing funnel (lib/clients-funnel).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -23,12 +26,40 @@ import { adminOnly } from "@/components/AdminOnly";
 import { Stat } from "@/components/ui";
 import { OFFICES, officeBySlug, officeEmail, officeMail, type Office } from "@/lib/offices";
 import { listTodos, otherOffice } from "@/lib/office-todos";
+import { sectionsFor, type HubSection } from "@/lib/hub-sections";
+import { clientsFunnel } from "@/lib/clients-funnel";
 import { OfficeMail, TodoBoard, VerifyMailbox, type TodoView } from "@/components/Office";
 
 export const dynamic = "force-dynamic";
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { timeZone: "America/Detroit", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+/**
+ * The office's tool links come from the Hub's own map (lib/hub-sections), so they stay current as the organization
+ * changes: a page added, renamed or moved in the Hub shows up here on its own (owner, 2026-11-20). Each section lists
+ * its tabs and the pages merged under them.
+ */
+function SectionTools({ ids }: { ids?: string[] }) {
+  const all = sectionsFor(true).filter((x) => x.id !== "front-office" && (!ids || ids.includes(x.id)));
+  const pages = (x: HubSection) => {
+    const seen = new Set<string>(), out: [string, string][] = [];
+    for (const [href, label] of x.links) {
+      for (const [h, l] of x.groups?.[href] ?? [[href, label] as const]) if (!seen.has(h)) { seen.add(h); out.push([h, l]); }
+    }
+    return out;
+  };
+  return (
+    <div className="space-y-2">
+      {all.map((x) => (
+        <div key={x.id} className="flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="w-40 shrink-0 font-semibold">{x.icon} {x.label}</span>
+          {pages(x).map(([href, label]) => <Link key={href} href={href} className="rounded-lg border border-line bg-white px-2.5 py-1 text-xs hover:border-brand">{label}</Link>)}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Tools({ links }: { links: [string, string][] }) {
   return <div className="flex flex-wrap gap-2">{links.map(([href, label]) => <Link key={href} href={href} className="btn-ghost text-sm">{label}</Link>)}</div>;
@@ -38,12 +69,13 @@ async function OpsTools() {
   const db = adminClient();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-  const [{ data: todays }, { count: noPro }, { data: alerts }, { count: legal }, { data: done }] = await Promise.all([
+  const [{ data: todays }, { count: noPro }, { data: alerts }, { count: legal }, { data: done }, funnel] = await Promise.all([
     db.from("jobs").select("ref, service_slug, status, time_window, contractor_id").eq("scheduled_date", today).limit(200),
     db.from("jobs").select("id", { count: "exact", head: true }).is("contractor_id", null).in("status", ["requested", "scheduled"]),
     db.from("ops_alerts").select("id, severity, title, created_at").eq("resolved", false).in("severity", ["critical", "warn"]).order("created_at", { ascending: false }).limit(8),
     db.from("agent_tasks").select("id", { count: "exact", head: true }).eq("agent", "legal").eq("status", "open"),
     db.from("jobs").select("price_final").eq("status", "completed").gte("completed_at", weekAgo).limit(5000),
+    clientsFunnel().catch(() => []),
   ]);
   const jobs = (todays ?? []) as { ref: string; service_slug: string; status: string; time_window: string | null; contractor_id: string | null }[];
   const revenue = ((done ?? []) as { price_final: number | null }[]).reduce((s, j) => s + Number(j.price_final ?? 0), 0);
@@ -65,7 +97,17 @@ async function OpsTools() {
           </ul>
         ) : <p className="text-sm text-ink-soft">No open warnings.</p>}
       </div>
-      <Tools links={[["/hub/briefing", "☀️ Daily briefing"], ["/hub/jobs", "🗂️ Jobs"], ["/hub/roster", "🗺️ Live map"], ["/hub/coverage", "🛟 Cancellations"], ["/hub/money", "💵 Money"], ["/hub/accounting", "📒 Accounting"], ["/hub/agents", "🤖 AI agents & legal"], ["/hub/partners", "🤝 Partners"], ["/hub/setup", "✅ Go-live setup"]]} />
+      {funnel.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold">Sales & marketing</h3>
+          <div className="mt-1 flex flex-wrap gap-1 text-xs">{funnel.map((f) => <Link key={f.href} href={f.href} title={f.hint} className="rounded-lg border border-line bg-white px-2.5 py-1 hover:border-brand"><b className="text-sm">{f.n ?? "—"}</b> <span className="text-ink-soft">{f.label}</span></Link>)}</div>
+        </div>
+      )}
+      <Tools links={[["/hub/briefing", "☀️ Daily briefing"], ["/hub/setup", "✅ Go-live setup"], ["/hub/agents", "🤖 AI agents & legal"]]} />
+      <div>
+        <h3 className="mb-1 text-sm font-semibold">Every tool, by section</h3>
+        <SectionTools />
+      </div>
     </section>
   );
 }
@@ -107,7 +149,7 @@ async function RecruitingTools() {
           {!list.length && <li className="py-1.5 text-ink-soft">No applications yet.</li>}
         </ul>
       </div>
-      <Tools links={[["/hub/recruiting/pipeline", "📋 Pipeline"], ["/hub/recruiting/openings", "📌 Openings"], ["/hub/recruiting/indeed", "🔎 Indeed"], ["/hub/leads", "🧲 Pro leads"], ["/hub/recruiting/onboarding", "🚀 Onboarding"], ["/hub/recruiting/files", "🗃️ Pro files"], ["/hub/gaps", "🕳️ Supply gaps"], ["/hub/talent", "🤝 Client searches"]]} />
+      <SectionTools ids={["recruiting", "pros"]} />
     </section>
   );
 }
