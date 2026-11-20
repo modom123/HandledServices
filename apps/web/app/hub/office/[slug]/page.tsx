@@ -17,6 +17,8 @@
  * UPDATED : 2026-11-20_0400 UTC — tool links come from the Hub map (lib/hub-sections), so they stay current as pages are
  *           added or moved: the CEO's office lists every section, the recruiting office Recruiting and Pros. The CEO's
  *           office also shows the sales & marketing funnel (lib/clients-funnel).
+ * UPDATED : 2026-11-20_0415 UTC — no repeats: today's jobs, alerts and revenue moved to the Dashboard (Today | This month);
+ *           the CEO's ops tools keep links to it, legal reviews open, the sales funnel and every tool by section.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,7 +35,6 @@ import { OfficeMail, TodoBoard, VerifyMailbox, type TodoView } from "@/component
 export const dynamic = "force-dynamic";
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { timeZone: "America/Detroit", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 /**
  * The office's tool links come from the Hub's own map (lib/hub-sections), so they stay current as the organization
@@ -61,41 +62,23 @@ function SectionTools({ ids }: { ids?: string[] }) {
   );
 }
 
-function Tools({ links }: { links: [string, string][] }) {
-  return <div className="flex flex-wrap gap-2">{links.map(([href, label]) => <Link key={href} href={href} className="btn-ghost text-sm">{label}</Link>)}</div>;
-}
-
 async function OpsTools() {
+  // today's jobs, alerts and the month's numbers live on the Dashboard (one place, no repeats); the office keeps what
+  // is its own: legal reviews waiting, the sales & marketing funnel, and every tool by section
   const db = adminClient();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-  const [{ data: todays }, { count: noPro }, { data: alerts }, { count: legal }, { data: done }, funnel] = await Promise.all([
-    db.from("jobs").select("ref, service_slug, status, time_window, contractor_id").eq("scheduled_date", today).limit(200),
-    db.from("jobs").select("id", { count: "exact", head: true }).is("contractor_id", null).in("status", ["requested", "scheduled"]),
-    db.from("ops_alerts").select("id, severity, title, created_at").eq("resolved", false).in("severity", ["critical", "warn"]).order("created_at", { ascending: false }).limit(8),
+  const [{ count: legal }, { count: urgent }, funnel] = await Promise.all([
     db.from("agent_tasks").select("id", { count: "exact", head: true }).eq("agent", "legal").eq("status", "open"),
-    db.from("jobs").select("price_final").eq("status", "completed").gte("completed_at", weekAgo).limit(5000),
+    db.from("ops_alerts").select("id", { count: "exact", head: true }).eq("resolved", false).in("severity", ["critical", "warn"]),
     clientsFunnel().catch(() => []),
   ]);
-  const jobs = (todays ?? []) as { ref: string; service_slug: string; status: string; time_window: string | null; contractor_id: string | null }[];
-  const revenue = ((done ?? []) as { price_final: number | null }[]).reduce((s, j) => s + Number(j.price_final ?? 0), 0);
-  const al = (alerts ?? []) as { id: string; severity: string; title: string; created_at: string }[];
   return (
     <section className="card space-y-3">
       <h2 className="text-lg font-bold">🧭 Ops tools</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Jobs today" value={jobs.length} hint={`${jobs.filter((j) => !j.contractor_id).length} without a pro`} />
-        <Stat label="Need a pro" value={noPro ?? 0} hint="requested or scheduled, unassigned" />
-        <Stat label="Revenue, 7 days" value={usd(revenue)} hint={`${(done ?? []).length} completed jobs`} />
-        <Stat label="Legal reviews open" value={legal ?? 0} hint="Legal & Compliance team" />
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold">Needs attention</h3>
-        {al.length ? (
-          <ul className="mt-1 divide-y divide-line text-sm">
-            {al.map((a) => <li key={a.id} className="py-1.5"><span className={`mr-2 rounded px-1.5 text-xs ${a.severity === "critical" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{a.severity}</span>{a.title}<span className="ml-2 text-xs text-ink-soft">{when(a.created_at)}</span></li>)}
-          </ul>
-        ) : <p className="text-sm text-ink-soft">No open warnings.</p>}
+      <div className="flex flex-wrap gap-2 text-sm">
+        <Link href="/hub/briefing" className="btn-ghost">📊 Dashboard: today{urgent ? ` · ${urgent} alert${urgent === 1 ? "" : "s"}` : ""}</Link>
+        <Link href="/hub" className="btn-ghost">📈 This month</Link>
+        <Link href="/hub/agents" className="btn-ghost">⚖️ Legal reviews open: {legal ?? 0}</Link>
+        <Link href="/hub/setup" className="btn-ghost">✅ Go-live setup</Link>
       </div>
       {funnel.length > 0 && (
         <div>
@@ -103,7 +86,6 @@ async function OpsTools() {
           <div className="mt-1 flex flex-wrap gap-1 text-xs">{funnel.map((f) => <Link key={f.href} href={f.href} title={f.hint} className="rounded-lg border border-line bg-white px-2.5 py-1 hover:border-brand"><b className="text-sm">{f.n ?? "—"}</b> <span className="text-ink-soft">{f.label}</span></Link>)}</div>
         </div>
       )}
-      <Tools links={[["/hub/briefing", "☀️ Daily briefing"], ["/hub/setup", "✅ Go-live setup"], ["/hub/agents", "🤖 AI agents & legal"]]} />
       <div>
         <h3 className="mb-1 text-sm font-semibold">Every tool, by section</h3>
         <SectionTools />
