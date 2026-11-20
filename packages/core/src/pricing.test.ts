@@ -3415,3 +3415,21 @@ test("pro invitations: weekly for 60 days (or 90), then retire (2026-11-20)", as
   assert.doesNotMatch(leadEmail({ ...ctx, step: 4, total: 9 }).subject, /Last note/, "not in the middle");
   assert.match(leadEmail({ ...ctx, step: 2, total: 3 }).subject, /Last note/, "the 3-email Instantly campaign still ends with it");
 });
+
+test("lead searches only where we have pros, idle pros first (2026-11-20)", async () => {
+  const { proAreaTargets, PRO_NEEDS_WORK } = await import("./biz-lead-engine.ts");
+  const { getService } = await import("./services.ts");
+  const tradesOf = (slug: string) => getService(slug)?.trades ?? [];
+  const busy = PRO_NEEDS_WORK.jobsPer30 + 5;
+  const t = proAreaTargets([
+    { zip: "48201", trades: ["cleaning"], jobs30: busy },
+    { zip: "48201", trades: ["cleaning"], jobs30: busy },
+    { zip: "48226", trades: ["cleaning"], jobs30: 0 },
+    { zip: null, trades: ["cleaning"], jobs30: 0 },
+    { zip: "48075", trades: [], jobs30: 0 },
+  ], tradesOf);
+  assert.deepEqual(t.map((x) => x.zip), ["48226", "48201"], "only ZIPs with a pro and a trade; the idle pro's area first");
+  assert.equal(t[1].pros, 2, "busy areas are still searched");
+  assert.ok(t[0].segments.length > 0, "segments that buy cleaning");
+  assert.deepEqual(proAreaTargets([], tradesOf), [], "no pros: nowhere to search");
+});
