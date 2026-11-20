@@ -8,6 +8,7 @@
  * UPDATED : 2026-11-17_2335 UTC — "✨ Write with AI": pick a goal (or type one), an optional offer and Spanish; the AI campaign writer
  *           fills subject, preview text and body for you to edit, test and send. Nothing is sent by the AI.
  * UPDATED : 2026-11-19_1540 UTC — {{post_url}} in the tag list and preview.
+ * UPDATED : 2026-11-20_0040 UTC — the mailbox check names the mailbox campaigns send from (handledsvc.net when set).
  */
 "use client";
 
@@ -171,13 +172,14 @@ export function EmailSettingsForm({ s }: { s: { from_name: string; reply_to: str
       </div>
       {check && (
         <div className="rounded-lg bg-paper p-3 text-xs">
+          {(check as { sender?: string | null }).sender && <div className="font-semibold">Campaigns send from {(check as { sender?: string | null }).sender}{(check as { servers?: string }).servers ? ` · ${(check as { servers?: string }).servers}` : ""}</div>}
           <div>Sending (SMTP): {check.smtp === "ok" ? "✅ connected" : `❌ ${check.smtp}`}</div>
           <div>Inbox (IMAP): {check.imap === "ok" ? "✅ connected" : `❌ ${check.imap}`}</div>
           <div>{check.dns.domain}: SPF {check.dns.spf ? "✅" : "❌"} · DKIM {check.dns.dkim ? "✅" : "❌"} · DMARC {check.dns.dmarc ? "✅" : "❌"}</div>
           {check.dns.notes.map((n) => <div key={n} className="mt-1 text-amber-800">{n}</div>)}
         </div>
       )}
-      <p className="text-xs text-ink-soft">Hostinger limits how many emails a mailbox sends per day (it depends on your plan). Keep the cap under it; new mailboxes should start low (100–200/day) and grow.</p>
+      <p className="text-xs text-ink-soft">Your email host limits how many emails a mailbox sends per day (it depends on your plan). Keep the cap under it; new mailboxes should start low (100–200/day) and grow.</p>
     </div>
   );
 }

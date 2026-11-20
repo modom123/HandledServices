@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-17_2335 UTC — AI email outreach from handledsvc.net: "AI personalizes each email" setting; OutreachReplyBox (their
  *           reply, the AI's draft answer, edit and send from the outreach mailbox in their thread); EmailPreview (what the
  *           AI writer would send this lead, nothing sent).
+ * UPDATED : 2026-11-20_0040 UTC — the mailbox check shows which mail servers it used.
  */
 "use client";
 
@@ -111,7 +112,7 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
           setMsg("Checking the outreach mailbox…");
           const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify_outreach" }) });
           const j = await r.json().catch(() => ({}));
-          setMsg(r.ok ? `Outreach mailbox ${j.dns?.domain ?? "(not set)"}: sending ${j.login?.smtp}, inbox ${j.login?.imap} · SPF ${j.dns?.spf ? "✓" : "✗"} DKIM ${j.dns?.dkim ? "✓" : "✗"} DMARC ${j.dns?.dmarc ? "✓" : "✗"}${j.dns?.notes?.length ? ` — ${j.dns.notes.join(" ")}` : ""}` : String(j.error ?? "Failed"));
+          setMsg(r.ok ? `Outreach mailbox ${j.dns?.domain ?? "(not set)"}${j.login?.servers ? ` (${j.login.servers})` : ""}: sending ${j.login?.smtp}, inbox ${j.login?.imap} · SPF ${j.dns?.spf ? "✓" : "✗"} DKIM ${j.dns?.dkim ? "✓" : "✗"} DMARC ${j.dns?.dmarc ? "✓" : "✗"}${j.dns?.notes?.length ? ` — ${j.dns.notes.join(" ")}` : ""}` : String(j.error ?? "Failed"));
         }}>Check outreach mailbox</button>
         <button className="btn-ghost" onClick={async () => { setMsg("Searching job boards…"); const e = await post({ action: "job_posts" }); setMsg(e ?? "Done — new job-posting leads are in the list"); router.refresh(); }}>Find job postings now</button>
         {msg && <span className="self-center text-ink-soft">{msg}</span>}
