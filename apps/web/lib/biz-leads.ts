@@ -60,6 +60,7 @@
  *           first emails are ready; outreachTick sends this hour's share of today's outreach (weekdays 9–5 Eastern); bizEngineWatchdog
  *           alerts staff (hourly) when sending stalls, discovery finds nothing for 3 days, or nobody is left to email.
  * UPDATED : 2026-11-20_0200 UTC — the outreach inbox also stops pro invitations on a reply or bounce.
+ * UPDATED : 2026-11-20_0230 UTC — discovery reports what Google returned (found) and why a search failed (googleError) instead of failing silently.
  */
 import "server-only";
 import { z } from "zod";
@@ -125,16 +126,25 @@ export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: numbe
     return { segment: s.segments[(day + i) % s.segments.length], where: `${mt.city}, ${mt.state}`, city: mt.city, state: mt.state, idle: 0 };
   });
   const list = [...near, ...usual];
-  let added = 0, nearIdlePros = 0;
+  let added = 0, nearIdlePros = 0, found = 0;
+  let googleError: string | null = null;
   for (const t of list) {
     const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.addressComponents" },
       body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} ${t.idle ? "near" : "in"} ${t.where}`, maxResultCount: 20 }),
       signal: AbortSignal.timeout(10000),
-    }).catch(() => null);
-    if (!r?.ok) continue;
+    }).catch((e) => { googleError ??= `couldn't reach Google (${String(e).slice(0, 80)})`; return null; });
+    if (!r) continue;
+    if (!r.ok) {
+      // say why (key not valid, Places API (New) not enabled, billing off, quota) instead of failing silently
+      const why = await r.json().then((x: { error?: { message?: string; status?: string } }) => x.error?.message ?? x.error?.status ?? "").catch(() => "");
+      googleError ??= `Google Places said ${r.status}${why ? `: ${String(why).slice(0, 220)}` : ""}`;
+      if ([400, 401, 403].includes(r.status)) break; // the key is the problem: no point trying the other searches
+      continue;
+    }
     const j = (await r.json()) as { places?: { id: string; displayName?: { text: string }; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; businessStatus?: string; addressComponents?: { longText: string; shortText?: string; types: string[] }[] }[] };
+    found += (j.places ?? []).length;
     for (const p of j.places ?? []) {
       if (p.businessStatus && p.businessStatus !== "OPERATIONAL") continue;
       const comp = (type: string) => p.addressComponents?.find((c) => c.types.includes(type))?.longText ?? null;
@@ -155,7 +165,7 @@ export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: numbe
       }
     }
   }
-  return { searches: list.length, added, nearIdlePros };
+  return { searches: list.length, found, added, nearIdlePros, googleError };
 }
 
 export const jobBoardReady = () => Boolean(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);

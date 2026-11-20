@@ -13,6 +13,7 @@
  *           reply, the AI's draft answer, edit and send from the outreach mailbox in their thread); EmailPreview (what the
  *           AI writer would send this lead, nothing sent).
  * UPDATED : 2026-11-20_0040 UTC — the mailbox check shows which mail servers it used.
+ * UPDATED : 2026-11-20_0230 UTC — Run now says what happened: businesses returned by Google, new leads, emails found and sent, and any Google error.
  */
 "use client";
 
@@ -24,6 +25,15 @@ async function post(body: unknown) {
   const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   return r.ok ? null : String(j.error ?? "Failed");
+}
+
+/** What a "Run now" did, in plain words: how many businesses Google returned, how many are new, emails found, sent. */
+function runSummary(x: unknown): string {
+  const r = (x ?? {}) as { enabled?: boolean; discovered?: { searches?: number; found?: number; added?: number; nearIdlePros?: number; googleError?: string | null }; emailsFound?: number; sent?: { sent?: number; note?: string; error?: string } };
+  if (r.enabled === false) return "The engine is off: tick \"Engine on\", Save, then Run now.";
+  const d = r.discovered ?? {};
+  const parts = [`Searched ${d.searches ?? 0}× on Google: ${d.found ?? 0} businesses returned, ${d.added ?? 0} new on the list${d.nearIdlePros ? ` (${d.nearIdlePros} near pros who need work)` : ""}`, `${r.emailsFound ?? 0} emails found`, `${r.sent?.sent ?? 0} emails sent${r.sent?.note ? ` (${r.sent.note})` : ""}`];
+  return `${parts.join(" · ")}.${d.googleError ? ` ⚠ ${d.googleError}` : ""}${r.sent?.error ? ` ⚠ ${r.sent.error}` : ""}`;
 }
 
 const JOB_SITES = ["Indeed", "ZipRecruiter", "LinkedIn", "Craigslist", "Facebook", "Glassdoor", "Company website", "Other"];
@@ -95,7 +105,13 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
       ))}</div>
       <div className="flex flex-wrap gap-2">
         <button className="btn-primary" onClick={async () => { const e = await post({ action: "settings", ...f }); setMsg(e ?? "Saved"); router.refresh(); }}>Save</button>
-        <button className="btn-ghost" onClick={async () => { setMsg("Running…"); const e = await post({ action: "run" }); setMsg(e ?? "Done"); router.refresh(); }}>Run now</button>
+        <button className="btn-ghost" onClick={async () => {
+          setMsg("Searching Google and sending…");
+          const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "run" }) });
+          const j = await r.json().catch(() => ({}));
+          setMsg(r.ok ? runSummary(j.result) : String(j.error ?? "Failed"));
+          router.refresh();
+        }}>Run now</button>
         <button className="btn-ghost" onClick={async () => {
           setMsg("Pulling leads from the Instantly campaign…");
           const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_instantly" }) });
