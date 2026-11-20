@@ -8,6 +8,7 @@
  * UPDATED : 2026-11-17_2335 UTC — "✨ Write with AI": pick a goal (or type one), an optional offer and Spanish; the AI campaign writer
  *           fills subject, preview text and body for you to edit, test and send. Nothing is sent by the AI.
  * UPDATED : 2026-11-19_1540 UTC — {{post_url}} in the tag list and preview.
+ * UPDATED : 2026-11-20_0300 UTC — says why Send is greyed out (a ⛔ problem in the letter, or nobody in the audience).
  * UPDATED : 2026-11-20_0040 UTC — the mailbox check names the mailbox campaigns send from (handledsvc.net when set).
  */
 "use client";
@@ -120,6 +121,14 @@ export function CampaignEditor({ initial, me }: { initial: Draft; me: string }) 
               if (r.ok) router.refresh(); else setMsg(r.data.error ?? "Couldn't schedule");
             }}>Schedule</button>
           </div>
+          {/* say why Send is greyed out instead of leaving it to guesswork */}
+          {!busy && (lint.blockers.length > 0 || (count && !count.count)) && (
+            <p className="text-xs font-semibold text-rose-700">{lint.blockers.length > 0
+              ? `Can't send yet: fix the ⛔ line${lint.blockers.length > 1 ? "s" : ""} above (${lint.blockers[0]}).`
+              : d.audience === "custom"
+                ? "Can't send yet: the pasted list has no valid email addresses (or everyone on it unsubscribed)."
+                : `Can't send yet: nobody in "${EMAIL_AUDIENCES[d.audience].label}" can be emailed right now. Pick another audience under "Who gets it", or paste a list (Custom).`}</p>
+          )}
           <p className="text-xs text-ink-soft">Sends {EMAIL_LIMITS.perRun}-ish every 10 minutes within your daily cap, so your mailbox stays in good standing. People who got another campaign in the last {EMAIL_LIMITS.minDaysBetween} days are skipped.</p>
         </div>
         {msg && <p className="font-semibold">{msg}</p>}
