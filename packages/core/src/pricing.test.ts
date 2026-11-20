@@ -3391,8 +3391,9 @@ test("sales engine goes where pros need work: idle pros' ZIPs first, with the bu
 test("outreach runs all business day, a few at a time (2026-11-20)", async () => {
   const { outreachSlice } = await import("./biz-lead-engine.ts");
   // Thursday 2026-11-19, Detroit is UTC-5
-  assert.equal(outreachSlice(40, new Date("2026-11-19T14:00:00Z")), 1, "9:00 ET: 40 left over 48 runs → 1");
-  assert.equal(outreachSlice(40, new Date("2026-11-19T21:40:00Z")), 20, "16:40 ET: 2 runs left → half each");
+  assert.equal(outreachSlice(40, new Date("2026-11-19T14:00:00Z")), 5, "9:00 ET: 40 left over 8 hourly runs → 5");
+  assert.equal(outreachSlice(40, new Date("2026-11-19T21:05:00Z")), 40, "16:05 ET: the last run of the day sends what's left");
+  assert.equal(outreachSlice(12, new Date("2026-11-19T19:00:00Z")), 4, "14:00 ET: 3 runs left → 4 each");
   assert.equal(outreachSlice(40, new Date("2026-11-19T13:50:00Z")), 0, "before 9:00 ET: nothing");
   assert.equal(outreachSlice(40, new Date("2026-11-19T22:00:00Z")), 0, "17:00 ET: done for the day");
   assert.equal(outreachSlice(40, new Date("2026-11-21T16:00:00Z")), 0, "Saturday: nothing");

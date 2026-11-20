@@ -16,7 +16,7 @@
  *           (site_settings cron_dispatch) so Go-live setup can confirm the 10-minute run.
  * UPDATED : 2026-11-11_0100 UTC — reads the outreach inbox (own outreach domain) for replies and bounces.
  * UPDATED : 2026-11-17_2350 UTC — walkthrough reminders (one email about a day before).
- * UPDATED : 2026-11-20_0130 UTC — every run sends its share of today's outreach (outreachTick); hourly lead top-up and engine watchdog.
+ * UPDATED : 2026-11-20_0130 UTC — hourly: this hour's share of today's outreach (outreachTick), lead top-up and engine watchdog.
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
@@ -49,9 +49,10 @@ export async function GET(req: Request) {
   } : null;
   // our own outreach domain: replies and bounces every 10 minutes
   const outreach = outreachReady() ? await checkOutreachInbox().catch((e) => ({ ok: false, error: String(e) })) : null;
-  // always on: this run's share of today's outreach (weekdays 9–5 Eastern), and an hourly check that the engine hasn't stalled
-  const sending = await outreachTick().catch((e) => ({ sent: 0, skipped: 0, error: String(e) }));
+  // always on, once an hour: this hour's share of today's outreach (weekdays 9–5 Eastern), more leads when the pipeline
+  // runs low, and a check that the engine hasn't stalled
   const hourly = new Date().getUTCMinutes() < 10;
+  const sending = hourly ? await outreachTick().catch((e) => ({ sent: 0, skipped: 0, error: String(e) })) : null;
   // keep the pipeline full: more businesses when fewer than ~3 days of first emails are ready (any day, up to 4×/day)
   const topUp = hourly ? await leadTopUp().catch((e) => ({ topUp: false, error: String(e) })) : null;
   const watchdog = hourly ? await bizEngineWatchdog().catch((e) => ({ checked: false, error: String(e) })) : null;

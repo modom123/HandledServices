@@ -57,7 +57,7 @@
  *           pros with < 4 jobs in 30 days (idleProTargets, core outreachTargets), for the businesses that buy their trades;
  *           those leads score +15 so they're emailed first.
  * UPDATED : 2026-11-20_0130 UTC — always on: leadTopUp searches for more businesses (hourly, up to 4×/day) when fewer than 3 days of
- *           first emails are ready; outreachTick sends this 10-minute run's share of today's outreach (weekdays 9–5 Eastern); bizEngineWatchdog
+ *           first emails are ready; outreachTick sends this hour's share of today's outreach (weekdays 9–5 Eastern); bizEngineWatchdog
  *           alerts staff (hourly) when sending stalls, discovery finds nothing for 3 days, or nobody is left to email.
  */
 import "server-only";
@@ -639,8 +639,8 @@ async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings, aiUntil
 }
 
 /**
- * Follow-ups that are due first, then new leads, within today's limit and the new domain's warm-up ramp. Runs every 10
- * minutes in business hours (outreachTick) and sends only this run's share of what's left today (core outreachSlice),
+ * Follow-ups that are due first, then new leads, within today's limit and the new domain's warm-up ramp. Runs once an
+ * hour in business hours (outreachTick) and sends only this run's share of what's left today (core outreachSlice),
  * so outreach goes out all day instead of in one burst.
  */
 export async function sendOwnOutreach(s: BizLeadSettings, o: { aiMs?: number } = {}) {
@@ -693,7 +693,7 @@ export async function leadTopUp() {
   return { ready, topUp: true, found, emails };
 }
 
-/** Every 10 minutes (dispatch cron): this run's share of today's outreach, when the engine is on and sends from our domain. */
+/** Once an hour (dispatch cron): this hour's share of today's outreach, when the engine is on and sends from our domain. */
 export async function outreachTick() {
   const s = await getBizLeadSettings();
   if (!s.enabled || s.sender !== "own" || !outreachReady()) return null;
