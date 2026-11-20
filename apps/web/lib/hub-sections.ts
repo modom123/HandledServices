@@ -4,7 +4,8 @@
  * CREATED : 2026-10-15_0100 UTC
  * PURPOSE : One map of Mastermind (the Handled hub). The sidebar shows Daily Briefing, Dashboard and one link per
  *           section (Jobs, Pros, Recruiting, Clients & Marketing, Partners, Money, Front Office); the pages inside a section show as tabs
- *           across the top (components/HubNav → SectionTabs). Add a page here and it appears in both places.
+ *           across the top (components/HubNav → SectionTabs). Add a page here and it appears everywhere: the sidebar, the
+ *           tabs, and the tool lists in the Front Office offices (app/hub/office/[slug]).
  *           Shared by the server layout and the client nav, so no server-only imports.
  * UPDATED : 2026-10-15_0200 UTC — four merges, each one tab with a two-way switch (components/ViewSwitch): Roster + Network
  *           health, Bids + Gov contracts, AI agents + IEBC Workforce, Market pricing + Pricing accuracy (/hub/pricing).
