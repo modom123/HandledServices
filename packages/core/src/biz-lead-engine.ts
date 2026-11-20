@@ -24,6 +24,7 @@
  *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-20_0130 UTC — outreachSlice / OUTREACH_WINDOW: outreach spread across the business day, once an hour.
+ * UPDATED : 2026-11-20_0330 UTC — proAreaTargets: every lead search is where we have pros (idle pros' ZIPs first).
  */
 import { BRAND } from "./brand.ts";
 
@@ -400,6 +401,23 @@ export function segmentsForTrades(trades: string[], tradesOf: (slug: string) => 
  * Where to look for business customers first: the ZIPs where approved pros need work, most idle pros first, each with
  * the kinds of business that buy their trades (ranked by how many idle pros they'd keep busy).
  */
+/**
+ * Every place we look for business customers (owner, 2026-11-20: "as we are pulling leads it needs to be based on where we
+ * have pros"): each ZIP where an approved pro is based, with the kinds of business that buy their trades. ZIPs where pros
+ * need work (fewer than PRO_NEEDS_WORK.jobsPer30 jobs in 30 days) come first, then the ones with the most pros.
+ */
+export function proAreaTargets(pros: ProCapacity[], tradesOf: (slug: string) => string[], limit = 40): (OutreachTarget & { pros: number })[] {
+  const byZip = new Map<string, ProCapacity[]>();
+  for (const p of pros) if (p.zip && /^\d{5}$/.test(p.zip) && p.trades.length) byZip.set(p.zip, [...(byZip.get(p.zip) ?? []), p]);
+  return [...byZip.entries()].map(([zip, ps]) => {
+    const idle = ps.filter((p) => p.jobs30 < PRO_NEEDS_WORK.jobsPer30);
+    const fit = new Map<BizSegment, number>();
+    // the segments idle pros would fill count double, so their work is sought first
+    for (const p of ps) for (const seg of segmentsForTrades(p.trades, tradesOf)) fit.set(seg, (fit.get(seg) ?? 0) + (p.jobs30 < PRO_NEEDS_WORK.jobsPer30 ? 2 : 1));
+    return { zip, pros: ps.length, idlePros: idle.length, trades: [...new Set(ps.flatMap((p) => p.trades))], segments: [...fit.entries()].sort((a, b) => b[1] - a[1]).map(([x]) => x) };
+  }).filter((t) => t.segments.length).sort((a, b) => b.idlePros - a.idlePros || b.pros - a.pros || a.zip.localeCompare(b.zip)).slice(0, limit);
+}
+
 export function outreachTargets(pros: ProCapacity[], tradesOf: (slug: string) => string[], limit = 12): OutreachTarget[] {
   const byZip = new Map<string, ProCapacity[]>();
   for (const p of pros) if (p.zip && /^\d{5}$/.test(p.zip) && p.jobs30 < PRO_NEEDS_WORK.jobsPer30 && p.trades.length) byZip.set(p.zip, [...(byZip.get(p.zip) ?? []), p]);

@@ -61,10 +61,13 @@
  *           alerts staff (hourly) when sending stalls, discovery finds nothing for 3 days, or nobody is left to email.
  * UPDATED : 2026-11-20_0200 UTC — the outreach inbox also stops pro invitations on a reply or bounce.
  * UPDATED : 2026-11-20_0230 UTC — discovery reports what Google returned (found) and why a search failed (googleError) instead of failing silently.
+ * UPDATED : 2026-11-20_0330 UTC — lead searches only where we have pros (proAreas): every search is near an approved pro's
+ *           ZIP, idle pros' areas first (2 of every 3 searches); no fixed metro list. No pros with a ZIP → no searches.
+ *           Job-posting leads (Adzuna) likewise: within 40 km of an approved pro's ZIP.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_AREAS, JOB_POST_QUERIES, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, proAreaTargets, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_QUERIES, stateForZip, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -105,34 +108,43 @@ export async function idleProTargets(limit = 12) {
     (slug) => getService(slug)?.trades ?? [], limit);
 }
 
+/** Every ZIP where an approved pro is based (core proAreaTargets): where lead searches happen, idle pros' areas first. */
+export async function proAreas(limit = 40) {
+  const { data: pros } = await db().from("contractors").select("id, base_zip, zip, trades").eq("status", "approved").limit(10000);
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { data: done } = await db().from("jobs").select("contractor_id").eq("status", "completed").gte("completed_at", since).not("contractor_id", "is", null).limit(50000);
+  const jobs = new Map<string, number>();
+  for (const j of (done ?? []) as { contractor_id: string }[]) jobs.set(j.contractor_id, (jobs.get(j.contractor_id) ?? 0) + 1);
+  return proAreaTargets(((pros ?? []) as { id: string; base_zip: string | null; zip: string | null; trades: string[] | null }[]).map((x) => ({ zip: x.base_zip ?? x.zip, trades: x.trades ?? [], jobs30: jobs.get(x.id) ?? 0 })),
+    (slug) => getService(slug)?.trades ?? [], limit);
+}
+
 export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: number; searches?: number } = {}) {
   const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key || !s.segments.length) return { searches: 0, added: 0, nearIdlePros: 0 };
+  if (!key || !s.segments.length) return { searches: 0, found: 0, added: 0, nearIdlePros: 0, googleError: null as string | null };
   // which cities and segments to search rotates by day; a top-up passes its own rotation so it searches somewhere new
   const day = o.rotation ?? Math.floor(Date.now() / 86400000);
   if (o.searches) s = { ...s, discover_per_day: Math.max(1, Math.min(s.discover_per_day, o.searches)) };
-  // first, where pros need work: ~70% of today's searches near idle pros, for the businesses that buy their trades
-  const targets = await idleProTargets().catch(() => []);
-  const nTarget = targets.length ? Math.ceil(s.discover_per_day * 0.7) : 0;
+  // only where we have pros (owner, 2026-11-20): every search is near a ZIP where an approved pro is based, for the
+  // businesses that buy their trades. Idle pros' areas come first and get two searches in three.
+  const areas = await proAreas().catch(() => []);
+  if (!areas.length) return { searches: 0, found: 0, added: 0, nearIdlePros: 0, googleError: "No approved pros with a ZIP yet, so there's nowhere to look: leads are only found where we have pros." };
+  const idle = areas.filter((a) => a.idlePros > 0);
   type Search = { segment: BizSegment; where: string; city: string | null; state: string | null; idle: number };
-  const near: Search[] = Array.from({ length: nTarget }, (_, i) => {
-    const t = targets[(day + i) % targets.length];
+  const list: Search[] = Array.from({ length: s.discover_per_day }, (_, i) => {
+    const pool = idle.length && (i % 3 !== 2 || idle.length === areas.length) ? idle : areas;
+    const t = pool[(day + i) % pool.length];
     const wanted = t.segments.filter((x) => s.segments.includes(x));
     const segs = wanted.length ? wanted : t.segments;
-    return { segment: segs[Math.floor((day + i) / targets.length) % segs.length], where: t.zip, city: null, state: null, idle: t.idlePros };
+    return { segment: segs[Math.floor((day + i) / pool.length) % segs.length], where: t.zip, city: null, state: null, idle: t.idlePros };
   });
-  const usual: Search[] = Array.from({ length: s.discover_per_day - nTarget }, (_, i) => {
-    const mt = METRO[(day * 3 + i) % METRO.length];
-    return { segment: s.segments[(day + i) % s.segments.length], where: `${mt.city}, ${mt.state}`, city: mt.city, state: mt.state, idle: 0 };
-  });
-  const list = [...near, ...usual];
   let added = 0, nearIdlePros = 0, found = 0;
   let googleError: string | null = null;
   for (const t of list) {
     const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.addressComponents" },
-      body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} ${t.idle ? "near" : "in"} ${t.where}`, maxResultCount: 20 }),
+      body: JSON.stringify({ textQuery: `${BIZ_SEGMENTS[t.segment].search} near ${t.where}`, maxResultCount: 20 }),
       signal: AbortSignal.timeout(10000),
     }).catch((e) => { googleError ??= `couldn't reach Google (${String(e).slice(0, 80)})`; return null; });
     if (!r) continue;
@@ -161,7 +173,7 @@ export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: numbe
       const { data: ins } = await db().from("biz_leads").upsert({ ...row, dedupe_key: key }, { onConflict: "source,external_id", ignoreDuplicates: true }).select("id");
       if (ins?.length) {
         added++; if (t.idle) nearIdlePros++;
-        await event(ins[0].id, "found", t.idle ? `${BIZ_SEGMENTS[t.segment].search} near ${t.where}, where ${t.idle} pro${t.idle === 1 ? "" : "s"} need work` : `${BIZ_SEGMENTS[t.segment].search} in ${t.where}`);
+        await event(ins[0].id, "found", t.idle ? `${BIZ_SEGMENTS[t.segment].search} near ${t.where}, where ${t.idle} pro${t.idle === 1 ? "" : "s"} need work` : `${BIZ_SEGMENTS[t.segment].search} near ${t.where}, where we have pros`);
       }
     }
   }
@@ -198,7 +210,10 @@ export async function discoverJobPostings(s: BizLeadSettings) {
   const n = Math.max(0, Math.min(40, Number(s.job_posts_per_day ?? 6)));
   if (!id || !key || !n) return out;
   const day = Math.floor(Date.now() / 86400000);
-  const plan = Array.from({ length: n }, (_, i) => ({ area: JOB_POST_AREAS[(day * n + i) % JOB_POST_AREAS.length], what: JOB_POST_QUERIES[(day + i) % JOB_POST_QUERIES.length] }));
+  // only where we have pros (2026-11-20): within 40 km of an approved pro's ZIP, idle pros' areas first
+  const areas = (await proAreas().catch(() => [])).map((x) => ({ where: x.zip, state: (stateForZip(x.zip) ?? "MI") as "MI" | "WA" }));
+  if (!areas.length) return out;
+  const plan = Array.from({ length: n }, (_, i) => ({ area: areas[(day * n + i) % areas.length], what: JOB_POST_QUERIES[(day + i) % JOB_POST_QUERIES.length] }));
   const seen = new Set<string>();
   let lookups = 0;
   for (const t of plan) {
