@@ -14,11 +14,16 @@
  *             reviewProposal      — Claude red-teams the whole draft like an evaluator: gaps, weak spots, risky claims
  *           Nothing here submits anything: a person approves every section, prints the proposal, submits it the way the
  *           solicitation says, and uploads the confirmation (lib/bids.ts gate).
+ * UPDATED : 2026-11-06_0730 UTC — the starting IEBC profile is created here on first use (not in the SQL, which now pastes safely).
+ * UPDATED : 2026-11-06_0745 UTC — two starter profiles: Handled (default, services) and IEBC (AI automation only); each bid
+ *           picks the profile whose NAICS codes include the notice's code (autoProfileId) unless someone chose one.
+ * UPDATED : 2026-11-06_0800 UTC — split by skill set: IEBC = business & technology consulting (AI, software, websites, consulting
+ *           codes); Handled Services = automated services company (every service code).
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { defaultOutline, needsInput, type ProposalStatus, type SolicitationType } from "@handled/core";
+import { BRAND, GOV_NAICS, defaultOutline, needsInput, type ProposalStatus, type SolicitationType } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { aiEnabled, structured } from "./ai/client";
 import { addDocument, loadBid, solicitationContent } from "./bids";
@@ -36,9 +41,56 @@ export const PROFILE_FIELDS = ["name", "legal_name", "uei", "cage", "address", "
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type BidProfile = { id: string; is_default: boolean; updated_at: string } & Record<ProfileField, string | null>;
 
+/**
+ * The starting profiles, created by the app on first use (kept out of the SQL so the SQL pastes safely anywhere). They split
+ * by skill set: IEBC is the business & technology consulting firm (AI automation, software and systems, websites, business
+ * and management consulting); Handled Services is the automated services company (cleaning, grounds, trades, hauling…).
+ */
+const IEBC_CODES = ["541511", "541512", "541519", "541611", "541618", "541613", "541690", "541990", "518210", "611430"];
+const IEBC_STARTER = {
+  name: "IEBC — business & technology consulting", legal_name: "IE Business Consultants", business_size: "Small business", is_default: false,
+  naics: IEBC_CODES.join(", "),
+  overview: "IE Business Consultants (IEBC) is a business and technology consulting firm. IEBC builds and runs governed AI automation and AI agent workforces, designs software, websites and business systems, and advises on operations, process improvement and business formation. Client staff stay in control: each AI agent has a written role, scoped permissions and an autonomy level the client sets; high-risk actions wait for a named official's approval; every action is logged for audit.",
+  capabilities: "AI automation and AI agents: intake, forms and document extraction, case triage and routing, records clean-up, 24/7 Tier-1/Tier-2 chat and email with handoff to staff. Finance and audit automation (invoice audit, vendor reconciliation, grant reporting) with a human certifying official. Software, websites and systems integration: read-only connectors first, then least-privilege write access under the client's ATO. Business and management consulting: process mapping of manual SOPs into measured workflows, operating plans, business formation and training.",
+  differentiators: "Proven in production: IEBC agents run dispatch, client care, compliance tracking and finance for Handled Services, a live multi-trade services company (affiliate). Human oversight built in: suggest / act with approval / autonomous, an approval queue, complete action logs. Fixed-price 30-day pilot with success measures agreed up front. No lock-in: data and workflows exportable; client data never used to train third-party models. Detroit-based small business.",
+};
+
+/** Handled Services bids every service contract (cleaning, grounds, trades…) — the default. */
+const HANDLED_STARTER = {
+  name: "Handled Services — automated home & building services", legal_name: BRAND.legalName, business_size: "Small business", is_default: true,
+  email: BRAND.supportEmail, phone: BRAND.supportPhone,
+  naics: GOV_NAICS.filter((n) => !n.remote && !IEBC_CODES.includes(n.code)).map((n) => n.code).join(", "),
+  overview: `${BRAND.legalName} is an automated services company: software runs pricing, dispatch, scheduling and quality checks, and vetted, insured local small-business pros and Handled staff do the work. Cleaning, grounds and snow, painting, repairs, licensed trades, hauling and other building services, with upfront prices, photo-verified work and one point of contact.`,
+  capabilities: "Janitorial and specialty cleaning; landscaping, grounds and snow removal; painting; handyman, carpentry and repairs; licensed plumbing, electrical and HVAC through licensed pros; junk removal and hauling; moves; facilities support across many sites.",
+  differentiators: "One accountable contractor for many trades. Every job has completion photos and a quality check before it is invoiced. Dispatch software matches insured, licensed, background-checked pros by location and availability. Detroit-based small business.",
+};
+
+/** Profiles, default first. The first time, the starter profiles are created (Handled for services, IEBC for AI automation). */
 export async function listProfiles(): Promise<BidProfile[]> {
-  const { data } = await db().from("bid_profiles").select("*").order("is_default", { ascending: false }).order("name");
+  const { data, error } = await db().from("bid_profiles").select("*").order("is_default", { ascending: false }).order("name");
+  if (!error && !(data ?? []).length) {
+    const { data: made } = await db().from("bid_profiles").insert([HANDLED_STARTER, IEBC_STARTER]).select("*");
+    return ((made ?? []) as BidProfile[]).sort((a, b) => Number(b.is_default) - Number(a.is_default));
+  }
   return (data ?? []) as BidProfile[];
+}
+
+const codesOf = (p: BidProfile): string[] => (p.naics ?? "").match(/\d{6}/g) ?? [];
+
+/**
+ * Who we bid as when nobody picked: the profile whose NAICS codes include the notice's code (an AI / software notice →
+ * IEBC, a cleaning or grounds notice → Handled), else the default profile.
+ */
+export async function autoProfileId(bidId: string, profiles?: BidProfile[]): Promise<string | null> {
+  const list = profiles ?? (await listProfiles());
+  const { data: b } = await db().from("bids").select("notice_id").eq("id", bidId).maybeSingle();
+  if (b?.notice_id) {
+    const { data: o } = await db().from("gov_opportunities").select("naics").eq("notice_id", b.notice_id).maybeSingle();
+    const code = o?.naics ? String(o.naics) : null;
+    const hit = code ? list.find((p) => codesOf(p).includes(code)) : null;
+    if (hit) return hit.id;
+  }
+  return list.find((p) => p.is_default)?.id ?? list[0]?.id ?? null;
 }
 
 export async function saveProfile(p: Partial<Record<ProfileField, string | null>> & { id?: string; is_default?: boolean }) {
@@ -62,7 +114,8 @@ export async function setBidProfile(bidId: string, profileId: string | null) {
   return { ok: true };
 }
 
-async function profileFor(profileId: string | null): Promise<BidProfile | null> {
+async function profileFor(profileId: string | null, bidId?: string): Promise<BidProfile | null> {
+  if (!profileId && bidId) profileId = await autoProfileId(bidId);
   if (profileId) {
     const { data } = await db().from("bid_profiles").select("*").eq("id", profileId).maybeSingle();
     if (data) return data as BidProfile;
@@ -129,7 +182,7 @@ export async function loadProposal(bidId: string) {
   ]);
   return {
     sections, profiles,
-    profileId: (b?.profile_id as string | null) ?? profiles.find((p) => p.is_default)?.id ?? profiles[0]?.id ?? null,
+    profileId: (b?.profile_id as string | null) ?? (await autoProfileId(bidId, profiles)),
     format: (b?.proposal_format as string | null) ?? null,
     review: (b?.proposal_review as ProposalReview & { at: string } | null) ?? null,
   };
@@ -164,7 +217,7 @@ export async function outlineProposal(bidId: string, replace: boolean, actor: st
   if (existing.some((s) => s.content.trim()) && !replace) return { ok: false, error: "This proposal already has written sections — confirm to replace the outline (the written text will be deleted)" };
   const reqs = loaded.requirements;
   const numbered = reqs.map((r, i) => `R${i + 1} [${r.kind}${r.source_ref ? ` · ${r.source_ref}` : ""}] ${r.text}`).join("\n");
-  const profile = await profileFor((loaded.bid as unknown as { profile_id?: string | null }).profile_id ?? null);
+  const profile = await profileFor((loaded.bid as unknown as { profile_id?: string | null }).profile_id ?? null, bidId);
   let rows: { title: string; guidance: string; page_limit: number | null; requirement_ids: string[] }[] = [];
   let format: string | null = null;
   let fallback = false;
@@ -214,7 +267,7 @@ export async function draftSection(bidId: string, sectionId: string, instruction
   if (!sec) return { ok: false, error: "Section not found" };
   if (sec.status === "approved") return { ok: false, error: "This section is approved — un-approve it to rewrite it" };
   const bidRow = loaded.bid as unknown as { profile_id?: string | null; proposal_format?: string | null };
-  const profile = await profileFor(bidRow.profile_id ?? null);
+  const profile = await profileFor(bidRow.profile_id ?? null, bidId);
   const reqs = loaded.requirements;
   const mine = new Set(sec.requirement_ids);
   const list = reqs.map((r, i) => `${mine.has(r.id) ? "→ " : "  "}R${i + 1} [${r.kind}${r.source_ref ? ` · ${r.source_ref}` : ""}] ${r.text}`).join("\n");
@@ -328,7 +381,7 @@ export async function reviewProposal(bidId: string, actor: string): Promise<{ ok
   const sections = await loadSections(bidId);
   if (!sections.some((s) => s.content.trim())) return { ok: false, error: "Write some sections first" };
   const bidRow = loaded.bid as unknown as { profile_id?: string | null; proposal_format?: string | null };
-  const profile = await profileFor(bidRow.profile_id ?? null);
+  const profile = await profileFor(bidRow.profile_id ?? null, bidId);
   const list = loaded.requirements.map((r, i) => `R${i + 1} [${r.kind}${r.source_ref ? ` · ${r.source_ref}` : ""}] ${r.text}`).join("\n");
   const draft = sections.map((s) => `## ${s.title}${s.page_limit ? ` (limit ${s.page_limit} pp)` : ""}\n${s.content.trim() || "(empty)"}`).join("\n\n");
   const { blocks } = await solicitationContent(bidId, loaded.documents, loaded.bid.notice_id);

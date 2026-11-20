@@ -1,5 +1,6 @@
 <!--
 FILE    : docs/PROPOSAL_WRITER_GUIDE_2026-11-06_0400.md
+UPDATED : 2026-11-06_0745 UTC — two starting profiles: Handled (services, default) and IEBC (AI automation only); picked by NAICS.
 PROJECT : Handled (HandledServices) / IEBC — government bids
 CREATED : 2026-11-06_0400 UTC
 PURPOSE : How to go from a SAM.gov opportunity to a submitted proposal with AI help (Hub → Bids), and how to clear
@@ -11,7 +12,11 @@ PURPOSE : How to go from a SAM.gov opportunity to a submitted proposal with AI h
 ## One-time setup (5 minutes)
 1. **Run the SQL.** In Supabase, open **SQL Editor → New query**, paste `supabase/setup/ADD_BID_PROPOSALS_2026-11-06_0400.sql`, and press **Run**. It's safe to run twice.
 2. **Run the Gov contracts search once more.** The search now saves each notice's attachment links. Your 37 existing notices get theirs on this run.
-3. **Fill in a bidding profile.** Go to **Hub → Bids → Bidding profiles**. An "IEBC — AI automation" profile is already there. Add:
+3. **Fill in the bidding profiles.** Go to **Hub → Bids → Bidding profiles**. Two are created the first time you open it:
+   - **Handled Services — automated home & building services:** the default. The automated services company bids every service contract (cleaning, grounds and snow, painting, trades, hauling).
+   - **IEBC — business & technology consulting:** the consulting firm bids AI automation, software and systems, websites, and business and management consulting.
+
+   Each bid picks its profile from the notice's NAICS code: technology and consulting codes (541511, 541512, 541519, 541611, 541618, 541613, 541690, 541990, 518210, 611430) go to IEBC, everything else to Handled Services. You can switch it on the bid. For each profile, add:
    - UEI, CAGE code, address and point of contact
    - certifications you actually hold
    - **real** past performance: customer, dates, value, what you did, results, reference
@@ -34,7 +39,7 @@ Go to **Hub → Bids → Find federal (SAM.gov)**:
    - Word and Excel attachments are stored, but the AI reads only PDFs and images. Save Word and Excel files as PDF and upload them if the AI needs to read them.
 3. **1. Go / no-go.** Answer it honestly. Any "no" stops the bid.
 4. **3b. Proposal — AI writer:**
-   1. **Bidding as:** pick the profile (IEBC for AI automation, Handled for services).
+   1. **Bidding as:** check the profile. It's picked from the NAICS code (Handled Services for services, IEBC for technology and consulting).
    2. **✨ Build the outline with AI.** It follows the solicitation's own instructions (Section L, "proposal format"), in the agency's order and with its names. It assigns every compliance item to a section and notes page limits and format rules.
    3. **✨ Draft all empty sections.** The AI writes them one at a time, from the solicitation and your profile.
    4. **For each section:**

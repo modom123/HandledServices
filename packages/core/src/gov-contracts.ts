@@ -29,6 +29,7 @@
  *           appliance repair, locksmiths, building inspection, water remediation; window installation now has a catalog service.
  * UPDATED : 2026-10-27_1600 UTC — finish carpentry (238350) maps to Carpentry.
  * UPDATED : 2026-11-06_0400 UTC — parseSamOpportunity keeps the notice's attachment links (resource_links) so a bid can pull them in.
+ * UPDATED : 2026-11-06_0800 UTC — IEBC consulting codes searchable: 541611, 541618, 541690, 518210 (remote, not in the focus list).
  */
 import { SERVICE_BY_SLUG } from "./services.ts";
 
@@ -72,6 +73,11 @@ export const GOV_NAICS: GovNaics[] = [
   { code: "541511", title: "Custom computer programming (AI automation)", slugs: ["ai-automation", "ai-agents", "website-design"], focus: true, remote: true },
   { code: "541512", title: "Computer systems design (AI systems)", slugs: ["ai-automation", "business-operating-system", "ai-agents"], focus: true, remote: true },
   { code: "541519", title: "Other computer services (AI automation)", slugs: ["ai-automation"], focus: true, remote: true },
+  // IEBC — business & technology consulting
+  { code: "541611", title: "Administrative & general management consulting (IEBC)", slugs: ["business-consulting"], remote: true },
+  { code: "541618", title: "Other management consulting (IEBC)", slugs: ["business-consulting"], remote: true },
+  { code: "541690", title: "Other scientific & technical consulting (IEBC)", slugs: ["business-consulting", "ai-automation"], remote: true },
+  { code: "518210", title: "Computing infrastructure, data processing & hosting (IEBC)", slugs: ["ai-automation"], remote: true },
   { code: "236118", title: "Residential remodeling", slugs: ["bathroom-remodel", "kitchen-remodel", "home-remodel"], focus: true },
   { code: "236220", title: "Commercial & institutional building construction", slugs: ["home-remodel", "handyman"], focus: true },
   { code: "238150", title: "Window installation (glass & glazing)", slugs: ["window-door-install"], focus: true, subcontracted: true },

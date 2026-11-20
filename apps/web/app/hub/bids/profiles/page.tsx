@@ -18,7 +18,7 @@ export default async function ProfilesPage() {
     <div className="space-y-4">
       <Link href="/hub/bids" className="text-sm text-brand">← Bids</Link>
       <h1 className="text-2xl font-bold">Bidding profiles</h1>
-      <p className="max-w-3xl text-sm text-ink-soft">The company facts the AI proposal writer is allowed to use. Fill in the UEI, CAGE code, contacts, real past performance and real key people. The AI never makes these up. When something is missing it leaves a yellow [[NEEDS]] note in the draft for you to fill in. Keep one profile per company you bid as, for example IEBC for AI automation and Handled for services.</p>
+      <p className="max-w-3xl text-sm text-ink-soft">The company facts the AI proposal writer is allowed to use. Fill in the UEI, CAGE code, contacts, real past performance and real key people. The AI never makes these up. When something is missing it leaves a yellow [[NEEDS]] note in the draft for you to fill in. Keep one profile per company you bid as: <b>IEBC</b> is the business &amp; technology consulting firm (AI automation, software, websites, consulting) and <b>Handled Services</b> is the automated services company (cleaning, grounds, trades, hauling). Each bid picks the profile whose NAICS codes include the notice&apos;s code.</p>
       {profiles.map((p) => (
         <section key={p.id}>
           <h2 className="mb-2 text-lg font-bold">{p.name}{p.is_default ? " (default)" : ""}</h2>

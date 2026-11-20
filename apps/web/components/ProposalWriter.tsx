@@ -247,7 +247,7 @@ function ReviewPanel({ review }: { review: WsReview }) {
 // ───────────────────────────── bidding profiles ─────────────────────────────
 
 const FIELDS: { k: string; label: string; area?: boolean; hint?: string }[] = [
-  { k: "name", label: "Profile name *", hint: "e.g. IEBC — AI automation" },
+  { k: "name", label: "Profile name *", hint: "e.g. IEBC — business & technology consulting" },
   { k: "legal_name", label: "Legal name (as registered in SAM.gov)" },
   { k: "uei", label: "UEI" }, { k: "cage", label: "CAGE code" },
   { k: "business_size", label: "Business size" }, { k: "certifications", label: "Certifications / socio-economic status", hint: "Only ones you hold: HUBZone, 8(a), WOSB, SDVOSB, Michigan GDBE, Detroit-Based…" },
