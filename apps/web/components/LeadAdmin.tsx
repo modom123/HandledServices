@@ -6,6 +6,7 @@
  * UPDATED : 2026-10-03_0332 UTC — lean-setup guidance for the daily cap.
  * UPDATED : 2026-10-06_0606 UTC — label: with no trades checked, the engine recruits cleaners (marketing focus).
  * UPDATED : 2026-11-05_1215 UTC — long rows of buttons are dropdowns now (components/Dropdowns: MultiSelect / FilterSelect).
+ * UPDATED : 2026-11-20_0200 UTC — weekly invitations: 60 or 90 days.
  */
 "use client";
 
@@ -20,7 +21,7 @@ async function post(body: unknown) {
   return { ok: r.ok, data: j };
 }
 
-export interface LeadSettingsForm { enabled: boolean; discover_per_day: number; emails_per_day: number; min_rating: number; min_reviews: number; trades: string[] }
+export interface LeadSettingsForm { enabled: boolean; discover_per_day: number; emails_per_day: number; min_rating: number; min_reviews: number; trades: string[]; invite_days?: number }
 
 export function LeadSettingsPanel({ initial }: { initial: LeadSettingsForm }) {
   const router = useRouter();
@@ -33,6 +34,12 @@ export function LeadSettingsPanel({ initial }: { initial: LeadSettingsForm }) {
     <div className="card space-y-3">
       <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={s.enabled} onChange={(e) => setS({ ...s, enabled: e.target.checked })} /> Lead engine on (weekdays 10:30am)</label>
       <div className="grid gap-3 sm:grid-cols-4">{num("discover_per_day", "Searches / day")}{num("emails_per_day", "Emails / day")}{num("min_rating", "Min. Google rating", 0.1)}{num("min_reviews", "Min. reviews")}</div>
+      <label className="block max-w-xs text-xs"><span className="label">Weekly invitations for</span>
+        <select className="input" value={s.invite_days ?? 60} onChange={(e) => setS({ ...s, invite_days: Number(e.target.value) })}>
+          <option value={60}>60 days (9 emails), then retire</option>
+          <option value={90}>90 days (13 emails), then retire</option>
+        </select>
+      </label>
       <div className="max-w-xl">
         <MultiSelect label="Trades to recruit" options={TRADES.map((t) => ({ value: t.id, label: t.label }))} value={s.trades} onChange={(trades) => setS({ ...s, trades })}
           noneLabel="Automatic: wherever Supply gaps shows a shortage, plus cleaners across the metro" />
@@ -42,7 +49,7 @@ export function LeadSettingsPanel({ initial }: { initial: LeadSettingsForm }) {
         <button className="btn-ghost" onClick={async () => { setMsg("Running…"); const r = await post({ action: "run" }); setMsg(r.ok ? `Done: ${JSON.stringify(r.data)}` : r.data.error ?? "Failed"); router.refresh(); }}>Run now</button>
         {msg && <span className="text-sm text-ink-soft">{msg}</span>}
       </div>
-      <p className="text-xs text-ink-soft">“Emails / day” = new leads handed to Instantly per day; each gets 3 emails. Lean setup: 20/day with 2 warmed-up inboxes (~60 sends/day). Add an inbox before raising it by ~10.</p>
+      <p className="text-xs text-ink-soft">With the handledsvc.net mailbox connected, each pro gets one email a week (weekdays 9–5 Eastern) for the length above, then is retired; applying, replying or unsubscribing stops it at once. “Emails / day” caps all pro invitations sent in a day (the mailbox warm-up ramp applies). Without that mailbox, leads go to Instantly (3 emails).</p>
     </div>
   );
 }

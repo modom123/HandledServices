@@ -10,6 +10,7 @@
 #           https://www.handledsvc.com unless the repository variable HANDLED_URL says otherwise. A CRON_SECRET
 #           repository secret still works if one is set and the token can't be issued.
 # UPDATED : 2026-11-05_1240 UTC — GitHub Actions token instead of a copied CRON_SECRET; live site as the default URL.
+# UPDATED : 2026-11-20_0130 UTC — up to 5 minutes per run (outreach all day and the lead top-up run here too).
 # NOTE    : GitHub runs schedules from the default branch only, and may start a run a
 #           few minutes late when GitHub is busy.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ permissions:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Call /api/cron/dispatch
         env:
@@ -48,7 +49,7 @@ jobs:
             echo "::error::Couldn't get a GitHub Actions token (check that the workflow may use id-token) and no CRON_SECRET secret is set."
             exit 1
           fi
-          curl -fsS --max-time 150 --retry 2 --retry-delay 10 \
+          curl -fsS --max-time 300 --retry 2 --retry-delay 10 \
             -H "Authorization: Bearer $AUTH" \
             "${URL%/}/api/cron/dispatch"
           echo
