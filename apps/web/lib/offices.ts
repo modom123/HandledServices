@@ -19,6 +19,7 @@
  *           tab per inbox: his own, business leads (handledsvc.net) and info@.
  * UPDATED : 2026-11-24_1600 UTC — Cecilia's office has a handledsvc.net mailbox too (OFFICE_GULLEY_NET_EMAIL = cece@handledsvc.net,
  *           OFFICE_GULLEY_NET_PASSWORD). Any office mailbox off the company domain finds its servers from its MX record.
+ * UPDATED : 2026-11-24_2100 UTC — the office's Zoom login falls back to its handledsvc.net address too.
  */
 import "server-only";
 import type { MailAccount } from "./mailbox";
@@ -60,7 +61,7 @@ export async function officeNetMail(o: Office): Promise<MailAccount | null> {
   return user && pass ? withServers(user, pass) : null;
 }
 export const officeZoomLink = (o: Office) => env(o, "ZOOM_LINK");
-export const officeZoomUser = (o: Office) => env(o, "ZOOM_USER") ?? env(o, "EMAIL");
+export const officeZoomUser = (o: Office) => env(o, "ZOOM_USER") ?? env(o, "EMAIL") ?? env(o, "NET_EMAIL");
 /** The business-leads outreach mailbox (mark@handledsvc.net — lib/outreach-mail.ts OUTREACH_*), read in Mark's office. */
 export async function leadsMail(): Promise<MailAccount | null> {
   const user = process.env.OUTREACH_SMTP_USER?.trim(), pass = process.env.OUTREACH_SMTP_PASSWORD;

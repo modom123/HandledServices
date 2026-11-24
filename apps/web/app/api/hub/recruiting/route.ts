@@ -12,6 +12,7 @@
  *           Approved pros, and anyone with jobs or payouts on record, are never deleted (offboard them instead).
  * UPDATED : 2026-11-24_2000 UTC — POST { action: "email", application_id? | contractor_id?, subject, body, with_steps, from }:
  *           a personal email from the candidate's file (lib/recruiting emailCandidate).
+ * UPDATED : 2026-11-24_2100 UTC — email action takes zoom { start, minutes } for interview invites on Zoom.
  */
 import { z } from "zod";
 import { deny, getViewer, isStaff } from "@/lib/auth";
@@ -27,6 +28,7 @@ const Action = z.object({
 const Email = z.object({
   action: z.literal("email"), contractor_id: z.string().uuid().optional(), application_id: z.string().uuid().optional(),
   subject: z.string().trim().min(2).max(200), body: z.string().trim().min(5).max(20000), with_steps: z.boolean().default(true), from: z.string().max(40).default("company"),
+  zoom: z.object({ start: z.string().datetime({ offset: true }), minutes: z.number().int().min(10).max(240) }).nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
     if (!e.success) return deny(400, e.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
     if (!e.data.application_id && !e.data.contractor_id) return deny(400, "application_id or contractor_id required");
     try {
-      const r = await emailCandidate({ applicationId: e.data.application_id, contractorId: e.data.contractor_id, subject: e.data.subject, body: e.data.body, withSteps: e.data.with_steps, from: e.data.from }, v!.fullName ?? v!.email);
+      const r = await emailCandidate({ applicationId: e.data.application_id, contractorId: e.data.contractor_id, subject: e.data.subject, body: e.data.body, withSteps: e.data.with_steps, from: e.data.from, zoom: e.data.zoom ?? null }, v!.fullName ?? v!.email);
       return Response.json({ ok: true, ...r });
     } catch (err) { return deny(502, (err as Error).message); }
   }

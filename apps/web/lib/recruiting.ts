@@ -40,6 +40,8 @@
  * UPDATED : 2026-11-24_2000 UTC — emailCandidate(): a personal email from a candidate's file (optionally with what's left in
  *           setup + a one-click sign-in link), from the company sender or a Front Office mailbox (replies land there);
  *           candidateSenders() lists the choices. Logged on the candidate's history.
+ * UPDATED : 2026-11-24_2100 UTC — emailCandidate can create a Zoom interview (o.zoom: start + minutes) on the sending office's Zoom and
+ *           put the link in the email ({{zoom}}); falls back to the office's personal room link.
  */
 import "server-only";
 import { legalOnProApplication } from "./legal-intake";
@@ -605,7 +607,7 @@ export async function candidateSenders(): Promise<{ id: string; label: string }[
  * setup and a one-click sign-in link straight to it (the same as Nudge). From a Front Office mailbox, replies land in
  * that office's inbox. Logged on the candidate's history.
  */
-export async function emailCandidate(o: { applicationId?: string | null; contractorId?: string | null; subject: string; body: string; withSteps: boolean; from: string }, actor: string) {
+export async function emailCandidate(o: { applicationId?: string | null; contractorId?: string | null; subject: string; body: string; withSteps: boolean; from: string; zoom?: { start: string; minutes: number } | null }, actor: string) {
   const app = o.applicationId ? (await db().from("contractor_applications").select("*").eq("id", o.applicationId).maybeSingle()).data : null;
   const cid = o.contractorId ?? app?.contractor_id ?? null;
   const pro = cid ? (await db().from("contractors").select("*").eq("id", cid).maybeSingle()).data
@@ -619,6 +621,26 @@ export async function emailCandidate(o: { applicationId?: string | null; contrac
     if (left.length) text += `\n\nWhat's left before you get jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}`;
     text += `\n\nPick up where you left off (one click, no password): ${link}`;
   }
+  // interview invite on Zoom: a meeting on the sending office's Zoom (else Cecilia's, the recruiting office), or the
+  // office's personal room link when the Zoom app isn't connected; the link replaces {{zoom}} in the message
+  let zoomNote = "";
+  if (o.zoom) {
+    const { OFFICES, officeBySlug, officeZoomLink, officeZoomUser } = await import("./offices");
+    const { createZoomMeeting, zoomReady } = await import("./zoom");
+    const off = officeBySlug(o.from.split(":")[0]) ?? OFFICES.find((x) => x.tools === "recruiting") ?? OFFICES[0];
+    const when = new Date(o.zoom.start).toLocaleString("en-US", { timeZone: "America/Detroit", weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    const who = String(app?.contact_name ?? pro?.contact_name ?? "candidate");
+    let join: string | null = null, pass: string | null = null;
+    if (zoomReady() && officeZoomUser(off)) {
+      const m = await createZoomMeeting(officeZoomUser(off)!, { topic: `${BRAND.name} interview: ${who}`, start: o.zoom.start, minutes: o.zoom.minutes });
+      join = m.join_url; pass = m.password;
+    } else join = officeZoomLink(off);
+    if (!join) throw new Error(`Zoom isn't connected for ${off.name}'s office: add the Zoom app settings, or OFFICE_${off.key}_ZOOM_LINK (a personal room link), in Vercel`);
+    const block = `When: ${when} (${o.zoom.minutes} minutes)\nJoin on Zoom: ${join}${pass ? `\nPasscode: ${pass}` : ""}`;
+    text = text.includes("{{zoom}}") ? text.replace("{{zoom}}", block) : `${text}\n\n${block}`;
+    zoomNote = ` · Zoom ${when}`;
+  }
+  text = text.replace("{{zoom}}", "");
   const [office, box] = o.from.split(":");
   if (o.from !== "company") {
     const { officeBySlug, officeMail, officeNetMail, officeSignature } = await import("./offices");
@@ -636,6 +658,6 @@ export async function emailCandidate(o: { applicationId?: string | null; contrac
   const now = new Date().toISOString();
   if (app) await db().from("contractor_applications").update({ last_contact_at: now }).eq("id", app.id);
   if (pro && o.withSteps) await db().from("contractors").update({ last_reminder_at: now }).eq("id", pro.id);
-  await logRecruiting("emailed", { applicationId: app?.id ?? null, contractorId: pro?.id ?? null }, `“${o.subject}” to ${to}${o.from !== "company" ? ` from ${o.from}` : ""}${o.withSteps ? " (with setup steps + sign-in link)" : ""}`, actor);
+  await logRecruiting("emailed", { applicationId: app?.id ?? null, contractorId: pro?.id ?? null }, `“${o.subject}” to ${to}${o.from !== "company" ? ` from ${o.from}` : ""}${o.withSteps ? " (with setup steps + sign-in link)" : ""}${zoomNote}`, actor);
   return { to };
 }

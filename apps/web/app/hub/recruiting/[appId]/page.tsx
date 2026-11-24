@@ -81,7 +81,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           {pro && <Link className="text-sm underline" href={`/hub/pros/${pro.id}`}>Pro record & documents →</Link>}
           <details className="rounded-lg border border-line p-3" open={Boolean(check.next && check.next.who === "candidate")}>
             <summary className="cursor-pointer font-semibold">✉️ Email this candidate</summary>
-            <div className="mt-2"><CandidateEmail appId={appId} contractorId={pro?.id ?? null} email={(pro?.email ?? app.email ?? null) as string | null} firstName={String(app.contact_name ?? "").split(" ")[0]} hasAccount={Boolean(pro && pro.status !== "approved")} senders={senders} /></div>
+            <div className="mt-2"><CandidateEmail appId={appId} contractorId={pro?.id ?? null} email={(pro?.email ?? app.email ?? null) as string | null} firstName={String(app.contact_name ?? "").split(" ")[0]} hasAccount={Boolean(pro && pro.status !== "approved")} senders={senders} phone={(app.phone ?? null) as string | null} /></div>
           </details>
         </section>
         <section className="space-y-4">
