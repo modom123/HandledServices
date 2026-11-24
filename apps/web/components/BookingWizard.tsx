@@ -59,6 +59,8 @@
  * UPDATED : 2026-11-13_0630 UTC — editing the order while placing it: the step tabs go back to any earlier step (nothing
  *           entered is lost), and Review shows "Your order" (service, every answer, notes, photos, when, where, price)
  *           with an Edit link on each part.
+ * UPDATED : 2026-11-18_0040 UTC — business orders show business prices (core businessEstimate / businessPrice); pros' own prices stay
+ *           a share of the home suggestion.
  */
 "use client";
 
@@ -70,7 +72,7 @@ import { BookingCalendar } from "./BookingCalendar";
 import { SaveQuote } from "./SaveQuote";
 import { PhotoPicker } from "./PhotoPicker";
 import {
-  BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, siteVisitReason, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, estimate, getService, isRush, money, moneyRange, overDepositLimit,
+  BRAND, CATEGORIES, URGENCY, consultOnly, budgetMessage, lineText, serviceText, categoryText, t as tr, type Locale, budgetFit, neededBy, type Urgency, photoProblem, photoRule, siteVisitReason, SERVICES, depositPolicy, bookNowPolicy, payInFullSaving, resolvePlan, type PaymentPlan, planEventBudget, securityAdvice, defaultAnswers, businessEstimate, businessPrice, estimate, getService, isRush, money, moneyRange, overDepositLimit,
   type Answers, type Frequency, type TimeWindow,
   questionVisible, offerCheck, parseMoney, OFFER_BOUNDS, BOARD_POST_FEE, BOOKING_FEE, priceHint, missingMeasurements, rankProOffers, type ProRateRow, OTHER_OPTION, clampToMins, numberMin, otherMissing, otherNote } from "@handled/core";
 
@@ -172,7 +174,10 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     const zip = /^\d{5}$/.test(form.zip) ? form.zip : "";
     fetch(`/api/market?service=${slug}${zip ? `&zip=${zip}` : ""}`).then((r) => r.json()).then((j) => { setMarket(Number(j.factor) || 1); setRegion(Number(j.region) || 1); }).catch(() => {});
   }, [slug, form.zip]);
-  const est = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
+  // business orders see business prices (core BUSINESS_PRICING; the pro's pay is the same as at home prices)
+  const bizPricing = form.customer_type === "commercial" && slug !== "event-package";
+  const homeEst = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
+  const est = useMemo(() => (homeEst && bizPricing ? businessEstimate(homeEst) : homeEst), [homeEst, bizPricing]);
   // Name your price ("" = our suggestion)
   const [offer, setOffer] = useState("");
   // pros' own prices for this job (their % of our suggestion; core proPrice turns it into the all-in price)
@@ -242,9 +247,12 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
     else router.push(`/book/confirmed?ref=${json.ref}${json.billing?.onTerms ? "&billed=1" : ""}`);
   }
 
-  const price = ai ? { low: ai.low, high: ai.high } : est ? { low: est.low, high: est.high } : null;
-  const suggested = quote ? quote.price : ai?.final_price ?? est?.point ?? 0;
-  const proOffers = !siteVisit && !quote && suggested ? rankProOffers(proRows, suggested, slug) : [];
+  const aiShown = ai && bizPricing ? { ...ai, final_price: businessPrice(ai.final_price, slug), low: businessPrice(ai.low, slug), high: businessPrice(ai.high, slug) } : ai;
+  const price = aiShown ? { low: aiShown.low, high: aiShown.high } : est ? { low: est.low, high: est.high } : null;
+  const suggested = quote ? quote.price : aiShown?.final_price ?? est?.point ?? 0;
+  // pros' own prices are a % of the HOME suggestion (a pro's price is their number, not business-priced)
+  const homeSuggested = quote ? quote.price : ai?.final_price ?? homeEst?.point ?? 0;
+  const proOffers = !siteVisit && !quote && homeSuggested ? rankProOffers(proRows, homeSuggested, slug) : [];
   const picked = proOffers.find((o) => o.pro_id === choice) ?? null;
   // as typed: "$150", "150.00", "1,200" … (core parseMoney; whole dollars)
   const offerNum = Number.isFinite(parseMoney(offer)) ? parseMoney(offer) : 0;
@@ -582,7 +590,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
             </div>
           )}
           {svc.slug !== "event-package" && !consult && (() => {
-            const fit = budgetFit(Number(budget), siteVisit ? price.low : ai?.final_price ?? est.point);
+            const fit = budgetFit(Number(budget), siteVisit ? price.low : aiShown?.final_price ?? est.point);
             return (
               <div className="mt-3">
                 <label className="label">{t("Your budget (optional)")}</label>

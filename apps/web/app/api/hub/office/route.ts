@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   const o = officeBySlug(d.office)!;
   const leads = "box" in d && d.box === "leads";
   if (leads && !o.leadsInbox) return deny(403, "This office has no business-leads inbox");
-  const acct = leads ? leadsMail() : officeMail(o);
+  const acct = leads ? await leadsMail() : officeMail(o);
   const mailOff = leads ? "The business-leads mailbox isn't connected yet (OUTREACH_SMTP_USER and OUTREACH_SMTP_PASSWORD in Vercel)."
     : `${o.name}'s mailbox isn't connected yet (OFFICE_${o.key}_EMAIL and OFFICE_${o.key}_PASSWORD in Vercel).`;
 

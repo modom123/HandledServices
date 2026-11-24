@@ -11,10 +11,12 @@
  * UPDATED : 2026-11-13_0300 UTC — judged against the trades the pro selected, never their business name (a cleaner called
  *           "EV Screening and Compliance" is a cleaner); the name is used only to match the named insured.
  * UPDATED : 2026-11-17_2045 UTC — the license it checks for is the one for the pro's state (core licenseFor).
+ * UPDATED : 2026-11-19_1800 UTC — commercial auto, workers' comp, bonds, liquor: Handled doesn't need to be on the policy.
+ * UPDATED : 2026-11-19_1745 UTC — a date the pro typed differently from the policy is not a problem (the policy's date is used).
  */
 import "server-only";
 import { z } from "zod";
-import { licenseFor, BRAND, COVERAGES, TRADE_PROFILES, glMinimum, type CoverageKey } from "@handled/core";
+import { handledListingRequired, licenseFor, BRAND, COVERAGES, TRADE_PROFILES, glMinimum, type CoverageKey } from "@handled/core";
 import { structured, type ContentBlocks } from "./client";
 
 const DocSchema = z.object({
@@ -37,7 +39,7 @@ export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boo
   const need =
     o.kind === "coi" ? `General liability, at least $${glMinimum(o.pro.trades).toLocaleString("en-US")} per occurrence, ${BRAND.legalName} named as additional insured or listed as certificate holder (either is accepted; say which), not expired.`
     : o.kind === "license" ? `A current state license that covers these trades: ${trades}.`
-    : COVERAGES[o.kind as CoverageKey] ? `${COVERAGES[o.kind as CoverageKey].label}: ${COVERAGES[o.kind as CoverageKey].detail} Not expired.`
+    : COVERAGES[o.kind as CoverageKey] ? `${COVERAGES[o.kind as CoverageKey].label}: ${COVERAGES[o.kind as CoverageKey].detail} Not expired.${handledListingRequired(o.kind) ? "" : ` ${BRAND.legalName} does NOT need to be named on this policy: never list that as a problem, and judge meets_requirements without it.`}`
     : "A current, readable document of the type uploaded.";
   const block = o.isPdf ? { type: "document" as const, source: { type: "url" as const, url: o.url } } : { type: "image" as const, source: { type: "url" as const, url: o.url } };
   return structured({
@@ -45,6 +47,7 @@ export async function aiCheckDocument(o: { kind: string; url: string; isPdf: boo
     schema: DocSchema,
     system: "You check contractor compliance documents for a home-services marketplace. Read only what the document shows; never guess numbers or dates. Today's date matters for expiry. " +
       "Judge the requirement ONLY against the trades the pro selected (listed below). The business name is used for one thing: checking the named insured is this pro (allow DBA / LLC / personal-name variations). " +
+      "expires_on is the date printed on the policy; if the pro typed a different date, report the policy's date and do NOT list the difference as a problem (we use the policy's date). " +
       "Never infer the pro's work from their business name, and never fail a document because the business name or the policy's description of operations suggests other work — a general liability policy covers the pro whatever the business is called.",
     content: [block, { type: "text", text: `Today: ${new Date().toISOString().slice(0, 10)}\nPro (for the name match only): ${o.pro.business_name}${o.pro.legal_name ? ` (legal name ${o.pro.legal_name})` : ""}\nTrades they selected (what they do): ${o.pro.trades.join(", ") || "—"}\nUploaded as: ${o.kind}${o.claimedExpiry ? `, pro says it expires ${o.claimedExpiry}` : ""}\nRequirement: ${need}` }] as ContentBlocks,
     effort: "low",

@@ -13,6 +13,9 @@
  *           needs them to hold in the last 30 days, not just the 90-day window. Pure and deterministic.
  *           The growth plan (revenue = our take, cities and AI targets per year) is here too, for the
  *           "on pace" line. Thresholds come from docs/BUSINESS_PLAN (key metrics + growth plan).
+ * UPDATED : 2026-11-18_0240 UTC — marketplace guardrails ("the Uber of services"): goingDirect (repeat customers who stopped booking
+ *           while their pro kept working nearby: the sign they've gone around Handled; goingDirectPairs lists them) and
+ *           proRetention (busy pros still taking jobs; quietPros lists who stopped) are "proven" gates.
  * UPDATED : 2026-10-04_1934 UTC — growth plan to $100M: revenue means our take ($10M year 5, $50M year 7, $100M year 10),
  *           city counts by phase, AI-driven target rising to 95%.
  */
@@ -50,6 +53,11 @@ export interface CityMetrics {
   redoRate: number | null;
   /** Share of completed jobs with zero human touches. */
   aiDrivenRate: number | null;
+  /** Repeat customer–pro pairs that went quiet while the pro kept working nearby ÷ repeat pairs (goingDirectPairs). */
+  goingDirect?: number | null;
+  goingDirectCount?: number;
+  /** Busy pros (3+ jobs in days 31–90) who still completed a job in the last 30 days ÷ busy pros. */
+  proRetention?: number | null;
 }
 
 export interface CityGate {
@@ -75,7 +83,7 @@ const atMost = (v: number | null, t: number) => (v === null ? null : v <= t);
 /** Gate thresholds, in one place (Hub shows them; tests pin them). */
 export const CITY_TARGETS = {
   traction: { jobsPer90: 60, bookingsPerMonth: 15_000, fill: 0.8, pros: 10 },
-  proven: { bookingsPerMonth: 60_000, fill: 0.9, hoursToAssign: 2, repeat: 0.3, planConversion: 0.2, rating: 4.8, refunds: 0.03, redo: 0.05, takeRate: 0.25, pros: 25, aiDriven: 0.8 },
+  proven: { bookingsPerMonth: 60_000, fill: 0.9, hoursToAssign: 2, repeat: 0.3, planConversion: 0.2, rating: 4.8, refunds: 0.03, redo: 0.05, takeRate: 0.25, pros: 25, aiDriven: 0.8, goingDirect: 0.1, proRetention: 0.8 },
   replicate: { bookingsPerMonth: 150_000, netTakePerMonth: 40_000, repeat: 0.4, pros: 40 },
 } as const;
 
@@ -129,6 +137,12 @@ export const CITY_GATES: CityGate[] = [
   { key: "take", level: "proven", label: "Our take rate (blended)", target: `≥ ${pct(T.proven.takeRate)}`,
     test: (m) => (m.bookings > 0 ? m.take / m.bookings >= T.proven.takeRate : null), value: (m) => pct(share(m.take, m.bookings)),
     fix: "Mix toward recurring and mid-size jobs; check Market pricing factors that drifted low." },
+  { key: "direct", level: "proven", label: "Customers staying on Handled", target: `≤ ${pct(T.proven.goingDirect)} going quiet`,
+    test: (m) => atMost(m.goingDirect ?? null, T.proven.goingDirect), value: (m) => (m.goingDirect == null ? "—" : `${pct(m.goingDirect)} (${m.goingDirectCount ?? 0})`),
+    fix: "Call the customers on the going-quiet list: a plan discount that grows the longer they stay; remind the pro of section 28 (non-circumvention); repeat bonuses for pros who keep customers on Handled." },
+  { key: "pros_kept", level: "proven", label: "Busy pros still working", target: `≥ ${pct(T.proven.proRetention)}`,
+    test: (m) => atLeast(m.proRetention ?? null, T.proven.proRetention), value: (m) => pct(m.proRetention ?? null),
+    fix: "Call the pros on the gone-quiet list: pay, too few jobs near them, or a bad experience? Check their trades' pay in Pricing." },
   { key: "ai", level: "proven", label: "AI-driven jobs (no human touch)", target: `≥ ${pct(T.proven.aiDriven)}`,
     test: (m) => atLeast(m.aiDrivenRate, T.proven.aiDriven), value: (m) => pct(m.aiDrivenRate),
     fix: "Look at why staff touched jobs (alerts, manual status changes) and automate the most common one." },
@@ -228,4 +242,58 @@ export function planPace(o: { launchedAt: string | null; bookings30: number; tak
     metrosPace: o.markets / plan.metros,
     aiTarget: plan.aiDriven,
   };
+}
+
+// ─── Marketplace guardrails ──────────────────────────────────────────────────
+
+export interface GuardJob { customer: string; pro: string | null; completedAt: string }
+const DAY = 86400000;
+
+/**
+ * Repeat customer–pro pairs (2+ completed jobs together) where the customer hasn't had any job for `quietDays` while that
+ * pro completed work in the last 30 days: the classic sign the two now deal directly. Rate = these ÷ repeat pairs.
+ */
+export function goingDirectPairs(jobs: GuardJob[], now = new Date(), quietDays = 45) {
+  const t = now.getTime();
+  const lastByCustomer = new Map<string, number>();
+  const lastByPro = new Map<string, number>();
+  const pairs = new Map<string, { customer: string; pro: string; jobs: number; lastAt: number }>();
+  for (const j of jobs) {
+    const at = Date.parse(j.completedAt);
+    if (!Number.isFinite(at)) continue;
+    lastByCustomer.set(j.customer, Math.max(lastByCustomer.get(j.customer) ?? 0, at));
+    if (!j.pro) continue;
+    lastByPro.set(j.pro, Math.max(lastByPro.get(j.pro) ?? 0, at));
+    const k = `${j.customer}|${j.pro}`;
+    const p = pairs.get(k) ?? { customer: j.customer, pro: j.pro, jobs: 0, lastAt: 0 };
+    p.jobs++; p.lastAt = Math.max(p.lastAt, at);
+    pairs.set(k, p);
+  }
+  const repeat = [...pairs.values()].filter((p) => p.jobs >= 2);
+  const quiet = repeat.filter((p) => t - (lastByCustomer.get(p.customer) ?? 0) >= quietDays * DAY && t - (lastByPro.get(p.pro) ?? 0) <= 30 * DAY)
+    .sort((a, b) => b.jobs - a.jobs || a.lastAt - b.lastAt)
+    .map((p) => ({ customer: p.customer, pro: p.pro, jobs: p.jobs, lastAt: new Date(p.lastAt).toISOString() }));
+  return { repeatPairs: repeat.length, quiet, rate: repeat.length ? quiet.length / repeat.length : null };
+}
+
+/** Busy pros (3+ completed jobs in days 31–90) and whether each still completed one in the last 30 days. */
+export function proRetention(jobs: GuardJob[], now = new Date()) {
+  const t = now.getTime();
+  const before = new Map<string, number>(), recent = new Set<string>();
+  for (const j of jobs) {
+    if (!j.pro) continue;
+    const age = t - Date.parse(j.completedAt);
+    if (age <= 30 * DAY) recent.add(j.pro);
+    else if (age <= 90 * DAY) before.set(j.pro, (before.get(j.pro) ?? 0) + 1);
+  }
+  const busy = [...before].filter(([, n]) => n >= 3).map(([p]) => p);
+  const quietPros = busy.filter((p) => !recent.has(p));
+  return { busy: busy.length, quietPros, rate: busy.length ? (busy.length - quietPros.length) / busy.length : null };
+}
+
+/** Opening a new named city: allowed when an existing city is ready to replicate, otherwise only with a written reason. */
+export function canOpenCity(scores: Pick<CityScore, "readyToReplicate">[], reason?: string | null): { ok: boolean; why: string | null } {
+  if (scores.some((s) => s.readyToReplicate)) return { ok: true, why: null };
+  if ((reason ?? "").trim().length >= 15) return { ok: true, why: "override" };
+  return { ok: false, why: "No city is ready to replicate yet (Hub → City scorecard). Win the first city before opening the next, or give a reason (15+ characters) to open it anyway." };
 }

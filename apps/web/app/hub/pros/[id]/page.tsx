@@ -19,15 +19,17 @@
  * UPDATED : 2026-11-17_1700 UTC — Payout status (admins): what Stripe says right now (ready / needs info / not started /
  *           error, with the exact steps) and Pay now, so a pro is never wrongly told they aren't set up.
  * UPDATED : 2026-11-17_1900 UTC — Payout status shows PayPal / Venmo pros (method, masked handle, PayPal connected).
+ * UPDATED : 2026-11-19_1850 UTC — Work area editor: staff set the ZIP, driving distance and ZIP list (no ZIP, no approval).
+ * UPDATED : 2026-11-19_1910 UTC — status controls list what is missing and offer "Activate anyway" (admins).
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
 import { StandingActions } from "@/components/Standing";
 import { notFound } from "next/navigation";
-import { COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardingChecklist, proTier, specialtiesFor, type Contractor, type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
+import { DEFAULT_RADIUS_MI, COVERAGES, PROBATION, TRADES, getService, money, necThreshold, onboardingChecklist, proTier, specialtiesFor, type Contractor, type CoverageKey, DEACTIVATION_RULES } from "@handled/core";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { Badge, Stat, StatusBadge, fmtDate } from "@/components/ui";
-import { DocDecision, ProStatusControls } from "@/components/HubActions";
+import { DocDecision, ProStatusControls, WorkAreaEditor } from "@/components/HubActions";
 import { HubCrewDecision } from "@/components/Crew";
 import { MarkIdVerified } from "@/components/VerifyId";
 import { FastTrackReview } from "@/components/FastTrack";
@@ -130,7 +132,8 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
           <div className="mt-4 text-xs text-ink-soft">1099 profile: {pro.legal_name ?? "—"} · {pro.entity_type ?? "—"} · TIN •••{pro.tin_last4 ?? "—"} · {[pro.address_line, pro.city, pro.state, pro.zip].filter(Boolean).join(", ") || "no address"} · payout {pro.payout_method ?? "—"}{pro.payout_account_last4 ? ` •••${pro.payout_account_last4}` : ""}</div>
         </div>
         <div className="space-y-4">
-          <ProStatusControls id={id} status={pro.status} complete={complete} />
+          <ProStatusControls id={id} status={pro.status} complete={complete} missing={steps.filter((s) => !s.done).map((s) => s.label)} />
+          <WorkAreaEditor id={id} zip={pro.base_zip ?? null} radius={pro.service_radius_mi ?? DEFAULT_RADIUS_MI} zips={pro.service_zips ?? []} />
           {admin && await (async () => {
             const rail = railOf(pro.payout_method);
             if (rail !== "stripe") {

@@ -14,11 +14,14 @@
  * UPDATED : 2026-11-17_2300 UTC — optional MailAccount on every call, so Front Office offices use their own mailbox on the same host
  *           (default stays the company mailbox).
  * UPDATED : 2026-11-20_1500 UTC — MailAccount can name its own hosts / ports (the outreach mailbox on handledsvc.net).
+ * UPDATED : 2026-11-19_1500 UTC — readMessage shows clean text (lib/mail-text.ts): HTML-only and broken plain-text emails no longer
+ *           show their CSS, &nbsp; codes or invisible preheader filler.
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
+import { readableMailText } from "@/lib/mail-text";
 import { resolveTxt } from "node:dns/promises";
 
 export const mailboxUser = () => process.env.SMTP_USER?.trim() || null;
@@ -109,7 +112,7 @@ export async function readMessage(uid: number, acct?: MailAccount): Promise<Full
       const to = Array.isArray(p.to) ? p.to.map((x) => x.text).join(", ") : p.to?.text ?? "";
       const refs = Array.isArray(p.references) ? p.references.join(" ") : p.references ?? null;
       return { uid, from: from?.address ?? "", fromName: from?.name || null, to, subject: p.subject ?? "(no subject)", date: (p.date ?? new Date()).toISOString(),
-        text: (p.text ?? (typeof p.html === "string" ? p.html.replace(/<[^>]+>/g, " ") : "")).slice(0, 50000), messageId: p.messageId ?? null, references: refs };
+        text: readableMailText(p.text, p.html).slice(0, 50000), messageId: p.messageId ?? null, references: refs };
     } finally { lock.release(); }
   } finally { await c.logout().catch(() => {}); }
 }

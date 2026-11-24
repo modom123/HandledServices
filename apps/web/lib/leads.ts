@@ -23,10 +23,13 @@
  * UPDATED : 2026-10-11_1625 UTC — no email on a pro's website → one Hunter.io domain search (lib/hunter, daily budget); the owner's name is saved too.
  * UPDATED : 2026-10-21_0130 UTC — syncProReplies: replies pulled from Instantly's API when its webhooks aren't on (they need the
  *           Hypergrowth plan), handled by onInstantlyEvent like a webhook reply.
+ * UPDATED : 2026-11-20_0200 UTC — weekly invitations from our own handledsvc.net mailbox (proOutreachTick, hourly): one a
+ *           week for 60 days (or 90, Hub setting), then retired (retireFinishedInvites); replies and bounces in that inbox
+ *           stop them (onProOutreachInbound). Instantly is used only when our mailbox isn't set up.
  */
 import "server-only";
 import {
-  BRAND, FOCUS_CITIES, LEAD_SEQUENCE, MARKETING_FOCUS, SERVICES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, serviceGaps, splitJob, type Contractor,
+  BRAND, FOCUS_CITIES, LEAD_SEQUENCE, MARKETING_FOCUS, PRO_INVITE, outreachSlice, proInviteDone, proInviteEmails, proInviteNext, warmupCap, SERVICES, TRADE_SEARCH, defaultAnswers, estimate, extractEmails, getService, leadEmail, leadScore, money, serviceGaps, splitJob, type Contractor,
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
@@ -40,10 +43,10 @@ const db = () => adminClient();
 const METRO = FOCUS_CITIES;
 const LICENSED = new Set(["plumbing", "electrical", "hvac", "remodel"]);
 
-export interface LeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; min_rating: number; min_reviews: number; trades: string[] }
+export interface LeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; min_rating: number; min_reviews: number; trades: string[]; invite_days?: number }
 export async function getLeadSettings(): Promise<LeadSettings> {
   const { data } = await db().from("lead_engine_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, discover_per_day: 10, emails_per_day: 40, min_rating: 4.3, min_reviews: 5, trades: [], ...(data ?? {}) } as LeadSettings;
+  return { enabled: false, discover_per_day: 10, emails_per_day: 40, min_rating: 4.3, min_reviews: 5, trades: [], invite_days: PRO_INVITE.defaultDays, ...(data ?? {}) } as LeadSettings;
 }
 
 export const outreachReady = instantlyReady;
@@ -193,6 +196,8 @@ const toHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").rep
 
 /** Hand today's best queued leads to Instantly, each with its three emails written out. Instantly sends them. */
 export async function sendLeadEmails(s: LeadSettings): Promise<{ sent: number; skipped: number }> {
+  // our own handledsvc.net mailbox sends the weekly invitations hourly (proOutreachTick); Instantly only when it isn't set up
+  if ((await import("./outreach-mail")).outreachReady()) return { sent: 0, skipped: 0 };
   if (!outreachReady()) return { sent: 0, skipped: 0 };
   const { data } = await db().from("pro_leads").select("*").eq("status", "queued").not("email", "is", null)
     .order("score", { ascending: false }).limit(s.emails_per_day);
@@ -220,6 +225,103 @@ export async function sendLeadEmails(s: LeadSettings): Promise<{ sent: number; s
     sent++;
   }
   return { sent, skipped };
+}
+
+// ─── Weekly invitations from our own mailbox (owner, 2026-11-20) ────────────────
+type ProRow = { id: string; token: string; email: string; business_name: string; contact_name: string | null; trade: string; city: string | null; area: string | null; step: number | null; first_email_at: string | null; status: string };
+const PRO_COLS = "id, token, email, business_name, contact_name, trade, city, area, step, first_email_at, status";
+
+/** How many pro invitations our mailbox sent today (UTC). */
+async function proSentToday() {
+  const start = new Date(); start.setUTCHours(0, 0, 0, 0);
+  return (await db().from("pro_lead_events").select("id", { count: "exact", head: true }).eq("kind", "own_sent").gte("created_at", start.toISOString())).count ?? 0;
+}
+
+/**
+ * Once an hour (dispatch cron), weekdays 9–5 Eastern: weekly invitations that are due, then new leads, within today's
+ * limit and the outreach domain's warm-up ramp; each run sends its share of what's left today (core outreachSlice).
+ * One email a week for invite_days (60 or 90) — then the lead is retired (retireFinishedInvites).
+ */
+export async function proOutreachTick() {
+  const s = await getLeadSettings();
+  const om = await import("./outreach-mail");
+  if (!s.enabled || !om.outreachReady() || !process.env.BUSINESS_POSTAL_ADDRESS) return null;
+  const { error: notReady } = await db().from("pro_leads").select("first_email_at").limit(1);
+  if (notReady) return { sent: 0, error: "Run supabase/setup/PRO_WEEKLY_INVITES_2026-11-20_0200.sql in Supabase → SQL Editor" };
+  const days = s.invite_days ?? PRO_INVITE.defaultDays, total = proInviteEmails(days);
+  const { data: biz } = await db().from("biz_lead_settings").select("first_own_send_at").eq("id", 1).maybeSingle();
+  // the warm-up ramp is for the mailbox, so business outreach sent today counts against it too
+  const start = new Date(); start.setUTCHours(0, 0, 0, 0);
+  const bizToday = (await db().from("biz_lead_events").select("id", { count: "exact", head: true }).eq("kind", "outreach:sent").gte("created_at", start.toISOString())).count ?? 0;
+  const proToday = await proSentToday();
+  const ramp = warmupCap((biz as { first_own_send_at?: string | null } | null)?.first_own_send_at ?? null, 10_000);
+  const left = Math.max(0, Math.min(s.emails_per_day - proToday, ramp - proToday - bizToday));
+  let budget = outreachSlice(left);
+  if (budget <= 0) return { sent: 0, left };
+  let sent = 0, skipped = 0;
+  const now = new Date();
+  const run = async (rows: ProRow[]) => {
+    for (const l of rows) {
+      if (budget <= 0) break;
+      const email = l.email.toLowerCase();
+      const [{ data: app }, { count: out }] = await Promise.all([
+        db().from("contractor_applications").select("id").ilike("email", email).limit(1).maybeSingle(),
+        db().from("email_optouts").select("email", { count: "exact", head: true }).eq("email", email),
+      ]);
+      if (app) { await db().from("pro_leads").update({ status: "applied", application_id: app.id, next_send_at: null }).eq("id", l.id); skipped++; continue; }
+      if (out) { await db().from("pro_leads").update({ status: "unsubscribed", next_send_at: null }).eq("id", l.id); skipped++; continue; }
+      const step = Number(l.step ?? 0);
+      if (step >= total) { await db().from("pro_leads").update({ next_send_at: null }).eq("id", l.id); skipped++; continue; }
+      const ctx = { step, total, businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, trade: l.trade, city: l.city,
+        payExample: payExample(l.trade), demand: await demandNear(l.trade, l.area), applyUrl: `${siteUrl()}/l/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS! };
+      const m = leadEmail(ctx);
+      try {
+        await om.sendOutreach({ to: l.email, subject: m.subject, text: m.text, unsubscribeUrl: ctx.unsubscribeUrl });
+      } catch (e) {
+        await event(l.id, "send_failed", e instanceof Error ? e.message : String(e));
+        skipped++; budget--; continue;
+      }
+      const next = proInviteNext(step + 1, days, now);
+      await db().from("pro_leads").update({ status: l.status === "clicked" ? "clicked" : "emailing", step: step + 1, next_send_at: next?.toISOString() ?? null, last_contact_at: now.toISOString(), ...(step === 0 ? { first_email_at: now.toISOString() } : {}) }).eq("id", l.id);
+      await event(l.id, "own_sent", `invitation ${step + 1} of ${total} (weekly for ${days} days): ${m.subject}`);
+      sent++; budget--;
+    }
+  };
+  const { data: due } = await db().from("pro_leads").select(PRO_COLS).in("status", ["emailing", "clicked"]).lte("next_send_at", now.toISOString()).not("email", "is", null).order("next_send_at").limit(200);
+  await run((due ?? []) as ProRow[]);
+  if (budget > 0) {
+    const { data: fresh } = await db().from("pro_leads").select(PRO_COLS).eq("status", "queued").not("email", "is", null).order("score", { ascending: false }).limit(budget);
+    await run((fresh ?? []) as ProRow[]);
+  }
+  return { sent, skipped, left: Math.max(0, left - sent) };
+}
+
+/** Daily: invitations whose window is over (every weekly email sent, invite_days since the first) are retired. */
+export async function retireFinishedInvites(): Promise<number> {
+  const s = await getLeadSettings();
+  const days = s.invite_days ?? PRO_INVITE.defaultDays;
+  const { data, error } = await db().from("pro_leads").select("id, step, first_email_at").in("status", ["emailing", "clicked"]).not("first_email_at", "is", null).is("next_send_at", null).limit(2000);
+  if (error) return 0;
+  let n = 0;
+  for (const l of (data ?? []) as { id: string; step: number; first_email_at: string }[]) {
+    if (!proInviteDone(l.first_email_at, Number(l.step ?? 0), days)) continue;
+    // retired, not deleted: the row keeps the address so a later search never invites them again; details are cleared
+    await db().from("pro_leads").update({ status: "retired", retired_at: new Date().toISOString(), phone: null, rating: null, review_count: null }).eq("id", l.id);
+    await event(l.id, "retired", `no reply after ${days} days of weekly invitations`);
+    n++;
+  }
+  return n;
+}
+
+/** A reply or bounce in our outreach inbox from a pro lead: stop their invitations (and tell recruiting about a reply). */
+export async function onProOutreachInbound(e: { type: "reply" | "bounce"; email: string; text?: string }): Promise<boolean> {
+  const { data: l } = await db().from("pro_leads").select("id, business_name, status").ilike("email", e.email.toLowerCase()).limit(1).maybeSingle();
+  if (!l) return false;
+  if (e.type === "bounce") { await db().from("pro_leads").update({ status: "bounced", next_send_at: null }).eq("id", l.id); await event(l.id, "bounced", "own mailbox"); return true; }
+  await db().from("pro_leads").update({ status: "replied", next_send_at: null }).eq("id", l.id);
+  await event(l.id, "replied", (e.text ?? "").slice(0, 1500));
+  await raiseAlert("leads", "info", `Pro lead replied: ${l.business_name}`, `${(e.text ?? "").slice(0, 600)}\n\nAnswer from the outreach mailbox; their invitations have stopped. Hub → Recruiting → Pro leads.`);
+  return true;
 }
 
 /** Instantly events (webhook): sent, opened/clicked, replied, unsubscribed, bounced. */
@@ -366,7 +468,8 @@ export async function leadEngine() {
   const emailsFound = await enrichLeads().catch((e) => { console.error("[leads enrich]", e); return 0; });
   const sent = await sendLeadEmails(s).catch((e) => { console.error("[leads send]", e); return { sent: 0, skipped: 0 }; });
   const purged = await purgeExpiredDetails().catch(() => 0);
+  const retired = await retireFinishedInvites().catch(() => 0);
   if (!process.env.GOOGLE_PLACES_API_KEY || !outreachReady())
     await raiseAlert("leads", "info", "Pro lead engine is on but not fully set up", `${!process.env.GOOGLE_PLACES_API_KEY ? "GOOGLE_PLACES_API_KEY missing — no automatic discovery (CSV import still works). " : ""}${!outreachReady() ? "INSTANTLY_API_KEY / INSTANTLY_CAMPAIGN_ID / BUSINESS_POSTAL_ADDRESS missing — no leads handed to Instantly." : ""}`);
-  return { enabled: true, discovered, emailsFound, sent, purged };
+  return { enabled: true, discovered, emailsFound, sent, purged, retired };
 }

@@ -5,7 +5,7 @@
  * PURPOSE : GET → the signed-in pro's "My info" for the app: profile, status, every onboarding step (done / left),
  *           orientation progress and documents with expiry dates. Same data as /pro/info on the web.
  */
-import { TRADES, onboardingChecklist, orientationStatus, type Contractor } from "@handled/core";
+import { DEFAULT_RADIUS_MI, TRADES, onboardingChecklist, orientationStatus, type Contractor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     profile: {
       business_name: c.business_name, contact_name: c.contact_name, email: c.email, phone: c.phone, pro_no: c.pro_no ?? null,
       trades: (c.trades ?? []).map((id) => TRADES.find((t) => t.id === id)?.label ?? id), base_city: c.base_city ?? null, base_zip: c.base_zip ?? null,
-      radius: c.service_radius_mi ?? 25, insured_until: c.insured_until, license_number: c.license_number, license_expires: c.license_expires,
+      radius: c.service_radius_mi ?? DEFAULT_RADIUS_MI, insured_until: c.insured_until, license_number: c.license_number, license_expires: c.license_expires,
       id_verified_at: c.id_verified_at ?? null, background_checked: c.background_checked, payout_method: c.payout_method,
     },
     status: c.status, approved: c.status === "approved", complete,

@@ -31,7 +31,7 @@
  * UPDATED : 2026-11-13_0730 UTC — publicBoard is public-only again (no internal money); the internal view is Hub → Jobs → Job board.
  */
 import "server-only";
-import { AGREEMENT_VERSION, BOARD, boardOrder, inProArea, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
+import { DEFAULT_RADIUS_MI, AGREEMENT_VERSION, BOARD, boardOrder, inProArea, buildWorkOrder, getService, money, onBoard, topPay, proDistance, proTier, rankContractors, serviceText, tierPayout, type BoardOffer, type Contractor, type Job, proNetPay } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { supabaseConfigured } from "./supabase/env";
 import { localeOf, notify } from "./push";
@@ -146,7 +146,7 @@ export async function boardPreview(contractorId: string, locale: "en" | "es" = "
     if (!svc || !svc.trades.some((t) => pro.trades.includes(t))) continue;
     const miles = proDistance(pro, job);
     const inZips = pro.service_zips?.includes(job.zip);
-    if (pro.zips_only ? !inZips : miles != null ? miles > (pro.service_radius_mi ?? 25) : pro.service_zips?.length ? !inZips : false) continue;
+    if (pro.zips_only ? !inZips : miles != null ? miles > (pro.service_radius_mi ?? DEFAULT_RADIUS_MI) : pro.service_zips?.length ? !inZips : false) continue;
     const pay = proNetPay(job, job.contractor_payout ?? 0, pro.agreement_version);
     const wo = buildWorkOrder(job, { reveal: false, payout: job.contractor_payout ?? 0, locale, agreementVersion: pro.agreement_version });
     cards.push({

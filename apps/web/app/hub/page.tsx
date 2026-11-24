@@ -15,8 +15,11 @@
  *           applications, jobs no pro could take, pro-lead outreach, insurance expiring, drop-offs and applicant → active
  *           conversion, plus the recruiting funnel by stage. Recruiting insights lead the list.
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: read on the server; money (pro pay, our take, payouts, partner splits) for admins only.
+ * UPDATED : 2026-11-20_0415 UTC — one Dashboard: Today | This month switch; the sales & marketing funnel (lib/clients-funnel) sits under the insights.
  */
 import Link from "next/link";
+import { DashboardSwitch } from "@/components/DashboardSwitch";
+import { clientsFunnel } from "@/lib/clients-funnel";
 import { PIPELINE, getService, money, type PipelineStage } from "@handled/core";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { aiDrivenRate, aiDrivenTargetNow } from "@/lib/metrics";
@@ -201,6 +204,7 @@ export default async function HubDashboard() {
   if (failed) insights.push({ tone: "warn", text: `${failed} card payment${failed === 1 ? "" : "s"} failed this month.`, href: stat("payments") });
   if (!insights.length) insights.push({ tone: "info", text: "Not enough activity yet this month to spot trends — insights appear as jobs complete.", href: stat("bookings") });
 
+  const sales = await clientsFunnel().catch(() => []);
   const F = factors ?? [];
   const factorQuotes = F.filter((f) => f.advance_rate != null && f.fee_pct != null).length;
   const factorActive = F.filter((f) => f.status === "active").length;
@@ -212,7 +216,7 @@ export default async function HubDashboard() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-sm text-ink-soft">Month to date · click any number for its full history</p>
         </div>
-        <div className="flex gap-2"><Link href="/hub/briefing" className="btn-ghost">☀️ Daily Briefing</Link><Link href="/hub/assistant" className="btn-dark">✨ Ask the AI assistant</Link></div>
+        <div className="flex flex-wrap items-center gap-2"><DashboardSwitch on="month" /><Link href="/hub/assistant" className="btn-dark">✨ Ask the AI assistant</Link></div>
       </div>
 
       <section className="card space-y-2">
@@ -224,6 +228,13 @@ export default async function HubDashboard() {
             </Link></li>
           ))}
         </ul>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-bold">🧲 Sales & marketing</h2><Link href="/hub/inbox" className="text-sm text-brand underline">Open Clients & Marketing →</Link></div>
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">{sales.map((f) => (
+          <Link key={f.href} href={f.href} className="card p-4 hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{f.label}</div><div className="mt-1 text-2xl font-bold">{f.n ?? "—"}</div><div className="mt-1 text-xs text-ink-soft">{f.hint}</div></Link>
+        ))}</div>
       </section>
 
       {shownGroups.map(([name, tiles], gi) => (

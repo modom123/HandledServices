@@ -25,6 +25,8 @@
  *           the Partner Program and gets FIRST_PROJECT_REWARD back on their OWN first project — 10% of the price, up to
  *           $250, paid by Handled alone (referral_customers.source 'self', partner_commissions.tier 'self'). The one
  *           exception to "referring yourself doesn't count".
+ * UPDATED : 2026-11-18_0125 UTC — the Handled Sales Force term: a member's direct sale pays the higher of the v7 rate (+ points) and
+ *           their rank share, plus book share, team shares and bonuses (only ever adds to the program's pay).
  * UPDATED : 2026-11-10_0400 UTC — partner-v5: lead pay — $10 per lead as a draw against that lead's commission, unlocked
  *           after 10 leads and one paid-out sale (SALES_DRAW, drawUnlocked, drawRecovery).
  * UPDATED : 2026-11-17_2000 UTC — partner-v7: ONE program (owner) on the old Field Sales formula, starting at 15%. Every
@@ -38,6 +40,7 @@
  *           the partner page; referral jobs only go to pros on the current pro agreement, so the pro's half is always paid.
  */
 import { BRAND } from "./brand.ts";
+import { SALES_RANKS } from "./sales-force.ts";
 import { CARD_FEE } from "./pricing.ts";
 import { getService, missingMeasurements, type Answers } from "./services.ts";
 import { photoRule } from "./intake.ts";
@@ -440,6 +443,7 @@ export function partnerTerms(): string[] {
     `One program, two ways to earn. Refer a customer and you earn your rate on every completed job from them for ${p.months} months. Sell it yourself on a sales ticket (the customer pays ${BRAND.name} directly) and you earn your rate + ${b} points. Your rate is a share of ${BRAND.name}'s profit on the job — the price the customer pays minus what the pro is paid and any refunds — the same on every service.`,
     `Everyone starts at ${Math.round(R.baseRate * 100)}% (${Math.round((R.baseRate + DIRECT_BONUS) * 100)}% on direct sales) and moves up one point at a time to ${Math.round(R.topRate * 100)}% (${Math.round((R.topRate + DIRECT_BONUS) * 100)}%) as the profit your completed jobs make ${BRAND.name} grows, with direct sales counting ${PARTNER_LADDER.directCredit}× and referrals ${PARTNER_LADDER.referralCredit}×: level n comes at $1,000,000 × (n ÷ ${ladderLevels(R)})², so the top rate comes at $${R.topProfit.toLocaleString("en-US")} of profit. Each job keeps the rate you had when it was booked.`,
     `${BRAND.name} pays your commission in full; the pro's pay is never reduced. It never exceeds what ${BRAND.name} keeps on the job after card fees.`,
+    `The Handled Sales Force (optional, for direct sales): members hold a title from Associate Account Executive to VP of Sales, earned from their totals since day one and never lost. A member's direct sale pays the higher of the rate above (+ ${b} points) and their rank's share of ${BRAND.name}'s profit (${Math.round(SALES_RANKS.associate.sellerShare * 100)}% to ${Math.round(SALES_RANKS.vp.sellerShare * 100)}%), plus a smaller book share on their customers after ${p.months} months, team shares for leaders who keep selling, $25 per walkthrough held, a first-sale bonus and promotion bonuses (details at handledsvc.com/careers/sales). Sales Force pay only adds to what this program pays.`,
     `A customer counts as yours when they book through your link (within ${p.cookieDays} days of clicking it), type your partner code when they pay, or after you send them to us on a referral ticket or a sales ticket from your partner page, and they are new to ${BRAND.name}. Each customer belongs to one partner: the first one.`,
     `Lead pay: you earn $${SALES_DRAW.perLead} for every lead (a complete sales ticket for a new customer), paid weekly, up to ${SALES_DRAW.weeklyCap} leads a week. It's an advance (a draw) against that lead's commission: when the lead's job pays you a commission, the $${SALES_DRAW.perLead} is taken back out of it; if the lead never books, you keep it. Lead pay starts once you've written ${SALES_DRAW.unlockLeads} leads and at least ${SALES_DRAW.unlockPaidSales} of your sales has closed and been paid out; what you built up before then is paid on the next weekly payout. Fake or duplicate leads earn nothing and can end the partnership.`,
     `Sales tickets: only photograph property with the owner's or manager's permission, only submit customers who asked to hear from us, and never take payment yourself. Once a job is paid, it goes to our pros.`,

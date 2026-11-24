@@ -12,6 +12,11 @@
  *             clickUrl / recordClick — signed click-tracking links (no open pixels)
  *           Every email: why they get it, the business postal address, one-click unsubscribe (CAN-SPAM).
  * UPDATED : 2026-10-05_2134 UTC — business-lead audience never includes teaming partners.
+ * UPDATED : 2026-11-20_0310 UTC — FIX: the business-leads audience includes queued leads (found, with an email, waiting for
+ *           their first outreach email). Leads get "queued" as soon as their email is found, so the audience was nearly always 0.
+ * UPDATED : 2026-11-20_0040 UTC — campaigns go out from the handledsvc.net marketing mailbox (OUTREACH_SMTP_USER, e.g.
+ *           mark@handledsvc.net) when it's connected; the company mailbox (SMTP_USER) is only the fallback.
+ * UPDATED : 2026-11-19_1540 UTC — {{post_url}}: the Post-your-project page with the campaign's tracking (lands in the Lead inbox).
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -19,7 +24,13 @@ import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, marketingFooter, mergeTags
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
-import { mailboxReady, sendMail } from "./mailbox";
+import { mailboxReady, sendMail as sendCompanyMail, type OutMail } from "./mailbox";
+import { outreachReady, outreachUser, sendMarketingFromOutreach } from "./outreach-mail";
+
+/** Marketing goes out from handledsvc.net (owner, 2026-11-17); the company mailbox only when that isn't connected. */
+const sendMail = (m: OutMail) => (outreachReady() ? sendMarketingFromOutreach(m) : sendCompanyMail(m));
+/** Which mailbox campaigns send from right now (shown in the Email Center). */
+export const campaignSender = () => (outreachReady() ? outreachUser() : mailboxReady() ? process.env.SMTP_USER ?? null : null);
 
 const db = () => adminClient();
 const lower = (e: string) => e.trim().toLowerCase();
@@ -85,7 +96,7 @@ async function rawAudience(audience: EmailAudience, customList?: string | null):
     const rows = await all<{ email: string; business_accounts: { company: string | null; contact_name: string | null } | null }>((a, b) => db().from("business_members").select("email, business_accounts(company, contact_name)").range(a, b));
     for (const r of rows) add(r.email, null, { company: r.business_accounts?.company ?? "" });
   } else if (audience === "biz_leads") {
-    const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; city: string | null }>((a, b) => db().from("biz_leads").select("email, contact_name, business_name, city").in("status", ["new", "clicked"]).neq("segment", "partner").not("email", "is", null).range(a, b));
+    const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; city: string | null }>((a, b) => db().from("biz_leads").select("email, contact_name, business_name, city").in("status", ["new", "queued", "clicked"]).neq("segment", "partner").not("email", "is", null).range(a, b));
     for (const r of rows) add(r.email, r.contact_name, { company: r.business_name, city: r.city ?? "" });
   } else if (audience === "pros") {
     const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; profiles: { locale: string | null } | null }>((a, b) => db().from("contractors").select("email, contact_name, business_name, profiles(locale)").eq("status", "approved").range(a, b));
@@ -128,7 +139,7 @@ export async function recordClick(recipientId: string, url: string, s: string | 
 export function renderFor(c: Pick<Campaign, "id" | "subject" | "body" | "preheader" | "subject_es" | "body_es" | "audience">, r: Pick<Recipient, "email" | "locale" | "vars">, recipientId: string | null) {
   const es = r.locale === "es" && Boolean(c.subject_es?.trim() && c.body_es?.trim());
   const unsub = `${unsubscribeUrl(r.email)}${recipientId ? `&c=${c.id}` : ""}`;
-  const vars = { ...r.vars, email: r.email, site_url: siteUrl(), book_url: `${siteUrl()}/book?utm_source=email&utm_campaign=${c.id.slice(0, 8)}` };
+  const vars = { ...r.vars, email: r.email, site_url: siteUrl(), book_url: `${siteUrl()}/book?utm_source=email&utm_campaign=${c.id.slice(0, 8)}`, post_url: `${siteUrl()}/post?utm_source=email&utm_campaign=${c.id.slice(0, 8)}` };
   const subject = mergeTags(es ? c.subject_es! : c.subject, vars);
   const body = mergeTags(es ? c.body_es! : c.body, vars);
   const footer = marketingFooter(c.audience, process.env.BUSINESS_POSTAL_ADDRESS ?? "[set BUSINESS_POSTAL_ADDRESS]", unsub, es ? "es" : "en");
@@ -138,7 +149,7 @@ export function renderFor(c: Pick<Campaign, "id" | "subject" | "body" | "prehead
 
 export function sendingProblems(): string[] {
   const p: string[] = [];
-  if (!mailboxReady()) p.push("Mailbox isn't connected: set SMTP_USER and SMTP_PASSWORD in Vercel.");
+  if (!outreachReady() && !mailboxReady()) p.push("No mailbox connected for marketing email: in Vercel set OUTREACH_SMTP_USER (e.g. mark@handledsvc.net) and OUTREACH_SMTP_PASSWORD, then redeploy.");
   if (!process.env.BUSINESS_POSTAL_ADDRESS) p.push("BUSINESS_POSTAL_ADDRESS isn't set — the law requires it on marketing email.");
   return p;
 }

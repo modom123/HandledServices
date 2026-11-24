@@ -1,6 +1,7 @@
 /*
  * FILE    : apps/web/app/sitemap.ts
  * PROJECT : Handled (HandledServices) — AI-run home & business services
+ * UPDATED : 2026-11-17_2350 UTC — landing pages for each kind of business (/business/<slug>) and /walkthrough.
  * CREATED : 2026-10-02_1329 UTC
  * PURPOSE : sitemap.xml for search engines: main pages, every service, every service × city.
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: focus services (MARKETING_FOCUS) and their city pages get higher priority.
@@ -12,7 +13,7 @@
  */
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/site-url";
-import { CITY_PAGE_CITIES, SERVICES, SITE_MARKETS, isFocusService, isIndexedCityPage } from "@handled/core";
+import { BIZ_LANDINGS, CITY_PAGE_CITIES, SERVICES, SITE_MARKETS, isFocusService, isIndexedCityPage } from "@handled/core";
 
 const BUILT_AT = new Date();
 
@@ -24,5 +25,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // city pages only where they're indexed: focus services + each market's featured services (see services/[slug]/in/[city])
   const cities = SERVICES.flatMap((s) => CITY_PAGE_CITIES.filter((c) => isIndexedCityPage(s.slug, c.slug)).map((c) => ({ url: `${base}/services/${s.slug}/in/${c.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 })));
   const markets = [{ url: `${base}/areas`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 }, ...SITE_MARKETS.map((m) => ({ url: `${base}/areas/${m.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.9 }))];
-  return [...pages, ...markets, ...services, ...cities];
+  const bizPages = [...BIZ_LANDINGS.map((l) => ({ url: `${base}/business/${l.slug}`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.8 })), { url: `${base}/walkthrough`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.6 }, { url: `${base}/careers/sales`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 }];
+  return [...pages, ...bizPages, ...markets, ...services, ...cities];
 }

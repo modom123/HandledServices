@@ -27,12 +27,14 @@
  * UPDATED : 2026-11-17_1900 UTC — payout step: a pro who chose PayPal / Venmo keeps that choice even with a Stripe account on file.
  * UPDATED : 2026-11-17_2045 UTC — all 50 states: state picker (from their ZIP, no Michigan default), license line for their state,
  *           and a welcome note where we don't take bookings yet (services appear for customers there once they're approved).
+ * UPDATED : 2026-11-19_1745 UTC — work area: ZIP required (street, city, state optional); 100 miles by default; listed ZIP
+ *           codes become the whole area (the "only these ZIPs" checkbox is gone).
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
 import { connectReady } from "@/lib/stripe";
 import { servedState } from "@/lib/launch";
-import { BRAND, US_STATES, licenseFor, stateForZip, stateName, BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { DEFAULT_RADIUS_MI, BRAND, US_STATES, licenseFor, stateForZip, stateName, BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import Link from "next/link";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
@@ -79,7 +81,7 @@ export default async function Onboarding() {
   const stepLabel = (s: { key: string; label: string }) => {
     if (!es) return s.label;
     if (s.label === "Trade license — optional") return "Licencia del oficio — opcional";
-    if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)} (verificado)`;
+    if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)}${s.label.endsWith("— optional") ? " — opcional" : " (verificado)"}`;
     return t(s.label);
   };
   const stepDetail = (d: string) => {
@@ -176,24 +178,23 @@ export default async function Onboarding() {
       const wins = pro.availability?.windows ?? ["morning", "midday", "afternoon"];
       return (
         <StepForm step="area" cta={t("Save work area & hours")} locale={l}>
-          <p className="text-sm text-ink-soft">{t("We only offer you jobs within your driving distance of your place of business, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.")}</p>
+          <p className="text-sm text-ink-soft">{es ? `Su código postal es obligatorio. Le ofrecemos trabajos a hasta ${DEFAULT_RADIUS_MI} millas de él, o solo en los códigos postales que indique abajo, en los días y horarios en que trabaja.` : `Your ZIP code is required. We offer you jobs within ${DEFAULT_RADIUS_MI} miles of it, or only in the ZIP codes you list below, on the days and times you work.`}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t("Place of business — street address")} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} required />
-            <Field label={t("City")} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} required />
+            <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
+            <Field label={es ? "Dirección del negocio (opcional, para distancias exactas)" : "Place of business — street address (optional, for exact distances)"} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} />
+            <Field label={es ? "Ciudad (opcional)" : "City (optional)"} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} />
             <label className="block text-sm"><span className="font-medium">{t("State")}</span>
-              <select name="base_state" className="input mt-1" required defaultValue={proState ?? ""}>
-                <option value="" disabled>{es ? "Elija su estado" : "Choose your state"}</option>
+              <select name="base_state" className="input mt-1" defaultValue={proState ?? ""}>
+                <option value="">{es ? "Según su código postal" : "From your ZIP"}</option>
                 {US_STATES.map((st) => <option key={st.code} value={st.code}>{st.name}</option>)}
               </select>
             </label>
-            <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
-            <Field label={t("How far you’ll drive (miles)")} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
+            <Field label={es ? `Hasta dónde maneja (millas, ${DEFAULT_RADIUS_MI} si lo deja así)` : `How far you’ll drive (miles, ${DEFAULT_RADIUS_MI} unless you change it)`} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.base_zip ? pro.service_radius_mi ?? DEFAULT_RADIUS_MI : DEFAULT_RADIUS_MI)} />
             <Field label={t("Most jobs you want in one day")} name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
           </div>
           <div>
-            <Field label={t("ZIP codes you want to cover (optional)")} name="service_zips" defaultValue={(pro.service_zips ?? []).join(", ")} placeholder="48201, 48226, 481*" />
-            <p className="mt-1 text-xs text-ink-soft">{t("Separate with commas. 481* covers every ZIP starting with 481. Listed ZIPs get offers even past your driving distance.")}</p>
-            <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" name="zips_only" defaultChecked={Boolean((pro as { zips_only?: boolean | null }).zips_only)} /> {t("Only send me jobs in these ZIP codes")}</label>
+            <Field label={es ? "Solo estos códigos postales (opcional)" : "Only these ZIP codes (optional)"} name="service_zips" defaultValue={(pro.service_zips ?? []).join(", ")} placeholder="48201, 48226, 481*" />
+            <p className="mt-1 text-xs text-ink-soft">{es ? `Sepárelos con comas; 481* cubre todos los que empiezan con 481. Si pone códigos, solo recibe trabajos en ellos. Déjelo vacío para trabajar a hasta ${DEFAULT_RADIUS_MI} millas de su código postal.` : `Separate with commas; 481* covers every ZIP starting with 481. If you list ZIP codes, you only get jobs in them. Leave it blank to work up to ${DEFAULT_RADIUS_MI} miles from your ZIP.`}</p>
           </div>
           <div><span className="label">{t("Days you work")}</span><div className="flex flex-wrap gap-3 text-sm">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <label key={d} className="flex items-center gap-1"><input type="checkbox" name="days" value={i} defaultChecked={days.includes(i)} /> {t(d)}</label>)}</div></div>
           <div><span className="label">{t("Times you work")}</span><div className="flex flex-wrap gap-3 text-sm">{[["morning", "Morning 8–11"], ["midday", "Midday 11–2"], ["afternoon", "Afternoon 2–5"]].map(([w, lb]) => <label key={w} className="flex items-center gap-1"><input type="checkbox" name="windows" value={w} defaultChecked={wins.includes(w)} /> {t(lb)}</label>)}</div></div>

@@ -72,10 +72,12 @@
  *           address, customer contact or entry details — the pro opens the job and enters their PIN.
  * UPDATED : 2026-11-17_2100 UTC — referred jobs go only to pros on the current pro agreement (they pay half the partner's
  *           commission): filtered in dispatch and checked again when a pro accepts (core proCanTakeReferredJob).
+ * UPDATED : 2026-11-18_0040 UTC — business pricing: business orders (customer_type commercial, not a pro's own price or quote)
+ *           pay businessPrice(); the pro is paid the home-price dollars (splitJob business); jobs.business_pricing keeps it on repricing.
  */
 import "server-only";
 import { z } from "zod";
-import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, inProArea, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, AGREEMENT_VERSION, proCanTakeReferredJob, splitJob, tierPayout, type QualityStats,
+import { isPhotoPath, jobTimeZone, zoneLabel, BRAND, BUSINESS_TERMS, favoriteWindowHours, JOB_STATUS_LABEL, PROBATION, termsDecision, bookingFeeOf, offerCheck, OFFER_BOUNDS, BOARD_POST_FEE, isBoardPost, offerPlan, topPay, inProArea, depositPolicy, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, WORK_ORDER_VERSION, buildWorkOrder, workOrderText, estimate, getService, isRush, money, moneyCents, moneyRange, proNetPay, overDepositLimit, proTier, rankContractors, siteVisitReason, containerPickup, AGREEMENT_VERSION, proCanTakeReferredJob, splitJob, businessPrice, tierPayout, type QualityStats,
   type Contractor, type Job, type JobStatus, type ChecklistCheck,
   neededBy, urgencyPriority, RUSH_SURCHARGE, capDiscount, bookNowPolicy, payInFullSaving, resolvePlan, clearedForWork, nextBalanceTry, BOOK_NOW, memberSaving, serviceText, t,
   type HomeProfile,
@@ -234,7 +236,11 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     instructions = `TWO VISITS. Drop off the ${input.answers.size ?? 15}-yard container on ${fmt(new Date(`${input.scheduled_date}T12:00:00`))} (${input.time_window}); pick it up on ${fmt(pickup)}. Use driveway boards. Upload the landfill weigh ticket as a receipt — any weight over the allowance is billed to the customer at cost.`;
   }
-  const suggested = siteVisit ? null : quoted ? quoted.price : ai?.final_price ?? est.point;
+  // business orders pay business prices (core BUSINESS_PRICING): Handled keeps more, the pro is paid the home-price dollars.
+  // Not on a pro's own price or a pro's quote (those are the pro's number).
+  const bizPricing = input.customer_type === "commercial" && !quoted && !pro_choice && svc.slug !== "event-package" && (await businessPricingReady());
+  const homeSuggested = siteVisit ? null : quoted ? quoted.price : ai?.final_price ?? est.point;
+  const suggested = homeSuggested != null && bizPricing ? businessPrice(homeSuggested, svc.slug) : homeSuggested;
   // a pro's own price (their % of our suggestion), recomputed here so the customer pays exactly what they were shown
   const proPick = !quoted && pro_choice && suggested
     ? await (await import("./pro-prices")).chosenProPrice({ slug: svc.slug, proId: pro_choice.pro_id, suggested, zip: input.zip, date: input.scheduled_date, window: input.time_window, customerType: input.customer_type })
@@ -253,7 +259,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
     input.frequency = "once"; // a posted job is one visit (recurring plans book at our price)
   }
   const listPrice = proPick?.price ?? offer ?? suggested;
-  const payout = listPrice ? splitJob(listPrice, svc.slug).payout : null;
+  const payout = listPrice ? splitJob(listPrice, svc.slug, { business: bizPricing }).payout : null;
   // Plus member saving and promo codes come out of our share (the pro's payout is set on the list price)
   const rushFee = rush && listPrice ? Math.round(listPrice - listPrice / (1 + RUSH_SURCHARGE)) : 0;
   const { priceBenefits, redeemGift, recordPromoUse, flagPromoAbuse } = await import("./growth");
@@ -301,8 +307,8 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       business_property_id: biz?.property.id ?? null,
       ...pref,
       billed_on_terms: Boolean(acct?.onTerms && !siteVisit),
-      estimate_low: ai?.low ?? est.low,
-      estimate_high: ai?.high ?? est.high,
+      estimate_low: bizPricing ? businessPrice(ai?.low ?? est.low, svc.slug) : ai?.low ?? est.low,
+      estimate_high: bizPricing ? businessPrice(ai?.high ?? est.high, svc.slug) : ai?.high ?? est.high,
       price_final: price,
       contractor_payout: payout,
       // every saving from our share sits in discount, so price + discount + member_benefit is always the list price the pro's pay is set on
@@ -320,6 +326,7 @@ export async function createJob({ accept_terms: _accepted, payment_plan, quote_t
       deposit_amount: plan?.amount ?? later?.amount ?? null,
       balance_due_date: plan?.balanceDue ?? null,
       suggested_price: suggested,
+      ...(bizPricing ? { business_pricing: true } : {}),
       customer_offer: offer,
       ...(openOfferUntil ? { open_offer_until: openOfferUntil } : {}),
       // only sent when used, so bookings keep working before the marketplace migration is run
@@ -472,7 +479,7 @@ export async function markPaid(jobId: string, p: { amount: number; via: string; 
     patch.price_final = price;
     patch.estimate_low = price; patch.estimate_high = price;
     // pay follows the list price (promo / Plus savings stay on our side)
-    if (!Number(job.amount_refunded)) patch.contractor_payout = splitJob(price + Number(job.discount ?? 0) + Number(job.member_benefit ?? 0), job.service_slug).payout;
+    if (!Number(job.amount_refunded)) patch.contractor_payout = splitJob(price + Number(job.discount ?? 0) + Number(job.member_benefit ?? 0), job.service_slug, { business: Boolean(job.business_pricing) }).payout;
     if (p.kind === "offer_raise") patch.customer_offer = price;
   }
   const paidNow = Math.round((Number(job.amount_paid ?? 0) + p.amount) * 100) / 100;
@@ -1146,14 +1153,25 @@ export async function finalizeJob(jobId: string, summary?: string) {
   if (job.contractor_id) await (await import("./rewards")).creditJob(job).catch((e) => console.error("[rewards]", e));
   if (job.promo_code?.startsWith("REF-")) await (await import("./growth")).rewardReferral(job).catch((e) => console.error("[referral]", e));
   if (job.partner_id) await (await import("./partners")).accrueCommission(job, partnerCut).catch((e) => console.error("[partners]", e));
+  if (job.partner_id) await (await import("./sales-force")).accrueTeamPay(job, partnerCut).catch((e) => console.error("[sales force]", e)); // leaders' team shares, first-sale bonus
   await (await import("./loyalty")).earnForJob(job).catch((e) => console.error("[loyalty]", e));
   if (job.frequency !== "once") await scheduleNextVisit(job);
+}
+
+/** Business pricing needs migration 20261118004000_business_pricing (the column, and the guard that lets business jobs keep up to 50%). */
+let bizPricingReady: boolean | null = null;
+async function businessPricingReady(): Promise<boolean> {
+  if (bizPricingReady) return true;
+  const { error } = await db().from("jobs").select("business_pricing").limit(1);
+  bizPricingReady = !error;
+  if (error) await raiseAlert("setup", "warn", "Run ADD_BUSINESS_PRICING_2026-11-18_0040.sql", "Business orders are being priced at home prices until supabase/setup/ADD_BUSINESS_PRICING_2026-11-18_0040.sql is run in Supabase.").catch(() => {});
+  return bizPricingReady;
 }
 
 /** Recurring visit price: the list price again, minus the Plus saving if they're still a member. */
 async function nextVisitPrice(job: Job) {
   const list = Number(job.price_final ?? job.estimate_low) + Number(job.discount ?? 0) + Number(job.member_benefit ?? 0);
-  const payout = splitJob(list, job.service_slug).payout;
+  const payout = splitJob(list, job.service_slug, { business: Boolean(job.business_pricing) }).payout;
   const { activeMembership } = await import("./growth");
   const memberBenefit = (await activeMembership(job.contact_email, job.customer_id)) ? capDiscount(list, payout, memberSaving(list, 0)) : 0;
   return { price_final: Math.round((list - memberBenefit) * 100) / 100, member_benefit: memberBenefit, contractor_payout: payout };

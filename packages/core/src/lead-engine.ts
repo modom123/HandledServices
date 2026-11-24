@@ -18,6 +18,8 @@
  * UPDATED : 2026-10-23_1900 UTC — search phrases and words for the new trades (roofing, masonry, concrete, demolition, furniture assembly); lawn includes landscaping.
  * UPDATED : 2026-10-27_1600 UTC — recruiting search and wording for carpentry.
  * UPDATED : 2026-11-07_0037 UTC — search terms for the new social_media trade.
+ * UPDATED : 2026-11-20_0200 UTC — weekly pro invitations for 60 (or 90) days, then retire (PRO_INVITE, proInviteNext,
+ *           proInviteDone); leadEmail rotates weekly follow-ups and says goodbye only on the last email (total).
  */
 import { BRAND } from "./brand.ts";
 
@@ -142,8 +144,26 @@ export function nextSendAt(stepsSent: number, from = new Date()): Date | null {
   return new Date(from.getTime() + gap * 86400000);
 }
 
+/**
+ * Pro invitations from our own mailbox (owner, 2026-11-20): one email a week for 60 days (or 90, Hub setting), then the
+ * lead is retired. 60 days = 9 emails (weeks 0–8), 90 days = 13. Anyone who applies, replies or unsubscribes stops at once.
+ */
+export const PRO_INVITE = { everyDays: 7, defaultDays: 60, choices: [60, 90] as const } as const;
+export const proInviteEmails = (days: number) => Math.floor(Math.max(7, days) / PRO_INVITE.everyDays) + 1;
+/** When the next weekly email goes out, or null after the last one. */
+export function proInviteNext(stepsSent: number, days: number, from = new Date()): Date | null {
+  return stepsSent >= proInviteEmails(days) ? null : new Date(from.getTime() + PRO_INVITE.everyDays * 86400000);
+}
+/** Retire once the window is over (days after the first email) and every email has gone out. */
+export function proInviteDone(firstEmailAt: string | null | undefined, stepsSent: number, days: number, now = new Date()): boolean {
+  if (!firstEmailAt) return false;
+  return stepsSent >= proInviteEmails(days) && now.getTime() - new Date(firstEmailAt).getTime() >= days * 86400000;
+}
+
 export interface LeadEmailCtx {
   step: number;
+  /** How many emails the sequence has (3 for the Instantly campaign; 9 or 13 for the weekly invitations). The last one says goodbye. */
+  total?: number;
   businessName: string;
   firstName?: string | null;
   trade: string;
@@ -175,10 +195,25 @@ export function leadEmail(c: LeadEmailCtx): { subject: string; text: string } {
       text: `${hi}\n\nQuick follow-up. Pros on ${BRAND.name} fill gaps in their week with nearby jobs that are already paid for — no quoting, no chasing invoices. If a job isn't worth it to you, counter with the pay you want and the customer decides.\n\nApply in 5 minutes: ${c.applyUrl}\n\nThe ${BRAND.name} team`,
     },
     {
+      subject: `${trade} work${where} this week`,
+      text: `${hi}\n\n${demand || `Customers${where} keep booking ${trade} jobs with us. `}Every job on ${BRAND.name} is paid for before you show up, and you see what you'll make before you say yes.\n\nTake a look: ${c.applyUrl}\n\nThe ${BRAND.name} team`,
+    },
+    {
+      subject: `Your schedule, your area`,
+      text: `${hi}\n\nWith ${BRAND.name} you choose the days you work, how far you drive and which jobs you take. No minimums, no lead fees, and you keep your own customers.\n\nApply in 5 minutes: ${c.applyUrl}\n\nThe ${BRAND.name} team`,
+    },
+    {
+      subject: `How ${BRAND.name} works for pros`,
+      text: `${hi}\n\nThree steps: apply (about 5 minutes), get verified, then accept the ${trade} jobs you want near you. Pay goes out weekly, or instantly if you prefer.\n\n${c.applyUrl}\n\nThe ${BRAND.name} team`,
+    },
+    {
       subject: `Last note from ${BRAND.name}`,
       text: `${hi}\n\nI won't keep emailing. If extra ${trade} work${where} would help — prepaid jobs, weekly payouts, no fees to you — the door's open: ${c.applyUrl}\n\nEither way, best of luck this season.\nThe ${BRAND.name} team`,
     },
   ];
-  const b = bodies[Math.min(c.step, bodies.length - 1)];
+  // first email, then follow-ups rotating weekly, and the goodbye only on the very last one
+  const total = Math.max(1, c.total ?? 3);
+  const follow = bodies.slice(1, -1);
+  const b = c.step <= 0 ? bodies[0] : c.step >= total - 1 ? bodies[bodies.length - 1] : follow[(c.step - 1) % follow.length];
   return { subject: b.subject, text: b.text + foot };
 }

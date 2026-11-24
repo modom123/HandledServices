@@ -42,6 +42,8 @@
  *           to the job board for 30 days (offerCheck level "board"); unclaimed, they're cancelled and fully refunded.
  * UPDATED : 2026-11-12_1900 UTC — name your price posts the job on the job board for 90 days for $1 (BOARD_POST_FEE,
  *           isBoardPost); the customer's price is charged only when a pro takes it.
+ * UPDATED : 2026-11-18_0040 UTC — business pricing (BUSINESS_PRICING, businessPrice, homePriceFor, businessEstimate, splitJob(…, { business })):
+ *           business orders keep up to 50% for Handled (+13 points over home prices), pros paid the same dollars as at home.
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -58,7 +60,7 @@ export const RECURRING_DISCOUNT: Record<Frequency, number> = {
 /** Bookings that start within this many hours get the rush surcharge. */
 export const RUSH_HOURS = 48;
 export const RUSH_SURCHARGE = 0.15;
-/** Our take on every job: never below 15%, never above 40% of the price. */
+/** Our take on every job: never below 15%, never above 40% of the price (business pricing: up to 50%, BUSINESS_PRICING). */
 export const TAKE_MIN = 0.15;
 export const TAKE_MAX = 0.4;
 
@@ -142,7 +144,15 @@ export interface JobSplit {
  * commission slides with the service price (commissionRate), always within TAKE_MIN–TAKE_MAX; the
  * payout rounds DOWN to the dollar so rounding can never cost us money.
  */
-export function splitJob(price: number, slug?: string): JobSplit {
+export function splitJob(price: number, slug?: string, opts?: { business?: boolean }): JobSplit {
+  if (opts?.business && price > 0) {
+    // business pricing: the pro is paid what the same job pays at home prices (never less), Handled keeps the rest
+    const fee = bookingFeeOf(price);
+    const payout = Math.min(Math.floor(price * (1 - TAKE_MIN)), splitJob(homePriceFor(price, slug), slug).payout);
+    const take = Math.round((price - payout) * 100) / 100;
+    const cardFee = Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100;
+    return { price, payout, take, takeRate: take / price, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };
+  }
   const fee = bookingFeeOf(price);
   const service = Math.max(0, price - fee);
   // round to the cent before rounding down, so float noise (1000 × 0.68 = 679.999…) never shaves a dollar off the pro
@@ -152,6 +162,45 @@ export function splitJob(price: number, slug?: string): JobSplit {
   const take = Math.round((price - payout) * 100) / 100;
   const cardFee = price > 0 ? Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100 : 0;
   return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };
+}
+
+/**
+ * Business pricing (owner, 2026-11-18): business orders (business accounts, /book for business, sales tickets for a
+ * business) pay a business price. Handled keeps BUSINESS_PRICING.uplift more points of it than at home prices, up to
+ * BUSINESS_PRICING.maxTake (50%), and the pro is paid the same dollars the job pays at home prices — pros never lose.
+ * Home prices, a pro's own price and pro quotes are unchanged.
+ */
+export const BUSINESS_PRICING = { uplift: 0.13, maxTake: 0.5 } as const;
+
+/** Unrounded business price for a home-priced total (booking fee included). */
+function businessRaw(home: number, slug?: string): number {
+  if (!(home > 0)) return home;
+  const s = splitJob(home, slug);
+  const rate = Math.min(BUSINESS_PRICING.maxTake, s.takeRate + BUSINESS_PRICING.uplift);
+  return rate <= s.takeRate || s.payout <= 0 ? home : s.payout / (1 - rate);
+}
+/** The business price for a home-priced total (booking fee included), to the dollar. */
+export function businessPrice(home: number, slug?: string): number {
+  return home > 0 ? Math.max(Math.round(home), Math.round(businessRaw(home, slug))) : home;
+}
+/** The home-priced total a business price stands for (the largest one, so the pro's pay is never rounded down). */
+export function homePriceFor(price: number, slug?: string): number {
+  if (!(price > 0)) return price;
+  let lo = 0, hi = price;
+  for (let i = 0; i < 48; i++) { const mid = (lo + hi) / 2; if (businessRaw(mid, slug) <= price + 0.5) lo = mid; else hi = mid; }
+  return Math.round(lo * 100) / 100;
+}
+/** A home estimate as a business estimate: one "Business service" line; the pro's pay stays the same. */
+export function businessEstimate(e: Estimate): Estimate {
+  if (e.slug === "event-package" || !(e.point > 0)) return e;
+  const point = businessPrice(e.point, e.slug);
+  const extra = point - e.point;
+  if (extra <= 0) return e;
+  const items = [...e.items];
+  const feeAt = items.findIndex((i) => /booking fee/i.test(i.label));
+  items.splice(feeAt < 0 ? items.length : feeAt, 0, { label: "Business service (account, invoicing, priority)", amount: extra });
+  const payout = splitJob(point, e.slug, { business: true }).payout;
+  return { ...e, items, point, low: businessPrice(e.low, e.slug), high: businessPrice(e.high, e.slug), payout, margin: point - payout, payoutShare: Math.round((payout / point) * 1000) / 1000 };
 }
 
 /** The pro's real share of a price (payout ÷ price, 0–1, three decimals) — slides with job size. */

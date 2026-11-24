@@ -38,11 +38,13 @@ export const officeMail = (o: Office): MailAccount | null => {
 export const officeZoomLink = (o: Office) => env(o, "ZOOM_LINK");
 export const officeZoomUser = (o: Office) => env(o, "ZOOM_USER") ?? env(o, "EMAIL");
 /** The business-leads outreach mailbox (mark@handledsvc.net — lib/outreach-mail.ts OUTREACH_*), read in Mark's office. */
-export function leadsMail(): MailAccount | null {
+export async function leadsMail(): Promise<MailAccount | null> {
   const user = process.env.OUTREACH_SMTP_USER?.trim(), pass = process.env.OUTREACH_SMTP_PASSWORD;
   if (!user || !pass) return null;
-  const n = (v?: string) => (v ? Number(v) : undefined);
-  return { user, pass, smtpHost: process.env.OUTREACH_SMTP_HOST || undefined, smtpPort: n(process.env.OUTREACH_SMTP_PORT), imapHost: process.env.OUTREACH_IMAP_HOST || undefined, imapPort: n(process.env.OUTREACH_IMAP_PORT) };
+  // the same mail servers the outreach engine uses (OUTREACH_* settings, else found from the domain's MX record)
+  const { outreachServers } = await import("./outreach-mail");
+  const sv = await outreachServers();
+  return { user, pass, smtpHost: sv.smtp, smtpPort: sv.smtpPort, imapHost: sv.imap, imapPort: sv.imapPort };
 }
 export const leadsEmail = () => process.env.OUTREACH_SMTP_USER?.trim() || null;
 

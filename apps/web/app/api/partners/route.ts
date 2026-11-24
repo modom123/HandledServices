@@ -5,6 +5,7 @@
  * PURPOSE : Public sign-up for the Referral Partner Program (/partners). POST { name, email, phone?, company?, kind, how?, agree }
  *           → partner code + link, welcome email with a sign-in link to the partner page. Rate-limited.
  * UPDATED : 2026-11-17_2100 UTC — signing up e-signs the Referral Partner Agreement (recorded with name, time, IP and the exact text).
+ * UPDATED : 2026-11-18_0105 UTC — leader? (a Sales Force leader's code from their recruit link) puts the new rep on that team.
  */
 import { z } from "zod";
 import { PARTNER_KINDS } from "@handled/core";
@@ -19,6 +20,8 @@ const Body = z.object({
   kind: z.string().refine((k) => k in PARTNER_KINDS),
   how: z.string().trim().max(1000).optional().nullable(),
   agree: z.literal(true),
+  /** a Sales Force leader's code (their recruit link): the new rep joins that team */
+  leader: z.string().trim().max(20).optional().nullable(),
 });
 
 export async function POST(req: Request) {

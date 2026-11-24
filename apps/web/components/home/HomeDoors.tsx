@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-07_0033 UTC — owner: a fifth door, Business & Technology → /technology, where the websites, operating systems and
  *           automation services are (they're no longer on the home page itself). Five across on wide screens; on phones it
  *           spans the full row under the other four.
+ * UPDATED : 2026-11-18_0125 UTC — direct sales 15% → 45% (the Handled Sales Force).
  */
 import Link from "next/link";
 import { referralRange } from "@handled/core";

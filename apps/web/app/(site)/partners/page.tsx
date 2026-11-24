@@ -18,6 +18,7 @@
  * UPDATED : 2026-11-17_2100 UTC — links the full Referral Partner Agreement.
  * UPDATED : 2026-11-17_2015 UTC — partner-v7 one program (the old Field Sales formula from 15%): 15% → 45% of our profit on every
  *           job, direct sales + 5 points (20% → 50%), level n at $1M × (n/30)², paid by Handled alone.
+ * UPDATED : 2026-11-18_0125 UTC — merged with partner-v7 (its rates and ladder stay); a link to the Handled Sales Force for people selling for a living.
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
@@ -105,7 +106,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
       <section id="field-sales" className="scroll-mt-20 border-t border-line">
         <div className="wrap grid gap-8 py-12 md:grid-cols-2">
           <div>
-            <span className="text-sm font-semibold text-brand">Way 2 · Direct sales (Field Sales) · part-time or full-time</span>
+            <span className="text-sm font-semibold text-brand">Way 2 · Direct sales (the Handled Sales Force) · part-time or full-time</span>
             <h2 className="mt-1 text-2xl font-bold">Find the work. Close it. Get paid when it&apos;s done.</h2>
             <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm">
               <li>Meet a homeowner, landlord or business with a job: a fence, a yard, a deep clean, a roof, a website.</li>
@@ -123,6 +124,7 @@ export default async function Partners({ searchParams }: { searchParams: Promise
               <tbody>{MILESTONES.map((m) => <tr key={m.level} className="border-t border-line"><td className="py-1.5 font-semibold">{Math.round(m.rate * 100)}%</td><td className="py-1.5 text-right tabular-nums">{m.profit ? `${money(m.profit)}+` : "Day one"}</td></tr>)}</tbody>
             </table>
             <p className="mt-2 text-xs text-ink-soft">Example: you sell a $450 rental turnover that makes us about $144 of profit. At the starting {Math.round(L.baseRate * 100)}% you earn {moneyCents(Math.floor(144 * L.baseRate * 100) / 100)}; a referral of the same job earns {moneyCents(Math.floor(144 * REFERRAL_LADDER.baseRate * 100) / 100)}. Profit = the job price minus what the pro is paid and any refunds.</p>
+            <a href="/careers/sales" className="mt-3 block rounded-lg bg-paper p-3 text-sm hover:underline"><b>Selling for a living?</b> Join the Handled Sales Force: titles from Associate AE to VP of Sales, team pay, bonuses and three paths to $100K a year, on top of this rate. →</a>
           </div>
         </div>
       </section>

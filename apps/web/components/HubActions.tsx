@@ -11,6 +11,9 @@
  * UPDATED : 2026-11-12_2330 UTC — DocDecision is Handled review: open the policy, confirm the expiry, how it was checked
  *           (policy or insurer), verify or reject with a reason.
  * UPDATED : 2026-11-13_0030 UTC — ResetProPin (in the pro status controls).
+ * UPDATED : 2026-11-19_1850 UTC — WorkAreaEditor: staff set a pro's ZIP, driving distance and ZIP list.
+ * UPDATED : 2026-11-19_1800 UTC — DocDecision: commercial auto, workers' comp, bonds… say Handled does not need to be on the policy.
+ * UPDATED : 2026-11-19_1910 UTC — ProStatusControls: what is still missing, and "Activate anyway" with a reason (admins).
  */
 "use client";
 
@@ -306,6 +309,7 @@ export function DocDecision({ contractorId, docId, kind, expiresOn, aiExpires, a
           {aiExpires && expiresOn && aiExpires !== expiresOn && <span className="mt-1 block font-normal text-amber-800">Pro entered {expiresOn}; the AI read {aiExpires}. Use what the policy says.</span>}
         </label>
       )}
+      {kind && kind !== "coi" && kind !== "cargo" && !["w9", "background", "agreement", "license"].includes(kind) && <div className="rounded-lg bg-paper-deep p-2 text-ink-soft">Handled does <b>not</b> need to be named on this policy. Check the coverage type, limit and expiry only.</div>}
       {kind === "coi" && <div className="rounded-lg bg-amber-50 p-2 text-amber-900">Required: general liability at the trade's per-occurrence minimum, <b>Handled Services LLC as additional insured or certificate holder</b>, not expired.</div>}
       {kind === "coi" && (<>
         <div className="font-semibold">Handled is listed as</div>
@@ -373,10 +377,11 @@ export function ResetProPin({ id }: { id: string }) {
   );
 }
 
-export function ProStatusControls({ id, status, complete }: { id: string; status: string; complete: boolean }) {
+export function ProStatusControls({ id, status, complete, missing = [] }: { id: string; status: string; complete: boolean; missing?: string[] }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [reason, setReason] = useState("");
+  const [why, setWhy] = useState("");
   const patch = async (body: object) => { const r = await call(`/api/hub/contractors/${id}`, "PATCH", body); setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh(); };
   return (
     <div className="card space-y-3 text-sm">
@@ -387,6 +392,14 @@ export function ProStatusControls({ id, status, complete }: { id: string; status
         <ResetProPin id={id} />
         <VerifyLicense id={id} />
       </div>
+      {status !== "approved" && !complete && (
+        <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+          {missing.length > 0 && <div>Still missing: <b>{missing.join(" · ")}</b></div>}
+          <div>Admins can activate anyway. Jobs still need the insurance, license, coverage and background check each job requires, so the pro only gets work they're cleared for.</div>
+          <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason (logged), e.g. verified by phone" value={why} onChange={(e) => setWhy(e.target.value)} />
+            <button className="btn-primary px-3 py-1 text-xs" disabled={why.trim().length < 3} onClick={() => patch({ status: "approved", override_reason: why.trim() })}>Activate anyway</button></div>
+        </div>
+      )}
       {status === "approved" && (
         <div className="flex gap-2"><input className="input py-1 text-xs" placeholder="Reason to pause / offboard" value={reason} onChange={(e) => setReason(e.target.value)} />
           <button className="btn-ghost px-3 py-1 text-xs text-rose-700" disabled={reason.length < 3} onClick={() => patch({ offboard_reason: reason })}>Pause</button></div>
@@ -674,6 +687,39 @@ export function RecruitingSettingsForm({ initial, canEdit }: { initial: { instan
         setMsg(r.ok ? "Saved" : r.json.error ?? "Failed"); router.refresh();
       }}>Save automation</button> : <p className="text-ink-soft">Only an admin can change these.</p>}
       {msg && <p>{msg}</p>}
+    </div>
+  );
+}
+
+/**
+ * Staff: set a pro's work area (2026-11-19). The ZIP is required to be approved; the area is the driving distance
+ * around it (100 miles by default) unless ZIP codes are listed, which then become the whole area.
+ */
+export function WorkAreaEditor({ id, zip, radius, zips }: { id: string; zip: string | null; radius: number; zips: string[] }) {
+  const router = useRouter();
+  const [z, setZ] = useState(zip ?? "");
+  const [r, setR] = useState(String(radius));
+  const [list, setList] = useState(zips.join(", "));
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!/^\d{5}$/.test(z.trim())) return setMsg("Enter a 5-digit ZIP.");
+    setBusy(true); setMsg("");
+    const res = await call(`/api/hub/contractors/${id}`, "PATCH", { base_zip: z.trim(), service_radius_mi: Math.min(150, Math.max(1, Number(r) || 100)), zip_list: list });
+    setBusy(false);
+    setMsg(res.ok ? "Saved." : res.json.error ?? "Failed");
+    if (res.ok) router.refresh();
+  };
+  return (
+    <div className="card space-y-2 text-sm">
+      <div className="font-semibold">Work area</div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block text-xs font-semibold">ZIP (required)<input className="input mt-1 py-1" value={z} maxLength={5} inputMode="numeric" onChange={(e) => setZ(e.target.value)} /></label>
+        <label className="block text-xs font-semibold">Drives up to (miles)<input className="input mt-1 py-1" type="number" min={1} max={150} value={r} onChange={(e) => setR(e.target.value)} /></label>
+      </div>
+      <label className="block text-xs font-semibold">Only these ZIP codes (optional)<input className="input mt-1 py-1" placeholder="48201, 48226, 481*" value={list} onChange={(e) => setList(e.target.value)} /></label>
+      <p className="text-xs text-ink-soft">Leave the list empty to use the driving distance around the ZIP. Listed ZIPs become the pro's whole area.</p>
+      <div className="flex items-center gap-2"><button className="btn-primary px-3 py-1 text-xs" disabled={busy} onClick={save}>{busy ? "…" : "Save work area"}</button>{msg && <span className={`text-xs ${msg === "Saved." ? "text-brand-dark" : "text-rose-700"}`}>{msg}</span>}</div>
     </div>
   );
 }

@@ -13,19 +13,26 @@
  * UPDATED : 2026-10-19_2230 UTC — { action: "sync_instantly" } pulls every lead in the Instantly business campaign into the CRM.
  * UPDATED : 2026-10-20_0015 UTC — Call desk: { action: "call", id, outcome, note?, callback_at? } (any staff); { action: "call_goal", call_goal } (admins).
  * UPDATED : 2026-11-11_0100 UTC — settings take sender (instantly | own outreach domain), rest_days, max_rounds; actions refresh, verify_outreach.
+ * UPDATED : 2026-11-17_2335 UTC — AI email outreach from handledsvc.net: settings take ai_personalize; { action: "redraft_reply", id } asks the AI
+ *           for a fresh answer; { action: "send_reply", id, text } sends the (edited) answer from the outreach mailbox in the
+ *           business's thread (any staff — like replying in the Email Center); { action: "preview_email", id, step? } shows
+ *           what the AI writer would send that lead (admins, nothing is sent).
  */
 import { z } from "zod";
 import { BIZ_SEGMENTS, BUSINESS_TERMS, CALL_OUTCOMES } from "@handled/core";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
-import { addJobPostLead, bizLeadEngine, logCall, setBizLeadStatus, syncBizCampaign } from "@/lib/biz-leads";
+import { addJobPostLead, bizLeadEngine, logCall, previewOutreachEmail, redraftOutreachReply, sendOutreachReply, setBizLeadStatus, syncBizCampaign } from "@/lib/biz-leads";
 import type { CallOutcome } from "@handled/core";
 import type { BizSegment } from "@handled/core";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("settings"), enabled: z.boolean(), discover_per_day: z.number().int().min(0).max(25), emails_per_day: z.number().int().min(0).max(100),
     segments: z.array(z.string()).refine((a) => a.every((x) => x in BIZ_SEGMENTS)), pilot_pct: z.number().int().min(0).max(BUSINESS_TERMS.maxPilotPct), pilot_jobs: z.number().int().min(0).max(BUSINESS_TERMS.maxPilotJobs), job_posts_per_day: z.number().int().min(0).max(40).optional(),
-    sender: z.enum(["instantly", "own"]).optional(), rest_days: z.number().int().min(30).max(365).optional(), max_rounds: z.number().int().min(1).max(4).optional() }),
+    sender: z.enum(["instantly", "own"]).optional(), rest_days: z.number().int().min(30).max(365).optional(), max_rounds: z.number().int().min(1).max(4).optional(), ai_personalize: z.boolean().optional() }),
+  z.object({ action: z.literal("redraft_reply"), id: z.string().uuid() }),
+  z.object({ action: z.literal("send_reply"), id: z.string().uuid(), text: z.string().trim().min(5).max(5000) }),
+  z.object({ action: z.literal("preview_email"), id: z.string().uuid(), step: z.number().int().min(0).max(2).optional() }),
   z.object({ action: z.literal("refresh") }),
   z.object({ action: z.literal("verify_outreach") }),
   z.object({ action: z.literal("status"), id: z.string().uuid(), status: z.enum(["call", "not_interested", "do_not_contact", "replied", "queued"]), note: z.string().max(1000).nullable().optional() }),
@@ -46,6 +53,8 @@ export async function POST(req: Request) {
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, "Check the request");
   const d = b.data;
+  if (d.action === "send_reply") { const r = await sendOutreachReply(d.id, d.text, v!.email ?? "staff"); return Response.json(r, { status: r.ok ? 200 : 409 }); }
+  if (d.action === "redraft_reply") { const r = await redraftOutreachReply(d.id); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (d.action === "call") { const r = await logCall(d.id, d.outcome as CallOutcome, d.note ?? null, d.callback_at ?? null, v!.email ?? "staff"); return Response.json(r, { status: r.ok ? 200 : 400 }); }
   if (d.action !== "status" && !(d.action === "add_job_post" && !d.send_now) && !isAdmin(v)) return deny(403, ADMINS_ONLY);
   if (d.action === "call_goal") { const { error } = await adminClient().from("biz_lead_settings").update({ call_goal: d.call_goal, updated_at: new Date().toISOString(), updated_by: v!.email }).eq("id", 1); return error ? deny(500, error.message) : Response.json({ ok: true }); }
@@ -75,6 +84,7 @@ export async function POST(req: Request) {
     const emails = await enrichBizLeads().catch(() => 0);
     return Response.json({ ok: true, result: { ...found, emailsFound: emails } });
   }
+  if (d.action === "preview_email") { const r = await previewOutreachEmail(d.id, d.step ?? 0); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (d.action === "sync_instantly") { const r = await syncBizCampaign(); return Response.json(r, { status: r.ok ? 200 : 409 }); }
   if (d.action === "status") { await setBizLeadStatus(d.id, d.status, d.note ?? null, v!.email); return Response.json({ ok: true }); }
   return Response.json({ ok: true, result: await bizLeadEngine() });

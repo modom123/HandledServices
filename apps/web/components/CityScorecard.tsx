@@ -6,6 +6,7 @@
  *           next level, to-do list, every gate with 90-day and last-30-day status), meters and tiles.
  *           Status is always an icon + a word, never color alone.
  * UPDATED : 2026-10-21_0200 UTC — explains pro-led rollout (services open where an approved pro covers them).
+ * UPDATED : 2026-11-18_0240 UTC — watch list per city: repeat customers going quiet while their pro keeps working, busy pros who stopped.
  */
 import { CITY_STAGE_LABEL, LAUNCH_SET_RECOMMENDED, SERVICES, TRADES, money, perMonth, type CityStage, type GateLevel, type GateResult } from "@handled/core";
 import type { CityCard } from "@/lib/city-scorecard";
@@ -77,6 +78,23 @@ export function City({ c }: { c: CityCard }) {
         </div>
       )}
 
+      {(c.guard.quiet.length > 0 || c.guard.quietPros.length > 0) && (
+        <details open={c.guard.quiet.length > 0}>
+          <summary className="cursor-pointer text-sm font-semibold">Watch list: {c.guard.quiet.length} customer{c.guard.quiet.length === 1 ? "" : "s"} going quiet · {c.guard.quietPros.length} busy pro{c.guard.quietPros.length === 1 ? "" : "s"} stopped</summary>
+          <div className="mt-2 grid gap-3 text-sm md:grid-cols-2">
+            {c.guard.quiet.length > 0 && <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Repeat customers who stopped booking while their pro kept working</div>
+              <ul className="mt-1 space-y-0.5">{c.guard.quiet.map((q) => <li key={`${q.customer}|${q.pro}`}>{q.customer} · {q.pro} · {q.jobs} jobs, last {new Date(q.lastAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</li>)}</ul>
+              <p className="mt-1 text-xs text-ink-soft">Reach out with a plan offer; if they&apos;re booking the pro directly, that&apos;s section 28 of the pro agreement.</p>
+            </div>}
+            {c.guard.quietPros.length > 0 && <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Busy pros with no job in 30 days</div>
+              <ul className="mt-1 space-y-0.5">{c.guard.quietPros.map((n) => <li key={n}>{n}</li>)}</ul>
+              <p className="mt-1 text-xs text-ink-soft">Call them: pay, too few jobs nearby, or a bad experience?</p>
+            </div>}
+          </div>
+        </details>
+      )}
       <details>
         <summary className="cursor-pointer text-sm font-semibold">Open services: {m.launch_services?.length ? `${m.launch_services.length} of ${SERVICES.length} (launch set)` : `all ${SERVICES.length}`}</summary>
         <p className="mt-1 text-xs text-ink-soft">Open a city with a few frequent, simple services so every booking gets a pro fast. Any other service opens on its own in the ZIPs where an approved pro covers it (pro-led rollout), and the people waiting for it there are told; everywhere else it shows “coming soon” with a waitlist. Widen the list as the city’s gates pass.</p>

@@ -28,6 +28,7 @@
  *           inspection, water damage, duct cleaning, chimney sweep, irrigation, holiday lights, pool, laundry.
  * UPDATED : 2026-10-27_1600 UTC — carpentry trade (state contractor license over $600 in Michigan, L&I registration in Washington).
  * UPDATED : 2026-11-07_0037 UTC — vetting for the new social_media trade (managers, content creators, brand ambassadors, ads managers).
+ * UPDATED : 2026-11-19_1745 UTC — DEFAULT_RADIUS_MI (100 miles around the pro's ZIP when they haven't set an area).
  * UPDATED : 2026-11-11_2355 UTC — many more skills per trade in the application (MORE_SPECIALTIES, merged into TRADE_PROFILES).
  */
 import { BRAND } from "./brand.ts";
@@ -750,6 +751,10 @@ export function specialtyMatch(specialties: string[] | null | undefined, slug: s
 
 /** Probation: a new pro's first jobs are capped in size and always get a human QA review. */
 export const PROBATION = { jobs: 3, maxJobPrice: 750 };
+
+/** A pro's work area when they haven't set one: this many miles around their ZIP (owner, 2026-11-19). Listing ZIP codes
+ * replaces it: then they get jobs only in those ZIPs. */
+export const DEFAULT_RADIUS_MI = 100;
 
 /**
  * The vetting pipeline, in order: Roadie-style sign-up. Shown to applicants and used as the Hub checklist.

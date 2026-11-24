@@ -93,6 +93,8 @@ export interface Job {
   price_final: number | null;
   contractor_id: string | null;
   contractor_payout: number | null;
+  /** priced at business prices (BUSINESS_PRICING): pay with splitJob(price, slug, { business: true }) */
+  business_pricing?: boolean | null;
   ai_quote: unknown;
   ai_dispatch: unknown;
   ai_qa: unknown;

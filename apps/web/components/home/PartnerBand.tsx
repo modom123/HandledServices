@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-28_0122 UTC — partner-v2 rates from @handled/core (same rate on every service).
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  * UPDATED : 2026-11-06_1800 UTC — partner-v4: referrals pay one rate on every job, 15% of the price rising to 30%.
+ * UPDATED : 2026-11-18_0125 UTC — direct sales 15% → 45% (the Handled Sales Force).
  */
 import Link from "next/link";
 import { PARTNER_PROGRAM, referralRange } from "@handled/core";

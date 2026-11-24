@@ -210,7 +210,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     params: z.object({ ref, price: z.number().positive() }),
     run: async ({ ref: r, price }) => {
       const job = await jobByRef(r);
-      await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: splitJob(price, job.service_slug).payout, status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
+      await db().from("jobs").update({ price_final: price, estimate_low: price, estimate_high: price, contractor_payout: splitJob(price, job.service_slug, { business: Boolean(job.business_pricing) }).payout, status: job.status === "site_visit" ? "quoted" : job.status }).eq("id", job.id);
       await addEvent(job.id, "quoted", `Firm price: ${money(price)} — pay to lock in your pro.`, "IEBC workforce", true, `Precio final: ${money(price)}. Pague para asegurar a su profesional.`);
       const fresh = await getJob(job.id);
       const link = fresh && !fresh.paid_at ? await sendPaymentLink(fresh) : null;

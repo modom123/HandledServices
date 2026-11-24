@@ -10,6 +10,7 @@
  * UPDATED : 2026-11-09_0200 UTC — no emoji in the badge; squarer corners.
  * UPDATED : 2026-11-09_0330 UTC — part of the Professional look (lib/theme.ts "pro"); the original look keeps components/home/*.
  * UPDATED : 2026-11-10_0100 UTC — synced with main: two ways to earn (referrals at the referral range, direct sales 10%–45% of profit).
+ * UPDATED : 2026-11-18_0125 UTC — direct sales 15% → 45% (the Handled Sales Force).
  */
 import Link from "next/link";
 import { PARTNER_PROGRAM, referralRange } from "@handled/core";
