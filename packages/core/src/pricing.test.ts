@@ -2840,7 +2840,10 @@ test("pro showcase: opt-in only, newest first, public name, city not address, up
     pro({ id: "pending", status: "vetting" }),
     pro({ id: "wa", base_state: "WA", base_city: "Seattle" }),
   ]);
-  assert.deepEqual(list.map((c) => c.id), ["new", "wa", "old"], "only approved opt-ins, newest first");
+  assert.deepEqual(list.map((c) => c.id), ["new", "noconsent", "wa", "old"], "every approved pro, newest first (owner, 2026-11-24)");
+  const anon = list.find((c) => c.id === "noconsent")!;
+  assert.equal(anon.named, false);
+  assert.ok(!anon.name.includes("Sparkle") && !anon.name.includes("Dana") && / pro$/.test(anon.name), "not opted in: no name, just the service");
   const c = list[0];
   assert.equal(c.area, "Detroit, MI");
   assert.ok(!JSON.stringify(list).includes("100 Main St"), "never the address");
@@ -3440,4 +3443,14 @@ test("Sales Force chart: each rank shows the rate a sale really pays (never the 
   assert.equal(rankSaleRate("associate"), 0.20, "a first sale pays the ladder's 20%, not the rank table's 15%");
   for (const k of Object.keys(SALES_RANKS) as (keyof typeof SALES_RANKS)[]) assert.ok(rankSaleRate(k) >= Math.max(0.2, SALES_RANKS[k].sellerShare) - 1e-9, k);
   assert.ok(rankSaleRate("ae") >= 0.2 && rankSaleRate("senior_ae") >= 0.25 && rankSaleRate("principal_ae") >= 0.35);
+});
+
+test("network growth line: approved pros, joined in the last 30 days, states", async () => {
+  const { networkGrowth } = await import("./pro-showcase.ts");
+  const g = networkGrowth([
+    { status: "approved", onboarded_at: "2026-11-20T00:00:00Z", base_state: "mi" },
+    { status: "approved", onboarded_at: "2026-09-01T00:00:00Z", base_state: "WA" },
+    { status: "vetting", onboarded_at: "2026-11-20T00:00:00Z", base_state: "TX" },
+  ], new Date("2026-11-24T00:00:00Z"));
+  assert.deepEqual(g, { total: 2, last30: 1, states: 2 });
 });

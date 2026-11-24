@@ -18,6 +18,7 @@
  *           Merged into ACTIONS (actions.ts); the gateway enforces scopes, autonomy and the audit log as for every action.
  * UPDATED : 2026-11-17_2200 UTC — legal.signup_queue / legal.task_done: the review tasks every pro application and partner
  *           sign-up now files for the Legal & Compliance team (lib/legal-intake.ts).
+ * UPDATED : 2026-11-24_1900 UTC — social.new_pros lists only opted-in (named) pros; the website chain now also shows nameless ones.
  */
 import "server-only";
 import { z } from "zod";
@@ -201,7 +202,7 @@ export const TEAM_ACTIONS: Record<string, ActionDef> = {
     scope: "social", write: false, risk: "low",
     description: "Approved pros who opted in to be featured (Pro portal → My info): public name, area, up to 5 services, joined date, rating. Only these pros may be named or pictured in posts; never post a pro who isn't on this list.",
     params: z.object({ state: z.string().length(2).optional(), limit: z.number().int().min(1).max(24).optional() }),
-    run: async ({ state, limit }) => (await featuredPros({ state, limit })).map(({ photo, ...c }) => ({ ...c, has_photo: Boolean(photo) })),
+    run: async ({ state, limit }) => (await featuredPros({ state, limit: 200 })).filter((c) => c.named).slice(0, limit ?? 24).map(({ photo, ...c }) => ({ ...c, has_photo: Boolean(photo) })), // the chain also has nameless pros: only opted-in ones may be posted
   }),
 
   // ─── legal (Legal & Compliance) ───
