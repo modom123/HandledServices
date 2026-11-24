@@ -16,6 +16,7 @@
  * UPDATED : 2026-11-20_1500 UTC — MailAccount can name its own hosts / ports (the outreach mailbox on handledsvc.net).
  * UPDATED : 2026-11-19_1500 UTC — readMessage shows clean text (lib/mail-text.ts): HTML-only and broken plain-text emails no longer
  *           show their CSS, &nbsp; codes or invisible preheader filler.
+ * UPDATED : 2026-11-24_1500 UTC — companyMail(): the company mailbox (info@) as an account, for Mark's office.
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -32,6 +33,8 @@ const imapHost = () => process.env.IMAP_HOST || "imap.hostinger.com";
 /** A mailbox on the same host: the company one (default) or an office's (lib/offices.ts). */
 export interface MailAccount { user: string; pass: string; smtpHost?: string; smtpPort?: number; imapHost?: string; imapPort?: number }
 const company = (): MailAccount => ({ user: mailboxUser()!, pass: process.env.SMTP_PASSWORD! });
+/** The company mailbox (info@) as an account, for pages that show several inboxes (Mark's office). */
+export const companyMail = (): MailAccount | null => (mailboxReady() ? company() : null);
 const ready = (a?: MailAccount) => (a ? Boolean(a.user && a.pass) : mailboxReady());
 
 const transports = new Map<string, Transporter>();

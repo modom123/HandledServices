@@ -19,7 +19,7 @@ export default async function OfficeMessage({ params }: { params: Promise<{ slug
   if (gate) return gate;
   const { slug, uid } = await params;
   const o = officeBySlug(slug);
-  const acct = o ? officeMail(o) : null;
+  const acct = o ? await officeMail(o) : null;
   if (!o || !acct || !/^\d+$/.test(uid)) notFound();
   const m = await readMessage(Number(uid), acct).catch(() => null);
   if (!m) notFound();

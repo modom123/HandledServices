@@ -21,6 +21,9 @@
  *           the CEO's ops tools keep links to it, legal reviews open, the sales funnel and every tool by section.
  * UPDATED : 2026-11-20_1500 UTC — Mark's office: a second inbox, Business leads email (mark@handledsvc.net — outreach replies),
  *           below his own email (full width); read and reply in place, with a link to the lead.
+ * UPDATED : 2026-11-24_1500 UTC — Mark's office: one Email card with tabs — his own mailbox, Business leads (mark@handledsvc.net)
+ *           and the company mailbox (info@handledsvc.com); it opens on a connected one.
+ * UPDATED : 2026-11-24_1600 UTC — Cecilia's office: a tab for her handledsvc.net mailbox (cece@handledsvc.net) next to her own.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -28,11 +31,12 @@ import { PIPELINE } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { adminOnly } from "@/components/AdminOnly";
 import { Stat } from "@/components/ui";
-import { OFFICES, leadsEmail, leadsMail, officeBySlug, officeEmail, officeMail, type Office } from "@/lib/offices";
+import { OFFICES, leadsEmail, leadsMail, officeBySlug, officeEmail, officeMail, officeNetEmail, officeNetMail, type Office } from "@/lib/offices";
 import { listTodos, otherOffice } from "@/lib/office-todos";
 import { sectionsFor, type HubSection } from "@/lib/hub-sections";
 import { clientsFunnel } from "@/lib/clients-funnel";
-import { OfficeMail, TodoBoard, VerifyMailbox, type TodoView } from "@/components/Office";
+import { OfficeInboxes, TodoBoard, type InboxTab, type TodoView } from "@/components/Office";
+import { companyMail, mailboxUser } from "@/lib/mailbox";
 
 export const dynamic = "force-dynamic";
 
@@ -138,34 +142,31 @@ async function RecruitingTools() {
   );
 }
 
-function Mail({ o }: { o: Office }) {
-  const acct = officeMail(o);
+async function Mail({ o }: { o: Office }) {
+  const tabs: InboxTab[] = [{
+    box: "office", label: `✉️ ${o.first}`, email: officeEmail(o), connected: Boolean(await officeMail(o)),
+    help: `In Vercel → Environment Variables add OFFICE_${o.key}_EMAIL (${o.first}'s mailbox address) and OFFICE_${o.key}_PASSWORD, then redeploy.`,
+  }];
+  if (o.leadsInbox) tabs.push({
+    box: "leads", label: "📨 Business leads", email: leadsEmail(), connected: Boolean(await leadsMail()),
+    note: "replies to the sales outreach; the sales agent reads them too",
+    help: "In Vercel add OUTREACH_SMTP_USER (mark@handledsvc.net), OUTREACH_SMTP_PASSWORD and OUTREACH_FROM_NAME, then redeploy.",
+  });
+  if (o.netInbox) tabs.push({
+    box: "net", label: `📨 ${officeNetEmail(o) ?? "handledsvc.net"}`, email: officeNetEmail(o), connected: Boolean(await officeNetMail(o)),
+    help: `In Vercel add OFFICE_${o.key}_NET_EMAIL (e.g. ${o.slug === "gulley" ? "cece" : o.first.toLowerCase()}@handledsvc.net) and OFFICE_${o.key}_NET_PASSWORD, then redeploy.`,
+  });
+  if (o.companyInbox) tabs.push({
+    box: "company", label: "🏢 info@", email: mailboxUser(), connected: Boolean(companyMail()),
+    note: "the company mailbox (customers, pros, everyone); also in Email Center",
+    help: "In Vercel add SMTP_USER (info@handledsvc.com) and SMTP_PASSWORD, then redeploy.",
+  });
+  // open on a connected inbox first
+  tabs.sort((a, b) => Number(b.connected) - Number(a.connected));
   return (
     <section className="card space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">✉️ Email{officeEmail(o) ? ` · ${officeEmail(o)}` : ""}</h2>
-        {acct && <VerifyMailbox office={o.slug} />}
-      </div>
-      {acct ? <OfficeMail office={o.slug} first={o.first} /> : (
-        <p className="rounded bg-amber-50 p-2 text-sm">Not connected yet. In Vercel → Environment Variables add <code>OFFICE_{o.key}_EMAIL</code> ({o.first}&apos;s mailbox address) and <code>OFFICE_{o.key}_PASSWORD</code>, then redeploy.</p>
-      )}
-    </section>
-  );
-}
-
-/** Mark's office: the business-leads mailbox (cold outreach replies to mark@handledsvc.net). */
-async function LeadsMail({ o }: { o: Office }) {
-  const connected = Boolean(await leadsMail());
-  return (
-    <section className="card space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">📨 Business leads email{leadsEmail() ? ` · ${leadsEmail()}` : ""}</h2>
-        {connected && <VerifyMailbox office={o.slug} box="leads" />}
-      </div>
-      <p className="text-xs text-ink-soft">Replies to the business-leads outreach. The sales agent reads them too and stops emailing anyone who says no; answer the interested ones here. <a className="text-brand underline" href="/hub/biz-leads">All business leads →</a></p>
-      {connected ? <OfficeMail office={o.slug} first={o.first} box="leads" /> : (
-        <p className="rounded bg-amber-50 p-2 text-sm">Not connected yet. In Vercel → Environment Variables add <code>OUTREACH_SMTP_USER</code> (mark@handledsvc.net), <code>OUTREACH_SMTP_PASSWORD</code> and <code>OUTREACH_FROM_NAME</code>, then redeploy.</p>
-      )}
+      <h2 className="text-lg font-bold">Email</h2>
+      <OfficeInboxes office={o.slug} first={o.first} tabs={tabs} />
     </section>
   );
 }
@@ -194,7 +195,6 @@ export default async function OfficePage({ params }: { params: Promise<{ slug: s
       </section>
       {o.tools === "ops" ? <OpsTools /> : <RecruitingTools />}
       <Mail o={o} />
-      {o.leadsInbox && <LeadsMail o={o} />}
     </div>
   );
 }
