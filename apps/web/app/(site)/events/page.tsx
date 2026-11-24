@@ -7,12 +7,13 @@
  * UPDATED : 2026-10-04_1950 UTC — lists show a typical job price ("typically $X"), not the minimum (every order is different).
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { BRAND, SERVICES, defaultAnswers, estimate, money, moneyRange, priceHint } from "@handled/core";
 import { ThemedIcon } from "@/components/Glyph";
 
-export const metadata = { title: "Parties & Events", description: "Event planning, catering, food trucks, DJs, seating rentals and venues — one team, one invoice." };
+export const metadata = { alternates: { canonical: "/events" }, title: "Parties & Events", description: "Event planning, catering, food trucks, DJs, seating rentals and venues — one team, one invoice." };
 
 const STEPS = [
   ["Tell us about your event", "Date, guest count and the vibe. Get instant prices for each piece, or book a free planning call."],

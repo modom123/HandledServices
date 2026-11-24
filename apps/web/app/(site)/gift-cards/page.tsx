@@ -6,12 +6,13 @@
  *           any service, balance carries over between bookings.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import { BRAND } from "@handled/core";
 import { ThemedIcon } from "@/components/Glyph";
 import { GiftCardForm } from "@/components/GiftCardForm";
 
-export const metadata = { title: "Gift cards", description: `Give a clean house, a mowed lawn or a night out in a limo. ${BRAND.name} gift cards for any service.` };
+export const metadata = { alternates: { canonical: "/gift-cards" }, title: "Gift cards", description: `Give a clean house, a mowed lawn or a night out in a limo. ${BRAND.name} gift cards for any service.` };
 
 export default async function GiftCards({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
   const { sent } = await searchParams;

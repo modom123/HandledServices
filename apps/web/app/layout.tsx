@@ -8,6 +8,7 @@
  * UPDATED : 2026-10-07_0240 UTC — data-theme on <html> picks one of the three looks (lib/theme.ts).
  * UPDATED : 2026-10-07_1640 UTC — metadataBase from lib/site-url (absolute URLs for social cards).
  * UPDATED : 2026-10-20_0100 UTC — ad pixels (Meta, Google Ads, TikTok) when their ids are set (components/AdPixels).
+ * UPDATED : 2026-11-24_2200 UTC — search-engine ownership tags (Google, Bing, Yandex) from environment variables.
  */
 import type { Metadata } from "next";
 import { BRAND } from "@handled/core";
@@ -25,6 +26,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()), // absolute links for social cards and canonical URLs
   title: { default: `${BRAND.name} — ${BRAND.tagline}`, template: `%s · ${BRAND.name}` },
   description: BRAND.pitch,
+  // proves to Google Search Console, Bing Webmaster Tools and Yandex that we own the site (Vercel → Environment Variables:
+  // GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, YANDEX_VERIFICATION — just the code from each "HTML tag" option)
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.YANDEX_VERIFICATION ? { yandex: process.env.YANDEX_VERIFICATION } : {}),
+    ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {}),
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

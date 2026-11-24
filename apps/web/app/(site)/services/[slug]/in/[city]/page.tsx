@@ -10,9 +10,10 @@
  * UPDATED : 2026-11-06_0500 UTC — indexed when the service is a focus service or one its market leads with (isIndexedCityPage).
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again: the search description says free consultation, not an online price.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_2200 UTC — description trimmed to what Google shows (core snippet).
  */
 import { notFound } from "next/navigation";
-import { BRAND, SEO_CITY_BY_SLUG, getService, isIndexedCityPage, consultOnly } from "@handled/core";
+import { BRAND, SEO_CITY_BY_SLUG, getService, isIndexedCityPage, consultOnly , snippet } from "@handled/core";
 import { publicReviews } from "@/lib/reviews";
 import { ServiceLanding } from "@/components/ServiceLanding";
 import { getLocale } from "@/lib/locale";
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!s || !c) return {};
   return {
     title: `${s.name} in ${c.name}, ${c.state}`,
-    description: `${s.tagline} Background-checked, vetted ${s.name.toLowerCase()} pros in ${c.name}. ${consultOnly(s.slug) ? "Custom solutions, scoped and priced on a free consultation." : "Your exact price online in about a minute."} ${BRAND.promise}`,
+    description: snippet(`${s.name} in ${c.name}, ${c.state}: vetted local pros. ${consultOnly(s.slug) ? "Scoped and priced on a free consultation." : "Your exact price online in about a minute."} ${s.tagline} ${BRAND.promise}`),
     // indexed: the focus services everywhere + what each market leads with (handyman in Las Vegas…); the rest noindex —
     // thousands of near-identical city pages read as doorway pages
     ...(isIndexedCityPage(s.slug, c.slug)

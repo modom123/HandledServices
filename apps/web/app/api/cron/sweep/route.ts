@@ -29,6 +29,7 @@
  *           time limit to itself instead of running after everything else here.
  * UPDATED : 2026-11-17_1900 UTC — daily: follow PayPal / Venmo payouts (syncPaypalPayouts).
  * UPDATED : 2026-11-18_0105 UTC — daily: Sales Force promotions from cumulative totals (lib/sales-force refreshRanks).
+ * UPDATED : 2026-11-24_2200 UTC — Mondays: every page in the sitemap goes to IndexNow (Bing and the engines that share it).
  */
 import { adminClient } from "@/lib/supabase/server";
 import { collectBalances, raiseAlert, redispatchExpired } from "@/lib/jobs";
@@ -78,6 +79,8 @@ export async function GET(req: Request) {
   // 4. Booked but unpaid → payment link on day 1, 3 and 7; saved prices → follow-ups on day 1 and 4
   const reminded = await sendBookingFollowups().catch((e) => { console.error("[booking followups]", e); return 0; });
   const quoteFollowups = await sendQuoteFollowups().catch((e) => { console.error("[quote followups]", e); return 0; });
+  // search engines: every page to IndexNow (Bing, Yahoo, DuckDuckGo, Yandex…) once a week, on Mondays (lib/indexnow)
+  const indexNow = new Date().getUTCDay() === 1 ? await (await import("@/lib/indexnow")).submitSitemap().catch((e) => { console.error("[indexnow]", e); return null; }) : null;
   const offerNudges = await nudgeLowOffers().catch((e) => { console.error("[offer nudges]", e); return 0; }); // no pro yet → suggest raising
 
   // 5. Balances due after a deposit → charge the saved card, else payment link + alert
@@ -106,5 +109,5 @@ export async function GET(req: Request) {
   const talent = await (await import("@/lib/talent")).talentSweep().catch((e) => { console.error("[talent]", e); return null; });
   const noticesPruned = await (await import("@/lib/notification-log")).pruneNotificationLog().catch(() => 0); // notification log: keep 180 days
 
-  return Response.json({ salesForce, paypal, renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, boardDigest, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
+  return Response.json({ indexNow, salesForce, paypal, renewals, uploads, noticesPruned, loyalty, ticketsExpired, partnerPayouts, partnerPayoutNudges, invoices, billing, rewards, talent, offerNudges, quoteFollowups, waitlist, locationsCleared, balances, stipends, stats, referrals, guarantee, payouts, recruiting, reminded, expired, redispatched, openOffersExpired, boardDigest, atRisk: atRisk?.length ?? 0, qaBacklog: qaBacklog ?? 0 });
 }
