@@ -26,13 +26,14 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-17_2350 UTC — "Book a free walkthrough" next to Order now (hero and order section), and "Pages for your business" linking
  *           the landing page for each kind of business (/business/<slug>).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { BIZ_LANDINGS, BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
 import { LeadLink } from "@/components/LeadLink";
 import { Ico, ThemedIcon } from "@/components/Glyph";
 
-export const metadata = { title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, ordered online with a 25% deposit." };
+export const metadata = { alternates: { canonical: "/business" }, title: "For Business", description: "Cleaning, grounds, repairs, courier, transportation and corporate events for offices, retail, restaurants, clinics and property managers — one vendor, ordered online with a 25% deposit." };
 
 const PROOF = ["One vendor, every site", "Order online, 25% to start", "Photo proof on every visit", "Backup crews built in"];
 const ORDER = "/book?for=business";

@@ -3454,3 +3454,13 @@ test("network growth line: approved pros, joined in the last 30 days, states", a
   ], new Date("2026-11-24T00:00:00Z"));
   assert.deepEqual(g, { total: 2, last30: 1, states: 2 });
 });
+
+test("search snippets fit what Google shows (whole sentences, else whole words)", async () => {
+  const { snippet } = await import("./seo.ts");
+  const long = "Standard, deep and move-out cleaning for homes and offices. Background-checked, vetted pros in Detroit. Your exact price online in about a minute. 25% books your pro and you pay the rest when it's done.";
+  const s = snippet(long);
+  assert.ok(s.length <= 155 && s.endsWith("."), s);
+  assert.equal(snippet("Short and sweet."), "Short and sweet.");
+  const words = snippet("word ".repeat(60));
+  assert.ok(words.length <= 155 && words.endsWith("…"));
+});

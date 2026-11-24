@@ -23,6 +23,7 @@
  * UPDATED : 2026-11-12_2345 UTC — requirements: insurance (Handled Services LLC as additional insured or certificate holder) only for the services
  *           that need it; house cleaning, dog walking and the other insurance-optional services start without it.
  * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: license lines say "your state's, where required (in Michigan: …)".
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import { ApplyForm } from "@/components/forms";
 import { Ico } from "@/components/Glyph";
@@ -31,7 +32,7 @@ import { getPolicy } from "@/lib/pro-benefits";
 import { getLocale } from "@/lib/locale";
 import { licenseFor, BRAND, CATALOG_SEED, COVERAGES, FAST_TRACK, PROBATION, PRO_PROMISES, REWARD_DEFAULTS, TENURE_TIERS, benefitLines, ruleText, PRO_REFERRAL, PRO_TIERS, TRADES, TRADE_PROFILES, VETTING_STEPS, earningsHeadline, earningsShowcase, money, serviceText, t as tr, type ProPolicy } from "@handled/core";
 
-export const metadata = { title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
+export const metadata = { alternates: { canonical: "/pros" }, title: "Become a Pro", description: "Prepaid, pre-priced jobs in your area. No lead fees, weekly pay, and we run the office." };
 
 const COMPARE: [string, string, string][] = [
   ["What it costs you", "Nothing to join. We keep a share of each finished job.", "You pay for leads, whether you win the job or not."],

@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_0330 UTC — the Professional look uses the pro version of WeBuild.
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again: a free consultation sets the scope and a fixed price (no order-online / deposit wording).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { ThemedIcon } from "@/components/Glyph";
@@ -21,7 +22,7 @@ import { WeBuild } from "@/components/home/WeBuild";
 import { WeBuild as ProWeBuild } from "@/components/home/pro/WeBuild";
 import { getTheme } from "@/lib/theme";
 
-export const metadata = {
+export const metadata = { alternates: { canonical: "/technology" },
   title: "Intelligent websites, business operating systems & automated businesses",
   description: "Handled builds intelligent websites, business operating systems and automated businesses — AI agents and automations included. See your price and order online.",
 };

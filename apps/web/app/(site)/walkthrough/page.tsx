@@ -5,6 +5,7 @@
  * PURPOSE : Book a free walkthrough (businesses pick their own time; no back-and-forth).
  *           ?for=<landing slug> (from /business/<slug>), ?lead=<token> (sales emails: pre-fills what we know and credits
  *           the lead), ?kind=onsite|call.
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { bizLanding, type WalkthroughKind } from "@handled/core";
@@ -12,7 +13,7 @@ import { WalkthroughBooker } from "@/components/Walkthrough";
 import { leadPrefill } from "@/lib/walkthroughs";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Book a free walkthrough", description: "Pick a time for a free on-site walkthrough or a 10-minute call. Exact price the same day, no obligation." };
+export const metadata = { alternates: { canonical: "/walkthrough" }, title: "Book a free walkthrough", description: "Pick a time for a free on-site walkthrough or a 10-minute call. Exact price the same day, no obligation." };
 
 export default async function WalkthroughPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;

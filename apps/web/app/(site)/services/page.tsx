@@ -10,6 +10,7 @@
  *           ?cat=business redirects there.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { ThemedIcon } from "@/components/Glyph";
@@ -18,7 +19,7 @@ import { CATEGORIES, SERVICES, categoryText, defaultAnswers, estimate, priceHint
 import { getLocale } from "@/lib/locale";
 import { ServicesBrowser, type BrowserCategory } from "@/components/ServicesBrowser";
 
-export const metadata = { title: "Services", description: "Every service we offer, by category, with upfront prices." };
+export const metadata = { alternates: { canonical: "/services" }, title: "Services", description: "100+ home and business services by category: cleaning, repairs, painting, lawn and snow, hauling, moving and more. Upfront prices, vetted pros." };
 
 export default async function ServicesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const { cat } = await searchParams;

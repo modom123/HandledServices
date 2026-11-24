@@ -20,11 +20,12 @@
  * UPDATED : 2026-11-19_1600 UTC — headline pay from Partner Program v7 (20% → 50% on direct sales); the chart notes reps get the higher of the two.
  * UPDATED : 2026-11-24_1700 UTC — one chart: every rank shows the rate a sale really pays (core rankSaleRate — Associate 20%, not
  *           the 15% that was never paid); the "higher of the two" footnote is gone.
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { rankSaleRate, DIRECT_BONUS, REFERRAL_LADDER, CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
-export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays." };
+export const metadata = { alternates: { canonical: "/careers/sales" }, title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays." };
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const pct = (r: number) => `${Math.round(r * 100)}%`;

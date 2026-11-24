@@ -11,11 +11,12 @@
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_2000 UTC — "New pros in <market>": the opt-in pros chain for the market's states.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_2200 UTC — shorter title and a description Google shows in full.
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
 import { notFound } from "next/navigation";
-import { BRAND, SERVICES, SITE_MARKETS, SITE_MARKET_BY_SLUG, STATE_NAME, getService, priceHint, serviceText } from "@handled/core";
+import { BRAND, SERVICES, SITE_MARKETS, SITE_MARKET_BY_SLUG, STATE_NAME, getService, priceHint, serviceText , snippet } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { siteUrl } from "@/lib/site-url";
 import { featuredPros } from "@/lib/showcase";
@@ -29,8 +30,9 @@ export async function generateMetadata({ params }: { params: Promise<{ market: s
   if (!m) return {};
   const lead = m.featured.map((x) => getService(x)?.name).filter(Boolean).slice(0, 3).join(", ");
   return {
-    title: `${lead} in ${m.name}`,
-    description: `${lead} and more across ${m.region}. Background-checked, vetted local pros, your exact price online in about a minute. ${BRAND.promise}`,
+    // short enough for Google (~60 characters): the lead service, then the market
+    title: `${lead.split(", ")[0]} and more in ${m.name}`,
+    description: snippet(`${lead} and more across ${m.region}. Background-checked, vetted local pros, your exact price online in about a minute. ${BRAND.promise}`),
     alternates: { canonical: `/areas/${m.slug}` },
   };
 }
