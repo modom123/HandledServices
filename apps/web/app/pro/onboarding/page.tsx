@@ -21,11 +21,20 @@
  * UPDATED : 2026-11-11_2350 UTC — How you get paid: direct deposit through Stripe only (components/PayoutStep), naming the numbers
  *           Stripe asks for; the step is done once Stripe says the bank is ready. No paper checks.
  * UPDATED : 2026-11-11_2358 UTC — Verify ID: a pro switched to a video-call check can try the online check again (they were stuck with no button).
+ * UPDATED : 2026-11-12_2330 UTC — COI upload: optional insurer, policy number and agent contact; the waiting message explains
+ *           the automatic check and Handled review.
+ * UPDATED : 2026-11-17_1700 UTC — payout step: finds a Stripe account made on the Partner page; ready = Stripe transfers active.
+ * UPDATED : 2026-11-17_1900 UTC — payout step: a pro who chose PayPal / Venmo keeps that choice even with a Stripe account on file.
+ * UPDATED : 2026-11-17_2045 UTC — all 50 states: state picker (from their ZIP, no Michigan default), license line for their state,
+ *           and a welcome note where we don't take bookings yet (services appear for customers there once they're approved).
+ * UPDATED : 2026-11-19_1745 UTC — work area: ZIP required (street, city, state optional); 100 miles by default; listed ZIP
+ *           codes become the whole area (the "only these ZIPs" checkbox is gone).
  */
 import { VerifyId } from "@/components/VerifyId";
 import { PayoutStep } from "@/components/PayoutStep";
 import { connectReady } from "@/lib/stripe";
-import { BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
+import { servedState } from "@/lib/launch";
+import { DEFAULT_RADIUS_MI, BRAND, US_STATES, licenseFor, stateForZip, stateName, BUSINESS_ENTITY_TYPES, COVERAGES, PRO_ROADMAP, TRADE_PROFILES, TRADES, roadmapStage, onboardingChecklist, requiredCoverages, specialtiesFor, t as tr, type Contractor, type CoverageKey } from "@handled/core";
 import Link from "next/link";
 import { getViewer } from "@/lib/auth";
 import { getLocale } from "@/lib/locale";
@@ -53,10 +62,13 @@ export default async function Onboarding() {
       if (fresh) pro = fresh as Contractor;
     }
   }
+  // all 50 states (2026-11-17): the pro's state — what they chose, else from their ZIP
+  const proState: string | null = (pro as { base_state?: string | null }).base_state ?? stateForZip(pro.base_zip ?? pro.zip ?? (pro.service_zips ?? [])[0] ?? null);
   // payouts: direct deposit through Stripe only. Back from Stripe with a ready bank → the payout step is done.
-  const stripeAcct = (pro as Contractor & { stripe_account_id?: string | null }).stripe_account_id ?? null;
+  // the account may have been made on their Partner page (same email) — proPayoutAccount finds and links it
+  const stripeAcct = await (await import("@/lib/pro-benefits")).proPayoutAccount(pro as never).catch(() => null);
   const bankConnected = stripeAcct ? await connectReady(stripeAcct).catch(() => false) : false;
-  if (bankConnected && pro.payout_method !== "stripe_connect") {
+  if (bankConnected && !["stripe_connect", "paypal", "venmo"].includes(String(pro.payout_method))) {
     await (await import("@/lib/supabase/server")).adminClient().from("contractors").update({ payout_method: "stripe_connect" }).eq("id", pro.id);
     pro = { ...pro, payout_method: "stripe_connect" } as Contractor;
   }
@@ -68,7 +80,8 @@ export default async function Onboarding() {
   /** Step labels and details from core are English; the dynamic ones are rebuilt here in Spanish. */
   const stepLabel = (s: { key: string; label: string }) => {
     if (!es) return s.label;
-    if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)} (verificado)`;
+    if (s.label === "Trade license — optional") return "Licencia del oficio — opcional";
+    if (s.key.startsWith("coverage:") && s.key !== "coverage:workers_comp") return `${covLabel(s.key.slice(9) as CoverageKey)}${s.label.endsWith("— optional") ? " — opcional" : " (verificado)"}`;
     return t(s.label);
   };
   const stepDetail = (d: string) => {
@@ -81,8 +94,11 @@ export default async function Onboarding() {
     if ((m = d.match(/^Valid until (.+)$/))) return `Válido hasta ${m[1]}`;
     if ((m = d.match(/^Uploaded (.+)$/))) return `Subido el ${m[1]}`;
     if ((m = d.match(/^Current version (.+)$/))) return `Versión actual ${m[1]}`;
-    if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled named as additional insured$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional`;
+    if ((m = d.match(/^General liability, \$(\d+)M per occurrence minimum, Handled listed as additional insured or certificate holder$/))) return `Responsabilidad civil general, mínimo de $${m[1]}M por incidente, con Handled como asegurado adicional o titular del certificado`;
     if ((m = d.match(/^#(.+) · until (.+)$/))) return `#${m[1]} · hasta ${m[2]}`;
+    if ((m = d.match(/^#(.+) · no expiry$/))) return `#${m[1]} · no vence`;
+    if ((m = d.match(/^#(.+) · waiting for Handled to verify$/))) return `#${m[1]} · Handled lo está verificando`;
+    if ((m = d.match(/^(?:#(.+?) · waiting for Handled to verify\. )?Not needed to start\. Add it to also get: (.+)$/))) return `${m[1] ? `#${m[1]} · Handled lo está verificando. ` : ""}No es necesaria para empezar. Agréguela para recibir también: ${m[2].replace(/ and (\d+) more$/, " y $1 más")}`;
     return t(d);
   };
   const body = (key: string) => {
@@ -142,14 +158,19 @@ export default async function Onboarding() {
         <p className="text-xs text-ink-soft">{t("A recent, well-lit photo of just you: no sunglasses, hats or group photos.")}</p>
       </StepForm>
     );
-    if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{t("Certificate received — we’re verifying it.")}</p> : (
+    if (key === "coi") return pending("coi") ? <p className="mt-2 text-sm text-ink-soft">{l === "es" ? "Certificado recibido. Lo revisamos automáticamente y, si hace falta, una persona de Handled lo revisa a mano (normalmente en 1 día hábil)." : "Certificate received. We check it automatically, and if anything needs a closer look a Handled team member reviews it by hand (usually within 1 business day)."}</p> : (
       <StepForm step="coi" cta={t("Upload certificate")} locale={l}>
         <div className="grid gap-3 sm:grid-cols-2"><Field label={t("Policy expires")} name="expires_on" type="date" required /><Field label={t("Certificate of insurance")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <p className="text-xs text-ink-soft">{l === "es" ? "El certificado debe incluir a Handled Services LLC como asegurado adicional o titular del certificado. Como asegurado adicional tiene prioridad en las ofertas de trabajos que requieren seguro." : "Your certificate must list Handled Services LLC as additional insured or certificate holder. Name us as additional insured and you get priority for jobs that need insurance."}</p>
+        {/* optional: lets Handled confirm the policy with the insurer or agent (the second way to verify) */}
+        <p className="text-xs text-ink-soft">{l === "es" ? "Opcional: ayuda a Handled a confirmar su póliza con la aseguradora o su agente si hace falta." : "Optional: helps Handled confirm your policy with the insurer or your agent if needed."}</p>
+        <div className="grid gap-3 sm:grid-cols-3"><Field label={l === "es" ? "Aseguradora" : "Insurance company"} name="insurer" /><Field label={l === "es" ? "Número de póliza" : "Policy number"} name="policy_number" /><Field label={l === "es" ? "Agente (nombre y teléfono o correo)" : "Agent (name and phone or email)"} name="agent_contact" /></div>
       </StepForm>
     );
     if (key === "license") return pending("license") ? <p className="mt-2 text-sm text-ink-soft">{t("License received — we’re verifying it.")}</p> : (
       <StepForm step="license" cta={t("Upload license")} locale={l}>
-        <div className="grid gap-3 sm:grid-cols-3"><Field label={t("License #")} name="license_number" defaultValue={pro.license_number ?? ""} required /><Field label={t("Expires")} name="expires_on" type="date" required /><Field label={t("License copy")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <div className="grid gap-3 sm:grid-cols-3"><Field label={t("License #")} name="license_number" defaultValue={pro.license_number ?? ""} required /><Field label={t("Expires")} name="expires_on" type="date" /><Field label={t("License copy")} name="file" type="file" accept="application/pdf,image/*" required /></div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="no_expiry" /> {l === "es" ? "No vence (por ejemplo, un número USDOT o una certificación única)" : "It doesn't expire (for example a USDOT number or a one-time certification)"}</label>
       </StepForm>
     );
     if (key === "area") {
@@ -157,19 +178,23 @@ export default async function Onboarding() {
       const wins = pro.availability?.windows ?? ["morning", "midday", "afternoon"];
       return (
         <StepForm step="area" cta={t("Save work area & hours")} locale={l}>
-          <p className="text-sm text-ink-soft">{t("We only offer you jobs within your driving distance of your place of business, on the days and times you work. Set your daily limit and days off so you never get offers you can’t take.")}</p>
+          <p className="text-sm text-ink-soft">{es ? `Su código postal es obligatorio. Le ofrecemos trabajos a hasta ${DEFAULT_RADIUS_MI} millas de él, o solo en los códigos postales que indique abajo, en los días y horarios en que trabaja.` : `Your ZIP code is required. We offer you jobs within ${DEFAULT_RADIUS_MI} miles of it, or only in the ZIP codes you list below, on the days and times you work.`}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t("Place of business — street address")} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} required />
-            <Field label={t("City")} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} required />
-            <Field label={t("State (2 letters)")} name="base_state" defaultValue={(pro as { base_state?: string | null }).base_state ?? "MI"} maxLength={2} pattern="[A-Za-z]{2}" required />
             <Field label={t("ZIP")} name="base_zip" defaultValue={pro.base_zip ?? pro.zip ?? ""} maxLength={5} pattern="\d{5}" required />
-            <Field label={t("How far you’ll drive (miles)")} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.service_radius_mi ?? 25)} required />
+            <Field label={es ? "Dirección del negocio (opcional, para distancias exactas)" : "Place of business — street address (optional, for exact distances)"} name="base_address" defaultValue={(pro as { base_address?: string | null }).base_address ?? ""} />
+            <Field label={es ? "Ciudad (opcional)" : "City (optional)"} name="base_city" defaultValue={(pro as { base_city?: string | null }).base_city ?? ""} />
+            <label className="block text-sm"><span className="font-medium">{t("State")}</span>
+              <select name="base_state" className="input mt-1" defaultValue={proState ?? ""}>
+                <option value="">{es ? "Según su código postal" : "From your ZIP"}</option>
+                {US_STATES.map((st) => <option key={st.code} value={st.code}>{st.name}</option>)}
+              </select>
+            </label>
+            <Field label={es ? `Hasta dónde maneja (millas, ${DEFAULT_RADIUS_MI} si lo deja así)` : `How far you’ll drive (miles, ${DEFAULT_RADIUS_MI} unless you change it)`} name="service_radius_mi" type="number" min={1} max={150} defaultValue={String(pro.base_zip ? pro.service_radius_mi ?? DEFAULT_RADIUS_MI : DEFAULT_RADIUS_MI)} />
             <Field label={t("Most jobs you want in one day")} name="daily_capacity" type="number" min={1} max={20} defaultValue={String(pro.daily_capacity ?? 3)} required />
           </div>
           <div>
-            <Field label={t("ZIP codes you want to cover (optional)")} name="service_zips" defaultValue={(pro.service_zips ?? []).join(", ")} placeholder="48201, 48226, 481*" />
-            <p className="mt-1 text-xs text-ink-soft">{t("Separate with commas. 481* covers every ZIP starting with 481. Listed ZIPs get offers even past your driving distance.")}</p>
-            <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" name="zips_only" defaultChecked={Boolean((pro as { zips_only?: boolean | null }).zips_only)} /> {t("Only send me jobs in these ZIP codes")}</label>
+            <Field label={es ? "Solo estos códigos postales (opcional)" : "Only these ZIP codes (optional)"} name="service_zips" defaultValue={(pro.service_zips ?? []).join(", ")} placeholder="48201, 48226, 481*" />
+            <p className="mt-1 text-xs text-ink-soft">{es ? `Sepárelos con comas; 481* cubre todos los que empiezan con 481. Si pone códigos, solo recibe trabajos en ellos. Déjelo vacío para trabajar a hasta ${DEFAULT_RADIUS_MI} millas de su código postal.` : `Separate with commas; 481* covers every ZIP starting with 481. If you list ZIP codes, you only get jobs in them. Leave it blank to work up to ${DEFAULT_RADIUS_MI} miles from your ZIP.`}</p>
           </div>
           <div><span className="label">{t("Days you work")}</span><div className="flex flex-wrap gap-3 text-sm">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => <label key={d} className="flex items-center gap-1"><input type="checkbox" name="days" value={i} defaultChecked={days.includes(i)} /> {t(d)}</label>)}</div></div>
           <div><span className="label">{t("Times you work")}</span><div className="flex flex-wrap gap-3 text-sm">{[["morning", "Morning 8–11"], ["midday", "Midday 11–2"], ["afternoon", "Afternoon 2–5"]].map(([w, lb]) => <label key={w} className="flex items-center gap-1"><input type="checkbox" name="windows" value={w} defaultChecked={wins.includes(w)} /> {t(lb)}</label>)}</div></div>
@@ -220,7 +245,7 @@ export default async function Onboarding() {
       const bs = (pro as Contractor & { background_status?: string | null }).background_status;
       return <p className="mt-2 text-sm text-ink-soft">{t(pro.background_checked ? "Cleared." : bs === "invited" ? "Our screening provider (Checkr) emailed you a secure link — check your inbox and spam. It takes about 5 minutes, results in 1–3 business days." : bs === "pending" ? "In progress — usually 1–3 business days. We’ll notify you when it clears." : "Starts automatically as soon as your W-9 and agreement are in.")}</p>;
     }
-    if (key === "payout") return <PayoutStep method={pro.payout_method ?? null} bankConnected={bankConnected} es={es} />;
+    if (key === "payout") return <PayoutStep method={pro.payout_method ?? null} handle={(pro as Contractor & { payout_handle?: string | null }).payout_handle ?? null} bankConnected={bankConnected} es={es} />;
     return null;
   };
   const doneCount = steps.filter((s) => s.done).length;
@@ -242,6 +267,12 @@ export default async function Onboarding() {
   );
   return (
     <div className="space-y-4">
+      {proState && !servedState(pro.base_zip ?? pro.service_zips?.[0] ?? null) && (
+        <div className="card border-brand/40 bg-brand-tint text-sm">
+          <b>{es ? `¡Bienvenido! Aceptamos profesionales en los 50 estados.` : `Welcome — we take pros in all 50 states.`}</b>{" "}
+          {es ? `Todavía no hay clientes de ${BRAND.name} en ${stateName(proState)}: cuando lo aprobemos, sus servicios aparecen en el sitio para los clientes de su zona y le llegan los trabajos. Termine estos pasos para estar listo.` : `${BRAND.name} isn't taking bookings in ${stateName(proState)} yet: once you're approved, your services show up on the website for customers in your area and jobs come to you. Finish these steps so you're ready.`}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h1 className="text-2xl font-bold">{t("Get set up")}</h1><p className="text-sm text-ink-soft">{t("You work as an independent business. These steps let us send you prepaid jobs and file your 1099.")}</p></div>
         <Badge tone={complete ? "green" : "amber"}>{doneCount}/{steps.length} {es ? "completos" : "complete"}</Badge>
@@ -258,7 +289,7 @@ export default async function Onboarding() {
               <ul className="list-disc pl-5 text-ink-soft">
                 <li>{es ? `Responsabilidad civil general de $${(p.glMin / 1e6).toFixed(0)}M por incidente` : `General liability $${(p.glMin / 1e6).toFixed(0)}M per occurrence`}{p.requires.length ? ` + ${p.requires.map((k) => covLabel(k).toLowerCase()).join(", ")}` : ""}</li>
                 {p.conditional.map((cn) => <li key={cn.key}>{covLabel(cn.key)} {es ? "si" : "when"} {t(cn.when)}</li>)}
-                {p.license && <li>{es ? "Licencia" : "License"}: {t(p.license)}</li>}
+                {p.license && <li>{es ? "Licencia" : "License"}: {t(licenseFor(p.license, proState) ?? p.license)}</li>}
                 {p.preferred.map((x) => <li key={x}>{es ? "Preferible" : "Preferred"}: {t(x)}</li>)}
                 <li>{es ? "Prueba de habilidades" : "Skills check"}: {t(p.skillsCheck)}</li>
               </ul>

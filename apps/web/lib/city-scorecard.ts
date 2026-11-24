@@ -5,14 +5,20 @@
  * PURPOSE : Loads the numbers behind the city scorecard (core city-scorecard.ts). One pass over the last
  *           90 days of jobs, offers, reviews, plans and pros, bucketed into markets by ZIP prefix, then
  *           measured for the 90-day window and the last 30 days. Feeds Hub → City scorecard.
+ * UPDATED : 2026-11-18_0240 UTC — guardrails: goingDirect / proRetention per city (core goingDirectPairs, proRetention), and per
+ *           city the customer–pro pairs going quiet and the busy pros who stopped (names for the Hub lists).
  */
 import "server-only";
-import { CARD_FEE, SERVICES, getService, planPace, scoreCity, type CityMetrics, type CityScore } from "@handled/core";
+import { CARD_FEE, SERVICES, getService, goingDirectPairs, planPace, proRetention, scoreCity, type CityMetrics, type CityScore } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { HUMAN_KINDS } from "./metrics";
 
 export interface Market { id: string; name: string; state: string; zip_prefixes: string[]; active: boolean; created_at: string; launch_services: string[] | null }
-export interface CityCard { market: Market; m90: CityMetrics; m30: CityMetrics; score: CityScore }
+export interface GuardList {
+  quiet: { customer: string; pro: string; jobs: number; lastAt: string }[];
+  quietPros: string[];
+}
+export interface CityCard { market: Market; m90: CityMetrics; m30: CityMetrics; score: CityScore; guard: GuardList }
 
 type JobRow = {
   id: string; zip: string; status: string; service_slug: string; price_final: number | null; discount: number | null; member_benefit: number | null;
@@ -40,7 +46,7 @@ export async function loadCityScorecard() {
     db.from("markets").select("id, name, state, zip_prefixes, active, created_at, launch_services").order("created_at"),
     db.from("jobs").select(cols).eq("status", "completed").gte("completed_at", since90).limit(50000),
     db.from("jobs").select(cols).not("paid_at", "is", null).gte("paid_at", since90).is("remedy", null).limit(50000),
-    db.from("contractors").select("id, base_zip, zip, trades").eq("status", "approved"),
+    db.from("contractors").select("id, base_zip, zip, trades, business_name, contact_name").eq("status", "approved"),
     db.from("recurring_plans").select("customer_id, source_job_id, created_at, active"),
     db.from("jobs").select("completed_at").eq("status", "completed").order("completed_at").limit(1),
   ]);
@@ -59,6 +65,12 @@ export async function loadCityScorecard() {
   for (const o of offers) offersBy.set(o.job_id, [...(offersBy.get(o.job_id) ?? []), o]);
   const planCustomers = new Set(((plans ?? []) as { customer_id: string | null; active: boolean }[]).filter((p) => p.active && p.customer_id).map((p) => p.customer_id!));
   const planSources = new Set(((plans ?? []) as { source_job_id: string | null }[]).map((p) => p.source_job_id).filter(Boolean) as string[]);
+
+  // guardrails look at the full 90 days in each city, whatever the window
+  const guardFor = (m: Market) => {
+    const gj = completed.filter((j) => inMarket(m, j.zip) && !j.remedy && !j.parent_job_id && j.completed_at).map((j) => ({ customer: who(j), pro: j.contractor_id, completedAt: j.completed_at! }));
+    return { direct: goingDirectPairs(gj, new Date(now)), kept: proRetention(gj, new Date(now)) };
+  };
 
   function measure(m: Market, since: string, days: number): CityMetrics {
     const jobs = completed.filter((j) => inMarket(m, j.zip) && (j.completed_at ?? "") >= since);
@@ -98,12 +110,20 @@ export async function loadCityScorecard() {
       avgRating: rated.length ? rated.reduce((a, b) => a + b, 0) / rated.length : null, reviews: rated.length,
       redoRate: mains.length ? jobs.filter((j) => j.remedy).length / mains.length : null,
       aiDrivenRate: jobs.length ? jobs.filter((j) => !touched.has(j.id)).length / jobs.length : null,
+      ...(() => { const g = guardFor(m); return { goingDirect: g.direct.rate, goingDirectCount: g.direct.quiet.length, proRetention: g.kept.rate }; })(),
     };
   }
+  const proName = new Map(((pros ?? []) as { id: string; business_name: string | null; contact_name: string | null }[]).map((p) => [p.id, p.business_name || p.contact_name || "Pro"]));
+  const customerName = new Map(completed.map((j) => [who(j), j.contact_email]));
 
   const cards: CityCard[] = ((markets ?? []) as Market[]).map((market) => {
     const m90 = measure(market, since90, 90), m30 = measure(market, since30, 30);
-    return { market, m90, m30, score: scoreCity(m90, m30) };
+    const g = guardFor(market);
+    const guard: GuardList = {
+      quiet: g.direct.quiet.slice(0, 15).map((p) => ({ customer: customerName.get(p.customer) ?? p.customer, pro: proName.get(p.pro) ?? "A pro", jobs: p.jobs, lastAt: p.lastAt })),
+      quietPros: g.kept.quietPros.slice(0, 15).map((id) => proName.get(id) ?? "A pro"),
+    };
+    return { market, m90, m30, score: scoreCity(m90, m30), guard };
   });
   const activeMarkets = cards.filter((c) => c.market.active);
   const bookings30 = activeMarkets.reduce((t, c) => t + c.m30.bookings, 0), take30 = activeMarkets.reduce((t, c) => t + c.m30.take, 0);

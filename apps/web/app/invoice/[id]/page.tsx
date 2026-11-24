@@ -12,10 +12,11 @@
  * UPDATED : 2026-10-28_1700 UTC — consultation-only wording removed (Business & Technology is ordered with a deposit).
  * UPDATED : 2026-11-06_1900 UTC — need-to-know: jobs are read on the server (lib/job-access), the customer's own only.
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology (consultOnly): no estimate before the consultation; the price is set on the call.
+ * UPDATED : 2026-11-12_1900 UTC — name-your-price board posts: the $1 posting fee and "charged when a pro takes it".
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BRAND, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, estimate, getService, money, type Job, consultOnly } from "@handled/core";
+import { BRAND, SERVICE_AGREEMENT_VERSION, TIME_WINDOW_LABEL, estimate, getService, isBoardPost, money, type Job, consultOnly } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { getViewer, isStaff } from "@/lib/auth";
 import { validInvoiceToken } from "@/lib/invoice";
@@ -97,10 +98,11 @@ export default async function Invoice({ params, searchParams }: { params: Promis
           {Number(job.amount_refunded) > 0 && <tr><td className="py-1 text-ink-soft">Refunded</td><td className="py-1 text-right">{money(Number(job.amount_refunded))}</td></tr>}
           <tr className="text-base font-bold"><td className="py-2">Balance due{due > 0 && job.balance_due_date ? ` by ${fmtD(job.balance_due_date)}` : ""}</td><td className="py-2 text-right">{money(due)}</td></tr>
           {job.payment_plan === "after" && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">25% paid to book. The rest is charged to the same card when the job is done: we place a hold for it when your pro starts and charge it once the work is finished and the photos are in.</td></tr>}
-          {job.payment_plan === "deposit" && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">Deposit plan: the balance is charged automatically to the card used for the deposit{job.balance_due_date ? ` on ${fmtD(job.balance_due_date)}` : ""}. Work begins once paid in full.</td></tr>}
+          {isBoardPost(job) && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">Posted on the job board{job.deposit_paid_at ? ` with a ${money(job.deposit_amount)} posting fee (counts toward the price)` : ""}. The rest is charged to the same card when a pro takes the job; if no pro takes it by {fmtD(job.open_offer_until!.slice(0, 10))}, nothing more is charged.</td></tr>}
+          {job.payment_plan === "deposit" && !isBoardPost(job) && due > 0 && <tr><td colSpan={2} className="pt-1 text-xs text-ink-soft">Deposit plan: the balance is charged automatically to the card used for the deposit{job.balance_due_date ? ` on ${fmtD(job.balance_due_date)}` : ""}. Work begins once paid in full.</td></tr>}
         </tbody>
       </table>
-      {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Bookings</Link> or the link in your email. {job.payment_plan === "after" && job.deposit_paid_at ? "You don't need to do anything — the rest is charged automatically when the job is done." : "Your pro is dispatched as soon as payment clears."}</p>}
+      {due > 0 && <p className="mb-6 rounded-xl bg-brand-tint p-3 print:hidden">Pay from <Link href="/account" className="font-semibold underline">My Bookings</Link> or the link in your email. {isBoardPost(job) && job.deposit_paid_at ? "You don't need to do anything — the rest is charged automatically when a pro takes the job." : job.payment_plan === "after" && job.deposit_paid_at ? "You don't need to do anything — the rest is charged automatically when the job is done." : "Your pro is dispatched as soon as payment clears."}</p>}
 
       <div className="border-t border-line pt-6">
         <h2 className="text-base font-bold">{SERVICE_AGREEMENT_TITLE}</h2>

@@ -5,12 +5,17 @@
  * PURPOSE : Hub → Email Center controls: campaign editor with live preview, audience size, spam / law check,
  *           test send and launch (now or scheduled); campaign actions; sender settings and mailbox check;
  *           inbox reply and one-off compose; add to the do-not-email list.
+ * UPDATED : 2026-11-17_2335 UTC — "✨ Write with AI": pick a goal (or type one), an optional offer and Spanish; the AI campaign writer
+ *           fills subject, preview text and body for you to edit, test and send. Nothing is sent by the AI.
+ * UPDATED : 2026-11-19_1540 UTC — {{post_url}} in the tag list and preview.
+ * UPDATED : 2026-11-20_0300 UTC — says why Send is greyed out (a ⛔ problem in the letter, or nobody in the audience).
+ * UPDATED : 2026-11-20_0040 UTC — the mailbox check names the mailbox campaigns send from (handledsvc.net when set).
  */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, marketingFooter, mergeTags, renderEmailHtml, type EmailAudience } from "@handled/core";
+import { CAMPAIGN_GOALS, EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, marketingFooter, mergeTags, renderEmailHtml, type EmailAudience } from "@handled/core";
 
 async function call(body: Record<string, unknown>) {
   const r = await fetch("/api/hub/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -20,7 +25,7 @@ async function call(body: Record<string, unknown>) {
 
 export interface Draft { id?: string; name: string; subject: string; preheader: string; body: string; subject_es: string; body_es: string; audience: EmailAudience; custom_list: string; custom_consent: boolean }
 
-const SAMPLE = { first_name: "Alex", company: "Sample Property Co.", city: "Detroit", email: "alex@example.com", book_url: "https://handledsvc.com/book", site_url: "https://handledsvc.com" };
+const SAMPLE = { first_name: "Alex", company: "Sample Property Co.", city: "Detroit", email: "alex@example.com", book_url: "https://handledsvc.com/book", post_url: "https://handledsvc.com/post", site_url: "https://handledsvc.com" };
 
 export function CampaignEditor({ initial, me }: { initial: Draft; me: string }) {
   const router = useRouter();
@@ -61,10 +66,11 @@ export function CampaignEditor({ initial, me }: { initial: Draft; me: string }) 
     return id;
   }
 
-  const tags = ["{{first_name|there}}", "{{company}}", "{{city}}", "{{book_url}}", "{{site_url}}"];
+  const tags = ["{{first_name|there}}", "{{company}}", "{{city}}", "{{book_url}}", "{{post_url}}", "{{site_url}}"];
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-3 text-sm">
+        <AiWriter audience={d.audience} onDraft={(x) => setD((cur) => ({ ...cur, name: cur.name.trim() ? cur.name : x.name, subject: x.subject, preheader: x.preheader, body: x.body, subject_es: x.subject_es, body_es: x.body_es }))} />
         <input className="input" placeholder="Campaign name (only you see it)" value={d.name} onChange={(e) => set("name", e.target.value)} />
         <label className="block font-semibold">Who gets it
           <select className="input mt-1" value={d.audience} onChange={(e) => set("audience", e.target.value)}>
@@ -115,6 +121,14 @@ export function CampaignEditor({ initial, me }: { initial: Draft; me: string }) 
               if (r.ok) router.refresh(); else setMsg(r.data.error ?? "Couldn't schedule");
             }}>Schedule</button>
           </div>
+          {/* say why Send is greyed out instead of leaving it to guesswork */}
+          {!busy && (lint.blockers.length > 0 || (count && !count.count)) && (
+            <p className="text-xs font-semibold text-rose-700">{lint.blockers.length > 0
+              ? `Can't send yet: fix the ⛔ line${lint.blockers.length > 1 ? "s" : ""} above (${lint.blockers[0]}).`
+              : d.audience === "custom"
+                ? "Can't send yet: the pasted list has no valid email addresses (or everyone on it unsubscribed)."
+                : `Can't send yet: nobody in "${EMAIL_AUDIENCES[d.audience].label}" can be emailed right now. Pick another audience under "Who gets it", or paste a list (Custom).`}</p>
+          )}
           <p className="text-xs text-ink-soft">Sends {EMAIL_LIMITS.perRun}-ish every 10 minutes within your daily cap, so your mailbox stays in good standing. People who got another campaign in the last {EMAIL_LIMITS.minDaysBetween} days are skipped.</p>
         </div>
         {msg && <p className="font-semibold">{msg}</p>}
@@ -167,13 +181,14 @@ export function EmailSettingsForm({ s }: { s: { from_name: string; reply_to: str
       </div>
       {check && (
         <div className="rounded-lg bg-paper p-3 text-xs">
+          {(check as { sender?: string | null }).sender && <div className="font-semibold">Campaigns send from {(check as { sender?: string | null }).sender}{(check as { servers?: string }).servers ? ` · ${(check as { servers?: string }).servers}` : ""}</div>}
           <div>Sending (SMTP): {check.smtp === "ok" ? "✅ connected" : `❌ ${check.smtp}`}</div>
           <div>Inbox (IMAP): {check.imap === "ok" ? "✅ connected" : `❌ ${check.imap}`}</div>
           <div>{check.dns.domain}: SPF {check.dns.spf ? "✅" : "❌"} · DKIM {check.dns.dkim ? "✅" : "❌"} · DMARC {check.dns.dmarc ? "✅" : "❌"}</div>
           {check.dns.notes.map((n) => <div key={n} className="mt-1 text-amber-800">{n}</div>)}
         </div>
       )}
-      <p className="text-xs text-ink-soft">Hostinger limits how many emails a mailbox sends per day (it depends on your plan). Keep the cap under it; new mailboxes should start low (100–200/day) and grow.</p>
+      <p className="text-xs text-ink-soft">Your email host limits how many emails a mailbox sends per day (it depends on your plan). Keep the cap under it; new mailboxes should start low (100–200/day) and grow.</p>
     </div>
   );
 }
@@ -226,6 +241,41 @@ export function OptoutForm() {
       <input className="input w-64" placeholder="someone@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
       <button className="btn-ghost" disabled={!email.includes("@")} onClick={async () => { const r = await call({ action: "optout", email }); setMsg(r.ok ? "Added — they won't get marketing email." : r.data.error ?? "Failed"); setEmail(""); router.refresh(); }}>Don't email</button>
       {msg && <span className="text-ink-soft">{msg}</span>}
+    </div>
+  );
+}
+
+/** The AI campaign writer: a goal in, a draft out (subject, preview text, body, optional Spanish) for staff to edit and test. */
+function AiWriter({ audience, onDraft }: { audience: EmailAudience; onDraft: (d: { name: string; subject: string; preheader: string; body: string; subject_es: string; body_es: string }) => void }) {
+  const [open, setOpen] = useState(false);
+  const [goal, setGoal] = useState("");
+  const [offer, setOffer] = useState("");
+  const [spanish, setSpanish] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState<string[]>([]);
+  const [msg, setMsg] = useState("");
+  if (!open) return <button className="btn-ghost text-sm" onClick={() => setOpen(true)}>✨ Write with AI</button>;
+  return (
+    <div className="card space-y-2 bg-paper">
+      <div className="flex items-center justify-between"><span className="font-semibold">✨ Write with AI</span><button className="text-xs text-ink-soft underline" onClick={() => setOpen(false)}>close</button></div>
+      <div className="flex flex-wrap gap-1">{CAMPAIGN_GOALS.map((g) => <button key={g.key} className="rounded-full border border-line px-2 py-0.5 text-xs" onClick={() => setGoal(g.goal)}>{g.label}</button>)}</div>
+      <textarea className="input h-20" placeholder="What should this email do? e.g. Get lapsed customers in Royal Oak to book fall gutter cleaning before the first snow." value={goal} onChange={(e) => setGoal(e.target.value)} />
+      <input className="input" placeholder="Offer to mention, worded exactly (optional — leave empty for none)" value={offer} onChange={(e) => setOffer(e.target.value)} />
+      <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={spanish} onChange={(e) => setSpanish(e.target.checked)} /> Also write the Spanish version</label>
+      <div className="flex items-center gap-2">
+        <button className="btn-primary" disabled={busy || goal.trim().length < 10} onClick={async () => {
+          setBusy(true); setMsg("Writing…"); setNotes([]);
+          const r = await call({ action: "ai_write", audience, goal, offer: offer || null, spanish });
+          setBusy(false);
+          if (!r.ok) return setMsg(r.data.error ?? "Failed");
+          const x = r.data.draft as { name: string; subject: string; preheader: string; body: string; subject_es: string; body_es: string; problems: string[]; warnings: string[] };
+          onDraft(x); setNotes([...x.problems.map((p) => `⛔ ${p}`), ...x.warnings.map((w) => `⚠️ ${w}`)]);
+          setMsg("Draft is in the editor below. Read every word, then save and send yourself a test.");
+        }}>Write the draft</button>
+        {msg && <span className="text-xs text-ink-soft">{msg}</span>}
+      </div>
+      {notes.length > 0 && <ul className="text-xs">{notes.map((n) => <li key={n}>{n}</li>)}</ul>}
+      <p className="text-[11px] text-ink-soft">It replaces the subject, preview text and body. It never invents prices, discounts or deadlines; anything it shouldn’t say is flagged.</p>
     </div>
   );
 }

@@ -40,6 +40,10 @@
  *           starts and charged when the job is complete), PAY_IN_FULL (5% off from our share), clearedForWork().
  * UPDATED : 2026-11-10_0310 UTC — name your price: offers below the usual minimum (down to 30% of our price) go straight
  *           to the job board for 30 days (offerCheck level "board"); unclaimed, they're cancelled and fully refunded.
+ * UPDATED : 2026-11-12_1900 UTC — name your price posts the job on the job board for 90 days for $1 (BOARD_POST_FEE,
+ *           isBoardPost); the customer's price is charged only when a pro takes it.
+ * UPDATED : 2026-11-18_0040 UTC — business pricing (BUSINESS_PRICING, businessPrice, homePriceFor, businessEstimate, splitJob(…, { business })):
+ *           business orders keep up to 50% for Handled (+13 points over home prices), pros paid the same dollars as at home.
  */
 
 import { applyMeasurements, defaultAnswers, sizeFactor, getService, type Answers, type LineItem } from "./services.ts";
@@ -56,7 +60,7 @@ export const RECURRING_DISCOUNT: Record<Frequency, number> = {
 /** Bookings that start within this many hours get the rush surcharge. */
 export const RUSH_HOURS = 48;
 export const RUSH_SURCHARGE = 0.15;
-/** Our take on every job: never below 15%, never above 40% of the price. */
+/** Our take on every job: never below 15%, never above 40% of the price (business pricing: up to 50%, BUSINESS_PRICING). */
 export const TAKE_MIN = 0.15;
 export const TAKE_MAX = 0.4;
 
@@ -140,7 +144,15 @@ export interface JobSplit {
  * commission slides with the service price (commissionRate), always within TAKE_MIN–TAKE_MAX; the
  * payout rounds DOWN to the dollar so rounding can never cost us money.
  */
-export function splitJob(price: number, slug?: string): JobSplit {
+export function splitJob(price: number, slug?: string, opts?: { business?: boolean }): JobSplit {
+  if (opts?.business && price > 0) {
+    // business pricing: the pro is paid what the same job pays at home prices (never less), Handled keeps the rest
+    const fee = bookingFeeOf(price);
+    const payout = Math.min(Math.floor(price * (1 - TAKE_MIN)), splitJob(homePriceFor(price, slug), slug).payout);
+    const take = Math.round((price - payout) * 100) / 100;
+    const cardFee = Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100;
+    return { price, payout, take, takeRate: take / price, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };
+  }
   const fee = bookingFeeOf(price);
   const service = Math.max(0, price - fee);
   // round to the cent before rounding down, so float noise (1000 × 0.68 = 679.999…) never shaves a dollar off the pro
@@ -150,6 +162,45 @@ export function splitJob(price: number, slug?: string): JobSplit {
   const take = Math.round((price - payout) * 100) / 100;
   const cardFee = price > 0 ? Math.round((price * CARD_FEE.pct + CARD_FEE.fixed) * 100) / 100 : 0;
   return { price, payout, take, takeRate: price > 0 ? take / price : 0, cardFee, net: Math.round((take - cardFee) * 100) / 100, fee };
+}
+
+/**
+ * Business pricing (owner, 2026-11-18): business orders (business accounts, /book for business, sales tickets for a
+ * business) pay a business price. Handled keeps BUSINESS_PRICING.uplift more points of it than at home prices, up to
+ * BUSINESS_PRICING.maxTake (50%), and the pro is paid the same dollars the job pays at home prices — pros never lose.
+ * Home prices, a pro's own price and pro quotes are unchanged.
+ */
+export const BUSINESS_PRICING = { uplift: 0.13, maxTake: 0.5 } as const;
+
+/** Unrounded business price for a home-priced total (booking fee included). */
+function businessRaw(home: number, slug?: string): number {
+  if (!(home > 0)) return home;
+  const s = splitJob(home, slug);
+  const rate = Math.min(BUSINESS_PRICING.maxTake, s.takeRate + BUSINESS_PRICING.uplift);
+  return rate <= s.takeRate || s.payout <= 0 ? home : s.payout / (1 - rate);
+}
+/** The business price for a home-priced total (booking fee included), to the dollar. */
+export function businessPrice(home: number, slug?: string): number {
+  return home > 0 ? Math.max(Math.round(home), Math.round(businessRaw(home, slug))) : home;
+}
+/** The home-priced total a business price stands for (the largest one, so the pro's pay is never rounded down). */
+export function homePriceFor(price: number, slug?: string): number {
+  if (!(price > 0)) return price;
+  let lo = 0, hi = price;
+  for (let i = 0; i < 48; i++) { const mid = (lo + hi) / 2; if (businessRaw(mid, slug) <= price + 0.5) lo = mid; else hi = mid; }
+  return Math.round(lo * 100) / 100;
+}
+/** A home estimate as a business estimate: one "Business service" line; the pro's pay stays the same. */
+export function businessEstimate(e: Estimate): Estimate {
+  if (e.slug === "event-package" || !(e.point > 0)) return e;
+  const point = businessPrice(e.point, e.slug);
+  const extra = point - e.point;
+  if (extra <= 0) return e;
+  const items = [...e.items];
+  const feeAt = items.findIndex((i) => /booking fee/i.test(i.label));
+  items.splice(feeAt < 0 ? items.length : feeAt, 0, { label: "Business service (account, invoicing, priority)", amount: extra });
+  const payout = splitJob(point, e.slug, { business: true }).payout;
+  return { ...e, items, point, low: businessPrice(e.low, e.slug), high: businessPrice(e.high, e.slug), payout, margin: point - payout, payoutShare: Math.round((payout / point) * 1000) / 1000 };
 }
 
 /** The pro's real share of a price (payout ÷ price, 0–1, three decimals) — slides with job size. */
@@ -466,11 +517,37 @@ export function marketFactor(signals: PriceSignal[], current = 1): { factor: num
 
 /**
  * Name-your-price bounds around the suggested price. Below `warn` the customer is told it may take longer.
- * Below `min` (but at least `floor`) the offer is still taken: the job goes straight to the open job board at the
- * customer's price for `boardDays` days ("board" level), and if no pro takes it in that time it's cancelled and fully
- * refunded. Below `floor` it's refused (keeps $1 offers off the board).
+ * Every named price is POSTED on the open job board for `boardDays` days: the customer pays BOARD_POST_FEE ($1) to post
+ * it (the card is saved) and their price is charged only when a pro takes the job. Nobody takes it in time → cancelled
+ * (the $1 posting fee is kept). Below `floor` it's refused; above `max`, call us.
  */
-export const OFFER_BOUNDS = { floor: 0.3, min: 0.75, warn: 0.9, max: 3, boardDays: 30 } as const;
+export const OFFER_BOUNDS = { floor: 0.3, min: 0.75, warn: 0.9, max: 3, boardDays: 90 } as const;
+
+/**
+ * A price as people type it, in whole dollars: "$150", "150.00", "150.5", "1,200", "1,200.00", "1 200", "150,00" (a comma
+ * with one or two digits after it at the end is a decimal mark; any other comma, dot or space groups thousands). Cents
+ * round to the nearest dollar. Anything without a number is NaN.
+ */
+export function parseMoney(text: string | null | undefined): number {
+  const t = String(text ?? "").replace(/[^\d.,]/g, "");
+  if (!/\d/.test(t)) return NaN;
+  const m = t.match(/^(.*?)[.,](\d{1,2})$/);
+  const whole = (m ? m[1] : t).replace(/[.,]/g, "");
+  const cents = m ? Number(m[2].padEnd(2, "0")) / 100 : 0;
+  const n = Number(whole || "0") + cents;
+  return Number.isFinite(n) ? Math.round(n) : NaN;
+}
+
+/** What it costs to post a name-your-price job on the job board (the price itself is charged when a pro takes it). */
+export const BOARD_POST_FEE = 1;
+
+/**
+ * A name-your-price job posted on the job board: $1 paid to post it, the rest charged when a pro takes it. Stored as a
+ * "deposit" plan whose deposit is the posting fee, with an open board window (no extra database column needed).
+ */
+export function isBoardPost(job: { open_offer_until?: string | null; payment_plan?: string | null; deposit_amount?: number | string | null }): boolean {
+  return Boolean(job.open_offer_until) && job.payment_plan === "deposit" && Number(job.deposit_amount) === BOARD_POST_FEE;
+}
 export function offerCheck(offer: number, suggested: number): { ok: boolean; level: "ok" | "low" | "board" | "too_low" | "too_high"; min: number; max: number; floor: number } {
   const min = Math.ceil(suggested * OFFER_BOUNDS.min), max = Math.floor(suggested * OFFER_BOUNDS.max), floor = Math.ceil(suggested * OFFER_BOUNDS.floor);
   if (!(offer > 0) || offer < floor) return { ok: false, level: "too_low", min, max, floor };

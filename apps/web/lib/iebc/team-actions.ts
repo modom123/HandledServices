@@ -16,6 +16,9 @@
  *                           publishes it publicly, so it is high-risk and always waits for a person; TikTok is posted
  *                           by hand from the app, then marked posted.
  *           Merged into ACTIONS (actions.ts); the gateway enforces scopes, autonomy and the audit log as for every action.
+ * UPDATED : 2026-11-17_2200 UTC — legal.signup_queue / legal.task_done: the review tasks every pro application and partner
+ *           sign-up now files for the Legal & Compliance team (lib/legal-intake.ts).
+ * UPDATED : 2026-11-24_1900 UTC — social.new_pros lists only opted-in (named) pros; the website chain now also shows nameless ones.
  */
 import "server-only";
 import { z } from "zod";
@@ -199,7 +202,7 @@ export const TEAM_ACTIONS: Record<string, ActionDef> = {
     scope: "social", write: false, risk: "low",
     description: "Approved pros who opted in to be featured (Pro portal → My info): public name, area, up to 5 services, joined date, rating. Only these pros may be named or pictured in posts; never post a pro who isn't on this list.",
     params: z.object({ state: z.string().length(2).optional(), limit: z.number().int().min(1).max(24).optional() }),
-    run: async ({ state, limit }) => (await featuredPros({ state, limit })).map(({ photo, ...c }) => ({ ...c, has_photo: Boolean(photo) })),
+    run: async ({ state, limit }) => (await featuredPros({ state, limit: 200 })).filter((c) => c.named).slice(0, limit ?? 24).map(({ photo, ...c }) => ({ ...c, has_photo: Boolean(photo) })), // the chain also has nameless pros: only opted-in ones may be posted
   }),
 
   // ─── legal (Legal & Compliance) ───
@@ -270,6 +273,31 @@ export const TEAM_ACTIONS: Record<string, ActionDef> = {
       if (job_ref) jobId = ((await db().from("jobs").select("id").eq("ref", job_ref.toUpperCase()).maybeSingle()).data as { id: string } | null)?.id ?? null;
       await raiseAlert(`legal_${area}`, severity, `Legal review (${area}): ${title}`, `${details}\n\nFlagged by ${ctx.actor}. Needs review by a licensed attorney before anything binding is done.`, jobId);
       return "flagged for legal review";
+    },
+  }),
+  // sign-up triggers (2026-11-17_2200): every pro application and partner sign-up files review tasks here (lib/legal-intake.ts)
+  "legal.signup_queue": def({
+    scope: "legal", write: false, risk: "low",
+    description: "Your sign-up compliance queue: review tasks made automatically when a pro applies or a partner signs up (license for their trade and state, missing insurance, strict worker-classification states, a first pro in a new state, partner agreement version, real-estate referral-fee rules, conflicts). Each has what to research or draft and whether a licensed attorney must review it. Oldest due first. Work these, draft findings, then close each with legal.task_done; use legal.flag for anything a person must decide.",
+    params: z.object({ status: z.enum(["open", "done", "cancelled"]).optional(), limit: z.number().int().min(1).max(100).optional() }),
+    run: async ({ status, limit }) => {
+      const { data } = await db().from("agent_tasks").select("id, title, target, due_date, status, note, created_at, closed_at").eq("agent", "legal").eq("status", status ?? "open")
+        .order("due_date", { ascending: true, nullsFirst: false }).limit(limit ?? 50);
+      return ((data ?? []) as { id: string; title: string; target: string | null; due_date: string | null; status: string; note: string | null; created_at: string; closed_at: string | null }[])
+        .map((t) => ({ ...t, who: t.target?.split("#")[0] ?? null, check: t.target?.split("#")[1] ?? null, attorney_review: /licensed attorney/.test(t.note ?? "") }));
+    },
+  }),
+  "legal.task_done": def({
+    scope: "legal", write: true, risk: "low",
+    description: "Close a sign-up compliance task with your findings (what you checked, the sources, any drafted message for staff to send). Findings are saved on the task for staff; nothing is sent to the pro or partner. Use status 'cancelled' if it no longer applies.",
+    params: z.object({ task_id: z.string().uuid(), findings: z.string().min(20).max(6000), status: z.enum(["done", "cancelled"]).optional() }),
+    run: async ({ task_id, findings, status }, ctx) => {
+      const { data: t } = await db().from("agent_tasks").select("id, agent, title, note").eq("id", task_id).maybeSingle();
+      const row = t as { id: string; agent: string; title: string; note: string | null } | null;
+      if (!row || row.agent !== "legal") throw new Error("No legal task with that id");
+      const { error } = await db().from("agent_tasks").update({ status: status ?? "done", closed_at: new Date().toISOString(), note: `${row.note ?? ""}\n\n── Findings (${ctx.actor}, ${new Date().toISOString().slice(0, 10)}):\n${findings}` }).eq("id", task_id);
+      if (error) throw new Error(error.message);
+      return `closed: ${row.title}`;
     },
   }),
 };

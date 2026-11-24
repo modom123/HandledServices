@@ -12,13 +12,14 @@
  *           (core onboardingChecklist); the daily sweep sends the reminders. Contracts: Hub → Recruiting → Contracts.
  *           New hires on our own team: their employee paperwork runs in payroll, listed at the bottom.
  * UPDATED : 2026-10-27_1900 UTC — "Add an approved pro" (after your phone interview): entered here, invited at once.
+ * UPDATED : 2026-11-19_1910 UTC — each pro card: add the ZIP / work area when missing, and admins can "Activate anyway" with a reason.
  */
 import Link from "next/link";
-import { TRADES, onboardingChecklist, type Contractor } from "@handled/core";
+import { DEFAULT_RADIUS_MI, TRADES, onboardingChecklist, type Contractor } from "@handled/core";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { ApproveProForm } from "@/components/RecruitingIntake";
-import { DocDecision, ProStatusControls, RecruitingRowActions } from "@/components/HubActions";
+import { DocDecision, ProStatusControls, RecruitingRowActions, WorkAreaEditor } from "@/components/HubActions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function Onboarding() {
     db.from("contractor_documents").select("id, contractor_id, kind, status, created_at, notes, storage_path, ai_check").eq("status", "pending").not("storage_path", "is", null).order("created_at").limit(1000),
     db.from("talent_placements").select("id, start_date, created_at, talent_candidates(full_name), talent_searches(title), talent_clients!inner(internal)").eq("talent_clients.internal", true).order("created_at", { ascending: false }).limit(20),
   ]);
-  type Doc = { id: string; contractor_id: string; kind: string; created_at: string; notes: string | null; ai_check: { meets_requirements?: boolean; expires_on?: string | null; problems?: string[] } | null };
+  type Doc = { id: string; contractor_id: string; kind: string; created_at: string; notes: string | null; ai_check: { meets_requirements?: boolean; expires_on?: string | null; problems?: string[]; additional_insured?: boolean } | null };
   const docsOf = (id: string) => ((docs ?? []) as Doc[]).filter((d) => d.contractor_id === id);
   const rows = ((pros ?? []) as (Contractor & Record<string, unknown>)[]).map((c) => {
     const { steps, complete } = onboardingChecklist(c as never);
@@ -52,7 +53,7 @@ export default async function Onboarding() {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Link href={`/hub/pros/${r.c.id}`} className="font-semibold underline decoration-dotted">{String(r.c.business_name)}</Link>
-          <div className="text-xs text-ink-soft">{String(r.c.contact_name)} · {String(r.c.email)} · {(r.c.trades ?? []).join(", ")} · invited {days(r.c.invited_at as string) ?? "?"}d ago · {Number(r.c.onboarding_reminders ?? 0)} reminder(s)</div>
+          <div className="text-xs text-ink-soft">{String(r.c.contact_name)} · {String(r.c.email)} · <b>Does: {((r.c.trades ?? []) as string[]).map((t) => TRADES.find((x) => x.id === t)?.label ?? t).join(", ") || "no trades picked"}</b> · invited {days(r.c.invited_at as string) ?? "?"}d ago · {Number(r.c.onboarding_reminders ?? 0)} reminder(s)</div>
         </div>
         <div className="text-right text-xs"><div className="font-semibold">{r.done}/{r.steps.length} steps</div>{r.bg && <div className={["consider", "suspended"].includes(r.bg) ? "font-semibold text-rose-700" : "text-ink-soft"}>background: {r.bg}</div>}</div>
       </div>
@@ -62,7 +63,7 @@ export default async function Onboarding() {
           {r.pending.map((d) => (
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
               <span><b>{DOC_LABEL[d.kind] ?? d.kind}</b> uploaded {days(d.created_at)}d ago{d.ai_check ? <span className="text-xs text-ink-soft"> · AI read: {d.ai_check.meets_requirements ? "✓ meets requirements" : `⚠ ${d.ai_check.problems?.join("; ") || "check it"}`}{d.ai_check.expires_on ? ` · expires ${d.ai_check.expires_on}` : ""}</span> : null}</span>
-              <DocDecision contractorId={r.c.id} docId={d.id} />
+              <DocDecision contractorId={r.c.id} docId={d.id} kind={d.kind} aiExpires={d.ai_check?.expires_on ?? null} aiAdditional={d.ai_check?.additional_insured ?? null} />
             </li>
           ))}
         </ul>
@@ -70,7 +71,9 @@ export default async function Onboarding() {
       {["consider", "suspended"].includes(r.bg) && <p className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-800">Background result needs review in your screening provider. Follow the adverse-action process before any decision.</p>}
       {r.left.length > 0 && <div className="mt-2 text-xs text-ink-soft">Still to do: {r.left.map((s) => s.label).join(" · ")}</div>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {r.complete && admin && <div className="w-full"><ProStatusControls id={r.c.id} status={String(r.c.status)} complete={r.complete} /></div>}
+        {/* no ZIP yet: staff can add it right here (no ZIP, no approval) */}
+        {r.left.some((s) => s.key === "area") && <div className="w-full"><WorkAreaEditor id={r.c.id} zip={(r.c.base_zip as string | null) ?? null} radius={Number(r.c.service_radius_mi ?? DEFAULT_RADIUS_MI)} zips={(r.c.service_zips as string[] | null) ?? []} /></div>}
+        {admin && <div className="w-full"><ProStatusControls id={r.c.id} status={String(r.c.status)} complete={r.complete} missing={r.left.map((s) => s.label)} /></div>}
         {!r.complete && <RecruitingRowActions appId={(r.c.application_id as string) ?? null} contractorId={r.c.id} stage="onboarding" />}
       </div>
     </div>

@@ -6,6 +6,7 @@
  * PURPOSE : Handled Plus — the membership: no priority fees, 10% off every job, first pick of
  *           same-day slots. Join (signed in) → Stripe subscription; manage from My account.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { BRAND, HANDLED_PLUS, money } from "@handled/core";
@@ -13,7 +14,7 @@ import { getViewer } from "@/lib/auth";
 import { activeMembership } from "@/lib/growth";
 import { PlusButton } from "@/components/AccountExtras";
 
-export const metadata = { title: `${HANDLED_PLUS.name} membership`, description: `No priority fees and 10% off every ${BRAND.name} job for ${money(HANDLED_PLUS.monthly)} a month.` };
+export const metadata = { alternates: { canonical: "/plus" }, title: `${HANDLED_PLUS.name} membership`, description: `No priority fees and 10% off every ${BRAND.name} job for ${money(HANDLED_PLUS.monthly)} a month.` };
 
 const EXAMPLES = [
   ["Monthly house cleaning ($180)", 18],

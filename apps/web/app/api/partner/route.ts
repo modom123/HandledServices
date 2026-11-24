@@ -10,12 +10,13 @@
  * UPDATED : 2026-11-06_1730 UTC — { action: "sale", … } — a direct-sales ticket, close-ready (lib/sales-tickets): photos[0–4],
  *           service_slug, answers, frequency, urgency, preferred_date?, time_window, customer_type, company_name?, budget?,
  *           access_notes?, close_notes?, decision_maker, customer_*, address…, notes?, consent. Returns the pay link + price.
+ * UPDATED : 2026-11-17_2100 UTC — { action: "sign", signer_name, agree } — sign the current Referral Partner Agreement.
  */
 import { z } from "zod";
 import { SALES_TICKET, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING, getService, isPhotoPath } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { rateLimit } from "@/lib/ratelimit";
-import { partnerConnectUrl, partnerFor, submitTicket } from "@/lib/partners";
+import { signAgreement, partnerConnectUrl, partnerFor, submitTicket } from "@/lib/partners";
 import { createTicket } from "@/lib/sales-tickets";
 
 const keys = <T extends Record<string, unknown>>(o: T) => Object.keys(o) as [keyof T & string, ...(keyof T & string)[]];
@@ -31,6 +32,7 @@ const Body = z.discriminatedUnion("action", [
     photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(8).default([]),
   }),
   z.object({ action: z.literal("connect") }),
+  z.object({ action: z.literal("sign"), signer_name: z.string().trim().min(2).max(120), agree: z.literal(true) }),
   z.object({
     action: z.literal("sale"),
     photos: z.array(z.string().refine(isPhotoPath, "Bad photo")).max(SALES_TICKET.maxPhotos, `Up to ${SALES_TICKET.maxPhotos} photos`).default([]),
@@ -58,6 +60,10 @@ export async function POST(req: Request) {
   if (!partner) return deny(403, "This email isn't a partner yet — sign up at /partners");
   const b = Body.safeParse(await req.json().catch(() => null));
   if (!b.success) return deny(400, b.error.issues.some((i) => i.path[0] === "consent") ? "Confirm the customer agreed to be contacted" : b.error.issues.some((i) => i.path[0] === "zip") ? "Enter the 5-digit ZIP code" : "Check the form");
+  if (b.data.action === "sign") {
+    await signAgreement(partner, { signerName: b.data.signer_name, ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null, userAgent: req.headers.get("user-agent") });
+    return Response.json({ ok: true });
+  }
   if (b.data.action === "connect") {
     const url = await partnerConnectUrl(partner).catch(() => null);
     return url ? Response.json({ url }) : deny(503, "Payouts aren't available yet — we'll email you");

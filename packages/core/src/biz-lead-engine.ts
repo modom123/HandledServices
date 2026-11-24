@@ -23,6 +23,8 @@
  * UPDATED : 2026-10-07_2030 UTC — job-posting discovery: JOB_POST_AREAS (Michigan + Washington), JOB_POST_QUERIES, parseAdzuna, screenJobPosting
  *           (keeps businesses hiring for work we do; drops cleaning companies, staffing agencies and unnamed employers).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-20_0130 UTC — outreachSlice / OUTREACH_WINDOW: outreach spread across the business day, once an hour.
+ * UPDATED : 2026-11-20_0330 UTC — proAreaTargets: every lead search is where we have pros (idle pros' ZIPs first).
  */
 import { BRAND } from "./brand.ts";
 
@@ -322,6 +324,24 @@ export function warmupCap(firstSendAt: string | null | undefined, wanted: number
   return Math.max(0, Math.min(wanted, ramp));
 }
 
+/**
+ * Outreach goes out all business day, a few at a time, not in one burst (owner, 2026-11-20: "a system that is constantly
+ * working"): weekdays 9:00–17:00 in the business's time zone, each hourly run sends its share of what's left of
+ * today's limit. Outside the window: 0. Spreading sends reads as a person writing and is kinder to a new domain.
+ */
+// once an hour (owner, 2026-11-20: "run 1 an hour vs every 10 minutes")
+export const OUTREACH_WINDOW = { startHour: 9, endHour: 17, everyMinutes: 60, timeZone: "America/Detroit" } as const;
+export function outreachSlice(remaining: number, now = new Date(), w: { startHour: number; endHour: number; everyMinutes: number; timeZone: string } = OUTREACH_WINDOW): number {
+  if (remaining <= 0) return 0;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: w.timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now).map((p) => [p.type, p.value]));
+  if (parts.weekday === "Sat" || parts.weekday === "Sun") return 0;
+  const minute = Number(parts.hour) * 60 + Number(parts.minute);
+  const start = w.startHour * 60, end = w.endHour * 60;
+  if (minute < start || minute >= end) return 0;
+  const runsLeft = Math.max(1, Math.ceil((end - minute) / w.everyMinutes));
+  return Math.ceil(remaining / runsLeft);
+}
+
 /** List health for the Hub. */
 export function leadFreshness(leads: { status: string; created_at?: string | null; segment?: string | null; rest_until?: string | null }[], now = new Date()) {
   const ls = leads.filter((l) => l.segment !== BIZ_PARTNER_SEGMENT);
@@ -362,4 +382,49 @@ export function bizReengageEmail(c: BizLeadEmailCtx & { now?: Date }): { subject
   ];
   const pick = list[Math.min(c.step, list.length - 1)];
   return { subject: pick.subject, text: pick.text + foot };
+}
+
+// ─── Send the sales engine where pros need work ─────────────────────────────
+
+/** A pro "needs work" when they completed fewer than this many jobs in the last 30 days. */
+export const PRO_NEEDS_WORK = { jobsPer30: 4 } as const;
+
+export interface ProCapacity { zip: string | null; trades: string[]; jobs30: number }
+export interface OutreachTarget { zip: string; idlePros: number; trades: string[]; segments: BizSegment[] }
+
+/** Which kinds of business buy work from these trades (a segment fits when one of its services uses the trade). */
+export function segmentsForTrades(trades: string[], tradesOf: (slug: string) => string[]): BizSegment[] {
+  return (Object.keys(BIZ_SEGMENTS) as BizSegment[]).filter((seg) => BIZ_SEGMENTS[seg].services.some((s) => tradesOf(s).some((t) => trades.includes(t))));
+}
+
+/**
+ * Where to look for business customers first: the ZIPs where approved pros need work, most idle pros first, each with
+ * the kinds of business that buy their trades (ranked by how many idle pros they'd keep busy).
+ */
+/**
+ * Every place we look for business customers (owner, 2026-11-20: "as we are pulling leads it needs to be based on where we
+ * have pros"): each ZIP where an approved pro is based, with the kinds of business that buy their trades. ZIPs where pros
+ * need work (fewer than PRO_NEEDS_WORK.jobsPer30 jobs in 30 days) come first, then the ones with the most pros.
+ */
+export function proAreaTargets(pros: ProCapacity[], tradesOf: (slug: string) => string[], limit = 40): (OutreachTarget & { pros: number })[] {
+  const byZip = new Map<string, ProCapacity[]>();
+  for (const p of pros) if (p.zip && /^\d{5}$/.test(p.zip) && p.trades.length) byZip.set(p.zip, [...(byZip.get(p.zip) ?? []), p]);
+  return [...byZip.entries()].map(([zip, ps]) => {
+    const idle = ps.filter((p) => p.jobs30 < PRO_NEEDS_WORK.jobsPer30);
+    const fit = new Map<BizSegment, number>();
+    // the segments idle pros would fill count double, so their work is sought first
+    for (const p of ps) for (const seg of segmentsForTrades(p.trades, tradesOf)) fit.set(seg, (fit.get(seg) ?? 0) + (p.jobs30 < PRO_NEEDS_WORK.jobsPer30 ? 2 : 1));
+    return { zip, pros: ps.length, idlePros: idle.length, trades: [...new Set(ps.flatMap((p) => p.trades))], segments: [...fit.entries()].sort((a, b) => b[1] - a[1]).map(([x]) => x) };
+  }).filter((t) => t.segments.length).sort((a, b) => b.idlePros - a.idlePros || b.pros - a.pros || a.zip.localeCompare(b.zip)).slice(0, limit);
+}
+
+export function outreachTargets(pros: ProCapacity[], tradesOf: (slug: string) => string[], limit = 12): OutreachTarget[] {
+  const byZip = new Map<string, ProCapacity[]>();
+  for (const p of pros) if (p.zip && /^\d{5}$/.test(p.zip) && p.jobs30 < PRO_NEEDS_WORK.jobsPer30 && p.trades.length) byZip.set(p.zip, [...(byZip.get(p.zip) ?? []), p]);
+  return [...byZip.entries()].map(([zip, ps]) => {
+    const trades = [...new Set(ps.flatMap((p) => p.trades))];
+    const fit = new Map<BizSegment, number>();
+    for (const p of ps) for (const seg of segmentsForTrades(p.trades, tradesOf)) fit.set(seg, (fit.get(seg) ?? 0) + 1);
+    return { zip, idlePros: ps.length, trades, segments: [...fit.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s) };
+  }).filter((t) => t.segments.length).sort((a, b) => b.idlePros - a.idlePros || a.zip.localeCompare(b.zip)).slice(0, limit);
 }

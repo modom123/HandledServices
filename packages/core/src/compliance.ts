@@ -31,10 +31,24 @@
  *           step is optional and lists the services a certificate would unlock (dispatch still checks per service).
  * UPDATED : 2026-11-10_0430 UTC — SERVICE_AGREEMENT_VERSION v9: pros background-checked and vetted; insured and licensed where the work requires.
  * UPDATED : 2026-11-11_2350 UTC — payout step reads "Bank connected for direct deposit" (Stripe only, no paper checks).
+ * UPDATED : 2026-11-19_1830 UTC — trade coverages (commercial auto, bond, cargo…) block activation only when every service
+ *           the pro does needs them (coverageBlocks); otherwise optional, unlocking those services — like insurance and licenses.
+ * UPDATED : 2026-11-19_1800 UTC — handledListingRequired: only general liability and cargo must list Handled; a "Handled isn't
+ *           listed" finding on commercial auto (or workers' comp, bond…) no longer holds the document.
+ * UPDATED : 2026-11-19_1745 UTC — work area: a ZIP code is required to be approved (street address optional); 100 miles
+ *           around it by default, or only the ZIP codes the pro lists. docAutoCheck trusts the policy's own expiry date
+ *           when the pro typed a different one (it was the main reason a good certificate sat waiting for a person).
+ * UPDATED : 2026-11-12_2330 UTC — docAutoCheck: when the AI reading alone may verify an insurance certificate or coverage
+ *           document (everything checks out); anything else goes to Handled review, where staff verify by hand.
+ * UPDATED : 2026-11-13_0200 UTC — the trade license blocks activation only when every service in the pro's trades needs one
+ *           (otherwise optional, unlocking the licensed services, like insurance); NO_EXPIRY for licenses that don't expire
+ *           (USDOT numbers, one-time certifications); licenseVerified: number + verified expiry, not lapsed.
+ * UPDATED : 2026-11-17_1900 UTC — payout step: PayPal (email) or Venmo (phone) also counts as done.
+ * UPDATED : 2026-11-17_1700 UTC — payout step: done only with Stripe confirmed (stripe_connect); old ACH / check entries no longer count.
  */
 import { SERVICES } from "./services.ts";
 import { ORIENTATION, orientationStatus } from "./orientation.ts";
-import { COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
+import { DEFAULT_RADIUS_MI, COVERAGES, coverageValid, glMinimum, requiredCoverages, specialtiesFor, type CoverageKey } from "./vetting.ts";
 
 export const AGREEMENT_VERSION = "2026-11-v11"; // v11: the pay shown to the pro is their NET pay — a referral partner's fee (half of the partner's 15%–30% of the price, locked when the job is booked) is already taken out, with no math shown; v10: referral partner fee — the pro pays half of a partner's 25% one-time / 10% repeat / 15% account share, shown on the work order; v9: commission about 20% → 37% with customer prices raised to match (pro pay in dollars unchanged), take band 15–40%; v8: Washington pros — customer clause limited to soliciting (RCW 49.62), Washington law and courts; v7: instant pay fee 1.75% (was 1.5%); v6: cancelling — 24h+ free, 6–24h short notice (no penalty), under 6h late; optional backup standby (paid only for work done); v5: first looks (business account pros, customer favorites, crew requests) and the open job board ("Jobs near you"); v4: market pricing — counters, sliding commission, booking fee (v3: full plain-English agreement + policies, consents, trade addenda)
 /** Customer Service Agreement (printed on every invoice). Bump when the terms change. */
@@ -85,6 +99,8 @@ export interface ComplianceInput {
   license_expires: string | null;
   background_checked: boolean;
   payout_method: string | null;
+  /** PayPal email / Venmo phone when paid that way (2026-11-17). */
+  payout_handle?: string | null;
   specialties?: string[] | null;
   coverage?: Record<string, string> | null;
   base_zip?: string | null;
@@ -132,19 +148,48 @@ export function servicesNeedingInsurance(trades: string[]): string[] {
 const soon = (d: string | null, days = 30) => Boolean(d) && new Date(d!).getTime() < Date.now() + days * 86400000;
 const valid = (d: string | null) => Boolean(d) && new Date(d!).getTime() >= Date.now() - 86400000;
 
+/** Licenses that don't expire (a USDOT number, a one-time certification): stored as this date. */
+export const NO_EXPIRY = "9999-12-31";
+
+/** A license Handled has verified (the number, and an expiry date — or NO_EXPIRY — set when it was verified) that hasn't lapsed. */
+export function licenseVerified(c: { license_number?: string | null; license_expires?: string | null }, today = new Date()): boolean {
+  return Boolean(c.license_number) && Boolean(c.license_expires) && new Date(`${c.license_expires}T23:59:59`) >= today;
+}
+
+/** The pro's services that need a trade license (what a verified license unlocks). */
+export function servicesNeedingLicense(trades: string[]): string[] {
+  return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && s.licensed).map((s) => s.name);
+}
+
+/** The pro's services that need this coverage (the trades the service uses that the pro has, e.g. hauling → commercial auto). */
+export function servicesNeedingCoverage(trades: string[], k: CoverageKey): string[] {
+  return SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)) && requiredCoverages(s.trades.filter((t) => trades.includes(t))).includes(k)).map((s) => s.name);
+}
+
+/** Does this coverage block activation? Only when every service the pro's trades can take needs it (or none match). */
+export function coverageBlocks(trades: string[], k: CoverageKey): boolean {
+  const mine = SERVICES.filter((s) => s.trades.some((t) => trades.includes(t)));
+  return !mine.length || mine.every((s) => requiredCoverages(s.trades.filter((t) => trades.includes(t))).includes(k));
+}
+
 export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; complete: boolean; licenseRequired: boolean } {
   const licenseRequired = c.trades.some((t) => LICENSED_TRADES.includes(t));
+  // like insurance: the license blocks activation only when the pro has no work they can do without one
+  const mine = SERVICES.filter((s) => s.trades.some((t) => c.trades.includes(t)));
+  const licenseBlocks = licenseRequired && mine.length > 0 && mine.every((s) => s.licensed);
   const o = orientationStatus(c.orientation);
   const steps: Step[] = [
     { key: "orientation", label: "Welcome to Handled (orientation)", done: o.complete || c.status === "approved", detail: o.complete ? `All ${o.total} lessons done` : `${o.done} of ${ORIENTATION.length} lessons done · about 15 minutes` },
     { key: "w9", label: "W-9 on file", done: Boolean(c.w9_received_at && c.legal_name && c.tin_last4), detail: c.legal_name ? `${c.legal_name} · TIN •••${c.tin_last4 ?? "?"}` : "Legal name, tax classification and TIN" },
     { key: "agreement", label: "Independent contractor agreement signed", done: c.agreement_version === AGREEMENT_VERSION && Boolean(c.agreement_signed_at), detail: c.agreement_signed_at ? `v${c.agreement_version} · ${c.agreement_signed_at.slice(0, 10)}` : `Current version ${AGREEMENT_VERSION}` },
     { key: "specialties", label: "Specialties chosen", done: Boolean(c.specialties?.length) || !specialtiesFor(c.trades).length, detail: c.specialties?.length ? `${c.specialties.length} selected` : "What you do best: we send you those jobs first" },
-    { key: "area", label: "Work area & hours", done: Boolean(c.base_zip && c.base_address), detail: c.base_zip && c.base_address ? `From ${c.base_address}, ${c.base_city ?? ""} ${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? 25} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Your place of business, how far you'll drive or which ZIP codes, which days and times you work" },
+    // a ZIP code is required (no ZIP, no approval); the street address is optional. The area is DEFAULT_RADIUS_MI around
+    // the ZIP unless the pro lists ZIP codes, which then become their whole area (owner, 2026-11-19)
+    { key: "area", label: "Work area & hours", done: /^\d{5}$/.test(c.base_zip ?? ""), detail: /^\d{5}$/.test(c.base_zip ?? "") ? `${c.base_address ? `From ${c.base_address}, ` : ""}${c.base_city ? `${c.base_city} ` : ""}${c.base_zip}, ${c.zips_only && c.service_zips?.length ? `only ZIPs ${c.service_zips.slice(0, 6).join(", ")}${c.service_zips.length > 6 ? "…" : ""}` : `up to ${c.service_radius_mi ?? DEFAULT_RADIUS_MI} mi`} · ${c.availability?.days?.length ? `${c.availability.days.length} days a week` : "any day"}` : "Required: your ZIP code. You get jobs within 100 miles of it, or list the ZIP codes you want to work in" },
     { key: "resume", label: "Resume uploaded", done: Boolean(c.resume_uploaded_at), detail: c.resume_uploaded_at ? `Uploaded ${c.resume_uploaded_at.slice(0, 10)}` : "Your work history and experience (PDF or Word)" },
     { key: "photo", label: "Profile photo uploaded", done: Boolean(c.photo_uploaded_at), detail: c.photo_uploaded_at ? `Uploaded ${c.photo_uploaded_at.slice(0, 10)}` : "A clear, friendly photo of your face" },
     insuranceRequired(c.trades)
-      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled named as additional insured`, expiring: valid(c.insured_until) && soon(c.insured_until) }
+      ? { key: "coi", label: "Insurance certificate (COI) verified", done: valid(c.insured_until), detail: c.insured_until ? `Valid until ${c.insured_until}` : `General liability, $${(glMinimum(c.trades) / 1e6).toFixed(0)}M per occurrence minimum, Handled listed as additional insured or certificate holder`, expiring: valid(c.insured_until) && soon(c.insured_until) }
       : (() => {
           const unlocks = servicesNeedingInsurance(c.trades);
           return { key: "coi" as const, label: "Insurance certificate (COI) — optional", done: true, optional: true, detail: valid(c.insured_until) ? `Valid until ${c.insured_until}` : unlocks.length ? `Not needed to start. Add one to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` : "Not required for your work" };
@@ -156,6 +201,17 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
   for (const k of needs) {
     const v = c.coverage?.[k];
     const ok = coverageValid(c.coverage, k, new Date(), !required.includes(k)); // remodelers need a real workers' comp policy
+    // like insurance and licenses: a trade coverage (commercial auto, bond, cargo…) blocks activation only when EVERY
+    // service the pro does needs it; otherwise it just unlocks the ones that do (dispatch checks it per job) — 2026-11-19
+    if (k !== "workers_comp" && !ok) {
+      const blocks = coverageBlocks(c.trades, k);
+      if (!blocks) {
+        const unlocks = servicesNeedingCoverage(c.trades, k);
+        steps.push({ key: `coverage:${k}`, label: `${COVERAGES[k].label} — optional`, done: true, optional: true,
+          detail: `${v ? `Expired ${v}. ` : ""}Not needed to start. Add it to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}. ${COVERAGES[k].detail}` });
+        continue;
+      }
+    }
     steps.push({
       key: `coverage:${k}`,
       label: k === "workers_comp" ? "Workers' comp (or no-employees statement)" : `${COVERAGES[k].label} verified`,
@@ -165,11 +221,23 @@ export function onboardingChecklist(c: ComplianceInput): { steps: Step[]; comple
     });
   }
   if (licenseRequired)
-    steps.push({ key: "license", label: "Trade license verified", done: Boolean(c.license_number) && valid(c.license_expires), detail: c.license_number ? `#${c.license_number} · until ${c.license_expires ?? "?"}` : "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: valid(c.license_expires) && soon(c.license_expires) });
+    steps.push((() => {
+      const done = licenseVerified(c);
+      const until = c.license_expires === NO_EXPIRY ? "no expiry" : `until ${c.license_expires ?? "?"}`;
+      const shown = c.license_number ? `#${c.license_number}${c.license_expires ? ` · ${until}` : " · waiting for Handled to verify"}` : null;
+      // only blocks a pro when EVERY service in their trades needs a license; otherwise it just unlocks the licensed ones
+      if (!licenseBlocks) {
+        const unlocks = servicesNeedingLicense(c.trades);
+        return { key: "license" as const, label: "Trade license — optional", done: true, optional: true, detail: done ? shown! : `${shown ? `${shown}. ` : ""}Not needed to start. Add it to also get: ${unlocks.slice(0, 4).join(", ")}${unlocks.length > 4 ? ` and ${unlocks.length - 4} more` : ""}` };
+      }
+      return { key: "license" as const, label: "Trade license verified", done, detail: shown ?? "Required for plumbing, electrical, HVAC, painting, carpentry, masonry, roofing, remodeling, food service, passenger transportation, freight carriers (USDOT number) and medical couriers (HIPAA training)", expiring: done && soon(c.license_expires) };
+    })());
   steps.push(
     { key: "id", label: "Photo ID verified", done: Boolean(c.id_verified_at), detail: c.id_verified_at ? `Verified ${c.id_verified_at.slice(0, 10)}` : "A quick photo of your ID and a selfie (or a short video call with us)" },
     { key: "background", label: "Background check cleared", done: c.background_checked, detail: c.background_checked ? "Cleared" : "Consent + check through your screening provider" },
-    { key: "payout", label: "Bank connected for direct deposit", done: Boolean(c.payout_method), detail: c.payout_method === "stripe_connect" ? "Direct deposit through Stripe" : c.payout_method ? c.payout_method.toUpperCase() : "Your bank, through Stripe: routing number (9 digits) and account number" },
+    // done only when Stripe confirmed the bank (payout_method "stripe_connect" is set when Stripe says transfers work).
+    // An old "ach" / "check" entry can't be paid — pay goes only through Stripe (owner, 2026-11-11) — so it isn't done (2026-11-17).
+    { key: "payout", label: "Bank connected for direct deposit", done: c.payout_method === "stripe_connect" || ((c.payout_method === "paypal" || c.payout_method === "venmo") && Boolean(c.payout_handle)), detail: c.payout_method === "stripe_connect" ? "Direct deposit through Stripe" : c.payout_method === "paypal" ? (c.payout_handle ? "PayPal" : "Add your PayPal email") : c.payout_method === "venmo" ? (c.payout_handle ? "Venmo" : "Add your Venmo phone number") : c.payout_method ? `Old ${c.payout_method.toUpperCase()} details on file can't be paid — connect your bank through Stripe` : "Your bank, through Stripe: routing number (9 digits) and account number" },
   );
   return { steps, complete: steps.every((s) => s.done), licenseRequired };
 }
@@ -190,4 +258,46 @@ export function uploadReminderDue(sent: number, lastAt: string | null | undefine
   if (sent >= UPLOAD_REMINDER_MAX) return false;
   if (!lastAt) return true;
   return (now.getTime() - new Date(lastAt).getTime()) / 86400000 >= UPLOAD_REMINDER_EVERY_DAYS;
+}
+
+/** What the AI read off an uploaded document (lib/ai/doccheck.ts). */
+export interface DocReading {
+  readable: boolean; matches_pro: boolean; expires_on: string; per_occurrence_limit: number; additional_insured: boolean; certificate_holder?: boolean; meets_requirements: boolean; problems: string[];
+}
+
+/**
+ * Two ways to verify insurance: (1) automatically, when the AI reading checks out on every point, or (2) Handled review,
+ * where staff open the policy (and can call the insurer) and verify by hand. Auto-verify only for the certificate of
+ * insurance and other coverage proofs (never licenses, the W-9 or background reports), and only when: readable, the
+ * named insured matches the pro, the AI found nothing missing, the expiry is in the future AND agrees with the date the
+ * pro entered, and for the COI the per-occurrence limit meets the trade minimum with Handled as additional insured or
+ * certificate holder (owner decision 2026-11-12: either is fine). `reasons` says why it needs a person (shown to staff and, gently, to the pro).
+ */
+/** Policies that must list Handled (additional insured or certificate holder): general liability and motor truck cargo.
+ * Commercial auto, workers' comp, bonds, liquor and passenger auto never need Handled on them (owner, 2026-11-19). */
+export function handledListingRequired(kind: string): boolean {
+  return kind === "coi" || kind === "cargo";
+}
+
+export function docAutoCheck(kind: string, r: DocReading | null, o: { claimedExpiry?: string | null; trades: string[]; today?: Date }): { auto: boolean; reasons: string[] } {
+  if (kind !== "coi" && !(kind in COVERAGES)) return { auto: false, reasons: ["this kind of document is always checked by a person"] };
+  if (!r) return { auto: false, reasons: ["the automatic check didn't run"] };
+  const today = (o.today ?? new Date()).toISOString().slice(0, 10);
+  const reasons: string[] = [];
+  if (!r.readable) reasons.push("the file couldn't be read clearly");
+  if (!r.matches_pro) reasons.push("the name on the policy doesn't match the pro's business or legal name");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(r.expires_on ?? "")) reasons.push("no expiry date found");
+  else {
+    if (r.expires_on <= today) reasons.push("the policy has expired");
+    // the pro mistyping the date isn't a reason to hold a good certificate: the date on the policy is used (decideDocument)
+  }
+  if (kind === "coi") {
+    const min = glMinimum(o.trades);
+    if (!(r.per_occurrence_limit >= min)) reasons.push(`per-occurrence limit below $${min.toLocaleString("en-US")}`);
+    if (!r.additional_insured && !r.certificate_holder) reasons.push("Handled Services LLC isn't listed as additional insured or certificate holder");
+  }
+  // the AI sometimes flags "Handled isn't listed" on a policy that never has to list Handled (commercial auto…): ignore it there
+  const aboutHandled = (p: string) => /handled|additional insured|certificate holder/i.test(p);
+  if (!r.meets_requirements) for (const p of r.problems ?? []) if (p && !reasons.includes(p) && (handledListingRequired(kind) || !aboutHandled(p))) reasons.push(p);
+  return { auto: reasons.length === 0, reasons };
 }

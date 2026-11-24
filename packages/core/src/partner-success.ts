@@ -26,8 +26,8 @@ export interface PartnerGrowthStats {
   leads: number;              // sales tickets written (Field Sales)
   directJobs: number;         // completed jobs from customers they sold directly
   earned: number;             // commissions earned (paid + pending), dollars
-  referralRate: number;       // their current referral rate (share of the job price)
-  salesRate: number;          // their current direct-sales rate (share of our profit)
+  referralRate: number;       // their current referral rate (share of our profit)
+  salesRate: number;          // their current direct-sales rate (share of our profit: their rate + 5 points)
 }
 export type GoalMetric = Exclude<keyof PartnerGrowthStats, "payoutsReady" | "referralRate" | "salesRate"> | "payoutsReady" | "referralRate" | "salesRate";
 export interface Goal { metric: GoalMetric; target: number; label: string }
@@ -62,14 +62,14 @@ export const PARTNER_ROADMAPS: Roadmap[] = [
         goals: [{ metric: "categories", target: 3, label: "Customers in 3 service categories" }, { metric: "jobs", target: 15, label: "15 paying jobs" }],
         actions: ["Use the bundles: after a cleaning, suggest windows and carpets; after a lawn, suggest gutters and power washing.", "Use the seasonal calendar below: send the right service before your customers think of it.", "Send referral tickets with photos for bigger jobs (painting, repairs, remodels). They pay more."],
         sell: ["window-cleaning", "carpet-cleaning", "gutter-cleaning", "power-washing", "interior-painting"],
-        unlocks: `Faster raises: every 10 job credits is +1 point, up to ${pct(REFERRAL_LADDER.jobsCapRate)} of the job price.`,
+        unlocks: `Faster raises: every sale you close yourself counts 1.5× toward your next point.`,
       },
       {
         id: "community", name: "Become the neighborhood go-to", why: "When people ask \"who do you use?\", the answer is your link.",
         goals: [{ metric: "customers", target: 25, label: "25 customers" }, { metric: "recurring", target: 5, label: "5 customers on plans" }, { metric: "referralRate", target: 0.18, label: "Referral rate 18%+" }],
         actions: ["Host a table at a block party or school event with your short link and a QR code.", "Partner with a local business (barber, coffee shop) to keep your cards at the counter.", "Recruit a pro you'd vouch for: they earn, you earn, and your customers get a pro you trust."],
         sell: ["holiday-lights", "snow-removal", "leaf-removal", "event-package", "small-moves"],
-        unlocks: `A rate climbing toward ${pct(REFERRAL_LADDER.topRate)} of every job, for 12 months per customer.`,
+        unlocks: `A rate climbing toward ${pct(REFERRAL_LADDER.topRate)} of our profit on every job, for 12 months per customer.`,
       },
     ],
   },
@@ -96,7 +96,7 @@ export const PARTNER_ROADMAPS: Roadmap[] = [
       {
         id: "book", name: "Build a book of business", why: "Ten accounts that order monthly is a real business, and every one is our customer too.",
         goals: [{ metric: "accounts", target: 10, label: "10 accounts" }, { metric: "earned", target: 5000, label: "$5,000 earned" }],
-        actions: ["Ask every happy manager for one introduction a quarter.", "Join your local landlord association or BOMA chapter and bring your link.", "Use direct sales for the deals you close yourself: you earn on our profit instead, up to 45%."],
+        actions: ["Ask every happy manager for one introduction a quarter.", "Join your local landlord association or BOMA chapter and bring your link.", "Use direct sales for the deals you close yourself: you earn 5 points more, and every sale counts 1.5× toward your next raise."],
         sell: ["roofing", "exterior-painting", "fence-install", "driveway-sealcoating", "security-guard"],
         unlocks: "The biggest jobs in the catalog, on accounts that keep ordering.",
       },
@@ -105,7 +105,7 @@ export const PARTNER_ROADMAPS: Roadmap[] = [
   {
     id: "field_sales", name: "Field Sales Pro", kinds: ["sales_rep"],
     forWho: "People who like talking to customers face to face, part-time or full-time. You close the sale on the spot.",
-    promise: `Write leads, close sales from your phone and climb from ${pct(PARTNER_LADDER.baseRate)} to ${pct(PARTNER_LADDER.topRate)} of our profit.`,
+    promise: `Write leads, close sales from your phone and climb from ${pct(PARTNER_LADDER.baseRate)} to ${pct(PARTNER_LADDER.topRate)} of our profit on every sale (your rate + 5 points).`,
     stages: [
       { ...START, goals: [{ metric: "payoutsReady", target: 1, label: "Payouts set up" }, { metric: "leads", target: 1, label: "Your first sales ticket" }], actions: ["Set up payouts on your partner page (2 minutes, Stripe).", "Pick one neighborhood or commercial strip and walk it for two hours.", "Look for visible work: overgrown lawns, full gutters, dirty windows, junk by the curb."] },
       {
@@ -120,7 +120,7 @@ export const PARTNER_ROADMAPS: Roadmap[] = [
         goals: [{ metric: "directJobs", target: 20, label: "20 completed direct-sale jobs" }, { metric: "recurring", target: 3, label: "3 customers on plans" }],
         actions: ["Sell the plan, not the visit: weekly lawn, biweekly cleaning, monthly pest control.", "Use bundles to raise every ticket: lawn + gutters + power washing.", "Work the same streets weekly so neighbors see the pros at work."],
         sell: ["lawn-care", "house-cleaning", "pest-control", "trash-bin-cleaning", "pool-service"],
-        unlocks: `Fast track: every 10 job credits (a sale counts 1.5) is +1 point, up to ${pct(PARTNER_LADDER.jobsCapRate)} of our profit.`,
+        unlocks: `Every sale counts 1.5× toward your next raise: one ladder, ${pct(PARTNER_LADDER.baseRate)} → ${pct(PARTNER_LADDER.topRate)} of our profit.`,
       },
       {
         id: "commercial", name: "Go commercial", why: "Offices, retail, restaurants and property managers order every week and pay the biggest commissions.",

@@ -15,6 +15,7 @@
  *           Every agent has STANDING TASKS (below, with targets) plus tasks staff assign in Hub → AI agents (agent_tasks),
  *           which missionPrompt(kind, assigned) adds to its instructions on every run.
  * UPDATED : 2026-10-19_2230 UTC — sales_reply agent: reads replies to the Instantly business campaign and drafts answers.
+ * UPDATED : 2026-11-17_2335 UTC — outreach_writer (personalized cold email from handledsvc.net) and campaign_writer (Email Center drafts).
  * UPDATED : 2026-10-19_2330 UTC — deal_hunter agent; the gov contract scout picks the day's bids (AI bid desk).
  * UPDATED : 2026-10-20_0100 UTC — speed_to_lead and social_writer agents (omnichannel).
  * UPDATED : 2026-10-27_1900 UTC — resume_reader agent (fills in a phone-interviewed pro's file from their résumé).
@@ -119,6 +120,12 @@ export const AGENTS: AgentRole[] = [
   { kind: "sales_reply", name: "Sales reply agent", does: "Reads every reply to the Instantly business campaign (e.g. 1ST OUTREACH DETROIT), sorts it (interested, question, not now, no, unsubscribe, out of office), stops mail for no's and drafts the answer for the team", trigger: "Every reply (Instantly webhook)",
     tasks: ["Read every business reply within minutes and alert the team on every interested lead or question the same day", "Draft a short, honest answer that moves the lead to a walkthrough, a call or the business sign-up link — no invented prices or promises", "Honor every unsubscribe or 'not interested' at once: stop the sequence and never email them again"],
     drives: "Warm business replies are the fastest path to recurring B2B revenue: no reply waits, every interested business gets a next step, and no's are respected." },
+  { kind: "outreach_writer", name: "Outreach writer", does: "Personalizes each cold business email sent from handledsvc.net (the outreach domain) for that one business, from the approved template", trigger: "Every outreach email (business sales engine, weekdays)",
+    tasks: ["Write each email for that business: one true, specific detail (their type, city, the job they posted, their reviews) and the approved offer exactly", "Never invent prices, $ amounts, discounts, dates or guarantees; only the lead's own link; short like a person writes", "Anything that breaks a rule is dropped and the plain template goes instead"],
+    drives: "Personal, honest first emails get more replies from property managers and businesses, which turn into recurring accounts." },
+  { kind: "campaign_writer", name: "Campaign writer", does: "Drafts Email Center marketing campaigns (subject, preview text, body, Spanish) from a goal staff type", trigger: "Hub → Email Center → Write with AI",
+    tasks: ["Turn a staff goal into a short, warm, specific campaign with one clear button to book", "Never invent prices, discounts, deadlines, statistics or testimonials; mention an offer only as staff worded it", "Write natural Spanish when asked, with the same tags and button"],
+    drives: "Regular, useful emails to customers and accounts bring repeat bookings, the cheapest revenue there is." },
   { kind: "gov_bid_summary", name: "Gov contract scout", does: "Reads government notices and recommends bid / maybe / pass", trigger: "Weekdays 13:10 UTC (Vercel cron)",
     tasks: ["Pick the 5 best notices each weekday we can still respond to (5+ days left) and open a draft bid for each", "Summarize every pick with a bid / maybe / pass and the reason", "Recommend 'bid' on landscaping, painting, carpet cleaning, construction, window installation and facility notices in or near Metro Detroit we can staff, and on AI automation work anywhere", "Surface deadlines at least 10 days out"],
     drives: "Public contracts are recurring revenue at scale: find every bid we can win and staff in or near Metro Detroit, and flag deadlines early." },

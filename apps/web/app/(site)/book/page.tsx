@@ -13,6 +13,7 @@
  * UPDATED : 2026-10-28_1800 UTC — ?for=business starts the order as a commercial (company) order; ?lead= is kept out of the answers.
  * UPDATED : 2026-11-06_1730 UTC — ?ticket=<token>: a Field Sales ticket — everything the partner set up with the customer pre-filled.
  * UPDATED : 2026-11-10_0600 UTC — Business & Technology (consultOnly): the heading says "Book your free consultation".
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import { BookingWizard } from "@/components/BookingWizard";
 import { consultOnly, t } from "@handled/core";
@@ -77,7 +78,7 @@ async function bookedQuote(token?: string, bid?: string): Promise<{ quote: Booke
   return { quote: { request: token, bid, price: Number(q.price), pro: q.contractors?.business_name ?? "Your pro" }, service: r.request.service_slug };
 }
 
-export const metadata = { title: "Book a service" };
+export const metadata = { alternates: { canonical: "/book" }, description: "Pick a service, answer a few questions and see your exact price in about a minute. Vetted pros, pay the rest when it's done.", title: "Book a service" };
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, for: forWho, lead: _lead, ticket: ticketToken, ...rest } = await searchParams;

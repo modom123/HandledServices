@@ -11,6 +11,8 @@
  *                              Handled's take, the referral split, the customer's email, or internal AI notes. Contact
  *                              name/phone and the street address only once the job is theirs.
  *           Only admins see everything (Hub, with the service key on the server).
+ * UPDATED : 2026-11-13_0030 UTC — Pro PIN: an assigned job's address and customer contact only on a device unlocked with
+ *           the pro's PIN (lib/pro-pin.ts); otherwise pin_locked: true.
  */
 import "server-only";
 import { proNetPay, type Job } from "@handled/core";
@@ -45,12 +47,18 @@ const PRO_ASSIGNED_FIELDS = ["contact_name", "contact_phone", "address"] as cons
 export type ProJob = Pick<Job, (typeof PRO_FIELDS)[number]> & Partial<Pick<Job, (typeof PRO_ASSIGNED_FIELDS)[number]>> & {
   /** The pro's NET pay for this job (any referral fee already out). The only pay number a pro sees. */
   pro_pay: number | null;
+  /** The job is theirs but this device hasn't entered the Pro PIN: address and customer contact are withheld. */
+  pin_locked?: boolean;
 };
 
-export function proView(job: Job, contractorId: string, agreementVersion: string | null | undefined, payout?: number | null): ProJob {
+export function proView(job: Job, contractorId: string, agreementVersion: string | null | undefined, payout?: number | null, unlocked = true): ProJob {
   const out: Record<string, unknown> = {};
   for (const k of PRO_FIELDS) out[k] = (job as unknown as Record<string, unknown>)[k] ?? null;
-  if (job.contractor_id === contractorId) for (const k of PRO_ASSIGNED_FIELDS) out[k] = (job as unknown as Record<string, unknown>)[k] ?? null;
+  // the address and customer contact: only the pro the job belongs to, and only on a device unlocked with their Pro PIN
+  if (job.contractor_id === contractorId) {
+    if (unlocked) for (const k of PRO_ASSIGNED_FIELDS) out[k] = (job as unknown as Record<string, unknown>)[k] ?? null;
+    else out.pin_locked = true;
+  }
   const gross = payout ?? job.contractor_payout;
   out.pro_pay = gross != null && Number(gross) > 0 ? proNetPay(job, Number(gross), agreementVersion) : null;
   return out as ProJob;
@@ -97,16 +105,16 @@ async function agreementOf(contractorId: string): Promise<string | null> {
 }
 
 /** The pro's jobs (theirs, any status), newest scheduled first. */
-export async function proJobs(contractorId: string, statuses?: string[]): Promise<ProJob[]> {
+export async function proJobs(contractorId: string, statuses?: string[], unlocked = true): Promise<ProJob[]> {
   const ver = await agreementOf(contractorId);
   let q = db().from("jobs").select("*").eq("contractor_id", contractorId);
   if (statuses?.length) q = q.in("status", statuses);
   const { data } = await q.order("scheduled_date").limit(500);
-  return ((data ?? []) as Job[]).map((j) => proView(j, contractorId, ver));
+  return ((data ?? []) as Job[]).map((j) => proView(j, contractorId, ver, undefined, unlocked));
 }
 
 /** One job the pro works (or was offered) — null when it's neither. */
-export async function proJob(contractorId: string, id: string): Promise<ProJob | null> {
+export async function proJob(contractorId: string, id: string, unlocked = true): Promise<ProJob | null> {
   const { data } = await db().from("jobs").select("*").eq("id", id).maybeSingle();
   const job = data as Job | null;
   if (!job) return null;
@@ -114,7 +122,7 @@ export async function proJob(contractorId: string, id: string): Promise<ProJob |
     const { data: o } = await db().from("job_offers").select("id").eq("job_id", id).eq("contractor_id", contractorId).eq("status", "offered").maybeSingle();
     if (!o) return null;
   }
-  return proView(job, contractorId, await agreementOf(contractorId));
+  return proView(job, contractorId, await agreementOf(contractorId), undefined, unlocked);
 }
 
 /** The pro's open offers, each with the job as the pro may see it and their net pay. */

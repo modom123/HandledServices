@@ -5,13 +5,14 @@
  * PURPOSE : Public customer reviews — the overall average (every rating counts) and recent
  *           comments, filterable by service.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { BRAND, SERVICES, getService } from "@handled/core";
 import { publicReviews } from "@/lib/reviews";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Customer reviews", description: `Real reviews from ${BRAND.name} customers — every rating counts toward our average.` };
+export const metadata = { alternates: { canonical: "/reviews" }, title: "Customer reviews", description: `Real reviews from ${BRAND.name} customers — every rating counts toward our average.` };
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
 

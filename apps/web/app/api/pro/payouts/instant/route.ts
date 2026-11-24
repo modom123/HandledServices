@@ -5,12 +5,14 @@
  * UPDATED : 2026-10-01_2140 UTC — GET: balance, fee and eligibility (mobile app).
  * PURPOSE : Pro: cash out approved payouts now (instant pay), or start Stripe payout setup.
  * UPDATED : 2026-11-11_2340 UTC — setup takes { back: "onboarding" } (return to Setup & documents); clearer message when Stripe can't start.
+ * UPDATED : 2026-11-17_1700 UTC — setup reuses a Stripe account made on the Partner page (no duplicate accounts); readiness from it.
  */
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { instantPayFee, whyNot, type Contractor } from "@handled/core";
 import { availableBalance, cashOutNow, getPolicy } from "@/lib/pro-benefits";
 import { connectOnboardingUrl, connectReady } from "@/lib/stripe";
+import { proPayoutAccount } from "@/lib/pro-benefits";
 
 /** What the pro can cash out now, the fee, and whether instant pay is set up. */
 export async function GET(req: Request) {
@@ -18,7 +20,7 @@ export async function GET(req: Request) {
   if (!v?.contractorId) return deny(403, "Pro account required");
   const [{ data: me }, policy, bal] = await Promise.all([adminClient().from("contractors").select("*").eq("id", v.contractorId).single(), getPolicy(), availableBalance(v.contractorId)]);
   const reason = me ? whyNot(policy.instantPay, me as Contractor) : "pro not found";
-  const ready = !reason && (await connectReady(me?.stripe_account_id ?? null));
+  const ready = !reason && Boolean(me) && (await connectReady(await proPayoutAccount(me as never)));
   return Response.json({ balance: bal.total, fee: instantPayFee(policy, bal.total), minAmount: policy.instantPay.minAmount, feePct: policy.instantPay.feePct, allowed: !reason, reason, ready });
 }
 
@@ -27,9 +29,11 @@ export async function POST(req: Request) {
   if (!v?.contractorId) return deny(403, "Pro account required");
   const { setup, back } = (await req.json().catch(() => ({}))) as { setup?: boolean; back?: string };
   if (setup) {
-    const { data: c } = await adminClient().from("contractors").select("id, email, business_name, stripe_account_id").eq("id", v.contractorId).single();
-    const url = c ? await connectOnboardingUrl(c, back === "onboarding" ? "onboarding" : "earnings").catch((e) => { console.error("[payout setup]", e); return null; }) : null;
-    return url ? Response.json({ url }) : deny(503, "Bank setup through Stripe isn't available right now. Choose a paper check for now, or contact us and we'll help.");
+    const { data: c } = await adminClient().from("contractors").select("id, profile_id, email, business_name, stripe_account_id").eq("id", v.contractorId).single();
+    // reuse an account they already made on the Partner page instead of starting a second one
+    const acct = c ? await proPayoutAccount(c as never).catch(() => c.stripe_account_id) : null;
+    const url = c ? await connectOnboardingUrl({ ...c, stripe_account_id: acct ?? null }, back === "onboarding" ? "onboarding" : "earnings").catch((e) => { console.error("[payout setup]", e); return null; }) : null;
+    return url ? Response.json({ url }) : deny(503, "Bank setup through Stripe isn't available right now. Please try again in a few minutes, or reply to any of our emails and we'll help.");
   }
   const r = await cashOutNow(v.contractorId);
   return r.ok ? Response.json(r) : Response.json(r, { status: 409 });

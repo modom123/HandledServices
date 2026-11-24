@@ -65,7 +65,14 @@
  * UPDATED : 2026-11-06_1800 UTC — readiness check for the partner-v4 referral ladder (jobs.partner_rate).
  * UPDATED : 2026-11-10_2000 UTC — checks 20261110200000_pro_showcase (opt-in "new pros" chain on the website).
  * UPDATED : 2026-11-11_0100 UTC — checks 20261111010000_biz_lead_refresh and the outreach domain mailbox (OUTREACH_*).
+ * UPDATED : 2026-11-17_2335 UTC — the outreach mailbox must be on handledsvc.net (never the company domain); checks
+ *           20261117233500_ai_outreach_handledsvc_net (AI-personalized outreach, threaded follow-ups, reply drafts).
+ * UPDATED : 2026-11-17_2350 UTC — checks 20261117235000_walkthroughs (self-booked walkthroughs).
+ * UPDATED : 2026-11-18_0040 UTC — checks 20261118004000_business_pricing.
+ * UPDATED : 2026-11-18_0105 UTC — checks 20261118010500_sales_force.
  * UPDATED : 2026-11-10_2230 UTC — checks 20261110223000_iebc_team_expansion (the 9 new IEBC agents, incl. Legal & Compliance).
+ * UPDATED : 2026-11-12_2100 UTC — checks the job board alerts SQL (contractors.board_alerts).
+ * UPDATED : 2026-11-17_2300 UTC — checks the office_todos migration (Front Office to-do list).
  */
 import "server-only";
 import { BRAND, BRAND_PLACEHOLDERS, SERVICES, STRIPE_WEBHOOK_EVENTS, TRADES, keyMode, keysMatch, missingWebhookEvents } from "@handled/core";
@@ -75,6 +82,7 @@ import { connectReady, getStripe } from "./stripe";
 import type Stripe from "stripe";
 import { getConnection, xeroConfigured } from "./xero";
 import { siteUrl as siteUrlNow } from "./notify";
+import { outreachProblem } from "./outreach-mail";
 
 export type Check = { group: string; label: string; status: "ok" | "warn" | "fail"; detail: string; fix?: string };
 
@@ -110,7 +118,8 @@ export async function readiness(): Promise<Check[]> {
   add("Omnichannel", "Ad conversion tracking", has("NEXT_PUBLIC_META_PIXEL_ID") || has("NEXT_PUBLIC_GOOGLE_ADS_ID") || has("NEXT_PUBLIC_TIKTOK_PIXEL_ID") ? true : "warn", [has("NEXT_PUBLIC_META_PIXEL_ID") && `Meta pixel${has("META_CAPI_TOKEN") ? " + Conversions API" : ""}`, has("NEXT_PUBLIC_GOOGLE_ADS_ID") && `Google Ads${has("NEXT_PUBLIC_GOOGLE_ADS_BOOKING_LABEL") ? " + booking conversion" : " (add NEXT_PUBLIC_GOOGLE_ADS_BOOKING_LABEL)"}`, has("NEXT_PUBLIC_TIKTOK_PIXEL_ID") && `TikTok pixel${has("TIKTOK_EVENTS_TOKEN") ? " + Events API" : ""}`].filter(Boolean).join(", ") || "no pixels set — ad platforms can't see bookings", "NEXT_PUBLIC_META_PIXEL_ID + META_CAPI_TOKEN, NEXT_PUBLIC_GOOGLE_ADS_ID + NEXT_PUBLIC_GOOGLE_ADS_BOOKING_LABEL (+ _LEAD_LABEL), NEXT_PUBLIC_TIKTOK_PIXEL_ID + TIKTOK_EVENTS_TOKEN, then Redeploy");
   add("Omnichannel", "Social posting (Facebook / Instagram)", has("META_PAGE_ID") && has("META_PAGE_ACCESS_TOKEN") ? true : "warn", has("META_PAGE_ID") && has("META_PAGE_ACCESS_TOKEN") ? `Facebook${has("META_IG_USER_ID") ? " + Instagram" : " (add META_IG_USER_ID for Instagram)"}` : "not connected — posts can be written and approved, not published", "META_PAGE_ID, META_PAGE_ACCESS_TOKEN (pages_manage_posts, instagram_content_publish), META_IG_USER_ID; TikTok videos are posted from the app");
   add("Business sales", "Instantly campaign → CRM (1ST OUTREACH DETROIT)", has("INSTANTLY_API_KEY") && has("INSTANTLY_BIZ_CAMPAIGN_ID") ? true : "warn", !has("INSTANTLY_API_KEY") ? "INSTANTLY_API_KEY missing — campaign leads can't sync" : !has("INSTANTLY_BIZ_CAMPAIGN_ID") ? "INSTANTLY_BIZ_CAMPAIGN_ID missing" : has("INSTANTLY_WEBHOOK_SECRET") ? "set (replies by webhook)" : "set — leads sync hourly and replies every 10 minutes from Instantly's API (no webhook or Hypergrowth plan needed)", `INSTANTLY_BIZ_CAMPAIGN_ID = the campaign id (1ST OUTREACH DETROIT: 3de836a0-4845-4350-80af-db9725831b43); Instantly → Settings → Webhooks → ${site || "https://your-domain"}/api/webhooks/instantly?secret=<INSTANTLY_WEBHOOK_SECRET> for that campaign (sent, clicked, replied, unsubscribed, bounced). Leads sync into Hub → Business leads daily or with "Sync Instantly campaign"`);
-  add("Business sales", "Outreach domain mailbox (our own cold email, replaces Instantly)", has("OUTREACH_SMTP_USER") && has("OUTREACH_SMTP_PASSWORD") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("OUTREACH_SMTP_USER") ? "OUTREACH_SMTP_USER not set — business emails can't go out from the outreach domain" : !has("OUTREACH_SMTP_PASSWORD") ? "OUTREACH_SMTP_PASSWORD missing" : !has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required in every cold email)" : "set", "Buy a separate domain for outreach, create a mailbox on it (e.g. at Hostinger), turn on SPF, DKIM and DMARC, then set OUTREACH_SMTP_USER, OUTREACH_SMTP_PASSWORD and OUTREACH_FROM_NAME in Vercel and pick \"Our outreach domain\" in Hub → Business leads. Sending starts at 10 a day and ramps up over 4 weeks.");
+  { const problem = outreachProblem();
+    add("Business sales", "Outreach mailbox on handledsvc.net (AI email outreach)", !problem && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", problem ?? (!has("BUSINESS_POSTAL_ADDRESS") ? "BUSINESS_POSTAL_ADDRESS missing (required in every cold email)" : `set (${process.env.OUTREACH_SMTP_USER})`), "handledsvc.net is the marketing / outreach domain: create a mailbox on it (e.g. mark@handledsvc.net at Hostinger), turn on SPF, DKIM and DMARC for handledsvc.net, then set OUTREACH_SMTP_USER, OUTREACH_SMTP_PASSWORD and OUTREACH_FROM_NAME in Vercel and pick \"Our outreach domain\" in Hub → Business leads. Sending starts at 10 a day and ramps up over 4 weeks. Guide: docs/HANDLEDSVC_NET_AI_OUTREACH_2026-11-17_2335.md"); }
   add("Business sales", "Sales engine: business emails (Instantly)", has("INSTANTLY_API_KEY") && has("INSTANTLY_BIZ_CAMPAIGN_ID") && has("BUSINESS_POSTAL_ADDRESS") ? true : "warn", !has("INSTANTLY_BIZ_CAMPAIGN_ID") ? "INSTANTLY_BIZ_CAMPAIGN_ID not set — no business sales emails" : "set", "Create a second Instantly campaign (steps {{subject_1}}/{{body_1}} … 3) → INSTANTLY_BIZ_CAMPAIGN_ID; turn it on in Hub → Business leads");
   add("Website & Vercel", "Cron secret", (process.env.CRON_SECRET ?? "").length >= 16, (process.env.CRON_SECRET ?? "").length >= 16 ? "set" : has("CRON_SECRET") ? "too short — scheduled jobs refuse to run (use 32+ random characters)" : "missing — scheduled jobs (dispatch, sweep, brief) won't run", "Add CRON_SECRET (openssl rand -hex 32) in Vercel and the same value as the GitHub Actions secret");
   add("Website & Vercel", "Invoice link signing", has("INVOICE_SIGNING_SECRET") ? true : "warn", has("INVOICE_SIGNING_SECRET") ? "set" : "falling back to the service role key", "Add INVOICE_SIGNING_SECRET (long random string)");
@@ -250,9 +259,16 @@ export async function readiness(): Promise<Check[]> {
     ["20261106163800_field_sales", "direct sales / Field Sales (sales tickets, 10%→45% ladder)", () => db.from("sales_tickets").select("id, answers, quoted_price").limit(1)],
     ["20261106180000_referral_ladder", "referral rate 15%→30% (locked per job)", () => db.from("jobs").select("partner_rate").limit(1)],
     ["20261106190000_need_to_know", "need-to-know access (pros and customers read jobs through the server)", () => db.rpc("is_admin")],
-    ["20261110031000_open_offers", "name-your-price open offers (job board, 30 days)", () => db.from("jobs").select("open_offer_until").limit(1)],
+    ["20261110031000_open_offers", "name-your-price job board posts (90 days, $1 to post)", () => db.from("jobs").select("open_offer_until").limit(1)],
+    ["20261112210000_board_alerts", "job board alerts for pros (all / daily summary / off)", () => db.from("contractors").select("board_alerts").limit(1)],
+    ["20261113003000_pro_pin", "Pro PIN lock on job addresses and customer details", () => db.from("contractors").select("pin_hash").limit(1)],
+    ["20261112235500_additional_insured_priority", "job priority for pros naming Handled as additional insured", () => db.from("contractors").select("handled_additional_insured").limit(1)],
     ["20261110040000_lead_pay", "Field Sales lead pay ($10 per lead, a draw)", () => db.from("partner_draws").select("id").limit(1)],
     ["20261110200000_pro_showcase", "new pros on the website (opt-in showcase)", () => db.from("contractors").select("showcase_opt_in").limit(1)],
+    ["20261118010500_sales_force", "the Handled Sales Force: ranks, teams, team pay and bonuses (or run supabase/setup/ADD_SALES_FORCE_2026-11-18_0105.sql)", () => db.from("sales_pay").select("id").limit(1)],
+    ["20261118004000_business_pricing", "business pricing: business orders keep up to 50%, pros paid home-price dollars (or run supabase/setup/ADD_BUSINESS_PRICING_2026-11-18_0040.sql)", () => db.from("jobs").select("business_pricing").limit(1)],
+    ["20261117235000_walkthroughs", "free walkthroughs businesses book themselves (or run supabase/setup/ADD_WALKTHROUGHS_2026-11-17_2350.sql)", () => db.from("walkthrough_settings").select("id").limit(1)],
+    ["20261117233500_ai_outreach_handledsvc_net", "AI email outreach from handledsvc.net: personalized emails, threaded follow-ups, one-click reply drafts (or run supabase/setup/ADD_AI_OUTREACH_HANDLEDSVC_NET_2026-11-17_2335.sql)", () => db.from("biz_leads").select("thread_message_id, reply_draft").limit(1)],
     ["20261111010000_biz_lead_refresh", "business leads stay fresh (rest, re-engage, retire, duplicates) and our own outreach domain (or run supabase/setup/ADD_BIZ_LEAD_REFRESH_2026-11-11_0100.sql)", () => db.from("biz_leads").select("dedupe_key, rest_until, next_send_at").limit(1)],
     ["20261110223000_iebc_team_expansion", "expanded IEBC team: Partner & Pro Success, gov capture, Legal & Compliance (or run supabase/setup/ADD_IEBC_TEAM_2026-11-10_2230.sql)", () => db.from("iebc_agents").select("id").eq("iebc_employee_id", "olivia").limit(1).then((r) => (r.error ? r : { error: r.data?.length ? null : { message: "not added yet" } }))],
     ["20261007023000_site_settings_grand_opening", "website looks, promo-code discount guard fix", () => db.from("site_settings").select("key").limit(1)],
@@ -278,6 +294,7 @@ export async function readiness(): Promise<Check[]> {
     ["20261028224500_pro_orientation", "Welcome to Handled orientation and photos on referral tickets (or run supabase/setup/ADD_PRO_WELCOME_2026-10-28_2300.sql)", () => db.from("referral_customers").select("photos").limit(1).then(async (r) => (r.error ? r : await db.from("contractors").select("orientation").limit(1)))],
     ["20261028173500_hub_customer_totals", "Mastermind customer list covers every customer (or run supabase/setup/RUN_ONCE_ALL_PENDING_2026-10-28_1735.sql)", () => db.from("hub_customer_totals").select("email").limit(1)],
     ["20261105000000_person_files", "person files (Mastermind → anyone's documents & photos)", () => db.from("person_files").select("id").limit(1)],
+    ["20261117230000_office_todos", "Front Office to-do list between the offices (or run supabase/setup/RUN_ONCE_OFFICE_TODOS_2026-11-17_2300.sql)", () => db.from("office_todos").select("id").limit(1)],
   ];
   // service areas beyond Metro Detroit (ADD_SERVICE_AREAS_AND_BID_MEASUREMENTS_*.sql)
   const { count: areas } = await db.from("markets").select("id", { count: "exact", head: true }).eq("active", true);

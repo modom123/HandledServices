@@ -19,13 +19,16 @@
  * UPDATED : 2026-10-11_0608 UTC — remote services (Service.remote) skip the driving radius and service-area checks.
  * UPDATED : 2026-10-12_0005 UTC — pro ZIP list: "only these ZIP codes" (zips_only), or listed ZIPs count even past the driving radius.
  * UPDATED : 2026-10-19_1320 UTC — insurance-optional services (Service.insuranceOptional) skip the general liability check.
+ * UPDATED : 2026-11-12_2200 UTC — inProArea: strictly within the pro's radius or ZIP list (who may be texted about a job).
+ * UPDATED : 2026-11-12_2355 UTC — + ADDITIONAL_INSURED_BOOST for pros whose COI names Handled as additional insured.
+ * UPDATED : 2026-11-13_0200 UTC — licensed work needs a VERIFIED license (expiry set on verify), not just a number typed in.
  */
 
 import { getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
 import { proTier } from "./pro-program.ts";
 import { liveLocation, localDate, onCall, timeZoneForZip } from "./roster.ts";
-import { PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
+import { DEFAULT_RADIUS_MI, PROBATION, coverageValid, requiredCoverages, specialtyMatch } from "./vetting.ts";
 
 export interface DispatchCandidate {
   contractor: Contractor;
@@ -102,6 +105,19 @@ export function zipCovered(list: string[] | null | undefined, zip: string | null
   return list.includes(zip) || list.includes(`${zip.slice(0, 3)}*`);
 }
 
+/**
+ * Strictly in the pro's area — the test for texting a pro about a job: within their driving radius from their home base,
+ * or in their ZIP list ("only these ZIPs" → the list alone). Unknown distance and no listed ZIP is NOT in the area, and
+ * remote work has no area, so neither is ever texted (they still see it in the app and on their board).
+ */
+export function inProArea(c: Contractor, job: Pick<DispatchJob, "lat" | "lng" | "service_slug"> & { zip?: string | null }): boolean {
+  if (getService(job.service_slug)?.remote) return false;
+  const listed = zipCovered(c.service_zips, job.zip);
+  if (c.zips_only && c.service_zips?.length) return listed;
+  const miles = proDistance(c, job);
+  return listed || (miles != null && miles <= (c.service_radius_mi ?? DEFAULT_RADIUS_MI));
+}
+
 /** Parse what a pro typed ("48201, 48226 481*, 482") into a clean ZIP list (max 200). */
 export function parseZipList(text: string | null | undefined): string[] {
   const out = (text ?? "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)
@@ -114,7 +130,9 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (c.status !== "approved") return "not approved";
   if (svc && !svc.trades.some((t) => c.trades.includes(t))) return "trade mismatch";
   if (svc?.licensed && !c.license_number) return "license required";
-  if (svc?.licensed && c.license_expires && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
+  // a number typed in isn't enough: Handled verifies it (that sets the expiry date, or NO_EXPIRY)
+  if (svc?.licensed && !c.license_expires) return "license not verified yet";
+  if (svc?.licensed && new Date(`${c.license_expires}T23:59:59`) < today) return "license expired";
   // remote work (websites, AI, formation, consulting): no driving radius or service area
   const base = svc?.remote ? null : proDistance(c, job);
   const live = svc?.remote ? null : liveDistance(c, job, today);
@@ -124,7 +142,7 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   if (svc?.remote) { /* any location */ } else if (c.zips_only && c.service_zips.length) {
     if (!listed) return "outside the pro's ZIP codes";
   } else if (miles != null) {
-    if (miles > (c.service_radius_mi ?? 25) && !listed) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? 25})`;
+    if (miles > (c.service_radius_mi ?? DEFAULT_RADIUS_MI) && !listed) return `${Math.round(miles)} mi away (drives ${c.service_radius_mi ?? DEFAULT_RADIUS_MI})`;
   } else if (c.service_zips.length && !listed)
     return "outside service area";
   // general liability: every job except the insurance-optional ones (remote work, errands, courier, assistant)
@@ -141,13 +159,19 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
 }
 
 /**
+ * Pros whose verified certificate names Handled Services LLC as ADDITIONAL INSURED (not only certificate holder) get this
+ * boost on jobs that need insurance — the same as the Pro+ tier — so they see those offers first (owner decision 2026-11-12).
+ */
+export const ADDITIONAL_INSURED_BOOST = 6;
+
+/**
  * Rank eligible pros (100 points + bonuses). Quality outweighs distance on purpose:
  *   quality 45      rating 25 · first-time QA pass 10 · few redos/refunds 10
  *   reliability 18  on time 10 · accepts offers 8
  *   proximity 12    closer to the job (or exact ZIP match when distance is unknown)
  *   availability 10 open slots that day (a pro at the daily capacity they set gets no offers)
  *   experience 5    jobs completed
- *   + specialist 8, + Pro+/Elite tier boost
+ *   + specialist 8, + Pro+/Elite tier boost, + Handled as additional insured 6 (jobs that need insurance)
  */
 export function rankContractors(
   contractors: Contractor[],
@@ -184,7 +208,7 @@ export function rankContractors(
       if (live != null) reasons.push("live location");
       if (remote) score += 8;
       else if (miles != null) {
-        score += 12 * Math.max(0, 1 - miles / Math.max(1, c.service_radius_mi ?? 25));
+        score += 12 * Math.max(0, 1 - miles / Math.max(1, c.service_radius_mi ?? DEFAULT_RADIUS_MI));
         reasons.push(`${miles < 1 ? "<1" : Math.round(miles)} mi away`);
       } else score += c.service_zips.includes(job.zip) ? 8 : 5;
       // availability
@@ -197,6 +221,8 @@ export function rankContractors(
       if (specialtyMatch(c.specialties, job.service_slug)) { score += 8; reasons.push("specialist"); }
       const tier = proTier(c);
       if (tier.dispatchBoost) { score += tier.dispatchBoost; reasons.push(`${tier.name} pro`); }
+      const insJob = !remote && !getService(job.service_slug)?.insuranceOptional;
+      if (insJob && c.handled_additional_insured && c.insured_until && new Date(`${c.insured_until}T23:59:59`) >= new Date()) { score += ADDITIONAL_INSURED_BOOST; reasons.push("Handled additional insured"); }
       return { contractor: c, score: Math.round(score * 10) / 10, reasons, load };
     })
     .sort((a, b) => b.score - a.score);

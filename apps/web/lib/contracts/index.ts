@@ -16,17 +16,18 @@ import type { Contract, ContractTranslation } from "./types";
 import { CONTRACTS_ES } from "./es";
 import { BUSINESS_MSA, CUSTOMER_ADDENDA, CUSTOMER_CONTRACTS, MEMBERSHIP_PROMO_TERMS, SERVICE_AGREEMENT, TERMS_OF_USE } from "./customer";
 import { TALENT_CLIENT_AGREEMENT } from "./talent";
+import { REFERRAL_PARTNER_AGREEMENT } from "./partner";
 import { PRO_ADDENDA, PRO_CREW_ADDENDUM, PRO_AGREEMENT, PRO_BACKGROUND_CHECK_NOTICE, PRO_CODE_OF_CONDUCT, PRO_CONTRACTS, PRO_DEACTIVATION_POLICY, PRO_LOCATION_CONSENT } from "./pro";
 
 export type { Contract, ContractSection, ContractAudience, ContractTranslation } from "./types";
 export { BUSINESS_MSA, MEMBERSHIP_PROMO_TERMS, PRO_AGREEMENT, PRO_CREW_ADDENDUM, SERVICE_AGREEMENT, TERMS_OF_USE };
 
-export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, TALENT_CLIENT_AGREEMENT, ...PRO_CONTRACTS];
-export { TALENT_CLIENT_AGREEMENT };
+export const ALL_CONTRACTS: Contract[] = [...CUSTOMER_CONTRACTS, TALENT_CLIENT_AGREEMENT, REFERRAL_PARTNER_AGREEMENT, ...PRO_CONTRACTS];
+export { TALENT_CLIENT_AGREEMENT, REFERRAL_PARTNER_AGREEMENT };
 
 export const getContract = (key: string) => ALL_CONTRACTS.find((c) => c.key === key) ?? null;
 
-export const AUDIENCE_LABEL: Record<Contract["audience"], string> = { customer: "Customers", business: "Businesses", pro: "Pros (contractors)" };
+export const AUDIENCE_LABEL: Record<Contract["audience"], string> = { customer: "Customers", business: "Businesses", pro: "Pros (contractors)", partner: "Referral partners" };
 
 /** Service-specific customer addenda for a service. */
 export const addendaForService = (slug: string) => CUSTOMER_ADDENDA.filter((a) => a.services?.includes(slug));

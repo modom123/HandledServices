@@ -14,7 +14,7 @@
  *             license    license_number, expires_on, file (staff verifies → license_expires)
  *             agreement  signer_name, agree=true   (signs the current version)
  *             payout     payout_method (stripe_connect only; normally set when Stripe confirms the bank)
- *             area       base_zip, service_radius_mi, service_zips ("48201, 481*"), zips_only ("on" = only those ZIPs), daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
+ *             area       base_zip (required), base_address / base_city / base_state (optional), service_radius_mi (default 100), service_zips ("48201, 481*" — listed ZIPs become the whole area), daily_capacity (jobs/day, never offered past it), days (repeat 0–6), windows (repeat), time_off (YYYY-MM-DD, comma-separated)
  *             specialties specialties (repeat the field once per specialty)
  *             coverage   coverage (auto | workers_comp | bond | liquor), expires_on, file —
  *                        or coverage=workers_comp + exempt=true for the no-employees statement
@@ -32,16 +32,30 @@
  *             • every database write is checked: a failed save answers with the reason instead of "Saved", and the
  *               uploaded file is removed so nothing is left half-saved.
  * UPDATED : 2026-11-11_2350 UTC — payout step: direct deposit through Stripe only (stripe_connect); no paper checks, no 'account last 4'.
+ * UPDATED : 2026-11-12_2330 UTC — two ways to verify insurance: the AI check verifies a certificate / coverage proof on its
+ *           own when every point checks out (core docAutoCheck); otherwise it goes to Handled review (staff open the
+ *           policy or call the insurer). The COI step takes the insurer, policy number and agent contact (optional) so
+ *           staff can confirm with the insurer. An unreadable file no longer bounces the pro: a person looks first.
+ * UPDATED : 2026-11-13_0200 UTC — license step: "doesn't expire" (USDOT numbers, one-time certifications) instead of a date.
+ * UPDATED : 2026-11-17_1900 UTC — payout step: bank direct deposit (Stripe), PayPal (email) or Venmo (phone), checked by core cleanPayoutHandle.
+ * UPDATED : 2026-11-19_1745 UTC — insurance auto-verify that actually lands: the route gets 120 s so the AI reading (run after
+ *           the response) finishes instead of being cut off; an auto-verified certificate uses the policy's own expiry date.
+ *           Area step: only the ZIP is required (street, city and state optional; city and state come from the ZIP); the
+ *           radius defaults to 100 miles; listing ZIP codes makes them the pro's whole area.
  */
+// the AI reads the uploaded certificate after the response is sent (after()); that work shares this function's time limit
+export const maxDuration = 120;
+import { cleanPayoutHandle } from "@handled/core";
+
 import { after } from "next/server";
 import { z } from "zod";
-import { AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
+import { DEFAULT_RADIUS_MI, stateForZip, AGREEMENT_VERSION, COVERAGES, ENTITY_TYPES, COVERAGE_KINDS, NO_EXPIRY, docAutoCheck, parseZipList, requiredCoverages, specialtiesFor } from "@handled/core";
 import { deny, getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { UPLOAD_TYPES, confirmDocUpload, isDocStep, removeDoc, uploadDoc } from "@/lib/photos";
 import { raiseAlert } from "@/lib/jobs";
 import { geocodeAddress } from "@/lib/geo";
-import { afterOnboardingStep, docName, logRecruiting } from "@/lib/recruiting";
+import { afterOnboardingStep, decideDocument, docName, logRecruiting } from "@/lib/recruiting";
 import { signedDocUrl } from "@/lib/photos";
 import { aiCheckDocument } from "@/lib/ai/doccheck";
 import { notify } from "@/lib/push";
@@ -54,16 +68,21 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Steps = z.discriminatedUnion("step", [
   z.object({ step: z.literal("w9"), legal_name: z.string().min(2).max(160), entity_type: z.enum(ENTITY_TYPES),
     tin_last4: z.string().regex(/^\d{4}$/), address_line: z.string().min(3).max(200), city: z.string().min(2).max(80), state: z.string().length(2), zip: z.string().regex(/^\d{5}$/) }),
-  z.object({ step: z.literal("coi"), expires_on: date }),
-  z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: date }),
+  z.object({ step: z.literal("coi"), expires_on: date,
+    // optional: lets Handled confirm the policy with the insurer or agent (the second way to verify)
+    insurer: z.string().trim().max(120).optional(), policy_number: z.string().trim().max(60).optional(), agent_contact: z.string().trim().max(160).optional() }),
+  // a USDOT number or a one-time certification doesn't expire: tick "doesn't expire" instead of a date
+  z.object({ step: z.literal("license"), license_number: z.string().min(2).max(60), expires_on: z.union([date, z.literal("")]).optional(), no_expiry: z.string().optional() })
+    .refine((x) => Boolean(x.expires_on) || Boolean(x.no_expiry), { message: "Add the expiry date, or tick \"doesn't expire\"" }),
   z.object({ step: z.literal("agreement"), signer_name: z.string().min(2).max(120), agree: z.literal("true"),
     signed_for: z.string().trim().max(160).optional(), signer_title: z.string().trim().max(80).optional() }),
   z.object({ step: z.literal("specialties") }),
   z.object({ step: z.literal("resume") }),
   z.object({ step: z.literal("photo") }),
-  z.object({ step: z.literal("area"), base_address: z.string().trim().min(4).max(200), base_city: z.string().trim().min(2).max(80), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/), base_zip: z.string().regex(/^\d{5}$/), service_radius_mi: z.coerce.number().int().min(1).max(150), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
+  z.object({ step: z.literal("area"), base_address: z.string().trim().max(200).optional(), base_city: z.string().trim().max(80).optional(), base_state: z.string().trim().regex(/^[A-Za-z]{2}$/).optional().or(z.literal("")), base_zip: z.string().trim().regex(/^\d{5}$/, "Enter your 5-digit ZIP code"), service_radius_mi: z.coerce.number().int().min(1).max(150).optional().or(z.literal("").transform(() => undefined)), service_zips: z.string().max(3000).optional(), zips_only: z.string().optional(), daily_capacity: z.coerce.number().int().min(1).max(20).optional(), time_off: z.string().max(2000).optional() }),
   z.object({ step: z.literal("coverage"), coverage: z.enum(COVERAGE_KINDS), expires_on: date.optional(), exempt: z.literal("true").optional() }),
-  z.object({ step: z.literal("payout"), payout_method: z.literal("stripe_connect") }), // direct deposit through Stripe only (no ACH-by-hand, no paper checks — owner, 2026-11-11)
+  // bank direct deposit through Stripe (free), or PayPal / Venmo ($1.50 per payout) — owner, 2026-11-17. No paper checks.
+  z.object({ step: z.literal("payout"), payout_method: z.enum(["stripe_connect", "paypal", "venmo"]), payout_handle: z.string().trim().max(254).optional() }),
 ]);
 
 /** A database result with an error → throw it (so a failed save is never reported as saved). */
@@ -127,22 +146,26 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const windows = form.getAll("windows").map(String).filter((w) => ["morning", "midday", "afternoon"].includes(w));
     if (!days.length || !windows.length) return deny(400, "Pick at least one day and one time of day");
     const timeOff = (b.time_off ?? "").split(/[,\s]+/).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 120);
-    const loc = await geocodeAddress({ address: b.base_address, city: b.base_city, state: b.base_state, zip: b.base_zip });
+    // city and state come from the ZIP when the pro leaves them blank (ZIP lookup caches them in zip_geo)
+    const street = b.base_address && b.base_address.length >= 4 ? b.base_address : null;
+    const loc = await geocodeAddress({ address: street, city: b.base_city || null, state: b.base_state || null, zip: b.base_zip });
+    const { data: zg } = await db.from("zip_geo").select("city, state").eq("zip", b.base_zip).maybeSingle();
+    const city = b.base_city || zg?.city || null, state = (b.base_state || zg?.state || stateForZip(b.base_zip) || "").toUpperCase() || null;
     // location lookup down → never leave a pro matching jobs everywhere: fall back to their ZIP area
     // ZIP codes the pro wants (typed list); with none typed, keep what's there, or fall back to their ZIP area if the lookup is down
     const typed = b.service_zips !== undefined ? parseZipList(b.service_zips) : null;
     const { data: cur } = await db.from("contractors").select("service_zips").eq("id", id).single();
     const zips = typed?.length ? typed : !loc && !(cur?.service_zips ?? []).length ? [b.base_zip, `${b.base_zip.slice(0, 3)}*`] : typed ? [] : undefined;
-    if (b.zips_only === "on" && !typed?.length) return deny(400, "List the ZIP codes you want, or untick “Only these ZIP codes”");
     must(await db.from("contractors").update({
       ...(zips ? { service_zips: zips } : {}),
-      base_address: b.base_address, base_city: b.base_city, base_state: b.base_state.toUpperCase(), base_located: loc ? (loc.exact ? "address" : "zip") : null,
-      base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi,
+      base_address: street, base_city: city, base_state: state, base_located: loc ? (loc.exact ? "address" : "zip") : null,
+      base_zip: b.base_zip, base_lat: loc?.lat ?? null, base_lng: loc?.lng ?? null, service_radius_mi: b.service_radius_mi ?? DEFAULT_RADIUS_MI,
       ...(b.daily_capacity ? { daily_capacity: b.daily_capacity } : {}),
       availability: { days: [...new Set(days)].sort(), windows: [...new Set(windows)] }, time_off: timeOff,
     }).eq("id", id));
     // separate so the rest still saves before the 2026-10-12 migration (zips_only) is run
-    await db.from("contractors").update({ zips_only: b.zips_only === "on" && Boolean(typed?.length) }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
+    // listed ZIP codes ARE the pro's area (owner, 2026-11-19); no list → DEFAULT_RADIUS_MI (or their own radius) around the ZIP
+    if (typed) await db.from("contractors").update({ zips_only: typed.length > 0 }).eq("id", id).then(({ error }) => error && console.error("[onboarding] zips_only", error.message));
     return done({ located: Boolean(loc), exact: Boolean(loc?.exact) });
   }
   if (b.step === "specialties") {
@@ -185,10 +208,11 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     must(await db.from("contractors").update({ ...profile, state: profile.state.toUpperCase(), w9_received_at: new Date().toISOString() }).eq("id", id));
     must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "w9", storage_path: path, status: "pending" }));
   } else if (b.step === "coi") {
-    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending" }).select("id").single()).data?.id ?? null;
+    const policy = [b.insurer && `Insurer: ${b.insurer}`, b.policy_number && `Policy #${b.policy_number}`, b.agent_contact && `Agent: ${b.agent_contact}`].filter(Boolean).join(" · ") || null;
+    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "coi", storage_path: path, expires_on: b.expires_on, status: "pending", notes: policy }).select("id").single()).data?.id ?? null;
   } else if (b.step === "license") {
     must(await db.from("contractors").update({ license_number: b.license_number }).eq("id", id));
-    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.expires_on, status: "pending", notes: `#${b.license_number}` }).select("id").single()).data?.id ?? null;
+    docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: "license", storage_path: path, expires_on: b.no_expiry ? NO_EXPIRY : b.expires_on || null, status: "pending", notes: `#${b.license_number}${b.no_expiry ? " · doesn't expire" : ""}` }).select("id").single()).data?.id ?? null;
   } else if (b.step === "coverage") {
     docId = must(await db.from("contractor_documents").insert({ contractor_id: id, kind: b.coverage, storage_path: path, expires_on: b.expires_on, status: "pending", notes: COVERAGES[b.coverage].label }).select("id").single()).data?.id ?? null;
   } else if (b.step === "agreement") {
@@ -202,7 +226,14 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const { data: me } = await db.from("contractors").select("trades, email, profile_id").eq("id", id).single();
     await recordAcceptance(proSigningSet((me?.trades ?? []) as string[]), { contractorId: id, profileId: me?.profile_id ?? null, email: me?.email ?? null, signerName: b.signer_name, onBehalfOf: signedFor, signerTitle: title, method: "signature", locale: await localeOf(me?.profile_id ?? null), ...requestMeta(req) });
   } else if (b.step === "payout") {
-    must(await db.from("contractors").update({ payout_method: b.payout_method }).eq("id", id));
+    if (b.payout_method === "stripe_connect") {
+      // back to bank deposit: the step counts again once Stripe confirms the bank (the onboarding page sets stripe_connect)
+      must(await db.from("contractors").update({ payout_method: null }).eq("id", id));
+    } else {
+      const h = cleanPayoutHandle(b.payout_method, b.payout_handle);
+      if (!h.ok) return Response.json({ error: h.error }, { status: 400 });
+      must(await db.from("contractors").update({ payout_method: b.payout_method, payout_handle: h.handle }).eq("id", id));
+    }
   }
   if (["coi", "license", "w9", "coverage"].includes(b.step)) await raiseAlert("pro_document", "info", `Verify ${b.step === "coverage" ? COVERAGES[b.coverage].label : b.step.toUpperCase()} for a pro`, `Contractor ${id} uploaded a ${b.step}. The AI reading is next to it in Handled Hub → Pros.`);
   // AI reads the certificate/license now, so staff verify in one click and the pro hears fast if it's unusable
@@ -210,16 +241,42 @@ async function save(req: Request, track: (path: string) => void): Promise<Respon
     const docPath = path, theDoc = docId, kind = b.step === "coverage" ? b.coverage : b.step;
     const claimed = "expires_on" in b ? b.expires_on ?? null : null;
     after(async () => {
-      const [{ data: pro }, url] = await Promise.all([db.from("contractors").select("business_name, legal_name, trades, profile_id, email").eq("id", id).single(), signedDocUrl(docPath, 900)]);
+      const [{ data: pro }, url] = await Promise.all([db.from("contractors").select("business_name, legal_name, trades, profile_id, email, base_state").eq("id", id).single(), signedDocUrl(docPath, 900)]);
       if (!pro || !url) return;
-      const check = await aiCheckDocument({ kind, url, isPdf: docPath.endsWith(".pdf"), pro, claimedExpiry: claimed });
-      if (!check) return;
-      await db.from("contractor_documents").update({ ai_check: check }).eq("id", theDoc);
-      await logRecruiting("doc_ai_check", { contractorId: id }, `${kind}: ${check.meets_requirements ? "looks good" : check.problems.join("; ")}`, "ai");
-      if (!check.readable) await notify(pro.profile_id, { title: "Please re-upload your document", body: "We couldn't read it — try a clearer photo or the PDF.", data: { type: "onboarding" },
-        email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` },
-        es: { title: "Vuelva a subir su documento", body: "No pudimos leerlo: intente con una foto más clara o el PDF.",
-          subject: "Vuelva a subir su documento", text: `No pudimos leer el documento (${docName(kind, "es")}) que subió. Suba una foto más clara o el PDF de su aseguradora o del estado.\n\nSu configuración: ${siteUrl()}/pro/onboarding` } });
+      const check = await aiCheckDocument({ kind, url, isPdf: docPath.endsWith(".pdf"), pro, claimedExpiry: claimed }).catch(() => null);
+      if (check) {
+        await db.from("contractor_documents").update({ ai_check: check }).eq("id", theDoc);
+        await logRecruiting("doc_ai_check", { contractorId: id }, `${kind}: ${check.meets_requirements ? "looks good" : check.problems.join("; ")}`, "ai");
+      }
+      // way 1: everything checks out → verified automatically (insurance and coverage proofs only)
+      const auto = docAutoCheck(kind, check, { claimedExpiry: claimed, trades: (pro.trades ?? []) as string[] });
+      if (auto.auto) {
+        // the date on the policy, not the one typed in (they can differ by a typo; the policy is what counts)
+        await decideDocument(id, theDoc, "verify", "AI check", null, { method: "auto", expiresOn: check?.expires_on || null });
+        await notify(pro.profile_id, { title: "Insurance verified ✓", body: "Your document checked out. You're one step closer to jobs.", data: { type: "onboarding" },
+          es: { title: "Seguro verificado ✓", body: "Su documento está en orden. Está un paso más cerca de recibir trabajos." } });
+        await raiseAlert("pro_document", "info", `${docName(kind, "en")} verified automatically for ${pro.business_name}`, "Every point checked out (insured name, expiry, limits, Handled listed). Spot-check it any time in Handled Hub → Pros.");
+        return;
+      }
+      // way 2: Handled review — a person opens the policy (or calls the insurer); the pro is told what to expect
+      if (!["coi", ...COVERAGE_KINDS].includes(kind as never)) {
+        // licenses and the W-9: a person always verifies; an unreadable file is worth a quick re-upload request
+        if (check && !check.readable) await notify(pro.profile_id, { title: "Please re-upload your document", body: "We couldn't read it — try a clearer photo or the PDF.", data: { type: "onboarding" },
+          email: { to: pro.email, subject: "Please re-upload your document", text: `We couldn't read the ${kind.toUpperCase()} you uploaded. Please upload a clearer photo or the PDF from your insurer or the state.\n\nYour setup: ${siteUrl()}/pro/onboarding` },
+          es: { title: "Vuelva a subir su documento", body: "No pudimos leerlo: intente con una foto más clara o el PDF.",
+            subject: "Vuelva a subir su documento", text: `No pudimos leer el documento (${docName(kind, "es")}) que subió. Suba una foto más clara o el PDF de su aseguradora o del estado.\n\nSu configuración: ${siteUrl()}/pro/onboarding` } });
+        return;
+      }
+      await raiseAlert("pro_document", "warn", `Review ${docName(kind, "en")} for ${pro.business_name}`, `Needs a person: ${auto.reasons.join("; ")}. Open the policy in Handled Hub → Pros (or call the insurer) and verify or reject.`);
+      const fixable = auto.reasons.filter((r) => /additional insured|limit below|expired|doesn't match the policy/.test(r));
+      await notify(pro.profile_id, {
+        title: "A Handled team member is reviewing your insurance", body: fixable.length ? `We'll check it by hand. Our automatic check noticed: ${fixable.join("; ")}.` : "We'll check it by hand, usually within 1 business day. Nothing to do for now.",
+        data: { type: "onboarding" },
+        email: { to: pro.email, subject: "We're reviewing your insurance",
+          text: `Thanks for uploading your ${docName(kind, "en")}. A Handled team member is reviewing it by hand, usually within 1 business day — you don't need to do anything yet.${fixable.length ? `\n\nOur automatic check noticed: ${fixable.join("; ")}. If that's right, ask your insurance agent for an updated certificate and upload it — it often speeds things up.` : ""}\n\nYour setup: ${siteUrl()}/pro/onboarding` },
+        es: { title: "Un miembro de Handled está revisando su seguro", body: "Lo revisaremos a mano, normalmente en 1 día hábil. Por ahora no tiene que hacer nada.",
+          subject: "Estamos revisando su seguro", text: `Gracias por subir su ${docName(kind, "es")}. Un miembro de Handled lo revisa a mano, normalmente en 1 día hábil; por ahora no tiene que hacer nada.${fixable.length ? `\n\nNuestra revisión automática notó: ${fixable.join("; ")}. Si es así, pida a su agente un certificado actualizado y súbalo: suele acelerar el proceso.` : ""}\n\nSu configuración: ${siteUrl()}/pro/onboarding` },
+      });
     });
   }
   return done();

@@ -6,12 +6,15 @@
  * UPDATED : 2026-10-02_1440 UTC — Spanish (pro portal)
  * UPDATED : 2026-10-03_0120 UTC — deductions list (proposed / upheld / waived) with links to respond.
  * PURPOSE : Pro earnings statement — this year by month, every payout, 1099 total so far.
+ * UPDATED : 2026-11-17_1700 UTC — readiness uses the pro's payout account (incl. one made on the Partner page).
+ * UPDATED : 2026-11-17_1900 UTC — statement shows PayPal / Venmo payouts and their $1.50 fee.
  */
 import Link from "next/link";
 import { getService, instantPayFee, money, necThreshold, serviceText, t as tr, whyNot, type Contractor } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { availableBalance, getPolicy } from "@/lib/pro-benefits";
 import { connectReady } from "@/lib/stripe";
+import { proPayoutAccount } from "@/lib/pro-benefits";
 import { InstantPay } from "@/components/ProActions";
 import { getViewer } from "@/lib/auth";
 import { Empty, Stat } from "@/components/ui";
@@ -27,8 +30,8 @@ export default async function Earnings() {
   const year = new Date().getFullYear();
   const [{ data: me }, policy, bal] = await Promise.all([v.db.from("contractors").select("*").eq("id", v.contractorId).single(), getPolicy(), availableBalance(v.contractorId)]);
   const instantNo = me ? whyNot(policy.instantPay, me as Contractor) : "pro not found";
-  const ready = !instantNo && (await connectReady(me?.stripe_account_id ?? null));
-  const { data } = await v.db.from("payouts").select("id, amount, status, kind, method, instant_fee, created_at, paid_at, reason, jobs(ref, service_slug, scheduled_date)").gte("created_at", `${year}-01-01`).order("created_at", { ascending: false });
+  const ready = !instantNo && Boolean(me) && (await connectReady(await proPayoutAccount(me as never)));
+  const { data } = await v.db.from("payouts").select("*, jobs(ref, service_slug, scheduled_date)").gte("created_at", `${year}-01-01`).order("created_at", { ascending: false });
   const rows = (data ?? []) as Rec[];
   const { data: deds } = await v.db.from("pro_deductions").select("id, amount, status, reason, respond_by, created_at, jobs(ref)").order("created_at", { ascending: false }).limit(20);
   const paid = rows.filter((r) => ["paid", "clawback"].includes(r.status)).reduce((sum, r) => sum + Number(r.amount), 0);
@@ -62,7 +65,7 @@ export default async function Earnings() {
       {!rows.length && <Empty>{t("No payouts yet this year.")}</Empty>}
       <div className="card overflow-x-auto p-0"><table className="w-full text-sm"><tbody>
         {rows.map((r) => (
-          <tr key={r.id} className="border-t border-line first:border-0"><td className="p-3 text-xs text-ink-soft">{r.created_at.slice(0, 10)}</td><td className="p-3">{r.jobs ? `${r.jobs.ref} · ${(() => { const s = getService(r.jobs.service_slug ?? ""); return s ? serviceText(l, s.slug, s).name : ""; })()}` : r.reason}</td><td className="p-3">{t(r.status)}{r.method === "instant" ? (es ? " · inmediato" : " · instant") : ""}{Number(r.instant_fee) ? (es ? ` (cargo ${money(Number(r.instant_fee))})` : ` (fee ${money(Number(r.instant_fee))})`) : ""}{r.jobs && r.reason ? ` · ${r.reason}` : ""}</td><td className="p-3 text-right font-semibold">{money(Number(r.amount))}</td></tr>
+          <tr key={r.id} className="border-t border-line first:border-0"><td className="p-3 text-xs text-ink-soft">{r.created_at.slice(0, 10)}</td><td className="p-3">{r.jobs ? `${r.jobs.ref} · ${(() => { const s = getService(r.jobs.service_slug ?? ""); return s ? serviceText(l, s.slug, s).name : ""; })()}` : r.reason}</td><td className="p-3">{t(r.status)}{r.method === "instant" ? (es ? " · inmediato" : " · instant") : ""}{Number(r.instant_fee) ? (es ? ` (cargo ${money(Number(r.instant_fee))})` : ` (fee ${money(Number(r.instant_fee))})`) : ""}{r.rail === "paypal" || r.rail === "venmo" ? ` · ${r.rail === "paypal" ? "PayPal" : "Venmo"}${Number(r.rail_fee) ? (es ? ` (cargo ${money(Number(r.rail_fee))})` : ` (fee ${money(Number(r.rail_fee))})`) : ""}` : ""}{r.jobs && r.reason ? ` · ${r.reason}` : ""}</td><td className="p-3 text-right font-semibold">{money(Number(r.amount))}</td></tr>
         ))}
       </tbody></table></div>
       <p className="text-xs text-ink-soft">{t("You’re an independent business: we don’t withhold taxes. Keep this statement for your records and talk to a tax professional about quarterly estimated taxes.")}</p>

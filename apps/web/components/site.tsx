@@ -28,9 +28,11 @@
  * UPDATED : 2026-10-28_1810 UTC — About page removed (its story is on the home page): no About links in the menu or footer.
  * UPDATED : 2026-11-06_1730 UTC — Partner Program: two ways to earn — referrals (partner-v2 tiers) and direct sales (10% → 45% of our profit).
  * UPDATED : 2026-11-07_1614 UTC — "Post a project" link in the side menu (/post).
+ * UPDATED : 2026-11-12_2000 UTC — "Job board" link in the side menu (/job-board).
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
  * UPDATED : 2026-11-11_2330 UTC — /pros pages: Apply now / Pro sign in in place of Book now / Snap a photo (SideNav forPros).
+ * UPDATED : 2026-11-24_1700 UTC — Partners menu: Path 1 · Refer and Path 2 · Sell (the Sales careers page).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -88,8 +90,8 @@ export async function SiteHeader() {
     {
       id: "partners", label: es ? "Socios" : "Partners",
       items: [
-        { href: "/partners", label: es ? "Cómo funciona: refiera o venda" : "How it works: refer or sell", icon: "💸" },
-        { href: "/partners#field-sales", label: es ? "Ventas directas (medio tiempo o completo)" : "Direct sales (part-time or full-time)", icon: "📸" },
+        { href: "/partners", label: es ? "Camino 1 · Referir" : "Path 1 · Refer", icon: "💸" },
+        { href: "/careers/sales", label: es ? "Camino 2 · Vender (equipo de ventas)" : "Path 2 · Sell (Sales Force)", icon: "📸" },
         { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
       ],
       footer: { href: "/partners#join", label: es ? "Hacerme socio →" : "Become a partner →" },
@@ -107,6 +109,7 @@ export async function SiteHeader() {
   ];
   const links = [
     { href: "/post", label: es ? "Publique su proyecto" : "Post a project", icon: "📝" },
+    { href: "/job-board", label: es ? "Tablero de trabajos" : "Job board", icon: "📋" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];
   return (

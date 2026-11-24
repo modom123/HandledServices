@@ -11,6 +11,8 @@
  * UPDATED : 2026-10-23_1900 UTC — shows the candidate's skills and lets staff check them off with the trades.
  * UPDATED : 2026-10-27_1700 UTC — back link → Recruiting → Pipeline.
  * UPDATED : 2026-11-11_0030 UTC — Delete (admins): removes the applicant and goes back to the pipeline.
+ * UPDATED : 2026-11-24_2000 UTC — "Email this candidate" on the file (starters, optional setup steps + sign-in link, send from
+ *           the company or a Front Office mailbox); the history now includes what's logged on their pro account (nudges, emails).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,6 +22,8 @@ import { interviewsFor, interviewUrl } from "@/lib/interviews";
 import { aiEnabled } from "@/lib/ai/client";
 import { InterviewDecision, Scorecard, StartInterview } from "@/components/Interviews";
 import { RecruitingRowActions } from "@/components/HubActions";
+import { CandidateEmail } from "@/components/CandidateEmail";
+import { candidateSenders } from "@/lib/recruiting";
 import { TradesEditor } from "@/components/RecruitingIntake";
 import { signedDocUrl } from "@/lib/photos";
 
@@ -38,6 +42,13 @@ export default async function Candidate({ params, searchParams }: { params: Prom
     app.contractor_id ? db.from("contractors").select("*").eq("id", app.contractor_id).maybeSingle() : db.from("contractors").select("*").eq("email", String(app.email).toLowerCase()).maybeSingle(),
     db.from("recruiting_events").select("kind, note, actor, created_at").eq("application_id", appId).order("created_at", { ascending: false }).limit(100),
   ]);
+  // history also shows what was logged on their pro account (nudges, emails, documents, activation)
+  if (pro?.id) {
+    const { data: more } = await db.from("recruiting_events").select("kind, note, actor, created_at").eq("contractor_id", pro.id).is("application_id", null).order("created_at", { ascending: false }).limit(100);
+    if (more?.length) (events as unknown[]).push(...more);
+    (events as { created_at: string }[] | null)?.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  const senders = await candidateSenders().catch(() => [{ id: "company", label: "Handled Recruiting (company email)" }]);
   const { data: firstJob } = pro ? await db.from("jobs").select("id").eq("contractor_id", pro.id).eq("status", "completed").limit(1) : { data: [] };
   const latest = ivs[0];
   const done = ivs.find((i) => i.status === "completed");
@@ -68,6 +79,10 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           <ul className="space-y-1 text-sm">{check.steps.map((s) => <li key={s.key} className="flex gap-2"><span>{s.done ? "✅" : "☐"}</span><span className={s.done ? "" : "text-ink-soft"}>{s.en}{s.detail ? <span className="text-xs text-ink-soft"> — {s.detail}</span> : null}</span></li>)}</ul>
           <RecruitingRowActions appId={appId} contractorId={pro?.id ?? null} stage={pro?.status === "approved" ? "active" : String(app.stage)} afterDelete="/hub/recruiting/pipeline" />
           {pro && <Link className="text-sm underline" href={`/hub/pros/${pro.id}`}>Pro record & documents →</Link>}
+          <details className="rounded-lg border border-line p-3" open={Boolean(check.next && check.next.who === "candidate")}>
+            <summary className="cursor-pointer font-semibold">✉️ Email this candidate</summary>
+            <div className="mt-2"><CandidateEmail appId={appId} contractorId={pro?.id ?? null} email={(pro?.email ?? app.email ?? null) as string | null} firstName={String(app.contact_name ?? "").split(" ")[0]} hasAccount={Boolean(pro && pro.status !== "approved")} senders={senders} phone={(app.phone ?? null) as string | null} /></div>
+          </details>
         </section>
         <section className="space-y-4">
           <div className="card space-y-3">

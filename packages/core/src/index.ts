@@ -3,6 +3,10 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Public entry point for @handled/core.
+ * UPDATED : 2026-11-17_2200 UTC — signup-legal (sign-up compliance checks for the Legal & Compliance agents).
+ * UPDATED : 2026-11-17_2045 UTC — us-states (pros in all 50 states: state list, ZIP → state, license line per state).
+ * UPDATED : 2026-11-17_1900 UTC — payout-rails (pros paid by Stripe bank deposit, PayPal or Venmo).
+ * UPDATED : 2026-11-17_1530 UTC — call-schedule (customers book a time for a Handled person to call).
  * UPDATED : 2026-10-12_0005 UTC — scheduling-gaps (texts, calendar feed, saved homes).
  * UPDATED : 2026-10-12_0138 UTC — stripe-setup (webhook events and key checks for Hub → Setup).
  * UPDATED : 2026-10-19_2015 UTC — gov-awards (SAM.gov Contract Awards API: recompetes and incumbents).
@@ -12,6 +16,9 @@
  * UPDATED : 2026-10-23_1100 UTC — ats (Indeed Apply + CSV candidate import parsing, trade detection).
  * UPDATED : 2026-10-27_1700 UTC — recruiting-division (openings on three tracks, Indeed post kit, shared pipeline stages).
  * UPDATED : 2026-10-27_2100 UTC — job-money (one job's money end to end: customer paid → split → pro payout lines → Monday).
+ * UPDATED : 2026-11-17_2335 UTC — outreach-ai (handledsvc.net outreach domain, guardrails for AI-written outreach, reply drafts and campaigns).
+ * UPDATED : 2026-11-17_2350 UTC — walkthrough (self-booked free walkthroughs) and BIZ_LANDINGS (a landing page per kind of business).
+ * UPDATED : 2026-11-18_0020 UTC — sales-force (career path Associate AE → VP of Sales, profit-share pay, overrides, promotions).
  */
 
 export * from "./types.ts";
@@ -54,6 +61,10 @@ export * from "./business-accounts.ts";
 export * from "./biz-lead-engine.ts";
 export * from "./board.ts";
 export * from "./email-center.ts";
+export * from "./outreach-ai.ts";
+export * from "./walkthrough.ts";
+export * from "./sales-force.ts";
+export * from "./sales-scorecard.ts";
 export * from "./checklists.ts";
 export * from "./interview.ts";
 export * from "./rewards.ts";
@@ -82,3 +93,7 @@ export * from "./pro-welcome.ts";
 export * from "./partner-welcome.ts";
 export * from "./partner-success.ts";
 export * from "./pro-showcase.ts";
+export * from "./call-schedule.ts";
+export * from "./payout-rails.ts";
+export * from "./us-states.ts";
+export * from "./signup-legal.ts";

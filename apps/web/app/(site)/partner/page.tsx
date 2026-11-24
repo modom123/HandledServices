@@ -14,17 +14,27 @@
  * UPDATED : 2026-11-10_0400 UTC — lead pay status ($10 per lead, unlock progress: 10 leads + first paid-out sale, waiting / paid).
  * UPDATED : 2026-11-10_1415 UTC — a "Step 1: set up your payouts" banner at the top until Stripe payouts are ready.
  * UPDATED : 2026-11-10_1450 UTC — "Grow your partner business" card linking the Partner Success roadmap (/partner/grow).
+ * UPDATED : 2026-11-17_2100 UTC — partners who joined under earlier terms see "Sign the Referral Partner Agreement" at the top.
+ * UPDATED : 2026-11-17_1930 UTC — partner-v7 one program: one rate panel — profit from referrals (1×), from direct sales (1.5×),
+ *           total credit, the rate now (referral / direct = +5) and exactly what gets the next raise; one ladder table.
+ * UPDATED : 2026-11-18_0105 UTC — Sales Force card (rank, commission, next rank, team and recruit link, leaderboard, pay) for
+ *           members; a link to the sales careers page for everyone else.
+ * UPDATED : 2026-11-18_0125 UTC — merged with partner-v7: the v7 rate panel stays; Sales Force members also see their card.
+ * UPDATED : 2026-11-24_1700 UTC — a path label under the greeting (Path 1 · Referral partner / Path 2 · Sales Force · rank);
+ *           direct-sale commissions say "of our profit" (they always were — the old line said "of the job price").
  */
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { roadmapFor, PARTNER_LADDER, PARTNER_PROGRAM, SALES_DRAW, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
+import { SALES_RANKS, BRAND, DIRECT_BONUS, roadmapFor, PARTNER_LADDER, PARTNER_PROGRAM, SALES_DRAW, PARTNER_TIERS, REFERRAL_LADDER, referralRange, SALES_TICKET, SERVICES, ladderTable, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_STATUSES, TICKET_TIMING, getService, money, moneyCents, ticketStage, tierPct, type PartnerTier } from "@handled/core";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/notify";
 import { leadPayStatus, partnerFor, partnerLink, partnerStats, payoutsReady } from "@/lib/partners";
 import { Badge, Empty, Stat } from "@/components/ui";
-import { CopyButton, PartnerPayoutButton, ReferralTicket, SalesTicketForm } from "@/components/PartnerUI";
+import { AgreementSign, CopyButton, PartnerPayoutButton, ReferralTicket, SalesTicketForm } from "@/components/PartnerUI";
 import { ticketsFor } from "@/lib/sales-tickets";
+import { salesForceView } from "@/lib/sales-force";
+import { SalesForceCard } from "@/components/SalesForceCard";
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
 const SALE_STATUS: Record<string, [string, "green" | "amber" | "red" | "brand" | "slate"]> = {
@@ -47,7 +57,8 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     </div></div>
   );
   const db = adminClient();
-  const [lead, stats, ready, sales, { data: customers }, { data: comms }] = await Promise.all([
+  const [salesForce, lead, stats, ready, sales, { data: customers }, { data: comms }] = await Promise.all([
+    salesForceView(partner.id).catch(() => null),
     leadPayStatus(partner.id).catch(() => null),
     partnerStats(partner.id),
     payoutsReady(partner),
@@ -65,11 +76,19 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     const x = byCustomer.get(k) ?? { completed: 0, paid: 0 };
     if (c.status !== "void") x.completed++; if (c.status === "paid") x.paid++; byCustomer.set(k, x);
   }
-  const rateOf = (c: Comm) => c.tier === "self" ? "10% back on your own first project · Post & earn" : c.tier === "direct" ? `${pct(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our profit · Direct sale` : c.tier && c.tier !== "legacy" ? `${pct(Number(c.rate ?? PARTNER_TIERS[c.tier as PartnerTier]?.rate ?? 0))} of the job price · Referral` : "10% of our fee (before Oct 28)";
+  const rateOf = (c: Comm) => c.tier === "self" ? "10% back on your own first project · Post & earn" : c.tier === "sale" ? `${pct(Number(c.rate ?? PARTNER_LADDER.baseRate))} of our profit · Direct sale` : c.tier === "direct" ? `${pct(Number(c.rate ?? 0.1))} of our profit · Direct sale` : c.tier && c.tier !== "legacy" ? `${pct(Number(c.rate ?? PARTNER_TIERS[c.tier as PartnerTier]?.rate ?? 0))} of the job price · Referral` : "10% of our fee (before Oct 28)";
   const tone = (st: string) => (st === "paid" || st === "completed" ? "green" : st === "booked" ? "brand" : st === "closed" ? "red" : "amber") as "green" | "brand" | "red" | "amber";
   const mask = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a, b, c) => `${a}${"•".repeat(Math.min(6, b.length))}${c}`);
   return (
     <div className="wrap space-y-6 py-10">
+      {/* the current Referral Partner Agreement: partners who joined under earlier terms sign it here */}
+      {(partner as { terms_version?: string | null }).terms_version !== PARTNER_PROGRAM.termsVersion && (
+        <div className="card space-y-2 border-2 border-brand/40">
+          <div className="font-bold">Sign the Referral Partner Agreement</div>
+          <p className="text-sm text-ink-soft">Our partner terms are now one signable agreement: the same rates, written out — business and property-manager referrals, exactly what's commissionable, how credit is checked and when you're paid. <a href="/terms/referral-partner-agreement" target="_blank" className="font-semibold text-brand underline">Read it</a>, then sign below.</p>
+          <AgreementSign defaultName={partner.name} />
+        </div>
+      )}
       {/* payouts first: until Stripe is set up we can't pay them (pros are paid with their job payouts) */}
       {!ready && q.connect !== "done" && (
         <div id="payouts-first" className="card flex flex-wrap items-center justify-between gap-3 border-2 border-amber-300 bg-amber-50">
@@ -82,35 +101,43 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       )}
       <div>
         <h1 className="text-2xl font-bold">Hi {partner.name.split(" ")[0]}<span className="pro:hidden"> 👋</span></h1>
-        <p className="text-sm text-ink-soft">Two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of the job price (rising to {pct(REFERRAL_LADDER.topRate)}), or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} of our profit (rising to {pct(PARTNER_LADDER.topRate)}).{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
+        <p className="mt-1"><span className="rounded-full bg-brand-tint px-2.5 py-0.5 text-xs font-semibold text-brand-deep">{salesForce ? `Path 2 · Sales Force · ${SALES_RANKS[salesForce.rank].title}` : "Path 1 · Referral partner"}</span></p>
+        <p className="text-sm text-ink-soft">One program, two ways to earn, paid weekly once each job is past our {PARTNER_PROGRAM.holdDays}-day guarantee: <b>refer</b> customers and earn {pct(stats.referral.rate)} of our profit on the job, or <b>sell</b> the job yourself and earn {pct(stats.level.rate)} (your rate + 5 points). Both rise as you grow.{partner.status !== "active" && <b className="text-rose-700"> Your partner account is paused — contact us.</b>}</p>
       </div>
       <Link href="/partner/grow" className="card flex flex-wrap items-center justify-between gap-3 border-t-4 border-t-brand hover:border-brand">
         <span><span className="block font-bold">Grow your partner business →</span><span className="text-sm text-ink-soft">Your roadmap: {roadmapFor(partner.kind).name}. Goals tracked from your real numbers, what to do next, and the services to sell.</span></span>
         <span className="btn-primary">See your roadmap</span>
       </Link>
+      {salesForce ? <SalesForceCard v={salesForce} ladderRate={stats.level.rate} />
+        : <Link href="/careers/sales" className="card flex flex-wrap items-center justify-between gap-3 hover:border-brand"><span><span className="block font-bold">Want to sell for a living?</span><span className="text-sm text-ink-soft">The Handled Sales Force: start as an Associate AE and grow to VP of Sales, on the money you make Handled.</span></span><span className="btn-ghost">See the path</span></Link>}
       <div className="grid gap-3 sm:grid-cols-2">
-        <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 1</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of the job price today, up to {pct(REFERRAL_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
-        <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Way 2</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of our profit today, up to {pct(PARTNER_LADDER.topRate)}.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
+        <a href="#referrals" className="card border-t-4 border-t-gold hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Path 1 · Refer</div><div className="font-bold">Referrals</div><p className="mt-1 text-sm text-ink-soft">Send us the customer on a referral ticket, your link or your code. We do the selling. {pct(stats.referral.rate)} of our profit today, up to {pct(REFERRAL_LADDER.topRate)} (paid by us — the pro's pay is never cut).</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.referral)}</b></p></a>
+        <a href="#direct" className="card border-t-4 border-t-brand hover:border-brand"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Path 2 · Sell</div><div className="font-bold">Direct sales</div><p className="mt-1 text-sm text-ink-soft">Sell the service yourself on a sales ticket; the customer pays on the spot or from our text. {pct(stats.level.rate)} of our profit today (your rate + 5 points), up to {pct(PARTNER_LADDER.topRate)} — and it counts 1.5× toward your next raise.</p><p className="mt-2 text-sm">Earned so far: <b>{money(stats.bySource.direct)}</b></p></a>
       </div>
 
+      {/* partner-v7: one ladder — what built it (referrals 1×, direct sales 1.5×), the rate now and what gets the next raise */}
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-bold">Your direct-sales level: {stats.level.level} · {pct(stats.level.rate)} of profit</h2>
-          <span className="text-sm text-ink-soft">Level credit: <b>{money(stats.level.profit)}</b> · {stats.level.jobs} job credit{stats.level.jobs === 1 ? "" : "s"}</span>
+          <h2 className="font-bold">Your rate: {pct(stats.referral.rate)} on referrals · {pct(stats.level.rate)} on direct sales</h2>
+          <span className="text-sm text-ink-soft">Level {stats.referral.level} of {ladderTable(REFERRAL_LADDER).length - 1}</span>
         </div>
-        {stats.level.next ? (() => {
-          const n = stats.level.next!, from = ladderTable()[stats.level.level].profit;
-          const done = Math.max(0, Math.min(100, ((stats.level.profit - from) / Math.max(1, n.profit - from)) * 100));
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl bg-paper p-3"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">From referrals (1×)</div><div className="text-xl font-bold">{money(stats.credit.referralProfit)}</div><div className="text-xs text-ink-soft">profit made for {BRAND.name}</div></div>
+          <div className="rounded-xl bg-paper p-3"><div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">From direct sales ({PARTNER_LADDER.directCredit}×)</div><div className="text-xl font-bold">{money(stats.credit.directProfit)}</div><div className="text-xs text-ink-soft">counts as {money(Math.round(stats.credit.directProfit * PARTNER_LADDER.directCredit * 100) / 100)}</div></div>
+          <div className="rounded-xl border-2 border-brand/40 p-3"><div className="text-xs font-semibold uppercase tracking-wide text-brand">Total credit</div><div className="text-xl font-extrabold">{money(stats.credit.total)}</div><div className="text-xs text-ink-soft">what sets your rate</div></div>
+        </div>
+        {stats.referral.next ? (() => {
+          const n = stats.referral.next!, from = ladderTable(REFERRAL_LADDER)[stats.referral.level].profit;
+          const done = Math.max(0, Math.min(100, ((stats.credit.total - from) / Math.max(1, n.profit - from)) * 100));
           return (<>
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-brand" style={{ width: `${done}%` }} /></div>
-            <p className="mt-2 text-sm">Next raise to <b>{pct(n.rate)}</b>: {money(n.profitToGo)} more credit{n.jobsToGo !== null && n.jobsToGo > 0 ? <> — or {n.jobsToGo} more job credit{n.jobsToGo === 1 ? "" : "s"}</> : null}.</p>
+            <p className="mt-2 text-sm">Next raise to <b>{pct(n.rate)}</b> on referrals and <b>{pct(n.rate + DIRECT_BONUS)}</b> on direct sales at {money(n.profit)} of credit: <b>{money(n.profitToGo)} to go</b> — about {money(n.profitToGo)} of profit from referrals, or {money(Math.ceil((n.profitToGo / PARTNER_LADDER.directCredit) * 100) / 100)} from direct sales.</p>
           </>);
         })() : <p className="mt-2 text-sm font-semibold text-brand-dark">You&apos;re at the top rate. Thank you for everything you&apos;ve built with us.</p>}
-        <p className="mt-2 text-xs text-ink-soft">Both ways build your level: profit from your direct sales counts {PARTNER_LADDER.directCredit}×, from your referrals {PARTNER_LADDER.referralCredit}×. Profit = the job price minus what the pro is paid and any refunds. Your level credit sets both rates: direct sales on this ladder, referrals on the referral ladder below. Levels never go down.</p>
+        <p className="mt-2 text-xs text-ink-soft">Credit = the profit your completed jobs make {BRAND.name}: the job price minus what the pro is paid and any refunds. Direct sales count {PARTNER_LADDER.directCredit}×, referrals {PARTNER_LADDER.referralCredit}×. Each job keeps the rate it was booked at.</p>
         <details className="mt-3 text-sm"><summary className="cursor-pointer text-ink-soft">See the whole ladder</summary>
-          <p className="mt-2 text-xs text-ink-soft">Every level is +1 point. Every {PARTNER_LADDER.jobsPerStep} job credits also moves you up one level, up to {pct(PARTNER_LADDER.jobsCapRate)}.</p>
-          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">{ladderTable().map((r) => (
-            <div key={r.level} className={`flex justify-between ${r.level === stats.level.level ? "font-bold text-brand-dark" : ""}`}><span>{pct(r.rate)}</span><span className="tabular-nums">{money(r.profit)}</span></div>
+          <div className="mt-2 grid grid-cols-1 gap-y-1 sm:grid-cols-2 sm:gap-x-8">{ladderTable(REFERRAL_LADDER).map((r) => (
+            <div key={r.level} className={`flex justify-between gap-3 ${r.level === stats.referral.level ? "font-bold text-brand-dark" : ""}`}><span>{pct(r.rate)} referral · {pct(r.rate + DIRECT_BONUS)} direct</span><span className="tabular-nums">{money(r.profit)}</span></div>
           ))}</div>
         </details>
       </section>
@@ -118,12 +145,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       <h2 id="referrals" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 1 · Referrals</h2>
       <div className="card border-t-4 border-t-gold">
         <div className="flex flex-wrap items-baseline justify-between gap-2"><div><span className="text-3xl font-extrabold">{pct(stats.referral.rate)}</span> <span className="font-semibold">of every referred job</span></div><span className="text-sm text-ink-soft">{referralRange()} · the same on every service</span></div>
-        <p className="mt-1 text-sm text-ink-soft">Your referral rate is locked on each job when it&apos;s booked, for every job from the customer for {PARTNER_PROGRAM.months} months (half is paid by the pro, half by us).{stats.referral.next ? <> Next raise to <b>{pct(stats.referral.next.rate)}</b>: {money(stats.referral.next.profitToGo)} more level credit.</> : " You're at the top referral rate."}</p>
-        <details className="mt-2 text-sm"><summary className="cursor-pointer text-ink-soft">See the referral ladder</summary>
-          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">{ladderTable(REFERRAL_LADDER).map((r) => (
-            <div key={r.level} className={`flex justify-between ${r.level === stats.referral.level ? "font-bold text-brand-dark" : ""}`}><span>{pct(r.rate)}</span><span className="tabular-nums">{money(r.profit)}</span></div>
-          ))}</div>
-        </details>
+        <p className="mt-1 text-sm text-ink-soft">Your rate is locked on each job when it&apos;s booked, for every job from the customer for {PARTNER_PROGRAM.months} months. It's a share of our profit on the job, paid by us.</p>
       </div>
       {q.connect === "done" && <div className="card border-brand bg-brand-tint text-sm">{ready ? "Payouts are set up. You'll be paid every Monday." : "Thanks — Stripe is still checking your details. This page shows when payouts are ready."}</div>}
 
@@ -174,7 +196,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
       <h2 id="direct" className="scroll-mt-20 pt-2 text-xl font-extrabold">Way 2 · Direct sales</h2>
       <section className="card">
         <h3 className="font-bold">Write a sales ticket</h3>
-        <p className="mb-3 mt-1 text-sm text-ink-soft">Sell any Handled service. The ticket holds everything needed to close: the service and its sizes, {SALES_TICKET.minPhotos}–{SALES_TICKET.maxPhotos} photos for on-site work (none for remote services like websites), the customer, when they need it, and the price you showed. We text them the pay link, or they pay right now on your phone. Once paid, the job goes to the job board; you&apos;re paid {pct(stats.level.rate)} of our profit when it&apos;s completed. Their repeat visits for {PARTNER_PROGRAM.months} months pay you the same way.</p>
+        <p className="mb-3 mt-1 text-sm text-ink-soft">Sell any Handled service. The ticket holds everything needed to close: the service and its sizes, {SALES_TICKET.minPhotos}–{SALES_TICKET.maxPhotos} photos for on-site work (none for remote services like websites), the customer, when they need it, and the price you showed. We text them the pay link, or they pay right now on your phone. Once paid, the job goes to the job board; you&apos;re paid {pct(stats.level.rate)} of our profit on it (rate locked when it&apos;s booked) once it&apos;s completed. Their repeat visits for {PARTNER_PROGRAM.months} months pay you the same way.</p>
         <SalesTicketForm services={services} minPhotos={SALES_TICKET.minPhotos} maxPhotos={SALES_TICKET.maxPhotos} repCode={partner.code} />
       </section>
 

@@ -11,14 +11,14 @@ import Link from "next/link";
 import { ALL_CONTRACTS, AUDIENCE_LABEL, localized, type Contract } from "@/lib/contracts";
 import { getLocale } from "@/lib/locale";
 
-const AUDIENCE_ES: Record<Contract["audience"], string> = { customer: "Clientes", business: "Empresas", pro: "Profesionales (contratistas)" };
+const AUDIENCE_ES: Record<Contract["audience"], string> = { customer: "Clientes", business: "Empresas", pro: "Profesionales (contratistas)", partner: "Socios de referidos" };
 
 export const metadata = { title: "Terms & agreements" };
 
 export default async function TermsIndex({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
   const es = ((await searchParams).lang ?? (await getLocale())) === "es";
   const q = es ? "?lang=es" : "";
-  const groups: Contract["audience"][] = ["customer", "business", "pro"];
+  const groups: Contract["audience"][] = ["customer", "business", "partner", "pro"];
   return (
     <div className="wrap max-w-4xl py-14 pro:py-10">
       <h1 className="text-3xl font-extrabold tracking-tight">{es ? "Términos y acuerdos" : "Terms & agreements"}</h1>

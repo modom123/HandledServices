@@ -4,6 +4,7 @@
  * CREATED : 2026-10-29_0715 UTC
  * PURPOSE : Pro mode → My info: status and what's left before approval, profile, documents and expiry dates
  *           (/api/pro/info). Steps open the web setup checklist; orientation opens Welcome to Handled. EN / ES.
+ * UPDATED : 2026-11-19_1850 UTC — "Change my work area & ZIP codes" opens the area form.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
@@ -51,6 +52,7 @@ export default function MyInfo() {
         {p.pro_no ? row(es ? "ID de profesional" : "Pro ID", p.pro_no) : null}
         {row(es ? "Oficios" : "Trades", p.trades.join(", "))}
         {row(es ? "Zona" : "Area", p.base_zip ? `${p.base_city ?? ""} ${p.base_zip} · ${p.radius} mi` : null)}
+        <Pressable onPress={() => Linking.openURL(`${API_URL}/pro/onboarding#step-area`)}><Text style={[s.b, { fontSize: 14, color: C.brand, textAlign: "right", paddingTop: 6 }]}>{p.base_zip ? (es ? "Cambiar mi zona de trabajo y códigos postales →" : "Change my work area & ZIP codes →") : (es ? "Agregar mi código postal (obligatorio) →" : "Add my ZIP code (required) →")}</Text></Pressable>
       </Card>
       <Card>
         <Text style={s.b}>{es ? "Documentos y vencimientos" : "Documents and expiry dates"}</Text>

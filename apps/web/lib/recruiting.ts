@@ -30,9 +30,22 @@
  * UPDATED : 2026-11-10_1330 UTC — activation sends the full "Welcome to the Handled Network" email (core proWelcomeEmail):
  *           the services they're cleared for, how the portal works, pay, tiers, rewards, referrals, Partner Program, help and
  *           the PDF guide. The push notification stays short.
+ * UPDATED : 2026-11-12_2330 UTC — decideDocument: two ways to verify insurance (automatic AI check, or Handled review by
+ *           policy or insurer); staff can confirm or correct the expiry date; a verify with no date uses the AI's reading.
+ * UPDATED : 2026-11-17_2045 UTC — pros in all 50 states: the new pro's state is set from their first ZIP.
+ * UPDATED : 2026-11-17_2200 UTC — every application triggers the Legal & Compliance team (legalOnProApplication).
+ * UPDATED : 2026-11-19_1745 UTC — decideDocument: a follow-up error after the decision is saved no longer makes Verify fail.
+ * UPDATED : 2026-11-19_1910 UTC — activatePro: admins can activate anyway with a reason (logged with what was still missing).
+ * UPDATED : 2026-11-24_1900 UTC — activating a pro refreshes the website's pro chain right away (refreshShowcase).
+ * UPDATED : 2026-11-24_2000 UTC — emailCandidate(): a personal email from a candidate's file (optionally with what's left in
+ *           setup + a one-click sign-in link), from the company sender or a Front Office mailbox (replies land there);
+ *           candidateSenders() lists the choices. Logged on the candidate's history.
+ * UPDATED : 2026-11-24_2100 UTC — emailCandidate can create a Zoom interview (o.zoom: start + minutes) on the sending office's Zoom and
+ *           put the link in the email ({{zoom}}); falls back to the office's personal room link.
  */
 import "server-only";
-import { BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
+import { legalOnProApplication } from "./legal-intake";
+import { stateForZip, BRAND, COVERAGE_KINDS, PRO_ROADMAP, STAGE_LABEL, UPLOAD_REMINDER_MAX, autoInviteDecision, mergeRecruiting, missingUploads, onboardingChecklist, pipelineStage, reminderDue, roadmapText, shouldDrop, uploadReminderDue, type Contractor, type RecruitingSettings, PRO_POLICY_DEFAULTS, proWelcomeEmail } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { localeOf, notify } from "./push";
@@ -123,6 +136,8 @@ function stepsList(c: Contractor, lang = "en") {
 export async function onApplication(appId: string) {
   const { data: app } = await db().from("contractor_applications").select("*").eq("id", appId).single();
   if (!app) return;
+  // Legal & Compliance team: license / insurance / classification / new-state tasks for this sign-up (never throws)
+  await legalOnProApplication(appId);
   const settings = await getRecruitingSettings();
   if (settings.instantSignup && settings.autoInvite) {
     const inv = await inviteApplicant(appId, "instant sign-up", "account opened at sign-up");
@@ -178,6 +193,8 @@ export async function inviteApplicant(appId: string, actor: string, why = "") {
     business_name: app.business_name, contact_name: app.contact_name, email: String(app.email).toLowerCase(), phone: app.phone,
     trades: app.trades, specialties: app.specialties ?? [], service_zips: zips, license_number: app.license_number, status: "vetting",
     daily_capacity: Math.max(2, Math.min(10, (app.crew_size ?? 1) * 2)), application_id: app.id, invited_at: now, dropped_at: null,
+    // all 50 states (2026-11-17): their state from their first ZIP (they can change it in setup)
+    ...(stateForZip(zips.find((z: string) => /^\d{5}$/.test(z)) ?? null) ? { base_state: stateForZip(zips.find((z: string) => /^\d{5}$/.test(z)) ?? null) } : {}),
   }, { onConflict: "email" }).select("*").single();
   if (error || !pro) return { ok: false, error: error?.message ?? "Couldn't create the pro" };
   await db().from("contractor_applications").update({ status: "approved", stage: "invited", invited_at: now, decided_by: actor, contractor_id: pro.id, last_contact_at: now }).eq("id", appId);
@@ -284,15 +301,21 @@ export async function maybeActivate(contractorId: string) {
 }
 
 /** Activate a pro whose setup is complete. Only Handled staff (Hub → Pros → Activate) call this. */
-export async function activatePro(contractorId: string, actor: string) {
+export async function activatePro(contractorId: string, actor: string, o: { overrideReason?: string | null } = {}) {
   const { data: c } = await db().from("contractors").select("*").eq("id", contractorId).single();
   if (!c) throw new Error("No such pro");
   if (c.status === "approved") return true;
   const { steps, complete } = onboardingChecklist(c as never);
-  if (!complete) throw new Error(`Setup incomplete: ${steps.filter((x) => !x.done).map((x) => x.label).join(", ")}`);
+  const missing = steps.filter((x) => !x.done).map((x) => x.label);
+  // an admin can activate anyway, with a reason (logged). Dispatch still checks insurance, licenses, coverage and the
+  // background check on every job, so a pro activated this way only gets the jobs they're actually cleared for.
+  if (!complete && !o.overrideReason) throw new Error(`Setup incomplete: ${missing.join(", ")}`);
+  if (!complete) await logRecruiting("activated_override", { contractorId }, `${o.overrideReason} · still missing: ${missing.join(", ")}`, actor);
   const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
+  // the website's "Handled Network" chain shows the new pro right away
+  await (await import("./showcase")).refreshShowcase().catch(() => {});
   await db().from("ops_alerts").update({ resolved: true }).eq("contractor_id", contractorId).eq("kind", "approve_pro").eq("resolved", false);
   // the full welcome: what they told us and the services they're cleared for, how the portal works, pay, tiers, rewards,
   // referrals and the Partner Program (core pro-welcome.ts), with the PDF guide (docs/HANDLED_PRO_NETWORK_WELCOME_*)
@@ -523,13 +546,28 @@ export async function revivePro(contractorId: string, actor: string, note?: stri
  * license_expires; trade coverage sets coverage[kind]; a background report clears the check.
  * Then setup is re-checked (background check / auto-activate).
  */
-export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null) {
+/**
+ * Verify or reject a document. Two ways to verify insurance: the automatic AI check (actor "AI check") or Handled
+ * review — staff open the policy, or confirm it with the insurer / agent (`method`), and can confirm or correct the
+ * expiry date (`expiresOn`; it sets insured_until / coverage). A verify with no expiry anywhere uses the AI's reading.
+ */
+export async function decideDocument(contractorId: string, docId: string, decision: "verify" | "reject", actor: string, notes?: string | null, o: { expiresOn?: string | null; method?: "document" | "insurer" | "auto" | null; handledListedAs?: "additional_insured" | "certificate_holder" | null } = {}) {
   const { data: doc } = await db().from("contractor_documents").select("*").eq("id", docId).eq("contractor_id", contractorId).single();
   if (!doc) throw new Error("No such document");
   const now = new Date().toISOString();
-  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: notes ?? doc.notes }).eq("id", docId);
+  const aiExpiry = (doc.ai_check as { expires_on?: string } | null)?.expires_on;
+  if (decision === "verify") doc.expires_on = o.expiresOn || doc.expires_on || (aiExpiry && /^\d{4}-\d{2}-\d{2}$/.test(aiExpiry) ? aiExpiry : null);
+  const how = o.method === "insurer" ? "confirmed with the insurer / agent" : o.method === "document" ? "reviewed the policy" : o.method === "auto" ? "automatic check" : null;
+  const note = [notes ?? doc.notes, decision === "verify" && how ? `Verified: ${how}` : null].filter(Boolean).join(" · ") || null;
+  await db().from("contractor_documents").update({ status: decision === "verify" ? "verified" : "rejected", verified_by: actor, verified_at: now, notes: note, ...(decision === "verify" ? { expires_on: doc.expires_on } : {}) }).eq("id", docId);
   if (decision === "verify") {
     if (doc.kind === "coi" && doc.expires_on) await db().from("contractors").update({ insured_until: doc.expires_on }).eq("id", contractorId);
+    // Handled as ADDITIONAL INSURED (not only certificate holder) → priority for jobs that need insurance (core ADDITIONAL_INSURED_BOOST)
+    if (doc.kind === "coi") {
+      const named = o.handledListedAs ? o.handledListedAs === "additional_insured" : Boolean((doc.ai_check as { additional_insured?: boolean } | null)?.additional_insured);
+      const { error } = await db().from("contractors").update({ handled_additional_insured: named }).eq("id", contractorId);
+      if (error && /handled_additional_insured/.test(error.message)) await raiseAlert("setup", "warn", "Run ADD_ADDITIONAL_INSURED_PRIORITY_2026-11-12_2355.sql", "A COI was verified, but the additional-insured job priority can't be saved until that SQL is run.").catch(() => {});
+    }
     if (doc.kind === "license" && doc.expires_on) await db().from("contractors").update({ license_expires: doc.expires_on }).eq("id", contractorId);
     if ((COVERAGE_KINDS as readonly string[]).includes(doc.kind) && doc.expires_on) {
       const { data: c } = await db().from("contractors").select("coverage").eq("id", contractorId).single();
@@ -545,6 +583,81 @@ export async function decideDocument(contractorId: string, docId: string, decisi
         subject: "Vuelva a subir un documento", text: `Su ${docEs} no fue aceptado${notes ? `: ${notes}` : ""}.\n\nSuba uno nuevo aquí: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` }, title: "Please re-upload a document", body: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.`, data: { type: "onboarding" },
       email: { to: c.email, subject: "Please re-upload a document", text: `Your ${String(doc.kind).toUpperCase()} wasn't accepted${notes ? `: ${notes}` : ""}.\n\nUpload a new one here: ${await signInUrl(c.email)}\n\n— ${BRAND.name}` } });
   }
-  await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor);
+  // the decision is saved; a follow-up hiccup (background-check order, alert) must not make Verify look like it failed
+  await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor).catch((e) => console.error("[decideDocument] after step", e));
   return { document: doc.kind, decision };
+}
+
+// ─── emailing a candidate from their file (2026-11-24) ───────────────────────
+
+/** Who a candidate email can come from: the company sender, or a Front Office mailbox that's connected. */
+export async function candidateSenders(): Promise<{ id: string; label: string }[]> {
+  const { OFFICES, officeMail, officeNetMail } = await import("./offices");
+  const out: { id: string; label: string }[] = [{ id: "company", label: `${BRAND.name} Recruiting (company email)` }];
+  for (const o of OFFICES) {
+    const net = await officeNetMail(o).catch(() => null), own = await officeMail(o).catch(() => null);
+    if (net) out.push({ id: `${o.slug}:net`, label: `${o.name} (${net.user})` });
+    if (own) out.push({ id: `${o.slug}:office`, label: `${o.name} (${own.user})` });
+  }
+  return out;
+}
+
+/**
+ * A personal email to a candidate from their file. With `withSteps` and a pro account, it adds what's left in their
+ * setup and a one-click sign-in link straight to it (the same as Nudge). From a Front Office mailbox, replies land in
+ * that office's inbox. Logged on the candidate's history.
+ */
+export async function emailCandidate(o: { applicationId?: string | null; contractorId?: string | null; subject: string; body: string; withSteps: boolean; from: string; zoom?: { start: string; minutes: number } | null }, actor: string) {
+  const app = o.applicationId ? (await db().from("contractor_applications").select("*").eq("id", o.applicationId).maybeSingle()).data : null;
+  const cid = o.contractorId ?? app?.contractor_id ?? null;
+  const pro = cid ? (await db().from("contractors").select("*").eq("id", cid).maybeSingle()).data
+    : app?.email ? (await db().from("contractors").select("*").eq("email", String(app.email).toLowerCase()).maybeSingle()).data : null;
+  const to = String(pro?.email ?? app?.email ?? "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error("This candidate has no email address on file");
+  let text = o.body.trim();
+  if (o.withSteps && pro && pro.status !== "approved") {
+    const left = onboardingChecklist(pro as never).steps.filter((s) => !s.done);
+    const link = await signInUrl(pro.email);
+    if (left.length) text += `\n\nWhat's left before you get jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}`;
+    text += `\n\nPick up where you left off (one click, no password): ${link}`;
+  }
+  // interview invite on Zoom: a meeting on the sending office's Zoom (else Cecilia's, the recruiting office), or the
+  // office's personal room link when the Zoom app isn't connected; the link replaces {{zoom}} in the message
+  let zoomNote = "";
+  if (o.zoom) {
+    const { OFFICES, officeBySlug, officeZoomLink, officeZoomUser } = await import("./offices");
+    const { createZoomMeeting, zoomReady } = await import("./zoom");
+    const off = officeBySlug(o.from.split(":")[0]) ?? OFFICES.find((x) => x.tools === "recruiting") ?? OFFICES[0];
+    const when = new Date(o.zoom.start).toLocaleString("en-US", { timeZone: "America/Detroit", weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    const who = String(app?.contact_name ?? pro?.contact_name ?? "candidate");
+    let join: string | null = null, pass: string | null = null;
+    if (zoomReady() && officeZoomUser(off)) {
+      const m = await createZoomMeeting(officeZoomUser(off)!, { topic: `${BRAND.name} interview: ${who}`, start: o.zoom.start, minutes: o.zoom.minutes });
+      join = m.join_url; pass = m.password;
+    } else join = officeZoomLink(off);
+    if (!join) throw new Error(`Zoom isn't connected for ${off.name}'s office: add the Zoom app settings, or OFFICE_${off.key}_ZOOM_LINK (a personal room link), in Vercel`);
+    const block = `When: ${when} (${o.zoom.minutes} minutes)\nJoin on Zoom: ${join}${pass ? `\nPasscode: ${pass}` : ""}`;
+    text = text.includes("{{zoom}}") ? text.replace("{{zoom}}", block) : `${text}\n\n${block}`;
+    zoomNote = ` · Zoom ${when}`;
+  }
+  text = text.replace("{{zoom}}", "");
+  const [office, box] = o.from.split(":");
+  if (o.from !== "company") {
+    const { officeBySlug, officeMail, officeNetMail, officeSignature } = await import("./offices");
+    const off = officeBySlug(office);
+    const acct = off ? await (box === "net" ? officeNetMail(off) : officeMail(off)) : null;
+    if (!off || !acct) throw new Error("That mailbox isn't connected");
+    const { sendMail, saveToSent } = await import("./mailbox");
+    const full = `${text}${officeSignature(off)}`;
+    const id = await sendMail({ to, subject: o.subject, text: full, fromName: off.name }, acct);
+    await saveToSent({ to, subject: o.subject, text: full, fromName: off.name, messageId: id }, acct).catch(() => {});
+  } else {
+    const ok = await sendEmail(to, o.subject, `${text}\n\n— ${BRAND.name} Recruiting\n${BRAND.supportPhone} · ${BRAND.supportEmail}`);
+    if (!ok) throw new Error("Email isn't set up, or the send failed");
+  }
+  const now = new Date().toISOString();
+  if (app) await db().from("contractor_applications").update({ last_contact_at: now }).eq("id", app.id);
+  if (pro && o.withSteps) await db().from("contractors").update({ last_reminder_at: now }).eq("id", pro.id);
+  await logRecruiting("emailed", { applicationId: app?.id ?? null, contractorId: pro?.id ?? null }, `“${o.subject}” to ${to}${o.from !== "company" ? ` from ${o.from}` : ""}${o.withSteps ? " (with setup steps + sign-in link)" : ""}${zoomNote}`, actor);
+  return { to };
 }

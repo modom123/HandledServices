@@ -17,6 +17,9 @@
  * UPDATED : 2026-10-06_0606 UTC — cleaning push: "House cleaning in Metro Detroit" (customers, English & Spanish) and
  *           "Office & turnover cleaning" (business leads) templates.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-19_1540 UTC — {{post_url}} (the Post-your-project page, our own leads instead of buying them) and the "Got a project? Post it" template.
+ * UPDATED : 2026-11-24_2330 UTC — business-leads audience includes leads in the outreach sequence (it skipped them, so the
+ *           audience was nearly empty); EMAIL_LIMITS.catchUpMax and outreachGapDays.
  */
 import { BRAND } from "./brand.ts";
 
@@ -28,7 +31,7 @@ export const EMAIL_AUDIENCES: Record<EmailAudience, { label: string; why: string
   lapsed_customers: { label: "Lapsed customers (no booking in 90+ days)", why: "you booked a service with us", whyEs: "reservó un servicio con nosotros" },
   business_accounts: { label: "Business account members", why: "your company has a business account with us", whyEs: "su empresa tiene una cuenta empresarial con nosotros" },
   biz_leads: { label: "Business leads (not yet customers)", why: "we reached out about services for your business", whyEs: "le escribimos sobre servicios para su empresa",
-    note: "Skips leads already in an email sequence, converted, unsubscribed, bounced or marked do-not-contact." },
+    note: "Every lead with an email who hasn't replied, converted, unsubscribed, bounced or said no, including leads in the outreach sequence (nobody gets a campaign within 2 days of an outreach email)." },
   pros: { label: "Approved pros (announcements)", why: "you're a pro on our network", whyEs: "es un profesional de nuestra red", note: "For network news only: never pressure to take jobs." },
   custom: { label: "Pasted list", why: "you asked to hear from us", whyEs: "pidió recibir noticias nuestras", note: "Only people who gave you permission to email them. Never bought lists." },
 };
@@ -40,6 +43,10 @@ export const EMAIL_LIMITS = {
   /** Sent per 10-minute run, so a campaign trickles out instead of bursting. */
   perRun: 25,
   maxPerRun: 60,
+  /** When the 10-minute job runs late, a run catches up (perRun per 10 minutes missed), up to this many. */
+  catchUpMax: 150,
+  /** A business lead never gets a campaign within this many days of an outreach email (they wait, not skipped). */
+  outreachGapDays: 2,
   /** One marketing campaign per person per this many days, across all campaigns. */
   minDaysBetween: 7,
 } as const;
@@ -95,6 +102,35 @@ You can now book **[service name]** on {{brand}}: an upfront price in about a mi
 [See the price]({{book_url}})
 
 The {{brand}} team`,
+  },
+  {
+    key: "post_project", name: "Got a project? Post it (our own leads)", audience: "customers",
+    subject: "Got a project on your list?", preheader: "Describe it in a minute and see a price right away.",
+    body: `Hi {{first_name|there}},
+
+Fence, deck, a room to paint, a garage to clear out? Tell us about it in a minute and you'll see a price estimate right away. Most projects up to $2,500 can be booked on the spot, no call or site visit.
+
+• Background-checked, vetted pros
+• An exact price before anything is booked
+• Photos when it's done, and we make it right if it isn't
+
+[Post my project]({{post_url}})
+
+Know someone with a project? Send them the same link.
+
+The {{brand}} team`,
+    subject_es: "¿Tiene un proyecto pendiente?",
+    body_es: `Hola {{first_name|there}},
+
+¿Una cerca, una terraza, un cuarto que pintar, un garaje que vaciar? Cuéntenos en un minuto y verá un precio estimado al instante. La mayoría de los proyectos de hasta $2,500 se reservan en el momento, sin llamada ni visita.
+
+• Profesionales verificados y con antecedentes revisados
+• Un precio exacto antes de reservar
+• Fotos al terminar, y lo arreglamos si algo no queda bien
+
+[Publicar mi proyecto]({{post_url}})
+
+El equipo de {{brand}}`,
   },
   {
     key: "business", name: "Business account (property managers & offices)", audience: "business_accounts",
@@ -184,7 +220,7 @@ export function mergeTags(text: string, vars: MergeVars): string {
 
 /** Tags a body uses that we don't fill (typos like {{firstname}}). */
 export function unknownTags(text: string): string[] {
-  const known = new Set(["first_name", "company", "city", "email", "book_url", "site_url", "brand", "guarantee_days"]);
+  const known = new Set(["first_name", "company", "city", "email", "book_url", "post_url", "site_url", "brand", "guarantee_days"]);
   return [...new Set([...text.matchAll(/\{\{\s*([a-z_]+)/gi)].map((m) => m[1]).filter((k) => !known.has(k)))];
 }
 

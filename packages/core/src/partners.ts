@@ -25,10 +25,23 @@
  *           the Partner Program and gets FIRST_PROJECT_REWARD back on their OWN first project — 10% of the price, up to
  *           $250, paid by Handled alone (referral_customers.source 'self', partner_commissions.tier 'self'). The one
  *           exception to "referring yourself doesn't count".
+ * UPDATED : 2026-11-18_0125 UTC — the Handled Sales Force term: a member's direct sale pays the higher of the v7 rate (+ points) and
+ *           their rank share, plus book share, team shares and bonuses (only ever adds to the program's pay).
  * UPDATED : 2026-11-10_0400 UTC — partner-v5: lead pay — $10 per lead as a draw against that lead's commission, unlocked
  *           after 10 leads and one paid-out sale (SALES_DRAW, drawUnlocked, drawRecovery).
+ * UPDATED : 2026-11-17_2000 UTC — partner-v7: ONE program (owner) on the old Field Sales formula, starting at 15%. Every
+ *           commission is a share of HANDLED'S PROFIT on the job (price − pro pay − refunds), paid by Handled alone (the pro
+ *           keeps full pay). Rate: 15% → 45% (REFERRAL_LADDER), +1 point per level, level n at $1,000,000 × (n/30)² of level
+ *           credit = profit made for Handled (direct sales 1.5×, referrals 1×). A direct sale pays the rate + 5 points
+ *           (PARTNER_LADDER, 20% → 50%). Locked on the job at booking; a v7 job = partner_rate set and partner_tier null.
+ *           Existing partners keep partner-v4 (15%–30% of the price, shared with the pro; REFERRAL_LADDER_V4) on referrals
+ *           until they sign v7 or PARTNER_PROGRAM.v7AllAt (30 days' notice). Never more than Handled keeps after card fees.
+ * UPDATED : 2026-11-17_2100 UTC — partner-v6: the Referral Partner Agreement (apps/web/lib/contracts/partner.ts), signed at sign-up or on
+ *           the partner page; referral jobs only go to pros on the current pro agreement, so the pro's half is always paid.
+ * UPDATED : 2026-11-24_1700 UTC — rankSaleRate(rank): the one rate a Sales Force rank pays on a sale (for the site's single chart).
  */
 import { BRAND } from "./brand.ts";
+import { SALES_RANKS } from "./sales-force.ts";
 import { CARD_FEE } from "./pricing.ts";
 import { getService, missingMeasurements, type Answers } from "./services.ts";
 import { photoRule } from "./intake.ts";
@@ -47,7 +60,9 @@ export const PARTNER_PROGRAM = {
   holdDays: BRAND.guaranteeDays, // paid after the make-it-right window, so refunds come first
   minPayout: 25,           // smaller balances roll to the next weekly run (keeps Stripe fees sensible)
   cookieDays: 90,          // a click on a partner link counts for this long
-  termsVersion: "partner-v5",
+  termsVersion: "partner-v7", // v7: one program — 15% → 45% of Handled's profit ($1M × (n/30)²), direct sales +5 points and 1.5× credit; v6: the signable agreement
+  /** partner-v7 applies to every partner's jobs booked from here (30 days' notice); earlier for anyone who signs v7. */
+  v7AllAt: "2026-12-18T05:00:00Z",
   /** Jobs booked before this keep the partner-v1 rule (10% of Handled's take, paid by Handled alone). */
   effectiveAt: "2026-10-28T00:00:00Z",
   /** partner-v1, for jobs booked before effectiveAt. */
@@ -95,24 +110,20 @@ export const firstProjectLine = (es = false) =>
 // ─── Direct sales (Field Sales): the commission ladder ───────────────────────
 
 /**
- * Direct sales pay a ladder. Every level is +1 point, from 10% (level 0) to 45% (level 35) of Handled's take (job price
- * − pro payout − refunds). A level is reached by the partner's LIFETIME PROFIT GENERATED for Handled on jobs they sold,
- * on the curve threshold(n) = $1,000,000 × (n / 35)² — quick early raises, 45% at $1M. Fast track: every 10 completed
- * direct-sale jobs is also +1 point, up to 20%. The higher of the two counts. Levels never go down. Paid by Handled alone.
- * Both ways to earn build the level: direct-sale profit and jobs count 1.5×, referral profit and jobs 1× (ladderCredit).
+ * partner-v7: the DIRECT-SALE rate — the program rate + 5 points (20% → 50% of Handled's profit), on the same levels.
  */
 export const PARTNER_LADDER = {
-  baseRate: 0.10,
-  topRate: 0.45,
-  topProfit: 1_000_000,  // lifetime profit generated that reaches the top rate
-  curve: 2,              // threshold(n) = topProfit × (n / levels)^curve
-  jobsPerStep: 10,       // fast track: +1 point per this many completed jobs …
-  jobsCapRate: 0.20,     // … up to this rate
-  directCredit: 1.5,     // level credit: a direct sale's profit (and job) counts 1.5× toward the next raise …
-  referralCredit: 1,     // … a referral's counts 1× (referrals are still PAID at the partner-v2 tiers)
+  baseRate: 0.20,
+  topRate: 0.50,
+  topProfit: 1_000_000,  // level credit (profit made for Handled, weighted) that reaches the top rate
+  curve: 2,              // threshold(n) = topProfit × (n / levels)^curve — the old Field Sales formula
+  jobsPerStep: 10,
+  jobsCapRate: 0.20,     // = baseRate: no job-count fast track
+  directCredit: 1.5,     // a direct sale's profit counts 1.5× toward the next raise …
+  referralCredit: 1,     // … a referral's 1×
 } as const;
 
-/** Ladder credit: direct-sale profit and jobs weighted 1.5×, referral profit and jobs 1×. */
+/** Ladder credit: profit made for Handled — direct sales weighted 1.5×, referrals 1× (jobs counted the same way). */
 export function ladderCredit(o: { directProfit: number; referralProfit: number; directJobs: number; referralJobs: number }) {
   const P = PARTNER_LADDER;
   return {
@@ -121,11 +132,21 @@ export function ladderCredit(o: { directProfit: number; referralProfit: number; 
   };
 }
 /**
- * Referrals (partner-v4): one rate on every referred job — 15% of the job price (minus refunds) to start, +1 point per
- * level to 30% at $1,000,000 of level credit (same credit as the sales ladder: direct sales 1.5×, referrals 1×), or +1
- * point per 10 job credits up to 20%. Half is paid by the pro, half by Handled. Locked on the job when it's booked.
+ * partner-v7: the program rate for everyone — 15% of Handled's profit on the job to start, +1 point per level to 45% at
+ * $1,000,000 of level credit: threshold(n) = $1M × (n/30)² (the old Field Sales formula, starting at 15%). Paid by
+ * Handled alone. A direct sale pays this + DIRECT_BONUS (PARTNER_LADDER).
  */
 export const REFERRAL_LADDER = {
+  baseRate: 0.15,
+  topRate: 0.45,
+  topProfit: 1_000_000,
+  curve: 2,
+  jobsPerStep: 10,
+  jobsCapRate: 0.15, // = baseRate: no job-count fast track
+} as const;
+
+/** partner-v4 (existing partners until they sign v7 or v7AllAt): referrals 15% → 30% of the JOB PRICE, half from the pro. */
+export const REFERRAL_LADDER_V4 = {
   baseRate: 0.15,
   topRate: 0.30,
   topProfit: 1_000_000,
@@ -133,6 +154,25 @@ export const REFERRAL_LADDER = {
   jobsPerStep: 10,
   jobsCapRate: 0.20,
 } as const;
+
+/** A direct sale pays the program rate + this (both on Handled's profit, paid by Handled). */
+export const DIRECT_BONUS = 0.05;
+
+/**
+ * partner-v7 commission on one job: rate × Handled's profit (price − pro pay − refunds), rounded down to the cent, paid
+ * by Handled alone — never more than Handled keeps after the card fee.
+ */
+export function programCommission(o: { price: number; payout: number; refunded?: number }, rate: number): number {
+  const r = Math.max(0, Math.min(PARTNER_LADDER.topRate, rate));
+  const base = Math.max(0, cents(o.price) - cents(o.refunded ?? 0));
+  const take = Math.max(0, base - cents(o.payout));
+  const card = base > 0 ? Math.round(base * CARD_FEE.pct + CARD_FEE.fixed * 100) : 0;
+  return Math.max(0, Math.min(Math.floor(Math.round(take * r * 1e6) / 1e6), take - card)) / 100;
+}
+
+/** A v7 job: its rate was locked as a share of Handled's profit (partner_rate set, no partner-v2/v4 tier). */
+export const programJob = (j: { partner_id?: string | null; partner_rate?: number | string | null; partner_tier?: string | null }) =>
+  Boolean(j.partner_id && j.partner_rate != null && !j.partner_tier);
 
 export type Ladder = { baseRate: number; topRate: number; topProfit: number; curve: number; jobsPerStep: number; jobsCapRate: number };
 /** How many +1-point levels a ladder has (sales: 35, referrals: 15). */
@@ -164,6 +204,17 @@ export type PartnerLevel = {
   next: { level: number; rate: number; profit: number; profitToGo: number; jobsToGo: number | null } | null;
 };
 
+/**
+ * What a Sales Force rank really pays on a sale (website wording, 2026-11-24): a direct sale pays the higher of the rank's
+ * share and the ladder rate + 5 points; reaching a rank's profit target (direct sales count 1.5×) puts you at least at
+ * this ladder level. One number per rank, so the site shows a single chart. Leaders' own sales are at least 20%.
+ */
+export function rankSaleRate(rank: keyof typeof SALES_RANKS): number {
+  const r = SALES_RANKS[rank];
+  const ladder = partnerLevel((r.requires.profit ?? 0) * PARTNER_LADDER.directCredit, 0, REFERRAL_LADDER).rate + DIRECT_BONUS;
+  return Math.round(Math.max(r.sellerShare, ladder) * 100) / 100;
+}
+
 /** A partner's direct-sales level and rate from their lifetime direct-sale profit and completed direct-sale jobs. */
 export function partnerLevel(lifetimeProfit: number, completedJobs = 0, P: Ladder = PARTNER_LADDER): PartnerLevel {
   const N = ladderLevels(P);
@@ -180,7 +231,7 @@ export function partnerLevel(lifetimeProfit: number, completedJobs = 0, P: Ladde
   return { level, rate, byProfit, byJobs, next: { level: n, rate: rateAt(n, P), profit, profitToGo: Math.max(0, Math.round((profit - lifetimeProfit) * 100) / 100), jobsToGo } };
 }
 
-/** A direct sale's commission: the ladder rate (10%–45%) of our take, rounded down to the cent. Paid by Handled alone. */
+/** Field Sales before v7: the rate × Handled's take (price − pro pay − refunds), rounded down. Paid by Handled alone. */
 export function partnerSaleCommission(o: { price: number; payout: number; refunded?: number }, rate: number): number {
   const r = Math.max(0, Math.min(PARTNER_LADDER.topRate, rate));
   const take = Math.max(0, Math.round(o.price * 100) - Math.round(o.payout * 100) - Math.round((o.refunded ?? 0) * 100));
@@ -266,19 +317,31 @@ export function partnerTier(j: { business_account_id?: string | null; frequency?
  *   fromUs  = the other half, out of what Handled keeps — never more than our fee after the card fee, so a referred job
  *             can't lose us money. When our fee can't cover our half the partner gets less ("up to" the tier rate).
  */
-export function partnerSplit(o: { price: number; payout: number; refunded?: number; tier: PartnerTier; proPays?: boolean; rate?: number | null }) {
+export function partnerSplit(o: { price: number; payout: number; refunded?: number; tier: PartnerTier; proPays?: boolean; rate?: number | null; bonus?: number; handledPays?: boolean }) {
   // partner-v4: the referral rate locked on the job (15%–30%); partner-v2 jobs (no locked rate): the tier rate
-  const rate = o.rate != null && Number(o.rate) > 0 ? Math.min(REFERRAL_LADDER.topRate, Number(o.rate)) : PARTNER_TIERS[o.tier].rate;
+  const rate = o.rate != null && Number(o.rate) > 0 ? Math.min(REFERRAL_LADDER_V4.topRate, Number(o.rate)) : PARTNER_TIERS[o.tier].rate;
   const base = Math.max(0, cents(o.price) - cents(o.refunded ?? 0));
-  const target = Math.floor(base * rate);
-  const half = Math.floor(target * PARTNER_PROGRAM.proShare);
-  const fromPro = o.proPays === false ? 0 : Math.min(half, Math.max(0, cents(o.payout)));
+  // partner-v7: a direct sale is the ladder rate + bonus points, paid by Handled alone (handledPays); a referral is shared
+  const bonus = Math.max(0, Math.min(0.2, Number(o.bonus ?? 0)));
+  const target = Math.floor(base * (rate + bonus));
+  const half = o.handledPays ? 0 : Math.floor(target * PARTNER_PROGRAM.proShare);
+  const fromPro = o.proPays === false || o.handledPays ? 0 : Math.min(half, Math.max(0, cents(o.payout)));
   const card = base > 0 ? Math.round(base * CARD_FEE.pct + CARD_FEE.fixed * 100) : 0;
   const room = Math.max(0, base - cents(o.payout) - card);
   const fromUs = Math.min(target - half, room);
-  return { tier: o.tier, rate, target: target / 100, fromPro: fromPro / 100, fromUs: fromUs / 100, amount: (fromPro + fromUs) / 100 };
+  return { tier: o.tier, rate: Math.round((rate + bonus) * 10000) / 10000, target: target / 100, fromPro: fromPro / 100, fromUs: fromUs / 100, amount: (fromPro + fromUs) / 100 };
 }
 export type PartnerSplit = ReturnType<typeof partnerSplit>;
+
+/**
+ * A referred job (partner-v4+: the referral rate is locked on the job) can only go to a pro who signed the pro agreement
+ * that makes them pay half the partner's commission — so partners always get the full rate (owner, 2026-11-17).
+ * Direct sales, Post & earn and jobs booked before a rate was locked are paid by Handled alone and need no pro term.
+ */
+export function proCanTakeReferredJob(job: { partner_id?: string | null; partner_rate?: number | string | null; partner_sale?: boolean | null; partner_tier?: string | null }, agreementVersion: string | null | undefined, current: string): boolean {
+  if (!job.partner_id || job.partner_sale || job.partner_rate == null || !(job as { partner_tier?: string | null }).partner_tier) return true; // v7 jobs and direct sales: Handled pays alone
+  return String(agreementVersion ?? "") >= current;
+}
 
 /** partner-v1 (jobs booked before PARTNER_PROGRAM.effectiveAt): what Handled keeps after the pro and refunds. */
 export function partnerTake(o: { price: number; payout: number; refunded?: number }): number {
@@ -320,9 +383,9 @@ export function partnerExpiry(start: Date): Date {
 // partner can follow from "submitted" to "paid".
 
 export const TICKET_JOB_TYPES = {
-  one_time: { label: "One-time job", earns: `your referral rate (${referralRange()} of the job price) on this job and any repeat job for ${PARTNER_PROGRAM.months} months` },
-  recurring: { label: "Recurring service (weekly, every 2 weeks, monthly…)", earns: `your referral rate (${referralRange()} of the job price) on every visit for ${PARTNER_PROGRAM.months} months` },
-  account: { label: "Business or property account (several jobs or properties)", earns: `your referral rate (${referralRange()} of the job price) on every job on the account for ${PARTNER_PROGRAM.months} months` },
+  one_time: { label: "One-time job", earns: `your referral rate (${referralRange()} of our profit on the job) on this job and any repeat job for ${PARTNER_PROGRAM.months} months` },
+  recurring: { label: "Recurring service (weekly, every 2 weeks, monthly…)", earns: `your referral rate (${referralRange()} of our profit on the job) on every visit for ${PARTNER_PROGRAM.months} months` },
+  account: { label: "Business or property account (several jobs or properties)", earns: `your referral rate (${referralRange()} of our profit on the job) on every job on the account for ${PARTNER_PROGRAM.months} months` },
 } as const;
 export type TicketJobType = keyof typeof TICKET_JOB_TYPES;
 
@@ -379,19 +442,20 @@ export function ticketStage(t: { status?: string | null; first_job_id?: string |
 export function partnerRateLines(): string[] {
   const R = REFERRAL_LADDER;
   return [
-    `${Math.round(R.baseRate * 100)}% of every referred job to start, the same on every service`,
-    `rising one point at a time to ${Math.round(R.topRate * 100)}% as you grow (${Math.round(R.topRate * 100)}% at $${R.topProfit.toLocaleString("en-US")} of level credit)`,
+    `${Math.round(R.baseRate * 100)}% of ${BRAND.name}'s profit on every job you refer, ${Math.round((R.baseRate + DIRECT_BONUS) * 100)}% on every job you sell yourself — the same on every service`,
+    `rising one point at a time to ${Math.round(R.topRate * 100)}% / ${Math.round((R.topRate + DIRECT_BONUS) * 100)}% as the profit you make ${BRAND.name} grows (top rate at $${R.topProfit.toLocaleString("en-US")}; direct sales count ${PARTNER_LADDER.directCredit}×)`,
     `locked on each job when it's booked, for every job from the customer for ${PARTNER_PROGRAM.months} months`,
   ];
 }
 
 /** The partner terms shown at sign-up (plain English). */
 export function partnerTerms(): string[] {
-  const p = PARTNER_PROGRAM;
+  const p = PARTNER_PROGRAM, R = REFERRAL_LADDER, b = Math.round(DIRECT_BONUS * 100);
   return [
-    `You earn a share of the job price (what the customer pays, minus any refunds) on every completed job from a customer you refer, for ${p.months} months from the referral: your referral rate, the same on every service. It starts at ${Math.round(REFERRAL_LADDER.baseRate * 100)}% and rises one point at a time to ${Math.round(REFERRAL_LADDER.topRate * 100)}% as your level credit grows (${Math.round(REFERRAL_LADDER.topRate * 100)}% at $${REFERRAL_LADDER.topProfit.toLocaleString("en-US")}: the lifetime profit you've generated for ${BRAND.name}, with direct sales counting ${PARTNER_LADDER.directCredit}× and referrals ${PARTNER_LADDER.referralCredit}×), or every ${REFERRAL_LADDER.jobsPerStep} job credits up to ${Math.round(REFERRAL_LADDER.jobsCapRate * 100)}%. Each job keeps the rate you had when it was booked.`,
-    `Half of what you earn is paid by the pro who does the job and half by ${BRAND.name}. ${BRAND.name}'s half never exceeds what ${BRAND.name} keeps on the job after card fees, so on the rare job where our fee is too thin, you earn less than the full rate.`,
-    `Direct sales: when you sell a customer yourself on a sales ticket (they pay ${BRAND.name} directly, on your phone or from our text), you earn a share of ${BRAND.name}'s profit on the job (the price minus what the pro is paid and any refunds) instead, on every completed job from that customer for ${p.months} months, paid by ${BRAND.name} alone. Your share starts at ${PARTNER_LADDER.baseRate * 100}% and rises one point at a time to ${PARTNER_LADDER.topRate * 100}% as the lifetime profit from your direct sales grows (${PARTNER_LADDER.topRate * 100}% at $${PARTNER_LADDER.topProfit.toLocaleString("en-US")}), or every ${PARTNER_LADDER.jobsPerStep} completed direct-sale jobs up to ${PARTNER_LADDER.jobsCapRate * 100}%. Your rate is set when each job is completed and never goes down.`,
+    `One program, two ways to earn. Refer a customer and you earn your rate on every completed job from them for ${p.months} months. Sell it yourself on a sales ticket (the customer pays ${BRAND.name} directly) and you earn your rate + ${b} points. Your rate is a share of ${BRAND.name}'s profit on the job — the price the customer pays minus what the pro is paid and any refunds — the same on every service.`,
+    `Everyone starts at ${Math.round(R.baseRate * 100)}% (${Math.round((R.baseRate + DIRECT_BONUS) * 100)}% on direct sales) and moves up one point at a time to ${Math.round(R.topRate * 100)}% (${Math.round((R.topRate + DIRECT_BONUS) * 100)}%) as the profit your completed jobs make ${BRAND.name} grows, with direct sales counting ${PARTNER_LADDER.directCredit}× and referrals ${PARTNER_LADDER.referralCredit}×: level n comes at $1,000,000 × (n ÷ ${ladderLevels(R)})², so the top rate comes at $${R.topProfit.toLocaleString("en-US")} of profit. Each job keeps the rate you had when it was booked.`,
+    `${BRAND.name} pays your commission in full; the pro's pay is never reduced. It never exceeds what ${BRAND.name} keeps on the job after card fees.`,
+    `The Handled Sales Force (optional, for direct sales): members hold a title from Associate Account Executive to VP of Sales, earned from their totals since day one and never lost. A member's direct sale pays the higher of the rate above (+ ${b} points) and their rank's share of ${BRAND.name}'s profit (${Math.round(SALES_RANKS.associate.sellerShare * 100)}% to ${Math.round(SALES_RANKS.vp.sellerShare * 100)}%), plus a smaller book share on their customers after ${p.months} months, team shares for leaders who keep selling, $25 per walkthrough held, a first-sale bonus and promotion bonuses (details at handledsvc.com/careers/sales). Sales Force pay only adds to what this program pays.`,
     `A customer counts as yours when they book through your link (within ${p.cookieDays} days of clicking it), type your partner code when they pay, or after you send them to us on a referral ticket or a sales ticket from your partner page, and they are new to ${BRAND.name}. Each customer belongs to one partner: the first one.`,
     `Lead pay: you earn $${SALES_DRAW.perLead} for every lead (a complete sales ticket for a new customer), paid weekly, up to ${SALES_DRAW.weeklyCap} leads a week. It's an advance (a draw) against that lead's commission: when the lead's job pays you a commission, the $${SALES_DRAW.perLead} is taken back out of it; if the lead never books, you keep it. Lead pay starts once you've written ${SALES_DRAW.unlockLeads} leads and at least ${SALES_DRAW.unlockPaidSales} of your sales has closed and been paid out; what you built up before then is paid on the next weekly payout. Fake or duplicate leads earn nothing and can end the partnership.`,
     `Sales tickets: only photograph property with the owner's or manager's permission, only submit customers who asked to hear from us, and never take payment yourself. Once a job is paid, it goes to our pros.`,

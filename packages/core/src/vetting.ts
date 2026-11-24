@@ -28,6 +28,7 @@
  *           inspection, water damage, duct cleaning, chimney sweep, irrigation, holiday lights, pool, laundry.
  * UPDATED : 2026-10-27_1600 UTC — carpentry trade (state contractor license over $600 in Michigan, L&I registration in Washington).
  * UPDATED : 2026-11-07_0037 UTC — vetting for the new social_media trade (managers, content creators, brand ambassadors, ads managers).
+ * UPDATED : 2026-11-19_1745 UTC — DEFAULT_RADIUS_MI (100 miles around the pro's ZIP when they haven't set an area).
  * UPDATED : 2026-11-11_2355 UTC — many more skills per trade in the application (MORE_SPECIALTIES, merged into TRADE_PROFILES).
  */
 import { BRAND } from "./brand.ts";
@@ -38,9 +39,9 @@ export type CoverageKey = "gl" | "auto" | "workers_comp" | "bond" | "liquor" | "
 export const COVERAGE_KINDS = ["auto", "workers_comp", "bond", "liquor", "passenger_auto", "cargo"] as const;
 
 export const COVERAGES: Record<CoverageKey, { label: string; detail: string }> = {
-  gl: { label: "General liability", detail: `Per-occurrence limit shown for your trade, $2M aggregate. ${BRAND.legalName} named as additional insured.` },
+  gl: { label: "General liability", detail: `Per-occurrence limit shown for your trade, $2M aggregate. ${BRAND.legalName} named as additional insured or certificate holder.` },
   auto: { label: "Commercial auto", detail: "$1M combined single limit on the vehicle used for jobs. Personal auto policies usually exclude business use." },
-  workers_comp: { label: "Workers' comp", detail: "Required if you have employees (Michigan law). Solo owners sign a no-employees statement instead." },
+  workers_comp: { label: "Workers' comp", detail: "Required if you have employees (state law in most states). Solo owners sign a no-employees statement instead." },
   bond: { label: "Fidelity / janitorial bond", detail: "$10,000+ dishonesty bond for unsupervised in-home access. Usually about $100–200 a year." },
   passenger_auto: { label: "Passenger carrier auto liability", detail: "$1.5M combined single limit for vehicles seating up to 15 passengers, $5M for 16 or more (federal minimums for interstate passenger carriers; venues and corporate clients expect it for local trips too). Every vehicle and driver listed." },
   liquor: { label: "Liquor liability", detail: "$1M, required whenever alcohol is served. Alcohol service also needs the proper MLCC license." },
@@ -751,6 +752,10 @@ export function specialtyMatch(specialties: string[] | null | undefined, slug: s
 /** Probation: a new pro's first jobs are capped in size and always get a human QA review. */
 export const PROBATION = { jobs: 3, maxJobPrice: 750 };
 
+/** A pro's work area when they haven't set one: this many miles around their ZIP (owner, 2026-11-19). Listing ZIP codes
+ * replaces it: then they get jobs only in those ZIPs. */
+export const DEFAULT_RADIUS_MI = 100;
+
 /**
  * The vetting pipeline, in order: Roadie-style sign-up. Shown to applicants and used as the Hub checklist.
  * Account first, then resume, ID + background check and paperwork; pros see jobs near them while Handled reviews, and
@@ -759,6 +764,6 @@ export const PROBATION = { jobs: 3, maxJobPrice: 750 };
 export const VETTING_STEPS = [
   { t: "Sign up (2 minutes)", b: "Name, email, mobile, what you do and the ZIP codes you serve. Your account opens right away: no interview, no references." },
   { t: "Photo ID + background check", b: "A photo of your ID matched to a selfie, then consent to a criminal and sex-offender search through our screening provider. Driving trades also get a motor-vehicle record check. Re-run every year." },
-  { t: "Orientation, resume + paperwork", b: `Six short "Welcome to Handled" lessons with a question each, your resume, then the W-9, contractor agreement (e-sign) and where to send your pay. Insurance naming ${BRAND.legalName} as additional insured, and a license, only for trades that need them.` },
+  { t: "Orientation, resume + paperwork", b: `Six short "Welcome to Handled" lessons with a question each, your resume, then the W-9, contractor agreement (e-sign) and where to send your pay. Insurance listing ${BRAND.legalName} as additional insured or certificate holder, and a license, only for trades that need them.` },
   { t: "Handled approves you", b: `A person at Handled reviews your resume, verified ID and file, then activates you. You see jobs near you while we review. Your first ${PROBATION.jobs} jobs are under $${PROBATION.maxJobPrice} with a photo review, then full offers.` },
 ];

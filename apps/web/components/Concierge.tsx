@@ -5,6 +5,7 @@
  * UPDATED : 2026-10-02_1405 UTC — English / Spanish.
  * PURPOSE : Floating AI concierge chat on every public page.
  * UPDATED : 2026-11-09_0430 UTC — the chat button is icon-only on booking and service pages at every screen size, so it never covers the price panel.
+ * UPDATED : 2026-11-17_1446 UTC — icon-only on /post too (it covered the "what's next" choices; /post has its own AI project manager).
  */
 "use client";
 
@@ -18,7 +19,7 @@ export function Concierge({ locale = "en" }: { locale?: Locale }) {
   const t = (s: string) => tr(locale, s);
   const path = usePathname() ?? "";
   // booking and service pages: a small round chat button so it never sits on top of the price panel or the booking buttons
-  const compact = path.startsWith("/book") || path.startsWith("/services/");
+  const compact = path.startsWith("/book") || path.startsWith("/services/") || path.startsWith("/post");
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([{ role: "assistant", content: t("Hi! What can we take off your plate? Tell me the job and I’ll give you a price.") }]);
   const [text, setText] = useState("");

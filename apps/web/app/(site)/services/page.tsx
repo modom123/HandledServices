@@ -10,15 +10,16 @@
  *           ?cat=business redirects there.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
+ * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  */
 import Link from "next/link";
 import { ThemedIcon } from "@/components/Glyph";
 import { redirect } from "next/navigation";
-import { CATEGORIES, SERVICES, categoryText, priceHint, serviceText, t } from "@handled/core";
+import { CATEGORIES, SERVICES, categoryText, defaultAnswers, estimate, priceHint, serviceText, siteVisitReason, t } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { ServicesBrowser, type BrowserCategory } from "@/components/ServicesBrowser";
 
-export const metadata = { title: "Services", description: "Every service we offer, by category, with upfront prices." };
+export const metadata = { alternates: { canonical: "/services" }, title: "Services", description: "100+ home and business services by category: cleaning, repairs, painting, lawn and snow, hauling, moving and more. Upfront prices, vetted pros." };
 
 export default async function ServicesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const { cat } = await searchParams;
@@ -30,7 +31,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   const categories: BrowserCategory[] = CATEGORIES.filter((c) => c.id !== "business").map((c) => ({
     id: c.id, name: categoryText(l, c.id, c).name, icon: c.icon, blurb: categoryText(l, c.id, c).blurb,
     services: SERVICES.filter((s) => s.category === c.id).map((s) => ({
-      slug: s.slug, ...serviceText(l, s.slug, s), icon: s.icon, siteVisit: s.siteVisit, remote: s.remote,
+      // a free site visit only when a typical job needs one (over $2,500, events): smaller projects get an instant price
+      slug: s.slug, ...serviceText(l, s.slug, s), icon: s.icon, siteVisit: Boolean(siteVisitReason(s.slug, defaultAnswers(s), estimate({ slug: s.slug, answers: defaultAnswers(s) }).point)), remote: s.remote,
       from: priceHint(s.slug, l),
     })),
   })).filter((c) => c.services.length);

@@ -7,6 +7,7 @@
  *           (company kept confidential). Team and client roles open /careers/[id] to apply. English / Spanish.
  * UPDATED : 2026-11-06_1730 UTC — Field Sales Partner listing (commission only; direct sales 10%→45% of profit, plus referrals) → /partners.
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
+ * UPDATED : 2026-11-18_0105 UTC — the Field Sales listing is now the Handled Sales Force (Associate AE → VP of Sales, 1099) → /careers/sales.
  */
 import Link from "next/link";
 import { BRAND, BRAND_STORY, applyUrl, type Track } from "@handled/core";
@@ -38,13 +39,13 @@ export default async function Careers() {
       </section>
       <div className="wrap space-y-12 py-12">
         <section>
-          <h2 className="text-2xl font-bold">{es ? "Ventas directas: socio de ventas (1099)" : "Field Sales Partner (1099)"}</h2>
-          <p className="mt-1 text-ink-soft">{es ? "Solo comisión, usted elige sus horas: unas horas a la semana o su ingreso principal." : "Commission only, set your own hours: a few hours a week or your main income."}</p>
-          <Link href="/partners?kind=sales_rep&utm_source=careers#field-sales" className="card mt-5 flex flex-col transition hover:border-brand sm:max-w-2xl">
-            <span className="font-bold">{es ? "Socio de ventas — servicios para hogares y negocios" : "Field Sales Partner — home & business services"}</span>
-            <span className="mt-1 text-sm text-ink-soft">{es ? "Área de Detroit · en persona o desde cualquier lugar (referidos)" : "Detroit metro · in person, or from anywhere (referrals)"}</span>
-            <span className="mt-2 text-sm">{es ? "Venda cualquier servicio con un ticket (fotos, precio al instante, el cliente paga en el momento) y gane del 10% al 45% de nuestra ganancia en cada trabajo. También puede referir clientes y ganar hasta el 25% del trabajo. Pagado cada lunes." : "Sell any service on a ticket (photos, instant price, the customer pays on the spot) and earn 10% up to 45% of our profit on every job. You can also refer customers and earn up to 25% of the job. Paid every Monday."}</span>
-            <span className="mt-3 text-sm font-semibold text-brand">{es ? "Ver cómo funciona y unirme →" : "See how it works & join →"}</span>
+          <h2 className="text-2xl font-bold">{es ? "Equipo de ventas de Handled (1099)" : "The Handled Sales Force (1099)"}</h2>
+          <p className="mt-1 text-ink-soft">{es ? "Comisión, sus horas, sus métodos: de Associate Account Executive a VP of Sales." : "Commission, your hours, your methods: from Associate Account Executive to VP of Sales."}</p>
+          <Link href="/careers/sales?utm_source=careers" className="card mt-5 flex flex-col transition hover:border-brand sm:max-w-2xl">
+            <span className="font-bold">{es ? "Account Executive — servicios comerciales y para hogares" : "Account Executive — commercial & home services"}</span>
+            <span className="mt-1 text-sm text-ink-soft">{es ? "Área de Detroit y nuestras otras ciudades · contratista independiente" : "Detroit metro and our other cities · independent contractor"}</span>
+            <span className="mt-2 text-sm">{es ? "Gane del 20% al 50% de nuestra ganancia en lo que vende, siga ganando con sus clientes, y suba de rango con el dinero que genera para Handled. Tres caminos a $100K al año con cuentas comerciales. Pagado cada lunes." : "Earn 20% rising to 50% of our profit on what you sell, keep earning on your clients, and move up on the money you make Handled. Three paths to $100K a year with commercial accounts. Paid every Monday."}</span>
+            <span className="mt-3 text-sm font-semibold text-brand">{es ? "Ver el camino y unirme →" : "See the path & join →"}</span>
           </Link>
         </section>
         {sections.map(({ t, title, d }) => {

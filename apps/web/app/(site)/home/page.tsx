@@ -10,6 +10,8 @@
  *           canonical): its own title and description naming Michigan & Washington, and the business as structured data.
  * UPDATED : 2026-11-10_2000 UTC — "New pros in the Handled Network" chain under every look (opt-in pros, refreshed every 6 hours).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_1900 UTC — the pro chain shows the network's growth (networkStats).
+ * UPDATED : 2026-11-24_2200 UTC — title names every state we serve (it said Michigan & Washington only).
  */
 import type { Metadata } from "next";
 import { BRAND } from "@handled/core";
@@ -19,22 +21,22 @@ import { HomeModern } from "@/components/home/HomeModern";
 import { HomePro } from "@/components/home/pro/HomePro";
 import { businessLd, ldScript } from "@/lib/business-ld";
 import { getLocale } from "@/lib/locale";
-import { featuredPros } from "@/lib/showcase";
+import { featuredPros, networkStats } from "@/lib/showcase";
 import { NewProsChain } from "@/components/NewProsChain";
 
 export const metadata: Metadata = {
-  title: { absolute: `${BRAND.name} — Home & business services in Michigan & Washington` },
-  description: "Cleaning, repairs, painting, lawn and snow, moving, hauling and 100+ more home and business services in Michigan, New York, New Jersey, Las Vegas and Washington. Upfront prices, background-checked, vetted pros, and work checked with photos.",
+  title: { absolute: `${BRAND.name} — Home & business services in MI, NY, NJ, NV & WA` }, // every state we serve, under 60 characters
+  description: "Cleaning, repairs, painting, lawn and snow, hauling and 100+ more home and business services. Upfront prices, vetted pros, work checked with photos.",
   alternates: { canonical: "/home" },
 };
 
 export default async function Home() {
-  const [theme, locale, pros] = await Promise.all([getTheme(), getLocale(), featuredPros()]);
+  const [theme, locale, pros, growth] = await Promise.all([getTheme(), getLocale(), featuredPros(), networkStats().catch(() => null)]);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={ldScript(businessLd())} />
       {theme === "pro" ? <HomePro /> : theme === "modern" ? <HomeModern /> : <HomeClassic />}
-      <NewProsChain pros={pros} es={locale === "es"} />
+      <NewProsChain pros={pros} es={locale === "es"} growth={growth} />
     </>
   );
 }

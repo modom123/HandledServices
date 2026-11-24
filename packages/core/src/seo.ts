@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-06_0500 UTC — New York, New Jersey and Las Vegas cities; SITE_MARKETS (a page per market at /areas/<slug>,
  *           each with the services it leads with); SERVICE_AREA now MI, NY, NJ, NV, WA; SERVED_AREAS_LABEL for customer messages.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_2200 UTC — snippet(): descriptions trimmed to what Google shows (~155 characters), on whole sentences.
  */
 export interface SeoCity { slug: string; name: string; state: string; zip: string }
 
@@ -140,3 +141,18 @@ export const SITE_MARKETS: SiteMarket[] = [
 export const SITE_MARKET_BY_SLUG: Record<string, SiteMarket> = Object.fromEntries(SITE_MARKETS.map((m) => [m.slug, m]));
 /** The market a city page belongs to (by the city's state). */
 export const marketForCity = (c: SeoCity) => SITE_MARKETS.find((m) => m.states.includes(c.state)) ?? null;
+
+/**
+ * A search-result description: Google shows about 155 characters and cuts the rest mid-sentence. Keeps whole
+ * sentences while they fit, else ends on a whole word with "…". (SEO review, 2026-11-24.)
+ */
+export function snippet(text: string, max = 155): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const sentences = t.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [];
+  let out = "";
+  for (const x of sentences) { if ((out + x).trim().length > max) break; out += x; }
+  if (out.trim().length >= 70) return out.trim();
+  const cut = t.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[,;:\-–—]+$/, "")}…`;
+}

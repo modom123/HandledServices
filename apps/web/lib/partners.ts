@@ -37,15 +37,31 @@
  * UPDATED : 2026-11-10_1415 UTC — full partner welcome email (payouts first; core partnerWelcomeEmail) and partnerPayoutReminders()
  *           (daily: days 1, 3, 7 and 14 after sign-up while payouts aren't set up).
  * UPDATED : 2026-11-10_1445 UTC — partnerGrowthStats(): the numbers the Partner Success roadmaps measure (/partner/grow).
+ * UPDATED : 2026-11-17_1700 UTC — payoutsReady uses connectStatus (transfers active), like pro payouts.
+ * UPDATED : 2026-11-17_2100 UTC — the Referral Partner Agreement (partner-v6) is e-signed at sign-up and by existing partners on their
+ *           partner page (signAgreement); both recorded in contract_acceptances with the exact text.
+ * UPDATED : 2026-11-17_2000 UTC — partner-v7, one program (the old Field Sales formula from 15%): every commission is the
+ *           locked rate × Handled's profit (+5 points on a direct sale), paid by Handled alone; tiers 'program' / 'sale';
+ *           partnerOnV7 (signed v7, or from v7AllAt) decides at booking; existing partners keep partner-v4 until then; the rate is locked at booking
+ *           for direct sales too; the level is one ladder from profit made for Handled (direct 1.5×); stats.credit for the portal.
+ * UPDATED : 2026-11-17_2200 UTC — every new partner triggers the Legal & Compliance team (legalOnPartnerSignup).
+ * UPDATED : 2026-11-18_0105 UTC — the Sales Force (lib/sales-force.ts): a member's direct sale pays their rank's share of our
+ *           profit, never below the ladder rate they already earned (core sellerRate); after a client's first 12 months a
+ *           member keeps earning their book share (tier 'book') while active; the Monday run also pays sales_pay lines
+ *           (team shares, walkthroughs held, first-sale and promotion bonuses).
+ * UPDATED : 2026-11-18_0125 UTC — a partner's first direct sale puts them in the Sales Force, so every direct sale is paid at a rank share (15% → 45%).
  */
+import { REFERRAL_PARTNER_AGREEMENT } from "./contracts/partner";
+import { recordAcceptance } from "./contracts/record";
 import "server-only";
+import { legalOnPartnerSignup } from "./legal-intake";
 import { cookies } from "next/headers";
-import {
+import { REFERRAL_LADDER_V4, programJob, programCommission, DIRECT_BONUS,
   AGREEMENT_VERSION, BRAND, PARTNER_PROGRAM, TICKET_CONTACT, TICKET_JOB_TYPES, TICKET_RELATIONSHIPS, TICKET_TIMING,
   cleanPartnerCode, firstProjectReward, getService, makePartnerCode, makeTicketNo, money, partnerCommission, partnerExpiry, partnerLegacyJob, partnerRateLines,
   REFERRAL_LADDER, ladderCredit, partnerLevel, partnerSaleCommission, partnerSplit, partnerTake, partnerTier, PARTNER_LADDER,
   type Job, type PartnerKind, type PartnerTier, type TicketContact, type TicketJobType, type TicketRelationship, type TicketStatus, type TicketTiming,
-  SALES_DRAW, drawRecovery, drawUnlocked, partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS, type PartnerGrowthStats
+  SALES_DRAW, SALES_RANKS, sellerRate, drawRecovery, drawUnlocked, partnerWelcomeEmail, partnerPayoutReminder, payoutReminderDay, PAYOUT_REMINDER_DAYS, type PartnerGrowthStats
 } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
@@ -65,7 +81,13 @@ export const partnerLink = (code: string, path = "/home") => `${siteUrl()}${path
 
 // ─── Sign-up ─────────────────────────────────────────────────────────────────
 
-export async function signUp(o: { name: string; email: string; phone?: string | null; company?: string | null; kind: PartnerKind; how?: string | null; ip: string | null }): Promise<{ partner: Partner; existing: boolean }> {
+/** An existing partner signs the current Referral Partner Agreement (partner page). */
+export async function signAgreement(partner: Partner, o: { signerName: string; ip: string | null; userAgent: string | null; company?: string | null; title?: string | null }) {
+  await db().from("referral_partners").update({ terms_version: PARTNER_PROGRAM.termsVersion, terms_accepted_at: new Date().toISOString(), terms_ip: o.ip }).eq("id", partner.id);
+  await recordAcceptance([REFERRAL_PARTNER_AGREEMENT], { email: partner.email, signerName: o.signerName, method: "signature", ip: o.ip, userAgent: o.userAgent, ...(o.company ? { onBehalfOf: o.company, signerTitle: o.title || null } : {}) });
+}
+
+export async function signUp(o: { name: string; email: string; phone?: string | null; company?: string | null; kind: PartnerKind; how?: string | null; ip: string | null; userAgent?: string | null; leader?: string | null }): Promise<{ partner: Partner; existing: boolean }> {
   const email = lower(o.email);
   const { data: found } = await db().from("referral_partners").select("*").eq("email", email).maybeSingle();
   if (found) { await sendWelcome(found as Partner, true); return { partner: found as Partner, existing: true }; }
@@ -79,7 +101,13 @@ export async function signUp(o: { name: string; email: string; phone?: string | 
     else if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
   }
   if (!partner) throw new Error("Couldn't create a partner code — try again");
+  // the signed Referral Partner Agreement: exact text, name, time and IP (contract_acceptances)
+  await recordAcceptance([REFERRAL_PARTNER_AGREEMENT], { email, signerName: o.name.trim(), method: "signature", ip: o.ip, userAgent: o.userAgent ?? null }).catch(() => {});
+  // Field Sales partners join the Sales Force as Associate AEs; a leader's code (their recruit link) puts them on that team
+  if (o.kind === "sales_rep" || o.leader) await (await import("./sales-force")).joinSalesForce(partner.id, o.leader ?? null, "sign-up").catch((e) => console.error("[sales force join]", e));
   await sendWelcome(partner, false);
+  // Legal & Compliance team: agreement / referral-fee rules / conflict tasks for this sign-up (never throws)
+  await legalOnPartnerSignup(partner.id);
   if (opsEmail()) await sendEmail(opsEmail(), `New referral partner: ${partner.name}${partner.company ? ` (${partner.company})` : ""}`, `${partner.kind} · ${email} · code ${partner.code}\n${partner.how ?? ""}\n\nHub → Partners: ${siteUrl()}/hub/partners`).catch(() => {});
   return { partner, existing: false };
 }
@@ -247,6 +275,8 @@ export async function attributeJob(job: Job, typedCode?: string | null): Promise
     // the partner's own project (Post & earn): only their first job, and only while they're new to Handled
     if (ref.source === "self" && ((ref.first_job_id && ref.first_job_id !== job.id) || await isExistingCustomer(email, job.id))) return null;
     if (active && new Date(ref.expires_at) > new Date()) partnerId = ref.partner_id;
+    // a Sales Force rep's client after the first 12 months: still theirs, for their book share
+    else if (active && ref.source === "sale" && await (await import("./sales-force")).isSalesForce(ref.partner_id).catch(() => false)) partnerId = ref.partner_id;
     if (partnerId && !ref.first_job_id) await db().from("referral_customers").update({ first_job_id: job.id, updated_at: new Date().toISOString() }).eq("id", ref.id);
   } else {
     // the partner code the customer typed at checkout wins over a link clicked earlier
@@ -266,14 +296,19 @@ export async function attributeJob(job: Job, typedCode?: string | null): Promise
     await db().from("jobs").update({ partner_id: partnerId, partner_tier: null }).eq("id", job.id);
     return partnerId;
   }
-  // a customer the partner sold on a sales ticket: direct-sale ladder, paid by Handled alone — no tier, no pro fee
-  if (ref?.source === "sale") {
-    const { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_sale: true }).eq("id", job.id);
+  // partner-v7 (one program): the rate is a share of Handled's profit, locked now, paid by Handled alone — no tier (that
+  // marks a v7 job), no pro fee. Direct sales always use it (it pays more than the old Field Sales ladder); referrals use
+  // it once the partner signed v7 or from PARTNER_PROGRAM.v7AllAt (30 days' notice to existing partners)
+  const sale = ref?.source === "sale";
+  if (sale || await partnerOnV7(partnerId)) {
+    let { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_rate: await programRateNow(partnerId), ...(sale ? { partner_sale: true } : {}) }).eq("id", job.id);
+    if (error && sale) ({ error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: null, partner_sale: true }).eq("id", job.id));
     if (error) await db().from("jobs").update({ partner_id: partnerId }).eq("id", job.id);
     return partnerId;
   }
   const tier = partnerTier({ business_account_id: job.business_account_id, frequency: job.frequency, plan_id: job.plan_id, firstJob: await isFirstJob(email, partnerId, job.id) });
-  // partner-v4: lock the partner's referral rate (15%–30%) on the job now, so the pro sees their half before accepting
+  // partner-v4 (until the partner moves to v7): lock the referral rate (15%–30% of the price) now, so the pro sees their
+  // half before accepting
   const rate = await referralRateNow(partnerId);
   let { error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier, partner_rate: rate }).eq("id", job.id);
   if (error) ({ error } = await db().from("jobs").update({ partner_id: partnerId, partner_tier: tier }).eq("id", job.id)); // before the partner-v4 SQL
@@ -289,7 +324,7 @@ async function isFirstJob(email: string, partnerId: string, jobId: string) {
 
 // ─── Commissions ─────────────────────────────────────────────────────────────
 
-type Split = { tier: PartnerTier | "legacy" | "direct" | "self"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
+type Split = { tier: PartnerTier | "legacy" | "direct" | "sale" | "program" | "self" | "book"; rate: number; fromPro: number; fromUs: number; amount: number; take: number };
 
 /**
  * At completion, before the pro's payout line is written: the partner's share of this job and who pays it.
@@ -298,21 +333,41 @@ type Split = { tier: PartnerTier | "legacy" | "direct" | "self"; rate: number; f
 export async function partnerSplitForJob(job: Job): Promise<Split | null> {
   if (!job.partner_id || job.remedy || !(Number(job.price_final) > 0)) return null;
   const { data: ref } = await db().from("referral_customers").select("expires_at, source").eq("customer_email", lower(job.contact_email)).eq("partner_id", job.partner_id).maybeSingle();
-  if (!ref || new Date(job.created_at) > new Date(ref.expires_at)) return null; // booked after the 12 months
+  if (!ref) return null;
   const o = { price: Number(job.price_final), payout: Number(job.contractor_payout ?? 0), refunded: Number(job.amount_refunded ?? 0) };
   const take = partnerTake(o);
+  let salesRank = ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale ? await (await import("./sales-force")).salesRankOf(job.partner_id).catch(() => null) : null;
+  // one way to be paid for direct sales: a partner's first completed direct sale puts them in the Sales Force (Associate AE)
+  if (!salesRank && (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale)) {
+    const sf = await import("./sales-force");
+    if (await sf.salesForceReady().catch(() => false) && (await sf.joinSalesForce(job.partner_id, null, "first direct sale")).ok) salesRank = "associate";
+  }
+  if (new Date(job.created_at) > new Date(ref.expires_at)) {
+    // booked after the 12 months: only a Sales Force rep's own client still pays, at their book share
+    const book = salesRank ? SALES_RANKS[salesRank].bookShare : 0;
+    const amount = book > 0 ? partnerSaleCommission(o, book) : 0;
+    return amount > 0 ? { tier: "book", rate: book, fromPro: 0, fromUs: amount, amount, take } : null;
+  }
   // Post & earn: the partner's own first project — 10% back, up to $250, Handled alone
   if (ref.source === "self") {
     const amount = firstProjectReward(o);
     return amount > 0 ? { tier: "self", rate: 0.1, fromPro: 0, fromUs: amount, amount, take } : null;
   }
-  // direct sale (Field Sales): the partner's ladder rate of our take, paid by Handled alone
-  if (ref.source === "sale" || (job as { partner_sale?: boolean }).partner_sale) {
-    const { rate } = await directSalesLevel(job.partner_id);
-    const gross = partnerSaleCommission(o, rate);
-    // lead pay: this lead's $10 draw was an advance — it comes back out of this commission
-    const amount = Math.round((gross - await recoverLeadDraw(job.partner_id, job, gross).catch(() => 0)) * 100) / 100;
-    return gross > 0 ? { tier: "direct", rate, fromPro: 0, fromUs: amount, amount, take } : null;
+  // partner-v7 (one program): the locked rate × Handled's profit on the job, + 5 points on a direct sale, paid by Handled
+  // alone (the pro keeps full pay), never more than Handled keeps after card fees. Direct sales booked before v7 (no
+  // locked rate) get the program rate now — more than the old Field Sales ladder paid.
+  const sale = ref.source === "sale" || Boolean((job as { partner_sale?: boolean }).partner_sale);
+  if (sale || programJob(job)) {
+    const base = job.partner_rate != null ? Number(job.partner_rate) : await programRateNow(job.partner_id);
+    const v7 = Math.round((base + (sale ? DIRECT_BONUS : 0)) * 10000) / 10000;
+    // the Handled Sales Force: a member's direct sale pays the higher of the v7 rate (+ points) and their rank's share
+    const rate = sale && salesRank ? Math.max(v7, SALES_RANKS[salesRank].sellerShare) : v7;
+    const gross = programCommission(o, rate);
+    if (gross <= 0) return null;
+    // lead pay: a direct sale's $10 draw was an advance — it comes back out of this commission
+    const back = sale ? await recoverLeadDraw(job.partner_id, job, gross).catch(() => 0) : 0;
+    const amount = Math.round((gross - back) * 100) / 100;
+    return { tier: sale ? "sale" : "program", rate, fromPro: 0, fromUs: amount, amount, take };
   }
   if (partnerLegacyJob(job.created_at)) { // partner-v1: 10% of our take, Handled alone
     const amount = partnerCommission(o);
@@ -358,8 +413,11 @@ async function recheckCommission(r: DueRow, voidNote?: string): Promise<number> 
   if (r.tier === "self") { // Post & earn: the first-project reward, Handled alone
     now$ = live ? Math.min(Number(r.amount), firstProjectReward({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) })) : 0;
     newUs = now$;
-  } else if (r.tier === "direct") { // direct sale: the locked ladder rate of our take, Handled alone
+  } else if (r.tier === "direct" || r.tier === "book") { // direct sale or a rep's book: the locked rate of our take, Handled alone
     now$ = live ? Math.min(Number(r.amount), partnerSaleCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) }, Number(r.rate ?? PARTNER_LADDER.baseRate))) : 0;
+    newUs = now$;
+  } else if (r.tier === "program" || r.tier === "sale") { // partner-v7: the locked rate × Handled's profit, Handled alone
+    now$ = live ? Math.min(Number(r.amount), programCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) }, Number(r.rate ?? REFERRAL_LADDER.baseRate))) : 0;
     newUs = now$;
   } else if (!r.tier || r.tier === "legacy") {
     now$ = live ? Math.min(Number(r.amount), partnerCommission({ price: Number(j!.price_final), payout: Number(j!.contractor_payout), refunded: Number(j!.amount_refunded) })) : 0;
@@ -431,7 +489,7 @@ async function recoverLeadDraw(partnerId: string, job: Job, commission: number):
 export async function leadPayStatus(partnerId: string) {
   const [{ data: draws }, { count: paidSales }] = await Promise.all([
     db().from("partner_draws").select("amount, recovered, status").eq("partner_id", partnerId).neq("status", "void"),
-    db().from("partner_commissions").select("id", { count: "exact", head: true }).eq("partner_id", partnerId).eq("tier", "direct").eq("status", "paid"),
+    db().from("partner_commissions").select("id", { count: "exact", head: true }).eq("partner_id", partnerId).in("tier", ["direct", "sale"]).eq("status", "paid"),
   ]);
   const rows = (draws ?? []) as { amount: number; recovered: number; status: string }[];
   const net = (r: { amount: number; recovered: number }) => Math.max(0, Number(r.amount) - Number(r.recovered));
@@ -467,13 +525,19 @@ export async function runPartnerPayouts(now = new Date()) {
     for (const [pid, ds] of byP) if ((await leadPayStatus(pid)).unlocked) drawsBy.set(pid, ds);
   }
   for (const pid of drawsBy.keys()) if (!byPartner.has(pid)) byPartner.set(pid, []);
+  // Sales Force: team shares, walkthroughs held, first-sale and promotion bonuses (lib/sales-force.ts)
+  const sf = await import("./sales-force");
+  const salesBy = await sf.dueSalesPay(now).catch((e) => { console.error("[sales force pay]", e); return new Map<string, { id: string; amount: number }[]>(); });
+  for (const pid of salesBy.keys()) if (!byPartner.has(pid)) byPartner.set(pid, []);
   let paid = 0, total = 0, waiting = 0;
   const failed: string[] = [];
   let funds = await availableBalance(); // card money takes ~2 days to become available in Stripe
   for (const [pid, rows] of byPartner) {
     const draws = drawsBy.get(pid) ?? [];
     const drawTotal = Math.round(draws.reduce((t, d) => t + d.net, 0) * 100) / 100;
-    const amount = Math.round((rows.reduce((t, r) => t + Number(r.amount), 0) + drawTotal) * 100) / 100;
+    const sales = salesBy.get(pid) ?? [];
+    const salesTotal = Math.round(sales.reduce((t, x) => t + x.amount, 0) * 100) / 100;
+    const amount = Math.round((rows.reduce((t, r) => t + Number(r.amount), 0) + drawTotal + salesTotal) * 100) / 100;
     if (amount < PARTNER_PROGRAM.minPayout) continue; // rolls to next week
     const { data: p } = await db().from("referral_partners").select("*").eq("id", pid).single();
     const partner = p as Partner;
@@ -492,15 +556,26 @@ export async function runPartnerPayouts(now = new Date()) {
     const stamp = new Date().toISOString();
     const { data: claimed } = ids.length ? await db().from("partner_commissions").update({ status: "paid", paid_at: stamp, week_of: week }).in("id", ids).eq("status", "pending").select("id") : { data: [] };
     const { data: claimedDraws } = drawIds.length ? await db().from("partner_draws").update({ status: "paid", paid_at: stamp, week_of: week }).in("id", drawIds).eq("status", "pending").select("id") : { data: [] };
+    const salesIds = sales.map((x) => x.id);
+    const claimedSales = await sf.claimSalesPay(salesIds, week, stamp);
+    if (claimedSales !== salesIds.length) {
+      await sf.releaseSalesPay(salesIds);
+      if (claimedDraws?.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimedDraws.map((x: { id: string }) => x.id));
+      if (claimed?.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
+      failed.push(`${partner.name} (Sales Force pay changed while paying)`);
+      continue;
+    }
     if ((claimedDraws ?? []).length !== drawIds.length) {
       if (claimedDraws?.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimedDraws.map((x: { id: string }) => x.id));
       if (claimed?.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
+      await sf.releaseSalesPay(salesIds);
       failed.push(`${partner.name} (lead pay changed while paying)`);
       continue;
     }
     if ((claimed ?? []).length !== ids.length) {
       if (drawIds.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", drawIds);
       if (claimed?.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", claimed.map((x: { id: string }) => x.id));
+      await sf.releaseSalesPay(salesIds);
       failed.push(`${partner.name} (changed while paying)`);
       continue;
     }
@@ -510,6 +585,7 @@ export async function runPartnerPayouts(now = new Date()) {
     } catch (e) {
       if (ids.length) await db().from("partner_commissions").update({ status: "pending", paid_at: null, week_of: null }).in("id", ids);
       if (drawIds.length) await db().from("partner_draws").update({ status: "pending", paid_at: null, week_of: null }).in("id", drawIds);
+      await sf.releaseSalesPay(salesIds);
       failed.push(`${partner.name}: ${e instanceof Error ? e.message : "transfer failed"}`);
       continue;
     }
@@ -519,6 +595,7 @@ export async function runPartnerPayouts(now = new Date()) {
     try {
       if (ids.length) await db().from("partner_commissions").update({ stripe_transfer_id: t.id }).in("id", ids);
       if (drawIds.length) await db().from("partner_draws").update({ stripe_transfer_id: t.id }).in("id", drawIds);
+      await sf.stampSalesPay(salesIds, t.id);
       await sendEmail(partner.email, `Paid: ${money(amount)} in ${BRAND.name} referral commissions`, `Hi ${partner.name.split(" ")[0]},\n\nWe sent ${money(amount)} for ${rows.length} completed job${rows.length === 1 ? "" : "s"} from customers you referred. It reaches your bank on Stripe's normal schedule (usually 2 business days).\n\nEvery job and payment: ${siteUrl()}/partner\n\nThank you for sending people our way.\n\n— ${BRAND.name}`).catch(() => {});
     } catch (e) {
       await raiseAlert("partners", "warn", `Partner payout sent but not fully recorded — ${partner.name}`, `Transfer ${t.id}: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
@@ -549,7 +626,8 @@ export async function payoutsReady(partner: Partner) {
   const s = getStripe();
   const acct = s ? await payoutAccount(partner) : null;
   if (!s || !acct) return false;
-  return Boolean((await s.accounts.retrieve(acct).catch(() => null))?.payouts_enabled);
+  // same readiness as pro payouts (2026-11-17): transfers capability active, Stripe errors retried
+  return (await (await import("./stripe")).connectStatus(acct)).state === "ready";
 }
 
 /**
@@ -561,25 +639,41 @@ export async function directSalesLevel(partnerId: string) {
   const { data } = await db().from("partner_commissions").select("take, rate, tier").eq("partner_id", partnerId).neq("status", "void").limit(100000);
   const rows = (data ?? []) as { take: number; rate: number | null; tier: string | null }[];
   // the first-project reward (tier 'self') is the partner's own job: it pays, but doesn't build level credit
-  const direct = rows.filter((r) => r.tier === "direct"), referral = rows.filter((r) => r.tier !== "direct" && r.tier !== "self");
+  const isDirect = (t: string | null) => t === "direct" || t === "sale";
+  const direct = rows.filter((r) => isDirect(r.tier)), referral = rows.filter((r) => !isDirect(r.tier) && r.tier !== "self");
   const add = (xs: typeof rows) => Math.round(xs.reduce((t, r) => t + Number(r.take), 0) * 100) / 100;
   const raw = { directProfit: add(direct), referralProfit: add(referral), directJobs: direct.length, referralJobs: referral.length };
   const credit = ladderCredit(raw);
-  const lv = partnerLevel(credit.profit, credit.jobs);
-  const best = direct.reduce((m, r) => Math.max(m, Number(r.rate ?? 0)), 0);
-  return { ...lv, rate: Math.max(lv.rate, Math.min(best, PARTNER_LADDER.topRate)), profit: credit.profit, jobs: credit.jobs, raw };
+  // partner-v7: one ladder — the direct-sale rate is the referral rate + 5 points (PARTNER_LADDER), same levels
+  const lv = partnerLevel(credit.profit, credit.jobs, PARTNER_LADDER);
+  return { ...lv, profit: credit.profit, jobs: credit.jobs, raw };
 }
 
-/** The partner's referral rate right now (partner-v4): 15% → 30% of the job price, from the same level credit. */
+/** partner-v4 referral rate right now (existing partners until v7): 15% → 30% of the job price. */
 export async function referralRateNow(partnerId: string): Promise<number> {
+  const d = await directSalesLevel(partnerId).catch(() => null);
+  if (!d) return REFERRAL_LADDER_V4.baseRate;
+  const credit = ladderCredit(d.raw);
+  return partnerLevel(credit.profit, credit.jobs, REFERRAL_LADDER_V4).rate;
+}
+
+/** partner-v7 program rate right now: 15% → 45% of Handled's profit (a direct sale adds DIRECT_BONUS at completion). */
+export async function programRateNow(partnerId: string): Promise<number> {
   return (await referralLevel(partnerId).catch(() => null))?.rate ?? REFERRAL_LADDER.baseRate;
+}
+
+/** Is this partner on partner-v7 (signed it, or it's past the notice date)? */
+export async function partnerOnV7(partnerId: string): Promise<boolean> {
+  if (Date.now() >= new Date(PARTNER_PROGRAM.v7AllAt).getTime()) return true;
+  const { data } = await db().from("referral_partners").select("terms_version").eq("id", partnerId).maybeSingle();
+  return String(data?.terms_version ?? "") >= "partner-v7";
 }
 
 /** The referral ladder level (same credit as direct sales: direct-sale profit 1.5×, referral profit 1×). */
 export async function referralLevel(partnerId: string) {
   const d = await directSalesLevel(partnerId);
   const credit = ladderCredit(d.raw);
-  return { ...partnerLevel(credit.profit, credit.jobs, REFERRAL_LADDER), profit: credit.profit, jobs: credit.jobs };
+  return { ...partnerLevel(credit.profit, 0, REFERRAL_LADDER), profit: credit.profit, jobs: credit.jobs };
 }
 
 /** Booking code box: is this an active partner's code? (The customer pays with their rep's code: credit, no discount.) */
@@ -595,7 +689,7 @@ export async function partnerStats(partnerId: string) {
   const [{ count: customers }, { data: comms }, level] = await Promise.all([
     db().from("referral_customers").select("id", { count: "exact", head: true }).eq("partner_id", partnerId),
     db().from("partner_commissions").select("amount, status, eligible_at, tier").eq("partner_id", partnerId),
-    directSalesLevel(partnerId).catch(() => partnerLevel(0)),
+    directSalesLevel(partnerId).catch(() => partnerLevel(0, 0, PARTNER_LADDER)),
   ]);
   const now = Date.now();
   const sum = (f: (r: { amount: number; status: string; eligible_at: string }) => boolean) => Math.round(((comms ?? []) as { amount: number; status: string; eligible_at: string }[]).filter(f).reduce((t, r) => t + Number(r.amount), 0) * 100) / 100;
@@ -609,8 +703,14 @@ export async function partnerStats(partnerId: string) {
     /** partner-v4 referral rate (15% → 30% of the price) from the same level credit. */
     referral: partnerLevel(Number((level as { profit?: number }).profit ?? 0), Number((level as { jobs?: number }).jobs ?? 0), REFERRAL_LADDER),
     bySource: {
-      direct: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier === "direct"),
-      referral: sum((r) => r.status !== "void" && (r as { tier?: string | null }).tier !== "direct"),
+      direct: sum((r) => r.status !== "void" && ["direct", "sale"].includes(String((r as { tier?: string | null }).tier))),
+      referral: sum((r) => r.status !== "void" && !["direct", "sale"].includes(String((r as { tier?: string | null }).tier))),
+    },
+    /** What builds the level (profit made for Handled): referrals 1×, direct sales 1.5×, and the total credit. */
+    credit: {
+      referralProfit: Number((level as { raw?: { referralProfit?: number } }).raw?.referralProfit ?? 0),
+      directProfit: Number((level as { raw?: { directProfit?: number } }).raw?.directProfit ?? 0),
+      total: Number((level as { profit?: number }).profit ?? 0),
     },
   };
 }
@@ -633,7 +733,7 @@ export async function partnerGrowthStats(partner: Partner): Promise<PartnerGrowt
   const accounts = new Set(list.map((r) => r.jobs!.business_account_id).filter(Boolean));
   return {
     payoutsReady: ready, customers: stats.customers, jobs: stats.jobs, categories: cats.size, recurring: recurring.size, accounts: accounts.size,
-    leads: lead.leads, directJobs: list.filter((r) => r.tier === "direct").length,
+    leads: lead.leads, directJobs: list.filter((r) => r.tier === "direct" || r.tier === "sale").length,
     earned: Math.round((stats.paid + stats.ready + stats.upcoming) * 100) / 100,
     referralRate: stats.referral.rate, salesRate: stats.level.rate,
   };

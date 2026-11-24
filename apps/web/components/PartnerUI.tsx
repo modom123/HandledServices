@@ -12,6 +12,9 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-10_0250 UTC — yes/no questions (cleaning add-ons and every service) show two buttons, Yes and No.
+ * UPDATED : 2026-11-17_2100 UTC — the sign-up checkbox e-signs the Referral Partner Agreement (linked); AgreementSign for existing partners.
+ * UPDATED : 2026-11-18_0105 UTC — sign-up sends ?leader= (a Sales Force leader's recruit link) so the new rep joins that team.
+ * UPDATED : 2026-11-24_1700 UTC — sign-up asks first: Path 1 · Refer (then "I am a…") or Path 2 · Sell (joins the Sales Force).
  */
 "use client";
 
@@ -29,7 +32,10 @@ async function post(url: string, body: unknown) {
 }
 
 export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [string, string][]; defaultKind?: string }) {
-  const [f, setF] = useState({ name: "", email: "", phone: "", company: "", kind: defaultKind, how: "", agree: false });
+  // two paths (2026-11-24): refer → pick who you are; sell → the Sales Force (kind sales_rep joins it on sign-up)
+  const referKinds = kinds.filter(([k]) => k !== "sales_rep");
+  const [path, setPath] = useState<"refer" | "sell">(defaultKind === "sales_rep" ? "sell" : "refer");
+  const [f, setF] = useState({ name: "", email: "", phone: "", company: "", kind: defaultKind === "sales_rep" ? (referKinds[0]?.[0] ?? "other") : defaultKind, how: "", agree: false });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<{ code?: string; link?: string; existing?: boolean } | null>(null);
@@ -50,19 +56,33 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
   return (
     <form className="card space-y-3" onSubmit={async (e) => {
       e.preventDefault(); setBusy(true); setErr(null);
-      const r = await post("/api/partners", f);
+      // a Sales Force leader's recruit link carries ?leader=CODE: the new rep joins that team
+      let leader: string | null = null;
+      try { leader = new URL(window.location.href).searchParams.get("leader"); } catch { /* no URL */ }
+      const r = await post("/api/partners", { ...f, kind: path === "sell" ? "sales_rep" : f.kind, leader: leader && /^[A-Za-z0-9-]{3,20}$/.test(leader) ? leader : null });
       setBusy(false);
       if (r.ok) setDone(r.data as never); else setErr(r.error);
     }}>
+      <fieldset>
+        <legend className="text-sm font-semibold">What do you want to do?</legend>
+        <div className="mt-1 grid gap-2 sm:grid-cols-2">
+          {([["refer", "Path 1 · Refer", "Send us customers, we sell and do the job"], ["sell", "Path 2 · Sell", "Close jobs yourself as part of the Sales Force"]] as const).map(([v, t, d]) => (
+            <label key={v} className={`cursor-pointer rounded-lg border p-3 text-sm ${path === v ? "border-brand bg-brand-tint" : "border-line"}`}>
+              <input type="radio" name="path" className="sr-only" checked={path === v} onChange={() => setPath(v)} />
+              <span className="block font-semibold">{t}</span><span className="text-ink-soft">{d}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Your name<input className="input mt-1" required value={f.name} onChange={set("name")} /></label>
         <label className="text-sm">Email<input className="input mt-1" type="email" required value={f.email} onChange={set("email")} /></label>
         <label className="text-sm">Phone<input className="input mt-1" type="tel" value={f.phone} onChange={set("phone")} /></label>
         <label className="text-sm">Company (optional)<input className="input mt-1" value={f.company} onChange={set("company")} /></label>
       </div>
-      <label className="block text-sm">I am a…<select className="input mt-1" value={f.kind} onChange={set("kind")}>{kinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-      <label className="block text-sm">How will you refer people? (optional)<textarea className="input mt-1" rows={2} value={f.how} onChange={set("how")} placeholder="e.g. I list 40 homes a year and my sellers always need move-out cleans" /></label>
-      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} />I agree to the partner terms below.</label>
+      {path === "refer" && <label className="block text-sm">I am a…<select className="input mt-1" value={f.kind} onChange={set("kind")}>{referKinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
+      <label className="block text-sm">{path === "sell" ? "Where or what will you sell? (optional)" : "How will you refer people? (optional)"}<textarea className="input mt-1" rows={2} value={f.how} onChange={set("how")} placeholder="e.g. I list 40 homes a year and my sellers always need move-out cleans" /></label>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} /><span>I've read and sign the <a href="/terms/referral-partner-agreement" target="_blank" className="font-semibold underline">Referral Partner Agreement</a>. My name above is my electronic signature.</span></label>
       <button className="btn-primary w-full" disabled={busy || !f.agree}>{busy ? "Signing you up…" : "Get my partner link"}</button>
       {err && <p className="text-sm text-rose-700">{err}</p>}
     </form>
@@ -385,3 +405,27 @@ export function SalesTicketForm({ services, minPhotos, maxPhotos, repCode }: { s
 }
 
 const FREQ: Record<Frequency, string> = { once: "One time", weekly: "Weekly", biweekly: "Every 2 weeks", monthly: "Monthly", quarterly: "Quarterly" };
+
+/** Partner page: sign the current Referral Partner Agreement (partners who joined under earlier terms). */
+export function AgreementSign({ defaultName }: { defaultName: string }) {
+  const [name, setName] = useState(defaultName);
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={async (e) => {
+      e.preventDefault();
+      setBusy(true); setMsg("");
+      const r = await fetch("/api/partner", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sign", signer_name: name, agree: true }) }).catch(() => null);
+      const j = r ? await r.json().catch(() => ({})) : {};
+      setBusy(false);
+      if (r?.ok) { setMsg("✓ Signed — thank you."); setTimeout(() => location.reload(), 900); }
+      else setMsg(String(j.error ?? "Couldn't sign — try again"));
+    }}>
+      <label className="text-sm">Your full name (signature)<input className="input mt-1 w-64" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />I've read and sign it</label>
+      <button className="btn-primary" disabled={busy || !ok || name.trim().length < 2}>{busy ? "Signing…" : "Sign the agreement"}</button>
+      {msg && <span className="text-sm" role="status">{msg}</span>}
+    </form>
+  );
+}

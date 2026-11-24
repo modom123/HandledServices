@@ -9,6 +9,7 @@
  * UPDATED : 2026-10-11_1625 UTC — HUNTER_API_KEY in the setup list (Hunter.io finds emails the website doesn't show).
  * UPDATED : 2026-10-27_1700 UTC — applicants link → Recruiting → Pipeline.
  * UPDATED : 2026-11-05_1215 UTC — status filter is a dropdown; trades to recruit are a dropdown (components/LeadAdmin).
+ * UPDATED : 2026-11-20_0200 UTC — weekly invitations: 60 or 90 days setting.
  */
 import Link from "next/link";
 import { TRADES } from "@handled/core";
@@ -57,7 +58,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         <Stat label="Applied" value={n("applied")} />
         <Stat label="Call list" value={n("call")} />
       </div>
-      <LeadSettingsPanel initial={{ enabled: settings.enabled, discover_per_day: settings.discover_per_day, emails_per_day: settings.emails_per_day, min_rating: Number(settings.min_rating), min_reviews: settings.min_reviews, trades: settings.trades }} />
+      <LeadSettingsPanel initial={{ enabled: settings.enabled, discover_per_day: settings.discover_per_day, emails_per_day: settings.emails_per_day, min_rating: Number(settings.min_rating), min_reviews: settings.min_reviews, trades: settings.trades, invite_days: settings.invite_days ?? 60 }} />
       <LeadImport />
 
       <section className="card">

@@ -10,6 +10,7 @@
  * UPDATED : 2026-10-05_0221 UTC — completion is blocked while required checklist items are open.
  * PURPOSE : Pro: start a job, or complete it with photos (triggers AI QA).
  * UPDATED : 2026-11-06_1900 UTC — GET: the job as the pro may see it (lib/job-access), for the app.
+ * UPDATED : 2026-11-13_0030 UTC — the address and customer contact need the Pro PIN (x-pro-unlock header or cookie).
  */
 import { after } from "next/server";
 import { z } from "zod";
@@ -20,6 +21,7 @@ import { onMyWay } from "@/lib/visit";
 import { proReleaseJob } from "@/lib/standing";
 import { assignCrew } from "@/lib/crew";
 import { proJob } from "@/lib/job-access";
+import { pinUnlocked } from "@/lib/pro-pin";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start") }),
@@ -35,7 +37,7 @@ const Body = z.discriminatedUnion("action", [
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const v = await getViewer(req);
   if (!v?.contractorId) return deny(403, "Pro account required");
-  const job = await proJob(v.contractorId, (await ctx.params).id);
+  const job = await proJob(v.contractorId, (await ctx.params).id, await pinUnlocked(v.contractorId, req));
   return job ? Response.json({ job }, { headers: { "Cache-Control": "no-store" } }) : deny(404, "Not found");
 }
 

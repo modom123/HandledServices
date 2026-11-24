@@ -10,6 +10,8 @@
  * UPDATED : 2026-10-15_0300 UTC — Job: payment_plan "after" (25% now, balance after the job), balance_charge_at, balance_attempts,
  *           balance_hold_intent, pay_in_full_discount.
  * UPDATED : 2026-10-18_0415 UTC — Contractor.entity_type uses EntityType (adds LLCs taxed as S/C corporations).
+ * UPDATED : 2026-11-12_2100 UTC — Contractor.board_alerts (job board alerts: all / digest / off).
+ * UPDATED : 2026-11-12_2355 UTC — Contractor.handled_additional_insured (priority for jobs that need insurance).
  */
 import type { EntityType } from "./compliance.ts";
 
@@ -91,6 +93,8 @@ export interface Job {
   price_final: number | null;
   contractor_id: string | null;
   contractor_payout: number | null;
+  /** priced at business prices (BUSINESS_PRICING): pay with splitJob(price, slug, { business: true }) */
+  business_pricing?: boolean | null;
   ai_quote: unknown;
   ai_dispatch: unknown;
   ai_qa: unknown;
@@ -185,6 +189,8 @@ export interface Contractor {
   acceptance_rate: number;
   on_time_rate: number;
   insured_until: string | null;
+  /** The verified COI names Handled Services LLC as ADDITIONAL INSURED (not only certificate holder): priority for jobs. */
+  handled_additional_insured?: boolean | null;
   license_number: string | null;
   background_checked: boolean;
   daily_capacity: number;
@@ -203,7 +209,9 @@ export interface Contractor {
   agreement_signer?: string | null;
   license_expires?: string | null;
   background_checked_at?: string | null;
-  payout_method?: "ach" | "stripe_connect" | "check" | null;
+  payout_method?: "ach" | "stripe_connect" | "check" | "paypal" | "venmo" | null;
+  /** PayPal email or Venmo phone (+1…) when the pro is paid that way. */
+  payout_handle?: string | null;
   payout_account_last4?: string | null;
   onboarded_at?: string | null;
   offboarded_at?: string | null;
@@ -230,6 +238,8 @@ export interface Contractor {
   time_off?: string[] | null;
   // live status (see roster.ts): on call until, and the last phone location while on call / on a job
   on_call_until?: string | null;
+  /** Job board alerts: "all" (instant for posts / top pay + a daily summary), "digest" (daily only) or "off". */
+  board_alerts?: "all" | "digest" | "off" | null;
   last_lat?: number | null;
   last_lng?: number | null;
   last_located_at?: string | null;

@@ -13,9 +13,11 @@
  *                                   higher pay, or assigned to the pro whose counter they took
  *             nudgeLowOffers      — no pro yet after a while → suggest raising, from real counters
  * UPDATED : 2026-10-15_0300 UTC — offer nudges also cover "pay after" jobs with their 25% in.
+ * UPDATED : 2026-11-12_1900 UTC — a name-your-price board post raises its price without a charge (the whole price is
+ *           charged when a pro takes it).
  */
 import "server-only";
-import { BRAND, MARKET_BOUNDS, clampFactor, getService, marketFactor, money, priceForPayout, serviceText, type Job, type PriceSignal } from "@handled/core";
+import { BRAND, MARKET_BOUNDS, clampFactor, getService, isBoardPost, marketFactor, money, priceForPayout, serviceText, splitJob, type Job, type PriceSignal } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { notify } from "./push";
 import { siteUrl } from "./notify";
@@ -119,6 +121,18 @@ export async function startRaise(jobId: string, customerId: string | null, o: { 
   const extra = Math.round((target - Number(job.price_final)) * 100) / 100;
   if (!(extra >= 1)) return { ok: false, error: "Enter a higher price than you're paying now" };
   if (target > Number(job.price_final) * 3) return { ok: false, error: "That's more than triple the price — call us" };
+  // a board post ($1 to post): nothing else is charged yet — the new price is charged when a pro takes it
+  if (isBoardPost(job) && !job.paid_at) {
+    const { data: up } = await db().from("jobs").update({
+      price_final: target, estimate_low: target, estimate_high: target, customer_offer: target, pending_counter_offer: counterId, pending_raise: null,
+      contractor_payout: splitJob(target + Number(job.discount ?? 0) + Number(job.member_benefit ?? 0), job.service_slug).payout,
+    }).eq("id", jobId).is("contractor_id", null).select("*").maybeSingle();
+    if (!up) return { ok: false, error: "A pro already took this job" };
+    const { addEvent } = await import("./jobs");
+    await addEvent(jobId, "offer_raised", `Offer raised to ${money(target)} — charged only when a pro takes the job.`, "customer", true, `Oferta aumentada a ${money(target)}: se cobra solo cuando un profesional tome el trabajo.`);
+    await afterRaisePaid(up as Job & { pending_counter_offer?: string | null });
+    return { ok: true, charged: 0 };
+  }
   await db().from("jobs").update({ pending_counter_offer: counterId, pending_raise: extra }).eq("id", jobId);
   const got = await chargeSavedCard(job, extra, "offer_raise");
   if (got) {

@@ -4,6 +4,7 @@
  * CREATED : 2026-10-03_1513 UTC
  * PURPOSE : Hub → City scorecard controls: add a city (name, state, ZIP prefixes) and pause / resume one.
  * UPDATED : 2026-10-04_1934 UTC — LaunchSet: which services a city has open (constraint-driven launch).
+ * UPDATED : 2026-11-18_0240 UTC — adding a city before any city is ready to replicate asks for a reason (logged).
  */
 "use client";
 
@@ -21,15 +22,26 @@ export function MarketForm() {
   const [name, setName] = useState("");
   const [state, setState] = useState("MI");
   const [zips, setZips] = useState("");
+  const [reason, setReason] = useState("");
+  const [needsReason, setNeedsReason] = useState(false);
   const [msg, setMsg] = useState("");
   const prefixes = zips.split(/[\s,]+/).map((z) => z.trim().slice(0, 3)).filter((z) => /^\d{3}$/.test(z));
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <input className="input max-w-xs" placeholder="City / metro (e.g. Grand Rapids)" value={name} onChange={(e) => setName(e.target.value)} />
-      <input className="input w-20" maxLength={2} value={state} onChange={(e) => setState(e.target.value.toUpperCase())} aria-label="State" />
-      <input className="input max-w-xs" placeholder="ZIP prefixes, e.g. 493, 494, 495" value={zips} onChange={(e) => setZips(e.target.value)} />
-      <button className="btn-primary" disabled={name.trim().length < 2 || state.length !== 2 || !prefixes.length} onClick={async () => { setMsg(""); const e = await post({ name, state, zip_prefixes: prefixes }); if (e) setMsg(e); else { setName(""); setZips(""); router.refresh(); } }}>Add city</button>
-      {msg && <span className="text-sm text-rose-700">{msg}</span>}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="input max-w-xs" placeholder="City / metro (e.g. Grand Rapids)" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="input w-20" maxLength={2} value={state} onChange={(e) => setState(e.target.value.toUpperCase())} aria-label="State" />
+        <input className="input max-w-xs" placeholder="ZIP prefixes, e.g. 493, 494, 495" value={zips} onChange={(e) => setZips(e.target.value)} />
+        <button className="btn-primary" disabled={name.trim().length < 2 || state.length !== 2 || !prefixes.length || (needsReason && reason.trim().length < 15)} onClick={async () => {
+          setMsg("");
+          const r = await fetch("/api/hub/markets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, state, zip_prefixes: prefixes, override_reason: reason || null }) });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok) { setName(""); setZips(""); setReason(""); setNeedsReason(false); router.refresh(); }
+          else { setMsg(String(j.error ?? "Failed")); if (j.needs_reason) setNeedsReason(true); }
+        }}>Add city</button>
+      </div>
+      {needsReason && <input className="input max-w-xl" placeholder="Why open it now? (e.g. an anchor client signed for 40 buildings there)" value={reason} onChange={(e) => setReason(e.target.value)} />}
+      {msg && <p className="text-sm text-rose-700">{msg}</p>}
     </div>
   );
 }

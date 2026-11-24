@@ -15,10 +15,11 @@
  *           there). Once paid, the job goes to the job board (dispatch) like any booking; when it's completed the rep's
  *           commission accrues at their ladder rate (lib/partners.ts → accrueCommission). Reps never take money.
  * UPDATED : 2026-11-10_0400 UTC — every lead records a $10 draw (lead pay; partner_draws), up to 25 a week.
+ * UPDATED : 2026-11-18_0040 UTC — a ticket for a business customer shows the business price (core businessEstimate).
  */
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { BRAND, SALES_DRAW, SALES_TICKET, estimate, getService, isPhotoPath, money, partnerExpiry, ticketCloseCheck, type Answers, type Job } from "@handled/core";
+import { BRAND, SALES_DRAW, SALES_TICKET, estimate, getService, isPhotoPath, money, partnerExpiry, ticketCloseCheck, type Answers, type Job, businessEstimate } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { opsEmail, sendEmail, siteUrl } from "./notify";
 import { sendSms } from "./sms";
@@ -65,7 +66,9 @@ async function quotePrice(i: TicketInput): Promise<number | null> {
     const zip = i.zip ?? "";
     const market = /^\d{5}$/.test(zip) ? await (await import("./market")).getMarketFactor(svc.slug, zip) : 1;
     const region = /^\d{5}$/.test(zip) ? await (await import("./launch")).regionFactor(zip, svc.slug) : 1;
-    const e = estimate({ slug: svc.slug, answers: i.answers, frequency: i.frequency, customerType: i.customer_type, market, region });
+    const home = estimate({ slug: svc.slug, answers: i.answers, frequency: i.frequency, customerType: i.customer_type, market, region });
+    // a business customer pays the business price, the same one the booking charges (core BUSINESS_PRICING)
+    const e = i.customer_type === "commercial" ? businessEstimate(home) : home;
     return e.siteVisit ? null : e.point;
   } catch { return null; }
 }
