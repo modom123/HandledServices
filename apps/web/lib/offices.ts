@@ -17,26 +17,48 @@
  *           e.g. mark@handledsvc.net). Replies there are read by the sales agent too (by UID, so nothing conflicts).
  * UPDATED : 2026-11-24_1500 UTC — Mark's office also has the company mailbox (info@handledsvc.com) — one Email card with a
  *           tab per inbox: his own, business leads (handledsvc.net) and info@.
+ * UPDATED : 2026-11-24_1600 UTC — Cecilia's office has a handledsvc.net mailbox too (OFFICE_GULLEY_NET_EMAIL = cece@handledsvc.net,
+ *           OFFICE_GULLEY_NET_PASSWORD). Any office mailbox off the company domain finds its servers from its MX record.
  */
 import "server-only";
 import type { MailAccount } from "./mailbox";
 
 export type OfficeTools = "ops" | "recruiting";
-export interface Office { slug: string; key: string; name: string; first: string; title: string; tools: OfficeTools; icon: string; leadsInbox?: boolean; companyInbox?: boolean }
+export interface Office { slug: string; key: string; name: string; first: string; title: string; tools: OfficeTools; icon: string; leadsInbox?: boolean; companyInbox?: boolean; netInbox?: boolean }
 
 export const OFFICES: Office[] = [
   { slug: "odom", key: "ODOM", name: "Mark Odom", first: "Mark", title: "CEO", tools: "ops", icon: "👔", leadsInbox: true, companyInbox: true },
-  { slug: "gulley", key: "GULLEY", name: "Cecilia Gulley", first: "Cecilia", title: "Chief Strategy & Recruiting Officer", tools: "recruiting", icon: "🎯" },
+  { slug: "gulley", key: "GULLEY", name: "Cecilia Gulley", first: "Cecilia", title: "Chief Strategy & Recruiting Officer", tools: "recruiting", icon: "🎯", netInbox: true },
 ];
 
 export const officeBySlug = (slug: string) => OFFICES.find((o) => o.slug === slug) ?? null;
 const env = (o: Office, k: string) => process.env[`OFFICE_${o.key}_${k}`]?.trim() || null;
 
 export const officeEmail = (o: Office) => env(o, "EMAIL");
-export const officeMail = (o: Office): MailAccount | null => {
+/**
+ * A mailbox with the right servers: the company mail host when it's on the company mailbox's domain, otherwise the
+ * host found from its own domain's MX record (e.g. handledsvc.net on Hosted Email).
+ */
+async function withServers(user: string, pass: string): Promise<MailAccount> {
+  const domain = user.split("@")[1]?.toLowerCase() ?? "";
+  const companyDomain = process.env.SMTP_USER?.split("@")[1]?.toLowerCase();
+  if (!domain || domain === companyDomain) return { user, pass };
+  const { mailHostFor } = await import("./outreach-mail");
+  const h = await mailHostFor(domain);
+  return h ? { user, pass, smtpHost: h.smtp, smtpPort: h.smtpPort, imapHost: h.imap, imapPort: 993 } : { user, pass };
+}
+
+/** The office's own mailbox (OFFICE_<KEY>_EMAIL / _PASSWORD). */
+export async function officeMail(o: Office): Promise<MailAccount | null> {
   const user = env(o, "EMAIL"), pass = env(o, "PASSWORD");
-  return user && pass ? { user, pass } : null;
-};
+  return user && pass ? withServers(user, pass) : null;
+}
+/** The office's handledsvc.net mailbox (OFFICE_<KEY>_NET_EMAIL / _NET_PASSWORD, e.g. cece@handledsvc.net). */
+export const officeNetEmail = (o: Office) => env(o, "NET_EMAIL");
+export async function officeNetMail(o: Office): Promise<MailAccount | null> {
+  const user = env(o, "NET_EMAIL"), pass = env(o, "NET_PASSWORD");
+  return user && pass ? withServers(user, pass) : null;
+}
 export const officeZoomLink = (o: Office) => env(o, "ZOOM_LINK");
 export const officeZoomUser = (o: Office) => env(o, "ZOOM_USER") ?? env(o, "EMAIL");
 /** The business-leads outreach mailbox (mark@handledsvc.net — lib/outreach-mail.ts OUTREACH_*), read in Mark's office. */

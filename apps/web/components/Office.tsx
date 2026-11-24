@@ -9,6 +9,7 @@
  *           Mark's office; reading a lead's reply links to that lead.
  * UPDATED : 2026-11-24_1500 UTC — OfficeInboxes: one Email card with a tab per inbox (Mark: his own, business leads, info@);
  *           the chosen tab is kept in the address (?inbox=) so Back and reloads keep it.
+ * UPDATED : 2026-11-24_1600 UTC — box "net": an office's handledsvc.net mailbox (Cecilia's cece@handledsvc.net).
  */
 "use client";
 import { useEffect, useState } from "react";
@@ -20,7 +21,7 @@ async function call(body: Record<string, unknown>) {
   return { ok: r.ok, data } as { ok: boolean; data: { error?: string; [k: string]: unknown } };
 }
 
-export function OfficeCompose({ office, first, defaultTo = "", box }: { office: string; first: string; defaultTo?: string; box?: "office" | "leads" | "company" }) {
+export function OfficeCompose({ office, first, defaultTo = "", box }: { office: string; first: string; defaultTo?: string; box?: "office" | "leads" | "company" | "net" }) {
   const [f, setF] = useState({ to: defaultTo, subject: "", text: "" });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,7 +43,7 @@ export function OfficeCompose({ office, first, defaultTo = "", box }: { office: 
   );
 }
 
-export function OfficeReply({ office, uid, to, subject, inReplyTo, references, box }: { office: string; uid: number; to: string; subject: string; inReplyTo: string | null; references: string | null; box?: "office" | "leads" | "company" }) {
+export function OfficeReply({ office, uid, to, subject, inReplyTo, references, box }: { office: string; uid: number; to: string; subject: string; inReplyTo: string | null; references: string | null; box?: "office" | "leads" | "company" | "net" }) {
   const [text, setText] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -108,7 +109,7 @@ export function ZoomScheduler({ office, ready, defaultTopic = "", defaultInvite 
   );
 }
 
-export function VerifyMailbox({ office, box }: { office: string; box?: "office" | "leads" | "company" }) {
+export function VerifyMailbox({ office, box }: { office: string; box?: "office" | "leads" | "company" | "net" }) {
   const [msg, setMsg] = useState("");
   return (
     <span className="text-xs">
@@ -235,9 +236,9 @@ export function TodoBoard({ office, other, names, todos, done, error }: { office
 interface MailItem { uid: number; from: string; fromName: string | null; subject: string; date: string; seen: boolean }
 interface MailFull extends MailItem { to: string; text: string; messageId: string | null; references: string | null }
 
-export function OfficeMail({ office, first, box = "office" }: { office: string; first: string; box?: "office" | "leads" | "company" }) {
+export function OfficeMail({ office, first, box = "office" }: { office: string; first: string; box?: "office" | "leads" | "company" | "net" }) {
   // each inbox keeps its own browser-history key, so Back closes the right one
-  const key = box === "leads" ? "lead_mail" : box === "company" ? "info_mail" : "mail";
+  const key = box === "leads" ? "lead_mail" : box === "company" ? "info_mail" : box === "net" ? "net_mail" : "mail";
   const [lead, setLead] = useState<{ id: string; business_name: string | null; status: string } | null>(null);
   const [items, setItems] = useState<MailItem[] | null>(null);
   const [err, setErr] = useState("");
@@ -320,7 +321,7 @@ export function OfficeMail({ office, first, box = "office" }: { office: string; 
 }
 
 // ─── Mark's office (2026-11-24): one Email card, a tab per inbox (his own, business leads, info@) ───
-export interface InboxTab { box: "office" | "leads" | "company"; label: string; email: string | null; connected: boolean; help: string; note?: string }
+export interface InboxTab { box: "office" | "leads" | "company" | "net"; label: string; email: string | null; connected: boolean; help: string; note?: string }
 
 export function OfficeInboxes({ office, first, tabs }: { office: string; first: string; tabs: InboxTab[] }) {
   const pick = () => {
@@ -332,7 +333,7 @@ export function OfficeInboxes({ office, first, tabs }: { office: string; first: 
   const t = tabs.find((x) => x.box === box) ?? tabs[0];
   const choose = (b: InboxTab["box"]) => {
     setBox(b);
-    const u = new URL(window.location.href); u.searchParams.set("inbox", b); u.searchParams.delete("mail"); u.searchParams.delete("lead_mail"); u.searchParams.delete("info_mail");
+    const u = new URL(window.location.href); u.searchParams.set("inbox", b); u.searchParams.delete("mail"); u.searchParams.delete("lead_mail"); u.searchParams.delete("info_mail"); u.searchParams.delete("net_mail");
     window.history.replaceState(window.history.state, "", u.toString());
   };
   return (

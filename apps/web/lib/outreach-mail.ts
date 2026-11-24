@@ -22,6 +22,7 @@
  *           aren't set (Hosted Email / OpenSRS, Hostinger, Google, Microsoft), never borrowed from the company mailbox;
  *           send and login errors explained in plain words; DKIM check knows more selectors (dkim_key, mail, …) and
  *           OUTREACH_DKIM_SELECTOR.
+ * UPDATED : 2026-11-24_1600 UTC — mailHostFor(domain): the mail servers for any mailbox's domain (office mailboxes on handledsvc.net).
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -47,6 +48,13 @@ const KNOWN_HOSTS: { mx: RegExp; smtp: string; smtpPort: number; imap: string; n
   { mx: /(secureserver\.net)$/i, smtp: "smtpout.secureserver.net", smtpPort: 465, imap: "imap.secureserver.net", name: "GoDaddy" },
   { mx: /zoho\.(com|eu)$/i, smtp: "smtp.zoho.com", smtpPort: 465, imap: "imap.zoho.com", name: "Zoho" },
 ];
+const hostCache = new Map<string, Promise<(typeof KNOWN_HOSTS)[number] | null>>();
+/** Who hosts a domain's mailboxes (from its MX record), or null if it isn't a host we know. Cached per domain. */
+export function mailHostFor(domain: string) {
+  const d = domain.toLowerCase();
+  if (!hostCache.has(d)) hostCache.set(d, resolveMx(d).then((mx) => KNOWN_HOSTS.find((h) => mx.some((m) => h.mx.test(m.exchange.replace(/\.$/, "")))) ?? null).catch(() => null));
+  return hostCache.get(d)!;
+}
 let servers: Promise<{ smtp: string; smtpPort: number; imap: string; imapPort: number; how: string }> | null = null;
 /** OUTREACH_* settings win; otherwise the host is found from the outreach domain's MX (never the company mailbox's host). */
 export function outreachServers() {

@@ -23,6 +23,7 @@
  *           below his own email (full width); read and reply in place, with a link to the lead.
  * UPDATED : 2026-11-24_1500 UTC — Mark's office: one Email card with tabs — his own mailbox, Business leads (mark@handledsvc.net)
  *           and the company mailbox (info@handledsvc.com); it opens on a connected one.
+ * UPDATED : 2026-11-24_1600 UTC — Cecilia's office: a tab for her handledsvc.net mailbox (cece@handledsvc.net) next to her own.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -30,7 +31,7 @@ import { PIPELINE } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { adminOnly } from "@/components/AdminOnly";
 import { Stat } from "@/components/ui";
-import { OFFICES, leadsEmail, leadsMail, officeBySlug, officeEmail, officeMail, type Office } from "@/lib/offices";
+import { OFFICES, leadsEmail, leadsMail, officeBySlug, officeEmail, officeMail, officeNetEmail, officeNetMail, type Office } from "@/lib/offices";
 import { listTodos, otherOffice } from "@/lib/office-todos";
 import { sectionsFor, type HubSection } from "@/lib/hub-sections";
 import { clientsFunnel } from "@/lib/clients-funnel";
@@ -143,13 +144,17 @@ async function RecruitingTools() {
 
 async function Mail({ o }: { o: Office }) {
   const tabs: InboxTab[] = [{
-    box: "office", label: `✉️ ${o.first}`, email: officeEmail(o), connected: Boolean(officeMail(o)),
+    box: "office", label: `✉️ ${o.first}`, email: officeEmail(o), connected: Boolean(await officeMail(o)),
     help: `In Vercel → Environment Variables add OFFICE_${o.key}_EMAIL (${o.first}'s mailbox address) and OFFICE_${o.key}_PASSWORD, then redeploy.`,
   }];
   if (o.leadsInbox) tabs.push({
     box: "leads", label: "📨 Business leads", email: leadsEmail(), connected: Boolean(await leadsMail()),
     note: "replies to the sales outreach; the sales agent reads them too",
     help: "In Vercel add OUTREACH_SMTP_USER (mark@handledsvc.net), OUTREACH_SMTP_PASSWORD and OUTREACH_FROM_NAME, then redeploy.",
+  });
+  if (o.netInbox) tabs.push({
+    box: "net", label: `📨 ${officeNetEmail(o) ?? "handledsvc.net"}`, email: officeNetEmail(o), connected: Boolean(await officeNetMail(o)),
+    help: `In Vercel add OFFICE_${o.key}_NET_EMAIL (e.g. ${o.slug === "gulley" ? "cece" : o.first.toLowerCase()}@handledsvc.net) and OFFICE_${o.key}_NET_PASSWORD, then redeploy.`,
   });
   if (o.companyInbox) tabs.push({
     box: "company", label: "🏢 info@", email: mailboxUser(), connected: Boolean(companyMail()),

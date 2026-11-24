@@ -21,17 +21,18 @@
  * UPDATED : 2026-11-24_1500 UTC — `box: "company"` = the company mailbox (info@handledsvc.com), Mark's office only. Reading an
  *           email there or in the business-leads box shows which business lead wrote; a lead's reply in info@ marks
  *           the lead replied (as the Email Center inbox does).
+ * UPDATED : 2026-11-24_1600 UTC — `box: "net"` = the office's handledsvc.net mailbox (Cecilia: cece@handledsvc.net).
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin } from "@/lib/auth";
-import { leadsMail, officeBySlug, officeMail, officeSignature, officeZoomUser } from "@/lib/offices";
+import { leadsMail, officeBySlug, officeMail, officeNetMail, officeSignature, officeZoomUser } from "@/lib/offices";
 import { adminClient } from "@/lib/supabase/server";
 import { companyMail, listInbox, mailboxUser, readMessage, saveToSent, sendMail, verifyMailbox } from "@/lib/mailbox";
 import { createZoomMeeting } from "@/lib/zoom";
 import { addTodo, deleteTodo, noteTodo, sendTodo, setTodoDone } from "@/lib/office-todos";
 
 const office = z.string().refine((s) => Boolean(officeBySlug(s)), "Unknown office");
-const box = z.enum(["office", "leads", "company"]).optional();
+const box = z.enum(["office", "leads", "company", "net"]).optional();
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("compose"), office, box, to: z.string().email(), subject: z.string().trim().min(1).max(200), text: z.string().min(1).max(50000) }),
   z.object({ action: z.literal("reply"), office, box, uid: z.number().int(), to: z.string().email(), subject: z.string().min(1).max(200), text: z.string().min(1).max(50000),
@@ -55,11 +56,13 @@ export async function POST(req: Request) {
   const d = b.data;
   const o = officeBySlug(d.office)!;
   const which = "box" in d && d.box ? d.box : "office";
-  const leads = which === "leads", company = which === "company";
+  const leads = which === "leads", company = which === "company", net = which === "net";
   if (leads && !o.leadsInbox) return deny(403, "This office has no business-leads inbox");
   if (company && !o.companyInbox) return deny(403, "This office has no company inbox");
-  const acct = leads ? await leadsMail() : company ? companyMail() : officeMail(o);
+  if (net && !o.netInbox) return deny(403, "This office has no handledsvc.net inbox");
+  const acct = leads ? await leadsMail() : company ? companyMail() : net ? await officeNetMail(o) : await officeMail(o);
   const mailOff = leads ? "The business-leads mailbox isn't connected yet (OUTREACH_SMTP_USER and OUTREACH_SMTP_PASSWORD in Vercel)."
+    : net ? `${o.first}'s handledsvc.net mailbox isn't connected yet (OFFICE_${o.key}_NET_EMAIL and OFFICE_${o.key}_NET_PASSWORD in Vercel).`
     : company ? `The company mailbox ${mailboxUser() ?? "(info@)"} isn't connected yet (SMTP_USER and SMTP_PASSWORD in Vercel).`
     : `${o.name}'s mailbox isn't connected yet (OFFICE_${o.key}_EMAIL and OFFICE_${o.key}_PASSWORD in Vercel).`;
 
