@@ -15,15 +15,17 @@
  *           Offices are admin-only pages (personal mail).
  * UPDATED : 2026-11-20_1500 UTC — Mark's office also reads the business-leads mailbox (leadsMail: the OUTREACH_* mailbox,
  *           e.g. mark@handledsvc.net). Replies there are read by the sales agent too (by UID, so nothing conflicts).
+ * UPDATED : 2026-11-24_1500 UTC — Mark's office also has the company mailbox (info@handledsvc.com) — one Email card with a
+ *           tab per inbox: his own, business leads (handledsvc.net) and info@.
  */
 import "server-only";
 import type { MailAccount } from "./mailbox";
 
 export type OfficeTools = "ops" | "recruiting";
-export interface Office { slug: string; key: string; name: string; first: string; title: string; tools: OfficeTools; icon: string; leadsInbox?: boolean }
+export interface Office { slug: string; key: string; name: string; first: string; title: string; tools: OfficeTools; icon: string; leadsInbox?: boolean; companyInbox?: boolean }
 
 export const OFFICES: Office[] = [
-  { slug: "odom", key: "ODOM", name: "Mark Odom", first: "Mark", title: "CEO", tools: "ops", icon: "👔", leadsInbox: true },
+  { slug: "odom", key: "ODOM", name: "Mark Odom", first: "Mark", title: "CEO", tools: "ops", icon: "👔", leadsInbox: true, companyInbox: true },
   { slug: "gulley", key: "GULLEY", name: "Cecilia Gulley", first: "Cecilia", title: "Chief Strategy & Recruiting Officer", tools: "recruiting", icon: "🎯" },
 ];
 

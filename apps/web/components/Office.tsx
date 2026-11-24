@@ -7,6 +7,8 @@
  *           (TodoBoard: on my desk / with the other office, send back and forth, done, notes, history). All POST /api/hub/office.
  * UPDATED : 2026-11-20_1500 UTC — `box` on the mail widgets: "leads" = the business-leads mailbox (mark@handledsvc.net) in
  *           Mark's office; reading a lead's reply links to that lead.
+ * UPDATED : 2026-11-24_1500 UTC — OfficeInboxes: one Email card with a tab per inbox (Mark: his own, business leads, info@);
+ *           the chosen tab is kept in the address (?inbox=) so Back and reloads keep it.
  */
 "use client";
 import { useEffect, useState } from "react";
@@ -18,7 +20,7 @@ async function call(body: Record<string, unknown>) {
   return { ok: r.ok, data } as { ok: boolean; data: { error?: string; [k: string]: unknown } };
 }
 
-export function OfficeCompose({ office, first, defaultTo = "", box }: { office: string; first: string; defaultTo?: string; box?: "office" | "leads" }) {
+export function OfficeCompose({ office, first, defaultTo = "", box }: { office: string; first: string; defaultTo?: string; box?: "office" | "leads" | "company" }) {
   const [f, setF] = useState({ to: defaultTo, subject: "", text: "" });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,7 +42,7 @@ export function OfficeCompose({ office, first, defaultTo = "", box }: { office: 
   );
 }
 
-export function OfficeReply({ office, uid, to, subject, inReplyTo, references, box }: { office: string; uid: number; to: string; subject: string; inReplyTo: string | null; references: string | null; box?: "office" | "leads" }) {
+export function OfficeReply({ office, uid, to, subject, inReplyTo, references, box }: { office: string; uid: number; to: string; subject: string; inReplyTo: string | null; references: string | null; box?: "office" | "leads" | "company" }) {
   const [text, setText] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -106,7 +108,7 @@ export function ZoomScheduler({ office, ready, defaultTopic = "", defaultInvite 
   );
 }
 
-export function VerifyMailbox({ office, box }: { office: string; box?: "office" | "leads" }) {
+export function VerifyMailbox({ office, box }: { office: string; box?: "office" | "leads" | "company" }) {
   const [msg, setMsg] = useState("");
   return (
     <span className="text-xs">
@@ -233,9 +235,9 @@ export function TodoBoard({ office, other, names, todos, done, error }: { office
 interface MailItem { uid: number; from: string; fromName: string | null; subject: string; date: string; seen: boolean }
 interface MailFull extends MailItem { to: string; text: string; messageId: string | null; references: string | null }
 
-export function OfficeMail({ office, first, box = "office" }: { office: string; first: string; box?: "office" | "leads" }) {
+export function OfficeMail({ office, first, box = "office" }: { office: string; first: string; box?: "office" | "leads" | "company" }) {
   // each inbox keeps its own browser-history key, so Back closes the right one
-  const key = box === "leads" ? "lead_mail" : "mail";
+  const key = box === "leads" ? "lead_mail" : box === "company" ? "info_mail" : "mail";
   const [lead, setLead] = useState<{ id: string; business_name: string | null; status: string } | null>(null);
   const [items, setItems] = useState<MailItem[] | null>(null);
   const [err, setErr] = useState("");
@@ -313,6 +315,41 @@ export function OfficeMail({ office, first, box = "office" }: { office: string; 
           {!items.length && !err && <li className="py-1.5 text-ink-soft">Inbox is empty.</li>}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ─── Mark's office (2026-11-24): one Email card, a tab per inbox (his own, business leads, info@) ───
+export interface InboxTab { box: "office" | "leads" | "company"; label: string; email: string | null; connected: boolean; help: string; note?: string }
+
+export function OfficeInboxes({ office, first, tabs }: { office: string; first: string; tabs: InboxTab[] }) {
+  const pick = () => {
+    try { const b = new URLSearchParams(window.location.search).get("inbox"); if (b && tabs.some((t) => t.box === b)) return b as InboxTab["box"]; } catch {}
+    return (tabs.find((t) => t.connected) ?? tabs[0]).box;
+  };
+  const [box, setBox] = useState<InboxTab["box"]>(tabs[0].box);
+  useEffect(() => { setBox(pick()); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  const t = tabs.find((x) => x.box === box) ?? tabs[0];
+  const choose = (b: InboxTab["box"]) => {
+    setBox(b);
+    const u = new URL(window.location.href); u.searchParams.set("inbox", b); u.searchParams.delete("mail"); u.searchParams.delete("lead_mail"); u.searchParams.delete("info_mail");
+    window.history.replaceState(window.history.state, "", u.toString());
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1 border-b border-line">
+        {tabs.map((x) => (
+          <button key={x.box} onClick={() => choose(x.box)}
+            className={`-mb-px rounded-t border px-3 py-1.5 text-sm ${x.box === box ? "border-line border-b-white bg-white font-semibold" : "border-transparent text-ink-soft hover:text-ink"}`}>
+            {x.label}{!x.connected && <span className="ml-1 text-xs text-amber-700">(not connected)</span>}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-soft">
+        <span>{t.email ?? "no address set"}{t.note ? ` — ${t.note}` : ""}</span>
+        {t.connected && <VerifyMailbox office={office} box={t.box} />}
+      </div>
+      {t.connected ? <OfficeMail key={t.box} office={office} first={first} box={t.box} /> : <p className="rounded bg-amber-50 p-2 text-sm">Not connected yet. {t.help}</p>}
     </div>
   );
 }
