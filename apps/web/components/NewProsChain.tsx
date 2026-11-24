@@ -6,13 +6,15 @@
  *           6 hours), each card linked to the next: headshot (or initials), public name, area, up to 5 services they're
  *           cleared for, when they joined and their rating once they have one. Swipes sideways on phones. Renders
  *           nothing when nobody has opted in yet. Server component; works in every website look.
+ * UPDATED : 2026-11-24_1900 UTC — every activated pro is a link in the chain (nameless unless they opted in), a growth line
+ *           ("N vetted pros · +X this month · in Y states"), and new pros appear the moment they're approved.
  */
 import Link from "next/link";
 import type { ShowcaseEntry } from "@/lib/showcase";
 
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
 
-export function NewProsChain({ pros, es = false, title, area }: { pros: ShowcaseEntry[]; es?: boolean; title?: string; area?: string }) {
+export function NewProsChain({ pros, es = false, title, area, growth }: { pros: ShowcaseEntry[]; es?: boolean; title?: string; area?: string; growth?: { total: number; last30: number; states: number } | null }) {
   if (!pros.length) return null;
   return (
     <section className="wrap py-10" aria-labelledby="new-pros">
@@ -20,7 +22,14 @@ export function NewProsChain({ pros, es = false, title, area }: { pros: Showcase
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-brand">{es ? "Red Handled" : "Handled Network"}</div>
           <h2 id="new-pros" className="mt-1 text-3xl font-bold tracking-tight">{title ?? (es ? `Nuevos profesionales${area ? ` en ${area}` : ""}` : `New pros${area ? ` in ${area}` : " in the Handled Network"}`)}</h2>
-          <p className="mt-1 text-sm text-ink-soft">{es ? "Verificados, con antecedentes revisados y listos para trabajar. Se actualiza cada 6 horas." : "Background-checked, vetted and ready to work. Updated every 6 hours."}</p>
+          {growth && growth.total > 0 && !area && (
+            <p className="mt-2 text-sm font-semibold text-brand-deep">
+              {es ? `${growth.total} profesionales verificados` : `${growth.total} vetted ${growth.total === 1 ? "pro" : "pros"}`}
+              {growth.last30 > 0 && <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">+{growth.last30} {es ? "este mes" : "this month"}</span>}
+              {growth.states > 1 && <span className="ml-2 font-normal text-ink-soft">{es ? `en ${growth.states} estados` : `in ${growth.states} states`}</span>}
+            </p>
+          )}
+          <p className="mt-1 text-sm text-ink-soft">{es ? "Verificados, con antecedentes revisados y listos para trabajar. Cada profesional nuevo se suma a la cadena en cuanto lo aprobamos." : "Background-checked, vetted and ready to work. Every new pro joins the chain the moment we approve them."}</p>
         </div>
         <Link href="/pros" className="text-sm font-semibold text-brand">{es ? "¿Es profesional? Únase →" : "Are you a pro? Join →"}</Link>
       </div>
@@ -34,7 +43,7 @@ export function NewProsChain({ pros, es = false, title, area }: { pros: Showcase
                 {p.photo
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={p.photo} alt={p.name} width={56} height={56} loading="lazy" className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-brand/20" />
-                  : <span aria-hidden className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand-deep text-lg font-bold text-white">{initials(p.name)}</span>}
+                  : <span aria-hidden className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand-deep text-lg font-bold text-white">{p.named ? initials(p.name) : "✓"}</span>}
                 <div className="min-w-0">
                   <div className="line-clamp-2 font-bold leading-tight">{p.name}</div>
                   <div className="truncate text-xs text-ink-soft">{p.area}</div>

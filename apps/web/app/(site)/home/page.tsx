@@ -10,6 +10,7 @@
  *           canonical): its own title and description naming Michigan & Washington, and the business as structured data.
  * UPDATED : 2026-11-10_2000 UTC — "New pros in the Handled Network" chain under every look (opt-in pros, refreshed every 6 hours).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-24_1900 UTC — the pro chain shows the network's growth (networkStats).
  */
 import type { Metadata } from "next";
 import { BRAND } from "@handled/core";
@@ -19,7 +20,7 @@ import { HomeModern } from "@/components/home/HomeModern";
 import { HomePro } from "@/components/home/pro/HomePro";
 import { businessLd, ldScript } from "@/lib/business-ld";
 import { getLocale } from "@/lib/locale";
-import { featuredPros } from "@/lib/showcase";
+import { featuredPros, networkStats } from "@/lib/showcase";
 import { NewProsChain } from "@/components/NewProsChain";
 
 export const metadata: Metadata = {
@@ -29,12 +30,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [theme, locale, pros] = await Promise.all([getTheme(), getLocale(), featuredPros()]);
+  const [theme, locale, pros, growth] = await Promise.all([getTheme(), getLocale(), featuredPros(), networkStats().catch(() => null)]);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={ldScript(businessLd())} />
       {theme === "pro" ? <HomePro /> : theme === "modern" ? <HomeModern /> : <HomeClassic />}
-      <NewProsChain pros={pros} es={locale === "es"} />
+      <NewProsChain pros={pros} es={locale === "es"} growth={growth} />
     </>
   );
 }

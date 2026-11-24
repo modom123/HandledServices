@@ -10,6 +10,7 @@
  * UPDATED : 2026-11-19_1850 UTC — work area set by staff: base_zip (located from the ZIP, city and state filled in),
  *           service_radius_mi and a typed ZIP list (zip_list: "48201, 481*" — listed ZIPs become the whole area).
  * UPDATED : 2026-11-19_1910 UTC — override_reason (admins): activate a pro whose setup isn't complete.
+ * UPDATED : 2026-11-24_1900 UTC — a status change (suspend / offboard) refreshes the website's pro chain right away.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin, isStaff } from "@/lib/auth";
@@ -62,6 +63,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (Object.keys(update).length) {
     const { error } = await db.from("contractors").update(update).eq("id", id);
     if (error) return Response.json({ error: error.message }, { status: 500 });
+    // suspended / offboarded: off the website's pro chain right away
+    if (update.status) await (await import("@/lib/showcase")).refreshShowcase();
   }
   // background cleared by staff: same path as a Checkr result (logged, and the pro goes live if that was the last step)
   if (background_checked) await onBackgroundResult(id, "clear", who);

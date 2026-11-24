@@ -36,6 +36,7 @@
  * UPDATED : 2026-11-17_2200 UTC — every application triggers the Legal & Compliance team (legalOnProApplication).
  * UPDATED : 2026-11-19_1745 UTC — decideDocument: a follow-up error after the decision is saved no longer makes Verify fail.
  * UPDATED : 2026-11-19_1910 UTC — activatePro: admins can activate anyway with a reason (logged with what was still missing).
+ * UPDATED : 2026-11-24_1900 UTC — activating a pro refreshes the website's pro chain right away (refreshShowcase).
  */
 import "server-only";
 import { legalOnProApplication } from "./legal-intake";
@@ -308,6 +309,8 @@ export async function activatePro(contractorId: string, actor: string, o: { over
   const { data: won } = await db().from("contractors").update({ status: "approved", onboarded_at: c.onboarded_at ?? new Date().toISOString(), dropped_at: null }).eq("id", contractorId).neq("status", "approved").select("id").maybeSingle();
   if (!won) return true;
   await logRecruiting("activated", { contractorId }, null, actor);
+  // the website's "Handled Network" chain shows the new pro right away
+  await (await import("./showcase")).refreshShowcase().catch(() => {});
   await db().from("ops_alerts").update({ resolved: true }).eq("contractor_id", contractorId).eq("kind", "approve_pro").eq("resolved", false);
   // the full welcome: what they told us and the services they're cleared for, how the portal works, pay, tiers, rewards,
   // referrals and the Partner Program (core pro-welcome.ts), with the PDF guide (docs/HANDLED_PRO_NETWORK_WELCOME_*)
