@@ -220,7 +220,8 @@ export async function runEmailCenter(): Promise<{ sent: number; failed: number; 
   // the 10-minute job sometimes runs hours late (GitHub's schedule): catch up, per_run for every 10 minutes missed
   const { data: lastRun } = await db().from("site_settings").select("value").eq("key", "email_center_run").maybeSingle();
   const lastAt = (lastRun?.value as { at?: string } | null)?.at;
-  const missed = lastAt ? Math.max(1, Math.ceil((now.getTime() - new Date(lastAt).getTime()) / 600000)) : 1;
+  // no record yet (first run after an update): a full catch-up batch, not just one run's worth
+  const missed = lastAt ? Math.max(1, Math.ceil((now.getTime() - new Date(lastAt).getTime()) / 600000)) : Math.ceil(EMAIL_LIMITS.catchUpMax / Math.max(1, s.per_run));
   await db().from("site_settings").upsert({ key: "email_center_run", value: { at: now.toISOString() }, updated_at: now.toISOString(), updated_by: "cron" }).then(() => null, () => null);
   let budget = Math.min(s.per_run * missed, EMAIL_LIMITS.catchUpMax, Math.max(0, s.daily_cap - (today ?? 0)));
   const stopAt = Date.now() + 120_000; // stay well inside the job's time limit; the rest goes next run
