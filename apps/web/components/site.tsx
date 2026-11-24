@@ -32,6 +32,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: tighter spacing (pro: utilities; other looks unchanged).
  * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
  * UPDATED : 2026-11-11_2330 UTC — /pros pages: Apply now / Pro sign in in place of Book now / Snap a photo (SideNav forPros).
+ * UPDATED : 2026-11-24_1700 UTC — Partners menu: Path 1 · Refer and Path 2 · Sell (the Sales careers page).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -89,8 +90,8 @@ export async function SiteHeader() {
     {
       id: "partners", label: es ? "Socios" : "Partners",
       items: [
-        { href: "/partners", label: es ? "Cómo funciona: refiera o venda" : "How it works: refer or sell", icon: "💸" },
-        { href: "/partners#field-sales", label: es ? "Ventas directas (medio tiempo o completo)" : "Direct sales (part-time or full-time)", icon: "📸" },
+        { href: "/partners", label: es ? "Camino 1 · Referir" : "Path 1 · Refer", icon: "💸" },
+        { href: "/careers/sales", label: es ? "Camino 2 · Vender (equipo de ventas)" : "Path 2 · Sell (Sales Force)", icon: "📸" },
         { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
       ],
       footer: { href: "/partners#join", label: es ? "Hacerme socio →" : "Become a partner →" },
