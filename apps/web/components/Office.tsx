@@ -10,6 +10,8 @@
  * UPDATED : 2026-11-24_1500 UTC — OfficeInboxes: one Email card with a tab per inbox (Mark: his own, business leads, info@);
  *           the chosen tab is kept in the address (?inbox=) so Back and reloads keep it.
  * UPDATED : 2026-11-24_1600 UTC — box "net": an office's handledsvc.net mailbox (Cecilia's cece@handledsvc.net).
+ * UPDATED : 2026-11-24_2345 UTC — ✨ Draft with AI in every office reply (optional "what should it say"); a business lead's
+ *           reply in the leads inbox is sent through the lead (their thread, marked answered).
  */
 "use client";
 import { useEffect, useState } from "react";
@@ -47,16 +49,33 @@ export function OfficeReply({ office, uid, to, subject, inReplyTo, references, b
   const [text, setText] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ai, setAi] = useState<{ busy: boolean; note: string; leadId: string | null; ask: string }>({ busy: false, note: "", leadId: null, ask: "" });
+  const draft = async () => {
+    setAi({ ...ai, busy: true, note: "" }); setMsg("");
+    const r = await call({ action: "ai_draft", office, box, uid, instructions: ai.ask.trim() || null });
+    if (r.ok) { setText(String(r.data.draft ?? "")); setAi({ ...ai, busy: false, note: String(r.data.note || "Drafted by the AI: read and fix every word before sending."), leadId: (r.data.leadId as string | null) ?? null }); }
+    else { setAi({ ...ai, busy: false }); setMsg(r.data.error ?? "The AI couldn't draft this one"); }
+  };
   return (
     <div className="space-y-2 text-sm">
-      <textarea className="input h-32" placeholder="Your reply" value={text} onChange={(e) => setText(e.target.value)} />
+      {/* ✨ Draft with AI, then edit and send from the same panel (2026-11-24) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={ai.busy} onClick={draft}>{ai.busy ? "Writing…" : text ? "✨ Redraft with AI" : "✨ Draft with AI"}</button>
+        <input className="input min-w-0 flex-1 py-1 text-xs" placeholder="Optional: what should it say? (e.g. offer a walkthrough Thursday)" value={ai.ask} onChange={(e) => setAi({ ...ai, ask: e.target.value })} />
+      </div>
+      <textarea className="input h-40" placeholder="Your reply, or press Draft with AI" value={text} onChange={(e) => setText(e.target.value)} />
+      {ai.note && <p className="text-xs text-amber-800">AI note: {ai.note}</p>}
       <div className="flex items-center gap-2">
-        <button className="btn-primary" disabled={busy || !text} onClick={async () => {
+        <button className="btn-primary" disabled={busy || !text.trim()} onClick={async () => {
           setBusy(true);
-          const r = await call({ action: "reply", office, box, uid, to, subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`, text, in_reply_to: inReplyTo, references: [references, inReplyTo].filter(Boolean).join(" ") || null });
+          // a business lead's reply: send through the lead (their thread, marked answered, on their history)
+          const r = ai.leadId && box === "leads"
+            ? await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send_reply", id: ai.leadId, text }) })
+                .then(async (x) => { const j = await x.json().catch(() => ({})); return { ok: x.ok && j.ok !== false, data: j as { error?: string } }; })
+            : await call({ action: "reply", office, box, uid, to, subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`, text, in_reply_to: inReplyTo, references: [references, inReplyTo].filter(Boolean).join(" ") || null });
           setBusy(false);
-          if (r.ok) { setText(""); setMsg("Sent."); } else setMsg(r.data.error ?? "Failed");
-        }}>Reply</button>
+          if (r.ok) { setText(""); setAi({ busy: false, note: "", leadId: null, ask: "" }); setMsg(ai.leadId && box === "leads" ? "Sent in their thread, and the lead is marked answered." : "Sent."); } else setMsg(r.data.error ?? "Failed");
+        }}>Send</button>
         {msg && <span className="text-ink-soft">{msg}</span>}
       </div>
     </div>
