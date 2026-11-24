@@ -18,6 +18,7 @@
  * UPDATED : 2026-11-17_2350 UTC — walkthrough reminders (one email about a day before).
  * UPDATED : 2026-11-20_0130 UTC — hourly: this hour's share of today's outreach (outreachTick), lead top-up and engine watchdog.
  * UPDATED : 2026-11-20_0200 UTC — hourly weekly pro invitations (proOutreachTick).
+ * UPDATED : 2026-11-24_2330 UTC — Instantly syncs only when INSTANTLY_ENABLED=true (we don't use it; it was failing with 402).
  */
 import { redispatchExpired } from "@/lib/jobs";
 import { coverageSweep } from "@/lib/coverage";
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
   const social = await publishDue().catch((e) => { console.error("[social]", e); return null; }); // approved posts whose time has come
   const quotes = await quoteSweep().catch((e) => { console.error("[quotes]", e); return null; }); // 24-hour quote invites
   // Instantly without webhooks (they need its Hypergrowth plan): replies every 10 minutes, the campaign's leads hourly
-  const instantly = process.env.INSTANTLY_API_KEY ? {
+  const instantly = (await import("@/lib/instantly")).instantlyOn() && process.env.INSTANTLY_API_KEY ? {
     biz: await syncBizReplies().catch((e) => ({ ok: false, error: String(e) })),
     pros: await syncProReplies().catch((e) => ({ ok: false, error: String(e) })),
     leads: new Date().getUTCMinutes() < 10 ? await syncBizCampaign(5).catch((e) => ({ ok: false, error: String(e) })) : null,

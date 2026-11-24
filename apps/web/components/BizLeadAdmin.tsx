@@ -14,6 +14,7 @@
  *           AI writer would send this lead, nothing sent).
  * UPDATED : 2026-11-20_0040 UTC — the mailbox check shows which mail servers it used.
  * UPDATED : 2026-11-20_0230 UTC — Run now says what happened: businesses returned by Google, new leads, emails found and sent, and any Google error.
+ * UPDATED : 2026-11-24_2330 UTC — no Instantly choice: outreach always goes from our handledsvc.net mailbox.
  */
 "use client";
 
@@ -91,11 +92,7 @@ export function BizLeadSettingsForm({ s }: { s: { enabled: boolean; discover_per
         <label className="flex items-center gap-1">Pilot <input className="input w-14" inputMode="numeric" value={f.pilot_pct} onChange={(e) => setF({ ...f, pilot_pct: Math.min(BUSINESS_TERMS.maxPilotPct, Number(e.target.value.replace(/\D/g, "")) || 0) })} />% off the first <input className="input w-12" inputMode="numeric" value={f.pilot_jobs} onChange={(e) => setF({ ...f, pilot_jobs: Math.min(BUSINESS_TERMS.maxPilotJobs, Number(e.target.value.replace(/\D/g, "")) || 0) })} /> jobs</label>
       </div>
       <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-1">Send from
-          <select className="input w-auto" value={f.sender ?? "instantly"} onChange={(e) => setF({ ...f, sender: e.target.value as "instantly" | "own" })}>
-            <option value="own">Our outreach domain: handledsvc.net</option>
-            <option value="instantly">Instantly</option>
-          </select></label>
+        <span className="flex items-center gap-1">Send from <b>our own handledsvc.net mailbox</b></span>
         <label className="flex items-center gap-1" title="After a round of emails with no answer, a lead rests this long before one re-engagement round">Rest <input className="input w-16" inputMode="numeric" value={f.rest_days ?? 90} onChange={(e) => setF({ ...f, rest_days: Math.min(365, Number(e.target.value.replace(/\D/g, "")) || 0) })} /> days between rounds</label>
         <label className="flex items-center gap-1" title="The AI writer rewrites each email for that business (their type, city, the job they posted). It can't change the offer, quote prices or add links; anything that breaks the rules sends the plain template."><input type="checkbox" checked={f.ai_personalize ?? true} onChange={(e) => setF({ ...f, ai_personalize: e.target.checked })} /> AI personalizes each email</label>
         <label className="flex items-center gap-1" title="Rounds of email per lead before it retires for a year (2 = the first sequence + one re-engagement)">Rounds <input className="input w-12" inputMode="numeric" value={f.max_rounds ?? 2} onChange={(e) => setF({ ...f, max_rounds: Math.max(1, Math.min(4, Number(e.target.value.replace(/\D/g, "")) || 1)) })} /></label>

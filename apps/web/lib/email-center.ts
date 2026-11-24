@@ -17,6 +17,12 @@
  * UPDATED : 2026-11-20_0040 UTC — campaigns go out from the handledsvc.net marketing mailbox (OUTREACH_SMTP_USER, e.g.
  *           mark@handledsvc.net) when it's connected; the company mailbox (SMTP_USER) is only the fallback.
  * UPDATED : 2026-11-19_1540 UTC — {{post_url}}: the Post-your-project page with the campaign's tracking (lands in the Lead inbox).
+ * UPDATED : 2026-11-24_2330 UTC — why 250 business leads weren't going out: (1) the business-leads audience skipped every lead in
+ *           the outreach sequence, which is nearly all of them; now included, waiting 2 days after an outreach email
+ *           instead; (2) the 10-minute job runs hours late on GitHub's schedule and sent 25 a run; a run now catches up
+ *           (per_run for every 10 minutes missed, up to 150, inside 2 minutes).
+ * UPDATED : 2026-11-24_2330 UTC — campaigns send from handledsvc.net only (no fallback to the company mailbox); sendingProblems says
+ *           exactly what's wrong with that mailbox.
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -24,13 +30,14 @@ import { EMAIL_AUDIENCES, EMAIL_LIMITS, lintCampaign, marketingFooter, mergeTags
 import { adminClient } from "./supabase/server";
 import { siteUrl } from "./notify";
 import { unsubscribeUrl } from "./reminders";
-import { mailboxReady, sendMail as sendCompanyMail, type OutMail } from "./mailbox";
-import { outreachReady, outreachUser, sendMarketingFromOutreach } from "./outreach-mail";
+import type { OutMail } from "./mailbox";
+import { outreachProblem, outreachReady, outreachUser, sendMarketingFromOutreach } from "./outreach-mail";
 
-/** Marketing goes out from handledsvc.net (owner, 2026-11-17); the company mailbox only when that isn't connected. */
-const sendMail = (m: OutMail) => (outreachReady() ? sendMarketingFromOutreach(m) : sendCompanyMail(m));
-/** Which mailbox campaigns send from right now (shown in the Email Center). */
-export const campaignSender = () => (outreachReady() ? outreachUser() : mailboxReady() ? process.env.SMTP_USER ?? null : null);
+/** Marketing goes out from handledsvc.net only (owner, 2026-11-24): never the company mailbox, so campaigns can't hurt
+ *  delivery of booking and payout email from handledsvc.com. */
+const sendMail = (m: OutMail) => sendMarketingFromOutreach(m);
+/** Which mailbox campaigns send from (shown in the Email Center): the handledsvc.net mailbox, or null when it isn't ready. */
+export const campaignSender = () => (outreachReady() ? outreachUser() : null);
 
 const db = () => adminClient();
 const lower = (e: string) => e.trim().toLowerCase();
@@ -96,7 +103,7 @@ async function rawAudience(audience: EmailAudience, customList?: string | null):
     const rows = await all<{ email: string; business_accounts: { company: string | null; contact_name: string | null } | null }>((a, b) => db().from("business_members").select("email, business_accounts(company, contact_name)").range(a, b));
     for (const r of rows) add(r.email, null, { company: r.business_accounts?.company ?? "" });
   } else if (audience === "biz_leads") {
-    const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; city: string | null }>((a, b) => db().from("biz_leads").select("email, contact_name, business_name, city").in("status", ["new", "queued", "clicked"]).neq("segment", "partner").not("email", "is", null).range(a, b));
+    const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; city: string | null }>((a, b) => db().from("biz_leads").select("email, contact_name, business_name, city").in("status", ["new", "queued", "clicked", "emailing", "call", "resting"]).neq("segment", "partner").not("email", "is", null).range(a, b));
     for (const r of rows) add(r.email, r.contact_name, { company: r.business_name, city: r.city ?? "" });
   } else if (audience === "pros") {
     const rows = await all<{ email: string | null; contact_name: string | null; business_name: string; profiles: { locale: string | null } | null }>((a, b) => db().from("contractors").select("email, contact_name, business_name, profiles(locale)").eq("status", "approved").range(a, b));
@@ -149,7 +156,7 @@ export function renderFor(c: Pick<Campaign, "id" | "subject" | "body" | "prehead
 
 export function sendingProblems(): string[] {
   const p: string[] = [];
-  if (!outreachReady() && !mailboxReady()) p.push("No mailbox connected for marketing email: in Vercel set OUTREACH_SMTP_USER (e.g. mark@handledsvc.net) and OUTREACH_SMTP_PASSWORD, then redeploy.");
+  if (!outreachReady()) p.push(`Campaigns go out from your handledsvc.net mailbox, and it isn't ready: ${outreachProblem() ?? "set OUTREACH_SMTP_USER (e.g. mark@handledsvc.net) and OUTREACH_SMTP_PASSWORD in Vercel, then redeploy."}`);
   if (!process.env.BUSINESS_POSTAL_ADDRESS) p.push("BUSINESS_POSTAL_ADDRESS isn't set — the law requires it on marketing email.");
   return p;
 }
@@ -210,14 +217,29 @@ export async function runEmailCenter(): Promise<{ sent: number; failed: number; 
   const s = await getEmailSettings();
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
   const { count: today } = await db().from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("status", "sent").gte("sent_at", dayStart);
-  let budget = Math.min(s.per_run, Math.max(0, s.daily_cap - (today ?? 0)));
+  // the 10-minute job sometimes runs hours late (GitHub's schedule): catch up, per_run for every 10 minutes missed
+  const { data: lastRun } = await db().from("site_settings").select("value").eq("key", "email_center_run").maybeSingle();
+  const lastAt = (lastRun?.value as { at?: string } | null)?.at;
+  const missed = lastAt ? Math.max(1, Math.ceil((now.getTime() - new Date(lastAt).getTime()) / 600000)) : 1;
+  await db().from("site_settings").upsert({ key: "email_center_run", value: { at: now.toISOString() }, updated_at: now.toISOString(), updated_by: "cron" }).then(() => null, () => null);
+  let budget = Math.min(s.per_run * missed, EMAIL_LIMITS.catchUpMax, Math.max(0, s.daily_cap - (today ?? 0)));
+  const stopAt = Date.now() + 120_000; // stay well inside the job's time limit; the rest goes next run
   res.capLeft = Math.max(0, s.daily_cap - (today ?? 0));
   const out = await optedOut();
   const recent = new Date(now.getTime() - EMAIL_LIMITS.minDaysBetween * 86400000).toISOString();
   for (const c of campaigns) {
     if (budget <= 0) break;
-    const { data: rows } = await db().from("email_campaign_recipients").select("*").eq("campaign_id", c.id).eq("status", "queued").limit(budget);
+    // business leads: anyone who got an outreach email in the last couple of days waits (stays queued) for a later run
+    const { data: rows } = await db().from("email_campaign_recipients").select("*").eq("campaign_id", c.id).eq("status", "queued").order("id").limit(c.audience === "biz_leads" ? budget * 4 : budget);
+    let wait = new Set<string>();
+    if (c.audience === "biz_leads" && rows?.length) {
+      const since = new Date(now.getTime() - EMAIL_LIMITS.outreachGapDays * 86400000).toISOString();
+      const { data: recent } = await db().from("biz_leads").select("email").in("email", rows.map((r: { email: string }) => r.email)).gte("last_contact_at", since);
+      wait = new Set(((recent ?? []) as { email: string | null }[]).map((x) => lower(x.email ?? "")));
+    }
     for (const r of (rows ?? []) as (Recipient & { id: string })[]) {
+      if (budget <= 0 || Date.now() > stopAt) break;
+      if (wait.has(r.email)) continue;
       const skip = async (why: string) => { await db().from("email_campaign_recipients").update({ status: "skipped", error: why }).eq("id", r.id); res.skipped++; };
       if (out.has(r.email)) { await skip("unsubscribed"); continue; }
       const { count: lately } = await db().from("marketing_sends").select("id", { count: "exact", head: true }).eq("email", r.email).eq("kind", "campaign").gte("sent_at", recent);
