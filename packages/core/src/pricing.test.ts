@@ -3433,3 +3433,11 @@ test("lead searches only where we have pros, idle pros first (2026-11-20)", asyn
   assert.ok(t[0].segments.length > 0, "segments that buy cleaning");
   assert.deepEqual(proAreaTargets([], tradesOf), [], "no pros: nowhere to search");
 });
+
+test("Sales Force chart: each rank shows the rate a sale really pays (never the 15% that's never paid)", async () => {
+  const { rankSaleRate } = await import("./partners.ts");
+  const { SALES_RANKS } = await import("./sales-force.ts");
+  assert.equal(rankSaleRate("associate"), 0.20, "a first sale pays the ladder's 20%, not the rank table's 15%");
+  for (const k of Object.keys(SALES_RANKS) as (keyof typeof SALES_RANKS)[]) assert.ok(rankSaleRate(k) >= Math.max(0.2, SALES_RANKS[k].sellerShare) - 1e-9, k);
+  assert.ok(rankSaleRate("ae") >= 0.2 && rankSaleRate("senior_ae") >= 0.25 && rankSaleRate("principal_ae") >= 0.35);
+});

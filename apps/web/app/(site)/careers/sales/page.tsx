@@ -18,9 +18,11 @@
  *           Rules from core sales-force.ts. Live (2026-11-18): indexed, linked from /careers; ?leader=CODE (a leader's
  *           recruit link) carries to the sign-up so the new rep joins that team.
  * UPDATED : 2026-11-19_1600 UTC — headline pay from Partner Program v7 (20% → 50% on direct sales); the chart notes reps get the higher of the two.
+ * UPDATED : 2026-11-24_1700 UTC — one chart: every rank shows the rate a sale really pays (core rankSaleRate — Associate 20%, not
+ *           the 15% that was never paid); the "higher of the two" footnote is gone.
  */
 import Link from "next/link";
-import { DIRECT_BONUS, REFERRAL_LADDER, CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
+import { rankSaleRate, DIRECT_BONUS, REFERRAL_LADDER, CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
 export const metadata = { title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays." };
 
@@ -59,13 +61,13 @@ function PromotionChart() {
       <div className="mt-5 overflow-x-auto rounded-xl border border-line bg-white">
         <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
-            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Commission</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Total profit you’ve made Handled</th><th className="p-3 text-right">Team total profit</th><th className="p-3 text-right">Total deals</th><th className="p-3 text-right">Clients won</th><th className="p-3 text-right">Team deals</th><th className="p-3">Also</th></tr>
+            <tr><th className="p-3">Rank</th><th className="p-3 text-right">Your rate on a sale</th><th className="p-3 text-right">Team share</th><th className="p-3 text-right">Total profit you’ve made Handled</th><th className="p-3 text-right">Team total profit</th><th className="p-3 text-right">Total deals</th><th className="p-3 text-right">Clients won</th><th className="p-3 text-right">Team deals</th><th className="p-3">Also</th></tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.rank} className={`border-t border-line ${r.path === "leader" ? "bg-paper/50" : ""}`}>
                 <td className="p-3"><div className="font-semibold">{r.title}</div><div className="text-[11px] text-ink-soft">{r.path === "leader" ? "Leader path" : r.path === "seller" ? "Seller path" : "Start"}</div></td>
-                <td className="p-3 text-right font-bold">{pct(r.commission)}</td>
+                <td className="p-3 text-right font-bold">{pct(rankSaleRate(r.rank))}</td>
                 <td className="p-3 text-right">{r.team ? pct(r.team) : "—"}</td>
                 <td className="p-3 text-right font-semibold">{r.profit ? money(r.profit) : "—"}</td>
                 <td className="p-3 text-right font-semibold">{r.teamProfit ? money(r.teamProfit) : "—"}</td>
@@ -81,7 +83,7 @@ function PromotionChart() {
       <div className="mt-3 text-sm"><b>Starting from zero</b> with {money(1500)}-a-month commercial accounts:
         <ul className="mt-1 space-y-0.5">{paces.map(({ d, t }) => <li key={d}>• {d} deals a month{d === 4 ? " (about one a week)" : ""}: {t.map((x) => `${SALES_RANKS[x.rank].short} in month ${x.month}`).join(", ")}</li>)}</ul>
         Leaders move up as their team’s totals grow.</div>
-      <p className="mt-2 text-xs text-ink-soft">A deal is a paid sale: a new client, or a new service or site for a client you already have. Profit is what Handled keeps after paying the pro, on every job your clients book, new and repeat, for as long as they book. Commission is your share of that profit; team share is on your whole team’s. You’re always paid the higher of your rank’s share and your Partner Program direct-sales rate ({pct(REFERRAL_LADDER.baseRate + DIRECT_BONUS)} to start, up to {pct(REFERRAL_LADDER.topRate + DIRECT_BONUS)}). All totals count from your first day.</p>
+      <p className="mt-2 text-xs text-ink-soft">A deal is a paid sale: a new client, or a new service or site for a client you already have. Profit is what Handled keeps after paying the pro, on every job your clients book, new and repeat, for as long as they book. Your rate on a sale is your share of that profit at that rank (it can be higher: it keeps rising with the profit you make us, up to {pct(REFERRAL_LADDER.topRate + DIRECT_BONUS)}); team share is on your whole team’s sales. All totals count from your first day.</p>
     </section>
   );
 }
@@ -105,11 +107,11 @@ export default async function SalesCareers({ searchParams }: { searchParams: Pro
         </div>
         <p className="mt-1 text-sm text-ink-soft">{x.role}</p>
         <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
-          <div className="rounded-lg bg-paper p-2"><dt className="text-[11px] text-ink-soft">Your sales</dt><dd className="font-bold">{pct(x.sellerShare)}</dd></div>
+          <div className="rounded-lg bg-paper p-2"><dt className="text-[11px] text-ink-soft">Your sales</dt><dd className="font-bold">{pct(rankSaleRate(r))}</dd></div>
           <div className="rounded-lg bg-paper p-2"><dt className="text-[11px] text-ink-soft">Your book, year 2+</dt><dd className="font-bold">{x.bookShare ? pct(x.bookShare) : "—"}</dd></div>
           <div className="rounded-lg bg-paper p-2"><dt className="text-[11px] text-ink-soft">Your team’s sales</dt><dd className="font-bold">{x.override ? pct(x.override) : "—"}</dd></div>
         </dl>
-        <p className="mt-2 text-xs text-ink-soft">On {money(1000)} of profit you sell: <b>{money(1000 * x.sellerShare)}</b>{x.override ? <> · on {money(1000)} your team sells: <b>{money(1000 * x.override)}</b></> : null}</p>
+        <p className="mt-2 text-xs text-ink-soft">On {money(1000)} of profit you sell: <b>{money(1000 * rankSaleRate(r))}</b>{x.override ? <> · on {money(1000)} your team sells: <b>{money(1000 * x.override)}</b></> : null}</p>
         <p className="mt-2 text-xs"><span className="font-semibold">To get here:</span> {req(r)}</p>
         <ul className="mt-2 space-y-0.5 text-xs">{x.perks.map((p) => <li key={p}>✓ {p}</li>)}</ul>
         {nextRanks(r).length > 0 && <p className="mt-2 text-xs text-ink-soft">Next: {nextRanks(r).map((n) => SALES_RANKS[n].short).join(" or ")}</p>}

@@ -38,6 +38,7 @@
  *           until they sign v7 or PARTNER_PROGRAM.v7AllAt (30 days' notice). Never more than Handled keeps after card fees.
  * UPDATED : 2026-11-17_2100 UTC — partner-v6: the Referral Partner Agreement (apps/web/lib/contracts/partner.ts), signed at sign-up or on
  *           the partner page; referral jobs only go to pros on the current pro agreement, so the pro's half is always paid.
+ * UPDATED : 2026-11-24_1700 UTC — rankSaleRate(rank): the one rate a Sales Force rank pays on a sale (for the site's single chart).
  */
 import { BRAND } from "./brand.ts";
 import { SALES_RANKS } from "./sales-force.ts";
@@ -202,6 +203,17 @@ export type PartnerLevel = {
   byProfit: number; byJobs: number;
   next: { level: number; rate: number; profit: number; profitToGo: number; jobsToGo: number | null } | null;
 };
+
+/**
+ * What a Sales Force rank really pays on a sale (website wording, 2026-11-24): a direct sale pays the higher of the rank's
+ * share and the ladder rate + 5 points; reaching a rank's profit target (direct sales count 1.5×) puts you at least at
+ * this ladder level. One number per rank, so the site shows a single chart. Leaders' own sales are at least 20%.
+ */
+export function rankSaleRate(rank: keyof typeof SALES_RANKS): number {
+  const r = SALES_RANKS[rank];
+  const ladder = partnerLevel((r.requires.profit ?? 0) * PARTNER_LADDER.directCredit, 0, REFERRAL_LADDER).rate + DIRECT_BONUS;
+  return Math.round(Math.max(r.sellerShare, ladder) * 100) / 100;
+}
 
 /** A partner's direct-sales level and rate from their lifetime direct-sale profit and completed direct-sale jobs. */
 export function partnerLevel(lifetimeProfit: number, completedJobs = 0, P: Ladder = PARTNER_LADDER): PartnerLevel {
