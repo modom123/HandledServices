@@ -130,7 +130,7 @@ contractor sales roles closely.
 | Rep view | `/partner#sales-force` |
 | Admin | Hub → Partners → Sales Force; Hub → Partners → AI vs Sales Force |
 | Careers page (indexed, linked from /careers) | `/careers/sales` (`?leader=CODE` = a leader's recruit link) |
-| Indeed post | `docs/INDEED_JOB_SALES_FORCE_AE_2026-11-18_0105.md` |
+| Indeed post | `docs/INDEED_JOB_TWO_PATHS_2026-11-24_1800.md` (and .pdf): Path 2 · Sell is the job, Path 1 · Refer offered too |
 
 Existing Field Sales partners start as Associate AEs, and a partner's first direct sale puts them in the Sales Force;
 nobody's commission drops below what the Partner Program pays. Lead pay ($10 per lead) keeps working as before.
