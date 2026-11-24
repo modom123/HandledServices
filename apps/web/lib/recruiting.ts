@@ -37,6 +37,9 @@
  * UPDATED : 2026-11-19_1745 UTC — decideDocument: a follow-up error after the decision is saved no longer makes Verify fail.
  * UPDATED : 2026-11-19_1910 UTC — activatePro: admins can activate anyway with a reason (logged with what was still missing).
  * UPDATED : 2026-11-24_1900 UTC — activating a pro refreshes the website's pro chain right away (refreshShowcase).
+ * UPDATED : 2026-11-24_2000 UTC — emailCandidate(): a personal email from a candidate's file (optionally with what's left in
+ *           setup + a one-click sign-in link), from the company sender or a Front Office mailbox (replies land there);
+ *           candidateSenders() lists the choices. Logged on the candidate's history.
  */
 import "server-only";
 import { legalOnProApplication } from "./legal-intake";
@@ -581,4 +584,58 @@ export async function decideDocument(contractorId: string, docId: string, decisi
   // the decision is saved; a follow-up hiccup (background-check order, alert) must not make Verify look like it failed
   await afterOnboardingStep(contractorId, `${doc.kind} ${decision === "verify" ? "verified" : "rejected"}`, actor).catch((e) => console.error("[decideDocument] after step", e));
   return { document: doc.kind, decision };
+}
+
+// ─── emailing a candidate from their file (2026-11-24) ───────────────────────
+
+/** Who a candidate email can come from: the company sender, or a Front Office mailbox that's connected. */
+export async function candidateSenders(): Promise<{ id: string; label: string }[]> {
+  const { OFFICES, officeMail, officeNetMail } = await import("./offices");
+  const out: { id: string; label: string }[] = [{ id: "company", label: `${BRAND.name} Recruiting (company email)` }];
+  for (const o of OFFICES) {
+    const net = await officeNetMail(o).catch(() => null), own = await officeMail(o).catch(() => null);
+    if (net) out.push({ id: `${o.slug}:net`, label: `${o.name} (${net.user})` });
+    if (own) out.push({ id: `${o.slug}:office`, label: `${o.name} (${own.user})` });
+  }
+  return out;
+}
+
+/**
+ * A personal email to a candidate from their file. With `withSteps` and a pro account, it adds what's left in their
+ * setup and a one-click sign-in link straight to it (the same as Nudge). From a Front Office mailbox, replies land in
+ * that office's inbox. Logged on the candidate's history.
+ */
+export async function emailCandidate(o: { applicationId?: string | null; contractorId?: string | null; subject: string; body: string; withSteps: boolean; from: string }, actor: string) {
+  const app = o.applicationId ? (await db().from("contractor_applications").select("*").eq("id", o.applicationId).maybeSingle()).data : null;
+  const cid = o.contractorId ?? app?.contractor_id ?? null;
+  const pro = cid ? (await db().from("contractors").select("*").eq("id", cid).maybeSingle()).data
+    : app?.email ? (await db().from("contractors").select("*").eq("email", String(app.email).toLowerCase()).maybeSingle()).data : null;
+  const to = String(pro?.email ?? app?.email ?? "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error("This candidate has no email address on file");
+  let text = o.body.trim();
+  if (o.withSteps && pro && pro.status !== "approved") {
+    const left = onboardingChecklist(pro as never).steps.filter((s) => !s.done);
+    const link = await signInUrl(pro.email);
+    if (left.length) text += `\n\nWhat's left before you get jobs:\n${left.map((s) => `• ${s.label}`).join("\n")}`;
+    text += `\n\nPick up where you left off (one click, no password): ${link}`;
+  }
+  const [office, box] = o.from.split(":");
+  if (o.from !== "company") {
+    const { officeBySlug, officeMail, officeNetMail, officeSignature } = await import("./offices");
+    const off = officeBySlug(office);
+    const acct = off ? await (box === "net" ? officeNetMail(off) : officeMail(off)) : null;
+    if (!off || !acct) throw new Error("That mailbox isn't connected");
+    const { sendMail, saveToSent } = await import("./mailbox");
+    const full = `${text}${officeSignature(off)}`;
+    const id = await sendMail({ to, subject: o.subject, text: full, fromName: off.name }, acct);
+    await saveToSent({ to, subject: o.subject, text: full, fromName: off.name, messageId: id }, acct).catch(() => {});
+  } else {
+    const ok = await sendEmail(to, o.subject, `${text}\n\n— ${BRAND.name} Recruiting\n${BRAND.supportPhone} · ${BRAND.supportEmail}`);
+    if (!ok) throw new Error("Email isn't set up, or the send failed");
+  }
+  const now = new Date().toISOString();
+  if (app) await db().from("contractor_applications").update({ last_contact_at: now }).eq("id", app.id);
+  if (pro && o.withSteps) await db().from("contractors").update({ last_reminder_at: now }).eq("id", pro.id);
+  await logRecruiting("emailed", { applicationId: app?.id ?? null, contractorId: pro?.id ?? null }, `“${o.subject}” to ${to}${o.from !== "company" ? ` from ${o.from}` : ""}${o.withSteps ? " (with setup steps + sign-in link)" : ""}`, actor);
+  return { to };
 }

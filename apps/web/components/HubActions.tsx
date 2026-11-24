@@ -14,6 +14,7 @@
  * UPDATED : 2026-11-19_1850 UTC — WorkAreaEditor: staff set a pro's ZIP, driving distance and ZIP list.
  * UPDATED : 2026-11-19_1800 UTC — DocDecision: commercial auto, workers' comp, bonds… say Handled does not need to be on the policy.
  * UPDATED : 2026-11-19_1910 UTC — ProStatusControls: what is still missing, and "Activate anyway" with a reason (admins).
+ * UPDATED : 2026-11-24_2000 UTC — Nudge explains itself (hover text, and what was sent).
  */
 "use client";
 
@@ -602,7 +603,7 @@ export function RecruitingRowActions({ appId, contractorId, stage, afterDelete }
         <button className="btn-primary px-2.5 py-1 text-xs" onClick={() => decide("approve")}>Invite</button>
         <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const r = prompt("Reason (sent to the applicant, optional)"); if (r !== null) decide("reject", r || undefined); }}>Decline</button>
       </>}
-      {contractorId && ["invited", "onboarding", "verifying", "background"].includes(stage) && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const n = prompt("Add a personal note to the reminder (optional)"); if (n !== null) act({ action: "nudge", contractor_id: contractorId, note: n || undefined }, "Reminder sent"); }}>Nudge</button>}
+      {contractorId && ["invited", "onboarding", "verifying", "background"].includes(stage) && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { const n = prompt("Add a personal note to the reminder (optional)"); if (n !== null) act({ action: "nudge", contractor_id: contractorId, note: n || undefined }, "Reminder sent: steps left + one-click sign-in link"); }} title="Emails them (plus an app notification) with what's left in setup, with a one-click sign-in link straight to it">Nudge</button>}
       {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => act({ action: "order_background", contractor_id: contractorId }, "Background check ordered")}>Order check</button>}
       {contractorId && stage === "background" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => { if (confirm("Mark the background check as clear? Only after you've read the report.")) act({ action: "background_clear", contractor_id: contractorId }, "Cleared"); }}>Mark clear</button>}
       {contractorId && stage === "dropped" && <button className="btn-ghost px-2.5 py-1 text-xs" onClick={() => act({ action: "revive", contractor_id: contractorId }, "Revived — reminders restart")}>Revive</button>}
