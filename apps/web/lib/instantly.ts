@@ -16,17 +16,21 @@
  *           straight into Instantly, into Hub → Business leads) and isBizCampaign (route webhook events by campaign).
  * UPDATED : 2026-10-21_0130 UTC — listReceivedEmails: replies pulled from the API (Instantly's webhooks need its Hypergrowth
  *           plan; the API works on every paid plan), so replies reach the CRM and the AI reply agent without webhooks.
+ * UPDATED : 2026-11-24_2330 UTC — off unless INSTANTLY_ENABLED=true (we send from our own handledsvc.net mailbox).
  */
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
 
 const BASE = "https://api.instantly.ai/api/v2";
-export const instantlyBizReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
+/** Instantly is off (owner, 2026-11-24: "we're not using Instantly"): outreach goes from our own handledsvc.net mailbox. Set
+ *  INSTANTLY_ENABLED=true in Vercel only to turn it back on. */
+export const instantlyOn = () => process.env.INSTANTLY_ENABLED === "true";
+export const instantlyBizReady = () => instantlyOn() && Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
 /** Pulling leads from the business campaign only needs the key and the campaign id. */
-export const instantlyBizSyncReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID);
+export const instantlyBizSyncReady = () => instantlyOn() && Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_BIZ_CAMPAIGN_ID);
 /** The webhook event belongs to the business campaign (e.g. 1ST OUTREACH DETROIT). */
 export const isBizCampaign = (id: unknown) => Boolean(typeof id === "string" && id && id === process.env.INSTANTLY_BIZ_CAMPAIGN_ID?.trim());
-export const instantlyReady = () => Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
+export const instantlyReady = () => instantlyOn() && Boolean(process.env.INSTANTLY_API_KEY && process.env.INSTANTLY_CAMPAIGN_ID && process.env.BUSINESS_POSTAL_ADDRESS);
 
 async function call(path: string, body: unknown) {
   const r = await fetch(`${BASE}${path}`, {
@@ -116,7 +120,7 @@ export async function listReceivedEmails(campaign: string, startingAfter: string
 
 /** Never email this address again from Instantly (applied, unsubscribed through us, or asked not to be contacted). */
 export async function blockInInstantly(email: string): Promise<void> {
-  if (!process.env.INSTANTLY_API_KEY) return;
+  if (!instantlyOn() || !process.env.INSTANTLY_API_KEY) return;
   await call("/block-lists-entries", { bl_value: email.trim().toLowerCase() }).catch((e) => console.error("[instantly block]", e instanceof Error ? e.message : e));
 }
 

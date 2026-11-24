@@ -64,6 +64,7 @@
  * UPDATED : 2026-11-20_0330 UTC — lead searches only where we have pros (proAreas): every search is near an approved pro's
  *           ZIP, idle pros' areas first (2 of every 3 searches); no fixed metro list. No pros with a ZIP → no searches.
  *           Job-posting leads (Adzuna) likewise: within 40 km of an approved pro's ZIP.
+ * UPDATED : 2026-11-24_2330 UTC — the sender is always "own" (our handledsvc.net mailbox); Instantly isn't used.
  */
 import "server-only";
 import { z } from "zod";
@@ -87,7 +88,9 @@ const METRO = [...FOCUS_CITIES.map((c) => ({ city: c, state: "MI" })), ...WA_CIT
 export interface BizLeadSettings { enabled: boolean; discover_per_day: number; emails_per_day: number; segments: BizSegment[]; pilot_pct: number; pilot_jobs: number; job_posts_per_day: number; sender: "instantly" | "own"; rest_days: number; max_rounds: number; first_own_send_at: string | null; outreach_last_uid: number; ai_personalize: boolean }
 export async function getBizLeadSettings(): Promise<BizLeadSettings> {
   const { data } = await db().from("biz_lead_settings").select("*").eq("id", 1).maybeSingle();
-  return { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, sender: "instantly", rest_days: LEAD_REFRESH.restDays, max_rounds: LEAD_REFRESH.maxRounds, first_own_send_at: null, outreach_last_uid: 0, ai_personalize: true, ...(data ?? {}) } as BizLeadSettings;
+  const s = { enabled: false, discover_per_day: 5, emails_per_day: 20, segments: MARKETING_FOCUS.segments, pilot_pct: 20, pilot_jobs: 2, job_posts_per_day: 6, sender: "instantly", rest_days: LEAD_REFRESH.restDays, max_rounds: LEAD_REFRESH.maxRounds, first_own_send_at: null, outreach_last_uid: 0, ai_personalize: true, ...(data ?? {}) } as BizLeadSettings;
+  // Instantly isn't used (owner, 2026-11-24): business outreach always goes from our own handledsvc.net mailbox
+  return { ...s, sender: "own" } as BizLeadSettings;
 }
 
 async function event(leadId: string, kind: string, note?: string | null, actor = "engine") {
