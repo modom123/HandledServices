@@ -22,6 +22,8 @@
  *           email there or in the business-leads box shows which business lead wrote; a lead's reply in info@ marks
  *           the lead replied (as the Email Center inbox does).
  * UPDATED : 2026-11-24_1600 UTC — `box: "net"` = the office's handledsvc.net mailbox (Cecilia: cece@handledsvc.net).
+ * UPDATED : 2026-11-24_2345 UTC — { action: "ai_draft", office, box?, uid, instructions? }: ✨ Draft with AI for the email being read
+ *           (business-lead replies use the sales agent's rule-checked draft; otherwise lib/ai/office-reply). Nothing is sent.
  */
 import { z } from "zod";
 import { ADMINS_ONLY, deny, getViewer, isAdmin } from "@/lib/auth";
@@ -42,6 +44,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("verify"), office, box }),
   z.object({ action: z.literal("inbox"), office, box, limit: z.number().int().min(1).max(100).optional() }),
   z.object({ action: z.literal("read"), office, box, uid: z.number().int().min(1) }),
+  z.object({ action: z.literal("ai_draft"), office, box, uid: z.number().int().min(1), instructions: z.string().max(1000).nullable().optional() }),
   z.object({ action: z.literal("todo_add"), office, to: office, title: z.string().trim().min(2).max(200), details: z.string().max(4000).nullable().optional(),
     due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal("")), priority: z.enum(["normal", "high"]).optional() }),
   z.object({ action: z.enum(["todo_send", "todo_done", "todo_reopen", "todo_delete"]), office, id: z.string().uuid(), note: z.string().max(2000).nullable().optional() }),
@@ -89,6 +92,22 @@ export async function POST(req: Request) {
           await setBizLeadStatus((lead as { id: string }).id, "replied", "Replied by email (info@ inbox, Mark's office)", "office").catch(() => {});
         }
         return Response.json({ ok: true, message: m, lead });
+      }
+      case "ai_draft": {
+        // ✨ Draft with AI: a business lead's reply in the leads inbox uses the sales agent's rule-checked draft; anything
+        // else gets a reply drafted as this office's person. Nothing is sent here.
+        if (!acct) return deny(409, mailOff);
+        const m = await readMessage(d.uid, acct);
+        if (!m) return deny(404, "That email isn't in the inbox anymore");
+        const lead = (leads || company) && m.from ? (await adminClient().from("biz_leads").select("id, business_name, status, reply_text").ilike("email", m.from.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle()).data as { id: string; business_name: string | null; status: string | null; reply_text: string | null } | null : null;
+        if (leads && lead?.reply_text && !d.instructions?.trim()) {
+          const r = await (await import("@/lib/biz-leads")).redraftOutreachReply(lead.id);
+          if (r.ok && r.draft) return Response.json({ ok: true, draft: r.draft, note: "Drafted by the sales agent from their reply. Check every word.", leadId: lead.id });
+        }
+        const { draftOfficeReply } = await import("@/lib/ai/office-reply");
+        const out = await draftOfficeReply({ sender: { name: o.name, title: o.title }, inbox: acct.user, email: { from: m.from, fromName: m.fromName, subject: m.subject, text: m.text }, lead, instructions: d.instructions ?? null });
+        if (!out) return deny(503, "The AI couldn't draft this one (or ANTHROPIC_API_KEY isn't set). Write it yourself.");
+        return Response.json({ ok: true, draft: out.reply, note: out.note, leadId: leads ? lead?.id ?? null : null });
       }
       case "verify":
         return Response.json({ ok: true, ...(await verifyMailbox(acct ?? { user: "", pass: "" })) });
