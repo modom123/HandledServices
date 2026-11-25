@@ -3,6 +3,7 @@
  * PROJECT : Handled — AI-run home & business services
  * CREATED : 2026-10-01_1723 UTC
  * PURPOSE : Public entry point for @handled/core.
+ * UPDATED : 2026-11-25_0200 UTC — photo-quote (price from photos instead of a walkthrough: shot lists, frequencies).
  * UPDATED : 2026-11-17_2200 UTC — signup-legal (sign-up compliance checks for the Legal & Compliance agents).
  * UPDATED : 2026-11-17_2045 UTC — us-states (pros in all 50 states: state list, ZIP → state, license line per state).
  * UPDATED : 2026-11-17_1900 UTC — payout-rails (pros paid by Stripe bank deposit, PayPal or Venmo).
@@ -97,3 +98,4 @@ export * from "./call-schedule.ts";
 export * from "./payout-rails.ts";
 export * from "./us-states.ts";
 export * from "./signup-legal.ts";
+export * from "./photo-quote.ts";

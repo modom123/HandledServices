@@ -3464,3 +3464,14 @@ test("search snippets fit what Google shows (whole sentences, else whole words)"
   const words = snippet("word ".repeat(60));
   assert.ok(words.length <= 155 && words.endsWith("…"));
 });
+
+test("price from photos: shot lists, monthly figure for recurring work", async () => {
+  const { photoShots, monthlyEstimate, PHOTO_QUOTE } = await import("./photo-quote.ts");
+  assert.ok(photoShots("unit-turnover").length >= 3);
+  assert.ok(photoShots("no-such-service").length >= 2, "a generic list for anything else");
+  assert.equal(monthlyEstimate(100, "once"), null);
+  assert.equal(monthlyEstimate(100, "weekly"), 433);
+  assert.equal(monthlyEstimate(100, "biweekly"), 217);
+  assert.equal(monthlyEstimate(100, "monthly"), 100);
+  assert.ok(PHOTO_QUOTE.maxPhotos <= 8, "the booking form takes up to 8 photos");
+});

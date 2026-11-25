@@ -27,6 +27,7 @@
  * UPDATED : 2026-11-17_2350 UTC — "Book a free walkthrough" next to Order now (hero and order section), and "Pages for your business" linking
  *           the landing page for each kind of business (/business/<slug>).
  * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
+ * UPDATED : 2026-11-25_0200 UTC — hero: "Get a price from photos" instead of the walkthrough (still linked lower down).
  */
 import Link from "next/link";
 import { BIZ_LANDINGS, BUSINESS_GROUPS, INDUSTRIES, businessServices, priceHint } from "@handled/core";
@@ -68,7 +69,7 @@ export default function BusinessPage() {
             <p className="mt-4 max-w-xl text-lg text-white/80">Offices, property managers, clinics, retail and restaurants use one account for janitorial, move-out and turnover cleans — plus grounds, repairs, courier, transportation and events.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href={ORDER} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Order now</Link>
-              <LeadLink href="/walkthrough" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">Book a free walkthrough</LeadLink>
+              <LeadLink href="/business/photo-quote" className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">📸 Get a price from photos</LeadLink>
             </div>
           </div>
           <ul className="grid grid-cols-2 gap-3">
