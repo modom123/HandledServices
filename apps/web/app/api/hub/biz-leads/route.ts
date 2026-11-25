@@ -17,6 +17,7 @@
  *           for a fresh answer; { action: "send_reply", id, text } sends the (edited) answer from the outreach mailbox in the
  *           business's thread (any staff — like replying in the Email Center); { action: "preview_email", id, step? } shows
  *           what the AI writer would send that lead (admins, nothing is sent).
+ * UPDATED : 2026-11-25_1900 UTC — business outreach is one email a week for 4 weeks, each different (AI picks a new angle each week).
  */
 import { z } from "zod";
 import { BIZ_SEGMENTS, BUSINESS_TERMS, CALL_OUTCOMES } from "@handled/core";
@@ -32,7 +33,7 @@ const Body = z.discriminatedUnion("action", [
     sender: z.enum(["instantly", "own"]).optional(), rest_days: z.number().int().min(30).max(365).optional(), max_rounds: z.number().int().min(1).max(4).optional(), ai_personalize: z.boolean().optional() }),
   z.object({ action: z.literal("redraft_reply"), id: z.string().uuid() }),
   z.object({ action: z.literal("send_reply"), id: z.string().uuid(), text: z.string().trim().min(5).max(5000) }),
-  z.object({ action: z.literal("preview_email"), id: z.string().uuid(), step: z.number().int().min(0).max(2).optional() }),
+  z.object({ action: z.literal("preview_email"), id: z.string().uuid(), step: z.number().int().min(0).max(3).optional() }),
   z.object({ action: z.literal("refresh") }),
   z.object({ action: z.literal("verify_outreach") }),
   z.object({ action: z.literal("status"), id: z.string().uuid(), status: z.enum(["call", "not_interested", "do_not_contact", "replied", "queued"]), note: z.string().max(1000).nullable().optional() }),

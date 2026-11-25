@@ -27,6 +27,9 @@
  * UPDATED : 2026-11-20_0330 UTC — proAreaTargets: every lead search is where we have pros (idle pros' ZIPs first).
  * UPDATED : 2026-11-25_0200 UTC — the letters lead with "your price from a few photos, no walkthrough" (their link opens the
  *           business page whose main button is Get a price from photos); "reply with a few photos" instead of the address.
+ * UPDATED : 2026-11-25_1900 UTC — one email a week, each different (owner: rotate, weekly instead of every few days): the sequence is
+ *           day 0, 7, 14, 21 with a new email at step 3 of every track (and the re-engagement round); BIZ_EMAIL_GAP_DAYS;
+ *           dailyLeadGoal (new businesses with an email needed every day).
  */
 import { BRAND } from "./brand.ts";
 
@@ -77,7 +80,10 @@ export function bizLeadScore(l: BizLeadFacts): number {
   return Math.round(Math.min(100, s));
 }
 
-export const BIZ_LEAD_SEQUENCE = [0, 4, 10] as const;
+/** One email a week, each one different (owner, 2026-11-25: rotate, and once a week instead of every few days). */
+export const BIZ_LEAD_SEQUENCE = [0, 7, 14, 21] as const;
+/** A business lead gets at most one email of any kind (outreach step or Email Center campaign) per this many days. */
+export const BIZ_EMAIL_GAP_DAYS = 7;
 
 export interface BizLeadEmailCtx {
   step: number;
@@ -175,6 +181,7 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
     return pick([
       employerLetter(c, `Best regards,\n${team}`, replyLine(BRAND.supportPhone)),
       { subject: `Re: your ${title} posting`, text: `${again}\n\nQuick follow-up. If the ${title} role is still open, we can cover the ${need.work} while you look, or instead of hiring: background-checked, vetted pros, an exact price up front and 25% to book.\n\nSee your price from a few photos, no walkthrough: ${c.signupUrl}\n${replyLine(BRAND.supportPhone)}\n\n${team}` },
+      { subject: `When someone calls out`, text: `${again}\n\nOne more idea for ${c.businessName}: even after you hire, people get sick, quit or go on vacation. We can be the backup you call so the ${need.work} still gets done that day: one booking, a vetted pro, photos when it's finished, and you only pay for the visit.\n\nSet it up once and it's there when you need it: ${c.signupUrl}\n\n${team}` },
       { subject: `Last note from ${BRAND.name}`, text: `${again === "Hi again," ? "Hello," : again}\n\nI won't keep emailing. Whenever you need ${need.work} done, while the role is open or when someone calls out, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
     ]);
   }
@@ -182,6 +189,7 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
     return pick([
       propertyManagerLetter(c, `Best regards,\n${team}`, "Reply with a few photos of the unit and the move-out date, and I'll send your price today."),
       { subject: "Re: your next turnover", text: `${hi}\n\nQuick follow-up. When your next unit turns over, send us a few photos and the move-out date: cleanout, deep clean, touch-ups and punch list in one booking, with photos of every room, an exact price up front and 25% to book. No walkthrough needed.\n\nGet your price from photos: ${c.signupUrl}\nOr just reply with the photos.\n\n${team}` },
+      { subject: "Common areas and grounds, on a schedule", text: `${hi}\n\nBeyond turnovers: hallways, lobbies and laundry rooms cleaned weekly, lawns and snow handled, gutters and power washing each season, all on one schedule you set once. Every visit comes with photos, so you know it was done without driving out.\n\nSend a few photos of one property and see the price per visit: ${c.signupUrl}\n\n${team}` },
       { subject: `Last note from ${BRAND.name}`, text: `${hi}\n\nI won't keep emailing. Whenever a unit needs to be rent-ready${where}, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
     ]);
   }
@@ -193,6 +201,10 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
     {
       subject: `Re: ${seg.pilotJob}`,
       text: `${hi}\n\nQuick follow-up. Teams like yours use ${BRAND.name} so they can stop chasing contractors: one account, exact prices up front from a few photos (no walkthrough), photos of every job and one view of everything.\n\nGet your price: ${c.signupUrl}\n\n${team}`,
+    },
+    {
+      subject: "How a first job works",
+      text: `${hi}\n\nHere's how a first job with ${BRAND.name} usually goes:\n\n1. Snap a few photos of the space and send them. You see your exact price right away.\n2. Pick the day. A background-checked pro shows up with everything they need.\n3. You get before-and-after photos when it's done. If anything's missed, we come back free.\n\nNo walkthrough, no contract, no account manager to chase. Try it on one job: ${c.signupUrl}\n\n${team}`,
     },
     {
       subject: `Last note from ${BRAND.name}`,
@@ -262,14 +274,14 @@ export function parseAdzuna(json: unknown): JobPostCandidate[] {
 }
 
 // ─── Keeping the list fresh (added 2026-11-11_0100 UTC) ─────────────────────
-// A lead that finishes its 3 emails without answering isn't emailed forever, and isn't forgotten either:
+// A lead that finishes its 4 emails without answering isn't emailed forever, and isn't forgotten either:
 //   in sequence → rests (90 days) → one re-engagement round with a seasonal angle → retired (rests a year) → back as new.
 // Clicked-but-silent leads go to the call list (warm). Duplicates (same website / email domain / phone) are retired.
 // New leads keep coming from discovery (Google Places, job postings) and imports, so the list turns over.
 
 export const LEAD_REFRESH = {
-  /** Days from the first email until the 3-email sequence is done (day 0, 4, 10, plus 4 to answer). */
-  sequenceDays: 14,
+  /** Days from the first email until the 4-email sequence is done (one a week: day 0, 7, 14, 21, plus 7 to answer). */
+  sequenceDays: 28,
   /** Rest between rounds. */
   restDays: 90,
   /** Rounds of email per lead before retiring it (1 = the first sequence, 2 = one re-engagement round). */
@@ -344,6 +356,15 @@ export function outreachSlice(remaining: number, now = new Date(), w: { startHou
   return Math.ceil(remaining / runsLeft);
 }
 
+/**
+ * New leads every day (owner, 2026-11-25: keep the lead engine full). With one email a week for 4 weeks, each new
+ * business uses about a quarter of a day's sends over its sequence, so this many NEW businesses with an email are
+ * needed every day to keep first emails going out: a quarter of the daily sends, at least 10.
+ */
+export function dailyLeadGoal(emailsPerDay: number): number {
+  return Math.max(10, Math.ceil(Math.max(0, emailsPerDay) / BIZ_LEAD_SEQUENCE.length));
+}
+
 /** List health for the Hub. */
 export function leadFreshness(leads: { status: string; created_at?: string | null; segment?: string | null; rest_until?: string | null }[], now = new Date()) {
   const ls = leads.filter((l) => l.segment !== BIZ_PARTNER_SEGMENT);
@@ -352,6 +373,7 @@ export function leadFreshness(leads: { status: string; created_at?: string | nul
   return {
     total: ls.length,
     added30: ls.filter((l) => ageDays(l.created_at, now) <= 30).length,
+    addedToday: ls.filter((l) => ageDays(l.created_at, now) <= 1).length,
     fresh: n("new", "queued"),
     inSequence: n("emailing"),
     warm: n("clicked", "replied", "call"),
@@ -380,6 +402,7 @@ export function bizReengageEmail(c: BizLeadEmailCtx & { now?: Date }): { subject
   const list = [
     { subject: `${s.season[0].toUpperCase()}${s.season.slice(1)} work at ${c.businessName}`, text: `${hi}\n\nWe wrote a few months ago, so I'll keep this short. It's ${s.season}, and businesses${where} are booking ${s.work} with ${BRAND.name}.\n\nOne account, an exact price up front (25% to book, the rest when it's done), background-checked, vetted pros and photos of every visit.\n\nIf anything's on your list this season, book it here: ${c.signupUrl}\nOr reply with what you need and I'll send a price the same day.\n\n${team}` },
     { subject: `Re: ${s.season} work at ${c.businessName}`, text: `${hi}\n\nQuick check: is there someone else at ${c.businessName} who handles vendors for cleaning, repairs or grounds? Happy to reach out to them instead.\n\n${team}` },
+    { subject: `A price from a few photos`, text: `${hi}\n\nOne thing that's new since we first wrote: you can send a few photos of the space and see your exact price right away, with no walkthrough. Bigger jobs get a firm price from the same photos within a few hours.\n\nTry it on anything on this ${s.season}'s list: ${c.signupUrl}\n\n${team}` },
     { subject: `Closing the loop`, text: `${hi}\n\nI'll stop here. If you ever need a reliable crew${where}, you can book in a minute at ${c.signupUrl}, no account manager or contract needed.\n\nBest,\n${team}` },
   ];
   const pick = list[Math.min(c.step, list.length - 1)];

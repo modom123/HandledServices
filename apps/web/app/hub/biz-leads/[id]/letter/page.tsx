@@ -3,9 +3,10 @@
  * PROJECT : Handled (HandledServices) — AI-run home & business services
  * CREATED : 2026-10-05_0130 UTC
  * PURPOSE : Hub → Business leads → the job-posting letter for one lead, signed by the staff member: print or save
- *           as PDF, or copy into a job site's message or your own email. Also shows the 3 emails the sequence sends.
+ *           as PDF, or copy into a job site's message or your own email. Also shows the 4 weekly emails the sequence sends.
  * UPDATED : 2026-10-28_1935 UTC — the letter follows the lead: a job posting gets the employer letter, a property manager the
  *           turnover letter (no more "Maintenance Technician" default).
+ * UPDATED : 2026-11-25_1900 UTC — business outreach is one email a week for 4 weeks, each different (AI picks a new angle each week).
  */
 import { notFound } from "next/navigation";
 import { BIZ_LEAD_SEQUENCE, bizCoverLetter, bizLeadEmail, type BizSegment } from "@handled/core";

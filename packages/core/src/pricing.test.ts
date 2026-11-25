@@ -2864,8 +2864,8 @@ test("business leads: the list refreshes (rest → re-engage once → retire →
   const ahead = (d: number) => new Date(now.getTime() + d * 86400000).toISOString();
   assert.equal(refreshStep({ status: "emailing", last_contact_at: ago(5) }, now), null);
   assert.equal(refreshStep({ status: "emailing", last_contact_at: ago(LEAD_REFRESH.sequenceDays) }, now), "rest");
-  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(20) }, now), "retire");
-  assert.equal(refreshStep({ status: "clicked", last_contact_at: ago(20) }, now), "warm_call");
+  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(LEAD_REFRESH.sequenceDays) }, now), "retire");
+  assert.equal(refreshStep({ status: "clicked", last_contact_at: ago(LEAD_REFRESH.sequenceDays) }, now), "warm_call");
   assert.equal(refreshStep({ status: "resting", round: 1, rest_until: ahead(3) }, now), null);
   assert.equal(refreshStep({ status: "resting", round: 1, rest_until: ago(1) }, now), "wake");
   assert.equal(refreshStep({ status: "resting", round: 2, rest_until: ago(1) }, now), "retire");
@@ -2875,7 +2875,27 @@ test("business leads: the list refreshes (rest → re-engage once → retire →
   assert.equal(refreshStep({ status: "retired", retired_at: ago(30) }, now), null);
   assert.equal(refreshStep({ status: "converted", last_contact_at: ago(400) }, now), null);
   assert.equal(refreshStep({ status: "emailing", segment: "partner", last_contact_at: ago(400) }, now), null);
-  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(20) }, now, { maxRounds: 3 }), "rest");
+  assert.equal(refreshStep({ status: "emailing", round: 2, last_contact_at: ago(LEAD_REFRESH.sequenceDays) }, now, { maxRounds: 3 }), "rest");
+});
+
+test("business leads: one email a week, each one different (no repeats), done before the lead rests", async () => {
+  const { BIZ_LEAD_SEQUENCE, BIZ_EMAIL_GAP_DAYS, bizLeadEmail, bizReengageEmail, LEAD_REFRESH: R } = await import("./biz-lead-engine.ts");
+  for (let i = 1; i < BIZ_LEAD_SEQUENCE.length; i++) assert.ok(BIZ_LEAD_SEQUENCE[i] - BIZ_LEAD_SEQUENCE[i - 1] >= BIZ_EMAIL_GAP_DAYS);
+  assert.ok(R.sequenceDays >= BIZ_LEAD_SEQUENCE[BIZ_LEAD_SEQUENCE.length - 1] + BIZ_EMAIL_GAP_DAYS);
+  const base = { businessName: "A", pilotPct: 0, pilotJobs: 0, signupUrl: "u", unsubscribeUrl: "x", postalAddress: "a" };
+  for (const extra of [{ segment: "stager" as const }, { segment: "property_manager" as const }, { segment: "facilities" as const, jobTitle: "Janitor" }]) {
+    for (const fn of [bizLeadEmail, bizReengageEmail]) {
+      const texts = BIZ_LEAD_SEQUENCE.map((_, step) => fn({ ...base, ...extra, step }).text);
+      assert.equal(new Set(texts).size, texts.length, `${fn.name} ${extra.segment}: every week's email is different`);
+    }
+  }
+});
+
+test("business leads: a daily goal of new businesses keeps the engine full", async () => {
+  const { dailyLeadGoal } = await import("./biz-lead-engine.ts");
+  assert.equal(dailyLeadGoal(0), 10);
+  assert.equal(dailyLeadGoal(20), 10);
+  assert.equal(dailyLeadGoal(100), 25);
 });
 
 test("business leads: duplicates share a key across sources", () => {

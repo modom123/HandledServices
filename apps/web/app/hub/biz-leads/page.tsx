@@ -18,6 +18,7 @@
  * UPDATED : 2026-11-17_2335 UTC — handledsvc.net is the outreach domain (banner names the exact problem); "Replied" list says which have an
  *           AI draft waiting; the job-posting form can start the own sequence.
  * UPDATED : 2026-11-19_0010 UTC — "Where pros need work": the ZIPs of idle pros that discovery searches first, and for which businesses.
+ * UPDATED : 2026-11-25_1900 UTC — business outreach is one email a week for 4 weeks, each different (AI picks a new angle each week).
  */
 import Link from "next/link";
 import { BIZ_PARTNER_LABEL, BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, PRO_NEEDS_WORK, type BizSegment } from "@handled/core";
@@ -26,7 +27,7 @@ import { getBizLeadSettings, idleProTargets } from "@/lib/biz-leads";
 import { noteSummaries } from "@/lib/notes";
 import { instantlyBizReady } from "@/lib/instantly";
 import { Stat } from "@/components/ui";
-import { leadFreshness } from "@handled/core";
+import { dailyLeadGoal, leadFreshness } from "@handled/core";
 import { outreachProblem, outreachReady } from "@/lib/outreach-mail";
 import { BizLeadSettingsForm, BizLeadStatus, JobPostLeadForm } from "@/components/BizLeadAdmin";
 
@@ -64,7 +65,7 @@ export default async function BizLeads() {
     <div className="space-y-6">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">Business leads</h1><Link href="/hub/biz-leads/calls" className="btn-primary text-sm">📞 Call desk</Link></div>
-        <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send a 3-email sequence with a pilot offer (written for each business by the AI and sent from handledsvc.net, our outreach domain — or Instantly). Leads that don’t answer rest, get one seasonal re-engagement round, then retire for a year, while new businesses keep coming in, so the list stays fresh. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
+        <p className="max-w-3xl text-sm text-ink-soft">The demand side: we find property managers, real estate brokerages, home stagers, self-storage facilities and furniture & appliance stores, get the contact email from their own website, and send one email a week for 4 weeks from handledsvc.net, our outreach domain, each one different: the AI works out how to market to each business and picks a new angle every week from what it already sent. A reply stops it, and a business never gets more than one email a week, Email Center campaigns included. Leads that don’t answer rest, get one seasonal re-engagement round, then retire for a year, while new businesses keep coming in, so the list stays fresh. When they set up an account from the link, the pilot is applied automatically. Answer replies the same day; call the phone-only list by hand (and send LinkedIn messages yourself; automating LinkedIn breaks its rules).</p>
         {dealPlan && <details className="card mt-3" open={Date.now() - new Date(dealPlan.created_at).getTime() < 86400000}><summary className="cursor-pointer font-semibold">🎯 {dealPlan.title} <span className="text-xs font-normal text-ink-soft">({new Date(dealPlan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" })}, Deal hunter)</span></summary><pre className="mt-2 whitespace-pre-wrap text-sm">{dealPlan.body}</pre></details>}
         {s.sender !== "own" && !instantlyBizReady() && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm">Instantly isn’t connected yet. Missing in Vercel (Production): <b>{missingInstantly.join(", ")}</b>. Add {missingInstantly.length === 1 ? "it" : "them"} in Vercel → your project → Settings → Environment Variables, then <b>redeploy</b> (new variables only reach the site after a redeploy). The campaign id for 1ST OUTREACH DETROIT is <code>3de836a0-4845-4350-80af-db9725831b43</code>.</p>}
       </div>
@@ -73,9 +74,9 @@ export default async function BizLeads() {
         const h = leadFreshness(leads as unknown as { status: string; created_at: string; segment: string; rest_until: string | null }[]);
         return (
           <div className="card text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold">List health</h2><span className="text-xs text-ink-soft">{h.added30} new business{h.added30 === 1 ? "" : "es"} added in the last 30 days{h.nextWake ? ` · next re-engagement ${new Date(h.nextWake).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span></div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold">List health</h2><span className="text-xs text-ink-soft">{h.addedToday} new today (goal {dailyLeadGoal(s.emails_per_day)} a day) · {h.added30} added in the last 30 days{h.nextWake ? ` · next re-engagement ${new Date(h.nextWake).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span></div>
             <div className="mt-2 grid gap-2 sm:grid-cols-6">
-              {[["Fresh", h.fresh, "never emailed yet"], ["In sequence", h.inSequence, "3 emails going out"], ["Warm", h.warm, "clicked / replied / to call"], ["Resting", h.resting, `${s.rest_days} days, then one more round`], ["Retired", h.retired, "no answer or duplicate; back in a year"], ["Closed", h.closed, "customer, no, unsubscribed, bounced"]].map(([k, v, why]) => (
+              {[["Fresh", h.fresh, "never emailed yet"], ["In sequence", h.inSequence, "one email a week, 4 weeks"], ["Warm", h.warm, "clicked / replied / to call"], ["Resting", h.resting, `${s.rest_days} days, then one more round`], ["Retired", h.retired, "no answer or duplicate; back in a year"], ["Closed", h.closed, "customer, no, unsubscribed, bounced"]].map(([k, v, why]) => (
                 <div key={String(k)} className="rounded-lg border border-line p-2"><div className="text-xs text-ink-soft">{k}</div><div className="text-xl font-bold">{v}</div><div className="text-[11px] text-ink-soft">{why}</div></div>
               ))}
             </div>
@@ -118,7 +119,7 @@ export default async function BizLeads() {
       <div className="card"><BizLeadSettingsForm s={s} /></div>
       <section className="card">
         <h2 className="text-lg font-bold">Add a business from a job posting</h2>
-        <p className="mb-3 text-sm text-ink-soft">A business hiring a cleaner, handyman, maintenance tech, groundskeeper or mover is a business that needs that work done. They get the letter “book the work as a service instead of hiring for it” (cost comparison, upfront prices, vetted pros, guarantee, pilot offer) as a 3-email sequence, or print it / save it as a PDF from the letter page.</p>
+        <p className="mb-3 text-sm text-ink-soft">A business hiring a cleaner, handyman, maintenance tech, groundskeeper or mover is a business that needs that work done. They get the letter “book the work as a service instead of hiring for it” (cost comparison, upfront prices, vetted pros, guarantee, pilot offer) as a weekly 4-email sequence, or print it / save it as a PDF from the letter page.</p>
         <JobPostLeadForm sendingReady={s.sender === "own" ? outreachReady() && Boolean(process.env.BUSINESS_POSTAL_ADDRESS) : instantlyBizReady()} />
       </section>
       <section className="card">
