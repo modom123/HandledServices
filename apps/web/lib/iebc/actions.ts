@@ -331,7 +331,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     run: async ({ days }) => {
       const limit = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
       const { data } = await db().from("contractors").select("id, business_name, insured_until").eq("status", "approved").lte("insured_until", limit);
-      for (const c of data ?? []) await raiseAlert("insurance", "warn", `${c.business_name}: insurance expires ${c.insured_until}`, "Request an updated certificate of insurance.");
+      for (const c of data ?? []) await raiseAlert("insurance", "warn", `${c.business_name}: insurance expires ${c.insured_until}`, "Request an updated certificate of insurance.", null, c.id);
       return { flagged: data?.length ?? 0 };
     },
   }),

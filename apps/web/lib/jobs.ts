@@ -74,6 +74,7 @@
  *           commission): filtered in dispatch and checked again when a pro accepts (core proCanTakeReferredJob).
  * UPDATED : 2026-11-18_0040 UTC — business pricing: business orders (customer_type commercial, not a pro's own price or quote)
  *           pay businessPrice(); the pro is paid the home-price dollars (splitJob business); jobs.business_pricing keeps it on repricing.
+ * UPDATED : 2026-11-25_1800 UTC — raiseAlert takes the pro's id (contractorId) so pro alerts show on the pro's file.
  */
 import "server-only";
 import { z } from "zod";
@@ -1301,8 +1302,9 @@ async function homeForBooking(customerId: string | null, homeId: string | null |
   return { id: h.id, address: { address: h.address, city: h.city, state: h.state, zip: h.zip }, notes: homeNotesText(h), access };
 }
 
-export async function raiseAlert(kind: string, severity: "info" | "warn" | "critical", title: string, body: string | null, jobId?: string | null) {
-  await db().from("ops_alerts").insert({ kind, severity, title, body, job_id: jobId ?? null });
+/** contractorId: the pro this alert is about, so it shows on their file (Hub → Pros → the pro). */
+export async function raiseAlert(kind: string, severity: "info" | "warn" | "critical", title: string, body: string | null, jobId?: string | null, contractorId?: string | null) {
+  await db().from("ops_alerts").insert({ kind, severity, title, body, job_id: jobId ?? null, ...(contractorId ? { contractor_id: contractorId } : {}) });
   if (severity === "critical" && opsEmail()) await sendEmail(opsEmail(), `[${BRAND.name} ops] ${title}`, body ?? "");
 }
 
