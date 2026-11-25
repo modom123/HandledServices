@@ -23,6 +23,8 @@
  *           (per_run for every 10 minutes missed, up to 150, inside 2 minutes).
  * UPDATED : 2026-11-24_2330 UTC — campaigns send from handledsvc.net only (no fallback to the company mailbox); sendingProblems says
  *           exactly what's wrong with that mailbox.
+ * UPDATED : 2026-11-25_1900 UTC — business leads get one email a week, outreach and campaigns together (a campaign waits 7 days after
+ *           any outreach email, not just the first), and a lead who replied, booked or said no is skipped at send time.
  */
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -39,6 +41,12 @@ const sendMail = (m: OutMail) => sendMarketingFromOutreach(m);
 /** Which mailbox campaigns send from (shown in the Email Center): the handledsvc.net mailbox, or null when it isn't ready. */
 export const campaignSender = () => (outreachReady() ? outreachUser() : null);
 
+/** Business leads who answered or are done: a campaign that's already going out skips them (checked at send time, not just
+ *  when it was launched, so a reply today stops tomorrow's campaign email). */
+const BIZ_STOPPED: Record<string, string> = {
+  replied: "they replied (a person answers them)", converted: "already a customer", not_interested: "said not interested",
+  do_not_contact: "do not contact", unsubscribed: "unsubscribed", bounced: "email bounced", call: "on the call list",
+};
 const db = () => adminClient();
 const lower = (e: string) => e.trim().toLowerCase();
 const PAGE = 1000;
@@ -232,17 +240,24 @@ export async function runEmailCenter(): Promise<{ sent: number; failed: number; 
     if (budget <= 0) break;
     // business leads: anyone who got an outreach email in the last couple of days waits (stays queued) for a later run
     const { data: rows } = await db().from("email_campaign_recipients").select("*").eq("campaign_id", c.id).eq("status", "queued").order("id").limit(c.audience === "biz_leads" ? budget * 4 : budget);
+    // one email a week per business (outreach and campaigns together), and nothing more once they've answered
     let wait = new Set<string>();
+    const stopped = new Map<string, string>();
     if (c.audience === "biz_leads" && rows?.length) {
       const since = new Date(now.getTime() - EMAIL_LIMITS.outreachGapDays * 86400000).toISOString();
-      const { data: recent } = await db().from("biz_leads").select("email").in("email", rows.map((r: { email: string }) => r.email)).gte("last_contact_at", since);
-      wait = new Set(((recent ?? []) as { email: string | null }[]).map((x) => lower(x.email ?? "")));
+      const { data: leads } = await db().from("biz_leads").select("id, email, status, last_contact_at").in("email", rows.map((r: { email: string }) => r.email));
+      const ls = (leads ?? []) as { id: string; email: string | null; status: string; last_contact_at: string | null }[];
+      for (const l of ls) if (BIZ_STOPPED[l.status]) stopped.set(lower(l.email ?? ""), BIZ_STOPPED[l.status]);
+      const { data: sentRecently } = ls.length ? await db().from("biz_lead_events").select("lead_id").eq("kind", "outreach:sent").in("lead_id", ls.map((l) => l.id)).gte("created_at", since) : { data: [] };
+      const recentIds = new Set(((sentRecently ?? []) as { lead_id: string }[]).map((x) => x.lead_id));
+      wait = new Set(ls.filter((l) => recentIds.has(l.id) || (l.last_contact_at && l.last_contact_at >= since)).map((l) => lower(l.email ?? "")));
     }
     for (const r of (rows ?? []) as (Recipient & { id: string })[]) {
       if (budget <= 0 || Date.now() > stopAt) break;
       if (wait.has(r.email)) continue;
       const skip = async (why: string) => { await db().from("email_campaign_recipients").update({ status: "skipped", error: why }).eq("id", r.id); res.skipped++; };
       if (out.has(r.email)) { await skip("unsubscribed"); continue; }
+      if (stopped.has(r.email)) { await skip(stopped.get(r.email)!); continue; }
       const { count: lately } = await db().from("marketing_sends").select("id", { count: "exact", head: true }).eq("email", r.email).eq("kind", "campaign").gte("sent_at", recent);
       if (lately) { await skip(`got another campaign in the last ${EMAIL_LIMITS.minDaysBetween} days`); continue; }
       const m = renderFor(c, r, r.id);

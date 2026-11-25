@@ -15,12 +15,13 @@
  * UPDATED : 2026-11-20_0040 UTC — the mailbox check shows which mail servers it used.
  * UPDATED : 2026-11-20_0230 UTC — Run now says what happened: businesses returned by Google, new leads, emails found and sent, and any Google error.
  * UPDATED : 2026-11-24_2330 UTC — no Instantly choice: outreach always goes from our handledsvc.net mailbox.
+ * UPDATED : 2026-11-25_1900 UTC — business outreach is one email a week for 4 weeks, each different (AI picks a new angle each week).
  */
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BIZ_SEGMENTS, BUSINESS_TERMS, type BizSegment } from "@handled/core";
+import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BUSINESS_TERMS, type BizSegment } from "@handled/core";
 
 async function post(body: unknown) {
   const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -184,21 +185,21 @@ export function OutreachReplyBox({ id, replyText, replyAt, draft, intent, answer
 /** What the engine would send this lead next (AI-personalized when on). Nothing is sent. */
 export function EmailPreview({ id }: { id: string }) {
   const [step, setStep] = useState(0);
-  const [m, setM] = useState<{ subject: string; text: string; ai: boolean } | null>(null);
+  const [m, setM] = useState<{ subject: string; text: string; ai: boolean; angle?: string } | null>(null);
   const [msg, setMsg] = useState("");
   return (
     <div className="space-y-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <select className="input w-auto" value={step} onChange={(e) => setStep(Number(e.target.value))}>{[0, 1, 2].map((i) => <option key={i} value={i}>Email {i + 1}</option>)}</select>
+        <select className="input w-auto" value={step} onChange={(e) => setStep(Number(e.target.value))}>{BIZ_LEAD_SEQUENCE.map((d, i) => <option key={i} value={i}>Email {i + 1} (week {d / 7 + 1})</option>)}</select>
         <button className="btn-ghost" onClick={async () => {
           setMsg("Writing…"); setM(null);
           const r = await fetch("/api/hub/biz-leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "preview_email", id, step }) });
           const j = await r.json().catch(() => ({}));
-          if (r.ok && j.ok) { setM({ subject: j.subject, text: j.text, ai: j.ai }); setMsg(""); } else setMsg(String(j.error ?? "Failed"));
+          if (r.ok && j.ok) { setM({ subject: j.subject, text: j.text, ai: j.ai, angle: j.angle }); setMsg(""); } else setMsg(String(j.error ?? "Failed"));
         }}>Preview</button>
         {msg && <span className="text-ink-soft">{msg}</span>}
       </div>
-      {m && <div className="rounded-lg border border-line p-3"><div className="text-xs text-ink-soft">{m.ai ? "AI-personalized (passed the checks)" : "Plain template (AI off, or its version broke a rule)"} · each preview is written fresh</div><div className="mt-1 font-semibold">{m.subject}</div><pre className="mt-2 whitespace-pre-wrap font-sans">{m.text}</pre></div>}
+      {m && <div className="rounded-lg border border-line p-3"><div className="text-xs text-ink-soft">{m.ai ? `AI-personalized (passed the checks)${m.angle ? `, angle: ${m.angle}` : ""}` : "Plain template (AI off, or its version broke a rule)"} · each preview is written fresh</div><div className="mt-1 font-semibold">{m.subject}</div><pre className="mt-2 whitespace-pre-wrap font-sans">{m.text}</pre></div>}
     </div>
   );
 }

@@ -20,6 +20,7 @@
  * UPDATED : 2026-11-19_1540 UTC — {{post_url}} (the Post-your-project page, our own leads instead of buying them) and the "Got a project? Post it" template.
  * UPDATED : 2026-11-24_2330 UTC — business-leads audience includes leads in the outreach sequence (it skipped them, so the
  *           audience was nearly empty); EMAIL_LIMITS.catchUpMax and outreachGapDays.
+ * UPDATED : 2026-11-25_1900 UTC — outreachGapDays 7: one email a week per business lead, outreach and campaigns together.
  */
 import { BRAND } from "./brand.ts";
 
@@ -31,7 +32,7 @@ export const EMAIL_AUDIENCES: Record<EmailAudience, { label: string; why: string
   lapsed_customers: { label: "Lapsed customers (no booking in 90+ days)", why: "you booked a service with us", whyEs: "reservó un servicio con nosotros" },
   business_accounts: { label: "Business account members", why: "your company has a business account with us", whyEs: "su empresa tiene una cuenta empresarial con nosotros" },
   biz_leads: { label: "Business leads (not yet customers)", why: "we reached out about services for your business", whyEs: "le escribimos sobre servicios para su empresa",
-    note: "Every lead with an email who hasn't replied, converted, unsubscribed, bounced or said no, including leads in the outreach sequence (nobody gets a campaign within 2 days of an outreach email)." },
+    note: "Every lead with an email who hasn't replied, converted, unsubscribed, bounced or said no, including leads in the outreach sequence (at most one email a week per business, outreach and campaigns together; anyone who replies is taken off right away)." },
   pros: { label: "Approved pros (announcements)", why: "you're a pro on our network", whyEs: "es un profesional de nuestra red", note: "For network news only: never pressure to take jobs." },
   custom: { label: "Pasted list", why: "you asked to hear from us", whyEs: "pidió recibir noticias nuestras", note: "Only people who gave you permission to email them. Never bought lists." },
 };
@@ -45,8 +46,9 @@ export const EMAIL_LIMITS = {
   maxPerRun: 60,
   /** When the 10-minute job runs late, a run catches up (perRun per 10 minutes missed), up to this many. */
   catchUpMax: 150,
-  /** A business lead never gets a campaign within this many days of an outreach email (they wait, not skipped). */
-  outreachGapDays: 2,
+  /** A business lead never gets a campaign within this many days of an outreach email (they wait, not skipped):
+   *  one email a week per business, across the outreach sequence and campaigns (same as BIZ_EMAIL_GAP_DAYS). */
+  outreachGapDays: 7,
   /** One marketing campaign per person per this many days, across all campaigns. */
   minDaysBetween: 7,
 } as const;

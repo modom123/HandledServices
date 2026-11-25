@@ -67,10 +67,13 @@
  * UPDATED : 2026-11-24_2330 UTC — the sender is always "own" (our handledsvc.net mailbox); Instantly isn't used.
  * UPDATED : 2026-11-25_0200 UTC — photoQuoteForLead(): a lead who got a price from photos turns warm (sequence stops, team calls).
  * UPDATED : 2026-11-25_0200 UTC — the AI's reply drafts ask for a few photos (price today) first; a walkthrough only if they ask.
+ * UPDATED : 2026-11-25_1900 UTC — one email a week, each different: the sequence is day 0, 7, 14, 21, and a step waits when an Email
+ *           Center campaign went to the same business in the last 7 days. New leads every day: the search runs daily (weekends
+ *           too) and leadTopUp searches until today's dailyLeadGoal of new businesses with an email is met.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_LEAD_SEQUENCE, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, proAreaTargets, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_QUERIES, stateForZip, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_EMAIL_GAP_DAYS, BIZ_LEAD_SEQUENCE, dailyLeadGoal, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, proAreaTargets, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_QUERIES, stateForZip, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -625,12 +628,18 @@ export async function bizLeadEngine() {
 // ─── Own outreach domain: our 3-email sequence, step by step ────────────────
 
 type OwnLead = LeadRow & { round: number | null; seq_step: number | null; status: string; state?: string | null; rating?: number | null; review_count?: number | null; posting_pay?: string | null; thread_message_id?: string | null; thread_subject?: string | null };
-const STEP_GAP = BIZ_LEAD_SEQUENCE.map((d, i) => (i ? d - BIZ_LEAD_SEQUENCE[i - 1] : 0)); // days between steps: 0, 4, 6
+const STEP_GAP = BIZ_LEAD_SEQUENCE.map((d, i) => (i ? d - BIZ_LEAD_SEQUENCE[i - 1] : 0)); // days between steps: 0, 7, 7, 7 (one a week)
 
 /** How many outreach emails went out today (UTC), all steps and rounds together. */
 async function ownSentToday() {
   const start = new Date(); start.setUTCHours(0, 0, 0, 0);
   return (await db().from("biz_lead_events").select("id", { count: "exact", head: true }).eq("kind", "outreach:sent").gte("created_at", start.toISOString())).count ?? 0;
+}
+
+/** The emails we already sent this lead (oldest first), so the AI takes a new angle each week. */
+async function earlierEmails(leadId: string): Promise<string[]> {
+  const { data } = await db().from("biz_lead_events").select("note").eq("lead_id", leadId).eq("kind", "outreach:sent").order("created_at", { ascending: false }).limit(4);
+  return ((data ?? []) as { note: string | null }[]).map((e) => (e.note ?? "").replace(/^round \d+, email \d+ of \d+[^:]*: /, "Subject: ")).filter(Boolean).reverse();
 }
 
 /** Send one step of a lead's sequence (round 1 = the first sequence, round 2+ = re-engagement). */
@@ -642,15 +651,23 @@ async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings, aiUntil
   ]);
   if (acct) { await db().from("biz_leads").update({ status: "converted", account_id: acct.account_id, next_send_at: null }).eq("id", l.id); return "skipped"; }
   if (out) { await db().from("biz_leads").update({ status: "unsubscribed", next_send_at: null }).eq("id", l.id); return "skipped"; }
+  // one email a week per business: an Email Center campaign in the last 7 days pushes this step back
+  const { data: camp } = await db().from("marketing_sends").select("sent_at").eq("email", email).eq("kind", "campaign").gte("sent_at", new Date(Date.now() - BIZ_EMAIL_GAP_DAYS * 86400000).toISOString()).order("sent_at", { ascending: false }).limit(1).maybeSingle();
+  if (camp?.sent_at) {
+    if (step > 0) await db().from("biz_leads").update({ next_send_at: new Date(new Date(camp.sent_at).getTime() + BIZ_EMAIL_GAP_DAYS * 86400000).toISOString() }).eq("id", l.id);
+    return "skipped";
+  }
   const ctx = { step, businessName: l.business_name, firstName: l.contact_name?.split(" ")[0] ?? null, segment: l.segment, city: l.city, pilotPct: s.pilot_pct, pilotJobs: s.pilot_jobs,
     signupUrl: `${siteUrl()}/b/${l.token}`, unsubscribeUrl: unsubscribeUrl(l.email), postalAddress: process.env.BUSINESS_POSTAL_ADDRESS!, jobTitle: l.job_title ?? null, postingSource: l.posting_source ?? null };
   const round = Math.max(1, Number(l.round ?? 1));
   const template = round > 1 ? bizReengageEmail(ctx) : bizLeadEmail(ctx);
   // the AI writer personalizes it for this business; anything that fails the guardrails sends the template instead
   const thread = step > 0 ? l.thread_message_id ?? null : null;
-  const m = (s.ai_personalize && Date.now() < aiUntil ? await personalizeOutreach({
+  const useAi = s.ai_personalize && Date.now() < aiUntil;
+  const m: { subject: string; text: string; ai: boolean; angle?: string } = (useAi ? await personalizeOutreach({
     lead: { businessName: l.business_name, firstName: ctx.firstName, segment: l.segment, city: l.city, state: l.state ?? null, rating: l.rating ?? null, reviewCount: l.review_count ?? null, jobTitle: l.job_title ?? null, postingPay: l.posting_pay ?? null, website: l.website },
     step, steps: BIZ_LEAD_SEQUENCE.length, round, template, signupUrl: ctx.signupUrl, pilotPct: s.pilot_pct, keepSubject: step > 0,
+    earlier: step > 0 ? await earlierEmails(l.id) : [], clicked: l.status === "clicked",
   }).catch(() => null) : null) ?? { ...template, ai: false };
   // follow-ups go in the same thread as email 1 (so "Re:" is a real reply)
   const subject = thread && !/^re:/i.test(m.subject) ? `Re: ${l.thread_subject ?? m.subject}` : m.subject;
@@ -665,7 +682,7 @@ async function sendOwnStep(l: OwnLead, step: number, s: BizLeadSettings, aiUntil
     next_send_at: last ? null : new Date(now.getTime() + STEP_GAP[step + 1] * 86400000).toISOString(),
     ...(step === 0 ? { last_contact_at: now.toISOString(), thread_message_id: messageId, thread_subject: subject } : {}),
   }).eq("id", l.id);
-  await event(l.id, "outreach:sent", `round ${round}, email ${step + 1} of ${BIZ_LEAD_SEQUENCE.length}${m.ai ? " (AI-personalized)" : ""}: ${subject}\n\n${m.text.slice(0, 1800)}`, "outreach");
+  await event(l.id, "outreach:sent", `round ${round}, email ${step + 1} of ${BIZ_LEAD_SEQUENCE.length}${m.ai ? ` (AI-personalized${m.angle ? `, angle: ${m.angle}` : ""})` : ""}: ${subject}\n\n${m.text.slice(0, 1800)}`, "outreach");
   return "sent";
 }
 
@@ -708,9 +725,15 @@ export async function sendOwnOutreach(s: BizLeadSettings, o: { aiMs?: number } =
 export async function leadTopUp() {
   const s = await getBizLeadSettings();
   if (!s.enabled || !process.env.GOOGLE_PLACES_API_KEY) return null;
-  const { count: ready } = await db().from("biz_leads").select("id", { count: "exact", head: true }).eq("status", "queued").not("email", "is", null).neq("segment", "partner");
+  const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+  const [{ count: ready }, { count: newToday }] = await Promise.all([
+    db().from("biz_leads").select("id", { count: "exact", head: true }).eq("status", "queued").not("email", "is", null).neq("segment", "partner"),
+    db().from("biz_leads").select("id", { count: "exact", head: true }).not("email", "is", null).neq("segment", "partner").gte("created_at", dayStart.toISOString()),
+  ]);
   const want = Math.max(20, s.emails_per_day * 3);
-  if ((ready ?? 0) >= want) return { ready, topUp: false };
+  // new businesses every day, even when the queue looks full (owner, 2026-11-25: keep the lead engine full)
+  const goal = dailyLeadGoal(s.emails_per_day);
+  if ((ready ?? 0) >= want && (newToday ?? 0) >= goal) return { ready, newToday, goal, topUp: false };
   const { data: row } = await db().from("site_settings").select("value").eq("key", "biz_lead_topup").maybeSingle();
   const v = (row?.value ?? {}) as { at?: string; day?: string; n?: number };
   const today = new Date().toISOString().slice(0, 10);
@@ -720,8 +743,8 @@ export async function leadTopUp() {
   // a different rotation from the daily search (hours since 1970), and few searches so it fits in the 10-minute job
   const found = await discoverBizLeads(s, { rotation: Math.floor(Date.now() / 3600000) * 7, searches: 3 }).catch((e) => ({ searches: 0, added: 0, error: String(e) }));
   const emails = await enrichBizLeads(8).catch(() => 0);
-  console.log(`[biz leads top-up] ready ${ready ?? 0} < ${want}: searched ${found.searches}, added ${found.added}, emails found ${emails}`);
-  return { ready, topUp: true, found, emails };
+  console.log(`[biz leads top-up] ready ${ready ?? 0}/${want}, new today ${newToday ?? 0}/${goal}: searched ${found.searches}, added ${found.added}, emails found ${emails}`);
+  return { ready, newToday, goal, topUp: true, found, emails };
 }
 
 /** Once an hour (dispatch cron): this hour's share of today's outreach, when the engine is on and sends from our domain. */
@@ -750,8 +773,9 @@ export async function bizEngineWatchdog() {
   if (!ownOk) problems.push(["Outreach is on but the handledsvc.net mailbox isn't connected", "Set OUTREACH_SMTP_USER, OUTREACH_SMTP_PASSWORD and BUSINESS_POSTAL_ADDRESS in Vercel and redeploy. Hub → Business leads → Check mailbox shows what's wrong."]);
   else if (s.sender === "own" && weekday && hourET >= 13 && hourET < 17 && (queued ?? 0) + (due ?? 0) > 0 && (await ownSentToday()) === 0)
     problems.push(["Outreach hasn't sent anything today", `${queued ?? 0} businesses are waiting for a first email and ${due ?? 0} follow-ups are due, but nothing has gone out since midnight. Check the mailbox in Hub → Business leads (login, password) and that the 10-minute job is running.`]);
-  if (process.env.GOOGLE_PLACES_API_KEY && newest?.created_at && Date.now() - new Date(newest.created_at).getTime() > 3 * 86400000)
-    problems.push(["No new businesses found in 3 days", "The daily search found nothing new. Add cities or segments in Hub → Business leads, or check the GOOGLE_PLACES_API_KEY quota."]);
+  if (process.env.GOOGLE_PLACES_API_KEY && newest?.created_at && Date.now() - new Date(newest.created_at).getTime() > 2 * 86400000)
+    problems.push(["No new businesses found in 2 days", "The daily search found nothing new. Add cities or segments in Hub → Business leads, or check the GOOGLE_PLACES_API_KEY quota."]);
+  if (!process.env.GOOGLE_PLACES_API_KEY) problems.push(["No new business leads are being found", "GOOGLE_PLACES_API_KEY isn't set in Vercel, so the daily search can't run. New leads every day need it."]);
   if ((queued ?? 0) === 0 && (due ?? 0) === 0)
     problems.push(["Nobody left to email", "Every found business has been emailed. Add cities or segments in Hub → Business leads so the daily search finds more."]);
   for (const [title, body] of problems) {
@@ -907,7 +931,7 @@ export async function sendOutreachReply(id: string, text: string, actor: string)
 }
 
 /** What the engine would send this lead at a step (AI-personalized when on), without sending anything. */
-export async function previewOutreachEmail(id: string, step: number): Promise<{ ok: boolean; subject?: string; text?: string; ai?: boolean; error?: string }> {
+export async function previewOutreachEmail(id: string, step: number): Promise<{ ok: boolean; subject?: string; text?: string; ai?: boolean; angle?: string; error?: string }> {
   const { data: l } = await db().from("biz_leads").select("*").eq("id", id).maybeSingle();
   if (!l) return { ok: false, error: "Lead not found" };
   if (l.segment === "partner") return { ok: false, error: "Teaming partners never get the sales emails." };
@@ -920,9 +944,10 @@ export async function previewOutreachEmail(id: string, step: number): Promise<{ 
   const ai = s.ai_personalize ? await personalizeOutreach({
     lead: { businessName: l.business_name, firstName: ctx.firstName, segment: ctx.segment, city: l.city, state: l.state ?? null, rating: l.rating ?? null, reviewCount: l.review_count ?? null, jobTitle: l.job_title ?? null, postingPay: l.posting_pay ?? null, website: l.website },
     step, steps: BIZ_LEAD_SEQUENCE.length, round, template, signupUrl: ctx.signupUrl, pilotPct: s.pilot_pct, keepSubject: step > 0,
+    earlier: step > 0 ? await earlierEmails(l.id) : [], clicked: l.status === "clicked",
   }).catch(() => null) : null;
   const m = ai ?? template;
-  return { ok: true, subject: m.subject, text: m.text, ai: Boolean(ai) };
+  return { ok: true, subject: m.subject, text: m.text, ai: Boolean(ai), angle: ai?.angle };
 }
 
 /**
