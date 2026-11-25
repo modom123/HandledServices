@@ -21,6 +21,7 @@
  * UPDATED : 2026-11-17_1900 UTC — Payout status shows PayPal / Venmo pros (method, masked handle, PayPal connected).
  * UPDATED : 2026-11-19_1850 UTC — Work area editor: staff set the ZIP, driving distance and ZIP list (no ZIP, no approval).
  * UPDATED : 2026-11-19_1910 UTC — status controls list what is missing and offer "Activate anyway" (admins).
+ * UPDATED : 2026-11-25_1800 UTC — Conversation & activity: email the pro, notes, AI alerts and compliance checks in one timeline.
  */
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/server";
@@ -39,6 +40,7 @@ import { rewardsFor } from "@/lib/rewards";
 import { PRO_TIERS, nextTierProgress, pointsToDollars } from "@handled/core";
 import { signedUrls } from "@/lib/photos";
 import { PersonFiles } from "@/components/PersonFiles";
+import { ProConversation } from "@/components/ProConversation";
 import { PayNowButton } from "@/components/PayoutStatus";
 import { connectStatus, dueInWords } from "@/lib/stripe";
 import { proPayoutAccount } from "@/lib/pro-benefits";
@@ -97,6 +99,8 @@ export default async function ProProfile({ params }: { params: Promise<{ id: str
       <StandingPanel pro={pro as unknown as StandingPro} />
       <FastTrackPanel pro={pro as unknown as FastTrackPro} />
       <CrewPanel pro={pro} />
+      {/* one place for the relationship: email them, notes, AI alerts and compliance checks (2026-11-25) */}
+      <ProConversation pro={{ id: pro.id, email: pro.email, contact_name: pro.contact_name, status: pro.status, phone: pro.phone, application_id: (pro as { application_id?: string | null }).application_id ?? null }} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {admin && <Stat label="Our take from their work" value={money(Number(sc.take_generated ?? 0))} hint={`${money(Number(sc.take_90d ?? 0))} last 90 days · ~${money(Number(sc.take_90d ?? 0) * 4)}/yr pace`} />}

@@ -42,6 +42,7 @@
  *           candidateSenders() lists the choices. Logged on the candidate's history.
  * UPDATED : 2026-11-24_2100 UTC — emailCandidate can create a Zoom interview (o.zoom: start + minutes) on the sending office's Zoom and
  *           put the link in the email ({{zoom}}); falls back to the office's personal room link.
+ * UPDATED : 2026-11-25_1800 UTC — background-check, document and insurance alerts carry the pro's id (shown on their file).
  */
 import "server-only";
 import { legalOnProApplication } from "./legal-intake";
@@ -244,7 +245,7 @@ export async function orderBackgroundCheck(contractorId: string, opts: { recheck
   const key = process.env.CHECKR_API_KEY, pkg = process.env.CHECKR_PACKAGE;
   if (!key || !pkg) {
     await db().from("contractors").update({ background_status: "pending" }).eq("id", contractorId);
-    await raiseAlert("recruiting", "warn", `Order a background ${opts.recheck ? "re-check (yearly)" : "check"}: ${c.business_name}`, `${c.contact_name} · ${c.email}. Run it with your screening provider, then upload the report in Hub → Pros (or set CHECKR_API_KEY to automate).`);
+    await raiseAlert("recruiting", "warn", `Order a background ${opts.recheck ? "re-check (yearly)" : "check"}: ${c.business_name}`, `${c.contact_name} · ${c.email}. Run it with your screening provider, then upload the report in Hub → Pros (or set CHECKR_API_KEY to automate).`, null, contractorId);
     await logRecruiting("background_ordered", { contractorId }, "manual (no Checkr key)");
     return;
   }
@@ -268,7 +269,7 @@ export async function orderBackgroundCheck(contractorId: string, opts: { recheck
         subject: "Su enlace para la verificación de antecedentes (de Checkr)", text: `Siguiente paso: Checkr, nuestro proveedor de verificación, le envió por correo un enlace seguro para dar su consentimiento y completar su verificación de antecedentes. Normalmente tarda de 1 a 3 días hábiles.\n\n— ${BRAND.name}` } });
   } catch (e) {
     await db().from("contractors").update({ background_status: "pending" }).eq("id", contractorId);
-    await raiseAlert("recruiting", "warn", `Background check didn't start: ${c.business_name}`, `${e instanceof Error ? e.message : e}. Order it by hand.`);
+    await raiseAlert("recruiting", "warn", `Background check didn't start: ${c.business_name}`, `${e instanceof Error ? e.message : e}. Order it by hand.`, null, contractorId);
   }
 }
 
@@ -279,7 +280,7 @@ export async function onBackgroundResult(contractorId: string, status: "clear" |
   await logRecruiting(`background_${status}`, { contractorId }, null, actor);
   if (!clear) {
     const { data: c } = await db().from("contractors").select("business_name").eq("id", contractorId).single();
-    await raiseAlert("recruiting", "warn", `Background check needs review: ${c?.business_name}`, `Result: ${status}. Review the report in Checkr and follow the adverse-action process before any decision.`);
+    await raiseAlert("recruiting", "warn", `Background check needs review: ${c?.business_name}`, `Result: ${status}. Review the report in Checkr and follow the adverse-action process before any decision.`, null, contractorId);
     return;
   }
   await maybeActivate(contractorId);
@@ -398,7 +399,7 @@ export async function recruitingSweep(now = new Date()) {
     if (told?.length) continue;
     const pro = ((pros ?? []) as Contractor[]).find((c) => c.id === d.contractor_id);
     await raiseAlert("pro_document", level === "doc_overdue_72h" ? "critical" : "warn", `Verify ${docName(d.kind, "en")} for ${pro?.business_name ?? "a pro"} — waiting ${Math.floor(hours)}h`,
-      `Uploaded ${d.created_at.slice(0, 10)}. Open Hub → Pros → ${pro?.business_name ?? d.contractor_id}, check the AI reading, then Verify or Reject: ${siteUrl()}/hub/pros/${d.contractor_id}`);
+      `Uploaded ${d.created_at.slice(0, 10)}. Open Hub → Pros → ${pro?.business_name ?? d.contractor_id}, check the AI reading, then Verify or Reject: ${siteUrl()}/hub/pros/${d.contractor_id}`, null, d.contractor_id);
     await logRecruiting(level, { contractorId: d.contractor_id }, d.id);
     docsOverdue++;
   }
@@ -449,7 +450,7 @@ export async function renewalSweep(now = new Date()) {
           subject: lapsed ? "Ofertas en pausa: su documento venció" : `Renovación antes del ${date}`, text: `Hola ${first(c.contact_name)}:\n\n${es}\n\nSúbalo aquí (un clic inicia su sesión):\n${link}\n\n— ${BRAND.name}` },
       });
       if (level !== "renewal_30") await raiseAlert("insurance", lapsed ? "critical" : "warn", `${c.business_name}: ${s.label.replace(/ verified$/, "")} ${lapsed ? "expired" : "expires"} ${date}`,
-        `${lapsed ? "Offers are paused until the renewal is verified." : `${days} day(s) left — the pro has been reminded.`} Hub → Pros: ${siteUrl()}/hub/pros/${c.id}`);
+        `${lapsed ? "Offers are paused until the renewal is verified." : `${days} day(s) left — the pro has been reminded.`} Hub → Pros: ${siteUrl()}/hub/pros/${c.id}`, null, c.id);
       await logRecruiting(level, { contractorId: c.id }, mark);
       if (lapsed) expired++; else reminded++;
     }
