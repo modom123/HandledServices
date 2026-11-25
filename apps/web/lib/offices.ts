@@ -20,6 +20,8 @@
  * UPDATED : 2026-11-24_1600 UTC — Cecilia's office has a handledsvc.net mailbox too (OFFICE_GULLEY_NET_EMAIL = cece@handledsvc.net,
  *           OFFICE_GULLEY_NET_PASSWORD). Any office mailbox off the company domain finds its servers from its MX record.
  * UPDATED : 2026-11-24_2100 UTC — the office's Zoom login falls back to its handledsvc.net address too.
+ * UPDATED : 2026-11-25_0100 UTC — a handledsvc.net office mailbox (cece@…) never falls back to the company mail host when the
+ *           mail-server lookup fails; it uses the outreach mailbox's servers (Hosted Email).
  */
 import "server-only";
 import type { MailAccount } from "./mailbox";
@@ -44,9 +46,16 @@ async function withServers(user: string, pass: string): Promise<MailAccount> {
   const domain = user.split("@")[1]?.toLowerCase() ?? "";
   const companyDomain = process.env.SMTP_USER?.split("@")[1]?.toLowerCase();
   if (!domain || domain === companyDomain) return { user, pass };
-  const { mailHostFor } = await import("./outreach-mail");
+  const { mailHostFor, outreachServers, outreachDomain } = await import("./outreach-mail");
   const h = await mailHostFor(domain);
-  return h ? { user, pass, smtpHost: h.smtp, smtpPort: h.smtpPort, imapHost: h.imap, imapPort: 993 } : { user, pass };
+  if (h) return { user, pass, smtpHost: h.smtp, smtpPort: h.smtpPort, imapHost: h.imap, imapPort: 993 };
+  // lookup failed: a mailbox on the outreach domain (handledsvc.net) uses the outreach mailbox's servers, never the
+  // company mail host (which would reject the login)
+  if (domain === (outreachDomain() ?? "handledsvc.net")) {
+    const sv = await outreachServers();
+    return { user, pass, smtpHost: sv.smtp, smtpPort: sv.smtpPort, imapHost: sv.imap, imapPort: sv.imapPort };
+  }
+  return { user, pass };
 }
 
 /** The office's own mailbox (OFFICE_<KEY>_EMAIL / _PASSWORD). */

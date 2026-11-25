@@ -17,6 +17,8 @@
  * UPDATED : 2026-11-19_1500 UTC — readMessage shows clean text (lib/mail-text.ts): HTML-only and broken plain-text emails no longer
  *           show their CSS, &nbsp; codes or invisible preheader filler.
  * UPDATED : 2026-11-24_1500 UTC — companyMail(): the company mailbox (info@) as an account, for Mark's office.
+ * UPDATED : 2026-11-25_0100 UTC — sends retry once on a fresh connection, connections are kept per mailbox AND server (a wrong
+ *           server is never reused), and errors say which mailbox/server failed and what to fix.
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -38,14 +40,27 @@ export const companyMail = (): MailAccount | null => (mailboxReady() ? company()
 const ready = (a?: MailAccount) => (a ? Boolean(a.user && a.pass) : mailboxReady());
 
 const transports = new Map<string, Transporter>();
+/** Which server an account sends through (shown in errors and the mailbox test). */
+export const smtpServerOf = (a: MailAccount = company()) => `${a.smtpHost ?? smtpHost()}:${a.smtpPort ?? Number(process.env.SMTP_PORT || 465)}`;
+const keyOf = (a: MailAccount) => `${a.user}|${smtpServerOf(a)}`;
 function smtp(a: MailAccount = company()) {
-  let t = transports.get(a.user);
+  let t = transports.get(keyOf(a));
   if (!t) {
     const port = a.smtpPort ?? Number(process.env.SMTP_PORT || 465);
     t = nodemailer.createTransport({ host: a.smtpHost ?? smtpHost(), port, secure: port === 465, auth: { user: a.user, pass: a.pass }, pool: true, maxConnections: 2 });
-    transports.set(a.user, t);
+    transports.set(keyOf(a), t);
   }
   return t;
+}
+/** A send error in plain words: which mailbox and server, and what to fix. */
+function explainSend(e: unknown, a: MailAccount): Error {
+  const err = e as { code?: string; responseCode?: number; message?: string };
+  const m = String(err?.message ?? e).slice(0, 200);
+  const where = `${a.user} via ${smtpServerOf(a)}`;
+  if (err?.code === "EAUTH" || err?.responseCode === 535 || /auth|credentials|login|password/i.test(m)) return new Error(`The mail server refused the login for ${where}: check the mailbox password in Vercel (and that the mailbox exists). (${m})`);
+  if (["ENOTFOUND", "ECONNREFUSED", "ETIMEDOUT", "ESOCKET", "ECONNECTION", "EDNS"].includes(err?.code ?? "") || /timed? ?out|getaddrinfo|connect/i.test(m)) return new Error(`Couldn't reach the mail server for ${where}. (${m})`);
+  if (/relay|sender|not owned|not allowed|553|550|554/i.test(m)) return new Error(`The mail server won't send as ${a.user} (${where}): ${m}`);
+  return new Error(`Sending from ${where} failed: ${m}`);
 }
 
 export interface OutMail { to: string; subject: string; text: string; html?: string; fromName?: string; replyTo?: string | null; headers?: Record<string, string>; inReplyTo?: string | null; references?: string | null }
@@ -54,10 +69,15 @@ export interface OutMail { to: string; subject: string; text: string; html?: str
 export async function sendMail(m: OutMail, acct?: MailAccount): Promise<string> {
   if (!ready(acct)) throw new Error(acct ? `Mailbox ${acct.user || ""} not set up` : "Mailbox not set up (SMTP_USER / SMTP_PASSWORD)");
   const a = acct ?? company();
-  const info = await smtp(a).sendMail({
+  const mail = {
     from: { name: m.fromName ?? "Handled", address: a.user }, to: m.to, subject: m.subject, text: m.text, html: m.html,
     replyTo: m.replyTo || undefined, headers: m.headers, inReplyTo: m.inReplyTo || undefined, references: m.references || undefined,
-  });
+  };
+  // a pooled connection can go stale between requests: drop it and try once more on a fresh one
+  const info = await smtp(a).sendMail(mail).catch(async () => {
+    const t = transports.get(keyOf(a)); transports.delete(keyOf(a)); t?.close();
+    return smtp(a).sendMail(mail);
+  }).catch((e) => { throw explainSend(e, a); });
   return info.messageId;
 }
 
@@ -66,12 +86,12 @@ function imap(a: MailAccount = company()) {
 }
 
 /** Log in to SMTP and IMAP; what works and what doesn't. */
-export async function verifyMailbox(acct?: MailAccount): Promise<{ smtp: string; imap: string }> {
+export async function verifyMailbox(acct?: MailAccount): Promise<{ smtp: string; imap: string; server?: string }> {
   if (!ready(acct)) return { smtp: "not set up", imap: "not set up" };
   const smtpRes = await smtp(acct).verify().then(() => "ok").catch((e: Error) => e.message);
   const c = imap(acct);
   const imapRes = await c.connect().then(async () => { await c.logout(); return "ok"; }).catch((e: Error) => e.message);
-  return { smtp: smtpRes, imap: imapRes };
+  return { smtp: smtpRes, imap: imapRes, server: `sending ${smtpServerOf(acct)} · inbox ${acct?.imapHost ?? imapHost()}` };
 }
 
 export interface InboxItem { uid: number; from: string; fromName: string | null; subject: string; date: string; seen: boolean; preview?: string }

@@ -23,6 +23,7 @@
  *           send and login errors explained in plain words; DKIM check knows more selectors (dkim_key, mail, …) and
  *           OUTREACH_DKIM_SELECTOR.
  * UPDATED : 2026-11-24_1600 UTC — mailHostFor(domain): the mail servers for any mailbox's domain (office mailboxes on handledsvc.net).
+ * UPDATED : 2026-11-25_0100 UTC — mailHostFor doesn't remember a failed lookup (it retries on the next send).
  */
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -52,7 +53,12 @@ const hostCache = new Map<string, Promise<(typeof KNOWN_HOSTS)[number] | null>>(
 /** Who hosts a domain's mailboxes (from its MX record), or null if it isn't a host we know. Cached per domain. */
 export function mailHostFor(domain: string) {
   const d = domain.toLowerCase();
-  if (!hostCache.has(d)) hostCache.set(d, resolveMx(d).then((mx) => KNOWN_HOSTS.find((h) => mx.some((m) => h.mx.test(m.exchange.replace(/\.$/, "")))) ?? null).catch(() => null));
+  if (!hostCache.has(d)) {
+    const p = resolveMx(d).then((mx) => KNOWN_HOSTS.find((h) => mx.some((m) => h.mx.test(m.exchange.replace(/\.$/, "")))) ?? null).catch(() => null);
+    hostCache.set(d, p);
+    // a failed lookup isn't remembered: the next send asks DNS again
+    void p.then((h) => { if (!h) hostCache.delete(d); });
+  }
   return hostCache.get(d)!;
 }
 let servers: Promise<{ smtp: string; smtpPort: number; imap: string; imapPort: number; how: string }> | null = null;
