@@ -46,6 +46,7 @@
  *           (City scorecard, Pricing). The AI team and Website look moved to Front Office. Every page keeps its address.
  * UPDATED : 2026-11-17_2350 UTC — Clients & sales → Walkthroughs (/hub/walkthroughs): free walkthroughs businesses booked themselves.
  * UPDATED : 2026-11-20_0415 UTC — one Dashboard entry in the sidebar (Today | This month), instead of Daily Briefing + Dashboard.
+ * UPDATED : 2026-11-25_2100 UTC — Front Office → Documents (office documents shared with each team member).
  */
 
 export type HubLink = readonly [href: string, label: string];
@@ -138,6 +139,7 @@ export const HUB_SECTIONS: readonly HubSection[] = [
   { id: "front-office", icon: "🏢", label: "Front Office", alias: [["^/hub/office/odom", "/hub/office/odom"], ["^/hub/office/gulley", "/hub/office/gulley"]], links: [
     ["/hub/office/odom", "Mark Odom · CEO"],
     ["/hub/office/gulley", "Cecilia Gulley · Strategy & Recruiting"],
+    ["/hub/documents", "Documents"],
     ["/hub/team", "Team"],
     ["/hub/contracts", "Contract library"],
     ["/hub/agents", "AI agents & IEBC"],

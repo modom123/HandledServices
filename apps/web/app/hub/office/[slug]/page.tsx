@@ -24,6 +24,7 @@
  * UPDATED : 2026-11-24_1500 UTC — Mark's office: one Email card with tabs — his own mailbox, Business leads (mark@handledsvc.net)
  *           and the company mailbox (info@handledsvc.com); it opens on a connected one.
  * UPDATED : 2026-11-24_1600 UTC — Cecilia's office: a tab for her handledsvc.net mailbox (cece@handledsvc.net) next to her own.
+ * UPDATED : 2026-11-25_2100 UTC — Documents: upload in the office and choose who on the team can view it or have full access.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -37,6 +38,7 @@ import { sectionsFor, type HubSection } from "@/lib/hub-sections";
 import { clientsFunnel } from "@/lib/clients-funnel";
 import { OfficeInboxes, TodoBoard, type InboxTab, type TodoView } from "@/components/Office";
 import { companyMail, mailboxUser } from "@/lib/mailbox";
+import { OfficeDocuments } from "@/components/OfficeDocuments";
 
 export const dynamic = "force-dynamic";
 
@@ -192,6 +194,10 @@ export default async function OfficePage({ params }: { params: Promise<{ slug: s
       <section className="card space-y-3">
         <h2 className="text-lg font-bold">📝 To-do list <span className="text-sm font-normal text-ink-soft">— shared with {names[other]}; send items back and forth</span></h2>
         <TodoBoard office={o.slug} other={other} names={names} todos={todos.open as TodoView[]} done={todos.done as TodoView[]} error={todos.error} />
+      </section>
+      <section className="card space-y-3">
+        <h2 className="text-lg font-bold">📁 Documents <span className="text-sm font-normal text-ink-soft">— upload, then choose who on the team can view it or have full access</span></h2>
+        <OfficeDocuments office={o.slug} />
       </section>
       {o.tools === "ops" ? <OpsTools /> : <RecruitingTools />}
       <Mail o={o} />
