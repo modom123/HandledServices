@@ -70,10 +70,12 @@
  * UPDATED : 2026-11-25_1900 UTC — one email a week, each different: the sequence is day 0, 7, 14, 21, and a step waits when an Email
  *           Center campaign went to the same business in the last 7 days. New leads every day: the search runs daily (weekends
  *           too) and leadTopUp searches until today's dailyLeadGoal of new businesses with an email is met.
+ * UPDATED : 2026-11-25_2000 UTC — lead searches go only where pros are available to do work (availablePros: approved, background-
+ *           checked, insured / licensed for the trade, open days in the next two weeks), for the trades they can take.
  */
 import "server-only";
 import { z } from "zod";
-import { BIZ_EMAIL_GAP_DAYS, BIZ_LEAD_SEQUENCE, dailyLeadGoal, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, proAreaTargets, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_QUERIES, stateForZip, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
+import { BIZ_EMAIL_GAP_DAYS, BIZ_LEAD_SEQUENCE, dailyLeadGoal, BIZ_SEGMENTS, BRAND, checkReplyDraft, landingSlugFor, outreachTargets, getService, LEAD_REFRESH, bizDedupeKey, bizReengageEmail, leadFreshness, refreshStep, warmupCap, outreachSlice, proAreaTargets, proOpenSlots, workableTrades, CALL_OUTCOMES, applyCallOutcome, type CallOutcome, BUSINESS_TERMS, FOCUS_CITIES, JOB_POST_QUERIES, stateForZip, MARKETING_FOCUS, bizLeadEmail, bizLeadScore, extractEmails, parseAdzuna, screenJobPosting, type BizSegment } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { domainOf, hunterFind, hunterLookupsLeft } from "./hunter";
 import { siteUrl } from "./notify";
@@ -103,28 +105,37 @@ async function event(leadId: string, kind: string, note?: string | null, actor =
 }
 
 /**
- * Where approved pros need work (fewer than PRO_NEEDS_WORK.jobsPer30 completed jobs in 30 days), by their base ZIP, with
+ * Where available pros need work (fewer than PRO_NEEDS_WORK.jobsPer30 completed jobs in 30 days), by their base ZIP, with
  * the kinds of business that buy their trades (core outreachTargets). Discovery searches these first.
  */
 export async function idleProTargets(limit = 12) {
-  const { data: pros } = await db().from("contractors").select("id, base_zip, zip, trades").eq("status", "approved").limit(10000);
-  const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const { data: done } = await db().from("jobs").select("contractor_id").eq("status", "completed").gte("completed_at", since).not("contractor_id", "is", null).limit(50000);
-  const jobs = new Map<string, number>();
-  for (const j of (done ?? []) as { contractor_id: string }[]) jobs.set(j.contractor_id, (jobs.get(j.contractor_id) ?? 0) + 1);
-  return outreachTargets(((pros ?? []) as { id: string; base_zip: string | null; zip: string | null; trades: string[] | null }[]).map((x) => ({ zip: x.base_zip ?? x.zip, trades: x.trades ?? [], jobs30: jobs.get(x.id) ?? 0 })),
-    (slug) => getService(slug)?.trades ?? [], limit);
+  return outreachTargets(await availablePros(), (slug) => getService(slug)?.trades ?? [], limit);
 }
 
 /** Every ZIP where an approved pro is based (core proAreaTargets): where lead searches happen, idle pros' areas first. */
+/**
+ * Where to look for business leads: only around pros who are available to do work (owner, 2026-11-25), for the trades
+ * they can actually take: approved, background-checked, insured / licensed where the work needs it (core workableTrades),
+ * and not booked solid for the next two weeks (core proOpenSlots). Pros needing work come first (proAreaTargets).
+ */
+export async function availablePros() {
+  const today = new Date();
+  const { data: pros } = await db().from("contractors").select("id, base_zip, zip, trades, status, background_checked, insured_until, license_number, license_expires, offboarded_at, daily_capacity, availability, time_off").eq("status", "approved").limit(10000);
+  const since = new Date(today.getTime() - 30 * 86400000).toISOString();
+  const from = today.toISOString().slice(0, 10), to = new Date(today.getTime() + 13 * 86400000).toISOString().slice(0, 10);
+  const [{ data: done }, { data: upcoming }] = await Promise.all([
+    db().from("jobs").select("contractor_id").eq("status", "completed").gte("completed_at", since).not("contractor_id", "is", null).limit(50000),
+    db().from("jobs").select("contractor_id").in("status", ["assigned", "in_progress"]).gte("scheduled_date", from).lte("scheduled_date", to).not("contractor_id", "is", null).limit(50000),
+  ]);
+  const count = (rows: { contractor_id: string }[] | null) => { const m = new Map<string, number>(); for (const j of rows ?? []) m.set(j.contractor_id, (m.get(j.contractor_id) ?? 0) + 1); return m; };
+  const jobs30 = count(done as { contractor_id: string }[] | null), booked = count(upcoming as { contractor_id: string }[] | null);
+  type P = Parameters<typeof workableTrades>[0] & Parameters<typeof proOpenSlots>[0] & { id: string; base_zip: string | null; zip: string | null };
+  return ((pros ?? []) as unknown as P[]).map((x) => ({ id: x.id, zip: x.base_zip ?? x.zip, trades: workableTrades(x, today), jobs30: jobs30.get(x.id) ?? 0, open: proOpenSlots(x, booked.get(x.id) ?? 0, today) }))
+    .filter((x) => x.trades.length && x.open > 0);
+}
+
 export async function proAreas(limit = 40) {
-  const { data: pros } = await db().from("contractors").select("id, base_zip, zip, trades").eq("status", "approved").limit(10000);
-  const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const { data: done } = await db().from("jobs").select("contractor_id").eq("status", "completed").gte("completed_at", since).not("contractor_id", "is", null).limit(50000);
-  const jobs = new Map<string, number>();
-  for (const j of (done ?? []) as { contractor_id: string }[]) jobs.set(j.contractor_id, (jobs.get(j.contractor_id) ?? 0) + 1);
-  return proAreaTargets(((pros ?? []) as { id: string; base_zip: string | null; zip: string | null; trades: string[] | null }[]).map((x) => ({ zip: x.base_zip ?? x.zip, trades: x.trades ?? [], jobs30: jobs.get(x.id) ?? 0 })),
-    (slug) => getService(slug)?.trades ?? [], limit);
+  return proAreaTargets(await availablePros(), (slug) => getService(slug)?.trades ?? [], limit);
 }
 
 export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: number; searches?: number } = {}) {
@@ -133,10 +144,10 @@ export async function discoverBizLeads(s: BizLeadSettings, o: { rotation?: numbe
   // which cities and segments to search rotates by day; a top-up passes its own rotation so it searches somewhere new
   const day = o.rotation ?? Math.floor(Date.now() / 86400000);
   if (o.searches) s = { ...s, discover_per_day: Math.max(1, Math.min(s.discover_per_day, o.searches)) };
-  // only where we have pros (owner, 2026-11-20): every search is near a ZIP where an approved pro is based, for the
-  // businesses that buy their trades. Idle pros' areas come first and get two searches in three.
+  // only where pros are available to do work (owner, 2026-11-20 / 2026-11-25): every search is near the home ZIP of a pro
+  // who can take jobs now, for the businesses that buy the trades they can do. Idle pros' areas come first (two in three).
   const areas = await proAreas().catch(() => []);
-  if (!areas.length) return { searches: 0, found: 0, added: 0, nearIdlePros: 0, googleError: "No approved pros with a ZIP yet, so there's nowhere to look: leads are only found where we have pros." };
+  if (!areas.length) return { searches: 0, found: 0, added: 0, nearIdlePros: 0, googleError: "No pros are available for work right now (approved, background-checked, insured, with a home ZIP and open days), so there's nowhere to look: leads are only found where available pros are." };
   const idle = areas.filter((a) => a.idlePros > 0);
   type Search = { segment: BizSegment; where: string; city: string | null; state: string | null; idle: number };
   const list: Search[] = Array.from({ length: s.discover_per_day }, (_, i) => {
@@ -218,7 +229,7 @@ export async function discoverJobPostings(s: BizLeadSettings) {
   const n = Math.max(0, Math.min(40, Number(s.job_posts_per_day ?? 6)));
   if (!id || !key || !n) return out;
   const day = Math.floor(Date.now() / 86400000);
-  // only where we have pros (2026-11-20): within 40 km of an approved pro's ZIP, idle pros' areas first
+  // only where pros are available to do work (2026-11-20 / 2026-11-25): near their home ZIPs, idle pros' areas first
   const areas = (await proAreas().catch(() => [])).map((x) => ({ where: x.zip, state: (stateForZip(x.zip) ?? "MI") as "MI" | "WA" }));
   if (!areas.length) return out;
   const plan = Array.from({ length: n }, (_, i) => ({ area: areas[(day * n + i) % areas.length], what: JOB_POST_QUERIES[(day + i) % JOB_POST_QUERIES.length] }));
