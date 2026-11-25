@@ -135,7 +135,7 @@ export function VerifyMailbox({ office, box }: { office: string; box?: "office" 
       <button className="text-brand underline" onClick={async () => {
         setMsg("Checking…");
         const r = await call({ action: "verify", office, box });
-        setMsg(r.ok ? `Sending: ${r.data.smtp} · Inbox: ${r.data.imap}` : r.data.error ?? "Failed");
+        setMsg(r.ok ? `Sending: ${r.data.smtp} · Inbox: ${r.data.imap}${r.data.server ? ` (${r.data.server})` : ""}` : r.data.error ?? "Failed");
       }}>Test mailbox</button>{msg && <span className="ml-2 text-ink-soft">{msg}</span>}
     </span>
   );
