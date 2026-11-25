@@ -3495,3 +3495,21 @@ test("price from photos: shot lists, monthly figure for recurring work", async (
   assert.equal(monthlyEstimate(100, "monthly"), 100);
   assert.ok(PHOTO_QUOTE.maxPhotos <= 8, "the booking form takes up to 8 photos");
 });
+
+test("lead searches: only pros available for work count (approved, checked, insured/licensed for the trade, open days)", async () => {
+  const { workableTrades, proOpenSlots } = await import("./dispatch.ts");
+  const today = new Date("2026-11-25T12:00:00Z");
+  const insuredTrade = SERVICES.find((s) => !s.insuranceOptional && !s.licensed)!.trades[0];
+  const pro = { status: "approved" as const, trades: [insuredTrade], background_checked: true, insured_until: "2027-01-01", license_number: null };
+  assert.deepEqual(workableTrades(pro, today), [insuredTrade]);
+  assert.deepEqual(workableTrades({ ...pro, background_checked: false }, today), []);
+  assert.deepEqual(workableTrades({ ...pro, status: "pending" as never }, today), []);
+  assert.deepEqual(workableTrades({ ...pro, offboarded_at: "2026-11-01" }, today), []);
+  // insurance lapsed: only trades with an insurance-optional service remain
+  const lapsed = workableTrades({ ...pro, insured_until: "2026-01-01" }, today);
+  assert.equal(lapsed.length, SERVICES.some((s) => s.insuranceOptional && s.trades.includes(insuredTrade)) ? 1 : 0);
+  // open slots: 2 a day, weekdays only, 14 days = 20 slots; booked solid = 0
+  assert.equal(proOpenSlots({ daily_capacity: 2, availability: { days: [1, 2, 3, 4, 5] } }, 0, today), 20);
+  assert.equal(proOpenSlots({ daily_capacity: 2, availability: { days: [1, 2, 3, 4, 5] } }, 25, today), 0);
+  assert.equal(proOpenSlots({ daily_capacity: 1, time_off: ["2026-11-25"] }, 0, today), 13);
+});

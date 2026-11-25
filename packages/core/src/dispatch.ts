@@ -22,9 +22,11 @@
  * UPDATED : 2026-11-12_2200 UTC — inProArea: strictly within the pro's radius or ZIP list (who may be texted about a job).
  * UPDATED : 2026-11-12_2355 UTC — + ADDITIONAL_INSURED_BOOST for pros whose COI names Handled as additional insured.
  * UPDATED : 2026-11-13_0200 UTC — licensed work needs a VERIFIED license (expiry set on verify), not just a number typed in.
+ * UPDATED : 2026-11-25_2000 UTC — workableTrades / proOpenDays: which pros can take work right now (business-lead searches go
+ *           only where those pros are, for the trades they can actually do).
  */
 
-import { getService } from "./services.ts";
+import { SERVICES, getService } from "./services.ts";
 import type { Contractor } from "./types.ts";
 import { proTier } from "./pro-program.ts";
 import { liveLocation, localDate, onCall, timeZoneForZip } from "./roster.ts";
@@ -156,6 +158,36 @@ export function eligible(c: Contractor, job: DispatchJob, today = new Date()): s
   // switched On call → available today even outside their usual days and hours
   if (onCallFor(c, job, today)) return null;
   return offDuty(c, job.scheduled_date, job.time_window);
+}
+
+/**
+ * The trades a pro can take jobs in today, by the same rules dispatch uses: approved, not offboarded, background check
+ * done, and for each trade at least one service they may do (insurance in date unless the service doesn't need it; a
+ * verified, unexpired license for licensed work). Empty = not available for work. Pure.
+ */
+export function workableTrades(c: Pick<Contractor, "status" | "trades" | "background_checked" | "insured_until" | "license_number"> & { license_expires?: string | null; offboarded_at?: string | null }, today = new Date()): string[] {
+  if (c.status !== "approved" || c.offboarded_at || !c.background_checked) return [];
+  const insured = Boolean(c.insured_until && new Date(c.insured_until) >= today);
+  const licensed = Boolean(c.license_number && c.license_expires && new Date(`${c.license_expires}T23:59:59`) >= today);
+  return (c.trades ?? []).filter((t) => SERVICES.some((s) => s.trades.includes(t) && (s.insuranceOptional || insured) && (!s.licensed || licensed)));
+}
+
+/**
+ * How many open job slots a pro has over the next `days` days: their daily capacity on the days they work (weekly
+ * schedule, minus time off), less the jobs already on their calendar. 0 = booked solid. Pure.
+ */
+export function proOpenSlots(c: { daily_capacity?: number | null; availability?: { days?: number[] | null } | null; time_off?: string[] | null }, booked: number, today = new Date(), days = 14): number {
+  const cap = Math.max(1, Number(c.daily_capacity ?? 1));
+  let slots = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today.getTime() + i * 86400000);
+    const iso = d.toISOString().slice(0, 10);
+    if (c.time_off?.includes(iso)) continue;
+    const wd = c.availability?.days;
+    if (wd?.length && !wd.includes(d.getUTCDay())) continue;
+    slots += cap;
+  }
+  return Math.max(0, slots - booked);
 }
 
 /**
