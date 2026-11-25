@@ -10,6 +10,8 @@
  *               alerts about the pro or their jobs (ops_alerts, open ones can be resolved here), and the Legal &
  *               Compliance team's checks (agent_tasks for this pro)
  *           Server component; the composer is client-side (ProComposer).
+ * UPDATED : 2026-11-25_1830 UTC — works for an applicant without a pro account too (pro.id null + application_id): the candidate
+ *           file uses this same panel.
  */
 import { adminClient } from "@/lib/supabase/server";
 import { candidateSenders } from "@/lib/recruiting";
@@ -25,14 +27,15 @@ const EVENT: Record<string, [string, string]> = {
 };
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { timeZone: "America/Detroit", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
-export async function ProConversation({ pro }: { pro: { id: string; email: string | null; contact_name: string | null; status: string; phone?: string | null; application_id?: string | null } }) {
+/** `pro.id` is the pro's id, or null for an applicant without a pro account yet (then `application_id` is required). */
+export async function ProConversation({ pro }: { pro: { id: string | null; email: string | null; contact_name: string | null; status: string; phone?: string | null; application_id?: string | null } }) {
   const db = adminClient();
-  const { data: jobRows } = await db.from("jobs").select("id").eq("contractor_id", pro.id).order("created_at", { ascending: false }).limit(200);
+  const { data: jobRows } = pro.id ? await db.from("jobs").select("id").eq("contractor_id", pro.id).order("created_at", { ascending: false }).limit(200) : { data: [] };
   const jobIds = ((jobRows ?? []) as { id: string }[]).map((j) => j.id);
   const email = (pro.email ?? "").toLowerCase();
   const [{ data: events }, { data: alerts }, { data: jobAlerts }, { data: legal }, senders] = await Promise.all([
-    db.from("recruiting_events").select("kind, note, actor, created_at").or(`contractor_id.eq.${pro.id}${pro.application_id ? `,application_id.eq.${pro.application_id}` : ""}`).order("created_at", { ascending: false }).limit(150),
-    db.from("ops_alerts").select("id, kind, severity, title, body, resolved, created_at").eq("contractor_id", pro.id).order("created_at", { ascending: false }).limit(50),
+    db.from("recruiting_events").select("kind, note, actor, created_at").or([pro.id ? `contractor_id.eq.${pro.id}` : "", pro.application_id ? `application_id.eq.${pro.application_id}` : ""].filter(Boolean).join(",")).order("created_at", { ascending: false }).limit(150),
+    pro.id ? db.from("ops_alerts").select("id, kind, severity, title, body, resolved, created_at").eq("contractor_id", pro.id).order("created_at", { ascending: false }).limit(50) : Promise.resolve({ data: [] }),
     jobIds.length ? db.from("ops_alerts").select("id, kind, severity, title, body, resolved, created_at").in("job_id", jobIds).order("created_at", { ascending: false }).limit(50) : Promise.resolve({ data: [] }),
     email ? db.from("agent_tasks").select("title, note, status, created_at, closed_at").eq("agent", "legal").like("target", `pro:${email}#%`).order("created_at", { ascending: false }).limit(20) : Promise.resolve({ data: [] }),
     candidateSenders().catch(() => [{ id: "company", label: "Handled Recruiting (company email)" }]),
@@ -59,7 +62,7 @@ export async function ProConversation({ pro }: { pro: { id: string; email: strin
         <h2 className="text-lg font-bold">Conversation &amp; activity</h2>
         <span className="text-xs text-ink-soft">{items.length} item(s){openAlerts ? ` · ${openAlerts} open alert(s)` : ""}</span>
       </div>
-      <ProComposer contractorId={pro.id} email={pro.email} firstName={String(pro.contact_name ?? "").split(" ")[0]} hasAccount={pro.status !== "approved"} senders={senders} phone={pro.phone ?? null} />
+      <ProComposer contractorId={pro.id} applicationId={pro.application_id ?? null} email={pro.email} firstName={String(pro.contact_name ?? "").split(" ")[0]} hasAccount={Boolean(pro.id) && pro.status !== "approved"} senders={senders} phone={pro.phone ?? null} />
       <ol className="divide-y divide-line text-sm">
         {items.slice(0, 80).map((it, i) => (
           <li key={i} className={`flex gap-2 py-2 ${it.open ? "rounded bg-amber-50 px-2" : ""}`}>

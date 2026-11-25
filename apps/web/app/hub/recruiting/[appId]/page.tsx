@@ -13,6 +13,8 @@
  * UPDATED : 2026-11-11_0030 UTC — Delete (admins): removes the applicant and goes back to the pipeline.
  * UPDATED : 2026-11-24_2000 UTC — "Email this candidate" on the file (starters, optional setup steps + sign-in link, send from
  *           the company or a Front Office mailbox); the history now includes what's logged on their pro account (nudges, emails).
+ * UPDATED : 2026-11-25_1830 UTC — the same Conversation & activity panel as a pro's file (email, notes, alerts, compliance) replaces
+ *           the separate email box and the History list.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -22,8 +24,7 @@ import { interviewsFor, interviewUrl } from "@/lib/interviews";
 import { aiEnabled } from "@/lib/ai/client";
 import { InterviewDecision, Scorecard, StartInterview } from "@/components/Interviews";
 import { RecruitingRowActions } from "@/components/HubActions";
-import { CandidateEmail } from "@/components/CandidateEmail";
-import { candidateSenders } from "@/lib/recruiting";
+import { ProConversation } from "@/components/ProConversation";
 import { TradesEditor } from "@/components/RecruitingIntake";
 import { signedDocUrl } from "@/lib/photos";
 
@@ -48,7 +49,6 @@ export default async function Candidate({ params, searchParams }: { params: Prom
     if (more?.length) (events as unknown[]).push(...more);
     (events as { created_at: string }[] | null)?.sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
-  const senders = await candidateSenders().catch(() => [{ id: "company", label: "Handled Recruiting (company email)" }]);
   const { data: firstJob } = pro ? await db.from("jobs").select("id").eq("contractor_id", pro.id).eq("status", "completed").limit(1) : { data: [] };
   const latest = ivs[0];
   const done = ivs.find((i) => i.status === "completed");
@@ -79,10 +79,6 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           <ul className="space-y-1 text-sm">{check.steps.map((s) => <li key={s.key} className="flex gap-2"><span>{s.done ? "✅" : "☐"}</span><span className={s.done ? "" : "text-ink-soft"}>{s.en}{s.detail ? <span className="text-xs text-ink-soft"> — {s.detail}</span> : null}</span></li>)}</ul>
           <RecruitingRowActions appId={appId} contractorId={pro?.id ?? null} stage={pro?.status === "approved" ? "active" : String(app.stage)} afterDelete="/hub/recruiting/pipeline" />
           {pro && <Link className="text-sm underline" href={`/hub/pros/${pro.id}`}>Pro record & documents →</Link>}
-          <details className="rounded-lg border border-line p-3" open={Boolean(check.next && check.next.who === "candidate")}>
-            <summary className="cursor-pointer font-semibold">✉️ Email this candidate</summary>
-            <div className="mt-2"><CandidateEmail appId={appId} contractorId={pro?.id ?? null} email={(pro?.email ?? app.email ?? null) as string | null} firstName={String(app.contact_name ?? "").split(" ")[0]} hasAccount={Boolean(pro && pro.status !== "approved")} senders={senders} phone={(app.phone ?? null) as string | null} /></div>
-          </details>
         </section>
         <section className="space-y-4">
           <div className="card space-y-3">
@@ -137,9 +133,8 @@ export default async function Candidate({ params, searchParams }: { params: Prom
             <TradesEditor appId={appId} initial={(app.trades as string[]) ?? []} initialSkills={(app.specialties as string[]) ?? []} trades={TRADES.map((x) => ({ id: x.id, label: x.label }))} />
             {app.ai_screen && <p className="mt-1 text-xs">AI screen {app.ai_screen.score} · {String(app.ai_screen.recommendation).replace(/_/g, " ")} · concerns: {(app.ai_screen.concerns ?? []).join("; ") || "none"}</p>}
           </div>
-          <details className="card text-xs"><summary className="cursor-pointer font-semibold">History ({(events ?? []).length})</summary>
-            <ul className="mt-2 space-y-0.5">{((events ?? []) as { kind: string; note: string | null; actor: string; created_at: string }[]).map((e, i) => <li key={i}><span className="text-ink-soft">{e.created_at.slice(0, 16).replace("T", " ")}</span> · {e.kind.replace(/_/g, " ")}{e.note ? ` — ${e.note}` : ""} <span className="text-ink-soft">({e.actor})</span></li>)}</ul>
-          </details>
+          {/* the same Conversation & activity panel as a pro's file: email them, notes, alerts and compliance, one timeline */}
+          <ProConversation pro={{ id: (pro?.id as string | undefined) ?? null, email: ((pro?.email ?? app.email ?? null) as string | null), contact_name: (app.contact_name as string | null) ?? null, status: String(pro?.status ?? "applicant"), phone: (app.phone as string | null) ?? null, application_id: appId }} />
         </section>
       </div>
       <p className="text-xs text-ink-soft">Questions come from the packet ({QUESTIONS.length} in the bank; {plan.length} for this candidate's trades).</p>
