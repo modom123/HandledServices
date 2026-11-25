@@ -25,6 +25,8 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-20_0130 UTC — outreachSlice / OUTREACH_WINDOW: outreach spread across the business day, once an hour.
  * UPDATED : 2026-11-20_0330 UTC — proAreaTargets: every lead search is where we have pros (idle pros' ZIPs first).
+ * UPDATED : 2026-11-25_0200 UTC — the letters lead with "your price from a few photos, no walkthrough" (their link opens the
+ *           business page whose main button is Get a price from photos); "reply with a few photos" instead of the address.
  */
 import { BRAND } from "./brand.ts";
 
@@ -115,7 +117,7 @@ ${BRAND.name} sends background-checked, vetted pros to do the job on the schedul
 • If anything's missed, we come back free or refund you within ${BRAND.guaranteeDays} days.
 • One vendor for everything else: repairs, grounds and snow, junk removal and more.
 
-Try us before you hire: book one visit at ${c.signupUrl}
+Get your price from a few photos of the space, no walkthrough or interviews needed: ${c.signupUrl}
 ${reply}
 
 Still want to hire? Keep the posting up and let us cover the work until the right person starts. No contract required.
@@ -137,23 +139,23 @@ Every day a unit sits empty costs you rent, and every extra vendor costs you tim
 • Ongoing care: common-area cleaning, lawn and snow, gutters and power washing on a recurring schedule
 • Repairs and maintenance: handyman, plumbing, appliance and lighting work, by licensed trades where required
 • Clean-outs and haul-away between tenants
-• An exact price online, 25% to book, the rest when it's done. Larger projects start with a free site visit and no deposit
+• Your exact price from a few photos of the unit, no walkthrough. Bigger projects get a firm price from the same photos within hours. 25% to book, the rest when it's done
 • Every property and invoice in one account. Background-checked, vetted pros, backup crews and a ${BRAND.guaranteeDays}-day make-it-right guarantee
 
-Have a turnover coming up? ${reply} Or book it now: ${c.signupUrl}
+Have a turnover coming up? ${reply} Or send photos and see your price: ${c.signupUrl}
 
 ${closing}`,
   };
 }
 
-const replyLine = (phone?: string | null) => `Or reply with the address and I'll get you a price the same day${phone ? `, or call or text ${phone}` : ""}.`;
+const replyLine = (phone?: string | null) => `Or reply with a few photos and I'll send your price today${phone ? `, or call or text ${phone}` : ""}.`;
 
 /** The day-0 letter for sending by hand (print, PDF or a job site's message), signed by a person. */
 export function bizCoverLetter(c: BizLeadEmailCtx & { senderName: string; senderTitle?: string | null; phone?: string | null; email?: string | null; site?: string | null }): { subject: string; text: string } {
   const sig = [`Best regards,`, c.senderName, c.senderTitle, BRAND.legalName, [c.phone, c.email].filter(Boolean).join(" · "), c.site].filter(Boolean).join("\n");
-  const reply = c.phone ? `Or call or text me at ${c.phone} and I'll get you a price the same day.` : "Or reply and I'll get you a price the same day.";
+  const reply = c.phone ? `Or call or text me at ${c.phone} (a few photos are perfect) and I'll send your price today.` : "Or reply with a few photos and I'll send your price today.";
   if (c.jobTitle?.trim()) return employerLetter(c, sig, reply);
-  if (c.segment === "property_manager") return propertyManagerLetter(c, sig, c.phone ? `Call or text me at ${c.phone} with the address and move-out date and I'll get you a price the same day.` : "Send me the address and move-out date and I'll get you a price the same day.");
+  if (c.segment === "property_manager") return propertyManagerLetter(c, sig, c.phone ? `Call or text me at ${c.phone} with a few photos of the unit and the move-out date, and I'll send your price today.` : "Send me a few photos of the unit and the move-out date, and I'll send your price today.");
   const m = bizLeadEmail({ ...c, step: 0 });
   return { subject: m.subject, text: `${m.text.split("\n\n—\n")[0].replace(/\n\n(Thanks|Best),\nThe .*$/s, "")}\n\n${sig}` };
 }
@@ -172,25 +174,25 @@ export function bizLeadEmail(c: BizLeadEmailCtx): { subject: string; text: strin
     const again = hi === `Hi ${c.businessName} team,` ? "Hi again," : hi;
     return pick([
       employerLetter(c, `Best regards,\n${team}`, replyLine(BRAND.supportPhone)),
-      { subject: `Re: your ${title} posting`, text: `${again}\n\nQuick follow-up. If the ${title} role is still open, we can cover the ${need.work} while you look, or instead of hiring: background-checked, vetted pros, an exact price up front and 25% to book.\n\nBook a first visit: ${c.signupUrl}\n${replyLine(BRAND.supportPhone)}\n\n${team}` },
+      { subject: `Re: your ${title} posting`, text: `${again}\n\nQuick follow-up. If the ${title} role is still open, we can cover the ${need.work} while you look, or instead of hiring: background-checked, vetted pros, an exact price up front and 25% to book.\n\nSee your price from a few photos, no walkthrough: ${c.signupUrl}\n${replyLine(BRAND.supportPhone)}\n\n${team}` },
       { subject: `Last note from ${BRAND.name}`, text: `${again === "Hi again," ? "Hello," : again}\n\nI won't keep emailing. Whenever you need ${need.work} done, while the role is open or when someone calls out, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
     ]);
   }
   if (c.segment === "property_manager") {
     return pick([
-      propertyManagerLetter(c, `Best regards,\n${team}`, "Reply with the address and move-out date and I'll get you a price the same day."),
-      { subject: "Re: your next turnover", text: `${hi}\n\nQuick follow-up. When your next unit turns over, send us the address and move-out date: cleanout, deep clean, touch-ups and punch list in one booking, with photos of every room, an exact price up front and 25% to book.\n\nBook it here: ${c.signupUrl}\nOr just reply.\n\n${team}` },
+      propertyManagerLetter(c, `Best regards,\n${team}`, "Reply with a few photos of the unit and the move-out date, and I'll send your price today."),
+      { subject: "Re: your next turnover", text: `${hi}\n\nQuick follow-up. When your next unit turns over, send us a few photos and the move-out date: cleanout, deep clean, touch-ups and punch list in one booking, with photos of every room, an exact price up front and 25% to book. No walkthrough needed.\n\nGet your price from photos: ${c.signupUrl}\nOr just reply with the photos.\n\n${team}` },
       { subject: `Last note from ${BRAND.name}`, text: `${hi}\n\nI won't keep emailing. Whenever a unit needs to be rent-ready${where}, we're one booking away: ${c.signupUrl}\n\nBest,\n${team}` },
     ]);
   }
   return pick([
     {
       subject: `${seg.pilotJob[0].toUpperCase()}${seg.pilotJob.slice(1)}, booked in a minute`,
-      text: `${hi}\n\nI'm reaching out from ${BRAND.name}, a home and business services company${where}. We handle ${seg.hook}.\n\n• Background-checked, vetted pros\n• An exact price up front, booked online in about a minute: 25% to book, the rest when it's done\n• Every property on one business account; your favorite pros get your jobs first\n• If a job isn't right, we redo it free or refund it\n\nBook ${seg.pilotJob}: ${c.signupUrl}\nOr reply and I'll get you a price.\n\nThanks,\n${team}`,
+      text: `${hi}\n\nI'm reaching out from ${BRAND.name}, a home and business services company${where}. We handle ${seg.hook}.\n\n• Background-checked, vetted pros\n• Your exact price from a few photos, no walkthrough: 25% to book, the rest when it's done\n• Every property on one business account; your favorite pros get your jobs first\n• If a job isn't right, we redo it free or refund it\n\nSee your price for ${seg.pilotJob} from a few photos: ${c.signupUrl}\nOr reply with photos and I'll send your price today.\n\nThanks,\n${team}`,
     },
     {
       subject: `Re: ${seg.pilotJob}`,
-      text: `${hi}\n\nQuick follow-up. Teams like yours use ${BRAND.name} so they can stop chasing contractors: one account, exact prices up front, photos of every job and one view of everything.\n\nBook it here: ${c.signupUrl}\n\n${team}`,
+      text: `${hi}\n\nQuick follow-up. Teams like yours use ${BRAND.name} so they can stop chasing contractors: one account, exact prices up front from a few photos (no walkthrough), photos of every job and one view of everything.\n\nGet your price: ${c.signupUrl}\n\n${team}`,
     },
     {
       subject: `Last note from ${BRAND.name}`,

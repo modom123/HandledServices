@@ -10,6 +10,7 @@
  *             callScript    — a short opener, the questions to ask and a voicemail, by segment
  *           Calls are live and made by a person: no autodialer, no prerecorded or AI voice, no texts (TCPA).
  *           "Do not call" is permanent.
+ * UPDATED : 2026-11-25_0200 UTC — the script asks for a few photos (exact price today) first; the walkthrough is the fallback.
  */
 import { BRAND } from "./brand.ts";
 import { BIZ_PARTNER_SEGMENT, BIZ_SEGMENTS, type BizSegment } from "./biz-lead-engine.ts";
@@ -25,7 +26,7 @@ export const CALL_OUTCOMES: Record<CallOutcome, { label: string; emoji: string; 
   voicemail: { label: "Left voicemail", emoji: "📨", retryDays: 3, reached: false, hint: "Tries again in 3 business days" },
   gatekeeper: { label: "Gatekeeper", emoji: "🚪", retryDays: 2, reached: false, hint: "Got the right name? Put it in the note" },
   talked: { label: "Talked — follow up", emoji: "💬", status: "replied", retryDays: 5, reached: true, hint: "Calls back in 5 business days" },
-  interested: { label: "Interested!", emoji: "🔥", status: "replied", retryDays: 1, reached: true, hint: "Book the walkthrough; calls back tomorrow" },
+  interested: { label: "Interested!", emoji: "🔥", status: "replied", retryDays: 1, reached: true, hint: "Get their photos (or book a walkthrough if they want to meet); calls back tomorrow" },
   callback: { label: "Call back on…", emoji: "📅", reached: true, hint: "Pick the date they asked for" },
   not_interested: { label: "Not interested", emoji: "👎", status: "not_interested", reached: true, hint: "Off the list; email stops too" },
   do_not_call: { label: "Do not contact", emoji: "⛔", status: "do_not_contact", reached: true, hint: "Never call or email again" },
@@ -110,7 +111,7 @@ export function callScript(l: { business_name: string; contact_name?: string | n
   return {
     opener: `${ask} This is ${caller} with ${BRAND.name}, a Detroit company. ${warm}We do ${seg.hook}. I'm calling to see if it's worth a quick look for ${l.business_name}.`,
     questions: ["Who handles that for you today, and how's it going?", "What's the one thing you'd change about it?", "How often do you need it (weekly, monthly, between tenants)?"],
-    voicemail: `Hi, this is ${caller} with ${BRAND.name} in Detroit. We do ${seg.hook}. I'd be glad to do a free walkthrough and quote for ${l.business_name}. You can reach me at [your number]. Again, ${caller} with ${BRAND.name}. Thanks.`,
-    close: `Could I come by for a free 15-minute walkthrough and send you a quote — no commitment? What day works?`,
+    voicemail: `Hi, this is ${caller} with ${BRAND.name} in Detroit. We do ${seg.hook}. If you text or email me a few photos, I'll send ${l.business_name} an exact price today, no walkthrough needed. You can reach me at [your number]. Again, ${caller} with ${BRAND.name}. Thanks.`,
+    close: `Could you text or email me a few photos of the space? I'll send your exact price today, no walkthrough, no commitment. (Rather meet? I can come by for 15 minutes.)`,
   };
 }

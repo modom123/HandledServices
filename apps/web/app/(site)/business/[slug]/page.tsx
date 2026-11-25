@@ -8,6 +8,7 @@
  *           ready now. Sales-email links land here (/b/<token> picks the page from the lead's segment) and ?lead= is
  *           carried to the walkthrough and the order, so the lead is credited.
  * UPDATED : 2026-11-19_1540 UTC — "or post a project and get an estimate" (/post, our own lead) next to the walkthrough and order buttons.
+ * UPDATED : 2026-11-25_0200 UTC — the main button is "Get a price from photos" (no walkthrough); the walkthrough is the backup.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,8 +25,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 const STEPS = [
-  ["Book a free walkthrough", "Pick a time online: on site, or a 10-minute call."],
-  ["Get an exact price", "The same day, in writing. No obligation."],
+  ["Send a few photos", "Snap the space on your phone. No walkthrough needed (you can still book one if you'd rather meet)."],
+  ["Get an exact price", "Right away for most jobs, or within a few hours for bigger ones. No obligation."],
   ["We do the first job", "A vetted crew, before-and-after photos in your account."],
   ["Keep what works", "Make it recurring, add properties, move to monthly invoicing."],
 ];
@@ -35,6 +36,7 @@ export default async function BizLandingPage({ params }: { params: Promise<{ slu
   if (!l) notFound();
   // ?lead= is read on the client by Attribution; the buttons carry it too (server pages can't read it while static)
   const walk = `/walkthrough?for=${l.slug}`;
+  const photo = `/business/photo-quote?for=${l.slug}`;
   const order = `/book?for=business${l.services[0] ? `&service=${l.services[0]}` : ""}`;
   const services = businessServices(l.services);
   return (
@@ -46,16 +48,16 @@ export default async function BizLandingPage({ params }: { params: Promise<{ slu
             <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">{l.h1}</h1>
             <p className="mt-4 max-w-xl text-lg text-white/80">{l.sub}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <LeadLink href={walk} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">Book a free walkthrough</LeadLink>
+              <LeadLink href={photo} className="btn bg-white px-6 py-3 text-base text-brand-deep hover:bg-gold-light">📸 Get a price from photos</LeadLink>
               <LeadLink href={order} className="btn border border-white/40 px-6 py-3 text-base text-white hover:bg-white/10">Order online</LeadLink>
             </div>
-            <p className="mt-3 text-sm text-white/70">{WALKTHROUGH_KINDS[l.kind].label}: pick your own time, exact price the same day.</p>
+            <p className="mt-3 text-sm text-white/70">No walkthrough needed: send a few photos, see your price. Rather meet? <LeadLink href={walk} className="font-semibold text-white underline">Book a free walkthrough</LeadLink>.</p>
           </div>
           <div className="rounded-2xl bg-white/10 p-5 ring-1 ring-white/15">
             <div className="text-xs font-semibold uppercase tracking-wide text-gold-light">Start with one job</div>
             <div className="mt-1 text-2xl font-bold">{l.firstJob}</div>
             <p className="mt-2 text-white/80">{l.firstJobWhy}</p>
-            <ul className="mt-4 space-y-1 text-sm">{["Free walkthrough, no obligation", "Exact price before you book", "25% to book, the rest when it’s done", "If it isn’t right, we redo it free or refund it"].map((x) => <li key={x}><span className="text-gold-light">✓</span> {x}</li>)}</ul>
+            <ul className="mt-4 space-y-1 text-sm">{["Price from photos, no walkthrough", "Exact price before you book", "25% to book, the rest when it’s done", "If it isn’t right, we redo it free or refund it"].map((x) => <li key={x}><span className="text-gold-light">✓</span> {x}</li>)}</ul>
           </div>
         </div>
       </section>
@@ -105,8 +107,9 @@ export default async function BizLandingPage({ params }: { params: Promise<{ slu
           </div>
           <div className="card self-start text-center">
             <h2 className="text-xl font-bold">{l.firstJob}</h2>
-            <p className="mt-2 text-sm text-ink-soft">Pick a time that suits you. We’ll see the work and send an exact price the same day.</p>
-            <LeadLink href={walk} className="btn-primary mt-4 inline-block px-8 py-3 text-base">Book a free walkthrough</LeadLink>
+            <p className="mt-2 text-sm text-ink-soft">Send a few photos and see your price right away. Bigger jobs get a firm price within a few hours, still with no visit.</p>
+            <LeadLink href={photo} className="btn-primary mt-4 inline-block px-8 py-3 text-base">📸 Get a price from photos</LeadLink>
+            <p className="mt-3 text-sm"><LeadLink href={walk} className="font-semibold text-brand">or book a free walkthrough →</LeadLink></p>
             <p className="mt-3 text-sm"><LeadLink href={order} className="font-semibold text-brand">or order online now →</LeadLink></p>
             <p className="mt-1 text-sm"><LeadLink href={`/post?utm_source=business_page&utm_campaign=${l.slug}`} className="font-semibold text-brand">or post a project and get an estimate →</LeadLink></p>
           </div>
