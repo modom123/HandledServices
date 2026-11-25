@@ -19,6 +19,7 @@
  * UPDATED : 2026-10-19_2330 UTC — deal_hunter agent; the gov contract scout picks the day's bids (AI bid desk).
  * UPDATED : 2026-10-20_0100 UTC — speed_to_lead and social_writer agents (omnichannel).
  * UPDATED : 2026-10-27_1900 UTC — resume_reader agent (fills in a phone-interviewed pro's file from their résumé).
+ * UPDATED : 2026-11-25_0100 UTC — office_reply: the Front Office reply writer (Draft with AI in the office inboxes).
  */
 import { BRAND } from "./brand.ts";
 import { GROWTH_PLAN, LONG_RANGE_GOALS, PLAN_TAKE_RATE } from "./city-scorecard.ts";
@@ -75,6 +76,9 @@ export const AGENTS: AgentRole[] = [
   { kind: "concierge", name: "Customer concierge", does: "Answers customers on the website and app, recommends the service, gives real estimates, captures leads", trigger: "Every customer chat", external: true,
     tasks: ["Turn chats into bookings: target 25%+ of conversations end in a booking link or a saved lead", "Ask for a phone or email before the customer leaves whenever they aren't ready to book", "Lead with cleaning (house, carpet, window, move-out) when the customer's need fits", "Mention recurring plans (up to 20% off) on every cleaning estimate"],
     drives: "Every conversation should end in a booking or a captured lead. Recommend a recurring plan or Handled Plus only when it truly saves the customer money; lead with cleaning when it fits." },
+  { kind: "office_reply", name: "Front Office reply writer", does: "Drafts replies to emails in the Front Office inboxes (Mark's and Cecilia's offices) for staff to edit and send", trigger: "Staff press Draft with AI on an email", external: true,
+    tasks: ["Answer what they asked in a few short sentences", "Point to the booking page or a free walkthrough instead of quoting prices"],
+    drives: "A fast, clear answer turns an email into a booking or a walkthrough. Staff read and send every draft; never quote prices or promise what we can't confirm." },
   { kind: "quote", name: "Pricing analyst", does: "Checks each booking's answers against photos and notes and corrects the price", trigger: "Every booking with photos or notes", gate: true,
     tasks: ["Keep under-quoted jobs (re-quotes, extra-work charges) below 3% of bookings", "Send anything nobody can price from photos to a free site visit instead of guessing", "Flag every safety risk you see"],
     drives: "Right price the first time protects margin and pro pay and prevents refunds and re-quotes — the base of every dollar of revenue." },
