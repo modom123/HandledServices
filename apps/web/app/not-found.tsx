@@ -4,6 +4,7 @@
  * CREATED : 2026-10-07_1640 UTC
  * PURPOSE : Branded "page not found" (any unknown URL): the site header and footer, and the most useful next steps.
  * UPDATED : 2026-10-27_1500 UTC — inside the side-menu shell (SiteShell).
+ * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
  */
 import Link from "next/link";
 import { SiteShell } from "@/components/site";
@@ -20,7 +21,7 @@ export default async function NotFound() {
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{es ? "No encontramos esa página" : "We couldn’t find that page"}</h1>
         <p className="mt-2 text-ink-soft">{es ? "Puede que el enlace sea antiguo o tenga un error. Esto es lo que la mayoría busca:" : "The link may be old or mistyped. Here’s what most people are looking for:"}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/book" className="btn-primary">{es ? "Reservar un servicio" : "Book a service"}</Link>
+          <Link href="/post" className="btn-primary">{es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
           <Link href="/services" className="btn-ghost">{es ? "Ver servicios" : "See services"}</Link>
           <Link href="/account" className="btn-ghost">{es ? "Mis reservas" : "My bookings"}</Link>
           <Link href="/contact" className="btn-ghost">{es ? "Contacto" : "Contact us"}</Link>

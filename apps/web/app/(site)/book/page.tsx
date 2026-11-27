@@ -15,7 +15,9 @@
  * UPDATED : 2026-11-10_0600 UTC — Business & Technology (consultOnly): the heading says "Book your free consultation".
  * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
  * UPDATED : 2026-11-27_1700 UTC — ?offer= prefills Name your price (from Get it Handled).
+ * UPDATED : 2026-11-27_1900 UTC — one front door: /book with no service, quote, ticket, property or pro redirects to Get it Handled (/post).
  */
+import { redirect } from "next/navigation";
 import { BookingWizard } from "@/components/BookingWizard";
 import { consultOnly, t } from "@handled/core";
 import { getLocale } from "@/lib/locale";
@@ -83,6 +85,12 @@ export const metadata = { alternates: { canonical: "/book" }, description: "Pick
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { service: svcParam, when, budget, promo, frequency, property, pro, crew, photos, notes, home, src: _src, partner: _partner, quote: quoteToken, bid, for: forWho, lead: _lead, ticket: ticketToken, offer, ...rest } = await searchParams;
+  // one front door (owner, 2026-11-27): /book with nothing chosen goes to Get it Handled; /book is the checkout step
+  const all = await searchParams;
+  if (!svcParam && !quoteToken && !ticketToken && !property && !pro && !forWho && !home) {
+    const keep = new URLSearchParams(Object.entries(all).filter(([k, v]) => v && /^(utm_|ref$|partner$|lead$|src$)/.test(k)) as [string, string][]).toString();
+    redirect(`/post${keep ? `?${keep}` : ""}`);
+  }
   const quoted = await bookedQuote(quoteToken, bid);
   const ticket = await ticketForBooking(ticketToken).catch(() => null);
   const service = quoted?.service ?? ticket?.service ?? svcParam;

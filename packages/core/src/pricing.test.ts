@@ -3557,3 +3557,11 @@ test("AI quote learning: booked jobs and market research become price signals th
   // research saying others charge less pulls it down
   assert.ok(marketFactor(researchSignals(Array.from({ length: 5 }, () => ({ typical: 160 })), 200), 1).factor < 1);
 });
+
+test("Get it Handled is the one front door: links and the photo step", async () => {
+  const { getItHandledHref, photosHelp } = await import("./project-picker.ts");
+  assert.equal(getItHandledHref(), "/post");
+  assert.equal(getItHandledHref({ service: "handyman" }), "/post?service=handyman");
+  assert.equal(getItHandledHref({ service: "nope", business: true }), "/post?for=business");
+  assert.ok(photosHelp("handyman") && photosHelp(null) && !photosHelp("dog-walking") && !photosHelp("airport-transfer"));
+});

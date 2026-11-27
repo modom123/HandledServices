@@ -36,6 +36,9 @@
  *           3 pictures → the AI quote → send the job at Handled's price, or name your price (job board: /book?offer=,
  *           same rules as the booking page: offerCheck bounds, posting fee, pros decide). Project manager and a call stay
  *           as links under the two buttons.
+ * UPDATED : 2026-11-27_1900 UTC — the one front door: services where photos don't help (rides, pet care, errands, events,
+ *           security, business tech) skip the photo step and price from the ZIP; business-only services start on the
+ *           Business path.
  * UPDATED : 2026-11-17_1600 UTC — up to $2,500: the estimate is the exact price to book now, no call or site visit needed
  *           (headline price + typical range); over that, or for events / safety cases, the range and why a visit comes first.
  */
@@ -43,7 +46,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
-import { BIZ_FREQUENCIES, BOARD_POST_FEE, OFFER_BOUNDS, offerCheck, BRAND, GET_IT_HANDLED, INDUSTRIES, INSTANT_PRICE_UP_TO, callCalendarLinks, categoryText, firstProjectLine, monthlyEstimate, money, moneyRange, photoShots, pickerCategories, pickerGroups, type CategoryId, type Frequency, type PickerAudience } from "@handled/core";
+import { BIZ_FREQUENCIES, BUSINESS_ONLY, photosHelp, BOARD_POST_FEE, OFFER_BOUNDS, offerCheck, BRAND, GET_IT_HANDLED, INDUSTRIES, INSTANT_PRICE_UP_TO, callCalendarLinks, categoryText, firstProjectLine, monthlyEstimate, money, moneyRange, photoShots, pickerCategories, pickerGroups, type CategoryId, type Frequency, type PickerAudience } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { CallScheduler, browserTz } from "./CallScheduler";
@@ -63,7 +66,7 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
   const [f, setF] = useState({ service: preset ?? "", details: "", timing: "", budget: "", zip: "", name: "", email: "", phone: "", website: "" });
   const [cat, setCat] = useState<CategoryId | null>(null);
   // the path starts with Home or Business, then walks to the right service (business: kind of business → its usual work)
-  const [audience, setAudience] = useState<PickerAudience | null>(startAudience ?? (preset ? "home" : null));
+  const [audience, setAudience] = useState<PickerAudience | null>(startAudience ?? (preset ? (BUSINESS_ONLY.has(preset) ? "business" : "home") : null));
   const [industry, setIndustry] = useState<string | null>(null);
   const [allCats, setAllCats] = useState(false);
   const [freq, setFreq] = useState<Frequency>("once");
@@ -78,6 +81,8 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
   const allCatInfo = useMemo(() => pickerCategories().map((c) => ({ id: c.id, icon: c.icon })), []);
   const catOf = (slug: string) => allCatInfo.find((c) => c.id === services.find((x) => x.slug === slug)?.category);
   const matches = useMemo(() => { const t = q.trim().toLowerCase(); const ok = new Set(cats.flatMap((c) => pickerGroups(c.id, audience ?? undefined).flatMap((g) => g.slugs))); return t ? services.filter((x) => ok.has(x.slug) && `${x.name} ${x.slug.replace(/-/g, " ")}`.toLowerCase().includes(t)).slice(0, 12) : []; }, [q, services, cats, audience]);
+  // photos help price most work; rides, pet care, errands, events, security and business tech skip that step
+  const needPhotos = photosHelp(f.service || null);
   const pick = (slug: string) => { setF((x) => ({ ...x, service: slug })); setQ(""); setEst(null); };
   const [photos, setPhotos] = useState<string[]>([]);
   const [showPhotos, setShowPhotos] = useState(false);
@@ -125,11 +130,11 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
   // automatic: once the 3 photos and a ZIP are in, price it without waiting for the button (once; the button re-prices)
   const auto = useRef(false);
   useEffect(() => {
-    if (auto.current || est || uploading || state !== "idle" || !(picked || skip) || photos.length < GET_IT_HANDLED.photos || !/^\d{5}$/.test(f.zip.trim())) return;
+    if (auto.current || est || uploading || state !== "idle" || !(picked || skip) || (needPhotos && photos.length < GET_IT_HANDLED.photos) || !/^\d{5}$/.test(f.zip.trim())) return;
     auto.current = true;
     void getEstimate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photos.length, f.zip, uploading, picked, skip, est, state, freq]);
+  }, [photos.length, f.zip, uploading, picked, skip, est, state, freq, needPhotos]);
 
   function bookHref(named?: number) {
     if (!est?.service_slug) return "/book";
@@ -318,12 +323,12 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
               <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">2 · {L("Quick description", "Descripción rápida")}</div>
               <textarea className="input mt-1 min-h-16" maxLength={2500} placeholder={skip ? L("What needs doing? A sentence is plenty.", "¿Qué hay que hacer? Una frase basta.") : L("e.g. 3 bedrooms and 2 baths, or a leaking kitchen faucet, or 2 couches and a fridge", "p. ej. 3 cuartos y 2 baños, o una llave de cocina que gotea, o 2 sofás y un refrigerador")} value={f.details} onChange={set("details")} aria-label={L("Quick description", "Descripción rápida")} />
             </div>
-            <div>
+            {needPhotos && <div>
               <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">3 · {L(`${GET_IT_HANDLED.photos} pictures`, `${GET_IT_HANDLED.photos} fotos`)}</div>
               <ol className="mb-2 mt-1 list-decimal space-y-0.5 pl-5 text-sm text-ink-soft">{photoShots(picked?.slug).slice(0, GET_IT_HANDLED.photos).map((t) => <li key={t}>{t}</li>)}</ol>
               <PhotoPicker value={photos} onChange={setPhotos} max={GET_IT_HANDLED.maxPhotos} onError={setErr} onBusy={setUploading} locale={es ? "es" : "en"} />
               <p className="mt-1 text-xs text-ink-soft">{photos.length >= GET_IT_HANDLED.photos ? L("Great, that's enough for an exact price.", "Perfecto, con eso basta para un precio exacto.") : L(`${GET_IT_HANDLED.photos - photos.length} more for the most accurate price (you can skip photos, but the price is a typical one).`, `${GET_IT_HANDLED.photos - photos.length} más para el precio más preciso (puede omitirlas, pero el precio será el típico).`)}</p>
-            </div>
+            </div>}
             <div className={`grid gap-3 ${biz ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
               <input className="input" inputMode="numeric" maxLength={5} placeholder={L("ZIP code", "Código postal")} value={f.zip} onChange={set("zip")} aria-label={L("ZIP code", "Código postal")} />
               {biz ? (

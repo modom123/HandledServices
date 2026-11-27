@@ -43,6 +43,7 @@
  * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-27_1500 UTC — "Post a project" is now "Get it Handled" (/post).
+ * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -80,8 +81,7 @@ export async function HomeClassic() {
           </h1>
           <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales verificados y con antecedentes revisados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Background-checked, vetted local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
-            <Link href="/post" className="btn-ghost px-6 py-3 text-base">📝 {es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
+            <Link href="/post" className="btn-primary px-6 py-3 text-base">{es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
           </div>
         </div>
@@ -89,11 +89,11 @@ export async function HomeClassic() {
           <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? "Lo más popular" : "Most popular"}</div>
           <div className="mt-3 grid grid-cols-2 gap-3">
             {top.map((s) => (
-              <Link key={s.slug} href={`/book?service=${s.slug}`} className="card flex flex-col p-4 transition hover:border-gold hover:bg-brand-tint sm:p-5">
+              <Link key={s.slug} href={`/post?service=${s.slug}`} className="card flex flex-col p-4 transition hover:border-gold hover:bg-brand-tint sm:p-5">
                 <span className="text-3xl sm:text-4xl">{s.icon}</span>
                 <span className="mt-3 text-base font-bold leading-tight sm:text-lg">{serviceText(l, s.slug, s).name}</span>
                 <span className="mt-1 flex-1 text-xs text-ink-soft sm:text-sm">{serviceText(l, s.slug, s).tagline}</span>
-                <span className="mt-3 text-sm font-semibold text-brand">{es ? "Reservar" : "Book now"} →</span>
+                <span className="mt-3 text-sm font-semibold text-brand">{es ? "Resuélvalo" : "Get it Handled"} →</span>
               </Link>
             ))}
           </div>
