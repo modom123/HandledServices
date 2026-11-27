@@ -13,6 +13,8 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-17_1446 UTC — Estimate first: posting gives an instant price estimate, then the customer books, works
  *           it through with an AI project manager, or has a real person call (steps and copy updated).
+ * UPDATED : 2026-11-27_1500 UTC — "Get it Handled": the page is branded Get it Handled; 3 steps (pick it, snap 3 photos, see
+ *           your price); services carry their category for the category-first picker.
  * UPDATED : 2026-11-17_1600 UTC — copy: projects up to $2,500 are priced instantly and booked with no call or site visit.
  */
 import Link from "next/link";
@@ -20,35 +22,37 @@ import { Ico } from "@/components/Glyph";
 import { BRAND, SERVICES, firstProjectLine, serviceText } from "@handled/core";
 import { getLocale } from "@/lib/locale";
 import { PostProjectForm } from "@/components/PostProjectForm";
+import { popularServices } from "@/lib/popular-services";
 
 export const metadata = {
-  title: "Post your project",
-  description: `Tell ${BRAND.name} what you need done — cleaning, repairs, remodeling, moving, business services and more. Get an instant estimate, then book, plan it with your AI project manager, or have a real person call — one background-checked, vetted pro does the work.`,
+  title: "Get it Handled",
+  description: `Get it Handled: pick what you need, snap 3 photos, answer 3 quick questions and see your price in about a minute. Cleaning, repairs, remodeling, moving, business services and more, done by one background-checked, vetted ${BRAND.name} pro.`,
   alternates: { canonical: "/post" },
 };
 
-export default async function PostProject({ searchParams }: { searchParams: Promise<{ service?: string }> }) {
+export default async function PostProject({ searchParams }: { searchParams: Promise<{ service?: string; for?: string }> }) {
   const l = await getLocale();
   const es = l === "es";
-  const { service } = await searchParams;
-  const services = SERVICES.map((s) => ({ slug: s.slug, name: serviceText(l, s.slug, s).name })).sort((a, b) => a.name.localeCompare(b.name));
+  const { service, for: forWho } = await searchParams;
+  const services = SERVICES.map((s) => ({ slug: s.slug, name: serviceText(l, s.slug, s).name, category: s.category })).sort((a, b) => a.name.localeCompare(b.name));
+  const popular = await popularServices().catch(() => ({ home: [], business: [] }));
   const preset = services.some((s) => s.slug === service) ? service! : null;
   const steps = es
-    ? [["Describa su proyecto", "Qué necesita, cuándo y su presupuesto; fotos si quiere. Toma un minuto."], ["Vea su estimado al instante", "Nuestra IA lee el proyecto y nuestro motor de precios lo calcula: sin datos de contacto. Los proyectos de hasta $2,500 se reservan a ese precio sin llamada ni visita; los más grandes reciben una visita gratis para un precio fijo."], ["Usted elige cómo seguir", "Reserve a ese precio, planéelo con su gerente de proyecto con IA (24/7), o pida que le llame una persona de Handled en minutos."], ["Un profesional verificado lo hace", "Verificado y con antecedentes revisados. Fotos al terminar y lo rehacemos gratis si algo falta."], ["Le devolvemos dinero", `Marque la casilla de socio y le pagamos ${firstProjectLine(true)} cuando terminemos su proyecto, más una parte de cada trabajo de las personas que nos envíe.`]]
-    : [["Describe your project", "What you need, when, and your budget — photos if you like. It takes a minute."], ["See your estimate instantly", "Our AI reads the project and our pricing engine prices it — no contact details needed. Projects up to $2,500 book at that price with no call or site visit; bigger jobs get a free site visit for a firm price."], ["You choose what's next", "Book at that price, plan it with your AI project manager (24/7), or have a real Handled person call within minutes."], ["One vetted pro does it", "Background-checked and vetted. Photo check-out after every job, and a free redo if anything's missed."], ["Get paid back", `Tick the partner box and we pay you ${firstProjectLine()} once your project is done, plus a share of every job from people you send us.`]];
+    ? [["Hogar o negocio, y lo que necesita", "Toque Hogar o Negocio y siga el camino hasta el servicio. ¿No sabe cómo se llama? Omítalo: sus fotos nos lo dicen."], ["Tome 3 fotos", "Le decimos qué fotografiar. Nuestra IA mide el trabajo con ellas: sin visita."], ["Vea su precio y resérvelo", `Código postal, cuándo, y listo: su precio en un minuto. Hasta $2,500 se reserva a ese precio; los proyectos más grandes reciben un precio fijo. Marque la casilla de socio y reciba ${firstProjectLine(true)}.`]]
+    : [["Home or business, then what you need", "Tap Home or Business, then follow the path to the service. Not sure what it's called? Skip it: your photos tell us."], ["Snap 3 photos", "We tell you what to shoot. Our AI sizes the job from them, so there's no walkthrough."], ["See your price and book it", `ZIP, when, done: your price in about a minute. Up to $2,500 books at that price; bigger projects get a firm price. Tick the partner box and get ${firstProjectLine()}.`]];
   return (
     <div className="wrap grid gap-10 pro:gap-8 py-12 lg:grid-cols-[1fr_1.15fr]">
       <div>
         <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark"><Ico i="📝" className="mr-0" />{es ? "Gratis y sin compromiso" : "Free, no obligation"}</span>
         <span className="ml-2 inline-flex items-center gap-2 rounded-full bg-gold-light/30 px-3 py-1 text-xs font-semibold"><Ico i="💵" className="mr-0" />{es ? `Reciba ${firstProjectLine(true)}` : `Get ${firstProjectLine()}`}</span>
-        <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{es ? "Publique su proyecto. Vea su precio." : "Post your project. See your price."} <span className="text-brand">{es ? "Nosotros nos encargamos." : "We'll handle it."}</span></h1>
-        <p className="mt-4 text-lg text-ink-soft">{es ? "Cualquier trabajo para su hogar o negocio, grande o pequeño. A diferencia de los sitios de clientes potenciales, no vendemos su información a cinco contratistas: Handled se encarga del trabajo de principio a fin." : "Any job for your home or business, big or small. Unlike lead sites, we don't sell your details to five contractors — Handled takes the job from first call to finished work."}</p>
+        <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{es ? "Resuélvalo con" : "Get it"} <span className="text-brand">Handled.</span></h1>
+        <p className="mt-4 text-lg text-ink-soft">{es ? "Elija, tome 3 fotos, responda 3 preguntas: su precio en un minuto. Cualquier trabajo para su hogar o negocio, y nunca vendemos sus datos a otros contratistas." : "Pick it, snap 3 photos, answer 3 quick questions: your price in about a minute. Any job for your home or business, and we never sell your details to other contractors."}</p>
         <ol className="mt-8 space-y-5">{steps.map(([t, d], i) => (
           <li key={t} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</span><span><span className="block font-semibold">{t}</span><span className="block text-sm text-ink-soft">{d}</span></span></li>
         ))}</ol>
         <p className="mt-8 text-sm text-ink-soft">{es ? "¿Ya sabe lo que quiere?" : "Already know what you want?"} <Link href="/book" className="font-semibold text-brand">{es ? "Vea su precio al instante" : "Get an instant price"} →</Link> · <Link href="/snap" className="font-semibold text-brand">{es ? "Tome una foto, publique un trabajo" : "Snap a photo, post a job"} →</Link></p>
       </div>
-      <PostProjectForm es={es} services={services} preset={preset} />
+      <PostProjectForm es={es} services={services} preset={preset} audience={forWho === "business" ? "business" : forWho === "home" ? "home" : null} popular={popular} />
     </div>
   );
 }

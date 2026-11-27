@@ -33,6 +33,7 @@
  * UPDATED : 2026-11-10_0320 UTC — the Snap a photo button now says "Snap a photo, post a job".
  * UPDATED : 2026-11-11_2330 UTC — /pros pages: Apply now / Pro sign in in place of Book now / Snap a photo (SideNav forPros).
  * UPDATED : 2026-11-24_1700 UTC — Partners menu: Path 1 · Refer and Path 2 · Sell (the Sales careers page).
+ * UPDATED : 2026-11-27_1500 UTC — "Post a project" is now "Get it Handled" (/post).
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -108,7 +109,7 @@ export async function SiteHeader() {
     },
   ];
   const links = [
-    { href: "/post", label: es ? "Publique su proyecto" : "Post a project", icon: "📝" },
+    { href: "/post", label: es ? "Resuélvalo con Handled" : "Get it Handled", icon: "📝" },
     { href: "/job-board", label: es ? "Tablero de trabajos" : "Job board", icon: "📋" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];

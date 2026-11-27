@@ -39,6 +39,7 @@
  * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
  * UPDATED : 2026-11-10_0100 UTC — synced with main: Business & Technology has its own door (not in the service grid), a "Post a project"
  *           button in the hero, and no "How it works" or "We build" sections (main removed them).
+ * UPDATED : 2026-11-27_1500 UTC — "Post a project" is now "Get it Handled" (/post).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -79,7 +80,7 @@ export async function HomePro() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
-            <Link href="/post" className="btn-ghost px-6 py-3 text-base"><Ico i="📝" className="mr-1" />{es ? "Publique su proyecto" : "Post a project"}</Link>
+            <Link href="/post" className="btn-ghost px-6 py-3 text-base"><Ico i="📝" className="mr-1" />{es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
           </div>
         </div>
         <div>
