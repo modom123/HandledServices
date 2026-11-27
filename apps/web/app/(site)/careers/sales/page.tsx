@@ -21,15 +21,16 @@
  * UPDATED : 2026-11-24_1700 UTC — one chart: every rank shows the rate a sale really pays (core rankSaleRate — Associate 20%, not
  *           the 15% that was never paid); the "higher of the two" footnote is gone.
  * UPDATED : 2026-11-24_2200 UTC — canonical URL (SEO review).
+ * UPDATED : 2026-11-27_2100 UTC — Path 2 · Sell has its own sign-up here (#join, the Sales Force form); Apply buttons scroll to it.
  */
 import Link from "next/link";
-import { rankSaleRate, DIRECT_BONUS, REFERRAL_LADDER, CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
+import { PartnerSignUp } from "@/components/PartnerUI";
+import { rankSaleRate, DIRECT_BONUS, REFERRAL_LADDER, CONTRACTOR, LEADER_RETAINER, FAST_MONEY, PATHS_TO_100K, earningsPlan, promotionChart, sellerTimeline, LEADERBOARD, PROFIT_SHARE, PARTNER_KINDS, partnerTerms, RANK_ORDER, SALES_POOL, SALES_RANKS, exampleMonth, nextRanks, type SalesRank } from "@handled/core";
 
 export const metadata = { alternates: { canonical: "/careers/sales" }, title: "Sales careers: Associate AE to VP of Sales", description: "Start as an Associate Account Executive and grow to VP of Sales. Share of the profit you sell, a book that keeps paying, and leadership that pays." };
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const pct = (r: number) => `${Math.round(r * 100)}%`;
-const APPLY_BASE = "/partners?kind=sales_rep&utm_source=careers_sales";
 
 const SELLER: SalesRank[] = ["associate", "ae", "senior_ae", "principal_ae"];
 const LEADER: SalesRank[] = ["team_lead", "manager", "director", "vp"];
@@ -92,7 +93,9 @@ function PromotionChart() {
 export default async function SalesCareers({ searchParams }: { searchParams: Promise<{ leader?: string }> }) {
   // a leader's recruit link (?leader=CODE) carries through to the sign-up, so the new rep joins their team
   const leader = (await searchParams).leader;
-  const APPLY = `${APPLY_BASE}${leader && /^[A-Za-z0-9-]{3,20}$/.test(leader) ? `&leader=${encodeURIComponent(leader)}` : ""}#join`;
+  // the sign-up is on this page (#join); a leader's recruit link keeps ?leader= in the URL, which the form reads
+  const APPLY = "#join";
+  void leader;
   const examples = [
     { rank: "ae" as const, who: "Account Executive, month 4", m: exampleMonth({ rank: "ae", homeJobs: 20, homeProfitEach: 100, newAccounts: 2, accountProfitMonthly: 375, bookAccounts: 6 }), note: "20 home jobs, 2 new office accounts, 6 accounts from earlier months still paying" },
     { rank: "senior_ae" as const, who: "Senior AE", m: exampleMonth({ rank: "senior_ae", homeJobs: 10, homeProfitEach: 100, newAccounts: 4, accountProfitMonthly: 375, bookAccounts: 15 }), note: "10 home jobs, 4 new accounts, 15 accounts still paying" },
@@ -213,6 +216,24 @@ export default async function SalesCareers({ searchParams }: { searchParams: Pro
             </ul>
             <Link href={APPLY} className="btn-primary mt-6 inline-block px-8 py-3 text-base">Apply in 2 minutes</Link>
             <p className="mt-3 text-xs text-ink-soft">Everyone in the Handled Sales Force is an independent contractor (1099), not an employee. Titles show your commission level. We send a {CONTRACTOR.form} each year you earn $600 or more.</p>
+          </div>
+        </div>
+      </section>
+      <section id="join" className="scroll-mt-20 border-t border-line bg-paper">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-2">
+          <div>
+            <h2 className="text-2xl font-bold">Join the Sales Force</h2>
+            <p className="mt-2 text-sm text-ink-soft">Two minutes. No fee, no quota. Your first sale makes you an Associate Account Executive.</p>
+            <div className="mt-4"><PartnerSignUp path="sell" kinds={Object.entries(PARTNER_KINDS).filter(([k]) => k !== "pro")} defaultKind="sales_rep" /></div>
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">Partner terms</h2>
+            <p className="mt-1 text-sm">The full terms are in the <a href="/terms/referral-partner-agreement" className="font-semibold text-brand underline">Referral Partner Agreement</a>. You agree to them when you sign up.</p>
+            <details className="mt-3 rounded-xl border border-line bg-white p-3 text-sm">
+              <summary className="cursor-pointer font-semibold text-brand">Read the terms ({partnerTerms().length} points)</summary>
+              <ol className="mt-3 list-decimal space-y-2 pl-5 text-ink-soft">{partnerTerms().map((t, i) => <li key={i}>{t}</li>)}</ol>
+            </details>
+            <p className="mt-4 text-sm">Rather just send us customers? <Link href="/partners/refer" className="font-semibold text-brand underline">Path 1 · Refer</Link></p>
           </div>
         </div>
       </section>

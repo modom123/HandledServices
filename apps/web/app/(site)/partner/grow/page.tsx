@@ -25,7 +25,7 @@ export default async function Grow({ searchParams }: { searchParams: Promise<{ p
     <div className="wrap py-12"><div className="card mx-auto max-w-lg text-center">
       <h1 className="text-xl font-bold">Join the Partner Program first</h1>
       <p className="mt-2 text-sm text-ink-soft">The growth roadmaps track your own customers and earnings.</p>
-      <Link href="/partners#join" className="btn-primary mt-4 inline-block">Become a partner</Link>
+      <Link href="/partners" className="btn-primary mt-4 inline-block">Become a partner</Link>
     </div></div>
   );
   const suggested = roadmapFor(partner.kind);

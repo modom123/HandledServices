@@ -182,8 +182,8 @@ export async function SiteFooter() {
           { href: "/pros#apply", label: es ? "Hágase profesional" : "Become a pro" },
           { href: "/careers", label: es ? "Empleos" : "Careers" },
           { href: "/pros#rewards", label: t("Pro Rewards & tiers") },
-          { href: "/partners#join", label: es ? "Hágase socio" : "Become a partner" },
-          { href: "/partners#field-sales", label: es ? "Ventas directas" : "Field Sales" },
+          { href: "/partners", label: es ? "Hágase socio" : "Become a partner" },
+          { href: "/careers/sales", label: es ? "Ventas directas" : "Field Sales" },
           { href: "/plus", label: "Handled Plus" },
           { href: "/gift-cards", label: t("Gift cards") },
         ])}

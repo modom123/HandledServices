@@ -15,6 +15,7 @@
  * UPDATED : 2026-11-17_2100 UTC — the sign-up checkbox e-signs the Referral Partner Agreement (linked); AgreementSign for existing partners.
  * UPDATED : 2026-11-18_0105 UTC — sign-up sends ?leader= (a Sales Force leader's recruit link) so the new rep joins that team.
  * UPDATED : 2026-11-24_1700 UTC — sign-up asks first: Path 1 · Refer (then "I am a…") or Path 2 · Sell (joins the Sales Force).
+ * UPDATED : 2026-11-27_2100 UTC — PartnerSignUp path="refer" | "sell": each path's page has its own form (no Path 1 / Path 2 choice).
  */
 "use client";
 
@@ -31,10 +32,10 @@ async function post(url: string, body: unknown) {
   return { ok: r.ok, data: j as Record<string, unknown>, error: String(j.error ?? "Something went wrong — try again") };
 }
 
-export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [string, string][]; defaultKind?: string }) {
+export function PartnerSignUp({ kinds, defaultKind = "realtor", path: fixedPath }: { kinds: [string, string][]; defaultKind?: string; /** each path's own page fixes it (no choice shown) */ path?: "refer" | "sell" }) {
   // two paths (2026-11-24): refer → pick who you are; sell → the Sales Force (kind sales_rep joins it on sign-up)
   const referKinds = kinds.filter(([k]) => k !== "sales_rep");
-  const [path, setPath] = useState<"refer" | "sell">(defaultKind === "sales_rep" ? "sell" : "refer");
+  const [path, setPath] = useState<"refer" | "sell">(fixedPath ?? (defaultKind === "sales_rep" ? "sell" : "refer"));
   const [f, setF] = useState({ name: "", email: "", phone: "", company: "", kind: defaultKind === "sales_rep" ? (referKinds[0]?.[0] ?? "other") : defaultKind, how: "", agree: false });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
       setBusy(false);
       if (r.ok) setDone(r.data as never); else setErr(r.error);
     }}>
-      <fieldset>
+      {!fixedPath && <fieldset>
         <legend className="text-sm font-semibold">What do you want to do?</legend>
         <div className="mt-1 grid gap-2 sm:grid-cols-2">
           {([["refer", "Path 1 · Refer", "Send us customers, we sell and do the job"], ["sell", "Path 2 · Sell", "Close jobs yourself as part of the Sales Force"]] as const).map(([v, t, d]) => (
@@ -73,7 +74,7 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
             </label>
           ))}
         </div>
-      </fieldset>
+      </fieldset>}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Your name<input className="input mt-1" required value={f.name} onChange={set("name")} /></label>
         <label className="text-sm">Email<input className="input mt-1" type="email" required value={f.email} onChange={set("email")} /></label>
@@ -83,7 +84,7 @@ export function PartnerSignUp({ kinds, defaultKind = "realtor" }: { kinds: [stri
       {path === "refer" && <label className="block text-sm">I am a…<select className="input mt-1" value={f.kind} onChange={set("kind")}>{referKinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
       <label className="block text-sm">{path === "sell" ? "Where or what will you sell? (optional)" : "How will you refer people? (optional)"}<textarea className="input mt-1" rows={2} value={f.how} onChange={set("how")} placeholder="e.g. I list 40 homes a year and my sellers always need move-out cleans" /></label>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} /><span>I've read and sign the <a href="/terms/referral-partner-agreement" target="_blank" className="font-semibold underline">Referral Partner Agreement</a>. My name above is my electronic signature.</span></label>
-      <button className="btn-primary w-full" disabled={busy || !f.agree}>{busy ? "Signing you up…" : "Get my partner link"}</button>
+      <button className="btn-primary w-full" disabled={busy || !f.agree}>{busy ? "Signing you up…" : path === "sell" ? "Join the Sales Force" : "Get my partner link"}</button>
       {err && <p className="text-sm text-rose-700">{err}</p>}
     </form>
   );

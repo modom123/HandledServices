@@ -20,7 +20,7 @@ export function HomeDoors({ es, servicesCount }: { es: boolean; servicesCount: n
   const doors = [
     { href: "/services", icon: "🧽", title: es ? "Servicios" : "Services", body: es ? `Los ${servicesCount} servicios, con precio al instante` : `All ${servicesCount} services, priced instantly`, cta: es ? "Ver servicios" : "See services" },
     { href: "/pros#apply", icon: "🧰", title: es ? "Hágase profesional" : "Become a Pro", body: es ? "Trabajos pagados, pago semanal, sin cuotas" : "Paid jobs, weekly pay, no lead fees", cta: es ? "Postularme" : "Apply now" },
-    { href: "/partners#join", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? `Refiera (${referralRange()} de nuestra ganancia) o venda usted mismo (5 puntos más)` : `Refer (${referralRange()} of our profit) or sell it yourself (5 points more)`, cta: es ? "Registrarme" : "Sign up" },
+    { href: "/partners", icon: "💸", title: es ? "Hágase socio" : "Become a Partner", body: es ? `Refiera (${referralRange()} de nuestra ganancia) o venda usted mismo (5 puntos más)` : `Refer (${referralRange()} of our profit) or sell it yourself (5 points more)`, cta: es ? "Registrarme" : "Sign up" },
     { href: "/network", icon: "🌐", title: es ? "Red Handled" : "Handled Network", body: es ? "Su portal: clientes, empresas, profesionales, socios y equipo" : "Your portal: customers, businesses, pros, partners & team", cta: es ? "Entrar" : "Sign in" },
     { href: "/technology", icon: "💡", title: es ? "Negocios y tecnología" : "Business & Technology", body: es ? "Sitios web inteligentes, sistemas para negocios y automatización" : "Intelligent websites, business systems and automation", cta: es ? "Consulta gratis" : "Free consultation", wide: true },
   ];

@@ -53,7 +53,7 @@ export default async function PartnerHome({ searchParams }: { searchParams: Prom
     <div className="wrap py-20 pro:py-12"><div className="card mx-auto max-w-lg text-center">
       <h1 className="text-xl font-bold">You&apos;re not a partner yet</h1>
       <p className="mt-2 text-sm text-ink-soft">{v.email} isn&apos;t in the Partner Program. Join in two minutes. If you signed up with a different email, sign in with that one.</p>
-      <Link href="/partners#join" className="btn-primary mt-4 inline-block">Become a partner</Link>
+      <Link href="/partners" className="btn-primary mt-4 inline-block">Become a partner</Link>
     </div></div>
   );
   const db = adminClient();
