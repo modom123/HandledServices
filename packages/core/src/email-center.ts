@@ -21,6 +21,8 @@
  * UPDATED : 2026-11-24_2330 UTC — business-leads audience includes leads in the outreach sequence (it skipped them, so the
  *           audience was nearly empty); EMAIL_LIMITS.catchUpMax and outreachGapDays.
  * UPDATED : 2026-11-25_1900 UTC — outreachGapDays 7: one email a week per business lead, outreach and campaigns together.
+ * UPDATED : 2026-11-27_1800 UTC — "Post your project" is now "Get it Handled" (/post): quick description, 3 photos, AI quote, then book at
+ *           Handled's price or name your price.
  */
 import { BRAND } from "./brand.ts";
 
@@ -107,16 +109,16 @@ The {{brand}} team`,
   },
   {
     key: "post_project", name: "Got a project? Post it (our own leads)", audience: "customers",
-    subject: "Got a project on your list?", preheader: "Describe it in a minute and see a price right away.",
+    subject: "Got a project on your list?", preheader: "3 photos, a quick description, your price in a minute.",
     body: `Hi {{first_name|there}},
 
-Fence, deck, a room to paint, a garage to clear out? Tell us about it in a minute and you'll see a price estimate right away. Most projects up to $2,500 can be booked on the spot, no call or site visit.
+Fence, deck, a room to paint, a garage to clear out? Get it Handled: a quick description and 3 photos, and our AI gives you a price in about a minute. Book it at our price or name your own. Most projects up to $2,500 book on the spot, no call or site visit.
 
 • Background-checked, vetted pros
 • An exact price before anything is booked
 • Photos when it's done, and we make it right if it isn't
 
-[Post my project]({{post_url}})
+[Get it Handled]({{post_url}})
 
 Know someone with a project? Send them the same link.
 
@@ -124,13 +126,13 @@ The {{brand}} team`,
     subject_es: "¿Tiene un proyecto pendiente?",
     body_es: `Hola {{first_name|there}},
 
-¿Una cerca, una terraza, un cuarto que pintar, un garaje que vaciar? Cuéntenos en un minuto y verá un precio estimado al instante. La mayoría de los proyectos de hasta $2,500 se reservan en el momento, sin llamada ni visita.
+¿Una cerca, una terraza, un cuarto que pintar, un garaje que vaciar? Resuélvalo con Handled: una descripción rápida y 3 fotos, y nuestra IA le da un precio en un minuto. Resérvelo a nuestro precio o ponga el suyo. La mayoría de los proyectos de hasta $2,500 se reservan en el momento, sin llamada ni visita.
 
 • Profesionales verificados y con antecedentes revisados
 • Un precio exacto antes de reservar
 • Fotos al terminar, y lo arreglamos si algo no queda bien
 
-[Publicar mi proyecto]({{post_url}})
+[Resuélvalo con Handled]({{post_url}})
 
 El equipo de {{brand}}`,
   },

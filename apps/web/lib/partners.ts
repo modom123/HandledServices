@@ -120,14 +120,14 @@ export async function signUp(o: { name: string; email: string; phone?: string | 
 export async function enrollFromPost(o: { name: string; email: string; phone?: string | null; service_slug?: string | null; ip: string | null }): Promise<{ code: string; reward: boolean } | null> {
   try {
     const email = lower(o.email);
-    const { partner } = await signUp({ name: o.name, email, phone: o.phone, kind: "customer", how: "Post your project", ip: o.ip });
+    const { partner } = await signUp({ name: o.name, email, phone: o.phone, kind: "customer", how: "Get it Handled", ip: o.ip });
     if (partner.status !== "active") return { code: partner.code, reward: false };
     const { data: taken } = await db().from("referral_customers").select("partner_id, source").eq("customer_email", email).maybeSingle();
     if (taken) return { code: partner.code, reward: taken.partner_id === partner.id && taken.source === "self" };
     if (await isExistingCustomer(email)) return { code: partner.code, reward: false };
     const { error } = await db().from("referral_customers").insert({
       partner_id: partner.id, customer_email: email, customer_name: o.name, customer_phone: o.phone || null,
-      service_slug: o.service_slug || null, source: "self", note: "Post your project — first-project reward",
+      service_slug: o.service_slug || null, source: "self", note: "Get it Handled — first-project reward",
       expires_at: partnerExpiry(new Date()).toISOString(),
     });
     return { code: partner.code, reward: !error }; // error: the post-and-earn SQL isn't run yet, or a race

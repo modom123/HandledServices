@@ -22,6 +22,8 @@
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology is consultation-only again (consultOnly): no price, deposit or
  *           "order" wording — a Free consultation panel, consultation steps and a Book a free consultation button.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-27_1800 UTC — "Post your project" is now "Get it Handled" (/post): quick description, 3 photos, AI quote, then book at
+ *           Handled's price or name your price.
  */
 import Link from "next/link";
 import { BOOK_NOW, BRAND, CATEGORIES, SERVICE_AREA, STATE_NAME, marketForCity, SITE_VISIT_OVER, siteVisitReason, defaultAnswers, estimate, overDepositLimit, SERVICES, categoryText, priceHint, serviceText, t as tr, type Locale, type SeoCity, type Service, consultOnly } from "@handled/core";
@@ -124,7 +126,7 @@ export function ServiceLanding({ s, city, reviews, locale = "en" }: { s: Service
         {visitFirst && !consult && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Free on-site estimate — a pro confirms the firm price before any work.</p>}
         {big && <p className="mt-3 rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">{s.remote ? `Over ${limit}? No deposit — a specialist sends your firm price online first.` : `Over ${limit}? No deposit — a free site visit confirms the firm price first.`}</p>}
         <Link href={book} className="btn-primary mt-5 w-full py-3">{cta}</Link>
-        <Link href={`/post?service=${s.slug}`} className="mt-2 block text-center text-sm font-semibold text-brand">{es ? "¿Proyecto distinto? Publíquelo y le llamamos →" : "Something different? Post your project and we'll call you →"}</Link>
+        <Link href={`/post?service=${s.slug}`} className="mt-2 block text-center text-sm font-semibold text-brand">{es ? "¿Algo distinto? Resuélvalo con Handled: 3 fotos y su precio →" : "Something different? Get it Handled: 3 photos and your price →"}</Link>
         <p className="mt-4 text-xs text-ink-soft">{consult ? (es ? "Usted es dueño de todo lo que entregamos." : "You own everything we deliver.") : tech ? (es ? `Hasta ${limit}, un depósito del ${pct} inicia el trabajo; el resto se paga en la entrega. Usted es dueño de todo lo que le entregamos.` : `Up to ${limit}, a ${pct} deposit starts the work — pay the rest on delivery. You own everything we deliver.`) : BRAND.promise}</p>
       </aside>
 

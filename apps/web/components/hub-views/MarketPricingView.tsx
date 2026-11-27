@@ -10,12 +10,14 @@
  *           each as a % of the price (slidingScale, the same math that pays pros); Pro share column per service.
  * UPDATED : 2026-10-09_0310 UTC — sliding-scale note matches the +5-point price change (pro keeps ~75% → ~63% of the price).
  * UPDATED : 2026-10-11_0451 UTC — admins only (components/AdminOnly); hidden from dispatchers in the Hub menu.
+ * UPDATED : 2026-11-27_1800 UTC — Market research section (what others charge; the AI quote learns from it with pro outcomes and
+ *           finished jobs).
  * UPDATED : 2026-10-15_0200 UTC — moved here from a page file: Mastermind → Growth → Pricing, "Market pricing" view (was /hub/market — now redirects).
  */
-import { BOOKING_FEE, COMMISSION, MARKET_BOUNDS, SERVICES, TAKE_MAX, commissionRate, defaultAnswers, estimate, money, slidingScale, splitJob } from "@handled/core";
+import { BOOKING_FEE, COMMISSION, MARKET_BOUNDS, QUOTE_LEARNING, SERVICES, TAKE_MAX, commissionRate, defaultAnswers, estimate, money, slidingScale, splitJob } from "@handled/core";
 import { adminClient } from "@/lib/supabase/server";
 import { Stat } from "@/components/ui";
-import { FactorOverride, RelearnButton } from "@/components/MarketAdmin";
+import { FactorOverride, RelearnButton, ResearchDelete, ResearchForm } from "@/components/MarketAdmin";
 import { adminOnly } from "@/components/AdminOnly";
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -24,10 +26,11 @@ export default async function MarketPricing() {
   const gate = await adminOnly(); if (gate) return gate;
   const db = adminClient();
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
-  const [{ data: sig }, { data: factors }, { data: offers }] = await Promise.all([
+  const [{ data: sig }, { data: factors }, { data: offers }, { data: research }] = await Promise.all([
     db.from("price_signals").select("service_slug, price, suggested, outcome, counter").gte("created_at", since).limit(50000),
     db.from("market_factors").select("service_slug, area, factor, manual_factor, samples, target, updated_at").eq("area", "all"),
     db.from("jobs").select("service_slug, suggested_price, customer_offer").not("customer_offer", "is", null).gte("created_at", since).limit(20000),
+    db.from("market_research").select("id, service_slug, area, low, typical, high, source, note, researched_on, created_by").order("researched_on", { ascending: false }).limit(60).then((r) => r, () => ({ data: null })),
   ]);
   type S = { service_slug: string; price: number; suggested: number; outcome: string; counter: number | null };
   const by = new Map<string, S[]>();
@@ -43,7 +46,7 @@ export default async function MarketPricing() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Market pricing</h1>
-          <p className="text-sm text-ink-soft">Customers can name their price around our suggestion; pros accept, pass or counter. Every outcome teaches the suggestion (daily, damped, kept within {MARKET_BOUNDS.min}–{MARKET_BOUNDS.max}× and only after {MARKET_BOUNDS.minSamples}+ outcomes). Set a factor to override; clear it to let it learn.</p>
+          <p className="text-sm text-ink-soft">Every quote (booking page and Get it Handled) learns from three things: pros accepting, passing or countering offers; what finished jobs really came to vs. what we quoted; and the market research below. Each teaches the suggestion (daily, damped, kept within {MARKET_BOUNDS.min}–{MARKET_BOUNDS.max}× and only after {MARKET_BOUNDS.minSamples}+ outcomes). Set a factor to override; clear it to let it learn.</p>
         </div>
         <RelearnButton />
       </div>
@@ -107,6 +110,29 @@ export default async function MarketPricing() {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="card space-y-3">
+        <div>
+          <h2 className="font-bold">Market research</h2>
+          <p className="text-sm text-ink-soft">What other companies charge for a typical job. Each entry counts as {QUOTE_LEARNING.researchWeight} signals in the daily learning, next to pro outcomes and finished jobs (last {QUOTE_LEARNING.researchDays} days of research count).</p>
+        </div>
+        {research === null ? <p className="text-sm text-amber-800">Run supabase/setup/RUN_ONCE_MARKET_RESEARCH_2026-11-27_1800.sql in Supabase to turn this on.</p> : (
+          <>
+            <ResearchForm services={SERVICES.filter((x) => !x.siteVisit).map((x) => ({ slug: x.slug, name: x.name, typical: estimate({ slug: x.slug, answers: defaultAnswers(x), market: Number(f.get(x.slug)?.manual_factor ?? f.get(x.slug)?.factor ?? 1) }).point }))} />
+            {(research as { id: string; service_slug: string; area: string; low: number | null; typical: number; high: number | null; source: string | null; note: string | null; researched_on: string; created_by: string | null }[]).length > 0 && (
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs uppercase tracking-wide text-ink-soft"><tr><th className="py-1">Service</th><th>Area</th><th className="text-right">Low</th><th className="text-right">Typical</th><th className="text-right">High</th><th>Source</th><th>Date</th><th></th></tr></thead>
+                <tbody>{(research as { id: string; service_slug: string; area: string; low: number | null; typical: number; high: number | null; source: string | null; note: string | null; researched_on: string; created_by: string | null }[]).map((r) => (
+                  <tr key={r.id} className="border-t border-line">
+                    <td className="py-1.5">{SERVICES.find((x) => x.slug === r.service_slug)?.name ?? r.service_slug}</td><td>{r.area}</td>
+                    <td className="text-right">{r.low ? money(Number(r.low)) : "—"}</td><td className="text-right font-semibold">{money(Number(r.typical))}</td><td className="text-right">{r.high ? money(Number(r.high)) : "—"}</td>
+                    <td className="text-xs">{r.source ?? ""}{r.note ? ` · ${r.note}` : ""}</td><td className="text-xs text-ink-soft">{r.researched_on}</td><td><ResearchDelete id={r.id} /></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
+          </>
+        )}
       </div>
       <p className="text-xs text-ink-soft">Typical price = the default job on the booking page, after the factor, including the booking fee. Site-visit services (quoted on site) aren’t listed. Per-ZIP-area factors are learned too and used automatically where there’s enough data.</p>
     </div>

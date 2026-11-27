@@ -10,6 +10,8 @@
  *           Google Business Profile, flyers, email and texts; their leads show up by channel below.
  * UPDATED : 2026-11-17_1530 UTC — Scheduled calls: calls customers booked on the appointment calendar (today and coming
  *           up, soonest first, with tap-to-call); booked leads aren't flagged as "waiting"; admins set the call hours.
+ * UPDATED : 2026-11-27_1800 UTC — "Post your project" is now "Get it Handled" (/post): quick description, 3 photos, AI quote, then book at
+ *           Handled's price or name your price.
  */
 import Link from "next/link";
 import { CHANNELS, SERVICE_BY_SLUG, channelLabel, channelOf, money } from "@handled/core";
@@ -84,7 +86,7 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
       <section className="card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold">📅 Scheduled calls</h2>
-          <span className="text-xs text-ink-soft">Booked by customers on Post your project and in the AI project manager · times in Eastern</span>
+          <span className="text-xs text-ink-soft">Booked by customers on Get it Handled and in the AI project manager · times in Eastern</span>
         </div>
         {scheduled.length ? (
           <div className="mt-3 divide-y divide-line">
@@ -104,12 +106,12 @@ export default async function LeadInbox({ searchParams }: { searchParams: Promis
               );
             })}
           </div>
-        ) : <p className="mt-2 text-sm text-ink-soft">No calls booked yet. Customers book them from Post your project (“Have a person call me” → Pick a time) and the AI project manager.</p>}
+        ) : <p className="mt-2 text-sm text-ink-soft">No calls booked yet. Customers book them from Get it Handled (“Have a person call me” → Pick a time) and the AI project manager.</p>}
         {viewer?.role === "admin" && <CallHoursEditor initial={hours} />}
       </section>
       {/* where to post: tracked links to "Post your project" (/post); each lead shows its channel below */}
       <section className="card">
-        <h2 className="text-lg font-bold">Links to share — Post your project</h2>
+        <h2 className="text-lg font-bold">Links to share — Get it Handled</h2>
         <p className="mt-1 text-sm text-ink-soft">Post these in Facebook groups, on Nextdoor, in your Instagram and TikTok bios, on flyers (QR code) and in emails. Anyone who posts a project lands here as a lead for us to call — never sold or shared. Each link records where the lead came from, so the Channels table shows which places work.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {POST_LINKS.map(([label, q]) => (

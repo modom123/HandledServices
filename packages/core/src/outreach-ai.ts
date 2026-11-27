@@ -14,6 +14,8 @@
  *                                     no deceptive "Re:/Fwd:" on a first email, no ALL-CAPS or spam words
  *             checkReplyDraft       — the same honesty rules for an AI-drafted answer to a reply
  *             CAMPAIGN_GOALS        — starting points for the Email Center's AI campaign writer
+ * UPDATED : 2026-11-27_1800 UTC — "Post your project" is now "Get it Handled" (/post): quick description, 3 photos, AI quote, then book at
+ *           Handled's price or name your price.
  */
 import { BRAND } from "./brand.ts";
 
@@ -104,7 +106,7 @@ export const CAMPAIGN_GOALS: { key: string; label: string; goal: string }[] = [
   { key: "winback", label: "Win back lapsed customers", goal: "Customers who haven't booked in 90+ days: a friendly check-in, what's new, and an easy way to book again." },
   { key: "new_service", label: "Announce a service", goal: "Announce a service customers may not know we offer, with who it's for and how to book." },
   { key: "biz_followup", label: "Business accounts update", goal: "Business account members: recurring cleaning and turnover work, one account for every property, priority scheduling." },
-  { key: "post", label: "Post a project", goal: "Get customers to post the projects on their list (fences, decks, painting, cleanouts) with the {{post_url}} button: a price estimate in a minute, booked on the spot for most projects. Ask them to forward it to a friend with a project." },
+  { key: "post", label: "Get it Handled", goal: "Get customers to send the projects on their list (fences, decks, painting, cleanouts) with the {{post_url}} button (Get it Handled): a quick description and 3 photos, an AI quote in about a minute, then book at our price or name their own. Ask them to forward it to a friend with a project." },
   { key: "reviews", label: "Ask for referrals", goal: `Happy customers: refer a friend or neighbor; ${BRAND.name} is local, vetted and priced up front.` },
   { key: "pros", label: "Pro network news", goal: "Approved pros: network news and how to get more of the jobs they want. Never pressure to take jobs." },
 ];
